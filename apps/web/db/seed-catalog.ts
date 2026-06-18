@@ -7,7 +7,21 @@ const PLANS = [
   { key: "mixed", name: "Veg & Non-Veg Mixed Plan", description: "Alternating vegetarian and non-vegetarian days." },
 ];
 
-const MEAL_SIZES = [
+type MealSizeSeed = {
+  key: string;
+  name: string;
+  tier: "budget" | "medium" | "premium";
+  diet: "veg" | "nonveg" | "both";
+  components: string[];
+  kcalMin: number;
+  kcalMax: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  basePrice: string;
+};
+
+const MEAL_SIZES: MealSizeSeed[] = [
   { key: "small_thali", name: "Small Thali", tier: "budget", diet: "veg", components: ["12oz Sabzi", "12oz Rice", "2 Rotis"], kcalMin: 550, kcalMax: 650, proteinG: 18, carbsG: 90, fatG: 16, basePrice: "9.99" },
   { key: "sabzi_only", name: "Sabzi Only", tier: "budget", diet: "veg", components: ["2x 8oz Sabzi", "8oz Daal"], kcalMin: 400, kcalMax: 550, proteinG: 20, carbsG: 45, fatG: 18, basePrice: "8.49" },
   { key: "four_item_regular", name: "4-Item Thali (Regular)", tier: "medium", diet: "both", components: ["8oz Sabzi", "8oz Daal", "12oz Rice", "2 Rotis"], kcalMin: 750, kcalMax: 850, proteinG: 28, carbsG: 110, fatG: 22, basePrice: "11.99" },
@@ -16,7 +30,7 @@ const MEAL_SIZES = [
   { key: "new_thali", name: "New Thali", tier: "medium", diet: "both", components: ["8oz Sabzi", "8oz Daal", "8 Rotis"], kcalMin: 900, kcalMax: 1100, proteinG: 34, carbsG: 130, fatG: 24, basePrice: "12.49" },
   { key: "five_item_large", name: "5-Item Thali (Large)", tier: "premium", diet: "both", components: ["12oz Sabzi", "12oz Daal", "12oz Rice", "6 Rotis", "Salad", "Raita"], kcalMin: 1200, kcalMax: 1450, proteinG: 44, carbsG: 165, fatG: 34, basePrice: "16.99" },
   { key: "maharaja_thali", name: "Maharaja Thali", tier: "premium", diet: "both", components: ["12oz Sabzi", "12oz Daal", "8oz Sabzi", "12oz Rice", "8 Rotis", "Salad", "Raita"], kcalMin: 1500, kcalMax: 1750, proteinG: 52, carbsG: 190, fatG: 40, basePrice: "19.99" },
-] as const;
+];
 
 const ADDONS = [
   { key: "saturday", name: "Saturday Special (Biryanis & Pulaos)", pricePerWeek: "15.00" },
