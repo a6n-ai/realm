@@ -1,6 +1,7 @@
 import type { Condition, Page, PageRequest } from "@tiffin/commons";
 import { NotFoundError } from "@tiffin/commons";
 import type { PgTable } from "drizzle-orm/pg-core";
+import { stripManaged } from "./managed-fields";
 import type { BaseRepository, UpdatableRepository } from "./repository";
 
 export class BaseService<TTable extends PgTable> {
@@ -11,7 +12,7 @@ export class BaseService<TTable extends PgTable> {
   }
 
   async create(values: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    return this.repo.create(values, await this.currentUserId());
+    return this.repo.create(stripManaged(values), await this.currentUserId());
   }
 
   async read(id: string): Promise<TTable["$inferSelect"]> {
@@ -35,7 +36,7 @@ export class UpdatableService<TTable extends PgTable> extends BaseService<TTable
   }
 
   async update(id: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    const row = await this.repo.update(id, patch, await this.currentUserId());
+    const row = await this.repo.update(id, stripManaged(patch), await this.currentUserId());
     if (!row) throw new NotFoundError(`Not found: ${id}`);
     return row;
   }

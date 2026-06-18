@@ -1,4 +1,5 @@
 import type { Condition } from "@tiffin/commons";
+import { ValidationError } from "@tiffin/commons";
 import {
   and as dAnd,
   between as dBetween,
@@ -14,9 +15,9 @@ import {
 } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
-function column(table: PgTable, field: string): PgColumn {
+export function resolveColumn(table: PgTable, field: string): PgColumn {
   const col = (table as unknown as Record<string, PgColumn>)[field];
-  if (!col) throw new Error(`Unknown field: ${field}`);
+  if (!col) throw new ValidationError(`Unknown field: ${field}`);
   return col;
 }
 
@@ -31,7 +32,7 @@ export function toDrizzleWhere(table: PgTable, condition?: Condition): SQL | und
     return condition.operator === "and" ? dAnd(...parts) : dOr(...parts);
   }
 
-  const col = column(table, condition.field);
+  const col = resolveColumn(table, condition.field);
   const v = condition.value;
   switch (condition.operator) {
     case "eq": return dEq(col, v);

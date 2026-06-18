@@ -2,7 +2,8 @@ import type { Condition, Page, PageRequest } from "@tiffin/commons";
 import { DEFAULT_PAGE } from "@tiffin/commons";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import { toDrizzleWhere } from "./condition";
+import { resolveColumn, toDrizzleWhere } from "./condition";
+import { stripCreateOnly } from "./managed-fields";
 import type { Database } from "./types";
 
 export class BaseRepository<TTable extends PgTable> {
@@ -26,10 +27,8 @@ export class BaseRepository<TTable extends PgTable> {
 
   async findMany(condition?: Condition, page: PageRequest = DEFAULT_PAGE): Promise<Page<TTable["$inferSelect"]>> {
     const where = toDrizzleWhere(this.table, condition);
-    const orderColumn = page.sort
-      ? (this.table as unknown as Record<string, PgColumn>)[page.sort.field]
-      : this.idColumn;
-    const orderBy = page.sort?.dir === "desc" ? desc(orderColumn!) : asc(orderColumn!);
+    const orderColumn = page.sort ? resolveColumn(this.table, page.sort.field) : this.idColumn;
+    const orderBy = page.sort?.dir === "desc" ? desc(orderColumn) : asc(orderColumn);
 
     const rows = await this.db
       .select()
@@ -55,7 +54,8 @@ export class BaseRepository<TTable extends PgTable> {
 
 export class UpdatableRepository<TTable extends PgTable> extends BaseRepository<TTable> {
   async update(id: string, patch: Record<string, unknown>, actorId?: string | null): Promise<TTable["$inferSelect"] | null> {
-    const toSet = actorId ? { ...patch, updatedBy: actorId } : patch;
+    const safePatch = stripCreateOnly(patch);
+    const toSet = actorId ? { ...safePatch, updatedBy: actorId } : safePatch;
     const [row] = await this.db.update(this.table).set(toSet as never).where(eq(this.idColumn, id)).returning();
     return (row as TTable["$inferSelect"]) ?? null;
   }
