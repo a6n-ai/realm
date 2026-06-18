@@ -23,6 +23,8 @@ export function Wizard({ catalog }: { catalog: CatalogSnapshot }) {
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
 
   useEffect(() => {
+    // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selections.mealSizeId) { setResult(null); return; }
     let active = true;
     reprice(selections).then((r) => { if (active) setResult(r); }).catch(() => { if (active) setResult(null); });
