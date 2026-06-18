@@ -15,6 +15,13 @@
       "when": 1781786818621,
       "tag": "0001_busy_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781788628733,
+      "tag": "0002_fearless_marauders",
+      "breakpoints": true
     }
   ]
 }
