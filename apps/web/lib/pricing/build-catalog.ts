@@ -2,7 +2,18 @@ import { ValidationError } from "@tiffin/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 
+export const MIN_DAILY_QTY = 1;
+export const MAX_DAILY_QTY = 5;
+
 export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: PricingSelections): PricingCatalog {
+  if (
+    !Number.isInteger(selections.dailyQty) ||
+    selections.dailyQty < MIN_DAILY_QTY ||
+    selections.dailyQty > MAX_DAILY_QTY
+  ) {
+    throw new ValidationError(`Daily quantity must be an integer ${MIN_DAILY_QTY}–${MAX_DAILY_QTY}`);
+  }
+
   const mealSize = snapshot.mealSizes.find((m) => m.id === selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
 

@@ -32,24 +32,28 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
   const zoneRow = zone ? snapshot.zones.find((z) => z.name === zone.name) : undefined;
 
   const session = await auth();
-  let userId = session?.user?.id ?? null;
+  const sessionUserId = session?.user?.id ?? null;
 
-  if (!userId) {
-    const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, input.contact.email)).limit(1);
-    if (existing[0]) {
-      userId = existing[0].id;
-    } else {
-      const passwordHash = await hashPassword(TEMP_PASSWORD);
-      const [created] = await db.insert(users).values({
-        email: input.contact.email, name: input.contact.fullName, passwordHash, role: "user",
-      }).returning({ id: users.id });
-      userId = created.id;
-    }
-  }
-
-  const deploymentId = generateCode("SUB", 4);
+  // Wider code space (34^6 ≈ 1.5B) makes a deploymentId collision on the unique
+  // column negligible without retry logic.
+  const deploymentId = generateCode("SUB", 6);
+  const passwordHash = sessionUserId ? null : await hashPassword(TEMP_PASSWORD);
 
   await db.transaction(async (tx) => {
+    // Resolve/provision the customer INSIDE the tx so a failed order never
+    // orphans a freshly created user; onConflict makes concurrent anonymous
+    // checkouts with the same email race-safe.
+    let userId = sessionUserId;
+    if (!userId) {
+      const inserted = await tx
+        .insert(users)
+        .values({ email: input.contact.email, name: input.contact.fullName, passwordHash, role: "user" })
+        .onConflictDoNothing({ target: users.email })
+        .returning({ id: users.id });
+      userId = inserted[0]?.id
+        ?? (await tx.select({ id: users.id }).from(users).where(eq(users.email, input.contact.email)).limit(1))[0].id;
+    }
+
     const [sub] = await tx.insert(subscriptions).values({
       userId,
       planId: plan.id,
