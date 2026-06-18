@@ -255,7 +255,7 @@ git commit -m "feat(catalog): idempotent catalog seed (meals, addons, frequencie
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
 import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
-import { users } from "./users";
+import { users } from "./auth";
 
 export const subscriptionStatus = pgEnum("subscription_status", ["pending", "active", "waitlisted", "cancelled"]);
 export const paymentStatus = pgEnum("payment_status", ["simulated_paid"]);
@@ -291,7 +291,7 @@ export const payments = pgTable("payments", {
 });
 ```
 
-> Depends on Plan 2's `apps/web/db/schema/users.ts` exporting `users`. If executing C before B, create a minimal `users` table first (uuid id + email) — but the canonical order is B → C.
+> Depends on Plan 2's `apps/web/db/schema/auth.ts` exporting `users` (re-exported via the `@/db/schema` barrel). If executing C before B, create a minimal `users` table first (uuid id + email) — but the canonical order is B → C.
 
 - [ ] **Step 2: Re-export and migrate**
 
@@ -612,6 +612,7 @@ git commit -m "feat(catalog): postal-zone FSA matcher (served vs waitlist) + tes
 **Files:**
 - Create: `apps/web/lib/catalog/load.ts`
 - Create: `apps/web/lib/catalog/types.ts`
+- Create: `apps/web/lib/pricing/build-catalog.ts`
 - Create: `apps/web/app/(public)/subscribe/actions.ts`
 - Create: `apps/web/lib/services/catalog.service.ts`, `apps/web/app/api/meal-sizes/route.ts`, `apps/web/app/api/meal-sizes/query/route.ts`
 
@@ -619,7 +620,7 @@ git commit -m "feat(catalog): postal-zone FSA matcher (served vs waitlist) + tes
 - Consumes: `db`, catalog tables, `priceSubscription`, `PricingSelections`, `matchZone`; `UpdatableRepository`/`UpdatableService` + `createCollectionRoute`/`createQueryRoute`.
 - Produces:
   - `loadCatalogSnapshot()` → `CatalogSnapshot` (all rows; numerics coerced to `number`).
-  - `buildPricingCatalog(snapshot, selections)` → `PricingCatalog` (looks up the chosen meal size, frequency, duration; null-checks throw `ValidationError`).
+  - `buildPricingCatalog(snapshot, selections)` → `PricingCatalog` (a **plain sync helper** in `lib/pricing/build-catalog.ts`, NOT a server action — `"use server"` modules may only export async functions; looks up the chosen meal size, frequency, duration; null-checks throw `ValidationError`).
   - server action `reprice(selections)` → `PricingResult`.
   - server action `validatePostal(postalCode)` → `{ served: boolean; zone?: { id; name; slotWindow } }`.
   - `GET /api/meal-sizes`, `POST /api/meal-sizes/query` (read+create via the factory; used by dashboards/subsystem D).
@@ -684,17 +685,15 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
 }
 ```
 
-- [ ] **Step 2: `buildPricingCatalog` + the reprice/validatePostal server actions**
+- [ ] **Step 2a: `buildPricingCatalog` as a plain (non-server-action) module**
 
-`apps/web/app/(public)/subscribe/actions.ts`:
+> **Why a separate file:** a `"use server"` module may export **only async functions**. `buildPricingCatalog` is a synchronous pure helper and is also imported by the checkout action (Task 8), so it lives in a plain module both server-action files import.
+
+`apps/web/lib/pricing/build-catalog.ts`:
 ```ts
-"use server";
-
 import { ValidationError } from "@tiffin/commons";
-import { matchZone } from "@/lib/catalog/postal";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
-import { priceSubscription, type PricingCatalog, type PricingResult, type PricingSelections } from "@/lib/pricing";
+import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 
 export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: PricingSelections): PricingCatalog {
   const mealSize = snapshot.mealSizes.find((m) => m.id === selections.mealSizeId);
@@ -716,6 +715,18 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     durationPackage: { weeks: durationPackage.weeks, discountPct: durationPackage.discountPct },
   };
 }
+```
+
+- [ ] **Step 2b: the reprice/validatePostal server actions**
+
+`apps/web/app/(public)/subscribe/actions.ts`:
+```ts
+"use server";
+
+import { matchZone } from "@/lib/catalog/postal";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 
 export async function reprice(selections: PricingSelections): Promise<PricingResult> {
   const snapshot = await loadCatalogSnapshot();
@@ -1185,7 +1196,7 @@ git commit -m "feat(wizard): 4-step subscription builder with live server-side p
 - Create: `apps/web/app/(public)/checkout/actions.ts`
 
 **Interfaces:**
-- Consumes: `reprice`, `validatePostal`, `buildPricingCatalog`, `loadCatalogSnapshot`, `generateCode` (`@tiffin/commons`), `db`, `subscriptions`/`payments`/`users` tables, `auth()` (Plan 2), `bcryptjs` (Plan 2).
+- Consumes: `reprice`, `validatePostal`, `buildPricingCatalog` (`@/lib/pricing/build-catalog`), `loadCatalogSnapshot`, `generateCode` (`@tiffin/commons`), `db`, `subscriptions`/`payments`/`users` tables, `auth()` (Plan 2), `hashPassword` (`@/lib/auth/password`, Plan 2).
 - Produces:
   - server action `confirmSubscription(input)` → `{ deploymentId }` (recomputes price authoritatively, auto-provisions user if anonymous, inserts subscription + payment in a transaction).
   - the `/checkout` two-step UI that reads selections from `sessionStorage`.
@@ -1197,14 +1208,14 @@ git commit -m "feat(wizard): 4-step subscription builder with live server-side p
 "use server";
 
 import { generateCode, ValidationError } from "@tiffin/commons";
-import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { payments, subscriptions, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
-import { buildPricingCatalog } from "@/app/(public)/subscribe/actions";
+import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { hashPassword } from "@/lib/auth/password";
 import { auth } from "@/lib/auth";
 
 const TEMP_PASSWORD = "Tiffin123";
@@ -1235,7 +1246,7 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
     if (existing[0]) {
       userId = existing[0].id;
     } else {
-      const passwordHash = await bcrypt.hash(TEMP_PASSWORD, 10);
+      const passwordHash = await hashPassword(TEMP_PASSWORD);
       const [created] = await db.insert(users).values({
         email: input.contact.email, name: input.contact.fullName, passwordHash, role: "user",
       }).returning({ id: users.id });
@@ -1277,7 +1288,7 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
 }
 ```
 
-> Depends on Plan 2: `@/lib/auth` exporting `auth()` and the `users` table carrying `email`, `name`, `passwordHash`, `role`. `bcryptjs` is already a dependency from Plan 2.
+> Depends on Plan 2: `@/lib/auth` exporting `auth()`, `@/lib/auth/password` exporting `hashPassword` (bcrypt, rounds=10), and the `users` table carrying `email`, `name`, `passwordHash`, `role`.
 
 - [ ] **Step 2: The checkout client (2 steps)**
 
@@ -1512,4 +1523,6 @@ git commit -m "feat(activation): deployment-id success screen with account + all
 **Cross-plan dependencies (must build B before C):** `users` table, `auth()` session helper, and `bcryptjs` come from Plan 2. `@tiffin/*` packages, `db` client, `baseColumns`/`updatableColumns`, and the migration toolchain come from Plan 1. The `feature_flags` table from Plan 1 is untouched here.
 
 **Deferred (correct):** mixed-plan per-day dish selection → subsystem E (only the baseline config is stored). Admin catalog editing → subsystem D (this plan seeds + exposes read-only meal-sizes REST).
+
+**Known gap (advisory, deferred to D):** catalog/order writes here use the plain `UpdatableService` and raw `db.insert` (anonymous public checkout), so `createdBy` is not stamped and `POST /api/meal-sizes` is unguarded. When subsystem D adds the admin catalog editor, route catalog writes through Plan 2's `SessionUpdatableService` + a `requireAdmin` guard. Acceptable for the public MVP funnel.
 ```
