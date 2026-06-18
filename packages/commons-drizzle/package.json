@@ -1,1 +1,12 @@
-{ "name": "@tiffin/commons-drizzle", "version": "0.0.0", "private": true }
+{
+  "name": "@tiffin/commons-drizzle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "types": "./src/index.ts",
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": { "@tiffin/commons": "workspace:*" },
+  "peerDependencies": { "drizzle-orm": "^0.45.2" },
+  "devDependencies": { "drizzle-orm": "^0.45.2", "typescript": "^5", "vitest": "^4.1.9" }
+}
