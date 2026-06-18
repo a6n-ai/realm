@@ -1,9 +1,7 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { Role } from "@tiffin/commons";
+import { Role, type RoleValue } from "@tiffin/commons";
 import { eq } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
 import NextAuth from "next-auth";
-import { encode as defaultEncode } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/db/client";
 import { accounts, sessions, users, verificationTokens } from "@/db/schema";
@@ -19,9 +17,13 @@ const adapter = DrizzleAdapter(db, {
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
+// Auth.js v5 only supports the Credentials provider with the JWT session
+// strategy (it hard-asserts UnsupportedStrategy under strategy:"database").
+// This is the documented fallback from the plan: JWT sessions carrying the
+// user id + role. The adapter is retained for user-table mapping.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter,
-  session: { strategy: "database", maxAge: SESSION_MAX_AGE_S },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_S },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
@@ -39,34 +41,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    // Tag credentials logins so jwt.encode can mint a DB session for them.
-    async jwt({ token, account }) {
-      if (account?.provider === "credentials") token.credentials = true;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as { role: RoleValue }).role;
+      }
       return token;
     },
-    async session({ session, user }) {
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
-        session.user.role = (user as { role: (typeof Role)[keyof typeof Role] }).role;
+        session.user.id = (token.id as string | undefined) ?? session.user.id;
+        session.user.role = (token.role as RoleValue | undefined) ?? session.user.role;
       }
       return session;
-    },
-  },
-  jwt: {
-    // Credential→DB-session bridge: persist a session row, return its token as the cookie.
-    encode: async (params) => {
-      if (params.token?.credentials) {
-        const sessionToken = randomUUID();
-        if (!params.token.sub) throw new Error("Missing user id in token");
-        const created = await adapter.createSession?.({
-          sessionToken,
-          userId: params.token.sub,
-          expires: new Date(Date.now() + SESSION_MAX_AGE_S * 1000),
-        });
-        if (!created) throw new Error("Failed to create DB session");
-        return sessionToken;
-      }
-      return defaultEncode(params);
     },
   },
 });
