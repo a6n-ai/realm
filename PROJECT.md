@@ -87,6 +87,10 @@ Mirrors the layered `commons` / `commons-jooq` design from the reference jOOQ pr
 - **`@tiffin/commons-drizzle`** — Drizzle persistence: `baseColumns` / `updatableColumns`,
   `BaseRepository` / `UpdatableRepository` (DAO tier), `BaseService` / `UpdatableService`,
   and a condition→Drizzle-`where` translator.
+- **`@tiffin/commons-next`** — API controller tier: CRUD route-handler factories for the
+  Next.js App Router (port of `AbstractJOOQ[Updatable]DataController`), a `Query` model
+  (`{ page, size, sort, condition }`), response envelope, and error→`NextResponse` mapper —
+  so every resource exposes a consistent REST surface.
 
 ### Entity convention
 
@@ -104,7 +108,8 @@ tiffin-grab/
 │  └─ web/                     # Next.js 16 app
 ├─ packages/
 │  ├─ commons/                 # @tiffin/commons (DB-agnostic)
-│  └─ commons-drizzle/         # @tiffin/commons-drizzle (Drizzle persistence)
+│  ├─ commons-drizzle/         # @tiffin/commons-drizzle (Drizzle persistence)
+│  └─ commons-next/            # @tiffin/commons-next (API controller tier)
 ├─ docs/superpowers/specs/     # design specs per slice
 ├─ turbo.json
 ├─ pnpm-workspace.yaml

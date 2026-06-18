@@ -49,8 +49,9 @@ tiffin-grab/
 │  ├─ db/{schema, seed, client}
 │  ├─ lib/{auth, pricing, catalog, flags, services}
 │  └─ components/{ui, wizard, dashboard}
-├─ packages/commons/                # @tiffin/commons
-└─ packages/commons-drizzle/        # @tiffin/commons-drizzle
+├─ packages/commons/                # @tiffin/commons (DB-agnostic)
+├─ packages/commons-drizzle/        # @tiffin/commons-drizzle (persistence)
+└─ packages/commons-next/           # @tiffin/commons-next (API controller tier)
 ```
 
 ---
@@ -103,6 +104,43 @@ Port of `commons-jooq`'s DAO/service tiers, plus the column conventions.
 
 TS generics replace the Java reflection/`ObjectMapper` path; Drizzle `update().set(patch)`
 is type-checked, so no field-introspection is needed.
+
+### 3.3 `@tiffin/commons-next` (API controller tier)
+Port of `commons-jooq`'s `AbstractJOOQ[Updatable]DataController` to Next.js 16 App Router.
+Depends on `next/server` + `@tiffin/commons` (not Drizzle), giving every resource a
+consistent REST surface from one factory.
+
+- **`Query` model** — `{ page, size, sort, condition }` (condition = a `@tiffin/commons`
+  condition tree); mirrors the Java `Query` used by `POST /query`.
+- **Response envelope + error mapper** — maps `@tiffin/commons` errors
+  (`NotFoundError`→404, `ValidationError`→400, `AuthError`→401/403) to `NextResponse`.
+- **Route-handler factories** (App Router maps HTTP verbs to exported functions per file):
+  ```ts
+  // app/api/<resource>/route.ts          → collection
+  export const { GET, POST } = createCollectionRoute(service, { guard });
+  // app/api/<resource>/[id]/route.ts     → single resource
+  export const { GET, PUT, PATCH, DELETE } = createResourceRoute(service, { guard });
+  // app/api/<resource>/query/route.ts    → POST { page, size, sort, condition }
+  export const { POST } = createQueryRoute(service);
+  ```
+  `createResourceRoute` emits `PUT`/`PATCH`/`DELETE` only for updatable services
+  (`createCollectionRoute`/`createQueryRoute` are read+create only otherwise) — the same
+  immutable-vs-updatable split as the abstract controllers.
+- **`guard` hook** — per-route role/flag check (reads the Auth.js session), so endpoints
+  declare required role/flag declaratively instead of repeating auth code.
+
+| Endpoint | Verb | Handler | Tier |
+|---|---|---|---|
+| `/api/<r>` | POST | create | base |
+| `/api/<r>` | GET | page+filter (query params) | base |
+| `/api/<r>/query` | POST | page+filter (`Query` body) | base |
+| `/api/<r>/[id]` | GET | read (404 if absent) | base |
+| `/api/<r>/[id]` | DELETE | delete (204) | base |
+| `/api/<r>/[id]` | PUT | full update | updatable |
+| `/api/<r>/[id]` | PATCH | partial update | updatable |
+
+Wizard/checkout mutations still use **Server Actions** (server-side pricing); these REST
+endpoints back the dashboard/admin CRUD (users, flags, catalog) and future subsystems D/E.
 
 ---
 
