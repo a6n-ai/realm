@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx db/seed.ts",
-    "db:seed:admin": "tsx db/seed-admin.ts"
+    "db:seed:admin": "tsx db/seed-admin.ts",
+    "db:seed:catalog": "tsx db/seed-catalog.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

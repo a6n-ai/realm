@@ -49,7 +49,7 @@ export const durationPackages = pgTable("duration_packages", {
 
 export const deliveryZones = pgTable("delivery_zones", {
   ...updatableColumns,
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   postalPrefixes: text("postal_prefixes").array().notNull(),
   slotWindow: text("slot_window").notNull(),
   active: boolean("active").notNull().default(true),
