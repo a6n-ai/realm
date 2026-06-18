@@ -775,7 +775,7 @@ git commit -m "feat(commons-drizzle): base columns, condition translator, reposi
 
 **Files:**
 - Create: `apps/web/db/schema/feature-flags.ts`, `apps/web/db/schema/index.ts`, `apps/web/db/client.ts`
-- Create: `apps/web/drizzle.config.ts`, `apps/web/.env.example`, `docker-compose.yml` (root)
+- Create: `apps/web/drizzle.config.ts`, `apps/web/.env.example`
 - Create: `apps/web/db/seed.ts`
 - Test: `apps/web/db/__tests__/feature-flags.repo.test.ts` (integration; requires the dev DB)
 - Create: `apps/web/vitest.config.ts`
@@ -787,36 +787,28 @@ git commit -m "feat(commons-drizzle): base columns, condition translator, reposi
   - `db` (Drizzle client) and `schema` from `apps/web/db/client.ts`.
   - `featureFlagsRepo` factory for tests/services.
 
-- [ ] **Step 1: Local Postgres via Docker**
+- [ ] **Step 1: Local Postgres (no Docker)**
 
-Create root `docker-compose.yml`:
-```yaml
-services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: tiffin
-      POSTGRES_PASSWORD: tiffin
-      POSTGRES_DB: tiffin
-    ports:
-      - "5432:5432"
-    volumes:
-      - tiffin_pgdata:/var/lib/postgresql/data
-volumes:
-  tiffin_pgdata:
-```
+Uses the developer's local **Postgres.app 18** already listening on `localhost:5432` with
+superuser role `lawbringr` (trust auth — no password). The `tiffin` database is already
+created (`CREATE DATABASE tiffin OWNER lawbringr;`).
 
 Create `apps/web/.env.example`:
 ```
-DATABASE_URL=postgres://tiffin:tiffin@localhost:5432/tiffin
+DATABASE_URL=postgres://lawbringr@localhost:5432/tiffin
 ```
 
 Run:
 ```bash
 cp apps/web/.env.example apps/web/.env.local
-docker compose up -d db
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -p 5432 -d tiffin -tAc "select current_database(), current_user;"
 ```
-Expected: container `db` healthy on 5432.
+Expected: `tiffin|lawbringr` — confirms the DB exists and is reachable without a password.
+
+> If `tiffin` does not exist on another machine, create it with:
+> `psql -h localhost -p 5432 -d postgres -c "CREATE DATABASE tiffin;"`
+> and adjust `DATABASE_URL` to that machine's role. The `postgres` npm driver connects over
+> TCP, so only `DATABASE_URL` matters — no `psql` binary is needed at runtime.
 
 - [ ] **Step 2: Define the `feature_flags` schema and client**
 
@@ -881,7 +873,7 @@ Expected: a migration under `apps/web/db/migrations/` and the `feature_flags` ta
 `apps/web/vitest.config.ts`:
 ```ts
 import { defineConfig } from "vitest/config";
-export default defineConfig({ test: { environment: "node", env: { DATABASE_URL: process.env.DATABASE_URL ?? "postgres://tiffin:tiffin@localhost:5432/tiffin" } } });
+export default defineConfig({ test: { environment: "node", env: { DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin" } } });
 ```
 
 `apps/web/db/__tests__/feature-flags.repo.test.ts`:
@@ -965,7 +957,7 @@ Expected: `Seeded 2 feature flags`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/web/db apps/web/drizzle.config.ts apps/web/.env.example apps/web/vitest.config.ts docker-compose.yml apps/web/package.json
+git add apps/web/db apps/web/drizzle.config.ts apps/web/.env.example apps/web/vitest.config.ts apps/web/package.json
 git commit -m "feat(db): drizzle client, feature_flags schema, migration, seed, integration tests"
 ```
 

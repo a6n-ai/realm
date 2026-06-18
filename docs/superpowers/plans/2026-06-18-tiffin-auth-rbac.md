@@ -18,7 +18,7 @@
 - Every table uses `baseColumns`/`updatableColumns` from `@tiffin/commons-drizzle`; PKs are uuid v4. Auth.js adapter tables (`accounts`, `sessions`, `verification_tokens`) follow the adapter's required shape and are exempt from the audit-column convention (the adapter owns their lifecycle).
 - Auth.js v5 = `next-auth@beta` (npm `latest` is still v4 — do NOT install the unscoped latest). Pin: `@auth/drizzle-adapter@^1.11.2`, `bcryptjs@^3.0.3`.
 - Roles come from `@tiffin/commons` `Role` (`admin`/`member`/`user`). The DB enum values must match those string literals exactly.
-- Prereq: Plan 1 is fully implemented and its tests pass; the dev Postgres (`docker compose up -d db`) is running and migrated.
+- Prereq: Plan 1 is fully implemented and its tests pass; the dev Postgres (Postgres.app on `localhost:5432`, `tiffin` db, role `lawbringr`, trust auth) is running and migrated.
 
 ---
 
@@ -177,7 +177,7 @@ Expected: a new migration under `apps/web/db/migrations/` creating `user_role` e
 
 Run:
 ```bash
-docker compose exec -T db psql -U tiffin -d tiffin -c "\dt"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -c "\dt"
 ```
 Expected: lists `users`, `accounts`, `sessions`, `verification_tokens`, `user_feature_flags`, `feature_flags`.
 
@@ -827,7 +827,7 @@ Run (DB up + admin seeded):
 pnpm --filter web dev &
 sleep 6
 # 1) confirm a session row count baseline
-docker compose exec -T db psql -U tiffin -d tiffin -t -c "select count(*) from sessions;"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -t -c "select count(*) from sessions;"
 echo "Now sign in via the browser at http://localhost:3000/login with admin@tiffingrab.ca / Admin123!"
 echo "Then re-run the count below; it must increase by 1 (DB session created by the bridge)."
 kill %1

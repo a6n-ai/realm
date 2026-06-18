@@ -225,7 +225,7 @@ pnpm --filter web db:seed:catalog
 ```
 Expected: both runs print the summary line; the second inserts nothing new (no duplicate-key error). Confirm row counts:
 ```bash
-docker compose exec -T db psql -U tiffin -d tiffin -c "select count(*) from meal_sizes;"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -c "select count(*) from meal_sizes;"
 ```
 Expected: `8`.
 
@@ -1421,9 +1421,9 @@ pnpm --filter web dev
 ```
 Complete `/subscribe`, click "Deploy Plan Formulation", fill the checkout address (use a served prefix like `M9V 1A1` → shows the slot window; try `K1A 0B1` → waitlist notice), continue to simulated payment, click "Confirm Subscription". Expect a redirect to `/activate/SUB-XXXX` (page lands in Task 9). Verify persistence:
 ```bash
-docker compose exec -T db psql -U tiffin -d tiffin -c "select deployment_id, status, weekly_fee, total from subscriptions order by created_at desc limit 1;"
-docker compose exec -T db psql -U tiffin -d tiffin -c "select status, amount from payments order by created_at desc limit 1;"
-docker compose exec -T db psql -U tiffin -d tiffin -c "select email, role from users order by created_at desc limit 1;"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -c "select deployment_id, status, weekly_fee, total from subscriptions order by created_at desc limit 1;"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -c "select status, amount from payments order by created_at desc limit 1;"
+/Applications/Postgres.app/Contents/Versions/18/bin/psql -h localhost -d tiffin -c "select email, role from users order by created_at desc limit 1;"
 ```
 Expected: one `subscriptions` row with a `SUB-XXXX` id and status `active` (served) or `waitlisted`; one `payments` row `simulated_paid`; a `users` row with role `user` (when checked out anonymously).
 
