@@ -71,6 +71,20 @@
       "when": 1781863868560,
       "tag": "0009_meal_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781866129157,
+      "tag": "0010_dishes",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781866500000,
+      "tag": "0011_orders_persons_slots",
+      "breakpoints": true
     }
   ]
 }

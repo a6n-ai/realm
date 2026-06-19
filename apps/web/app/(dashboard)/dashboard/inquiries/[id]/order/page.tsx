@@ -3,6 +3,7 @@ import { NotFoundError } from "@tiffin/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { OrderForm } from "./order-form";
 
 export default async function AgentOrderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +19,8 @@ export default async function AgentOrderPage({ params }: { params: Promise<{ id:
   }
   if (inq.stage === "converted") redirect(`/dashboard/inquiries/${id}`);
 
-  const catalog = await loadCatalogSnapshot();
+  const [catalog, slots] = await Promise.all([loadCatalogSnapshot(), mealSlotsService.enabledSlots()]);
+  const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
 
   return (
     <section className="max-w-3xl space-y-6">
@@ -32,6 +34,7 @@ export default async function AgentOrderPage({ params }: { params: Promise<{ id:
           frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name })),
           durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
         }}
+        enabledSlots={enabledSlots}
       />
     </section>
   );

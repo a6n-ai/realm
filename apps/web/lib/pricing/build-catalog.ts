@@ -2,16 +2,15 @@ import { ValidationError } from "@tiffin/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 
-export const MIN_DAILY_QTY = 1;
-export const MAX_DAILY_QTY = 5;
+export const MIN_PERSONS = 1;
+export const MAX_PERSONS = 5;
 
 export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: PricingSelections): PricingCatalog {
-  if (
-    !Number.isInteger(selections.dailyQty) ||
-    selections.dailyQty < MIN_DAILY_QTY ||
-    selections.dailyQty > MAX_DAILY_QTY
-  ) {
-    throw new ValidationError(`Daily quantity must be an integer ${MIN_DAILY_QTY}–${MAX_DAILY_QTY}`);
+  if (!Number.isInteger(selections.persons) || selections.persons < MIN_PERSONS || selections.persons > MAX_PERSONS) {
+    throw new ValidationError(`Persons must be an integer ${MIN_PERSONS}–${MAX_PERSONS}`);
+  }
+  if (!Array.isArray(selections.mealSlots) || selections.mealSlots.length === 0) {
+    throw new ValidationError("At least one meal slot is required");
   }
 
   const mealSize = snapshot.mealSizes.find((m) => m.id === selections.mealSizeId);

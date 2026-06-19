@@ -14,7 +14,8 @@ const baseCatalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", duratio
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   mealSizeId: "m1",
   frequencyKey: "5_day",
-  dailyQty: 1,
+  persons: 1,
+  mealSlots: ["lunch"],
   includeSaturday: false,
   includeSunday: false,
   isStudent: false,
@@ -23,15 +24,21 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
 });
 
 describe("priceSubscription", () => {
-  it("base meal × dailyQty × billable days (5-day)", () => {
+  it("base meal × persons × billable days (5-day)", () => {
     const r = priceSubscription(sel(), baseCatalog(10));
     expect(r.weeklyFee).toBe(50);
     expect(r.total).toBe(50);
   });
 
   it("daily quantity multiplier", () => {
-    const r = priceSubscription(sel({ dailyQty: 3 }), baseCatalog(10));
+    const r = priceSubscription(sel({ persons: 3 }), baseCatalog(10));
     expect(r.weeklyFee).toBe(150);
+  });
+
+  it("multiplies by meal-slot count", () => {
+    const r = priceSubscription(sel({ persons: 2, mealSlots: ["lunch", "dinner"] }), baseCatalog(10));
+    // 10 base × 5 days × 2 persons × 2 slots = 200
+    expect(r.weeklyFee).toBe(200);
   });
 
   it("MWF applies 10% courier discount to the meal subtotal only", () => {

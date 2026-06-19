@@ -1,7 +1,8 @@
 export interface PricingSelections {
   mealSizeId: string;
   frequencyKey: "5_day" | "mwf";
-  dailyQty: number;
+  persons: number;
+  mealSlots: string[];
   includeSaturday: boolean;
   includeSunday: boolean;
   isStudent: boolean;
