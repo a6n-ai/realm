@@ -4,3 +4,4 @@ export * from "./user-feature-flags";
 export * from "./catalog";
 export * from "./orders";
 export * from "./inquiries";
+export * from "./menu";

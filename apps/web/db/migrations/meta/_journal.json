@@ -64,6 +64,13 @@
       "when": 1781842692201,
       "tag": "0008_inquiries",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781863868560,
+      "tag": "0009_meal_slots",
+      "breakpoints": true
     }
   ]
 }
