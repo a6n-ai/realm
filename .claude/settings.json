@@ -1,6 +1,16 @@
 {
   "permissions": {
     "allow": [
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(cat *)",
+      "Bash(rg *)",
+      "Bash(fd *)",
+      "Bash(ls *)",
       "Bash(pnpm *)",
       "Bash(DATABASE_URL=* pnpm *)",
       "Bash(DATABASE_URL=* npx *)",
