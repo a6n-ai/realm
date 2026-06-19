@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Section } from "@/components/marketing/section";
@@ -14,7 +15,7 @@ export default async function PricingPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Pricing</h1>
+        <h1 className="gradient-text text-3xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-muted-foreground mt-2">
           Your weekly fee is built from your meal size × quantity × billable days, plus add-ons,
           minus courier, student, and loyalty discounts.
@@ -25,7 +26,7 @@ export default async function PricingPage() {
         <h2 className="text-xl font-medium">Nutrition baselines</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           {plans.map((p) => (
-            <div key={p.id} className="rounded-lg border p-5">
+            <div key={p.id} className="hover-lift card-glow rounded-lg border p-5">
               <h3 className="font-medium">{p.name}</h3>
               {p.description ? <p className="text-muted-foreground mt-1 text-sm">{p.description}</p> : null}
             </div>
@@ -54,7 +55,7 @@ export default async function PricingPage() {
         </div>
       </div>
 
-      <Button asChild size="lg"><Link href="/subscribe">Start your plan</Link></Button>
+      <Button asChild size="lg" className="hover-lift group w-fit"><Link href="/subscribe">Start your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
     </Section>
   );
 }

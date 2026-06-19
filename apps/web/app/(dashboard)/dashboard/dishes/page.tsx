@@ -9,7 +9,7 @@ export default async function DishesPage() {
   const rows = await db.select().from(dishes).orderBy(asc(dishes.name));
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dishes</h1>
+      <h1 className="gradient-text text-2xl font-semibold">Dishes</h1>
       <DishesEditor dishes={rows} />
     </section>
   );

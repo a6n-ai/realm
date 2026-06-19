@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { asc, desc, eq, inArray } from "drizzle-orm";
+import { UtensilsCrossedIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { deliveryFrequencies, dishes, mealSlots, menuWeeks, orders, plans } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -50,9 +51,14 @@ export default async function MealsPage() {
   if (!activeOrder || !releasedWeek) {
     return (
       <section className="space-y-6">
-        <h1 className="text-2xl font-semibold">My Meals</h1>
+        <div className="group flex items-center gap-3">
+          <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+            <UtensilsCrossedIcon className="icon-pop size-5" />
+          </span>
+          <h1 className="gradient-text text-2xl font-semibold">My Meals</h1>
+        </div>
         {!activeOrder ? (
-          <div className="rounded-lg border p-8 text-center space-y-3">
+          <div className="card-glow hover-lift rounded-lg border p-8 text-center space-y-3">
             <p className="text-muted-foreground">You don&#39;t have an active subscription yet.</p>
             <a
               href="/subscribe"
@@ -62,7 +68,7 @@ export default async function MealsPage() {
             </a>
           </div>
         ) : (
-          <div className="rounded-lg border p-8 text-center">
+          <div className="card-glow hover-lift rounded-lg border p-8 text-center">
             <p className="text-muted-foreground">No menu has been published for this week. Check back soon.</p>
           </div>
         )}
@@ -150,7 +156,12 @@ export default async function MealsPage() {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">My Meals</h1>
+      <div className="group flex items-center gap-3">
+        <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+          <UtensilsCrossedIcon className="icon-pop size-5" />
+        </span>
+        <h1 className="gradient-text text-2xl font-semibold">My Meals</h1>
+      </div>
       {isLocked && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Selections are locked for this week. The cutoff has passed.

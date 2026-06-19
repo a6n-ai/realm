@@ -14,10 +14,10 @@ const FAQS = [
 export default function FaqPage() {
   return (
     <Section className="max-w-2xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Frequently asked questions</h1>
+      <h1 className="gradient-text text-3xl font-semibold tracking-tight">Frequently asked questions</h1>
       <dl className="space-y-5">
         {FAQS.map((f) => (
-          <div key={f.q}>
+          <div key={f.q} className="hover-lift card-glow rounded-lg border p-5">
             <dt className="font-medium">{f.q}</dt>
             <dd className="text-muted-foreground mt-1 text-sm">{f.a}</dd>
           </div>

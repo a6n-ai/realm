@@ -21,15 +21,15 @@ export default function LandingPage() {
       <Hero />
       <Section className="grid gap-6 sm:grid-cols-3">
         {VALUES.map((v) => (
-          <div key={v.title} className="rounded-lg border p-6">
+          <div key={v.title} className="hover-lift card-glow rounded-lg border p-6">
             <h3 className="font-medium">{v.title}</h3>
             <p className="text-muted-foreground mt-2 text-sm">{v.body}</p>
           </div>
         ))}
       </Section>
       <Section className="flex flex-col items-center gap-4 text-center">
-        <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
-        <Button asChild size="lg"><Link href="/subscribe">Start your plan</Link></Button>
+        <h2 className="gradient-text text-2xl font-semibold">Ready to build your tiffin?</h2>
+        <Button asChild size="lg" className="hover-lift animate-pulse-ring"><Link href="/subscribe">Start your plan</Link></Button>
       </Section>
     </>
   );

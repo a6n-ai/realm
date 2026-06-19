@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Section } from "@/components/marketing/section";
@@ -21,7 +22,7 @@ export default async function MenuPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Our menu</h1>
+        <h1 className="gradient-text text-3xl font-semibold tracking-tight">Our menu</h1>
         <p className="text-muted-foreground mt-2">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
       </div>
       {TIERS.map((tier) => {
@@ -31,12 +32,12 @@ export default async function MenuPage() {
           <div key={tier.key} className="space-y-4">
             <h2 className="text-xl font-medium">{tier.label}</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {meals.map((m) => <MealCard key={m.id} meal={m} />)}
+              {meals.map((m) => <div key={m.id} className="hover-lift card-glow rounded-lg"><MealCard meal={m} /></div>)}
             </div>
           </div>
         );
       })}
-      <Button asChild size="lg"><Link href="/subscribe">Build your plan</Link></Button>
+      <Button asChild size="lg" className="hover-lift group w-fit"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
     </Section>
   );
 }

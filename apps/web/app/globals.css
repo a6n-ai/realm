@@ -128,3 +128,88 @@
     @apply font-sans;
   }
 }
+
+/* ── Visual flare ─────────────────────────────────────────────
+   Motion + depth within the monochrome system. Respects
+   prefers-reduced-motion (all keyframe animations disabled below). */
+@keyframes flare-shimmer {
+  0% { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+@keyframes flare-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes flare-gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes flare-pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--ring); opacity: 0.5; }
+  70% { box-shadow: 0 0 0 8px transparent; opacity: 0; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
+}
+
+@layer utilities {
+  /* Lift + shadow on hover — the workhorse for cards, rows, tiles. */
+  .hover-lift {
+    @apply transition-[transform,box-shadow] duration-300 ease-out;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-0.5 shadow-lg;
+  }
+
+  /* Soft ring glow, intensifies on hover. */
+  .card-glow {
+    @apply transition-shadow duration-300;
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent);
+  }
+  .card-glow:hover {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent),
+      0 8px 30px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
+  }
+
+  /* Animated grayscale gradient sheen for headings / numbers. */
+  .gradient-text {
+    background: linear-gradient(
+      110deg,
+      var(--foreground) 0%,
+      var(--muted-foreground) 45%,
+      var(--foreground) 90%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: flare-gradient-pan 6s ease infinite;
+  }
+
+  /* Moving sheen overlay — use on a child element. */
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in oklch, var(--foreground) 8%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 200% 100%;
+    animation: flare-shimmer 2.5s linear infinite;
+  }
+
+  .animate-float { animation: flare-float 4s ease-in-out infinite; }
+  .animate-pulse-ring { animation: flare-pulse-ring 2s ease-out infinite; }
+
+  /* Icon micro-motion — pair on a `group` parent. */
+  .icon-pop { @apply transition-transform duration-300 ease-out; }
+  .group:hover .icon-pop { @apply scale-110; }
+  .icon-spin { @apply transition-transform duration-500 ease-out; }
+  .group:hover .icon-spin { @apply rotate-12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-text, .shimmer, .animate-float, .animate-pulse-ring {
+    animation: none;
+  }
+  .hover-lift, .card-glow, .icon-pop, .icon-spin { transition: none; }
+}

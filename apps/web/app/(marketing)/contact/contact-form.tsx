@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ export function ContactForm() {
 
   if (done) {
     return (
-      <div className="rounded-lg border p-6">
+      <div className="card-glow rounded-lg border p-6">
         <h2 className="font-medium">Thanks — we got your message.</h2>
         <p className="text-muted-foreground mt-2 text-sm">
           {done.waitlisted
@@ -65,7 +66,7 @@ export function ContactForm() {
         onChange={(e) => set({ company: e.target.value })}
       />
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button onClick={submit} disabled={pending || !form.fullName || !form.phone} className="w-fit">Send message</Button>
+      <Button onClick={submit} disabled={pending || !form.fullName || !form.phone} className="hover-lift group w-fit">Send message<Send className="icon-pop size-4" /></Button>
     </div>
   );
 }

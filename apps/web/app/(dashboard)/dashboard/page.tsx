@@ -66,16 +66,16 @@ export default async function DashboardOverviewPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <TypographyH2 className="border-0 pb-0">Overview</TypographyH2>
+        <TypographyH2 className="gradient-text border-0 pb-0">Overview</TypographyH2>
         <TypographyMuted>Operational snapshot across orders and members.</TypographyMuted>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.label}>
+          <Card key={c.label} className="group card-glow hover-lift">
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
               <CardDescription>{c.label}</CardDescription>
-              <c.icon className="text-muted-foreground size-4" />
+              <c.icon className="icon-pop text-muted-foreground size-4" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-semibold tracking-tight">{c.value}</div>
@@ -85,7 +85,7 @@ export default async function DashboardOverviewPage() {
         ))}
       </div>
 
-      <Card>
+      <Card className="card-glow">
         <CardHeader>
           <CardTitle>Recent orders</CardTitle>
           <CardDescription>The latest plans deployed through checkout.</CardDescription>

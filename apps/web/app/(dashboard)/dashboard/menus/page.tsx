@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { CalendarDaysIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { dishes, mealSlots } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -57,7 +58,12 @@ export default async function MenusPage({
 
   return (
     <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">Weekly Menu Builder</h1>
+      <div className="group flex items-center gap-3">
+        <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
+          <CalendarDaysIcon className="icon-pop size-5" />
+        </span>
+        <h1 className="gradient-text text-2xl font-semibold">Weekly Menu Builder</h1>
+      </div>
       <MenuBuilder
         slots={enabledSlots}
         dishes={activeDishesList}
