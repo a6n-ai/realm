@@ -17,7 +17,8 @@ export const menuService = {
   async addItem(input: { menuWeekId: string; dayOfWeek: "mon"|"tue"|"wed"|"thu"|"fri"|"sat"|"sun"; slot: string; dishId: string; isDefault: boolean }) {
     const [slot] = await db.select().from(mealSlots).where(and(eq(mealSlots.key, input.slot), eq(mealSlots.enabled, true))).limit(1);
     if (!slot) throw new ValidationError("Slot is not enabled");
-    const [row] = await db.insert(menuItems).values(input).onConflictDoNothing({
+    const { menuWeekId, dayOfWeek, slot: slotKey, dishId, isDefault } = input;
+    const [row] = await db.insert(menuItems).values({ menuWeekId, dayOfWeek, slot: slotKey, dishId, isDefault }).onConflictDoNothing({
       target: [menuItems.menuWeekId, menuItems.dayOfWeek, menuItems.slot, menuItems.dishId],
     }).returning();
     return row ?? null;
