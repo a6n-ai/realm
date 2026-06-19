@@ -13,13 +13,13 @@ export function UserRow({
   user,
   flags,
 }: {
-  user: { id: string; email: string; role: RoleValue };
+  user: { id: string; email: string | null; phone: string | null; role: RoleValue };
   flags: FlagState[];
 }) {
   const [pending, start] = useTransition();
   return (
     <TableRow>
-      <TableCell>{user.email}</TableCell>
+      <TableCell>{user.email ?? user.phone ?? "—"}</TableCell>
       <TableCell>
         <Select
           defaultValue={user.role}

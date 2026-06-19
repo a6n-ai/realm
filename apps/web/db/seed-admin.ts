@@ -5,20 +5,22 @@ import { users } from "./schema";
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tiffingrab.ca";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+const MEMBER_EMAIL = process.env.SEED_MEMBER_EMAIL ?? "sales@tiffingrab.ca";
+const MEMBER_PASSWORD = process.env.SEED_MEMBER_PASSWORD ?? "Member123!";
+
+async function seedStaff(email: string, password: string, name: string, role: "admin" | "member") {
+  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existing) {
+    console.log(`${role} already exists: ${email}`);
+    return;
+  }
+  await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), role });
+  console.log(`Seeded ${role}: ${email} / ${password}`);
+}
 
 async function main() {
-  const [existing] = await db.select().from(users).where(eq(users.email, ADMIN_EMAIL)).limit(1);
-  if (existing) {
-    console.log(`Admin already exists: ${ADMIN_EMAIL}`);
-    process.exit(0);
-  }
-  await db.insert(users).values({
-    email: ADMIN_EMAIL,
-    name: "Tiffin Admin",
-    passwordHash: await hashPassword(ADMIN_PASSWORD),
-    role: "admin",
-  });
-  console.log(`Seeded admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  await seedStaff(ADMIN_EMAIL, ADMIN_PASSWORD, "Tiffin Admin", "admin");
+  await seedStaff(MEMBER_EMAIL, MEMBER_PASSWORD, "Sales Agent", "member");
   process.exit(0);
 }
 

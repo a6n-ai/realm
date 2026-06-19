@@ -1,11 +1,10 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { Role, type RoleValue } from "@tiffin/commons";
-import { eq } from "drizzle-orm";
+import { type RoleValue } from "@tiffin/commons";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/db/client";
 import { accounts, sessions, users, verificationTokens } from "@/db/schema";
-import { verifyPassword } from "./password";
+import { resolveCredentialUser } from "./resolve-user";
 import "./types";
 
 const adapter = DrizzleAdapter(db, {
@@ -27,16 +26,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { identifier: {}, password: {} },
       authorize: async (raw) => {
-        const email = String(raw?.email ?? "").toLowerCase().trim();
-        const password = String(raw?.password ?? "");
-        if (!email || !password) return null;
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        if (!user?.passwordHash) return null;
-        const ok = await verifyPassword(password, user.passwordHash);
-        if (!ok) return null;
-        return { id: user.id, email: user.email, name: user.name, role: user.role ?? Role.USER };
+        const user = await resolveCredentialUser(String(raw?.identifier ?? ""), String(raw?.password ?? ""));
+        return user ?? null;
       },
     }),
   ],

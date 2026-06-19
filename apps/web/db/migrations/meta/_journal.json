@@ -36,6 +36,34 @@
       "when": 1781788858045,
       "tag": "0004_magenta_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781788859045,
+      "tag": "0005_rename_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781840958726,
+      "tag": "0006_user_dual_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781842333513,
+      "tag": "0007_catalog_active",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781842692201,
+      "tag": "0008_inquiries",
+      "breakpoints": true
     }
   ]
 }

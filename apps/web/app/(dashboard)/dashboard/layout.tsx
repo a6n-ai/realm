@@ -1,4 +1,3 @@
-import { Role } from "@tiffin/commons";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
@@ -7,12 +6,12 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
+// Any authenticated user reaches the shell; the sidebar filters nav by role and
+// staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
+// it for the account page.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
-    redirect("/");
-  }
 
   return (
     <SidebarProvider>

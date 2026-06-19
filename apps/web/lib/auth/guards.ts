@@ -1,8 +1,21 @@
-import { AuthError, ForbiddenError, Role } from "@tiffin/commons";
+import { AuthError, ForbiddenError, Role, type RoleValue } from "@tiffin/commons";
 import { auth } from "@/lib/auth";
 
-export async function requireAdmin(): Promise<void> {
+async function requireSession() {
   const session = await auth();
   if (!session?.user) throw new AuthError();
-  if (session.user.role !== Role.ADMIN) throw new ForbiddenError();
+  return session.user as { role: RoleValue };
+}
+
+export async function requireRole(...roles: RoleValue[]): Promise<void> {
+  const user = await requireSession();
+  if (!roles.includes(user.role)) throw new ForbiddenError();
+}
+
+export async function requireAdmin(): Promise<void> {
+  await requireRole(Role.ADMIN);
+}
+
+export async function requireStaff(): Promise<void> {
+  await requireRole(Role.ADMIN, Role.MEMBER);
 }
