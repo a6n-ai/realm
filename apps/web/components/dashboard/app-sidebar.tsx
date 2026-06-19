@@ -1,10 +1,13 @@
 "use client";
 
 import {
+  CalendarIcon,
   ClipboardListIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   type LucideIcon,
+  SaladIcon,
+  SettingsIcon,
   UserIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -40,7 +43,11 @@ const NAV: NavItem[] = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
   { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
   { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
+  { title: "Dishes", href: "/dashboard/dishes", icon: SaladIcon, roles: ["admin"] },
+  { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ["admin"] },
+  { title: "Meal slots", href: "/dashboard/settings/meal-slots", icon: SettingsIcon, roles: ["admin"] },
   { title: "Users", href: "/dashboard/users", icon: UsersIcon, roles: ["admin"] },
+  { title: "My meals", href: "/dashboard/meals", icon: UtensilsCrossedIcon, roles: ["user"] },
   { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ["admin", "member", "user"] },
 ];
 
