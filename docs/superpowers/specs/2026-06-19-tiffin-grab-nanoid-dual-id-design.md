@@ -32,6 +32,7 @@ This follows the PlanetScale/Instagram pattern (internal sequential key for stor
 | Foreign keys | Reference the **internal `bigint` `id`** |
 | Auth.js | `users.id` = internal bigint; `users.public_id` = `usr_…`; jwt/session callbacks set `session.user.id = public_id` |
 | Migration | **Reset baseline** — delete old migrations + snapshots, drop+recreate dev DB, reseed |
+| Timestamps | **Epoch milliseconds** in `bigint` (Drizzle `mode:"number"`), app-side defaults. Auth-adapter timestamp columns carved out (stay as the adapter requires). |
 | Scope shape | **One spec, one plan, 3 phases**, green at end (transient red mid-plan) |
 
 ## Snowflake `next_id()`
@@ -74,9 +75,9 @@ updatableColumns("usr") // =>
 {
   id:        bigint("id", { mode: "bigint" }).primaryKey().default(sql`next_id()`),
   publicId:  text("public_id").notNull().unique().$defaultFn(() => `usr_${nanoid(12)}`),
-  createdAt: timestamp(...).defaultNow().notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull().$defaultFn(() => Date.now()),
   createdBy: bigint("created_by", { mode: "bigint" }),       // → users.id (nullable)
-  updatedAt: timestamp(...).defaultNow().notNull().$onUpdate(...),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull().$defaultFn(() => Date.now()).$onUpdate(() => Date.now()),
   updatedBy: bigint("updated_by", { mode: "bigint" }),       // → users.id (nullable)
 }
 ```
@@ -108,6 +109,14 @@ The adapter treats `users.id` as the account identifier. Approach:
 - **jwt/session callbacks set `session.user.id = users.public_id`.** All application code (ownership checks, audit stamping, route params) keys off `public_id` at the boundary and resolves to the internal bigint for joins.
 - Implementation must verify: adapter user creation/lookup works with a DB-defaulted bigint PK (adapter omits `id` on insert → DB generates → `RETURNING` provides it as BigInt), and credential login still resolves the user. Covered by an auth login smoke in Phase 2.
 
+## Timestamps as epoch (ms)
+
+All **domain** timestamp columns are stored as **epoch milliseconds** in `bigint` (Drizzle `mode:"number"` — ms epoch ≈1.7×10¹² is well under `2^53`, so JS `number` is lossless and no BigInt friction).
+
+- Factory: `created_at`/`updated_at` → `bigint mode:"number"`, default `Date.now()`, `updated_at` also `$onUpdate(() => Date.now())`.
+- Other domain timestamps converted from `timestamp(..)` to `bigint` ms: `menu_weeks.order_cutoff`, `menu_weeks.released_at`, inquiry timestamps, and any other `timestamp(...)` in non-auth schema. Application code reads/writes `number` (ms); convert to `Date` only at presentation.
+- **Auth.js carve-out:** the DrizzleAdapter passes real `Date`/timestamptz for `sessions.expires`, `verification_tokens.expires`, `users.email_verified`; `accounts.expires_at` is OAuth epoch-**seconds** `integer`. These **stay as the adapter requires** — do not convert. Only our domain timestamps move to bigint ms.
+
 ## Boundary mapping (services/routes)
 
 With FKs on bigint and clients passing `public_id`, the external↔internal seam is explicit:
@@ -126,7 +135,7 @@ With FKs on bigint and clients passing `public_id`, the external↔internal seam
 
 ## Phases (one plan)
 
-- **Phase 1 — Foundation:** `nanoid` dep; `commons-drizzle` factory (`baseColumns`/`updatableColumns` → prefix-taking, snowflake id + `public_id`); retype all FK columns to bigint; `next_id()` SQL; reset + regenerate baseline migration; drop/recreate/reseed DB. Unit tests for the factory + `next_id()`. *(Tree is red until Phases 2–3 land.)*
+- **Phase 1 — Foundation:** `nanoid` dep; `commons-drizzle` factory (`baseColumns`/`updatableColumns` → prefix-taking, snowflake id + `public_id` + epoch-ms `created_at`/`updated_at`); retype all FK columns to bigint; convert all domain `timestamp(..)` columns to bigint ms (auth carve-out preserved); `next_id()` SQL; reset + regenerate baseline migration; drop/recreate/reseed DB. Unit tests for the factory + `next_id()`. *(Tree is red until Phases 2–3 land.)*
 - **Phase 2 — Auth.js:** adapter compatibility with bigint `users.id`; jwt/session callbacks → `session.user.id = public_id`; credential login verified; auth login smoke.
 - **Phase 3 — Service/route boundary-mapping:** repositories/services `findByPublicId`; routes/actions/queries resolve `public_id`→bigint; ownership checks (`pickDish`, inquiries, users) key on `public_id`; audit `createdBy/updatedBy` write resolved bigints; update all 88 existing tests to the new id model. Full verify green; reseed.
 
@@ -147,4 +156,4 @@ With FKs on bigint and clients passing `public_id`, the external↔internal seam
 
 ## Verification
 
-Root: `DATABASE_URL=... pnpm test && pnpm typecheck && DATABASE_URL=... pnpm build` green at the end of Phase 3; `rg -n "uuid\(" apps/web/db packages/commons-drizzle/src` returns nothing (no UUID columns remain); login smoke passes; DB reseeded.
+Root: `DATABASE_URL=... pnpm test && pnpm typecheck && DATABASE_URL=... pnpm build` green at the end of Phase 3; `rg -n "uuid\(" apps/web/db packages/commons-drizzle/src` returns nothing (no UUID columns remain); `rg -n "timestamp\(" apps/web/db` returns only the auth-adapter carve-out columns (no domain `timestamp` columns remain); login smoke passes; DB reseeded.
