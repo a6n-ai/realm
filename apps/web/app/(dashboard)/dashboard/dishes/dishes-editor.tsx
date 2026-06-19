@@ -24,7 +24,7 @@ const SLOT_OPTIONS = ["breakfast", "lunch", "dinner"] as const;
 type FormValues = {
   name: string;
   description: string;
-  diet: string;
+  diet: "veg" | "nonveg";
   slots: string[];
   imageUrl: string;
 };
@@ -54,7 +54,7 @@ function DishForm({
       </div>
       <div>
         <Label>Diet</Label>
-        <Select value={values.diet} onValueChange={(v) => setValues({ ...values, diet: v })}>
+        <Select value={values.diet} onValueChange={(v) => setValues({ ...values, diet: v as "veg" | "nonveg" })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="veg">veg</SelectItem>
@@ -125,14 +125,13 @@ export function DishesEditor({ dishes }: { dishes: Dish[] }) {
 
   const save = () =>
     run(async () => {
-      const patch: Record<string, unknown> = {
+      await saveDish(editingId === "__new__" ? null : editingId, {
         name: values.name,
         diet: values.diet,
         slots: values.slots,
         description: values.description || null,
         imageUrl: values.imageUrl || null,
-      };
-      await saveDish(editingId === "__new__" ? null : editingId, patch);
+      });
       setEditingId(null);
     });
 
