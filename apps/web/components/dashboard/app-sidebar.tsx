@@ -5,7 +5,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   type LucideIcon,
-  SaladIcon,
+  UserIcon,
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
@@ -34,13 +34,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-type NavItem = { title: string; href: string; icon: LucideIcon; soon?: boolean };
+type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 
 const NAV: NavItem[] = [
-  { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon },
-  { title: "Users", href: "/dashboard/users", icon: UsersIcon },
-  { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, soon: true },
-  { title: "Weekly Menus", href: "/dashboard/menus", icon: SaladIcon, soon: true },
+  { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member", "user"] },
+  { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
+  { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
+  { title: "Users", href: "/dashboard/users", icon: UsersIcon, roles: ["admin"] },
+  { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ["admin", "member", "user"] },
 ];
 
 export function AppSidebar({ user }: { user: { email: string; role: string } }) {
@@ -65,15 +66,14 @@ export function AppSidebar({ user }: { user: { email: string; role: string } }) 
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarMenu>
-            {NAV.map((item) => {
+            {NAV.filter((item) => item.roles.includes(user.role)).map((item) => {
               const active = item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
               return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                    <Link href={item.soon ? "#" : item.href} aria-disabled={item.soon}>
+                    <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
-                      {item.soon ? <span className="text-muted-foreground ml-auto text-xs">soon</span> : null}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
