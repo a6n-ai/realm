@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Contact = { fullName: string; email: string; addressLine: string; city: string; postalCode: string };
-const emptyContact: Contact = { fullName: "", email: "", addressLine: "", city: "", postalCode: "" };
+type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
+const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
 export function Checkout() {
   const router = useRouter();
@@ -62,7 +62,8 @@ export function Checkout() {
             <h2 className="text-lg font-medium">Address & contact</h2>
             <div className="grid gap-3">
               <div><Label htmlFor="fullName">Full name</Label><Input id="fullName" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
-              <div><Label htmlFor="email">Email</Label><Input id="email" type="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} /></div>
+              <div><Label htmlFor="phone">Phone</Label><Input id="phone" type="tel" autoComplete="tel" value={contact.phone} onChange={(e) => set({ phone: e.target.value })} /></div>
+              <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} /></div>
               <div><Label htmlFor="addr">Address</Label><Input id="addr" value={contact.addressLine} onChange={(e) => set({ addressLine: e.target.value })} /></div>
               <div><Label htmlFor="city">City</Label><Input id="city" value={contact.city} onChange={(e) => set({ city: e.target.value })} /></div>
               <div className="flex items-end gap-2">
@@ -72,7 +73,7 @@ export function Checkout() {
               {zone?.served && <p className="text-sm text-emerald-600">Served — {zone.name}, delivery {zone.slotWindow}.</p>}
               {zone && !zone.served && <p className="text-sm text-amber-600">Not yet served — you&apos;ll join the waitlist for your area.</p>}
             </div>
-            <Button disabled={!contact.fullName || !contact.email || !contact.postalCode} onClick={() => setStep(2)}>Continue to payment</Button>
+            <Button disabled={!contact.fullName || !contact.phone || !contact.postalCode} onClick={() => setStep(2)}>Continue to payment</Button>
           </section>
         )}
 
