@@ -1,5 +1,6 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
 import { boolean, date, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { orders } from "./orders";
 
 export const mealSlots = pgTable("meal_slots", {
   ...updatableColumns,
@@ -43,4 +44,18 @@ export const menuItems = pgTable(
     isDefault: boolean("is_default").notNull().default(false),
   },
   (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.slot, t.dishId)],
+);
+
+export const mealSelections = pgTable(
+  "meal_selections",
+  {
+    ...updatableColumns,
+    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    menuWeekId: uuid("menu_week_id").notNull().references(() => menuWeeks.id),
+    dayOfWeek: dayOfWeek("day_of_week").notNull(),
+    slot: text("slot").notNull(),
+    personIndex: integer("person_index").notNull(),
+    dishId: uuid("dish_id").notNull().references(() => dishes.id),
+  },
+  (t) => [uniqueIndex("meal_selections_unique").on(t.orderId, t.menuWeekId, t.dayOfWeek, t.slot, t.personIndex)],
 );

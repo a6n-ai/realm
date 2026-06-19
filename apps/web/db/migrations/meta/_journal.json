@@ -92,6 +92,13 @@
       "when": 1781868737897,
       "tag": "0012_menu_weeks_items",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781869794167,
+      "tag": "0013_meal_selections",
+      "breakpoints": true
     }
   ]
 }
