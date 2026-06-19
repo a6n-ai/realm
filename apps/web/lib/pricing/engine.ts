@@ -8,9 +8,12 @@ export function priceSubscription(selections: PricingSelections, catalog: Pricin
   const lineItems: PricingLine[] = [];
   const discounts: PricingLine[] = [];
 
-  const mealsSubtotal = round2(catalog.mealSize.basePrice * catalog.frequency.daysPerWeek * selections.dailyQty);
+  const slotCount = Math.max(1, selections.mealSlots.length);
+  const mealsSubtotal = round2(
+    catalog.mealSize.basePrice * catalog.frequency.daysPerWeek * selections.persons * slotCount,
+  );
   lineItems.push({
-    label: `Meals (${catalog.frequency.daysPerWeek}×${selections.dailyQty}/wk)`,
+    label: `Meals (${catalog.frequency.daysPerWeek}d × ${selections.persons}p × ${slotCount} slot${slotCount > 1 ? "s" : ""}/wk)`,
     amount: mealsSubtotal,
   });
 

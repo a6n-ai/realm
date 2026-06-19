@@ -30,7 +30,8 @@ describe("inquiriesService.convert", () => {
       selections: {
         mealSizeId: meal.id,
         frequencyKey: "5_day",
-        dailyQty: 1,
+        persons: 1,
+        mealSlots: ["lunch"],
         includeSaturday: false,
         includeSunday: false,
         isStudent: false,

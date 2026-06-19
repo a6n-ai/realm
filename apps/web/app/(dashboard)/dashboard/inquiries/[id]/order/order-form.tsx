@@ -17,14 +17,18 @@ type Catalog = {
   durations: { weeks: number }[];
 };
 
+type EnabledSlot = { key: string; label: string };
+
 export function OrderForm({
   inquiryId,
   contact,
   catalog,
+  enabledSlots,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
+  enabledSlots: EnabledSlot[];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +37,10 @@ export function OrderForm({
   const [planKey, setPlanKey] = useState(catalog.plans[0]?.key ?? "");
   const [mealSizeId, setMealSizeId] = useState(catalog.mealSizes[0]?.id ?? "");
   const [frequencyKey, setFrequencyKey] = useState<"5_day" | "mwf">("5_day");
-  const [dailyQty, setDailyQty] = useState(1);
+  const [persons, setPersons] = useState(1);
+  const [mealSlots, setMealSlots] = useState<string[]>(
+    enabledSlots.some((s) => s.key === "lunch") ? ["lunch"] : enabledSlots.slice(0, 1).map((s) => s.key),
+  );
   const [includeSaturday, setSat] = useState(false);
   const [includeSunday, setSun] = useState(false);
   const [isStudent, setStudent] = useState(false);
@@ -44,7 +51,7 @@ export function OrderForm({
 
   const buildInput = (): CreateOrderInput => ({
     planKey,
-    selections: { mealSizeId, frequencyKey, dailyQty, includeSaturday, includeSunday, isStudent, durationWeeks },
+    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, isStudent, durationWeeks },
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
@@ -63,7 +70,7 @@ export function OrderForm({
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, dailyQty, includeSaturday, includeSunday, isStudent, durationWeeks]);
+  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, isStudent, durationWeeks]);
 
   const submit = () => {
     setError(null);
@@ -102,8 +109,8 @@ export function OrderForm({
             </Select>
           </div>
           <div>
-            <Label htmlFor="qty">Daily quantity</Label>
-            <Input id="qty" type="number" min={1} max={5} value={dailyQty} onChange={(e) => setDailyQty(Number(e.target.value))} />
+            <Label htmlFor="qty">Persons</Label>
+            <Input id="qty" type="number" min={1} max={5} value={persons} onChange={(e) => setPersons(Number(e.target.value))} />
           </div>
           <div>
             <Label>Duration (weeks)</Label>
@@ -113,6 +120,29 @@ export function OrderForm({
             </Select>
           </div>
         </div>
+
+        {enabledSlots.length > 0 && (
+          <div className="space-y-2">
+            <Label>Meal slots</Label>
+            <div className="flex flex-wrap gap-4">
+              {enabledSlots.map((slot) => (
+                <label key={slot.key} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={mealSlots.includes(slot.key)}
+                    onChange={(e) =>
+                      setMealSlots((prev) => {
+                        const next = e.target.checked ? [...prev, slot.key] : prev.filter((k) => k !== slot.key);
+                        return next.length === 0 ? prev : next;
+                      })
+                    }
+                  />
+                  {slot.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={setSat} /> Saturday</label>

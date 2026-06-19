@@ -4,13 +4,19 @@ export interface WizardSelections extends PricingSelections {
   planKey: "veg" | "halal_nonveg" | "mixed" | null;
 }
 
+export interface EnabledSlot {
+  key: string;
+  label: string;
+}
+
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 
 export const initialSelections: WizardSelections = {
   planKey: null,
   mealSizeId: "",
   frequencyKey: "5_day",
-  dailyQty: 1,
+  persons: 1,
+  mealSlots: ["lunch"],
   includeSaturday: false,
   includeSunday: false,
   isStudent: false,

@@ -17,7 +17,8 @@ const baseInput = (mealSizeId: string, planKey: string) => ({
   selections: {
     mealSizeId,
     frequencyKey: "5_day" as const,
-    dailyQty: 1,
+    persons: 1,
+    mealSlots: ["lunch"],
     includeSaturday: false,
     includeSunday: false,
     isStudent: false,
