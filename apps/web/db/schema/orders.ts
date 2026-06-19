@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
-import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
@@ -7,11 +7,11 @@ export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlis
 export const paymentStatus = pgEnum("payment_status", ["simulated_paid"]);
 
 export const orders = pgTable("orders", {
-  ...updatableColumns,
-  userId: uuid("user_id").references(() => users.id),
-  planId: uuid("plan_id").notNull().references(() => plans.id),
-  mealSizeId: uuid("meal_size_id").notNull().references(() => mealSizes.id),
-  frequencyId: uuid("frequency_id").notNull().references(() => deliveryFrequencies.id),
+  ...updatableColumns("ord"),
+  userId: bigint("user_id", { mode: "bigint" }).references(() => users.id),
+  planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
+  mealSizeId: bigint("meal_size_id", { mode: "bigint" }).notNull().references(() => mealSizes.id),
+  frequencyId: bigint("frequency_id", { mode: "bigint" }).notNull().references(() => deliveryFrequencies.id),
   persons: integer("persons").notNull().default(1),
   mealSlots: text("meal_slots").array().notNull().default(["lunch"]),
   includeSaturday: boolean("include_saturday").notNull().default(false),
@@ -23,7 +23,7 @@ export const orders = pgTable("orders", {
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
   status: orderStatus("status").notNull().default("pending"),
   deploymentId: text("deployment_id").notNull().unique(),
-  zoneId: uuid("zone_id").references(() => deliveryZones.id),
+  zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   fullName: text("full_name").notNull(),
   addressLine: text("address_line").notNull(),
   city: text("city").notNull(),
@@ -31,8 +31,8 @@ export const orders = pgTable("orders", {
 });
 
 export const payments = pgTable("payments", {
-  ...baseColumns,
-  orderId: uuid("order_id").notNull().references(() => orders.id),
+  ...baseColumns("pay"),
+  orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
   status: paymentStatus("status").notNull().default("simulated_paid"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
 });
