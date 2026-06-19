@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 const schema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1, "Phone or email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -23,14 +23,14 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   async function onSubmit(values: z.infer<typeof schema>) {
     setError(null);
     const res = await signIn("credentials", { ...values, redirect: false });
     if (res?.error) {
-      setError("Invalid email or password");
+      setError("Invalid phone/email or password");
       return;
     }
     router.push(params.get("callbackUrl") ?? "/dashboard");
@@ -42,12 +42,12 @@ export function LoginForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="email"
+          name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Phone or email</FormLabel>
               <FormControl>
-                <Input type="email" autoComplete="email" {...field} />
+                <Input autoComplete="username" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
