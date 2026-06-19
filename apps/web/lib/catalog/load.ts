@@ -1,15 +1,16 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans } from "@/db/schema";
 import type { CatalogSnapshot } from "./types";
 
 export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
   const [planRows, mealRows, addonRows, freqRows, durRows, zoneRows] = await Promise.all([
-    db.select().from(plans),
-    db.select().from(mealSizes),
-    db.select().from(addons),
-    db.select().from(deliveryFrequencies),
-    db.select().from(durationPackages),
-    db.select().from(deliveryZones),
+    db.select().from(plans).where(eq(plans.active, true)),
+    db.select().from(mealSizes).where(eq(mealSizes.active, true)),
+    db.select().from(addons).where(eq(addons.active, true)),
+    db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.active, true)),
+    db.select().from(durationPackages).where(eq(durationPackages.active, true)),
+    db.select().from(deliveryZones).where(eq(deliveryZones.active, true)),
   ]);
 
   return {
