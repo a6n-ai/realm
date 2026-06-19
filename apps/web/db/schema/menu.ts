@@ -1,5 +1,5 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
-import { boolean, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, date, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const mealSlots = pgTable("meal_slots", {
   ...updatableColumns,
@@ -20,3 +20,27 @@ export const dishes = pgTable("dishes", {
   imageUrl: text("image_url"),
   active: boolean("active").notNull().default(true),
 });
+
+export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);
+export const dayOfWeek = pgEnum("day_of_week", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+
+export const menuWeeks = pgTable("menu_weeks", {
+  ...updatableColumns,
+  weekStart: date("week_start").notNull().unique(),
+  status: menuWeekStatus("status").notNull().default("draft"),
+  orderCutoff: timestamp("order_cutoff", { withTimezone: true }).notNull(),
+  releasedAt: timestamp("released_at", { withTimezone: true }),
+});
+
+export const menuItems = pgTable(
+  "menu_items",
+  {
+    ...updatableColumns,
+    menuWeekId: uuid("menu_week_id").notNull().references(() => menuWeeks.id, { onDelete: "cascade" }),
+    dayOfWeek: dayOfWeek("day_of_week").notNull(),
+    slot: text("slot").notNull(),
+    dishId: uuid("dish_id").notNull().references(() => dishes.id),
+    isDefault: boolean("is_default").notNull().default(false),
+  },
+  (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.slot, t.dishId)],
+);
