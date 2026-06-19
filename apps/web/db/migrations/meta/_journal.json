@@ -43,6 +43,13 @@
       "when": 1781788859045,
       "tag": "0005_rename_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781840958726,
+      "tag": "0006_user_dual_identity",
+      "breakpoints": true
     }
   ]
 }

@@ -1,18 +1,26 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
-import { integer, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
-export const users = pgTable("users", {
-  ...updatableColumns,
-  name: text("name"),
-  email: text("email").notNull().unique(),
-  emailVerified: timestamp("email_verified", { withTimezone: true }),
-  image: text("image"),
-  passwordHash: text("password_hash"),
-  phone: text("phone"),
-  role: userRole("role").notNull().default("user"),
-});
+export const users = pgTable(
+  "users",
+  {
+    ...updatableColumns,
+    name: text("name"),
+    email: text("email"),
+    emailVerified: timestamp("email_verified", { withTimezone: true }),
+    image: text("image"),
+    passwordHash: text("password_hash"),
+    phone: text("phone"),
+    role: userRole("role").notNull().default("user"),
+  },
+  (t) => [
+    uniqueIndex("users_email_unique").on(t.email).where(sql`${t.email} is not null`),
+    uniqueIndex("users_phone_unique").on(t.phone).where(sql`${t.phone} is not null`),
+  ],
+);
 
 export const accounts = pgTable(
   "accounts",
