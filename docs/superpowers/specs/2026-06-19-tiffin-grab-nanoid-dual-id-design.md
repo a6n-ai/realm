@@ -114,7 +114,8 @@ The adapter treats `users.id` as the account identifier. Approach:
 All **domain** timestamp columns are stored as **epoch milliseconds** in `bigint` (Drizzle `mode:"number"` — ms epoch ≈1.7×10¹² is well under `2^53`, so JS `number` is lossless and no BigInt friction).
 
 - Factory: `created_at`/`updated_at` → `bigint mode:"number"`, default `Date.now()`, `updated_at` also `$onUpdate(() => Date.now())`.
-- Other domain timestamps converted from `timestamp(..)` to `bigint` ms: `menu_weeks.order_cutoff`, `menu_weeks.released_at`, inquiry timestamps, and any other `timestamp(...)` in non-auth schema. Application code reads/writes `number` (ms); convert to `Date` only at presentation.
+- Other domain timestamps converted from `timestamp(..)` to `bigint` ms: `menu_weeks.order_cutoff`, `menu_weeks.released_at`, inquiry timestamps, and any other `timestamp(...)` in non-auth schema. Application code reads/writes `number` (ms).
+- **Epoch in / epoch out:** the DB, services, API, and loaders always store and return **raw UTC epoch ms** (`number`) — never a formatted or zone-shifted string. A single shared converter (`apps/web/lib/format/datetime.ts` — `formatEpoch(ms, {timeZone, mode})`, `epochToDate(ms)`) renders human-readable, **client-local** strings, and is called **only from client UI components** (using the client's own `Intl` timezone). No server component or service formats a timestamp.
 - **Auth.js carve-out:** the DrizzleAdapter passes real `Date`/timestamptz for `sessions.expires`, `verification_tokens.expires`, `users.email_verified`; `accounts.expires_at` is OAuth epoch-**seconds** `integer`. These **stay as the adapter requires** — do not convert. Only our domain timestamps move to bigint ms.
 
 ## Boundary mapping (services/routes)
