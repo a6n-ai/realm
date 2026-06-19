@@ -1,8 +1,9 @@
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities } from "@/db/schema";
+import { inquiries, inquiryActivities, orders } from "@/db/schema";
 import { SessionUpdatableService } from "./session-service";
+import { createOrder, type CreateOrderInput } from "./orders.service";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
 
@@ -40,6 +41,26 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       createdBy: await this.currentUserId(),
     });
     return updated;
+  }
+
+  async convert(inquiryId: string, orderInput: CreateOrderInput) {
+    const inq = await this.read(inquiryId);
+    const actor = await this.currentUserId();
+    const result = await createOrder(orderInput, actor);
+    const [order] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(eq(orders.deploymentId, result.deploymentId))
+      .limit(1);
+    await this.update(inquiryId, { stage: "converted", convertedOrderId: order.id });
+    await db.insert(inquiryActivities).values({
+      inquiryId,
+      type: "converted",
+      fromStage: inq.stage,
+      toStage: "converted",
+      createdBy: actor,
+    });
+    return result;
   }
 
   async listActivities(inquiryId: string) {
