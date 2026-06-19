@@ -7,7 +7,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { hashPassword } from "@/lib/auth/password";
-import { normalizeEmail } from "./users-contact";
+import { isValidCaPhone, normalizeEmail } from "./users-contact";
 
 const TEMP_PASSWORD = "Tiffin123";
 
@@ -17,10 +17,23 @@ export interface CreateOrderInput {
   contact: { fullName: string; phone: string; email?: string; addressLine: string; city: string; postalCode: string };
 }
 
-// The single authoritative order-creation path: prices server-side, provisions
-// the customer by phone, and writes the order + simulated payment in one tx.
-// Used by the public checkout and the agent (convert) flow alike.
-export async function createOrder(input: CreateOrderInput, actorId?: string | null): Promise<{ deploymentId: string }> {
+export interface CreateOrderOptions {
+  // Who performed the action — stamped as createdBy. For an agent order this is
+  // the staff member, NOT the order owner.
+  actorId?: string | null;
+  // The account the order belongs to. Set for a logged-in customer's own
+  // checkout so the order attaches to their real account regardless of the
+  // phone typed. Omitted for anonymous checkout and agent orders, which
+  // resolve/provision the customer by phone.
+  ownerUserId?: string | null;
+}
+
+// The single authoritative order-creation path: prices server-side, attaches the
+// order to the owner (provisioning a customer by phone when none is given), and
+// writes the order + simulated payment in one tx. Used by the public checkout
+// and the agent (convert) flow alike.
+export async function createOrder(input: CreateOrderInput, opts: CreateOrderOptions = {}): Promise<{ deploymentId: string }> {
+  const { actorId = null, ownerUserId = null } = opts;
   const snapshot = await loadCatalogSnapshot();
   const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
 
@@ -32,13 +45,19 @@ export async function createOrder(input: CreateOrderInput, actorId?: string | nu
 
   const phone = input.contact.phone.trim();
   if (!phone) throw new ValidationError("Phone is required");
+  if (!isValidCaPhone(phone)) throw new ValidationError("Invalid phone number");
   const email = input.contact.email?.trim() ? normalizeEmail(input.contact.email) : null;
 
   const deploymentId = generateCode("SUB", 6);
 
   await db.transaction(async (tx) => {
-    const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
-    let userId = existing?.id ?? null;
+    // A logged-in customer's order attaches to their own account; anonymous and
+    // agent orders resolve/provision the customer by phone.
+    let userId = ownerUserId;
+    if (!userId) {
+      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+      userId = existing?.id ?? null;
+    }
     if (!userId) {
       if (email) {
         const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);

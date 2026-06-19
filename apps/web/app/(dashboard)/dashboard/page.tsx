@@ -1,5 +1,8 @@
 import { desc, eq, sql } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { ClockIcon, DollarSignIcon, PackageIcon, UsersIcon } from "lucide-react";
+import { Role } from "@tiffin/commons";
+import { auth } from "@/lib/auth";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +34,14 @@ async function loadStats() {
 }
 
 export default async function DashboardOverviewPage() {
+  // Staff-only: the overview exposes business-wide stats and customer PII.
+  // Customers landing here are sent to their account page.
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
+    redirect("/dashboard/account");
+  }
+
   const stats = await loadStats();
   const recent = await db
     .select({

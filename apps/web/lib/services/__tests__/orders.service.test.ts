@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { ValidationError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -48,5 +49,24 @@ describe("createOrder (integration)", () => {
     await createOrder(input);
     const rows = await db.select().from(users).where(eq(users.phone, "+16475550111"));
     expect(rows).toHaveLength(1);
+  });
+
+  it("attaches to ownerUserId without provisioning by phone", async () => {
+    const snap = await loadCatalogSnapshot();
+    const [owner] = await db.insert(users).values({ email: "owner@x.com", role: "user" }).returning();
+    const input = baseInput(snap.mealSizes[0].id, snap.plans[0].key);
+    const { deploymentId } = await createOrder(input, { ownerUserId: owner.id });
+    const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(o.userId).toBe(owner.id);
+    // No customer provisioned for the typed phone.
+    const phoned = await db.select().from(users).where(eq(users.phone, "+16475550111"));
+    expect(phoned).toHaveLength(0);
+  });
+
+  it("rejects a malformed phone", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].id, snap.plans[0].key);
+    input.contact.phone = "12";
+    await expect(createOrder(input)).rejects.toBeInstanceOf(ValidationError);
   });
 });

@@ -1,4 +1,5 @@
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
+import { ValidationError } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders } from "@/db/schema";
@@ -45,8 +46,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async convert(inquiryId: string, orderInput: CreateOrderInput) {
     const inq = await this.read(inquiryId);
+    // Guard against double-conversion: a retry must not create a second order.
+    if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
     const actor = await this.currentUserId();
-    const result = await createOrder(orderInput, actor);
+    // Agent order: actor is the staff member; the order belongs to the customer
+    // (resolved/provisioned by phone), so no ownerUserId.
+    const result = await createOrder(orderInput, { actorId: actor });
     const [order] = await db
       .select({ id: orders.id })
       .from(orders)

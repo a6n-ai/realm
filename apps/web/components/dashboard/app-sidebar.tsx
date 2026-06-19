@@ -37,7 +37,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 
 const NAV: NavItem[] = [
-  { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member", "user"] },
+  { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
   { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
   { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
   { title: "Users", href: "/dashboard/users", icon: UsersIcon, roles: ["admin"] },
