@@ -3,7 +3,7 @@
 import { generateCode, ValidationError } from "@tiffin/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { payments, subscriptions, users } from "@/db/schema";
+import { orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
@@ -54,7 +54,7 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
         ?? (await tx.select({ id: users.id }).from(users).where(eq(users.email, input.contact.email)).limit(1))[0].id;
     }
 
-    const [sub] = await tx.insert(subscriptions).values({
+    const [sub] = await tx.insert(orders).values({
       userId,
       planId: plan.id,
       mealSizeId: input.selections.mealSizeId,
@@ -74,10 +74,10 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
       addressLine: input.contact.addressLine,
       city: input.contact.city,
       postalCode: input.contact.postalCode,
-    }).returning({ id: subscriptions.id });
+    }).returning({ id: orders.id });
 
     await tx.insert(payments).values({
-      subscriptionId: sub.id, status: "simulated_paid", amount: pricing.total.toFixed(2),
+      orderId: sub.id, status: "simulated_paid", amount: pricing.total.toFixed(2),
     });
   });
 

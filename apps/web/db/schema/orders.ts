@@ -3,10 +3,10 @@ import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uuid } from "d
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
-export const subscriptionStatus = pgEnum("subscription_status", ["pending", "active", "waitlisted", "cancelled"]);
+export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled"]);
 export const paymentStatus = pgEnum("payment_status", ["simulated_paid"]);
 
-export const subscriptions = pgTable("subscriptions", {
+export const orders = pgTable("orders", {
   ...updatableColumns,
   userId: uuid("user_id").references(() => users.id),
   planId: uuid("plan_id").notNull().references(() => plans.id),
@@ -20,7 +20,7 @@ export const subscriptions = pgTable("subscriptions", {
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   weeklyFee: numeric("weekly_fee", { precision: 10, scale: 2 }).notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
-  status: subscriptionStatus("status").notNull().default("pending"),
+  status: orderStatus("status").notNull().default("pending"),
   deploymentId: text("deployment_id").notNull().unique(),
   zoneId: uuid("zone_id").references(() => deliveryZones.id),
   fullName: text("full_name").notNull(),
@@ -31,7 +31,7 @@ export const subscriptions = pgTable("subscriptions", {
 
 export const payments = pgTable("payments", {
   ...baseColumns,
-  subscriptionId: uuid("subscription_id").notNull().references(() => subscriptions.id),
+  orderId: uuid("order_id").notNull().references(() => orders.id),
   status: paymentStatus("status").notNull().default("simulated_paid"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
 });

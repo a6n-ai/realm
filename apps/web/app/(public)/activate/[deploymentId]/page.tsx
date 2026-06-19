@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
-import { subscriptions } from "@/db/schema";
+import { orders } from "@/db/schema";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default async function ActivatePage({ params }: { params: Promise<{ deploymentId: string }> }) {
   const { deploymentId } = await params;
-  const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.deploymentId, deploymentId)).limit(1);
+  const [sub] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId)).limit(1);
   if (!sub) notFound();
 
   const waitlisted = sub.status === "waitlisted";

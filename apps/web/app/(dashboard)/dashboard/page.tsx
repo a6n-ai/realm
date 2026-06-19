@@ -1,7 +1,7 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { ClockIcon, DollarSignIcon, PackageIcon, UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { subscriptions, users } from "@/db/schema";
+import { orders, users } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -18,13 +18,13 @@ const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", c
 async function loadStats() {
   const [userCount, subsTotal, subsActive, subsWaitlisted, revenue] = await Promise.all([
     db.$count(users),
-    db.$count(subscriptions),
-    db.$count(subscriptions, eq(subscriptions.status, "active")),
-    db.$count(subscriptions, eq(subscriptions.status, "waitlisted")),
+    db.$count(orders),
+    db.$count(orders, eq(orders.status, "active")),
+    db.$count(orders, eq(orders.status, "waitlisted")),
     db
-      .select({ total: sql<string>`coalesce(sum(${subscriptions.weeklyFee}), 0)` })
-      .from(subscriptions)
-      .where(eq(subscriptions.status, "active"))
+      .select({ total: sql<string>`coalesce(sum(${orders.weeklyFee}), 0)` })
+      .from(orders)
+      .where(eq(orders.status, "active"))
       .then((r) => Number(r[0]?.total ?? 0)),
   ]);
   return { userCount, subsTotal, subsActive, subsWaitlisted, revenue };
@@ -34,20 +34,20 @@ export default async function DashboardOverviewPage() {
   const stats = await loadStats();
   const recent = await db
     .select({
-      deploymentId: subscriptions.deploymentId,
-      status: subscriptions.status,
-      fullName: subscriptions.fullName,
-      city: subscriptions.city,
-      total: subscriptions.total,
-      createdAt: subscriptions.createdAt,
+      deploymentId: orders.deploymentId,
+      status: orders.status,
+      fullName: orders.fullName,
+      city: orders.city,
+      total: orders.total,
+      createdAt: orders.createdAt,
     })
-    .from(subscriptions)
-    .orderBy(desc(subscriptions.createdAt))
+    .from(orders)
+    .orderBy(desc(orders.createdAt))
     .limit(5);
 
   const cards = [
     { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
-    { label: "Active subscriptions", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon },
+    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon },
     { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "pending delivery zones", icon: ClockIcon },
     { label: "Weekly revenue", value: fmt(stats.revenue), hint: "from active plans", icon: DollarSignIcon },
   ];
@@ -56,7 +56,7 @@ export default async function DashboardOverviewPage() {
     <div className="flex flex-col gap-6">
       <div>
         <TypographyH2 className="border-0 pb-0">Overview</TypographyH2>
-        <TypographyMuted>Operational snapshot across subscriptions and members.</TypographyMuted>
+        <TypographyMuted>Operational snapshot across orders and members.</TypographyMuted>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -76,12 +76,12 @@ export default async function DashboardOverviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent subscriptions</CardTitle>
+          <CardTitle>Recent orders</CardTitle>
           <CardDescription>The latest plans deployed through checkout.</CardDescription>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <TypographyMuted>No subscriptions yet.</TypographyMuted>
+            <TypographyMuted>No orders yet.</TypographyMuted>
           ) : (
             <Table>
               <TableHeader>
