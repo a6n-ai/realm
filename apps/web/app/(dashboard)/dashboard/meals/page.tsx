@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, dishes, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveryFrequencies, dishes, mealSlots, menuWeeks, orders, plans } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { orderDeliveryDays, visibleSlots } from "@/lib/menu/delivery-days";
 import { selectionsService } from "@/lib/menu/selections.service";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { menuService } from "@/lib/services/menu.service";
 import { MealsGrid } from "./meals-grid";
 
@@ -84,8 +83,11 @@ export default async function MealsPage() {
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.id);
 
   const allDishIds = [...new Set(allItems.map((i) => i.dishId))];
-  const [enabledSlotsRows, picks, dishRows] = await Promise.all([
-    mealSlotsService.enabledSlots(),
+  const [allSlotsRows, picks, dishRows] = await Promise.all([
+    db
+      .select({ key: mealSlots.key, label: mealSlots.label, sortOrder: mealSlots.sortOrder })
+      .from(mealSlots)
+      .orderBy(asc(mealSlots.sortOrder)),
     selectionsService.effectiveSelections(activeOrder.id, releasedWeek.id),
     allDishIds.length > 0
       ? db
@@ -97,7 +99,8 @@ export default async function MealsPage() {
   ]);
 
   const dishMap = new Map(dishRows.map((d) => [d.id, d]));
-  const enabledSlotKeys = enabledSlotsRows.map((s) => s.key);
+  const purchasedSlotKeys = new Set(activeOrder.mealSlots);
+  const orderSlotsRows = allSlotsRows.filter((s) => purchasedSlotKeys.has(s.key));
 
   const deliveryDays = orderDeliveryDays({
     frequencyKey: activeOrder.frequencyKey,
@@ -111,7 +114,7 @@ export default async function MealsPage() {
 
   for (const day of deliveryDays) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
-    const slots = visibleSlots(activeOrder.mealSlots, enabledSlotKeys, dayItems);
+    const slots = visibleSlots(activeOrder.mealSlots, activeOrder.mealSlots, dayItems);
 
     for (const slot of slots) {
       const slotItems = dayItems.filter((i) => i.slot === slot);
@@ -160,7 +163,7 @@ export default async function MealsPage() {
         isLocked={isLocked}
         persons={activeOrder.persons}
         deliveryDays={deliveryDays}
-        enabledSlots={enabledSlotsRows}
+        enabledSlots={orderSlotsRows}
       />
     </section>
   );
