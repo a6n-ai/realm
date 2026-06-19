@@ -1,5 +1,6 @@
+import { eq } from "drizzle-orm";
 import { db } from "./client";
-import { mealSlots } from "./schema";
+import { dishes, mealSlots, menuItems, menuWeeks } from "./schema";
 
 const SLOTS = [
   { key: "breakfast", label: "Breakfast", enabled: false, sortOrder: 0 },
@@ -7,11 +8,82 @@ const SLOTS = [
   { key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 },
 ];
 
+const DISHES = [
+  { name: "Dal Tadka", description: "Yellow lentils tempered with cumin and garlic", diet: "veg" as const, slots: ["lunch"] },
+  { name: "Paneer Butter Masala", description: "Paneer in a rich tomato-cream sauce", diet: "veg" as const, slots: ["lunch"] },
+  { name: "Aloo Gobi", description: "Potato and cauliflower dry sabzi", diet: "veg" as const, slots: ["lunch"] },
+  { name: "Chicken Curry", description: "Tender chicken in a spiced onion-tomato gravy", diet: "nonveg" as const, slots: ["lunch"] },
+  { name: "Egg Bhurji", description: "Spiced scrambled eggs with onion and peppers", diet: "nonveg" as const, slots: ["lunch"] },
+];
+
+const DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
+
+function nextMonday(from: Date): Date {
+  const d = new Date(from);
+  const day = d.getUTCDay();
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
+  d.setUTCDate(d.getUTCDate() + daysUntilMonday);
+  return d;
+}
+
 async function main() {
   for (const s of SLOTS) {
     await db.insert(mealSlots).values(s).onConflictDoNothing({ target: mealSlots.key });
   }
   console.log(`Seeded ${SLOTS.length} meal slots`);
-  process.exit(0);
+
+  const dishIds: string[] = [];
+  for (const d of DISHES) {
+    const existing = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.name, d.name)).limit(1);
+    if (existing.length > 0) {
+      dishIds.push(existing[0].id);
+    } else {
+      const [inserted] = await db.insert(dishes).values(d).returning({ id: dishes.id });
+      dishIds.push(inserted.id);
+    }
+  }
+  console.log(`Seeded ${DISHES.length} dishes`);
+
+  const weekStart = nextMonday(new Date());
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  const orderCutoff = new Date(weekStart);
+  orderCutoff.setUTCDate(orderCutoff.getUTCDate() - 1);
+
+  const existingWeek = await db
+    .select({ id: menuWeeks.id })
+    .from(menuWeeks)
+    .where(eq(menuWeeks.weekStart, weekStartStr))
+    .limit(1);
+
+  if (existingWeek.length > 0) {
+    console.log(`Menu week ${weekStartStr} already exists — skipping week + items`);
+    return;
+  }
+
+  const [week] = await db
+    .insert(menuWeeks)
+    .values({ weekStart: weekStartStr, status: "released", orderCutoff })
+    .returning({ id: menuWeeks.id });
+
+  console.log(`Seeded menu week ${weekStartStr} (released)`);
+
+  for (const day of DAYS) {
+    for (let i = 0; i < dishIds.length; i++) {
+      await db
+        .insert(menuItems)
+        .values({
+          menuWeekId: week.id,
+          dayOfWeek: day,
+          slot: "lunch",
+          dishId: dishIds[i],
+          isDefault: i === 0,
+        })
+        .onConflictDoNothing();
+    }
+  }
+  console.log(`Seeded menu items for mon–fri lunch (${dishIds.length} dishes × ${DAYS.length} days)`);
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+
+main()
+  .then(() => process.exit(0))
+  .catch((e) => { console.error(e); process.exit(1); });
