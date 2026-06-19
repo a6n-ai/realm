@@ -1,10 +1,10 @@
 import { and, between, eq, inList, ValidationError } from "@tiffin/commons";
-import { integer, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { bigint, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { resolveColumn, toDrizzleWhere } from "./condition";
 
 const demo = pgTable("demo", {
-  id: uuid("id").primaryKey(),
+  id: bigint("id", { mode: "bigint" }).primaryKey(),
   status: text("status"),
   kcal: integer("kcal"),
 });
