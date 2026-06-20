@@ -52,7 +52,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
   private async assertFree(userId: string, field: "phone" | "email", value: string) {
     const col = field === "phone" ? users.phone : users.email;
     const [clash] = await db
-      .select({ id: users.id })
+      .select({ publicId: users.publicId })
       .from(users)
       .where(and(eq(col, value), ne(users.publicId, userId)))
       .limit(1);

@@ -12,7 +12,7 @@ describe("next_id()", () => {
 
   it("encodes the custom epoch (id >> 23 ≈ ms since 2025-01-01)", async () => {
     const [{ id }] = await db.execute<{ id: string }>(sql`SELECT next_id() AS id`);
-    const msSinceEpoch = Number(BigInt(id) >> 23n);
+    const msSinceEpoch = Number(BigInt(id) >> BigInt(23));
     const wallMsSinceEpoch = Date.now() - 1735689600000;
     expect(Math.abs(wallMsSinceEpoch - msSinceEpoch)).toBeLessThan(5000);
   });
