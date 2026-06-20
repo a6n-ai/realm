@@ -7,3 +7,8 @@ export * from "./section-card";
 export * from "./list-row";
 export * from "./empty-state";
 export * from "./stage-badge";
+export * from "./filter-pill";
+export * from "./search-input";
+export * from "./filter-bar";
+export * from "./tabs";
+export * from "./pagination";

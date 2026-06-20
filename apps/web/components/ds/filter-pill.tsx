@@ -1,0 +1,27 @@
+import { cn } from "@/lib/utils";
+
+export function FilterPill({
+  label, active, count, onClick,
+}: {
+  label: string;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
+        active ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground hover:bg-accent",
+      )}
+    >
+      {label}
+      {count !== undefined && (
+        <span className={cn("rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+      )}
+    </button>
+  );
+}
