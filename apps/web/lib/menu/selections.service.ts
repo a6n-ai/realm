@@ -10,25 +10,26 @@ type Week = typeof menuWeeks.$inferSelect;
 function dietsForPlanKey(planKey: string): ("veg" | "nonveg")[] {
   if (planKey === "veg") return ["veg"];
   if (planKey === "halal_nonveg") return ["nonveg"];
-  return ["veg", "nonveg"]; // mixed
+  return ["veg", "nonveg"];
 }
 
 export const selectionsService = {
-  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: Day; slot: string; personIndex: number; dishId: string }) {
-    const { order, menuWeek, dayOfWeek, slot, personIndex, dishId } = input;
-    if (new Date() > new Date(menuWeek.orderCutoff)) throw new ValidationError("Selections are locked for this week");
+  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: Day; slot: string; personIndex: number; dishPublicId: string }) {
+    const { order, menuWeek, dayOfWeek, slot, personIndex, dishPublicId } = input;
+    if (Date.now() > menuWeek.orderCutoff) throw new ValidationError("Selections are locked for this week");
     if (personIndex < 1 || personIndex > order.persons) throw new ValidationError("Invalid person");
 
-    // Dish must be on the menu for this day/slot.
+    const [dishRow] = await db.select({ id: dishes.id, diet: dishes.diet }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
+    if (!dishRow) throw new ValidationError("Dish not found");
+    const dishId = dishRow.id;
+
     const [item] = await db.select().from(menuItems).where(and(
       eq(menuItems.menuWeekId, menuWeek.id), eq(menuItems.dayOfWeek, dayOfWeek), eq(menuItems.slot, slot), eq(menuItems.dishId, dishId),
     )).limit(1);
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
-    // Diet must match the order's plan.
     const [plan] = await db.select({ key: plans.key }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-    const [dish] = await db.select({ diet: dishes.diet }).from(dishes).where(eq(dishes.id, dishId)).limit(1);
-    if (!plan || !dish || !dietsForPlanKey(plan.key).includes(dish.diet)) throw new ValidationError("Dish does not match your plan");
+    if (!plan || !dietsForPlanKey(plan.key).includes(dishRow.diet)) throw new ValidationError("Dish does not match your plan");
 
     await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, slot, personIndex, dishId })
       .onConflictDoUpdate({
@@ -37,9 +38,9 @@ export const selectionsService = {
       });
   },
 
-  async effectiveSelections(orderId: string, menuWeekId: string) {
+  async effectiveSelections(orderId: bigint, menuWeekId: bigint) {
     const picks = await db.select().from(mealSelections)
       .where(and(eq(mealSelections.orderId, orderId), eq(mealSelections.menuWeekId, menuWeekId)));
-    return picks; // default-fill is applied in the grid loader (Task 8) using menu_items.isDefault
+    return picks;
   },
 };

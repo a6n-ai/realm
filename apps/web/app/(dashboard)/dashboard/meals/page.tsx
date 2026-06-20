@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { deliveryFrequencies, dishes, mealSlots, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveryFrequencies, dishes, mealSlots, menuWeeks, orders, plans, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { orderDeliveryDays, visibleSlots } from "@/lib/menu/delivery-days";
 import { selectionsService } from "@/lib/menu/selections.service";
@@ -21,9 +21,18 @@ export default async function MealsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const [userRow] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.publicId, session.user.id))
+    .limit(1);
+
+  if (!userRow) redirect("/login");
+
   const [orderRow] = await db
     .select({
       id: orders.id,
+      publicId: orders.publicId,
       userId: orders.userId,
       planId: orders.planId,
       persons: orders.persons,
@@ -35,7 +44,7 @@ export default async function MealsPage() {
     })
     .from(orders)
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-    .where(eq(orders.userId, session.user.id))
+    .where(eq(orders.userId, userRow.id))
     .orderBy(desc(orders.createdAt))
     .limit(1);
 
@@ -86,25 +95,26 @@ export default async function MealsPage() {
   const allowedDiets: ("veg" | "nonveg")[] =
     planKey === "veg" ? ["veg"] : planKey === "halal_nonveg" ? ["nonveg"] : ["veg", "nonveg"];
 
-  const { items: allItems } = await menuService.weekWithItems(releasedWeek.id);
+  const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
 
-  const allDishIds = [...new Set(allItems.map((i) => i.dishId))];
+  const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
   const [allSlotsRows, picks, dishRows] = await Promise.all([
     db
       .select({ key: mealSlots.key, label: mealSlots.label, sortOrder: mealSlots.sortOrder })
       .from(mealSlots)
       .orderBy(asc(mealSlots.sortOrder)),
     selectionsService.effectiveSelections(activeOrder.id, releasedWeek.id),
-    allDishIds.length > 0
+    allDishBigintIds.length > 0
       ? db
-          .select({ id: dishes.id, name: dishes.name, diet: dishes.diet })
+          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, diet: dishes.diet })
           .from(dishes)
-          .where(inArray(dishes.id, allDishIds))
+          .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
   ]);
 
-  const dishMap = new Map(dishRows.map((d) => [d.id, d]));
+  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet }]));
+  const dishPublicIdByBigintId = new Map(dishRows.map((d) => [d.bigintId, d.id]));
   const purchasedSlotKeys = new Set(activeOrder.mealSlots);
   const orderSlotsRows = allSlotsRows.filter((s) => purchasedSlotKeys.has(s.key));
 
@@ -114,7 +124,7 @@ export default async function MealsPage() {
     includeSunday: activeOrder.includeSunday,
   });
 
-  const isLocked = new Date() > new Date(releasedWeek.orderCutoff);
+  const isLocked = Date.now() > releasedWeek.orderCutoff;
 
   const grid: GridCell[] = [];
 
@@ -137,10 +147,10 @@ export default async function MealsPage() {
 
         let selectedDishId: string | null = null;
         if (pick) {
-          selectedDishId = pick.dishId;
+          selectedDishId = dishPublicIdByBigintId.get(pick.dishId) ?? null;
         } else {
           const defaultItem = slotItems.find((i) => i.isDefault);
-          selectedDishId = defaultItem?.dishId ?? null;
+          selectedDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
         }
 
         grid.push({
@@ -168,8 +178,8 @@ export default async function MealsPage() {
         </div>
       )}
       <MealsGrid
-        orderId={activeOrder.id}
-        menuWeekId={releasedWeek.id}
+        orderId={activeOrder.publicId}
+        menuWeekId={releasedWeek.publicId}
         grid={grid}
         isLocked={isLocked}
         persons={activeOrder.persons}
