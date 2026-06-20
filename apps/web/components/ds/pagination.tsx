@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function pageRange(page: number, pageCount: number): number[] {
   if (pageCount <= 3) return Array.from({ length: pageCount }, (_, i) => i + 1);

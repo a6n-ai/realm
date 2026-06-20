@@ -33,7 +33,7 @@ export default async function SettingsPage() {
               <Card variant="lift" className="h-full">
                 <CardHeader className="flex flex-row items-start justify-between">
                   <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-                    <s.icon className="icon-pop size-5" />
+                    <s.icon className="size-5" />
                   </span>
                   <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
                 </CardHeader>

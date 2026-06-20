@@ -18,7 +18,7 @@ export function UserRow({
 }) {
   const [pending, start] = useTransition();
   return (
-    <TableRow className="hover-lift">
+    <TableRow>
       <TableCell>{user.email ?? user.phone ?? "—"}</TableCell>
       <TableCell>
         <Select
