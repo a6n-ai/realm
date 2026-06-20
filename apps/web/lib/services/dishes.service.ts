@@ -9,5 +9,5 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
     return 1;
   }
 }
-const repo = new UpdatableRepository(db, dishes, dishes.id);
+const repo = new UpdatableRepository(db, dishes, dishes.publicId, dishes.id);
 export const dishesService = new DishesService(repo);

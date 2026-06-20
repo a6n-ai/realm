@@ -14,5 +14,5 @@ class MealSlotsService extends SessionUpdatableService<typeof mealSlots> {
   }
 }
 
-const repo = new UpdatableRepository(db, mealSlots, mealSlots.id);
+const repo = new UpdatableRepository(db, mealSlots, mealSlots.publicId, mealSlots.id);
 export const mealSlotsService = new MealSlotsService(repo);

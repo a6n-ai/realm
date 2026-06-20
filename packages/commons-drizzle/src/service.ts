@@ -7,7 +7,9 @@ import type { BaseRepository, UpdatableRepository } from "./repository";
 export class BaseService<TTable extends PgTable> {
   constructor(protected readonly repo: BaseRepository<TTable>) {}
 
-  protected async currentUserId(): Promise<string | null> {
+  // Resolves the acting user's internal bigint id for audit stamping.
+  // Returns null when there is no session (e.g. tests/scripts).
+  protected async currentUserId(): Promise<bigint | null> {
     return null;
   }
 
@@ -15,9 +17,9 @@ export class BaseService<TTable extends PgTable> {
     return this.repo.create(stripManaged(values), await this.currentUserId());
   }
 
-  async read(id: string): Promise<TTable["$inferSelect"]> {
-    const row = await this.repo.findById(id);
-    if (!row) throw new NotFoundError(`Not found: ${id}`);
+  async read(publicId: string): Promise<TTable["$inferSelect"]> {
+    const row = await this.repo.findByPublicId(publicId);
+    if (!row) throw new NotFoundError(`Not found: ${publicId}`);
     return row;
   }
 
@@ -25,8 +27,8 @@ export class BaseService<TTable extends PgTable> {
     return this.repo.findMany(condition, page);
   }
 
-  async delete(id: string): Promise<number> {
-    return this.repo.delete(id);
+  async delete(publicId: string): Promise<number> {
+    return this.repo.deleteByPublicId(publicId);
   }
 }
 
@@ -35,9 +37,9 @@ export class UpdatableService<TTable extends PgTable> extends BaseService<TTable
     super(repo);
   }
 
-  async update(id: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    const row = await this.repo.update(id, stripManaged(patch), await this.currentUserId());
-    if (!row) throw new NotFoundError(`Not found: ${id}`);
+  async update(publicId: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
+    const row = await this.repo.updateByPublicId(publicId, stripManaged(patch), await this.currentUserId());
+    if (!row) throw new NotFoundError(`Not found: ${publicId}`);
     return row;
   }
 }

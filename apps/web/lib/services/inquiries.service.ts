@@ -77,6 +77,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 }
 
-const repo = new UpdatableRepository(db, inquiries, inquiries.id);
+const repo = new UpdatableRepository(db, inquiries, inquiries.publicId, inquiries.id);
 export const inquiriesService = new InquiriesService(repo);
 export type { Stage as InquiryStage };

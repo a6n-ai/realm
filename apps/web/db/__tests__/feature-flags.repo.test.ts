@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";
 import { featureFlags } from "../schema";
 
-const repo = new UpdatableRepository(db, featureFlags, featureFlags.id);
+const repo = new UpdatableRepository(db, featureFlags, featureFlags.publicId, featureFlags.id);
 
 describe("feature_flags repository (integration)", () => {
   beforeEach(async () => {

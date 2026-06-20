@@ -13,9 +13,9 @@ class SoftDeleteService<TTable extends PgTable> extends SessionUpdatableService<
   }
 }
 
-export const planService = new SoftDeleteService(new UpdatableRepository(db, plans, plans.id));
-export const mealSizeService = new SoftDeleteService(new UpdatableRepository(db, mealSizes, mealSizes.id));
-export const addonService = new SoftDeleteService(new UpdatableRepository(db, addons, addons.id));
-export const deliveryFrequencyService = new SoftDeleteService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.id));
-export const durationPackageService = new SoftDeleteService(new UpdatableRepository(db, durationPackages, durationPackages.id));
-export const deliveryZoneService = new SoftDeleteService(new UpdatableRepository(db, deliveryZones, deliveryZones.id));
+export const planService = new SoftDeleteService(new UpdatableRepository(db, plans, plans.publicId, plans.id));
+export const mealSizeService = new SoftDeleteService(new UpdatableRepository(db, mealSizes, mealSizes.publicId, mealSizes.id));
+export const addonService = new SoftDeleteService(new UpdatableRepository(db, addons, addons.publicId, addons.id));
+export const deliveryFrequencyService = new SoftDeleteService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id));
+export const durationPackageService = new SoftDeleteService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id));
+export const deliveryZoneService = new SoftDeleteService(new UpdatableRepository(db, deliveryZones, deliveryZones.publicId, deliveryZones.id));

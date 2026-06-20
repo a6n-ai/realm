@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }

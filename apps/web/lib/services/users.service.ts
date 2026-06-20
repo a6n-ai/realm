@@ -60,5 +60,5 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 }
 
-const repo = new UpdatableRepository(db, users, users.id);
+const repo = new UpdatableRepository(db, users, users.publicId, users.id);
 export const usersService = new UsersService(repo);
