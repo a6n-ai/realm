@@ -18,7 +18,7 @@ export default async function MealSlotsSettingsPage() {
       <p className="text-muted-foreground text-sm">Enable or disable meal slots offered in weekly menus.</p>
       <div className="space-y-4">
         {slots.map((slot) => (
-          <SlotToggle key={slot.id} id={slot.id} label={slot.label} enabled={slot.enabled} />
+          <SlotToggle key={slot.publicId} id={slot.publicId} label={slot.label} enabled={slot.enabled} />
         ))}
       </div>
     </section>

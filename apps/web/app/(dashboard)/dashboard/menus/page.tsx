@@ -22,11 +22,14 @@ export default async function MenusPage({
       .where(eq(mealSlots.enabled, true))
       .orderBy(asc(mealSlots.sortOrder)),
     db
-      .select({ id: dishes.id, name: dishes.name, diet: dishes.diet, slots: dishes.slots })
+      .select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, slots: dishes.slots, bigintId: dishes.id })
       .from(dishes)
       .where(eq(dishes.active, true))
       .orderBy(asc(dishes.name)),
   ]);
+
+  const dishPublicIdByBigintId = new Map(activeDishesList.map((d) => [d.bigintId, d.id]));
+  const activeDishes = activeDishesList.map(({ bigintId: _b, ...rest }) => rest);
 
   let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
   let items: {
@@ -41,16 +44,16 @@ export default async function MenusPage({
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
       week = {
-        id: result.week.id,
+        id: result.week.publicId,
         weekStart: result.week.weekStart,
         status: result.week.status,
-        orderCutoff: result.week.orderCutoff.toISOString(),
+        orderCutoff: new Date(result.week.orderCutoff).toISOString(),
       };
       items = result.items.map((i) => ({
-        id: i.id,
+        id: i.publicId,
         dayOfWeek: i.dayOfWeek,
         slot: i.slot,
-        dishId: i.dishId,
+        dishId: dishPublicIdByBigintId.get(i.dishId) ?? String(i.dishId),
         isDefault: i.isDefault,
       }));
     }
@@ -66,7 +69,7 @@ export default async function MenusPage({
       </div>
       <MenuBuilder
         slots={enabledSlots}
-        dishes={activeDishesList}
+        dishes={activeDishes}
         week={week}
         items={items}
       />
