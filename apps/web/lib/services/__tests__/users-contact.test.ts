@@ -19,7 +19,7 @@ describe("usersService.updateContact", () => {
     await reset();
     const [c] = await db.insert(users).values({ phone: "+16475550100", role: "user" }).returning();
     await db.insert(users).values({ phone: "+16475550200", role: "user" });
-    custId = c.id;
+    custId = c.publicId;
   });
   afterAll(reset);
 

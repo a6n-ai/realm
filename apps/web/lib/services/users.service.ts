@@ -16,7 +16,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   async updateContact(userId: string, input: { phone?: string; email?: string }) {
-    const [current] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const [current] = await db.select().from(users).where(eq(users.publicId, userId)).limit(1);
     if (!current) throw new ValidationError("User not found");
 
     const patch: { phone?: string | null; email?: string | null } = {};
@@ -54,7 +54,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     const [clash] = await db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(col, value), ne(users.id, userId)))
+      .where(and(eq(col, value), ne(users.publicId, userId)))
       .limit(1);
     if (clash) throw new ValidationError(`That ${field} is already in use`);
   }
