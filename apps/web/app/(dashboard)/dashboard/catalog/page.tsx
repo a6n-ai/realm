@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { ArrowRightIcon, LayersIcon } from "lucide-react";
+import { ArrowRightIcon, LayersIcon, UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
+import { PageHeader, PageShell } from "@/components/ds";
 import { RESOURCES } from "./resource-config";
 
 export default async function CatalogIndexPage() {
   await requireAdmin();
   return (
-    <section className="space-y-6">
-      <h1 className="gradient-text text-2xl font-semibold">Catalog</h1>
+    <PageShell>
+      <PageHeader icon={UtensilsCrossedIcon} title="Catalog" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {Object.values(RESOURCES).map((r) => (
           <Link
@@ -26,6 +27,6 @@ export default async function CatalogIndexPage() {
           </Link>
         ))}
       </div>
-    </section>
+    </PageShell>
   );
 }
