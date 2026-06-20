@@ -1,4 +1,4 @@
-import type { CatalogSnapshot } from "@/lib/catalog/types";
+import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Invoice } from "../invoice";
 
 export function StepDuration({ catalog, selections, set, result }: {
-  catalog: CatalogSnapshot;
+  catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
   result: PricingResult | null;

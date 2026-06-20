@@ -12,10 +12,10 @@ async function reset() {
   await db.delete(users);
 }
 
-const baseInput = (mealSizeId: string, planKey: string) => ({
+const baseInput = (mealSizePublicId: string, planKey: string) => ({
   planKey,
   selections: {
-    mealSizeId,
+    mealSizeId: mealSizePublicId,
     frequencyKey: "5_day" as const,
     persons: 1,
     mealSlots: ["lunch"],
@@ -33,11 +33,13 @@ describe("createOrder (integration)", () => {
 
   it("provisions a customer by phone, prices server-side, writes order + payment", async () => {
     const snap = await loadCatalogSnapshot();
-    const { deploymentId } = await createOrder(baseInput(snap.mealSizes[0].id, snap.plans[0].key));
+    const { deploymentId, publicId } = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
     expect(deploymentId).toMatch(/^SUB-/);
+    expect(publicId).toMatch(/^ord_/);
     const [u] = await db.select().from(users).where(eq(users.phone, "+16475550111"));
     expect(u.role).toBe("user");
     const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(o.publicId).toBe(publicId);
     expect(Number(o.total)).toBeGreaterThan(0);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
@@ -45,7 +47,7 @@ describe("createOrder (integration)", () => {
 
   it("reuses an existing customer on a second order with the same phone", async () => {
     const snap = await loadCatalogSnapshot();
-    const input = baseInput(snap.mealSizes[0].id, snap.plans[0].key);
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
     await createOrder(input);
     await createOrder(input);
     const rows = await db.select().from(users).where(eq(users.phone, "+16475550111"));
@@ -55,8 +57,8 @@ describe("createOrder (integration)", () => {
   it("attaches to ownerUserId without provisioning by phone", async () => {
     const snap = await loadCatalogSnapshot();
     const [owner] = await db.insert(users).values({ email: "owner@x.com", role: "user" }).returning();
-    const input = baseInput(snap.mealSizes[0].id, snap.plans[0].key);
-    const { deploymentId } = await createOrder(input, { ownerUserId: owner.id });
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const { deploymentId } = await createOrder(input, { ownerUserId: owner.publicId });
     const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(o.userId).toBe(owner.id);
     // No customer provisioned for the typed phone.
@@ -66,7 +68,7 @@ describe("createOrder (integration)", () => {
 
   it("rejects a malformed phone", async () => {
     const snap = await loadCatalogSnapshot();
-    const input = baseInput(snap.mealSizes[0].id, snap.plans[0].key);
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
     input.contact.phone = "12";
     await expect(createOrder(input)).rejects.toBeInstanceOf(ValidationError);
   });

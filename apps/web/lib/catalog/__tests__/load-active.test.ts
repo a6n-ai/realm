@@ -5,7 +5,7 @@ import { mealSizes } from "@/db/schema";
 import { loadCatalogSnapshot } from "../load";
 
 describe("loadCatalogSnapshot active filter", () => {
-  let restoreId: string | null = null;
+  let restoreId: bigint | null = null;
 
   beforeEach(async () => {
     const rows = await db.select().from(mealSizes).limit(1);

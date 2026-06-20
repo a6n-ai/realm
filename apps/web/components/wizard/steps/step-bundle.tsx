@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CatalogSnapshot, MealSizeView } from "@/lib/catalog/types";
+import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,17 +7,17 @@ import { Badge } from "@/components/ui/badge";
 
 type DietTab = "all" | "veg" | "nonveg";
 
-const visibleFor = (plan: WizardSelections["planKey"], diet: DietTab) => (m: MealSizeView) => {
+const visibleFor = (plan: WizardSelections["planKey"], diet: DietTab) => (m: ClientMealSizeView) => {
   if (plan === "veg" && m.diet === "nonveg") return false;
   if (diet === "veg") return m.diet === "veg" || m.diet === "both";
   if (diet === "nonveg") return m.diet === "nonveg" || m.diet === "both";
   return true;
 };
 
-const TIERS: MealSizeView["tier"][] = ["budget", "medium", "premium"];
+const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 
 export function StepBundle({ catalog, selections, set }: {
-  catalog: CatalogSnapshot;
+  catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
 }) {
@@ -42,12 +42,12 @@ export function StepBundle({ catalog, selections, set }: {
             <h3 className="mb-2 text-sm font-semibold capitalize text-muted-foreground">{tier}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {tierMeals.map((m) => {
-                const active = selections.mealSizeId === m.id;
+                const active = selections.mealSizeId === m.publicId;
                 return (
                   <Card
-                    key={m.id}
+                    key={m.publicId}
                     role="button"
-                    onClick={() => set({ mealSizeId: m.id })}
+                    onClick={() => set({ mealSizeId: m.publicId })}
                     className={`cursor-pointer p-4 transition ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
                   >
                     <div className="flex items-center justify-between">
