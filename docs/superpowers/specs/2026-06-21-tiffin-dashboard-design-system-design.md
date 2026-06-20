@@ -40,6 +40,16 @@ Each is a thin, typed wrapper over shadcn primitives + the redesign classes. Int
 - **`EmptyState`** — `({ icon, message, action? })`. Centered icon tile + message + optional CTA. Replaces the duplicated empty blocks in `meals`/`inquiries`.
 - **`StageBadge`** / **`Badge`** — pill badge with semantic variant (`neutral|ok|warn|bad`); the inquiry `stage-badge.tsx` folds into this.
 
+### List / filter controls (added)
+
+For consistent filterable list pages (CRM and beyond):
+
+- **`FilterPill`** — `({ label, active, count?, onClick })`. Interactive toggle chip for filters (e.g. stage filters All / New / Contacted / Follow-up), with active vs inactive states and an optional count badge. Distinct from `StageBadge` (display-only).
+- **`FilterBar`** — `({ search?, filters?, sort?, actions? })`. The standard control row above a list: a `SearchInput` slot + a row of `FilterPill`s + an optional sort control + right-aligned actions. One layout for every list page.
+- **`SearchInput`** — `({ value, onChange, placeholder? })`. Styled search field with a leading search icon + clear button (wraps `ui/input`).
+- **`Tabs`** — thin wrapper over `ui/tabs` for a consistent segmented view switcher.
+- **`Pagination`** — `({ page, pageCount, onPage })`. Consistent prev/next + page indicator for long lists; pure `pageRange(page, pageCount)` helper for the windowed page numbers.
+
 ## Tokens
 
 - Keep the existing neutral oklch palette + radius scale in `globals.css` as the single source of truth.

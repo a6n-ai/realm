@@ -488,7 +488,182 @@ git commit -m "feat(ds): StatCard, SectionCard, ListRow, EmptyState, StageBadge 
 
 ---
 
-### Task 4: `/dashboard/design` showcase (admin-only)
+### Task 4: Filter/list controls — FilterPill, SearchInput, FilterBar, Tabs, Pagination
+
+**Files:**
+- Create: `apps/web/components/ds/filter-pill.tsx`, `search-input.tsx`, `filter-bar.tsx`, `tabs.tsx`, `pagination.tsx`
+- Modify: `apps/web/components/ds/index.ts` (add the new exports)
+- Test: `apps/web/components/ds/__tests__/pagination.test.ts`
+
+**Interfaces:**
+- Consumes: `ui/input`, `ui/tabs`, `ui/button`, `cn`.
+- Produces: `FilterPill({ label, active, count?, onClick })`; `SearchInput({ value, onChange, placeholder? })`; `FilterBar({ search?, filters?, sort?, actions? })`; `Tabs` (+ `TabsList`/`TabsTrigger`/`TabsContent` re-exported); `Pagination({ page, pageCount, onPage })` + pure `pageRange(page, pageCount): number[]`.
+
+- [ ] **Step 1: Write the failing test** — `apps/web/components/ds/__tests__/pagination.test.ts`
+
+```ts
+import { describe, expect, it } from "vitest";
+import { pageRange } from "../pagination";
+
+describe("pageRange", () => {
+  it("returns all pages when few", () => {
+    expect(pageRange(1, 3)).toEqual([1, 2, 3]);
+  });
+  it("windows around the current page when many", () => {
+    expect(pageRange(5, 20)).toEqual([4, 5, 6]);
+  });
+  it("clamps at the start", () => {
+    expect(pageRange(1, 20)).toEqual([1, 2, 3]);
+  });
+  it("clamps at the end", () => {
+    expect(pageRange(20, 20)).toEqual([18, 19, 20]);
+  });
+  it("handles a single page", () => {
+    expect(pageRange(1, 1)).toEqual([1]);
+  });
+});
+```
+
+- [ ] **Step 2: Run — fails** — `cd apps/web && pnpm exec vitest run components/ds/__tests__/pagination.test.ts` → FAIL.
+
+- [ ] **Step 3: Pagination** — `apps/web/components/ds/pagination.tsx`
+
+```tsx
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export function pageRange(page: number, pageCount: number): number[] {
+  if (pageCount <= 3) return Array.from({ length: pageCount }, (_, i) => i + 1);
+  const start = Math.min(Math.max(1, page - 1), pageCount - 2);
+  return [start, start + 1, start + 2];
+}
+
+export function Pagination({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (p: number) => void }) {
+  if (pageCount <= 1) return null;
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>Prev</Button>
+      {pageRange(page, pageCount).map((p) => (
+        <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => onPage(p)}>{p}</Button>
+      ))}
+      <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => onPage(page + 1)}>Next</Button>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Run — passes** — same command → PASS.
+
+- [ ] **Step 5: FilterPill** — `apps/web/components/ds/filter-pill.tsx`
+
+```tsx
+import { cn } from "@/lib/utils";
+
+export function FilterPill({
+  label, active, count, onClick,
+}: {
+  label: string;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
+        active ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground hover:bg-accent",
+      )}
+    >
+      {label}
+      {count !== undefined && (
+        <span className={cn("rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+      )}
+    </button>
+  );
+}
+```
+
+- [ ] **Step 6: SearchInput** — `apps/web/components/ds/search-input.tsx`
+
+```tsx
+"use client";
+
+import { SearchIcon, XIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+
+export function SearchInput({
+  value, onChange, placeholder = "Search…",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <SearchIcon className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="pl-8 pr-8" />
+      {value && (
+        <button type="button" onClick={() => onChange("")} className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2" aria-label="Clear search">
+          <XIcon className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 7: FilterBar** — `apps/web/components/ds/filter-bar.tsx`
+
+```tsx
+import type { ReactNode } from "react";
+
+export function FilterBar({
+  search, filters, sort, actions,
+}: {
+  search?: ReactNode;
+  filters?: ReactNode;
+  sort?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {search && <div className="min-w-56 flex-1">{search}</div>}
+      {filters && <div className="flex flex-wrap items-center gap-2">{filters}</div>}
+      {sort}
+      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+```
+
+- [ ] **Step 8: Tabs** — `apps/web/components/ds/tabs.tsx` (thin re-export wrapper for a single consistent import site)
+
+```tsx
+export { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+```
+
+- [ ] **Step 9: Barrel** — append to `apps/web/components/ds/index.ts`:
+
+```ts
+export * from "./filter-pill";
+export * from "./search-input";
+export * from "./filter-bar";
+export * from "./tabs";
+export * from "./pagination";
+```
+
+- [ ] **Step 10: Verify + commit** — `pnpm --filter web exec tsc --noEmit` clean.
+```bash
+git add apps/web/components/ds
+git commit -m "feat(ds): FilterPill, SearchInput, FilterBar, Tabs, Pagination"
+```
+
+---
+
+### Task 5: `/dashboard/design` showcase (admin-only)
 
 **Files:**
 - Create: `apps/web/app/(dashboard)/dashboard/design/page.tsx`
@@ -496,7 +671,7 @@ git commit -m "feat(ds): StatCard, SectionCard, ListRow, EmptyState, StageBadge 
 **Interfaces:**
 - Consumes: all `ds/*` (Task 1–3).
 
-- [ ] **Step 1: Showcase page** — `apps/web/app/(dashboard)/dashboard/design/page.tsx` (server component): `await requireAdmin()` (from `@/lib/auth/guards`), then render inside `PageShell` a `PageHeader` (icon `PaletteIcon` from lucide-react, title "Design system", subtitle "Shared components used across the dashboard") followed by `SectionCard`s demonstrating: Card variants (glow/lift/flat), a row of 4 `StatCard`s (one with `delta` up, one down), `ListRow`s (with avatar + `StageBadge` trailing), `EmptyState`, and all five `StageBadge` stages. Pure presentation. Use representative static data.
+- [ ] **Step 1: Showcase page** — `apps/web/app/(dashboard)/dashboard/design/page.tsx` (server component): `await requireAdmin()` (from `@/lib/auth/guards`), then render inside `PageShell` a `PageHeader` (icon `PaletteIcon` from lucide-react, title "Design system", subtitle "Shared components used across the dashboard") followed by `SectionCard`s demonstrating: Card variants (glow/lift/flat), a row of 4 `StatCard`s (one with `delta` up, one down), a `FilterBar` (with `SearchInput` + a row of `FilterPill`s, one active + counts), `Tabs`, `Pagination`, `ListRow`s (with avatar + `StageBadge` trailing), `EmptyState`, and all five `StageBadge` stages. Pure presentation. Use representative static data. (The interactive controls — `SearchInput`/`FilterPill`/`Pagination`/`Tabs` — need client state, so put that interactive block in a small `"use client"` child component the server page renders.)
 
 - [ ] **Step 2: Add to sidebar** — in `apps/web/components/dashboard/app-sidebar.tsx`, add `{ title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ["admin"] }` to the NAV array (import `PaletteIcon`).
 
@@ -512,7 +687,7 @@ git commit -m "feat(ds): /dashboard/design showcase + sidebar entry"
 
 **Retrofit pattern (apply to each page):** wrap the page body in `PageShell`; replace the bespoke heading (`<h1 className="ln …">` or the inline icon-chip header) with `<PageHeader icon={<sidebar icon>} title=… subtitle?=… actions?=… />`; replace bespoke cards with `Card`/`SectionCard`/`StatCard`, repeated bordered rows with `ListRow`, empty blocks with `EmptyState`, stage pills with `StageBadge`. Change ONLY markup — never the data fetching, server actions, or prop values. After each task: `pnpm --filter web exec tsc --noEmit` clean, the page's existing tests (if any) green, and `DATABASE_URL="postgres://lawbringr@localhost:5432/tiffin" pnpm build` green.
 
-### Task 5: Overview, Account, Settings, Meal-slots
+### Task 6: Overview, Account, Settings, Meal-slots
 
 **Files (modify):** `app/(dashboard)/dashboard/page.tsx`, `account/page.tsx`, `settings/page.tsx`, `settings/meal-slots/page.tsx`.
 
@@ -526,7 +701,7 @@ git add apps/web/app/\(dashboard\)/dashboard/page.tsx apps/web/app/\(dashboard\)
 git commit -m "feat(ds): adopt design system on overview/account/settings/meal-slots"
 ```
 
-### Task 6: Users, Catalog
+### Task 7: Users, Catalog
 
 **Files (modify):** `app/(dashboard)/dashboard/users/page.tsx` (+ `user-row.tsx` if it renders headings/badges), `catalog/page.tsx`, `catalog/[resource]/page.tsx` (+ `resource-editor.tsx` for cards/rows only).
 
@@ -538,7 +713,7 @@ git add apps/web/app/\(dashboard\)/dashboard/users apps/web/app/\(dashboard\)/da
 git commit -m "feat(ds): adopt design system on users + catalog"
 ```
 
-### Task 7: Dishes, Menus, Meals
+### Task 8: Dishes, Menus, Meals
 
 **Files (modify):** `dishes/page.tsx` (+ `dishes-editor.tsx` markup), `menus/page.tsx` (+ `menu-builder.tsx` markup), `meals/page.tsx` (+ `meals-grid.tsx` markup).
 
@@ -551,11 +726,11 @@ git add apps/web/app/\(dashboard\)/dashboard/dishes apps/web/app/\(dashboard\)/d
 git commit -m "feat(ds): adopt design system on dishes/menus/meals"
 ```
 
-### Task 8: Inquiries (list + detail + order)
+### Task 9: Inquiries (list + detail + order)
 
 **Files (modify):** `inquiries/page.tsx`, `inquiries/new-inquiry-form.tsx` (markup), `inquiries/[id]/page.tsx`, `inquiries/[id]/inquiry-controls.tsx` (markup), `inquiries/[id]/order/page.tsx`, `inquiries/[id]/order/order-form.tsx` (markup). Delete: `inquiries/stage-badge.tsx` (replaced by `ds` StageBadge).
 
-- [ ] **Step 1** — `inquiries/page.tsx`: `PageShell` + `PageHeader` (icon the inquiries sidebar icon, title "Inquiries", subtitle a count, `actions` = the "New inquiry" trigger); pipeline list as `ListRow`s with `StageBadge` trailing. Keep the data + actions.
+- [ ] **Step 1** — `inquiries/page.tsx`: `PageShell` + `PageHeader` (icon the inquiries sidebar icon, title "Inquiries", subtitle a count, `actions` = the "New inquiry" trigger); add a `FilterBar` above the list with a `SearchInput` + stage `FilterPill`s (All / New / Contacted / Follow-up / Converted / Lost, with counts), and render the pipeline list as `ListRow`s with `StageBadge` trailing. If the page is currently a server component with no client filter state, the FilterBar + filtered list move into a small `"use client"` child that receives the full inquiry list as props and filters/searches in-memory (NO change to what data is loaded server-side — same rows, just client-side filter/search UI). Keep the existing data loading + actions.
 - [ ] **Step 2** — swap all imports of `./stage-badge` / `../stage-badge` to `@/components/ds` `StageBadge`, then delete `inquiries/stage-badge.tsx`. (Grep `rg -n "stage-badge" apps/web` — update every importer.)
 - [ ] **Step 3** — `inquiries/[id]/page.tsx`: `PageHeader` (title = inquiry name, `breadcrumbOverrides={{ [inquiry.publicId]: inquiry.fullName }}`); detail + timeline in `SectionCard`s; activity rows as `ListRow`; the `formatEpoch` activity time (recently wired) stays.
 - [ ] **Step 4** — `inquiries/[id]/order/page.tsx`: `PageHeader` (title "New order", `breadcrumbOverrides` for the inquiry id segment); the agent order form wrapped in a `SectionCard`. Keep the form + `createOrder` flow.
@@ -565,7 +740,7 @@ git add apps/web/app/\(dashboard\)/dashboard/inquiries
 git commit -m "feat(ds): adopt design system across inquiries CRM pages"
 ```
 
-### Task 9: Final verification + sweep
+### Task 10: Final verification + sweep
 
 - [ ] **Step 1: Full verify** — from repo root: `pnpm typecheck` clean; `DATABASE_URL="postgres://lawbringr@localhost:5432/tiffin" pnpm test` all green (the suite is unchanged by presentation work — confirm no regressions); `DATABASE_URL="postgres://lawbringr@localhost:5432/tiffin" pnpm build` green with every dashboard route present.
 - [ ] **Step 2: Sweep** — `rg -n "className=\"ln" apps/web/app/\(dashboard\)` → empty (no bespoke `ln` headings remain on the dashboard); `rg -n "gradient-text|card-glow|hover-lift|icon-pop" apps/web/app/\(dashboard\)` → empty (those classes now live only inside `ds/`); confirm `inquiries/stage-badge.tsx` is deleted and nothing imports it (`rg -n "inquiries/stage-badge"` empty).
@@ -580,8 +755,8 @@ git commit -m "chore(ds): final dashboard design-system sweep"
 
 ## Self-review notes
 
-- **Spec coverage:** `ds/` component inventory → Tasks 1–3; semantic tokens → Task 1; auto breadcrumbs + route-labels → Task 2; showcase `/dashboard/design` → Task 4; rollout to all dashboard pages → Tasks 5–8; testing (pure-logic node unit tests for the only logic: card variant, breadcrumb derivation, stage variant) → Tasks 1–3; verification sweep (no `ln`/raw classes outside `ds/`) → Task 9.
+- **Spec coverage:** `ds/` header/card inventory → Tasks 1–3; list/filter controls (FilterPill/SearchInput/FilterBar/Tabs/Pagination) → Task 4; semantic tokens → Task 1; auto breadcrumbs + route-labels → Task 2; showcase `/dashboard/design` → Task 5; rollout to all dashboard pages → Tasks 6–9 (inquiries list uses the FilterBar in Task 9); testing (pure-logic node unit tests: card variant, breadcrumb derivation, stage variant, pageRange) → Tasks 1–4; verification sweep (no `ln`/raw classes outside `ds/`) → Task 10.
 - **No new test infra:** vitest stays node-env; only pure functions are unit-tested; presentational components are verified by typecheck + build + the showcase. This is deliberate (YAGNI) — adding jsdom/RTL is out of scope.
 - **Presentation-only guarantee:** Tasks 5–8 change markup only; the existing suite (which is service/action/DB tests) must stay green untouched. If a page retrofit would require changing a test, that signals an accidental behavior change — stop and reconsider.
-- **Type consistency:** `Card`/`cardVariantClass` (Task 1), `deriveBreadcrumbs`/`Breadcrumbs`/`PageHeader`/`PageShell` (Task 2), `StatCard`/`SectionCard`/`ListRow`/`EmptyState`/`StageBadge`/`stageVariant` (Task 3) are imported via `@/components/ds` barrel in Tasks 4–8 with the exact prop names defined here.
+- **Type consistency:** `Card`/`cardVariantClass` (Task 1), `deriveBreadcrumbs`/`Breadcrumbs`/`PageHeader`/`PageShell` (Task 2), `StatCard`/`SectionCard`/`ListRow`/`EmptyState`/`StageBadge`/`stageVariant` (Task 3), `FilterPill`/`SearchInput`/`FilterBar`/`Tabs`/`Pagination`/`pageRange` (Task 4) are imported via the `@/components/ds` barrel in Tasks 5–9 with the exact prop names defined here.
 - **Recently-migrated code is untouched:** the dual-id `publicId` DTOs, `pickDish` ownership, `formatEpoch` wiring, and service calls are preserved verbatim during retrofits — only surrounding markup changes.
