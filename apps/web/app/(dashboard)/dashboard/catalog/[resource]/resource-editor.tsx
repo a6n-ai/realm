@@ -14,8 +14,8 @@ import {
 } from "../resource-config";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
-type Row = Record<string, unknown>;
-const rowId = (row: Row) => String(row.id);
+type Row = Record<string, unknown> & { publicId: string };
+const rowId = (row: Row) => row.publicId;
 
 function FieldInputs({
   def,

@@ -23,9 +23,11 @@ describe("UpdatableService hardening (integration over feature_flags)", () => {
       label: "Mass Assign",
       defaultEnabled: false,
       id: 11111111n,
+      publicId: "flg_client_supplied",
       createdBy: 22222222n,
     });
     expect(created.id).not.toBe(11111111n);
+    expect(created.publicId).not.toBe("flg_client_supplied");
     expect(created.publicId).toMatch(/^flg_[0-9A-Za-z_-]{12}$/);
     expect(created.createdBy).toBeNull();
   });

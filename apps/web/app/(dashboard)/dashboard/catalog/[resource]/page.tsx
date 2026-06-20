@@ -22,7 +22,15 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
   const table = TABLES[resource];
   if (!def || !table) notFound();
 
-  const rows = (await db.select().from(table)) as Record<string, unknown>[];
+  const raw = (await db.select().from(table)) as Record<string, unknown>[];
+  const rows = raw.map((r) => {
+    const dto: Record<string, unknown> & { publicId: string } = {
+      publicId: r.publicId as string,
+      active: r.active,
+    };
+    for (const f of def.fields) dto[f.key] = r[f.key];
+    return dto;
+  });
 
   return (
     <section className="space-y-6">

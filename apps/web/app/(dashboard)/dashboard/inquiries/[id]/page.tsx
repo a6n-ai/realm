@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NotFoundError } from "@tiffin/commons";
+import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
           {activities.map((a) => (
             <li key={a.publicId} className="rounded-md border p-3 text-sm">
               <div>{describe(a)}</div>
-              <div className="text-muted-foreground text-xs">{new Date(a.createdAt).toLocaleString()}</div>
+              <div className="text-muted-foreground text-xs">{formatEpoch(a.createdAt, { mode: "datetime" })}</div>
             </li>
           ))}
         </ul>
