@@ -3,11 +3,12 @@ import { cn } from "@/lib/utils";
 import { Card } from "./card";
 
 export function StatCard({
-  label, value, icon: Icon, delta,
+  label, value, icon: Icon, hint, delta,
 }: {
   label: string;
   value: string | number;
   icon?: LucideIcon;
+  hint?: string;
   delta?: { dir: "up" | "down"; text: string };
 }) {
   return (
@@ -17,6 +18,7 @@ export function StatCard({
         {Icon && <Icon className="size-4" />}
       </div>
       <div className="gradient-text mt-2 text-2xl font-semibold">{value}</div>
+      {hint && <div className="text-muted-foreground mt-1 text-xs">{hint}</div>}
       {delta && <div className={cn("mt-1 text-xs", delta.dir === "up" ? "text-ok" : "text-bad")}>{delta.text}</div>}
     </Card>
   );

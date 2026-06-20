@@ -66,7 +66,7 @@ export default async function DashboardOverviewPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} />
+          <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
         ))}
       </div>
 
