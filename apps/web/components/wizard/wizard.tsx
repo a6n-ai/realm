@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CatalogSnapshot } from "@/lib/catalog/types";
+import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { StepDuration } from "./steps/step-duration";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Duration"] as const;
 
-export function Wizard({ catalog, enabledSlots }: { catalog: CatalogSnapshot; enabledSlots: EnabledSlot[] }) {
+export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapshot; enabledSlots: EnabledSlot[] }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [selections, setSelections] = useState<WizardSelections>(initialSelections);

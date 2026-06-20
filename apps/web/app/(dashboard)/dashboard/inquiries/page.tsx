@@ -129,9 +129,9 @@ export default async function InquiriesPage({
                 </TableRow>
               ) : (
                 rows.map((inq) => (
-                  <TableRow key={inq.id} className="group">
+                  <TableRow key={inq.publicId} className="group">
                     <TableCell className="font-medium">
-                      <Link href={`/dashboard/inquiries/${inq.id}`} className="hover:underline">
+                      <Link href={`/dashboard/inquiries/${inq.publicId}`} className="hover:underline">
                         {inq.fullName}
                       </Link>
                     </TableCell>
@@ -142,7 +142,7 @@ export default async function InquiriesPage({
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`/dashboard/inquiries/${inq.id}`}
+                        href={`/dashboard/inquiries/${inq.publicId}`}
                         className="text-muted-foreground hover:text-foreground inline-flex"
                         aria-label={`Open ${inq.fullName}`}
                       >

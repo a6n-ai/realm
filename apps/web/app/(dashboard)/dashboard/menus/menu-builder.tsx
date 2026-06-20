@@ -58,7 +58,7 @@ export function MenuBuilder({
     if (!weekStart || !orderCutoff) return;
     run(async () => {
       const w = await upsertWeek({ weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
-      router.push(`/dashboard/menus?week=${w.id}`);
+      router.push(`/dashboard/menus?week=${w.publicId}`);
     });
   };
 

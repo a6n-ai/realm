@@ -1,13 +1,13 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
 import { sql } from "drizzle-orm";
-import { integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
 export const users = pgTable(
   "users",
   {
-    ...updatableColumns,
+    ...updatableColumns("usr"),
     name: text("name"),
     email: text("email"),
     emailVerified: timestamp("email_verified", { withTimezone: true }),
@@ -25,7 +25,7 @@ export const users = pgTable(
 export const accounts = pgTable(
   "accounts",
   {
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
     type: text("type").notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("provider_account_id").notNull(),
@@ -42,7 +42,7 @@ export const accounts = pgTable(
 
 export const sessions = pgTable("sessions", {
   sessionToken: text("session_token").primaryKey(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { withTimezone: true }).notNull(),
 });
 

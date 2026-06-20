@@ -32,7 +32,7 @@ async function main() {
   }
   console.log(`Seeded ${SLOTS.length} meal slots`);
 
-  const dishIds: string[] = [];
+  const dishIds: bigint[] = [];
   for (const d of DISHES) {
     const existing = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.name, d.name)).limit(1);
     if (existing.length > 0) {
@@ -62,7 +62,7 @@ async function main() {
 
   const [week] = await db
     .insert(menuWeeks)
-    .values({ weekStart: weekStartStr, status: "released", orderCutoff })
+    .values({ weekStart: weekStartStr, status: "released", orderCutoff: orderCutoff.getTime() })
     .returning({ id: menuWeeks.id });
 
   console.log(`Seeded menu week ${weekStartStr} (released)`);

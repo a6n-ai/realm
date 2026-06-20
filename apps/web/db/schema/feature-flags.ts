@@ -2,7 +2,7 @@ import { updatableColumns } from "@tiffin/commons-drizzle";
 import { boolean, pgTable, text } from "drizzle-orm/pg-core";
 
 export const featureFlags = pgTable("feature_flags", {
-  ...updatableColumns,
+  ...updatableColumns("flg"),
   key: text("key").notNull().unique(),
   label: text("label").notNull(),
   description: text("description"),

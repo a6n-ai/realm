@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
-vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const session: { user: { id: string } | null } = { user: null };
+vi.mock("@/lib/auth", () => ({ auth: async () => (session.user ? session : null) }));
 
 const { inquiriesService } = await import("../inquiries.service");
 
@@ -24,11 +25,16 @@ describe("inquiriesService.convert", () => {
     const snap = await loadCatalogSnapshot();
     const meal = snap.mealSizes[0];
     const plan = snap.plans[0];
+    const [staff] = await db
+      .insert(users)
+      .values({ name: "Agent Staff", role: "member" })
+      .returning({ publicId: users.publicId });
+    session.user = { id: staff.publicId };
     const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", source: "google" });
-    const { deploymentId } = await inquiriesService.convert(inq.id, {
+    const { deploymentId } = await inquiriesService.convert(inq.publicId, {
       planKey: plan.key,
       selections: {
-        mealSizeId: meal.id,
+        mealSizeId: meal.publicId,
         frequencyKey: "5_day",
         persons: 1,
         mealSlots: ["lunch"],
@@ -44,7 +50,9 @@ describe("inquiriesService.convert", () => {
     expect(row.convertedOrderId).not.toBeNull();
     const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(row.convertedOrderId).toBe(order.id);
-    const acts = await inquiriesService.listActivities(inq.id);
+    expect(order.publicId).toMatch(/^ord_/);
+    expect(order.createdBy).not.toBeNull();
+    const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts.some((a) => a.type === "converted")).toBe(true);
   });
 });

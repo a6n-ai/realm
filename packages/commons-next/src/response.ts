@@ -1,5 +1,6 @@
 export function json<T>(data: T, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+  const body = JSON.stringify(data, (_key, value) => (typeof value === "bigint" ? undefined : value));
+  return new Response(body, { status, headers: { "content-type": "application/json" } });
 }
 
 export function noContent(): Response {

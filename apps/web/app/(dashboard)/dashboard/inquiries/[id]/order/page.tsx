@@ -26,11 +26,11 @@ export default async function AgentOrderPage({ params }: { params: Promise<{ id:
     <section className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-semibold">Create order — {inq.fullName}</h1>
       <OrderForm
-        inquiryId={inq.id}
+        inquiryId={inq.publicId}
         contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
         catalog={{
           plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-          mealSizes: catalog.mealSizes.map((m) => ({ id: m.id, name: m.name, diet: m.diet })),
+          mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.diet })),
           frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name })),
           durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
         }}

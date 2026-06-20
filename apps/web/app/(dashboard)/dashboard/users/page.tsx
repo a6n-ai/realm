@@ -14,10 +14,10 @@ export default async function UsersPage() {
 
   const rows = await Promise.all(
     allUsers.map(async (u) => {
-      const effective = await getEffectiveFlags(u.id);
+      const effective = await getEffectiveFlags(u.publicId);
       return {
-        user: { id: u.id, email: u.email, phone: u.phone, role: u.role },
-        flags: allFlags.map((f) => ({ id: f.id, key: f.key, label: f.label, enabled: effective[f.key] ?? false })),
+        user: { id: u.publicId, email: u.email, phone: u.phone, role: u.role },
+        flags: allFlags.map((f) => ({ id: f.publicId, key: f.key, label: f.label, enabled: effective[f.key] ?? false })),
       };
     }),
   );

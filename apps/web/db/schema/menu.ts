@@ -1,9 +1,9 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
-import { boolean, date, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
 
 export const mealSlots = pgTable("meal_slots", {
-  ...updatableColumns,
+  ...updatableColumns("slt"),
   key: text("key").notNull().unique(),
   label: text("label").notNull(),
   enabled: boolean("enabled").notNull().default(false),
@@ -13,7 +13,7 @@ export const mealSlots = pgTable("meal_slots", {
 export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
 
 export const dishes = pgTable("dishes", {
-  ...updatableColumns,
+  ...updatableColumns("dsh"),
   name: text("name").notNull(),
   description: text("description"),
   diet: dishDiet("diet").notNull(),
@@ -26,21 +26,21 @@ export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);
 export const dayOfWeek = pgEnum("day_of_week", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
 export const menuWeeks = pgTable("menu_weeks", {
-  ...updatableColumns,
+  ...updatableColumns("mnw"),
   weekStart: date("week_start").notNull().unique(),
   status: menuWeekStatus("status").notNull().default("draft"),
-  orderCutoff: timestamp("order_cutoff", { withTimezone: true }).notNull(),
-  releasedAt: timestamp("released_at", { withTimezone: true }),
+  orderCutoff: bigint("order_cutoff", { mode: "number" }).notNull(),
+  releasedAt: bigint("released_at", { mode: "number" }),
 });
 
 export const menuItems = pgTable(
   "menu_items",
   {
-    ...updatableColumns,
-    menuWeekId: uuid("menu_week_id").notNull().references(() => menuWeeks.id, { onDelete: "cascade" }),
+    ...updatableColumns("mni"),
+    menuWeekId: bigint("menu_week_id", { mode: "bigint" }).notNull().references(() => menuWeeks.id, { onDelete: "cascade" }),
     dayOfWeek: dayOfWeek("day_of_week").notNull(),
     slot: text("slot").notNull(),
-    dishId: uuid("dish_id").notNull().references(() => dishes.id),
+    dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
     isDefault: boolean("is_default").notNull().default(false),
   },
   (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.slot, t.dishId)],
@@ -49,13 +49,13 @@ export const menuItems = pgTable(
 export const mealSelections = pgTable(
   "meal_selections",
   {
-    ...updatableColumns,
-    orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
-    menuWeekId: uuid("menu_week_id").notNull().references(() => menuWeeks.id),
+    ...updatableColumns("msl"),
+    orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id, { onDelete: "cascade" }),
+    menuWeekId: bigint("menu_week_id", { mode: "bigint" }).notNull().references(() => menuWeeks.id),
     dayOfWeek: dayOfWeek("day_of_week").notNull(),
     slot: text("slot").notNull(),
     personIndex: integer("person_index").notNull(),
-    dishId: uuid("dish_id").notNull().references(() => dishes.id),
+    dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
   },
   (t) => [uniqueIndex("meal_selections_unique").on(t.orderId, t.menuWeekId, t.dayOfWeek, t.slot, t.personIndex)],
 );

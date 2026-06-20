@@ -19,17 +19,17 @@ describe("inquiriesService", () => {
 
   it("create writes a 'created' activity", async () => {
     const inq = await inquiriesService.create({ fullName: "Lead A", phone: "+16475551000", source: "facebook" });
-    const acts = await inquiriesService.listActivities(inq.id);
+    const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts).toHaveLength(1);
     expect(acts[0].type).toBe("created");
   });
 
   it("changeStage updates stage and logs from/to", async () => {
     const inq = await inquiriesService.create({ fullName: "Lead B", phone: "+16475551001" });
-    await inquiriesService.changeStage(inq.id, "contacted");
+    await inquiriesService.changeStage(inq.publicId, "contacted");
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.stage).toBe("contacted");
-    const acts = await inquiriesService.listActivities(inq.id);
+    const acts = await inquiriesService.listActivities(inq.publicId);
     const change = acts.find((a) => a.type === "stage_change");
     expect(change?.fromStage).toBe("new");
     expect(change?.toStage).toBe("contacted");
@@ -37,8 +37,8 @@ describe("inquiriesService", () => {
 
   it("addNote appends a note activity", async () => {
     const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475551002" });
-    await inquiriesService.addNote(inq.id, "Called, no answer");
-    const acts = await inquiriesService.listActivities(inq.id);
+    await inquiriesService.addNote(inq.publicId, "Called, no answer");
+    const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts.some((a) => a.type === "note" && a.note === "Called, no answer")).toBe(true);
   });
 });

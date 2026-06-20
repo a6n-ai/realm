@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
-import { jsonb, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { bigint, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 
@@ -8,21 +8,21 @@ export const inquirySource = pgEnum("inquiry_source", ["website", "facebook", "g
 export const inquiryActivityType = pgEnum("inquiry_activity_type", ["created", "note", "stage_change", "converted"]);
 
 export const inquiries = pgTable("inquiries", {
-  ...updatableColumns,
+  ...updatableColumns("inq"),
   fullName: text("full_name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
   source: inquirySource("source").notNull().default("manual"),
   stage: inquiryStage("stage").notNull().default("new"),
-  assignedTo: uuid("assigned_to").references(() => users.id),
-  convertedOrderId: uuid("converted_order_id").references(() => orders.id),
+  assignedTo: bigint("assigned_to", { mode: "bigint" }).references(() => users.id),
+  convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   prefs: jsonb("prefs"),
   notes: text("notes"),
 });
 
 export const inquiryActivities = pgTable("inquiry_activities", {
-  ...baseColumns,
-  inquiryId: uuid("inquiry_id").notNull().references(() => inquiries.id, { onDelete: "cascade" }),
+  ...baseColumns("iac"),
+  inquiryId: bigint("inquiry_id", { mode: "bigint" }).notNull().references(() => inquiries.id, { onDelete: "cascade" }),
   type: inquiryActivityType("type").notNull(),
   note: text("note"),
   fromStage: inquiryStage("from_stage"),

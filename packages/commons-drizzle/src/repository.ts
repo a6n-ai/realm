@@ -10,24 +10,30 @@ export class BaseRepository<TTable extends PgTable> {
   constructor(
     protected readonly db: Database,
     protected readonly table: TTable,
-    protected readonly idColumn: PgColumn,
+    protected readonly publicIdColumn: PgColumn,
+    protected readonly internalIdColumn: PgColumn,
   ) {}
 
-  async create(values: Record<string, unknown>, actorId?: string | null): Promise<TTable["$inferSelect"]> {
+  async create(values: Record<string, unknown>, actorId?: bigint | null): Promise<TTable["$inferSelect"]> {
     const toInsert = actorId ? { ...values, createdBy: actorId } : values;
     // Generic base over PgTable: Drizzle's insert typing can't see the concrete shape here.
     const [row] = await this.db.insert(this.table).values(toInsert as never).returning();
     return row as TTable["$inferSelect"];
   }
 
-  async findById(id: string): Promise<TTable["$inferSelect"] | null> {
-    const [row] = await this.db.select().from(this.table as PgTable).where(eq(this.idColumn, id)).limit(1);
+  async findByPublicId(publicId: string): Promise<TTable["$inferSelect"] | null> {
+    const [row] = await this.db.select().from(this.table as PgTable).where(eq(this.publicIdColumn, publicId)).limit(1);
+    return (row as TTable["$inferSelect"]) ?? null;
+  }
+
+  async findById(internalId: bigint): Promise<TTable["$inferSelect"] | null> {
+    const [row] = await this.db.select().from(this.table as PgTable).where(eq(this.internalIdColumn, internalId)).limit(1);
     return (row as TTable["$inferSelect"]) ?? null;
   }
 
   async findMany(condition?: Condition, page: PageRequest = DEFAULT_PAGE): Promise<Page<TTable["$inferSelect"]>> {
     const where = toDrizzleWhere(this.table, condition);
-    const orderColumn = page.sort ? resolveColumn(this.table, page.sort.field) : this.idColumn;
+    const orderColumn = page.sort ? resolveColumn(this.table, page.sort.field) : this.internalIdColumn;
     const orderBy = page.sort?.dir === "desc" ? desc(orderColumn) : asc(orderColumn);
 
     const rows = await this.db
@@ -46,17 +52,28 @@ export class BaseRepository<TTable extends PgTable> {
     return { items: rows as TTable["$inferSelect"][], page: page.page, size: page.size, total: count };
   }
 
-  async delete(id: string): Promise<number> {
-    const result = await this.db.delete(this.table).where(eq(this.idColumn, id)).returning({ id: this.idColumn });
+  async deleteByPublicId(publicId: string): Promise<number> {
+    const result = await this.db
+      .delete(this.table)
+      .where(eq(this.publicIdColumn, publicId))
+      .returning({ id: this.internalIdColumn });
     return result.length;
   }
 }
 
 export class UpdatableRepository<TTable extends PgTable> extends BaseRepository<TTable> {
-  async update(id: string, patch: Record<string, unknown>, actorId?: string | null): Promise<TTable["$inferSelect"] | null> {
+  async updateByPublicId(
+    publicId: string,
+    patch: Record<string, unknown>,
+    actorId?: bigint | null,
+  ): Promise<TTable["$inferSelect"] | null> {
     const safePatch = stripCreateOnly(patch);
     const toSet = actorId ? { ...safePatch, updatedBy: actorId } : safePatch;
-    const [row] = await this.db.update(this.table).set(toSet as never).where(eq(this.idColumn, id)).returning();
+    const [row] = await this.db
+      .update(this.table)
+      .set(toSet as never)
+      .where(eq(this.publicIdColumn, publicId))
+      .returning();
     return (row as TTable["$inferSelect"]) ?? null;
   }
 }

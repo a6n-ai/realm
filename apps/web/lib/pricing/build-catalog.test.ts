@@ -7,19 +7,19 @@ import type { PricingSelections } from "./types";
 const snapshot: CatalogSnapshot = {
   plans: [],
   mealSizes: [
-    { id: "m1", key: "k", name: "K", tier: "budget", diet: "veg", components: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10 },
+    { id: BigInt(1), publicId: "msz_1", key: "k", name: "K", tier: "budget", diet: "veg", components: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10 },
   ],
   addons: [
-    { key: "saturday", name: "Sat", pricePerWeek: 15 },
-    { key: "sunday", name: "Sun", pricePerWeek: 15 },
+    { id: BigInt(10), publicId: "adn_sat", key: "saturday", name: "Sat", pricePerWeek: 15 },
+    { id: BigInt(11), publicId: "adn_sun", key: "sunday", name: "Sun", pricePerWeek: 15 },
   ],
-  frequencies: [{ id: "f1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0 }],
-  durations: [{ id: "d1", weeks: 1, discountPct: 0 }],
+  frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0 }],
+  durations: [{ id: BigInt(3), publicId: "dur_1", weeks: 1, discountPct: 0 }],
   zones: [],
 };
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
-  mealSizeId: "m1",
+  mealSizeId: "msz_1",
   frequencyKey: "5_day",
   persons: 1,
   mealSlots: ["lunch"],

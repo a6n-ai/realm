@@ -18,21 +18,40 @@ export interface CreateOrderInput {
 }
 
 export interface CreateOrderOptions {
-  // Who performed the action — stamped as createdBy. For an agent order this is
-  // the staff member, NOT the order owner.
+  // Who performed the action — stamped as createdBy (the acting user's public_id).
+  // For an agent order this is the staff member, NOT the order owner.
   actorId?: string | null;
-  // The account the order belongs to. Set for a logged-in customer's own
-  // checkout so the order attaches to their real account regardless of the
-  // phone typed. Omitted for anonymous checkout and agent orders, which
-  // resolve/provision the customer by phone.
+  // The account the order belongs to (the owner's public_id). Set for a
+  // logged-in customer's own checkout so the order attaches to their real
+  // account regardless of the phone typed. Omitted for anonymous checkout and
+  // agent orders, which resolve/provision the customer by phone.
   ownerUserId?: string | null;
+}
+
+// Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
+// the id is absent or doesn't match a user.
+async function resolveUserId(
+  tx: { select: typeof db.select },
+  publicId: string | null | undefined,
+): Promise<bigint | null> {
+  if (!publicId) return null;
+  const [row] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+  return row?.id ?? null;
 }
 
 // The single authoritative order-creation path: prices server-side, attaches the
 // order to the owner (provisioning a customer by phone when none is given), and
 // writes the order + simulated payment in one tx. Used by the public checkout
 // and the agent (convert) flow alike.
-export async function createOrder(input: CreateOrderInput, opts: CreateOrderOptions = {}): Promise<{ deploymentId: string }> {
+//
+// The client speaks public_id: input.selections.mealSizeId is a meal size
+// public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
+// resolves each to the internal bigint id before writing the FK columns, and
+// returns the order's public_id (ord_…) — never a bigint.
+export async function createOrder(
+  input: CreateOrderInput,
+  opts: CreateOrderOptions = {},
+): Promise<{ deploymentId: string; publicId: string }> {
   const { actorId = null, ownerUserId = null } = opts;
   const snapshot = await loadCatalogSnapshot();
   const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
@@ -40,6 +59,8 @@ export async function createOrder(input: CreateOrderInput, opts: CreateOrderOpti
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!;
+  const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
+  if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);
   const zoneRow = zone ? snapshot.zones.find((z) => z.name === zone.name) : undefined;
 
@@ -50,10 +71,14 @@ export async function createOrder(input: CreateOrderInput, opts: CreateOrderOpti
 
   const deploymentId = generateCode("SUB", 6);
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    // Resolve the acting user and explicit owner public_ids to internal bigints.
+    const createdBy = await resolveUserId(tx, actorId);
+    const ownerId = await resolveUserId(tx, ownerUserId);
+
     // A logged-in customer's order attaches to their own account; anonymous and
     // agent orders resolve/provision the customer by phone.
-    let userId = ownerUserId;
+    let userId = ownerId;
     if (!userId) {
       const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
       userId = existing?.id ?? null;
@@ -66,7 +91,7 @@ export async function createOrder(input: CreateOrderInput, opts: CreateOrderOpti
       const passwordHash = await hashPassword(TEMP_PASSWORD);
       const inserted = await tx
         .insert(users)
-        .values({ phone, email, name: input.contact.fullName, passwordHash, role: "user", createdBy: actorId ?? null })
+        .values({ phone, email, name: input.contact.fullName, passwordHash, role: "user", createdBy })
         .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
         .returning({ id: users.id });
       userId =
@@ -79,7 +104,7 @@ export async function createOrder(input: CreateOrderInput, opts: CreateOrderOpti
       .values({
         userId,
         planId: plan.id,
-        mealSizeId: input.selections.mealSizeId,
+        mealSizeId: mealSize.id,
         frequencyId: frequency.id,
         persons: input.selections.persons,
         mealSlots: input.selections.mealSlots,
@@ -97,17 +122,17 @@ export async function createOrder(input: CreateOrderInput, opts: CreateOrderOpti
         addressLine: input.contact.addressLine,
         city: input.contact.city,
         postalCode: input.contact.postalCode,
-        createdBy: actorId ?? null,
+        createdBy,
       })
-      .returning({ id: orders.id });
+      .returning({ id: orders.id, publicId: orders.publicId });
 
     await tx.insert(payments).values({
       orderId: order.id,
       status: "simulated_paid",
       amount: pricing.total.toFixed(2),
-      createdBy: actorId ?? null,
+      createdBy,
     });
-  });
 
-  return { deploymentId };
+    return { deploymentId, publicId: order.publicId };
+  });
 }

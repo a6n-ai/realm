@@ -1,1 +1,0 @@
-ALTER TABLE "delivery_zones" ADD CONSTRAINT "delivery_zones_name_unique" UNIQUE("name");

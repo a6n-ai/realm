@@ -1,9 +1,9 @@
-import type { CatalogSnapshot } from "@/lib/catalog/types";
+import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
 import { Card } from "@/components/ui/card";
 
 export function StepBaseline({ catalog, selections, set }: {
-  catalog: CatalogSnapshot;
+  catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
 }) {

@@ -6,6 +6,7 @@ import { featureFlags, userFeatureFlags, users } from "@/db/schema";
 import { getEffectiveFlags, hasFlag } from "../flags";
 
 let userId: string;
+let userInternalId: bigint;
 
 async function reset() {
   await db.delete(userFeatureFlags);
@@ -24,7 +25,8 @@ describe("feature-flag resolution (integration)", () => {
       .insert(users)
       .values({ email: "f@x.com", passwordHash: await hashPassword("Tiffin123"), role: "user" })
       .returning();
-    userId = u.id;
+    userId = u.publicId;
+    userInternalId = u.id;
   });
   afterAll(reset);
 
@@ -35,7 +37,7 @@ describe("feature-flag resolution (integration)", () => {
 
   it("applies a per-user override over the default", async () => {
     const [adminFlag] = await db.select().from(featureFlags).where(eq(featureFlags.key, "admin_console"));
-    await db.insert(userFeatureFlags).values({ userId, flagId: adminFlag.id, enabled: true });
+    await db.insert(userFeatureFlags).values({ userId: userInternalId, flagId: adminFlag.id, enabled: true });
     expect(await hasFlag(userId, "admin_console")).toBe(true);
     expect(await hasFlag(userId, "wizard")).toBe(true);
   });

@@ -13,7 +13,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError("At least one meal slot is required");
   }
 
-  const mealSize = snapshot.mealSizes.find((m) => m.id === selections.mealSizeId);
+  const mealSize = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
 
   const frequency = snapshot.frequencies.find((f) => f.key === selections.frequencyKey);
@@ -26,7 +26,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const sun = snapshot.addons.find((a) => a.key === "sunday")?.pricePerWeek ?? 0;
 
   return {
-    mealSize: { id: mealSize.id, basePrice: mealSize.basePrice },
+    mealSize: { id: mealSize.publicId, basePrice: mealSize.basePrice },
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek, courierDiscountPct: frequency.courierDiscountPct },
     addons: { saturday: sat, sunday: sun },
     durationPackage: { weeks: durationPackage.weeks, discountPct: durationPackage.discountPct },

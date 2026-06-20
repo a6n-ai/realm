@@ -5,7 +5,10 @@ import { users } from "@/db/schema";
 import { verifyPassword } from "./password";
 
 export interface CredentialUser {
+  // `id` is the user's public id (`usr_…`), never the internal bigint — the
+  // bigint exceeds JS safe-int and must not cross into the token/session/JWT.
   id: string;
+  publicId: string;
   email: string | null;
   name: string | null;
   role: RoleValue;
@@ -19,11 +22,23 @@ export async function resolveCredentialUser(identifier: string, password: string
   if (!id || !password) return null;
   const lower = id.toLowerCase();
   const [user] = await db
-    .select()
+    .select({
+      publicId: users.publicId,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      passwordHash: users.passwordHash,
+    })
     .from(users)
     .where(or(eq(users.email, lower), eq(users.phone, id)))
     .limit(1);
   if (!user?.passwordHash) return null;
   if (!(await verifyPassword(password, user.passwordHash))) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role ?? Role.USER };
+  return {
+    id: user.publicId,
+    publicId: user.publicId,
+    email: user.email,
+    name: user.name,
+    role: user.role ?? Role.USER,
+  };
 }

@@ -2,7 +2,7 @@
 // (id by the DB default, createdBy/updatedBy from the session) and must never
 // be set from client input — mirrors the reference AbstractDAO resetting
 // CREATED_BY/CREATED_AT on write.
-export const MANAGED_FIELDS = ["id", "createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
+export const MANAGED_FIELDS = ["id", "publicId", "createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
 const CREATE_ONLY_FIELDS = ["createdAt", "createdBy"] as const;
 
 function omit(values: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {

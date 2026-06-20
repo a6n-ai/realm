@@ -21,9 +21,15 @@ describe("resolveCredentialUser", () => {
     const u = await resolveCredentialUser("staff@x.com", "Secret123");
     expect(u?.role).toBe("member");
   });
+  it("returns the public id (usr_…) as id, never the internal bigint", async () => {
+    const u = await resolveCredentialUser("staff@x.com", "Secret123");
+    expect(u?.id).toMatch(/^usr_/);
+    expect(u?.id).toBe(u?.publicId);
+  });
   it("resolves a customer by phone", async () => {
     const u = await resolveCredentialUser("+16475550100", "Secret123");
     expect(u?.role).toBe("user");
+    expect(u?.id).toMatch(/^usr_/);
   });
   it("is case-insensitive for email", async () => {
     const u = await resolveCredentialUser("Staff@X.com", "Secret123");

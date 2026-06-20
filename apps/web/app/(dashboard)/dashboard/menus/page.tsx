@@ -15,18 +15,23 @@ export default async function MenusPage({
 
   const { week: weekId } = await searchParams;
 
-  const [enabledSlots, activeDishesList] = await Promise.all([
+  const [enabledSlots, activeDishesList, allDishesForMap] = await Promise.all([
     db
       .select({ key: mealSlots.key, label: mealSlots.label, sortOrder: mealSlots.sortOrder })
       .from(mealSlots)
       .where(eq(mealSlots.enabled, true))
       .orderBy(asc(mealSlots.sortOrder)),
     db
-      .select({ id: dishes.id, name: dishes.name, diet: dishes.diet, slots: dishes.slots })
+      .select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, slots: dishes.slots })
       .from(dishes)
       .where(eq(dishes.active, true))
       .orderBy(asc(dishes.name)),
+    db
+      .select({ bigintId: dishes.id, publicId: dishes.publicId })
+      .from(dishes),
   ]);
+
+  const dishPublicIdByBigintId = new Map(allDishesForMap.map((d) => [d.bigintId, d.publicId]));
 
   let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
   let items: {
@@ -41,18 +46,16 @@ export default async function MenusPage({
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
       week = {
-        id: result.week.id,
+        id: result.week.publicId,
         weekStart: result.week.weekStart,
         status: result.week.status,
-        orderCutoff: result.week.orderCutoff.toISOString(),
+        orderCutoff: new Date(result.week.orderCutoff).toISOString(),
       };
-      items = result.items.map((i) => ({
-        id: i.id,
-        dayOfWeek: i.dayOfWeek,
-        slot: i.slot,
-        dishId: i.dishId,
-        isDefault: i.isDefault,
-      }));
+      items = result.items.flatMap((i) => {
+        const dishId = dishPublicIdByBigintId.get(i.dishId);
+        if (!dishId) return [];
+        return [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, isDefault: i.isDefault }];
+      });
     }
   }
 
