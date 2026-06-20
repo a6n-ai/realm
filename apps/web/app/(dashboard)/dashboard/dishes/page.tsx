@@ -1,7 +1,9 @@
 import { asc } from "drizzle-orm";
+import { SaladIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { dishes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { DishesEditor } from "./dishes-editor";
 
 export default async function DishesPage() {
@@ -19,9 +21,11 @@ export default async function DishesPage() {
     .from(dishes)
     .orderBy(asc(dishes.name));
   return (
-    <section className="space-y-6">
-      <h1 className="gradient-text text-2xl font-semibold">Dishes</h1>
-      <DishesEditor dishes={rows} />
-    </section>
+    <PageShell>
+      <PageHeader icon={SaladIcon} title="Dishes" />
+      <SectionCard title="Manage dishes">
+        <DishesEditor dishes={rows} />
+      </SectionCard>
+    </PageShell>
   );
 }

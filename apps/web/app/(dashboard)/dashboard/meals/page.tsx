@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { orderDeliveryDays, visibleSlots } from "@/lib/menu/delivery-days";
 import { selectionsService } from "@/lib/menu/selections.service";
 import { menuService } from "@/lib/services/menu.service";
+import { EmptyState, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MealsGrid } from "./meals-grid";
 
 export type GridCell = {
@@ -59,29 +60,21 @@ export default async function MealsPage() {
 
   if (!activeOrder || !releasedWeek) {
     return (
-      <section className="space-y-6">
-        <div className="group flex items-center gap-3">
-          <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-            <UtensilsCrossedIcon className="icon-pop size-5" />
-          </span>
-          <h1 className="gradient-text text-2xl font-semibold">My Meals</h1>
-        </div>
+      <PageShell>
+        <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
         {!activeOrder ? (
-          <div className="card-glow hover-lift rounded-lg border p-8 text-center space-y-3">
-            <p className="text-muted-foreground">You don&#39;t have an active subscription yet.</p>
-            <a
-              href="/subscribe"
-              className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Subscribe now
-            </a>
-          </div>
+          <EmptyState
+            icon={UtensilsCrossedIcon}
+            message="You don't have an active subscription yet."
+            action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
+          />
         ) : (
-          <div className="card-glow hover-lift rounded-lg border p-8 text-center">
-            <p className="text-muted-foreground">No menu has been published for this week. Check back soon.</p>
-          </div>
+          <EmptyState
+            icon={UtensilsCrossedIcon}
+            message="No menu has been published for this week. Check back soon."
+          />
         )}
-      </section>
+      </PageShell>
     );
   }
 
@@ -165,27 +158,24 @@ export default async function MealsPage() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="group flex items-center gap-3">
-        <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-          <UtensilsCrossedIcon className="icon-pop size-5" />
-        </span>
-        <h1 className="gradient-text text-2xl font-semibold">My Meals</h1>
-      </div>
+    <PageShell>
+      <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
       {isLocked && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Selections are locked for this week. The cutoff has passed.
         </div>
       )}
-      <MealsGrid
-        orderId={activeOrder.publicId}
-        menuWeekId={releasedWeek.publicId}
-        grid={grid}
-        isLocked={isLocked}
-        persons={activeOrder.persons}
-        deliveryDays={deliveryDays}
-        enabledSlots={orderSlotsRows}
-      />
-    </section>
+      <SectionCard title="This week's meals">
+        <MealsGrid
+          orderId={activeOrder.publicId}
+          menuWeekId={releasedWeek.publicId}
+          grid={grid}
+          isLocked={isLocked}
+          persons={activeOrder.persons}
+          deliveryDays={deliveryDays}
+          enabledSlots={orderSlotsRows}
+        />
+      </SectionCard>
+    </PageShell>
   );
 }
