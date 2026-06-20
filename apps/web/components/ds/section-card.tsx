@@ -16,7 +16,7 @@ export function SectionCard({
         {action}
       </div>
       {subtitle && <p className="text-muted-foreground mb-3 text-sm">{subtitle}</p>}
-      <div className={subtitle ? "" : "mt-3"}>{children}</div>
+      <div className={subtitle ? undefined : "mt-3"}>{children}</div>
     </Card>
   );
 }

@@ -14,7 +14,7 @@ export default async function InquiriesPage() {
   const [stageCounts, [{ total }], rows] = await Promise.all([
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
-    db.select().from(inquiries).orderBy(desc(inquiries.createdAt)),
+    db.select().from(inquiries).orderBy(desc(inquiries.createdAt)).limit(500),
   ]);
 
   const countOf = (...stages: string[]) =>

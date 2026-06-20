@@ -37,7 +37,7 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
   return (
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title={def.label} />
-      <SectionCard title={def.label}>
+      <SectionCard title="Entries">
         <ResourceEditor resource={resource} def={def} rows={rows} />
       </SectionCard>
     </PageShell>
