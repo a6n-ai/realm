@@ -154,7 +154,7 @@ export function DishesEditor({ dishes }: { dishes: Dish[] }) {
 
       <div className="space-y-2">
         {dishes.map((dish) => (
-          <div key={dish.id} className="hover-lift flex items-center justify-between rounded-md border p-3 text-sm">
+          <div key={dish.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
             <div className="flex items-center gap-2">
               <span className="font-medium">{dish.name}</span>
               <Badge variant="outline">{dish.diet}</Badge>

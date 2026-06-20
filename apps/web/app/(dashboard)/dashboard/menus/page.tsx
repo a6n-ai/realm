@@ -1,9 +1,10 @@
 import { asc, eq } from "drizzle-orm";
-import { CalendarDaysIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { dishes, mealSlots } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
+import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder } from "./menu-builder";
 
 export default async function MenusPage({
@@ -60,19 +61,16 @@ export default async function MenusPage({
   }
 
   return (
-    <section className="space-y-6">
-      <div className="group flex items-center gap-3">
-        <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-          <CalendarDaysIcon className="icon-pop size-5" />
-        </span>
-        <h1 className="gradient-text text-2xl font-semibold">Weekly Menu Builder</h1>
-      </div>
-      <MenuBuilder
-        slots={enabledSlots}
-        dishes={activeDishesList}
-        week={week}
-        items={items}
-      />
-    </section>
+    <PageShell>
+      <PageHeader icon={CalendarIcon} title="Weekly Menus" />
+      <SectionCard title="Menu builder">
+        <MenuBuilder
+          slots={enabledSlots}
+          dishes={activeDishesList}
+          week={week}
+          items={items}
+        />
+      </SectionCard>
+    </PageShell>
   );
 }
