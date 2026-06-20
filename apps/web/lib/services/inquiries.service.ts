@@ -3,6 +3,7 @@ import { ValidationError } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 
@@ -20,22 +21,22 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return inq;
   }
 
-  async addNote(inquiryId: string, note: string) {
-    await this.read(inquiryId);
+  async addNote(publicId: string, note: string) {
+    const inq = await this.read(publicId);
     await db.insert(inquiryActivities).values({
-      inquiryId,
+      inquiryId: inq.id,
       type: "note",
       note,
       createdBy: await this.currentUserId(),
     });
   }
 
-  async changeStage(inquiryId: string, toStage: Stage) {
-    const current = await this.read(inquiryId);
+  async changeStage(publicId: string, toStage: Stage) {
+    const current = await this.read(publicId);
     if (current.stage === toStage) return current;
-    const updated = await this.update(inquiryId, { stage: toStage });
+    const updated = await this.update(publicId, { stage: toStage });
     await db.insert(inquiryActivities).values({
-      inquiryId,
+      inquiryId: current.id,
       type: "stage_change",
       fromStage: current.stage,
       toStage,
@@ -44,35 +45,33 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return updated;
   }
 
-  async convert(inquiryId: string, orderInput: CreateOrderInput) {
-    const inq = await this.read(inquiryId);
-    // Guard against double-conversion: a retry must not create a second order.
+  async convert(publicId: string, orderInput: CreateOrderInput) {
+    const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
-    const actor = await this.currentUserId();
-    // Agent order: actor is the staff member; the order belongs to the customer
-    // (resolved/provisioned by phone), so no ownerUserId.
-    const result = await createOrder(orderInput, { actorId: actor });
+    const actorPublicId = (await auth())?.user?.id ?? null;
+    const result = await createOrder(orderInput, { actorId: actorPublicId });
     const [order] = await db
       .select({ id: orders.id })
       .from(orders)
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
-    await this.update(inquiryId, { stage: "converted", convertedOrderId: order.id });
+    await this.update(publicId, { stage: "converted", convertedOrderId: order.id });
     await db.insert(inquiryActivities).values({
-      inquiryId,
+      inquiryId: inq.id,
       type: "converted",
       fromStage: inq.stage,
       toStage: "converted",
-      createdBy: actor,
+      createdBy: await this.currentUserId(),
     });
     return result;
   }
 
-  async listActivities(inquiryId: string) {
+  async listActivities(publicId: string) {
+    const inq = await this.read(publicId);
     return db
       .select()
       .from(inquiryActivities)
-      .where(eq(inquiryActivities.inquiryId, inquiryId))
+      .where(eq(inquiryActivities.inquiryId, inq.id))
       .orderBy(desc(inquiryActivities.createdAt));
   }
 }

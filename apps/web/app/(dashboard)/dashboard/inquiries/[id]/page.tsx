@@ -41,11 +41,11 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="flex items-center gap-3">
-        <StageControl inquiryId={inq.id} stage={inq.stage as InquiryStage} />
+        <StageControl inquiryId={inq.publicId} stage={inq.stage as InquiryStage} />
         {converted ? (
           <span className="text-muted-foreground text-sm">Converted</span>
         ) : (
-          <Button asChild><Link href={`/dashboard/inquiries/${inq.id}/order`}>Create order</Link></Button>
+          <Button asChild><Link href={`/dashboard/inquiries/${inq.publicId}/order`}>Create order</Link></Button>
         )}
       </div>
 
@@ -53,10 +53,10 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
 
       <div className="space-y-3">
         <h2 className="font-medium">Activity</h2>
-        <NoteForm inquiryId={inq.id} />
+        <NoteForm inquiryId={inq.publicId} />
         <ul className="space-y-2">
           {activities.map((a) => (
-            <li key={a.id} className="rounded-md border p-3 text-sm">
+            <li key={a.publicId} className="rounded-md border p-3 text-sm">
               <div>{describe(a)}</div>
               <div className="text-muted-foreground text-xs">{new Date(a.createdAt).toLocaleString()}</div>
             </li>

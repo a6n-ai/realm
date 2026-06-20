@@ -14,7 +14,7 @@ export async function createInquiry(input: {
   await requireStaff();
   const inq = await inquiriesService.create(input);
   revalidatePath("/dashboard/inquiries");
-  return { id: inq.id };
+  return { publicId: inq.publicId };
 }
 
 export async function setStage(inquiryId: string, toStage: InquiryStage) {
