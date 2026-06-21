@@ -1,9 +1,12 @@
-export type FieldType = "text" | "number" | "csv" | "select";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date";
 export interface FieldDef {
   key: string;
   label: string;
   type: FieldType;
   options?: string[];
+  optionsSource?: "mealSlots" | "weekdays";
+  optionLabels?: Record<string, string>;
+  unit?: string;
   optional?: boolean;
 }
 export interface ResourceDef {
@@ -11,6 +14,15 @@ export interface ResourceDef {
   label: string;
   fields: FieldDef[];
 }
+
+export const WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export const WEEKDAY_LABELS: Record<string, string> = {
+  mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
+};
+const ENUM_LABELS: Record<string, string> = {
+  tiffin: "Tiffin", healthy: "Healthy", budget: "Budget", medium: "Medium", premium: "Premium",
+  veg: "Veg", nonveg: "Non-veg", both: "Both",
+};
 
 export const RESOURCES: Record<string, ResourceDef> = {
   plans: {
@@ -20,8 +32,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text" },
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true },
-      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"] },
-      { key: "offeredSlots", label: "Offered slots", type: "csv" },
+      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
+      { key: "offeredSlots", label: "Offered slots", type: "multiselect", optionsSource: "mealSlots" },
+      { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
     ],
   },
   "meal-sizes": {
@@ -30,15 +43,15 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text" },
       { key: "name", label: "Name", type: "text" },
-      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"] },
-      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg", "both"] },
+      { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS },
+      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg", "both"], optionLabels: ENUM_LABELS },
       { key: "components", label: "Components", type: "csv" },
-      { key: "kcalMin", label: "kcal min", type: "number" },
-      { key: "kcalMax", label: "kcal max", type: "number" },
-      { key: "proteinG", label: "Protein g", type: "number", optional: true },
-      { key: "carbsG", label: "Carbs g", type: "number", optional: true },
-      { key: "fatG", label: "Fat g", type: "number", optional: true },
-      { key: "basePrice", label: "Base price", type: "number" },
+      { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
+      { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },
+      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true },
+      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true },
+      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true },
+      { key: "basePrice", label: "Base price", type: "number", unit: "$" },
     ],
   },
   addons: {
@@ -57,7 +70,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text" },
       { key: "name", label: "Name", type: "text" },
       { key: "daysPerWeek", label: "Days / week", type: "number" },
-      { key: "courierDiscountPct", label: "Courier discount %", type: "number" },
     ],
   },
   "duration-packages": {
@@ -65,7 +77,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
     label: "Duration packages",
     fields: [
       { key: "weeks", label: "Weeks", type: "number" },
-      { key: "discountPct", label: "Discount %", type: "number" },
     ],
   },
   "delivery-zones": {
@@ -93,7 +104,7 @@ export function rowToFields(def: ResourceDef, row: Record<string, unknown>): Rec
   const out: Record<string, string> = {};
   for (const f of def.fields) {
     const v = row[f.key];
-    out[f.key] = f.type === "csv" && Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v);
+    out[f.key] = (f.type === "csv" || f.type === "multiselect") && Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v);
   }
   return out;
 }
@@ -103,7 +114,7 @@ export function fieldsToPatch(def: ResourceDef, values: Record<string, string>):
   const patch: Record<string, unknown> = {};
   for (const f of def.fields) {
     const raw = (values[f.key] ?? "").trim();
-    if (f.type === "csv") {
+    if (f.type === "csv" || f.type === "multiselect") {
       patch[f.key] = raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
     } else if (f.type === "number") {
       patch[f.key] = raw === "" ? null : Number(raw);
