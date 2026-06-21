@@ -27,7 +27,7 @@ describe("selectionsService.setSelection", () => {
     const [o] = await db.insert(orders).values({
       userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
-      durationWeeks: 1, startDate: "2026-06-23", tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
+      durationWeeks: 1, startDate: "2026-06-22", tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
       deploymentId: "SUB-TEST01", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     }).returning();
     order = o;
@@ -52,8 +52,11 @@ describe("selectionsService.setSelection", () => {
       .rejects.toBeInstanceOf(ValidationError);
   });
   it("rejects after cutoff (locked)", async () => {
-    const locked = { ...week, orderCutoff: new Date("2000-01-01").getTime() };
-    await expect(selectionsService.setSelection({ order, menuWeek: locked, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }))
+    // Use a past week so the per-day rolling cutoff has already elapsed.
+    const [pastWeek] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning();
+    await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", slot: "lunch", dishId: vegDishBigintId, isDefault: true });
+    const pastOrder = { ...order, startDate: "2000-01-03" };
+    await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });
 });
