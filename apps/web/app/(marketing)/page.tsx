@@ -28,7 +28,7 @@ export default function LandingPage() {
         ))}
       </Section>
       <Section className="flex flex-col items-center gap-4 text-center">
-        <h2 className="gradient-text text-2xl font-semibold">Ready to build your tiffin?</h2>
+        <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
         <Button asChild size="lg" className="hover-lift animate-pulse-ring"><Link href="/subscribe">Start your plan</Link></Button>
       </Section>
     </>

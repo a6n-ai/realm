@@ -15,7 +15,7 @@ export default async function PricingPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="gradient-text text-3xl font-semibold tracking-tight">Pricing</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-muted-foreground mt-2">
           Your weekly fee is built from your meal size × quantity × billable days, plus add-ons,
           minus courier, student, and loyalty discounts.

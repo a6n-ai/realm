@@ -22,7 +22,7 @@ export default async function MenuPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="gradient-text text-3xl font-semibold tracking-tight">Our menu</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Our menu</h1>
         <p className="text-muted-foreground mt-2">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
       </div>
       {TIERS.map((tier) => {

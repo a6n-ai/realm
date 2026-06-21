@@ -18,7 +18,7 @@ export default function HowItWorksPage() {
   return (
     <Section className="space-y-8">
       <div className="max-w-2xl">
-        <h1 className="gradient-text text-3xl font-semibold tracking-tight">How it works</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">How it works</h1>
         <p className="text-muted-foreground mt-2">From baseline to your first delivery in a few guided steps.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

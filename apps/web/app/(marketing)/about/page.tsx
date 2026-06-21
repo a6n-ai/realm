@@ -9,7 +9,7 @@ export default function AboutPage() {
     <Section className="max-w-2xl space-y-4">
       <div className="flex items-center gap-3">
         <UtensilsCrossed className="animate-float text-muted-foreground size-7" />
-        <h1 className="gradient-text text-3xl font-semibold tracking-tight">About Tiffin Grab</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">About Tiffin Grab</h1>
       </div>
       <p className="text-muted-foreground">
         Tiffin Grab brings home-style, customizable meals to the Greater Toronto Area. We believe
