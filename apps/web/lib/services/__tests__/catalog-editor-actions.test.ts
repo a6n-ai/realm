@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { addons } from "@/db/schema";
+import { deliveryZones } from "@/db/schema";
 
 // The editor actions go through requireAdmin() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is that
@@ -16,34 +16,34 @@ const { retireItem, reactivateItem, saveItem } = await import(
 
 let publicId: string;
 async function reset() {
-  await db.delete(addons);
+  await db.delete(deliveryZones);
 }
 
 describe("catalog editor action round-trip (public_id resolves)", () => {
   beforeEach(async () => {
     await reset();
-    const [a] = await db
-      .insert(addons)
-      .values({ key: "round-trip", name: "Round Trip", pricePerWeek: "12.00" })
+    const [z] = await db
+      .insert(deliveryZones)
+      .values({ name: "Round Trip Zone", postalPrefixes: ["X1"], slotWindow: "9:00 AM – 11:00 AM" })
       .returning();
-    publicId = a.publicId;
+    publicId = z.publicId;
   });
   afterAll(reset);
 
   it("retire then reactivate via the action path flips active using the public_id", async () => {
-    await retireItem("addons", publicId);
-    let [row] = await db.select().from(addons).where(eq(addons.publicId, publicId));
+    await retireItem("delivery-zones", publicId);
+    let [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
     expect(row.active).toBe(false);
 
-    await reactivateItem("addons", publicId);
-    [row] = await db.select().from(addons).where(eq(addons.publicId, publicId));
+    await reactivateItem("delivery-zones", publicId);
+    [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
     expect(row.active).toBe(true);
   });
 
   it("saveItem with a public_id edits the existing row (not a no-op)", async () => {
-    await saveItem("addons", publicId, { name: "Renamed", pricePerWeek: "99.00" });
-    const [row] = await db.select().from(addons).where(eq(addons.publicId, publicId));
-    expect(row.name).toBe("Renamed");
-    expect(row.pricePerWeek).toBe("99.00");
+    await saveItem("delivery-zones", publicId, { name: "Renamed Zone", slotWindow: "1:00 PM – 3:00 PM" });
+    const [row] = await db.select().from(deliveryZones).where(eq(deliveryZones.publicId, publicId));
+    expect(row.name).toBe("Renamed Zone");
+    expect(row.slotWindow).toBe("1:00 PM – 3:00 PM");
   });
 });

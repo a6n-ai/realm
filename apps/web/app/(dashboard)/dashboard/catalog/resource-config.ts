@@ -54,15 +54,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "basePrice", label: "Base price", type: "number", unit: "$" },
     ],
   },
-  addons: {
-    key: "addons",
-    label: "Add-ons",
-    fields: [
-      { key: "key", label: "Key", type: "text" },
-      { key: "name", label: "Name", type: "text" },
-      { key: "pricePerWeek", label: "Price / week", type: "number" },
-    ],
-  },
   "delivery-frequencies": {
     key: "delivery-frequencies",
     label: "Delivery frequencies",
