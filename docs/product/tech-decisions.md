@@ -69,3 +69,32 @@ keeps validation at the input instead of failing later at price/order time.
 drives fields from a `FieldDef` config. Extend `FieldType` with `multiselect` (with `options`)
 and `date`, and use them for the relevant resources (slots, weekdays, dates). Backfill existing
 CSV-as-enum fields (e.g. `offeredSlots`) to `multiselect` when touched.
+
+---
+
+## TD-4 — Time semantics: absolute storage, delivery-timezone anchoring, labeled display
+
+**Context:** Staff (admin / members / sales) may sit in **India or Canada** — staff location
+varies and is NOT special-cased. What matters is the **customer/delivery** timezone
+(**America/Toronto**, the GTA service area). That single zone is the anchor for all business
+time logic and display; staff everywhere read the same delivery-TZ-labeled times.
+
+**Decision:**
+- **Store + compare time as absolute epoch-ms.** All deadline/lock logic is `now > targetMs`,
+  which is timezone-independent and correct for any viewer. (Schema timestamps are already epoch-ms.)
+- **Anchor business wall-clock rules to the delivery timezone**, never the viewer's. The
+  meal-selection cutoff ("day before, at `cutoffHour`") is computed in
+  `deliverySettings.timezone` (default `America/Toronto`). An IST salesperson does NOT get an
+  IST-shifted cutoff; everyone is gated by the same Toronto-anchored instant.
+- **Convert wall-clock ↔ instant with a DST-aware offset** derived per-instant from `Intl`
+  (never a hardcoded UTC offset — Toronto is UTC−5/−4 across DST).
+- **Display times with an explicit timezone label** in the relevant zone (delivery times shown
+  in the delivery TZ, e.g. "Fri 6:00 PM EST"), so an IST viewer isn't misled. Use
+  `lib/format/datetime.ts`'s `timeZone` option.
+
+**Why:** prevents the classic bug where a deadline computed/displayed in the operator's locale
+locks the wrong customers; keeps a single correct instant across a cross-border team.
+
+**How to apply:** new deadline logic takes the delivery timezone from `deliverySettings`, computes
+the instant via the DST-aware helper (`@tiffin/commons`'s `cutoffMsFor`), stores/compares ms, and
+formats for display with the zone labeled.
