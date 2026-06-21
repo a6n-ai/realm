@@ -21,7 +21,6 @@ const baseInput = (mealSizePublicId: string, planKey: string) => ({
     mealSlots: ["lunch"],
     includeSaturday: false,
     includeSunday: false,
-    isStudent: false,
     durationWeeks: 1,
   },
   contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
@@ -41,6 +40,10 @@ describe("createOrder (integration)", () => {
     const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(o.publicId).toBe(publicId);
     expect(Number(o.total)).toBeGreaterThan(0);
+    expect(o.tiffinCount).toBeGreaterThan(0);
+    expect(Number.isInteger(o.tiffinCount)).toBe(true);
+    expect(Number(o.perTiffinPrice)).toBeGreaterThan(0);
+    expect(Number(o.total)).toBe(Number(o.perTiffinPrice) * o.tiffinCount);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
   });

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Section } from "@/components/marketing/section";
 
-export const metadata: Metadata = { title: "Pricing — Tiffin Grab", description: "Plans, add-ons, delivery frequencies, and loyalty discounts. Pricing is built from your selections." };
+export const metadata: Metadata = { title: "Pricing — Tiffin Grab", description: "Plans, add-ons, delivery frequencies, and volume-based per-tiffin pricing. Pricing is built from your selections." };
 
 // Read live so admin catalog edits surface without a rebuild.
 export const dynamic = "force-dynamic";
@@ -15,10 +15,11 @@ export default async function PricingPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="gradient-text text-3xl font-semibold tracking-tight">Pricing</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-muted-foreground mt-2">
-          Your weekly fee is built from your meal size × quantity × billable days, plus add-ons,
-          minus courier, student, and loyalty discounts.
+          Your total is your per-tiffin rate × total tiffins (delivery days × weeks × persons).
+          The per-tiffin rate drops with volume — orders of 20 or more tiffins get the best rate
+          with no small-order surcharge.
         </p>
       </div>
 

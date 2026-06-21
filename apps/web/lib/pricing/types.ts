@@ -1,3 +1,5 @@
+import type { PricingTier } from "./tiers";
+
 export interface PricingSelections {
   mealSizeId: string;
   frequencyKey: "5_day" | "mwf";
@@ -5,15 +7,13 @@ export interface PricingSelections {
   mealSlots: string[];
   includeSaturday: boolean;
   includeSunday: boolean;
-  isStudent: boolean;
   durationWeeks: number;
 }
 
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
-  frequency: { key: string; daysPerWeek: number; courierDiscountPct: number };
-  addons: { saturday: number; sunday: number };
-  durationPackage: { weeks: number; discountPct: number };
+  frequency: { key: string; daysPerWeek: number };
+  tiers: PricingTier[];
 }
 
 export interface PricingLine {
@@ -23,8 +23,10 @@ export interface PricingLine {
 
 export interface PricingResult {
   lineItems: PricingLine[];
-  discounts: PricingLine[];
-  weeklyFee: number;
-  durationWeeks: number;
+  adjustments: PricingLine[]; // coupon hook — always [] in this slice
+  tiffinCount: number;
+  perTiffinPrice: number;
+  tier: PricingTier;
+  subtotal: number;
   total: number;
 }

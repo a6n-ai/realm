@@ -24,7 +24,7 @@ export function PageHeader({
             <Icon className="icon-pop size-5" />
           </span>
           <div>
-            <h1 className="gradient-text text-2xl font-semibold">{title}</h1>
+            <h1 className="text-2xl font-semibold">{title}</h1>
             {subtitle && <p className="text-muted-foreground text-sm">{subtitle}</p>}
           </div>
         </div>

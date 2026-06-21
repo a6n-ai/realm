@@ -8,6 +8,7 @@ import { priceSubscription, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { hashPassword } from "@/lib/auth/password";
 import { isValidCaPhone, normalizeEmail } from "./users-contact";
+import { validateOrderSlots } from "./order-slots";
 
 const TEMP_PASSWORD = "Tiffin123";
 
@@ -54,11 +55,12 @@ export async function createOrder(
 ): Promise<{ deploymentId: string; publicId: string }> {
   const { actorId = null, ownerUserId = null } = opts;
   const snapshot = await loadCatalogSnapshot();
-  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
-  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!;
+  validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
+  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
+  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);
@@ -110,10 +112,10 @@ export async function createOrder(
         mealSlots: input.selections.mealSlots,
         includeSaturday: input.selections.includeSaturday,
         includeSunday: input.selections.includeSunday,
-        isStudent: input.selections.isStudent,
         durationWeeks: input.selections.durationWeeks,
+        tiffinCount: pricing.tiffinCount,
+        perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
         pricingSnapshot: pricing,
-        weeklyFee: pricing.weeklyFee.toFixed(2),
         total: pricing.total.toFixed(2),
         status: zoneRow ? "active" : "waitlisted",
         deploymentId,

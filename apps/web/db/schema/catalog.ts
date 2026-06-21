@@ -3,12 +3,15 @@ import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const mealDiet = pgEnum("meal_diet", ["veg", "nonveg", "both"]);
+export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
+  planType: planType("plan_type").notNull().default("tiffin"),
+  offeredSlots: text("offered_slots").array().notNull().default([]),
   active: boolean("active").notNull().default(true),
 });
 
@@ -57,5 +60,13 @@ export const deliveryZones = pgTable("delivery_zones", {
   name: text("name").notNull().unique(),
   postalPrefixes: text("postal_prefixes").array().notNull(),
   slotWindow: text("slot_window").notNull(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const pricingTiers = pgTable("pricing_tiers", {
+  ...updatableColumns("ptr"),
+  minQty: integer("min_qty").notNull(),
+  maxQty: integer("max_qty"), // null = unbounded top band
+  upliftPct: numeric("uplift_pct", { precision: 5, scale: 2 }).notNull(),
   active: boolean("active").notNull().default(true),
 });

@@ -19,6 +19,5 @@ export const initialSelections: WizardSelections = {
   mealSlots: ["lunch"],
   includeSaturday: false,
   includeSunday: false,
-  isStudent: false,
   durationWeeks: 1,
 };

@@ -1,7 +1,7 @@
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { SessionUpdatableService } from "./session-service";
 
 // "Delete" retires the row (active=false) so historical orders that reference
@@ -19,3 +19,4 @@ export const addonService = new SoftDeleteService(new UpdatableRepository(db, ad
 export const deliveryFrequencyService = new SoftDeleteService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id));
 export const durationPackageService = new SoftDeleteService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id));
 export const deliveryZoneService = new SoftDeleteService(new UpdatableRepository(db, deliveryZones, deliveryZones.publicId, deliveryZones.id));
+export const pricingTierService = new SoftDeleteService(new UpdatableRepository(db, pricingTiers, pricingTiers.publicId, pricingTiers.id));

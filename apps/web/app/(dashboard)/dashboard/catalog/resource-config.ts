@@ -20,6 +20,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text" },
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true },
+      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"] },
+      { key: "offeredSlots", label: "Offered slots", type: "csv" },
     ],
   },
   "meal-sizes": {
@@ -73,6 +75,15 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "postalPrefixes", label: "Postal prefixes", type: "csv" },
       { key: "slotWindow", label: "Slot window", type: "text" },
+    ],
+  },
+  "pricing-tiers": {
+    key: "pricing-tiers",
+    label: "Pricing tiers",
+    fields: [
+      { key: "minQty", label: "Min qty", type: "number" },
+      { key: "maxQty", label: "Max qty (blank = unbounded)", type: "number", optional: true },
+      { key: "upliftPct", label: "Uplift %", type: "number" },
     ],
   },
 };

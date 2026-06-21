@@ -31,7 +31,7 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
           {catalog.frequencies.map((f) => (
             <div key={f.key} className="flex items-center gap-2 rounded-md border p-3">
               <RadioGroupItem id={f.key} value={f.key} />
-              <Label htmlFor={f.key} className="flex-1">{f.name}{f.courierDiscountPct > 0 ? ` · ${f.courierDiscountPct}% courier discount` : ""}</Label>
+              <Label htmlFor={f.key} className="flex-1">{f.name}</Label>
             </div>
           ))}
         </RadioGroup>
@@ -63,21 +63,16 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
       )}
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Weekend add-ons (+$15/wk each)</Label>
+        <Label className="text-sm font-medium">Weekend delivery</Label>
         <label className="flex items-center gap-2 rounded-md border p-3">
           <input type="checkbox" checked={selections.includeSaturday} onChange={(e) => set({ includeSaturday: e.target.checked })} />
-          <span>Include Saturday (Biryanis & Pulaos)</span>
+          <span>Include Saturday</span>
         </label>
         <label className="flex items-center gap-2 rounded-md border p-3">
           <input type="checkbox" checked={selections.includeSunday} onChange={(e) => set({ includeSunday: e.target.checked })} />
-          <span>Include Sunday (Curries & Parathas)</span>
+          <span>Include Sunday</span>
         </label>
       </div>
-
-      <label className="flex items-center gap-2 rounded-md border p-3">
-        <input type="checkbox" checked={selections.isStudent} onChange={(e) => set({ isStudent: e.target.checked })} />
-        <span>Student / newcomer household (10% credit)</span>
-      </label>
     </div>
   );
 }
