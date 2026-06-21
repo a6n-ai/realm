@@ -72,7 +72,7 @@ const ZONES = [
 ];
 
 async function main() {
-  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoNothing({ target: plans.key });
+  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoUpdate({ target: plans.key, set: { planType: p.planType, offeredSlots: p.offeredSlots } });
   for (const m of MEAL_SIZES) await db.insert(mealSizes).values(m).onConflictDoNothing({ target: mealSizes.key });
   for (const a of ADDONS) await db.insert(addons).values(a).onConflictDoNothing({ target: addons.key });
   for (const f of FREQUENCIES) await db.insert(deliveryFrequencies).values(f).onConflictDoNothing({ target: deliveryFrequencies.key });

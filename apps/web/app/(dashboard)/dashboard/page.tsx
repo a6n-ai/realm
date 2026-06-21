@@ -18,7 +18,7 @@ async function loadStats() {
     db.$count(orders, eq(orders.status, "active")),
     db.$count(orders, eq(orders.status, "waitlisted")),
     db
-      .select({ total: sql<string>`coalesce(sum(${orders.weeklyFee}), 0)` })
+      .select({ total: sql<string>`coalesce(sum(${orders.total}), 0)` })
       .from(orders)
       .where(eq(orders.status, "active"))
       .then((r) => Number(r[0]?.total ?? 0)),
@@ -53,7 +53,7 @@ export default async function DashboardOverviewPage() {
     { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
     { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon },
     { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "pending delivery zones", icon: ClockIcon },
-    { label: "Weekly revenue", value: fmt(stats.revenue), hint: "from active plans", icon: DollarSignIcon },
+    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans", icon: DollarSignIcon },
   ];
 
   return (

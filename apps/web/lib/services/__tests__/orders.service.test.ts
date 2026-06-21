@@ -21,7 +21,6 @@ const baseInput = (mealSizePublicId: string, planKey: string) => ({
     mealSlots: ["lunch"],
     includeSaturday: false,
     includeSunday: false,
-    isStudent: false,
     durationWeeks: 1,
   },
   contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },

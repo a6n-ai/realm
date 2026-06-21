@@ -26,7 +26,6 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   mealSlots: ["lunch"],
   includeSaturday: false,
   includeSunday: false,
-  isStudent: false,
   durationWeeks: 1,
   ...over,
 });

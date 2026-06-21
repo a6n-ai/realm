@@ -63,21 +63,16 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
       )}
 
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Weekend add-ons (+$15/wk each)</Label>
+        <Label className="text-sm font-medium">Weekend delivery</Label>
         <label className="flex items-center gap-2 rounded-md border p-3">
           <input type="checkbox" checked={selections.includeSaturday} onChange={(e) => set({ includeSaturday: e.target.checked })} />
-          <span>Include Saturday (Biryanis & Pulaos)</span>
+          <span>Include Saturday</span>
         </label>
         <label className="flex items-center gap-2 rounded-md border p-3">
           <input type="checkbox" checked={selections.includeSunday} onChange={(e) => set({ includeSunday: e.target.checked })} />
-          <span>Include Sunday (Curries & Parathas)</span>
+          <span>Include Sunday</span>
         </label>
       </div>
-
-      <label className="flex items-center gap-2 rounded-md border p-3">
-        <input type="checkbox" checked={selections.isStudent} onChange={(e) => set({ isStudent: e.target.checked })} />
-        <span>Student / newcomer household (10% credit)</span>
-      </label>
     </div>
   );
 }

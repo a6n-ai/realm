@@ -43,7 +43,6 @@ export function OrderForm({
   );
   const [includeSaturday, setSat] = useState(false);
   const [includeSunday, setSun] = useState(false);
-  const [isStudent, setStudent] = useState(false);
   const [durationWeeks, setDuration] = useState(catalog.durations[0]?.weeks ?? 1);
 
   const [addr, setAddr] = useState({ addressLine: "", city: "", postalCode: "" });
@@ -51,7 +50,7 @@ export function OrderForm({
 
   const buildInput = (): CreateOrderInput => ({
     planKey,
-    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, isStudent, durationWeeks },
+    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks },
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
@@ -70,7 +69,7 @@ export function OrderForm({
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, isStudent, durationWeeks]);
+  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks]);
 
   const submit = () => {
     setError(null);
@@ -147,7 +146,6 @@ export function OrderForm({
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={setSat} /> Saturday</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={setSun} /> Sunday</label>
-          <label className="flex items-center gap-2 text-sm"><Switch checked={isStudent} onCheckedChange={setStudent} /> Student</label>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -168,11 +166,10 @@ export function OrderForm({
             {preview.lineItems.map((l) => (
               <div key={l.label} className="flex justify-between"><span className="text-muted-foreground">{l.label}</span><span>${l.amount.toFixed(2)}</span></div>
             ))}
-            {preview.discounts.map((d) => (
+            {preview.adjustments.map((d) => (
               <div key={d.label} className="flex justify-between text-emerald-600"><span>{d.label}</span><span>-${d.amount.toFixed(2)}</span></div>
             ))}
-            <div className="mt-2 flex justify-between border-t pt-2 font-medium"><span>Weekly</span><span>${preview.weeklyFee.toFixed(2)}</span></div>
-            <div className="flex justify-between font-medium"><span>Total ({preview.durationWeeks}w)</span><span>${preview.total.toFixed(2)}</span></div>
+            <div className="mt-2 flex justify-between border-t pt-2 font-medium"><span>Total ({preview.tiffinCount} tiffins)</span><span>${preview.total.toFixed(2)}</span></div>
           </div>
         ) : (
           <p className="text-muted-foreground">Select options to preview.</p>

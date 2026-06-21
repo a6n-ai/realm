@@ -40,7 +40,6 @@ describe("inquiriesService.convert", () => {
         mealSlots: ["lunch"],
         includeSaturday: false,
         includeSunday: false,
-        isStudent: false,
         durationWeeks: 1,
       },
       contact: { fullName: "Lead D", phone: "+16475551200", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
