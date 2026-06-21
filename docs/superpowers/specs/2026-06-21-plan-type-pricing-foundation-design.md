@@ -95,7 +95,10 @@ total        = round2(perTiffin × tiffinCount)
 - Remove `STUDENT_DISCOUNT_PCT`, courier discount, loyalty/duration discount, and the
   slot-count multiplier.
 - `PricingCatalog` gains the resolved tier list; loses the discount-related fields.
-- `PricingResult` returns `{ tiffinCount, perTiffinPrice, total, tier, lineItems }`.
+- `PricingResult` returns `{ tiffinCount, perTiffinPrice, subtotal, adjustments, total, tier, lineItems }`.
+  `adjustments: PricingLine[]` is the **coupon hook** — always `[]` in this slice; a future
+  coupon slice pushes discount lines into it and `total = subtotal − Σadjustments`. Baking it
+  in now means coupons slot in with no engine signature change.
 - `pricingSnapshot` stores the breakdown: `basePrice`, matched tier (`minQty/maxQty/upliftPct`),
   `perTiffinPrice`, `tiffinCount`, `deliveryDays`, `total`.
 - If no tier matches (misconfigured table), throw `ValidationError` — pricing must not
@@ -154,4 +157,6 @@ and the tier in effect.
 - Per-day meal-selection form + rolling day-before-6pm cutoff (slice 3).
 - Agent CRM subscription/customer management (slice 4).
 - Catering plan type.
+- **Coupons / promo discounts** — their own later slice. This slice only bakes the
+  `adjustments` hook into `PricingResult` so that slice needs no engine signature change.
 - Removing deprecated discount columns (later cleanup).
