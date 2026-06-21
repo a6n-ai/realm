@@ -23,6 +23,7 @@ export function assertValidTiers(tiers: PricingTier[]): void {
     } else {
       if (t.maxQty === null) throw new ValidationError("Only the top pricing tier may be unbounded");
       if (t.maxQty < t.minQty) throw new ValidationError("Pricing tier max must be ≥ min");
+      // Next band must start exactly one above this band's max: a smaller value is an overlap, a larger value is a gap.
       if (sorted[i + 1].minQty !== t.maxQty + 1) throw new ValidationError("Pricing tiers must be contiguous (no gaps or overlaps)");
     }
   }

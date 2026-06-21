@@ -77,7 +77,8 @@ async function main() {
   for (const f of FREQUENCIES) await db.insert(deliveryFrequencies).values(f).onConflictDoNothing({ target: deliveryFrequencies.key });
   for (const d of DURATIONS) await db.insert(durationPackages).values(d).onConflictDoNothing({ target: durationPackages.weeks });
   for (const z of ZONES) await db.insert(deliveryZones).values(z).onConflictDoNothing({ target: deliveryZones.name });
-  for (const t of PRICING_TIERS) await db.insert(pricingTiers).values(t).onConflictDoNothing();
+  await db.delete(pricingTiers);
+  for (const t of PRICING_TIERS) await db.insert(pricingTiers).values(t);
   console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${ADDONS.length} addons, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
   process.exit(0);
 }
