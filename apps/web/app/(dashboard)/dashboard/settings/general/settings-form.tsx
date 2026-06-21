@@ -17,16 +17,22 @@ export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutof
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const save = () =>
+  const save = () => {
+    const parsed = parseInt(hour, 10);
+    if (Number.isNaN(parsed) || parsed < 0 || parsed > 23) {
+      setError("Cutoff hour must be 0–23");
+      return;
+    }
     start(async () => {
       setError(null);
       try {
-        await saveAppSettings({ timezone: tz, cutoffHour: Number(hour) });
+        await saveAppSettings({ timezone: tz, cutoffHour: parsed });
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
       }
     });
+  };
 
   return (
     <div className="grid max-w-md gap-4">
@@ -41,7 +47,7 @@ export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutof
       </div>
       <div>
         <Label>Selection cutoff hour (0–23)</Label>
-        <Input type="number" min={0} max={23} value={hour} onChange={(e) => setHour(e.target.value)} />
+        <Input type="number" min={0} max={23} step={1} required value={hour} onChange={(e) => setHour(e.target.value)} />
         <p className="text-muted-foreground mt-1 text-xs">Orders for a day lock at this hour the day before, in the app timezone.</p>
       </div>
       <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
