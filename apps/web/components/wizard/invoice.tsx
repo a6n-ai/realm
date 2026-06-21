@@ -21,6 +21,11 @@ export function Invoice({ result }: { result: PricingResult | null }) {
       <div className="flex justify-between text-muted-foreground">
         <span>{result.tiffinCount} tiffins × ${result.perTiffinPrice.toFixed(2)}</span><span>${result.subtotal.toFixed(2)}</span>
       </div>
+      {result.tier.upliftPct > 0 && (
+        <p className="mt-2 text-xs text-amber-600">
+          Order 20+ tiffins for the best per-tiffin rate (currently +{result.tier.upliftPct}%).
+        </p>
+      )}
       <div className="flex justify-between text-base font-semibold">
         <span>Total</span><span>${result.total.toFixed(2)}</span>
       </div>

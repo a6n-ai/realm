@@ -13,7 +13,11 @@ export function StepBaseline({ catalog, selections, set }: {
         <Card
           key={p.key}
           role="button"
-          onClick={() => set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "" })}
+          onClick={() => {
+            const offered = p.offeredSlots ?? [];
+            const defaultSlots = p.planType === "tiffin" ? offered.slice(0, 1) : offered;
+            set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: defaultSlots });
+          }}
           className={`cursor-pointer p-4 transition ${selections.planKey === p.key ? "ring-2 ring-primary" : "hover:bg-accent"}`}
         >
           <div className="font-medium">{p.name}</div>
