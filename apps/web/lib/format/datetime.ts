@@ -12,9 +12,9 @@ const PRESETS: Record<Exclude<FormatMode, "relative">, Intl.DateTimeFormatOption
 
 export function formatEpoch(
   ms: number,
-  opts: { timeZone?: string; mode?: FormatMode } = {},
+  opts: { timeZone?: string; mode?: FormatMode; withZone?: boolean } = {},
 ): string {
-  const { mode = "datetime", timeZone } = opts;
+  const { mode = "datetime", timeZone, withZone } = opts;
   if (mode === "relative") {
     const diff = ms - Date.now();
     const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -24,5 +24,15 @@ export function formatEpoch(
     if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
     return rtf.format(Math.round(hours / 24), "day");
   }
-  return new Intl.DateTimeFormat(undefined, { ...PRESETS[mode], timeZone }).format(ms);
+  const presetOpts = PRESETS[mode];
+  return new Intl.DateTimeFormat(undefined, {
+    ...presetOpts,
+    timeZone,
+    ...(withZone ? { timeZoneName: "short" } : {}),
+  }).format(ms);
+}
+
+// Labeled datetime in the app/delivery timezone (e.g. "Jul 16, 2026, 6:00 PM EDT").
+export function formatDeliveryTime(ms: number, timezone: string): string {
+  return formatEpoch(ms, { timeZone: timezone, mode: "datetime", withZone: true });
 }
