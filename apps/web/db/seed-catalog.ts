@@ -1,5 +1,5 @@
 import { db } from "./client";
-import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans } from "./schema";
+import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
 
 const PLANS = [
   { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas." },
@@ -50,6 +50,12 @@ const DURATIONS = [
   { weeks: 12, discountPct: 15 },
 ];
 
+const PRICING_TIERS = [
+  { minQty: 1, maxQty: 11, upliftPct: "20.00" },
+  { minQty: 12, maxQty: 19, upliftPct: "10.00" },
+  { minQty: 20, maxQty: null, upliftPct: "0.00" },
+];
+
 const ZONES = [
   { name: "Etobicoke", postalPrefixes: ["M8", "M9"], slotWindow: "9:00 AM – 12:00 PM" },
   { name: "Mississauga", postalPrefixes: ["L5"], slotWindow: "10:00 AM – 1:00 PM" },
@@ -71,7 +77,8 @@ async function main() {
   for (const f of FREQUENCIES) await db.insert(deliveryFrequencies).values(f).onConflictDoNothing({ target: deliveryFrequencies.key });
   for (const d of DURATIONS) await db.insert(durationPackages).values(d).onConflictDoNothing({ target: durationPackages.weeks });
   for (const z of ZONES) await db.insert(deliveryZones).values(z).onConflictDoNothing({ target: deliveryZones.name });
-  console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${ADDONS.length} addons, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones`);
+  for (const t of PRICING_TIERS) await db.insert(pricingTiers).values(t).onConflictDoNothing();
+  console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${ADDONS.length} addons, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
   process.exit(0);
 }
 

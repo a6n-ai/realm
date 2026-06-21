@@ -75,6 +75,15 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "slotWindow", label: "Slot window", type: "text" },
     ],
   },
+  "pricing-tiers": {
+    key: "pricing-tiers",
+    label: "Pricing tiers",
+    fields: [
+      { key: "minQty", label: "Min qty", type: "number" },
+      { key: "maxQty", label: "Max qty (blank = unbounded)", type: "number", optional: true },
+      { key: "upliftPct", label: "Uplift %", type: "number" },
+    ],
+  },
 };
 
 // Convert a raw DB row into the editor's string-keyed field values.

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, type ResourceDef } from "../resource-config";
@@ -15,6 +15,7 @@ const TABLES: Record<string, PgTable> = {
   "delivery-frequencies": deliveryFrequencies,
   "duration-packages": durationPackages,
   "delivery-zones": deliveryZones,
+  "pricing-tiers": pricingTiers,
 };
 
 export default async function CatalogResourcePage({ params }: { params: Promise<{ resource: string }> }) {

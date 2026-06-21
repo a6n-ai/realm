@@ -59,3 +59,11 @@ export const deliveryZones = pgTable("delivery_zones", {
   slotWindow: text("slot_window").notNull(),
   active: boolean("active").notNull().default(true),
 });
+
+export const pricingTiers = pgTable("pricing_tiers", {
+  ...updatableColumns("ptr"),
+  minQty: integer("min_qty").notNull(),
+  maxQty: integer("max_qty"), // null = unbounded top band
+  upliftPct: numeric("uplift_pct", { precision: 5, scale: 2 }).notNull(),
+  active: boolean("active").notNull().default(true),
+});
