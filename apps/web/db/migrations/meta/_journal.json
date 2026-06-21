@@ -43,6 +43,13 @@
       "when": 1782210001000,
       "tag": "0005_add_allowed_start_days",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782300000000,
+      "tag": "0006_app_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,12 @@ type SettingLink = { title: string; description: string; href: string; icon: Luc
 
 const SETTINGS: SettingLink[] = [
   {
+    title: "General",
+    description: "App timezone and meal-selection cutoff.",
+    href: "/dashboard/settings/general",
+    icon: SettingsIcon,
+  },
+  {
     title: "Meal slots",
     description: "Enable or disable the meal slots offered in weekly menus.",
     href: "/dashboard/settings/meal-slots",
