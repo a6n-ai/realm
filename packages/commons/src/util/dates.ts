@@ -28,6 +28,15 @@ export function parseIsoDateUtc(iso: string): Date {
   if (!m) throw new Error(`Invalid ISO date: ${iso}`);
   const [, y, mo, da] = m;
   const d = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(da)));
-  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ISO date: ${iso}`);
+  // Date.UTC silently wraps out-of-range parts (e.g. 2026-02-30 → Mar 2); reject
+  // those by requiring the constructed date to round-trip the input components.
+  if (
+    Number.isNaN(d.getTime()) ||
+    d.getUTCFullYear() !== Number(y) ||
+    d.getUTCMonth() !== Number(mo) - 1 ||
+    d.getUTCDate() !== Number(da)
+  ) {
+    throw new Error(`Invalid ISO date: ${iso}`);
+  }
   return d;
 }

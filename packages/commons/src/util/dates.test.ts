@@ -40,4 +40,9 @@ describe("parseIsoDateUtc", () => {
     expect(() => parseIsoDateUtc("2026/06/22")).toThrow();
     expect(() => parseIsoDateUtc("nope")).toThrow();
   });
+  it("throws on out-of-range calendar values (no silent wrap)", () => {
+    expect(() => parseIsoDateUtc("2026-02-30")).toThrow();
+    expect(() => parseIsoDateUtc("2026-13-01")).toThrow();
+    expect(() => parseIsoDateUtc("2026-00-10")).toThrow();
+  });
 });
