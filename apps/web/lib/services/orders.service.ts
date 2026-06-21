@@ -9,6 +9,7 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { hashPassword } from "@/lib/auth/password";
 import { isValidCaPhone, normalizeEmail } from "./users-contact";
 import { validateOrderSlots } from "./order-slots";
+import { validateStartDate } from "./start-date";
 
 const TEMP_PASSWORD = "Tiffin123";
 
@@ -59,6 +60,7 @@ export async function createOrder(
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
   validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
+  validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
   const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
@@ -113,6 +115,7 @@ export async function createOrder(
         includeSaturday: input.selections.includeSaturday,
         includeSunday: input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,
+        startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
         pricingSnapshot: pricing,

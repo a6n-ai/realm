@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
+import { nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -41,6 +42,7 @@ describe("inquiriesService.convert", () => {
         includeSaturday: false,
         includeSunday: false,
         durationWeeks: 1,
+        startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
       },
       contact: { fullName: "Lead D", phone: "+16475551200", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
     });

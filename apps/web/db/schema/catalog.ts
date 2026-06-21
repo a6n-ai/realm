@@ -12,6 +12,7 @@ export const plans = pgTable("plans", {
   description: text("description"),
   planType: planType("plan_type").notNull().default("tiffin"),
   offeredSlots: text("offered_slots").array().notNull().default([]),
+  allowedStartDays: text("allowed_start_days").array().notNull().default(["mon", "tue", "wed", "thu", "fri"]),
   active: boolean("active").notNull().default(true),
 });
 

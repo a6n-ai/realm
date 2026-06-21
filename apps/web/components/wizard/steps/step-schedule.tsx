@@ -19,6 +19,11 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
     set({ mealSlots: next });
   };
 
+  const plan = catalog.plans.find((p) => p.key === selections.planKey);
+  const offered = new Set(plan?.offeredSlots ?? []);
+  const slotsForPlan = enabledSlots.filter((s) => offered.has(s.key));
+  const isTiffin = plan?.planType === "tiffin";
+
   return (
     <div className="space-y-6">
       <div>
@@ -46,19 +51,34 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
         </div>
       </div>
 
-      {enabledSlots.length > 0 && (
+      {slotsForPlan.length > 0 && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">Meal slots</Label>
-          {enabledSlots.map((slot) => (
-            <label key={slot.key} className="flex items-center gap-2 rounded-md border p-3">
-              <input
-                type="checkbox"
-                checked={selections.mealSlots.includes(slot.key)}
-                onChange={(e) => toggleSlot(slot.key, e.target.checked)}
-              />
-              <span>{slot.label}</span>
-            </label>
-          ))}
+          {isTiffin ? (
+            <RadioGroup
+              className="grid gap-2"
+              value={selections.mealSlots[0] ?? ""}
+              onValueChange={(v) => set({ mealSlots: [v] })}
+            >
+              {slotsForPlan.map((slot) => (
+                <div key={slot.key} className="flex items-center gap-2 rounded-md border p-3">
+                  <RadioGroupItem id={`slot-${slot.key}`} value={slot.key} />
+                  <Label htmlFor={`slot-${slot.key}`}>{slot.label}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          ) : (
+            slotsForPlan.map((slot) => (
+              <label key={slot.key} className="flex items-center gap-2 rounded-md border p-3">
+                <input
+                  type="checkbox"
+                  checked={selections.mealSlots.includes(slot.key)}
+                  onChange={(e) => toggleSlot(slot.key, e.target.checked)}
+                />
+                <span>{slot.label}</span>
+              </label>
+            ))
+          )}
         </div>
       )}
 

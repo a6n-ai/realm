@@ -1,11 +1,11 @@
 import { db } from "./client";
-import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
+import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
 
 const PLANS = [
-  { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "halal_nonveg", name: "Halal Non-Veg Plan", description: "Poultry, mutton, egg masalas, daals, chapatis.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "mixed", name: "Veg & Non-Veg Mixed Plan", description: "Alternating vegetarian and non-vegetarian days.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "healthy", name: "Healthy Plan", description: "Breakfast, lunch, and dinner — pick the slots you want.", planType: "healthy" as const, offeredSlots: ["breakfast", "lunch", "dinner"] },
+  { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "halal_nonveg", name: "Halal Non-Veg Plan", description: "Poultry, mutton, egg masalas, daals, chapatis.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "mixed", name: "Veg & Non-Veg Mixed Plan", description: "Alternating vegetarian and non-vegetarian days.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "healthy", name: "Healthy Plan", description: "Breakfast, lunch, and dinner — pick the slots you want.", planType: "healthy" as const, offeredSlots: ["breakfast", "lunch", "dinner"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
 ];
 
 type MealSizeSeed = {
@@ -31,11 +31,6 @@ const MEAL_SIZES: MealSizeSeed[] = [
   { key: "new_thali", name: "New Thali", tier: "medium", diet: "both", components: ["8oz Sabzi", "8oz Daal", "8 Rotis"], kcalMin: 900, kcalMax: 1100, proteinG: 34, carbsG: 130, fatG: 24, basePrice: "12.49" },
   { key: "five_item_large", name: "5-Item Thali (Large)", tier: "premium", diet: "both", components: ["12oz Sabzi", "12oz Daal", "12oz Rice", "6 Rotis", "Salad", "Raita"], kcalMin: 1200, kcalMax: 1450, proteinG: 44, carbsG: 165, fatG: 34, basePrice: "16.99" },
   { key: "maharaja_thali", name: "Maharaja Thali", tier: "premium", diet: "both", components: ["12oz Sabzi", "12oz Daal", "8oz Sabzi", "12oz Rice", "8 Rotis", "Salad", "Raita"], kcalMin: 1500, kcalMax: 1750, proteinG: 52, carbsG: 190, fatG: 40, basePrice: "19.99" },
-];
-
-const ADDONS = [
-  { key: "saturday", name: "Saturday Special (Biryanis & Pulaos)", pricePerWeek: "15.00" },
-  { key: "sunday", name: "Sunday Classics (Curries & Parathas)", pricePerWeek: "15.00" },
 ];
 
 const FREQUENCIES = [
@@ -72,15 +67,14 @@ const ZONES = [
 ];
 
 async function main() {
-  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoUpdate({ target: plans.key, set: { planType: p.planType, offeredSlots: p.offeredSlots } });
+  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoUpdate({ target: plans.key, set: { planType: p.planType, offeredSlots: p.offeredSlots, allowedStartDays: p.allowedStartDays } });
   for (const m of MEAL_SIZES) await db.insert(mealSizes).values(m).onConflictDoNothing({ target: mealSizes.key });
-  for (const a of ADDONS) await db.insert(addons).values(a).onConflictDoNothing({ target: addons.key });
   for (const f of FREQUENCIES) await db.insert(deliveryFrequencies).values(f).onConflictDoNothing({ target: deliveryFrequencies.key });
   for (const d of DURATIONS) await db.insert(durationPackages).values(d).onConflictDoNothing({ target: durationPackages.weeks });
   for (const z of ZONES) await db.insert(deliveryZones).values(z).onConflictDoNothing({ target: deliveryZones.name });
   await db.delete(pricingTiers);
   for (const t of PRICING_TIERS) await db.insert(pricingTiers).values(t);
-  console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${ADDONS.length} addons, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
+  console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
   process.exit(0);
 }
 

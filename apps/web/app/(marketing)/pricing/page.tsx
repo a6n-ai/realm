@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Section } from "@/components/marketing/section";
 
-export const metadata: Metadata = { title: "Pricing — Tiffin Grab", description: "Plans, add-ons, delivery frequencies, and volume-based per-tiffin pricing. Pricing is built from your selections." };
+export const metadata: Metadata = { title: "Pricing — Tiffin Grab", description: "Plans, delivery frequencies, and volume-based per-tiffin pricing. Pricing is built from your selections." };
 
 // Read live so admin catalog edits surface without a rebuild.
 export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
-  const { plans, addons, frequencies, durations } = await loadCatalogSnapshot();
+  const { plans, frequencies, durations } = await loadCatalogSnapshot();
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
@@ -37,21 +37,21 @@ export default async function PricingPage() {
 
       <div className="grid gap-8 sm:grid-cols-3">
         <div>
-          <h2 className="text-xl font-medium">Add-ons</h2>
+          <h2 className="text-xl font-medium">Weekend delivery</h2>
           <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            {addons.map((a) => <li key={a.key} className="flex justify-between"><span>{a.name}</span><span>+${a.pricePerWeek.toFixed(2)}/wk</span></li>)}
+            <li>Saturday &amp; Sunday delivery available — billed per tiffin, same as weekdays.</li>
           </ul>
         </div>
         <div>
           <h2 className="text-xl font-medium">Frequencies</h2>
           <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            {frequencies.map((f) => <li key={f.id} className="flex justify-between"><span>{f.name}</span>{f.courierDiscountPct ? <span>-{f.courierDiscountPct}%</span> : null}</li>)}
+            {frequencies.map((f) => <li key={f.id} className="flex justify-between"><span>{f.name}</span></li>)}
           </ul>
         </div>
         <div>
           <h2 className="text-xl font-medium">Commitment</h2>
           <ul className="text-muted-foreground mt-3 space-y-1 text-sm">
-            {durations.map((d) => <li key={d.id} className="flex justify-between"><span>{d.weeks} week{d.weeks > 1 ? "s" : ""}</span>{d.discountPct ? <span>-{d.discountPct}%</span> : null}</li>)}
+            {durations.map((d) => <li key={d.id} className="flex justify-between"><span>{d.weeks} week{d.weeks > 1 ? "s" : ""}</span></li>)}
           </ul>
         </div>
       </div>

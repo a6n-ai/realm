@@ -21,36 +21,64 @@ function FieldInputs({
   def,
   values,
   setValues,
+  dynamicOptions,
 }: {
   def: ResourceDef;
   values: Record<string, string>;
   setValues: (v: Record<string, string>) => void;
+  dynamicOptions: Record<string, { value: string; label: string }[]>;
 }) {
   const set = (k: string, v: string) => setValues({ ...values, [k]: v });
+  const toggleMulti = (k: string, value: string, checked: boolean) => {
+    const cur = (values[k] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const next = checked ? [...new Set([...cur, value])] : cur.filter((x) => x !== value);
+    set(k, next.join(", "));
+  };
+  const optionsFor = (f: ResourceDef["fields"][number]) =>
+    f.optionsSource ? (dynamicOptions[f.key] ?? []) : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
+
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {def.fields.map((f) => (
-        <div key={f.key}>
-          <Label>{f.label}{f.optional ? <span className="text-muted-foreground"> (optional)</span> : null}</Label>
-          {f.type === "select" ? (
-            <Select value={values[f.key] ?? ""} onValueChange={(v) => set(f.key, v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{f.options!.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-            </Select>
-          ) : (
-            <Input
-              type={f.type === "number" ? "number" : "text"}
-              value={values[f.key] ?? ""}
-              onChange={(e) => set(f.key, e.target.value)}
-            />
-          )}
-        </div>
-      ))}
+      {def.fields.map((f) => {
+        const selected = new Set((values[f.key] ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+        return (
+          <div key={f.key}>
+            <Label>{f.label}{f.optional ? <span className="text-muted-foreground"> (optional)</span> : null}</Label>
+            {f.type === "select" ? (
+              <Select value={values[f.key] ?? ""} onValueChange={(v) => set(f.key, v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{optionsFor(f).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
+            ) : f.type === "multiselect" ? (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {optionsFor(f).map((o) => (
+                  <label key={o.value} className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm">
+                    <input type="checkbox" checked={selected.has(o.value)} onChange={(e) => toggleMulti(f.key, o.value, e.target.checked)} />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            ) : f.type === "date" ? (
+              <Input type="date" value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
+            ) : (
+              <div className="flex items-center gap-1">
+                {f.unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}
+                <Input
+                  type={f.type === "number" ? "number" : "text"}
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => set(f.key, e.target.value)}
+                />
+                {f.unit && f.unit !== "$" ? <span className="text-muted-foreground text-sm">{f.unit}</span> : null}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-export function ResourceEditor({ resource, def, rows }: { resource: string; def: ResourceDef; rows: Row[] }) {
+export function ResourceEditor({ resource, def, rows, dynamicOptions }: { resource: string; def: ResourceDef; rows: Row[]; dynamicOptions: Record<string, { value: string; label: string }[]> }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +117,7 @@ export function ResourceEditor({ resource, def, rows }: { resource: string; def:
       {editingId ? (
         <div className="grid gap-3 rounded-lg border p-4">
           <h2 className="font-medium">{editingId === "__new__" ? "New item" : "Edit item"}</h2>
-          <FieldInputs def={def} values={values} setValues={setValues} />
+          <FieldInputs def={def} values={values} setValues={setValues} dynamicOptions={dynamicOptions} />
           <div className="flex gap-2">
             <Button onClick={save} disabled={pending}>Save</Button>
             <Button variant="outline" onClick={() => setEditingId(null)} disabled={pending}>Cancel</Button>

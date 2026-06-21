@@ -1,8 +1,11 @@
+import { useState } from "react";
+import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@tiffin/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Invoice } from "../invoice";
 
 export function StepDuration({ catalog, selections, set, result }: {
@@ -11,8 +14,41 @@ export function StepDuration({ catalog, selections, set, result }: {
   set: (patch: Partial<WizardSelections>) => void;
   result: PricingResult | null;
 }) {
+  const [startDateError, setStartDateError] = useState<string | null>(null);
+  const plan = catalog.plans.find((p) => p.key === selections.planKey);
+  const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
+  const minDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+  const dayLabel: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const onStartDate = (v: string) => {
+    if (!v) { set({ startDate: "" }); setStartDateError(null); return; }
+    try {
+      const wk = weekdayKey(parseIsoDateUtc(v));
+      if (allowed.includes(wk)) {
+        set({ startDate: v });
+        setStartDateError(null);
+      } else {
+        set({ startDate: "" });
+        setStartDateError("That day isn't available — choose one of: " + allowed.map((d) => dayLabel[d] ?? d).join(", "));
+      }
+    } catch { /* ignore malformed intermediate input */ }
+  };
+
   return (
     <div className="space-y-6">
+      <div>
+        <Label className="text-sm font-medium">Start date</Label>
+        <Input
+          type="date"
+          className="mt-2 w-fit"
+          min={minDate}
+          value={selections.startDate}
+          onChange={(e) => onStartDate(e.target.value)}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {minDate}.
+        </p>
+        {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
+      </div>
       <div>
         <Label className="text-sm font-medium">Commitment duration</Label>
         <RadioGroup
@@ -23,7 +59,7 @@ export function StepDuration({ catalog, selections, set, result }: {
           {catalog.durations.map((d) => (
             <div key={d.weeks} className="flex items-center gap-2 rounded-md border p-3">
               <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} />
-              <Label htmlFor={`d${d.weeks}`}>{d.weeks}wk{d.discountPct > 0 ? ` (${d.discountPct}%)` : ""}</Label>
+              <Label htmlFor={`d${d.weeks}`}>{d.weeks}wk</Label>
             </div>
           ))}
         </RadioGroup>

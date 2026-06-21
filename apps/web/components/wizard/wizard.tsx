@@ -12,7 +12,7 @@ import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
 import { StepDuration } from "./steps/step-duration";
 
-const STEPS = ["Baseline", "Bundle", "Schedule", "Duration"] as const;
+const STEPS = ["Baseline", "Bundle", "Schedule", "Start & duration"] as const;
 
 export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapshot; enabledSlots: EnabledSlot[] }) {
   const router = useRouter();
@@ -61,7 +61,7 @@ export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapsh
         <Button variant="outline" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
         {step < 3
           ? <Button disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
-          : <Button disabled={!selections.mealSizeId} onClick={deploy}>Deploy Plan Formulation</Button>}
+          : <Button disabled={!selections.mealSizeId || !selections.startDate} onClick={deploy}>Continue to checkout</Button>}
       </div>
     </div>
   );

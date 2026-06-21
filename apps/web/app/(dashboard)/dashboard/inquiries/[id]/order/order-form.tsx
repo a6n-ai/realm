@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { nextWeekday } from "@tiffin/commons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,12 +46,15 @@ export function OrderForm({
   const [includeSunday, setSun] = useState(false);
   const [durationWeeks, setDuration] = useState(catalog.durations[0]?.weeks ?? 1);
 
+  const [startDate, setStartDate] = useState("");
   const [addr, setAddr] = useState({ addressLine: "", city: "", postalCode: "" });
   const [email, setEmail] = useState(contact.email);
 
+  const minStart = nextWeekday(new Date()).toISOString().slice(0, 10);
+
   const buildInput = (): CreateOrderInput => ({
     planKey,
-    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks },
+    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate },
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
@@ -69,7 +73,7 @@ export function OrderForm({
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks]);
+  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate]);
 
   const submit = () => {
     setError(null);
@@ -118,6 +122,10 @@ export function OrderForm({
               <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <div>
+            <Label htmlFor="start-date">Start date</Label>
+            <Input id="start-date" type="date" min={minStart} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
         </div>
 
         {enabledSlots.length > 0 && (
@@ -156,7 +164,7 @@ export function OrderForm({
         </div>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
-        <Button onClick={submit} disabled={pending || !addr.addressLine || !addr.city || !addr.postalCode}>Create order &amp; convert</Button>
+        <Button onClick={submit} disabled={pending || !startDate || !addr.addressLine || !addr.city || !addr.postalCode}>Create order &amp; convert</Button>
       </div>
 
       <aside className="h-fit rounded-lg border p-4 text-sm">

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import {
-  addonService,
   deliveryFrequencyService,
   deliveryZoneService,
   durationPackageService,
@@ -14,7 +13,6 @@ import {
 const SERVICES = {
   plans: planService,
   "meal-sizes": mealSizeService,
-  addons: addonService,
   "delivery-frequencies": deliveryFrequencyService,
   "duration-packages": durationPackageService,
   "delivery-zones": deliveryZoneService,
