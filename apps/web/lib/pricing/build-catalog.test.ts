@@ -16,6 +16,7 @@ const snapshot: CatalogSnapshot = {
   frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0 }],
   durations: [{ id: BigInt(3), publicId: "dur_1", weeks: 1, discountPct: 0 }],
   zones: [],
+  tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],
 };
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({

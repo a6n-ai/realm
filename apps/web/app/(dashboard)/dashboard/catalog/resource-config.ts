@@ -20,6 +20,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text" },
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true },
+      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"] },
+      { key: "offeredSlots", label: "Offered slots", type: "csv" },
     ],
   },
   "meal-sizes": {
