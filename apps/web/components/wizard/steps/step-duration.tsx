@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@tiffin/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
@@ -13,15 +14,22 @@ export function StepDuration({ catalog, selections, set, result }: {
   set: (patch: Partial<WizardSelections>) => void;
   result: PricingResult | null;
 }) {
+  const [startDateError, setStartDateError] = useState<string | null>(null);
   const plan = catalog.plans.find((p) => p.key === selections.planKey);
   const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
   const minDate = nextWeekday(new Date()).toISOString().slice(0, 10);
   const dayLabel: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const onStartDate = (v: string) => {
-    if (!v) { set({ startDate: "" }); return; }
+    if (!v) { set({ startDate: "" }); setStartDateError(null); return; }
     try {
       const wk = weekdayKey(parseIsoDateUtc(v));
-      if (allowed.includes(wk)) set({ startDate: v });
+      if (allowed.includes(wk)) {
+        set({ startDate: v });
+        setStartDateError(null);
+      } else {
+        set({ startDate: "" });
+        setStartDateError("That day isn't available — choose one of: " + allowed.map((d) => dayLabel[d] ?? d).join(", "));
+      }
     } catch { /* ignore malformed intermediate input */ }
   };
 
@@ -39,6 +47,7 @@ export function StepDuration({ catalog, selections, set, result }: {
         <p className="mt-1 text-xs text-muted-foreground">
           Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {minDate}.
         </p>
+        {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
       </div>
       <div>
         <Label className="text-sm font-medium">Commitment duration</Label>
