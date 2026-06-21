@@ -60,7 +60,7 @@ export async function createOrder(
   if (!plan) throw new ValidationError("Invalid plan");
   validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
-  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));;
+  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);

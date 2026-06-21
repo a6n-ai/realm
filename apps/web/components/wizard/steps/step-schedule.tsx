@@ -31,7 +31,7 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
           {catalog.frequencies.map((f) => (
             <div key={f.key} className="flex items-center gap-2 rounded-md border p-3">
               <RadioGroupItem id={f.key} value={f.key} />
-              <Label htmlFor={f.key} className="flex-1">{f.name}{f.courierDiscountPct > 0 ? ` · ${f.courierDiscountPct}% courier discount` : ""}</Label>
+              <Label htmlFor={f.key} className="flex-1">{f.name}</Label>
             </div>
           ))}
         </RadioGroup>

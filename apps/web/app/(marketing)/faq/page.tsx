@@ -6,8 +6,7 @@ export const metadata: Metadata = { title: "FAQ — Tiffin Grab", description: "
 const FAQS = [
   { q: "Where do you deliver?", a: "Across eleven GTA regions. Enter your postal code at checkout to see your slot window — if we don't serve your area yet, you can join the waitlist." },
   { q: "Can I customize my meals?", a: "Yes. You choose a nutrition baseline, meal size, schedule, daily quantity, weekend add-ons, and commitment length." },
-  { q: "How does pricing work?", a: "Pricing is built from your selections: meal base price × quantity × billable days, plus add-ons, minus courier, student, and loyalty discounts. See the Pricing page." },
-  { q: "Is there a student discount?", a: "Yes — a 10% student discount can be applied during plan building." },
+  { q: "How does pricing work?", a: "You pay a per-tiffin rate multiplied by your total tiffin count (delivery days per week × weeks × persons). The per-tiffin rate drops with volume — orders of 20 or more tiffins get the best rate with no small-order surcharge. See the Pricing page." },
   { q: "How do I pay?", a: "Checkout currently uses a simulated payment while we finish onboarding our payment provider." },
 ];
 

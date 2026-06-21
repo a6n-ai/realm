@@ -10,8 +10,8 @@ export const metadata: Metadata = { title: "How it works — Tiffin Grab", descr
 const STEPS = [
   { n: 1, title: "Nutrition baseline", body: "Choose Pure Vegetarian, Halal Non-Veg, or a Veg & Non-Veg mix." },
   { n: 2, title: "Build your bundle", body: "Pick a meal size and tier; see calories, protein, carbs, and fat." },
-  { n: 3, title: "Schedule & quantity", body: "Set frequency, daily quantity, weekend add-ons, and student discount." },
-  { n: 4, title: "Duration & checkout", body: "Choose a commitment length for loyalty savings, then confirm." },
+  { n: 3, title: "Schedule & quantity", body: "Set frequency, daily quantity, weekend add-ons, and number of persons. More delivery days and weeks means more tiffins — and a lower per-tiffin rate." },
+  { n: 4, title: "Duration & checkout", body: "Choose a commitment length. Longer plans mean more tiffins total, which can push you into a better volume tier." },
 ];
 
 export default function HowItWorksPage() {

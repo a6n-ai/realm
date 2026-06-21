@@ -19,8 +19,9 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const frequency = snapshot.frequencies.find((f) => f.key === selections.frequencyKey);
   if (!frequency) throw new ValidationError("Invalid frequency");
 
-  const durationPackage = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
-  if (!durationPackage) throw new ValidationError("Invalid duration");
+  if (!snapshot.durations.some((d) => d.weeks === selections.durationWeeks)) {
+    throw new ValidationError("Invalid duration");
+  }
 
   return {
     mealSize: { id: mealSize.publicId, basePrice: mealSize.basePrice },
