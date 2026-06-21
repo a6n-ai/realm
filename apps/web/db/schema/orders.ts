@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
-import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
@@ -17,6 +17,7 @@ export const orders = pgTable("orders", {
   includeSaturday: boolean("include_saturday").notNull().default(false),
   includeSunday: boolean("include_sunday").notNull().default(false),
   durationWeeks: integer("duration_weeks").notNull(),
+  startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
   perTiffinPrice: numeric("per_tiffin_price", { precision: 10, scale: 2 }).notNull(),
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),

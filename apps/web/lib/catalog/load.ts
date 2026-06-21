@@ -15,7 +15,7 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
   ]);
 
   return {
-    plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: p.offeredSlots })),
+    plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: p.offeredSlots, allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => ({
       id: m.id, publicId: m.publicId, key: m.key, name: m.name, tier: m.tier, diet: m.diet, components: m.components,
       kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,

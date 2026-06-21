@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError, nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -22,6 +22,7 @@ const baseInput = (mealSizePublicId: string, planKey: string) => ({
     includeSaturday: false,
     includeSunday: false,
     durationWeeks: 1,
+    startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
   },
   contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
 });

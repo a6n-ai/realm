@@ -50,7 +50,7 @@ export function OrderForm({
 
   const buildInput = (): CreateOrderInput => ({
     planKey,
-    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks },
+    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate: "" },
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,

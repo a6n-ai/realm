@@ -8,6 +8,7 @@ export interface PricingSelections {
   includeSaturday: boolean;
   includeSunday: boolean;
   durationWeeks: number;
+  startDate: string; // ISO YYYY-MM-DD; not used by pricing, carried for order creation
 }
 
 export interface PricingCatalog {

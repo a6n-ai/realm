@@ -19,7 +19,7 @@ export interface MealSizeView {
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
 export interface CatalogSnapshot {
-  plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[] }[];
+  plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: MealSizeView[];
   addons: { id: bigint; publicId: string; key: string; name: string; pricePerWeek: number }[];
   frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];
@@ -33,7 +33,7 @@ export interface CatalogSnapshot {
 export type ClientMealSizeView = Omit<MealSizeView, "id">;
 
 export interface ClientCatalogSnapshot {
-  plans: { publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[] }[];
+  plans: { publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: ClientMealSizeView[];
   addons: { publicId: string; key: string; name: string; pricePerWeek: number }[];
   frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];

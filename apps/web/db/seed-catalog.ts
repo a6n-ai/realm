@@ -2,10 +2,10 @@ import { db } from "./client";
 import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
 
 const PLANS = [
-  { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "halal_nonveg", name: "Halal Non-Veg Plan", description: "Poultry, mutton, egg masalas, daals, chapatis.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "mixed", name: "Veg & Non-Veg Mixed Plan", description: "Alternating vegetarian and non-vegetarian days.", planType: "tiffin" as const, offeredSlots: ["lunch"] },
-  { key: "healthy", name: "Healthy Plan", description: "Breakfast, lunch, and dinner — pick the slots you want.", planType: "healthy" as const, offeredSlots: ["breakfast", "lunch", "dinner"] },
+  { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "halal_nonveg", name: "Halal Non-Veg Plan", description: "Poultry, mutton, egg masalas, daals, chapatis.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "mixed", name: "Veg & Non-Veg Mixed Plan", description: "Alternating vegetarian and non-vegetarian days.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { key: "healthy", name: "Healthy Plan", description: "Breakfast, lunch, and dinner — pick the slots you want.", planType: "healthy" as const, offeredSlots: ["breakfast", "lunch", "dinner"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
 ];
 
 type MealSizeSeed = {
@@ -72,7 +72,7 @@ const ZONES = [
 ];
 
 async function main() {
-  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoUpdate({ target: plans.key, set: { planType: p.planType, offeredSlots: p.offeredSlots } });
+  for (const p of PLANS) await db.insert(plans).values(p).onConflictDoUpdate({ target: plans.key, set: { planType: p.planType, offeredSlots: p.offeredSlots, allowedStartDays: p.allowedStartDays } });
   for (const m of MEAL_SIZES) await db.insert(mealSizes).values(m).onConflictDoNothing({ target: mealSizes.key });
   for (const a of ADDONS) await db.insert(addons).values(a).onConflictDoNothing({ target: addons.key });
   for (const f of FREQUENCIES) await db.insert(deliveryFrequencies).values(f).onConflictDoNothing({ target: deliveryFrequencies.key });

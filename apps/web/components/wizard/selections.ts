@@ -20,4 +20,5 @@ export const initialSelections: WizardSelections = {
   includeSaturday: false,
   includeSunday: false,
   durationWeeks: 1,
+  startDate: "",
 };

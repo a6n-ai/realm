@@ -27,6 +27,7 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   includeSaturday: false,
   includeSunday: false,
   durationWeeks: 1,
+  startDate: "2026-06-23",
   ...over,
 });
 
