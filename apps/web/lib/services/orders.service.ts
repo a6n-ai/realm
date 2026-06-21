@@ -55,12 +55,12 @@ export async function createOrder(
 ): Promise<{ deploymentId: string; publicId: string }> {
   const { actorId = null, ownerUserId = null } = opts;
   const snapshot = await loadCatalogSnapshot();
-  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
   validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
-  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!;
+  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
+  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));;
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);

@@ -40,6 +40,10 @@ describe("createOrder (integration)", () => {
     const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
     expect(o.publicId).toBe(publicId);
     expect(Number(o.total)).toBeGreaterThan(0);
+    expect(o.tiffinCount).toBeGreaterThan(0);
+    expect(Number.isInteger(o.tiffinCount)).toBe(true);
+    expect(Number(o.perTiffinPrice)).toBeGreaterThan(0);
+    expect(Number(o.total)).toBe(Number(o.perTiffinPrice) * o.tiffinCount);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
   });
