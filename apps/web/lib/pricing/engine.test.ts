@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { priceSubscription } from "./engine";
 import type { PricingCatalog, PricingSelections } from "./types";
+import type { PricingTier } from "./tiers";
 
-const baseCatalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", durationPct = 0, weeks = 1): PricingCatalog => ({
+const TIERS: PricingTier[] = [
+  { minQty: 1, maxQty: 11, upliftPct: 20 },
+  { minQty: 12, maxQty: 19, upliftPct: 10 },
+  { minQty: 20, maxQty: null, upliftPct: 0 },
+];
+
+const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day"): PricingCatalog => ({
   mealSize: { id: "m1", basePrice },
-  frequency: freqKey === "5_day"
-    ? { key: "5_day", daysPerWeek: 5, courierDiscountPct: 0 }
-    : { key: "mwf", daysPerWeek: 3, courierDiscountPct: 10 },
-  addons: { saturday: 15, sunday: 15 },
-  durationPackage: { weeks, discountPct: durationPct },
+  frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5 } : { key: "mwf", daysPerWeek: 3 },
+  tiers: TIERS,
 });
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
@@ -18,63 +22,67 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   mealSlots: ["lunch"],
   includeSaturday: false,
   includeSunday: false,
-  isStudent: false,
   durationWeeks: 1,
   ...over,
 });
 
-describe("priceSubscription", () => {
-  it("base meal × persons × billable days (5-day)", () => {
-    const r = priceSubscription(sel(), baseCatalog(10));
-    expect(r.weeklyFee).toBe(50);
-    expect(r.total).toBe(50);
+describe("priceSubscription (per-tiffin)", () => {
+  it("counts tiffins as deliveryDays × weeks × persons (slot-agnostic)", () => {
+    // 5 days × 4 weeks × 1 person = 20 tiffins → 0% uplift → $10 each
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10));
+    expect(r.tiffinCount).toBe(20);
+    expect(r.perTiffinPrice).toBe(10);
+    expect(r.total).toBe(200);
+    expect(r.tier.upliftPct).toBe(0);
+    expect(r.adjustments).toEqual([]);
   });
 
-  it("daily quantity multiplier", () => {
-    const r = priceSubscription(sel({ persons: 3 }), baseCatalog(10));
-    expect(r.weeklyFee).toBe(150);
+  it("applies the small-volume uplift below 12", () => {
+    // 5 days × 1 week = 5 tiffins → 20% uplift → $12 each
+    const r = priceSubscription(sel(), catalog(10));
+    expect(r.tiffinCount).toBe(5);
+    expect(r.perTiffinPrice).toBe(12);
+    expect(r.total).toBe(60);
   });
 
-  it("multiplies by meal-slot count", () => {
-    const r = priceSubscription(sel({ persons: 2, mealSlots: ["lunch", "dinner"] }), baseCatalog(10));
-    // 10 base × 5 days × 2 persons × 2 slots = 200
-    expect(r.weeklyFee).toBe(200);
+  it("applies the mid-band uplift at 12–19", () => {
+    // 3 days × 4 weeks = 12 tiffins → 10% uplift → $11 each
+    const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 4 }), catalog(10, "mwf"));
+    expect(r.tiffinCount).toBe(12);
+    expect(r.perTiffinPrice).toBe(11);
+    expect(r.total).toBe(132);
   });
 
-  it("MWF applies 10% courier discount to the meal subtotal only", () => {
-    const r = priceSubscription(sel({ frequencyKey: "mwf" }), baseCatalog(10, "mwf"));
-    expect(r.discounts).toContainEqual({ label: "Courier discount (MWF)", amount: 3 });
-    expect(r.weeklyFee).toBe(27);
+  it("Saturday and Sunday each add a delivery day", () => {
+    // (5 + 1 + 1) days × 4 weeks = 28 tiffins → 0% uplift
+    const r = priceSubscription(sel({ includeSaturday: true, includeSunday: true, durationWeeks: 4 }), catalog(10));
+    expect(r.tiffinCount).toBe(28);
+    expect(r.perTiffinPrice).toBe(10);
+    expect(r.total).toBe(280);
   });
 
-  it("weekend add-ons add $15 each and are exempt from courier discount", () => {
-    const r = priceSubscription(sel({ frequencyKey: "mwf", includeSaturday: true, includeSunday: true }), baseCatalog(10, "mwf"));
-    expect(r.lineItems).toContainEqual({ label: "Saturday Special", amount: 15 });
-    expect(r.lineItems).toContainEqual({ label: "Sunday Classics", amount: 15 });
-    expect(r.weeklyFee).toBe(57);
+  it("is slot-agnostic — extra slots do not change the count", () => {
+    const one = priceSubscription(sel({ mealSlots: ["lunch"], durationWeeks: 4 }), catalog(10));
+    const three = priceSubscription(sel({ mealSlots: ["breakfast", "lunch", "dinner"], durationWeeks: 4 }), catalog(10));
+    expect(three.tiffinCount).toBe(one.tiffinCount);
+    expect(three.total).toBe(one.total);
   });
 
-  it("student discount is 10% of the running subtotal", () => {
-    const r = priceSubscription(sel({ isStudent: true }), baseCatalog(10));
-    expect(r.discounts).toContainEqual({ label: "Student discount", amount: 5 });
-    expect(r.weeklyFee).toBe(45);
+  it("multiplies tiffins by persons", () => {
+    // 5 days × 1 week × 4 persons = 20 → 0% uplift
+    const r = priceSubscription(sel({ persons: 4 }), catalog(10));
+    expect(r.tiffinCount).toBe(20);
+    expect(r.total).toBe(200);
   });
 
-  it("stacks courier → student → duration sequentially", () => {
-    const r = priceSubscription(sel({ frequencyKey: "mwf", isStudent: true, durationWeeks: 4 }), baseCatalog(10, "mwf", 5, 4));
-    expect(r.weeklyFee).toBe(23.08);
-    expect(r.total).toBe(92.32);
+  it("returns a single tiffins line item and an empty adjustments array", () => {
+    const r = priceSubscription(sel(), catalog(10));
+    expect(r.lineItems).toHaveLength(1);
+    expect(r.lineItems[0].amount).toBe(r.subtotal);
+    expect(r.subtotal).toBe(r.total);
   });
 
-  it.each([
-    [1, 0, 100, 100],
-    [2, 2, 98, 196],
-    [4, 5, 95, 380],
-    [8, 10, 90, 720],
-    [12, 15, 85, 1020],
-  ])("duration tier %iwk → %i%% gives weeklyFee %i / total %i", (weeks, pct, weekly, total) => {
-    const r = priceSubscription(sel({ durationWeeks: weeks }), baseCatalog(20, "5_day", pct, weeks));
-    expect(r.weeklyFee).toBe(weekly);
-    expect(r.total).toBe(total);
+  it("throws when tiers are misconfigured (no match)", () => {
+    expect(() => priceSubscription(sel(), { ...catalog(10), tiers: [{ minQty: 100, maxQty: null, upliftPct: 0 }] })).toThrow();
   });
 });

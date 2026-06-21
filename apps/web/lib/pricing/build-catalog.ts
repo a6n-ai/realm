@@ -22,13 +22,9 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const durationPackage = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
   if (!durationPackage) throw new ValidationError("Invalid duration");
 
-  const sat = snapshot.addons.find((a) => a.key === "saturday")?.pricePerWeek ?? 0;
-  const sun = snapshot.addons.find((a) => a.key === "sunday")?.pricePerWeek ?? 0;
-
   return {
     mealSize: { id: mealSize.publicId, basePrice: mealSize.basePrice },
-    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek, courierDiscountPct: frequency.courierDiscountPct },
-    addons: { saturday: sat, sunday: sun },
-    durationPackage: { weeks: durationPackage.weeks, discountPct: durationPackage.discountPct },
+    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
+    tiers: snapshot.tiers,
   };
 }
