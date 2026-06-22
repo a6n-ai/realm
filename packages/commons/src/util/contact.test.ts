@@ -35,3 +35,19 @@ describe("phoneSchema", () => {
     expect(phoneSchema().parse("647 555 0100")).toBe("+16475550100");
   });
 });
+
+import { tzToDefaultCountry } from "./contact";
+
+describe("tzToDefaultCountry", () => {
+  it("maps Canadian zones to CA", () => {
+    expect(tzToDefaultCountry("America/Toronto")).toBe("CA");
+    expect(tzToDefaultCountry("America/Vancouver")).toBe("CA");
+  });
+  it("maps Asia/Kolkata to IN", () => {
+    expect(tzToDefaultCountry("Asia/Kolkata")).toBe("IN");
+  });
+  it("falls back to CA for UTC / unknown", () => {
+    expect(tzToDefaultCountry("UTC")).toBe("CA");
+    expect(tzToDefaultCountry("Europe/Paris")).toBe("CA");
+  });
+});
