@@ -133,14 +133,16 @@ Expected: FAIL — `session`/`account`/`verification`/`phoneVerified` not export
 
 - [ ] **Step 3: Replace the NextAuth tables with Better Auth tables**
 
-In `apps/web/db/schema/auth.ts`: using the generated definitions from `/tmp/better-auth-schema.ts` (Task 1), replace `accounts`, `sessions`, `verificationTokens` with Better Auth `account`, `session`, `verification`, built to **house conventions per the Task 1 verdict**:
-- spread `updatableColumns("ses")` / `updatableColumns("act")` / `updatableColumns("ver")` to get `id` (bigint `next_id()` PK — only if the spike confirmed the adapter tolerates it; otherwise keep Better Auth's text `id` PK and add `publicId` + `created_at`/`updated_at` manually), `public_id`, `created_at`, `updated_at`;
-- add each table's Better-Auth-required fields: `session` → `token` (unique), `expiresAt` (timestamptz), `userId` bigint → `users.id`, `ipAddress`, `userAgent`; `account` → `accountId`, `providerId`, `password`, `accessToken`/`refreshToken`/`idToken`/`scope`/`*ExpiresAt`, `userId` bigint → `users.id`; `verification` → `identifier`, `value`, `expiresAt` (timestamptz);
-- in the Task 3 config, map Better Auth's model `createdAt`/`updatedAt` to these `created_at`/`updated_at` columns via each table's `fields` option.
+In `apps/web/db/schema/auth.ts`: using the generated definitions in `docs/superpowers/plans/notes/phase0-schema-output.md` (Task 1 spike), replace `accounts`, `sessions`, `verificationTokens` with Better Auth `account`, `session`, `verification`. **The spike RESOLVED the open decisions — apply them, do not re-derive:**
+- **PK = Better Auth's `text("id").primaryKey()`** on all three tables (NOT bigint). The bigint-id probe was deferred (no DB during the spike); the conservative, verified-safe path is text id. `userId` columns therefore reference `users.id` which is **bigint** — so `userId` is `bigint("user_id", { mode: "bigint" }).references(() => users.id, { onDelete: "cascade" })`. (The adapter maps the text-keyed BA model onto a bigint-FK column; this is the same boundary the user table already uses.)
+- **House additions on each table:** `publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ses"|"act"|"ver"))`. Keep Better Auth's own `created_at`/`updated_at` **timestamp** columns as the canonical created/updated (they satisfy the "has created_at/updated_at like other tables" requirement; do NOT add parallel epoch-ms columns on these new tables — redundant).
+- **Required BA fields:** `session` → `token` (unique), `expiresAt` (timestamptz), `userId`, `ipAddress`, `userAgent`, `createdAt`, `updatedAt`; `account` → `accountId`, `providerId`, `password`, `accessToken`/`refreshToken`/`idToken`/`scope`/`accessTokenExpiresAt`/`refreshTokenExpiresAt`, `userId`, `createdAt`, `updatedAt`; `verification` → `identifier`, `value`, `expiresAt` (timestamptz), `createdAt`, `updatedAt`.
 
 Update `users`:
-- change `emailVerified` to `boolean("email_verified").notNull().default(false)`;
-- add `phoneVerified: boolean("phone_verified").notNull().default(false)`;
+- change `emailVerified` to `boolean("email_verified").notNull().default(false)` (drop-and-replace the unused timestamp column; the migration uses `USING (email_verified IS NOT NULL)`);
+- add `phoneVerified: boolean("phone_verified").notNull().default(false)` — mapped to BA's `phoneNumberVerified` in Task 3;
+- **Keep `email` and `name` NULLABLE.** Better Auth's generated schema marks them `NOT NULL`, but customers are phone-first (null email) and may have no name — do NOT add NOT NULL constraints. Keep the existing conditional unique index on `email`.
+- **Timestamps (Path B):** BA will write `createdAt`/`updatedAt` when it creates users. The existing `created_at`/`updated_at` are bigint epoch-ms and cannot accept BA's `Date`. Add two BA-owned columns `bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow()` and `bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow()`, and map BA's `createdAt`/`updatedAt` model fields to them via the user `fields` option in Task 3. Leave the bigint `created_at`/`updated_at` for existing app code.
 - keep `passwordHash` for now (dropped in Task 4 after data migration);
 - keep `phone`, mapped to Better Auth's `phoneNumber` field in Task 3.
 
