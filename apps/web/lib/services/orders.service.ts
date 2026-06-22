@@ -1,4 +1,5 @@
 import { generateCode, NotFoundError, ValidationError } from "@tiffin/commons";
+import { auth } from "@/lib/auth";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
@@ -216,4 +217,76 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
 
 export async function listOrderActivities(orderId: bigint) {
   return db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId)).orderBy(desc(orderActivities.createdAt));
+}
+
+async function actorId(): Promise<bigint | null> {
+  try {
+    const publicId = (await auth())?.user?.id;
+    if (!publicId) return null;
+    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+    return row?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type OrderStatusValue = (typeof orders.status.enumValues)[number];
+
+async function transition(
+  publicId: string,
+  guard: (current: OrderStatusValue) => void,
+  patch: Partial<typeof orders.$inferInsert>,
+  activity: { type: (typeof orderActivities.type.enumValues)[number]; toStatus: OrderStatusValue },
+): Promise<void> {
+  const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+  if (!order) throw new NotFoundError("Order not found");
+  guard(order.status);
+  const createdBy = await actorId();
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set(patch).where(eq(orders.id, order.id));
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: activity.type,
+      fromStatus: order.status,
+      toStatus: activity.toStatus,
+      createdBy,
+    });
+  });
+}
+
+export async function activateOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
+    { status: "active" },
+    { type: "activated", toStatus: "active" },
+  );
+}
+
+export async function cancelOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
+    { status: "cancelled" },
+    { type: "cancelled", toStatus: "cancelled" },
+  );
+}
+
+export async function pauseOrder(publicId: string, window: { from: string; until: string }): Promise<void> {
+  if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
+  await transition(
+    publicId,
+    (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
+    { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
+    { type: "paused", toStatus: "paused" },
+  );
+}
+
+export async function resumeOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
+    { status: "active", pausedFrom: null, pausedUntil: null },
+    { type: "resumed", toStatus: "active" },
+  );
 }
