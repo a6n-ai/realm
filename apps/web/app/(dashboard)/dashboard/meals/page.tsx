@@ -54,7 +54,7 @@ export default async function MealsPage() {
         <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
         <EmptyState
           icon={UtensilsCrossedIcon}
-          message="You don't have an active subscription yet."
+          message="You don't have an active order yet."
           action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
         />
       </PageShell>
@@ -68,7 +68,7 @@ export default async function MealsPage() {
     const message =
       result.empty === "no-week"
         ? "The menu for the coming week hasn't been published yet. Check back soon."
-        : "No deliveries are scheduled for the coming week on your subscription.";
+        : "No deliveries are scheduled for the coming week on your order.";
     return (
       <PageShell>
         <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />

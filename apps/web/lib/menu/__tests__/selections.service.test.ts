@@ -65,4 +65,56 @@ describe("selectionsService.setSelection", () => {
     await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });
+
+  describe("paused order: pauseWindow threaded into day-membership check", () => {
+    // FUTURE_MONDAY is week 1. Pause all of week 1 (Mon–Fri).
+    // With durationWeeks=2 the 10 deliveries extend into week 3 (FUTURE_MONDAY + 14 days).
+    // We verify:
+    //   - A paused-week date (Mon week 1) is REJECTED.
+    //   - An extended-tail date (Mon week 3) is ACCEPTED.
+    let pausedOrder: typeof orders.$inferSelect;
+    let tailWeek: typeof menuWeeks.$inferSelect;
+    let tailWeekStart: string;
+
+    beforeEach(async () => {
+      const snap = await loadCatalogSnapshot();
+      // Compute paused_from / paused_until (Mon–Fri of week 1).
+      const pausedFrom = FUTURE_MONDAY;
+      const pausedUntilDate = new Date(`${FUTURE_MONDAY}T00:00:00.000Z`);
+      pausedUntilDate.setUTCDate(pausedUntilDate.getUTCDate() + 4); // Friday
+      const pausedUntil = pausedUntilDate.toISOString().slice(0, 10);
+
+      // Week 3 start = FUTURE_MONDAY + 14 days.
+      const tailDate = new Date(`${FUTURE_MONDAY}T00:00:00.000Z`);
+      tailDate.setUTCDate(tailDate.getUTCDate() + 14);
+      tailWeekStart = tailDate.toISOString().slice(0, 10);
+
+      const [u] = await db.insert(users).values({ phone: "+16475558000", role: "user" }).returning();
+      const [o] = await db.insert(orders).values({
+        userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
+        frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
+        durationWeeks: 2, startDate: FUTURE_MONDAY, tiffinCount: 10, perTiffinPrice: "10.00",
+        pricingSnapshot: {}, total: "100.00", status: "active",
+        pausedFrom, pausedUntil,
+        deploymentId: "SUB-TEST02", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
+      }).returning();
+      pausedOrder = o;
+
+      const [tw] = await db.insert(menuWeeks).values({ weekStart: tailWeekStart, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+      tailWeek = tw;
+      await db.insert(menuItems).values({ menuWeekId: tw.id, dayOfWeek: "mon", slot: "lunch", dishId: vegDishBigintId, isDefault: true });
+    });
+
+    it("rejects a paused-week date (week 1 Mon is inside pauseWindow)", async () => {
+      await expect(
+        selectionsService.setSelection({ order: pausedOrder, menuWeek: week, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }),
+      ).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it("accepts an extended-tail date (week 3 Mon pushed out by pause)", async () => {
+      await selectionsService.setSelection({ order: pausedOrder, menuWeek: tailWeek, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId });
+      const [row] = await db.select().from(mealSelections).where(eq(mealSelections.orderId, pausedOrder.id));
+      expect(row.dishId).toBe(vegDishBigintId);
+    });
+  });
 });
