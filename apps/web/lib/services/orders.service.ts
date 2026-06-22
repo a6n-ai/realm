@@ -1,8 +1,9 @@
 import { generateCode, NotFoundError, ValidationError } from "@tiffin/commons";
-import { auth } from "@/lib/auth";
+import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
@@ -219,79 +220,88 @@ export async function listOrderActivities(orderId: bigint) {
   return db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId)).orderBy(desc(orderActivities.createdAt));
 }
 
-async function actorId(): Promise<bigint | null> {
-  try {
-    const publicId = (await auth())?.user?.id;
-    if (!publicId) return null;
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    return row?.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
 type OrderStatusValue = (typeof orders.status.enumValues)[number];
+type OrderActivityType = (typeof orderActivities.type.enumValues)[number];
 
-async function transition(
-  publicId: string,
-  guard: (current: OrderStatusValue) => void,
-  patch: Partial<typeof orders.$inferInsert>,
-  activity: { type: (typeof orderActivities.type.enumValues)[number]; toStatus: OrderStatusValue },
-): Promise<void> {
-  const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
-  if (!order) throw new NotFoundError("Order not found");
-  guard(order.status);
-  const createdBy = await actorId();
-  await db.transaction(async (tx) => {
-    await tx.update(orders).set(patch).where(eq(orders.id, order.id));
-    await tx.insert(orderActivities).values({
+// The order lifecycle is built on the shared commons abstractions: OrdersService
+// extends the updatable entity service (inheriting read/update with managed-column
+// stamping), and audit rows go through a BaseService create. A status change is a
+// guarded update + an activity create — both stamped consistently (update →
+// updatedBy/updatedAt, create → createdBy + public_id/created_at). Mirrors
+// inquiries.service: the entity update and the activity create are sequential
+// writes, since commons repositories each hold their own connection.
+class OrdersService extends SessionUpdatableService<typeof orders> {
+  private readonly activities = new SessionBaseService(
+    new BaseRepository(db, orderActivities, orderActivities.publicId, orderActivities.id),
+  );
+
+  // Guarded status transition: validate the current status, update the entity
+  // through the inherited service, then record the audit activity.
+  private async transition(
+    publicId: string,
+    guard: (current: OrderStatusValue) => void,
+    patch: Partial<typeof orders.$inferInsert>,
+    activity: { type: OrderActivityType; toStatus: OrderStatusValue },
+  ): Promise<void> {
+    const order = await this.read(publicId);
+    guard(order.status);
+    await this.update(publicId, patch);
+    await this.activities.create({
       orderId: order.id,
       type: activity.type,
       fromStatus: order.status,
       toStatus: activity.toStatus,
-      createdBy,
     });
-  });
-}
-
-export async function activateOrder(publicId: string): Promise<void> {
-  await transition(
-    publicId,
-    (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
-    { status: "active" },
-    { type: "activated", toStatus: "active" },
-  );
-}
-
-export async function cancelOrder(publicId: string): Promise<void> {
-  await transition(
-    publicId,
-    (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
-    { status: "cancelled" },
-    { type: "cancelled", toStatus: "cancelled" },
-  );
-}
-
-export async function pauseOrder(publicId: string, window: { from: string; until: string }): Promise<void> {
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
-    throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
   }
-  // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
-  if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
-  await transition(
-    publicId,
-    (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
-    { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
-    { type: "paused", toStatus: "paused" },
-  );
+
+  async activate(publicId: string): Promise<void> {
+    await this.transition(
+      publicId,
+      (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
+      { status: "active" },
+      { type: "activated", toStatus: "active" },
+    );
+  }
+
+  async cancel(publicId: string): Promise<void> {
+    await this.transition(
+      publicId,
+      (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
+      { status: "cancelled" },
+      { type: "cancelled", toStatus: "cancelled" },
+    );
+  }
+
+  // async so the synchronous window validation surfaces as a rejected promise.
+  async pause(publicId: string, window: { from: string; until: string }): Promise<void> {
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
+      throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
+    }
+    // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
+    if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
+    await this.transition(
+      publicId,
+      (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
+      { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
+      { type: "paused", toStatus: "paused" },
+    );
+  }
+
+  async resume(publicId: string): Promise<void> {
+    await this.transition(
+      publicId,
+      (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
+      { status: "active", pausedFrom: null, pausedUntil: null },
+      { type: "resumed", toStatus: "active" },
+    );
+  }
 }
 
-export async function resumeOrder(publicId: string): Promise<void> {
-  await transition(
-    publicId,
-    (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
-    { status: "active", pausedFrom: null, pausedUntil: null },
-    { type: "resumed", toStatus: "active" },
-  );
-}
+const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
+
+export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
+export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
+export const pauseOrder = (publicId: string, window: { from: string; until: string }): Promise<void> =>
+  ordersService.pause(publicId, window);
+export const resumeOrder = (publicId: string): Promise<void> => ordersService.resume(publicId);
