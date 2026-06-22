@@ -1,18 +1,25 @@
 import { ValidationError } from "@tiffin/commons";
+import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSlots, menuItems, menuWeeks } from "@/db/schema";
+import { SessionBaseService, SessionUpdatableService } from "./session-service";
+
+const menuWeeksEntity = new SessionUpdatableService(
+  new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id),
+);
+const menuItemsEntity = new SessionBaseService(
+  new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id),
+);
 
 export const menuService = {
   async upsertWeek(input: { weekStart: string; orderCutoff: string }) {
-    const [existing] = await db.select().from(menuWeeks).where(eq(menuWeeks.weekStart, input.weekStart)).limit(1);
     const cutoffMs = new Date(input.orderCutoff).getTime();
+    const [existing] = await db.select().from(menuWeeks).where(eq(menuWeeks.weekStart, input.weekStart)).limit(1);
     if (existing) {
-      const [u] = await db.update(menuWeeks).set({ orderCutoff: cutoffMs }).where(eq(menuWeeks.id, existing.id)).returning();
-      return u;
+      return menuWeeksEntity.update(existing.publicId, { orderCutoff: cutoffMs });
     }
-    const [w] = await db.insert(menuWeeks).values({ weekStart: input.weekStart, orderCutoff: cutoffMs }).returning();
-    return w;
+    return menuWeeksEntity.create({ weekStart: input.weekStart, orderCutoff: cutoffMs });
   },
 
   async addItem(input: { menuWeekId: string; dayOfWeek: "mon"|"tue"|"wed"|"thu"|"fri"|"sat"|"sun"; slot: string; dishId: string; isDefault: boolean }) {
@@ -22,29 +29,37 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     const [dish] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, input.dishId)).limit(1);
     if (!dish) throw new ValidationError("Dish not found");
-    const { dayOfWeek, slot: slotKey, isDefault } = input;
-    const [row] = await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek, slot: slotKey, dishId: dish.id, isDefault }).onConflictDoNothing({
-      target: [menuItems.menuWeekId, menuItems.dayOfWeek, menuItems.slot, menuItems.dishId],
-    }).returning();
-    return row ?? null;
+    // Idempotent on the composite key: commons create() does a plain insert, so
+    // check for an existing row first (preserves the old onConflictDoNothing).
+    const [dupe] = await db.select({ id: menuItems.id }).from(menuItems)
+      .where(and(
+        eq(menuItems.menuWeekId, week.id),
+        eq(menuItems.dayOfWeek, input.dayOfWeek),
+        eq(menuItems.slot, input.slot),
+        eq(menuItems.dishId, dish.id),
+      )).limit(1);
+    if (dupe) return null;
+    return menuItemsEntity.create({
+      menuWeekId: week.id, dayOfWeek: input.dayOfWeek, slot: input.slot, dishId: dish.id, isDefault: input.isDefault,
+    });
   },
 
   async removeItem(publicId: string) {
-    await db.delete(menuItems).where(eq(menuItems.publicId, publicId));
+    await menuItemsEntity.delete(publicId);
   },
 
   async setDefault(itemPublicId: string) {
     const [item] = await db.select().from(menuItems).where(eq(menuItems.publicId, itemPublicId)).limit(1);
     if (!item) throw new ValidationError("Item not found");
+    // Raw bulk update by composite key (clear other defaults for this slot, then
+    // set this one). No commons bulk helper this slice → NOT audited. Documented.
     await db.update(menuItems).set({ isDefault: false })
       .where(and(eq(menuItems.menuWeekId, item.menuWeekId), eq(menuItems.dayOfWeek, item.dayOfWeek), eq(menuItems.slot, item.slot)));
     await db.update(menuItems).set({ isDefault: true }).where(eq(menuItems.publicId, itemPublicId));
   },
 
   async release(weekPublicId: string) {
-    const [week] = await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
-    if (!week) throw new ValidationError("Week not found");
-    await db.update(menuWeeks).set({ status: "released", releasedAt: Date.now() }).where(eq(menuWeeks.id, week.id));
+    await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
   },
 
   async weekWithItems(weekPublicId: string) {
