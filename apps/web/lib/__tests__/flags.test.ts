@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { hashPassword } from "@/lib/auth/password";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags, users } from "@/db/schema";
@@ -23,7 +22,7 @@ describe("feature-flag resolution (integration)", () => {
     ]);
     const [u] = await db
       .insert(users)
-      .values({ email: "f@x.com", passwordHash: await hashPassword("Tiffin123"), role: "user" })
+      .values({ email: "f@x.com", role: "user" })
       .returning();
     userId = u.publicId;
     userInternalId = u.id;

@@ -22,7 +22,7 @@ describe("getCustomer360 (integration)", () => {
 
   it("matches inquiries by case-insensitive email/phone", async () => {
     const [u] = await db.insert(users).values({
-      email: "match@example.com", phone: "+16475559999", role: "user", passwordHash: "x",
+      email: "match@example.com", phone: "+16475559999", role: "user",
     }).returning({ publicId: users.publicId });
     await db.insert(inquiries).values({ fullName: "Match Person", phone: "+16475559999", email: "OTHER@x.com", source: "manual", stage: "new" });
     await db.insert(inquiries).values({ fullName: "Email Match", phone: "+10000000000", email: "MATCH@example.com", source: "manual", stage: "new" });

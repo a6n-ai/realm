@@ -19,7 +19,7 @@ describe("setSelection per-day cutoff + span", () => {
   beforeEach(async () => {
     await reset();
     await db.insert(appSettings).values({ timezone: "America/Toronto", cutoffHour: 18 });
-    const [u] = await db.insert(users).values({ phone: "+15550000001", name: "T", role: "user", passwordHash: "x" }).onConflictDoNothing().returning();
+    const [u] = await db.insert(users).values({ phone: "+15550000001", name: "T", role: "user" }).onConflictDoNothing().returning();
     const userId = u?.id ?? (await db.select().from(users).where(eq(users.phone, "+15550000001")).limit(1))[0].id;
     const [plan] = await db.select().from(plans).where(eq(plans.key, "veg")).limit(1);
     const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);

@@ -2,7 +2,7 @@ import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema 
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { account, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
@@ -98,15 +98,22 @@ export async function createOrder(
         const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
         if (clash) throw new ValidationError("That email is already in use");
       }
-      const passwordHash = await hashPassword(TEMP_PASSWORD);
       const inserted = await tx
         .insert(users)
-        .values({ phone, email, name: input.contact.fullName, passwordHash, role: "user", createdBy })
+        .values({ phone, email, name: input.contact.fullName, role: "user", createdBy })
         .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
         .returning({ id: users.id });
-      userId =
-        inserted[0]?.id ??
-        (await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1))[0].id;
+      if (inserted[0]?.id) {
+        await tx.insert(account).values({
+          accountId: String(inserted[0].id),
+          providerId: "credential",
+          userId: inserted[0].id,
+          password: await hashPassword(TEMP_PASSWORD),
+        });
+        userId = inserted[0].id;
+      } else {
+        userId = (await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1))[0].id;
+      }
     }
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";

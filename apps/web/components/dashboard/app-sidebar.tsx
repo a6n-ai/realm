@@ -14,7 +14,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -147,7 +147,7 @@ export function AppSidebar({ user }: { user: { email: string; role: string } }) 
                 <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                  <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}>
                     <LogOutIcon data-icon="inline-start" />
                     Sign out
                   </DropdownMenuItem>

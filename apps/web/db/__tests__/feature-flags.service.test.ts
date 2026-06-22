@@ -6,7 +6,7 @@ import { featureFlags } from "../schema";
 
 // Targets the generic UpdatableService (strip managed fields, sort validation)
 // over a real table — deliberately NOT the app's session-aware service, which
-// pulls the next-auth/next-server import chain that vitest can't resolve.
+// pulls the server-side auth import chain that vitest can't resolve.
 const service = new UpdatableService(new UpdatableRepository(db, featureFlags, featureFlags.publicId, featureFlags.id));
 
 describe("UpdatableService hardening (integration over feature_flags)", () => {
