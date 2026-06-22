@@ -1,10 +1,10 @@
-import { UpdatableRepository } from "@tiffin/commons-drizzle";
+import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { ValidationError } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { SessionUpdatableService } from "./session-service";
+import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
@@ -12,22 +12,20 @@ type Stage = (typeof inquiries.stage.enumValues)[number];
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async create(values: Record<string, unknown>) {
     const inq = await super.create(values);
-    await db.insert(inquiryActivities).values({
+    await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "created",
       toStage: inq.stage,
-      createdBy: await this.currentUserId(),
     });
     return inq;
   }
 
   async addNote(publicId: string, note: string) {
     const inq = await this.read(publicId);
-    await db.insert(inquiryActivities).values({
+    await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "note",
       note,
-      createdBy: await this.currentUserId(),
     });
   }
 
@@ -35,12 +33,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const current = await this.read(publicId);
     if (current.stage === toStage) return current;
     const updated = await this.update(publicId, { stage: toStage });
-    await db.insert(inquiryActivities).values({
+    await inquiryActivitiesService.create({
       inquiryId: current.id,
       type: "stage_change",
       fromStage: current.stage,
       toStage,
-      createdBy: await this.currentUserId(),
     });
     return updated;
   }
@@ -56,12 +53,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
     await this.update(publicId, { stage: "converted", convertedOrderId: order.id });
-    await db.insert(inquiryActivities).values({
+    await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "converted",
       fromStage: inq.stage,
       toStage: "converted",
-      createdBy: await this.currentUserId(),
     });
     return result;
   }
@@ -78,4 +74,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
 const repo = new UpdatableRepository(db, inquiries, inquiries.publicId, inquiries.id);
 export const inquiriesService = new InquiriesService(repo);
+
+const inquiryActivitiesService = new SessionBaseService(
+  new BaseRepository(db, inquiryActivities, inquiryActivities.publicId, inquiryActivities.id),
+);
 export type { Stage as InquiryStage };
