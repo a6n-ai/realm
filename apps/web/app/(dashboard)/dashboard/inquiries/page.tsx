@@ -1,8 +1,10 @@
 import { count, desc } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
+import { tzToDefaultCountry } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { inquiries } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { Button } from "@/components/ui/button";
 import { PageShell, PageHeader, SectionCard, StatCard } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
@@ -11,11 +13,14 @@ import { InquiriesList } from "./inquiries-list";
 export default async function InquiriesPage() {
   await requireStaff();
 
-  const [stageCounts, [{ total }], rows] = await Promise.all([
+  const [{ timezone }, stageCounts, [{ total }], rows] = await Promise.all([
+    getAppSettings(),
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
     db.select().from(inquiries).orderBy(desc(inquiries.createdAt)).limit(500),
   ]);
+
+  const defaultCountry = tzToDefaultCountry(timezone);
 
   const countOf = (...stages: string[]) =>
     stageCounts.filter((r) => stages.includes(r.stage)).reduce((sum, r) => sum + r.n, 0);
@@ -32,6 +37,7 @@ export default async function InquiriesPage() {
         subtitle={`${total} total · ${open} open`}
         actions={
           <AddInquirySheet
+            defaultCountry={defaultCountry}
             trigger={
               <Button>
                 <PlusIcon className="size-4" />
