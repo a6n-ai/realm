@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   type LucideIcon,
+  PackageIcon,
   PaletteIcon,
   SaladIcon,
   SettingsIcon,
@@ -49,6 +50,8 @@ const SECTIONS: NavSection[] = [
     items: [
       { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
       { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
+      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
+      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
     ],
   },
   {
