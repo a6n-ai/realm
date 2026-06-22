@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { pickDish } from "./actions";
-import type { GridCell } from "./page";
+import type { GridCell } from "@/lib/menu/meals-grid";
 
 type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 const DAY_LABELS: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
