@@ -1,11 +1,10 @@
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
-import { Role, ValidationError } from "@tiffin/commons";
+import { Role, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { SessionUpdatableService } from "./session-service";
 import { pickUserWritable } from "./users-writable";
-import { isValidCaPhone, isValidEmail, normalizeEmail } from "./users-contact";
 
 class UsersService extends SessionUpdatableService<typeof users> {
   async create(values: Record<string, unknown>) {
@@ -27,9 +26,10 @@ class UsersService extends SessionUpdatableService<typeof users> {
         if (current.role === Role.USER) throw new ValidationError("Phone is required for customers");
         patch.phone = null;
       } else {
-        if (!isValidCaPhone(phone)) throw new ValidationError("Invalid phone number");
-        await this.assertFree(userId, "phone", phone);
-        patch.phone = phone;
+        const p = phoneSchema().safeParse(phone);
+        if (!p.success) throw new ValidationError("Enter a valid phone number");
+        await this.assertFree(userId, "phone", p.data);
+        patch.phone = p.data;
       }
     }
 
@@ -39,10 +39,10 @@ class UsersService extends SessionUpdatableService<typeof users> {
         if (current.role !== Role.USER) throw new ValidationError("Email is required for staff");
         patch.email = null;
       } else {
-        if (!isValidEmail(raw)) throw new ValidationError("Invalid email address");
-        const email = normalizeEmail(raw);
-        await this.assertFree(userId, "email", email);
-        patch.email = email;
+        const e = emailSchema.safeParse(raw);
+        if (!e.success) throw new ValidationError("Enter a valid email");
+        await this.assertFree(userId, "email", e.data);
+        patch.email = e.data;
       }
     }
 

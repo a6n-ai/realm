@@ -43,4 +43,9 @@ describe("usersService.updateContact", () => {
     await expect(usersService.updateContact(custId, { email: "nope" }))
       .rejects.toBeInstanceOf(ValidationError);
   });
+
+  it("stores phone as E.164 when a national number is provided", async () => {
+    const u = await usersService.updateContact(custId, { phone: "647 555 0101" });
+    expect(u.phone).toBe("+16475550101");
+  });
 });
