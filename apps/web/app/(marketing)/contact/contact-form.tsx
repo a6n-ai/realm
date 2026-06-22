@@ -1,30 +1,34 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Send } from "lucide-react";
+import type { Country as CountryCode } from "react-phone-number-input";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { contactFormSchema, type ContactFormValues } from "./schema";
 import { createWebsiteInquiry } from "./actions";
 
-export function ContactForm() {
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode }) {
   const [done, setDone] = useState<null | { waitlisted: boolean }>(null);
-  const [form, setForm] = useState({ fullName: "", phone: "", email: "", postalCode: "", message: "", company: "" });
-  const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const form = useForm<ContactFormValues>({
+    resolver: zodResolver(contactFormSchema()),
+    defaultValues: { fullName: "", phone: "", email: "", postalCode: "", message: "", company: "" },
+  });
 
-  const submit = () => {
-    setError(null);
-    start(async () => {
-      try {
-        const res = await createWebsiteInquiry(form);
-        setDone({ waitlisted: res.waitlisted });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
-      }
-    });
-  };
+  async function onSubmit(values: ContactFormValues) {
+    try {
+      const res = await createWebsiteInquiry(values);
+      setDone({ waitlisted: res.waitlisted });
+    } catch (e) {
+      form.setError("root", { message: e instanceof Error ? e.message : "Something went wrong" });
+    }
+  }
 
   if (done) {
     return (
@@ -40,33 +44,86 @@ export function ContactForm() {
   }
 
   return (
-    <div className="grid max-w-lg gap-3">
-      <div><Label htmlFor="fullName">Name</Label><Input id="fullName" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
-      <div><Label htmlFor="phone">Phone</Label><Input id="phone" type="tel" value={form.phone} onChange={(e) => set({ phone: e.target.value })} /></div>
-      <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} /></div>
-      <div><Label htmlFor="postal">Postal code <span className="text-muted-foreground">(optional)</span></Label><Input id="postal" value={form.postalCode} onChange={(e) => set({ postalCode: e.target.value })} /></div>
-      <div>
-        <Label htmlFor="message">Message</Label>
-        <textarea
-          id="message"
-          className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-20 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none"
-          value={form.message}
-          onChange={(e) => set({ message: e.target.value })}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid max-w-lg gap-3">
+        <FormField
+          control={form.control}
+          name="fullName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      {/* Honeypot: visually hidden, off the tab order; real users never fill it. */}
-      <input
-        type="text"
-        name="company"
-        tabIndex={-1}
-        autoComplete="off"
-        aria-hidden="true"
-        className="hidden"
-        value={form.company}
-        onChange={(e) => set({ company: e.target.value })}
-      />
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button onClick={submit} disabled={pending || !form.fullName || !form.phone} className="hover-lift group w-fit">Send message<Send className="icon-pop size-4" /></Button>
-    </div>
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone</FormLabel>
+              <FormControl>
+                <PhoneInput {...field} defaultCountry={defaultCountry} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email <span className="text-muted-foreground">(optional)</span></FormLabel>
+              <FormControl><Input type="email" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="postalCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Postal code <span className="text-muted-foreground">(optional)</span></FormLabel>
+              <FormControl><Input {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="message"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Message</FormLabel>
+              <FormControl>
+                <textarea
+                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-20 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* Honeypot: visually hidden, off the tab order; real users never fill it. */}
+        <input
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="hidden"
+          {...form.register("company")}
+        />
+        {form.formState.errors.root && (
+          <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
+        )}
+        <Button type="submit" disabled={form.formState.isSubmitting} className="hover-lift group w-fit">
+          Send message<Send className="icon-pop size-4" />
+        </Button>
+      </form>
+    </Form>
   );
 }
