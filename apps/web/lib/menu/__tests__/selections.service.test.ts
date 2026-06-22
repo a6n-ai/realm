@@ -8,6 +8,12 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
 
+const FUTURE_MONDAY = (() => {
+  const d = new Date(Date.now() + 56 * 86400000);
+  d.setUTCDate(d.getUTCDate() + ((8 - d.getUTCDay()) % 7));
+  return d.toISOString().slice(0, 10);
+})();
+
 let order: typeof orders.$inferSelect;
 let week: typeof menuWeeks.$inferSelect;
 let vegDishPublicId: string;
@@ -27,11 +33,11 @@ describe("selectionsService.setSelection", () => {
     const [o] = await db.insert(orders).values({
       userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
-      durationWeeks: 1, startDate: "2026-06-22", tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
+      durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
       deploymentId: "SUB-TEST01", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     }).returning();
     order = o;
-    const [w] = await db.insert(menuWeeks).values({ weekStart: "2026-06-22", status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+    const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
     const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
     const [nd] = await db.insert(dishes).values({ name: "Chicken", diet: "nonveg", slots: ["lunch"] }).returning();
