@@ -39,6 +39,14 @@ describe("createWebsiteInquiry", () => {
     await expect(createWebsiteInquiry({ fullName: "Bad", phone: "12" })).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it("accepts a national number and stores it as E.164", async () => {
+    const res = await createWebsiteInquiry({ fullName: "National Lead", phone: "647 555 0003" });
+    expect(res.ok).toBe(true);
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475550003"));
+    expect(row).toBeDefined();
+    expect(row.phone).toBe("+16475550003");
+  });
+
   it("silently drops a honeypot-filled submission without writing", async () => {
     const res = await createWebsiteInquiry({ fullName: "Bot", phone: "+16475559002", company: "spam-co" });
     expect(res.ok).toBe(true);

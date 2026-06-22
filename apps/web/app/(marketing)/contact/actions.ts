@@ -1,9 +1,8 @@
 "use server";
 
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { isValidCaPhone } from "@/lib/services/users-contact";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 
 export interface ContactInput {
@@ -20,9 +19,16 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   if (input.company && input.company.trim() !== "") return { ok: true, waitlisted: false };
 
   const fullName = input.fullName.trim();
-  const phone = input.phone.trim();
   if (!fullName) throw new ValidationError("Name is required");
-  if (!isValidCaPhone(phone)) throw new ValidationError("Invalid phone number");
+  const parsedPhone = phoneSchema().safeParse(input.phone.trim());
+  if (!parsedPhone.success) throw new ValidationError("Invalid phone number");
+  const phone = parsedPhone.data;
+  let email: string | null = null;
+  if (input.email?.trim()) {
+    const parsedEmail = emailSchema.safeParse(input.email);
+    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
+    email = parsedEmail.data;
+  }
 
   let servedZone: string | null = null;
   const hasPostal = !!input.postalCode?.trim();
@@ -35,7 +41,7 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   await inquiriesService.create({
     fullName,
     phone,
-    email: input.email?.trim() || null,
+    email,
     source: "website",
     notes: input.message?.trim() || null,
     prefs: { servedZone, waitlisted },
