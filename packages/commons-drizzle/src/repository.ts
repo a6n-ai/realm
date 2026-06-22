@@ -1,6 +1,6 @@
 import type { Condition, Page, PageRequest } from "@tiffin/commons";
 import { DEFAULT_PAGE } from "@tiffin/commons";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, getTableName, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { resolveColumn, toDrizzleWhere } from "./condition";
 import { stripCreateOnly } from "./managed-fields";
@@ -13,6 +13,10 @@ export class BaseRepository<TTable extends PgTable> {
     protected readonly publicIdColumn: PgColumn,
     protected readonly internalIdColumn: PgColumn,
   ) {}
+
+  get tableName(): string {
+    return getTableName(this.table);
+  }
 
   async create(values: Record<string, unknown>, actorId?: bigint | null): Promise<TTable["$inferSelect"]> {
     const toInsert = actorId ? { ...values, createdBy: actorId } : values;
