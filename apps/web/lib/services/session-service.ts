@@ -1,7 +1,7 @@
 import { BaseService, UpdatableService, stripManaged } from "@tiffin/commons-drizzle";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
 
@@ -10,7 +10,7 @@ import { auditLog, users } from "@/db/schema";
 // service stamps createdBy/updatedBy with the internal id (null if no session).
 async function sessionActorId(): Promise<bigint | null> {
   try {
-    const session = await auth();
+    const session = await getSession();
     const publicId = session?.user?.id;
     if (!publicId) return null;
     const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);

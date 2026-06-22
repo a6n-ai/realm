@@ -5,7 +5,7 @@ import { AuthError, ValidationError } from "@tiffin/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders, users } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 import { selectionsService } from "@/lib/menu/selections.service";
 
 export async function pickDish(input: {
@@ -16,7 +16,7 @@ export async function pickDish(input: {
   personIndex: number;
   dishId: string;
 }) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
 
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);

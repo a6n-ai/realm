@@ -3,7 +3,7 @@ import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 
@@ -53,7 +53,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async convert(publicId: string, orderInput: CreateOrderInput) {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
-    const actorPublicId = (await auth())?.user?.id ?? null;
+    const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(orderInput, { actorId: actorPublicId });
     const [order] = await db
       .select({ id: orders.id })

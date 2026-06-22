@@ -1,8 +1,8 @@
 import { AuthError, ForbiddenError, Role, type RoleValue } from "@tiffin/commons";
-import { auth } from "@/lib/auth";
+import { getSession } from "./session";
 
 async function requireSession() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) throw new AuthError();
   return session.user as { role: RoleValue };
 }

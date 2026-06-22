@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders, users } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { EmptyState, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
@@ -12,7 +12,7 @@ import { MealsGrid } from "./meals-grid";
 export type { GridCell } from "@/lib/menu/meals-grid";
 
 export default async function MealsPage() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [userRow] = await db

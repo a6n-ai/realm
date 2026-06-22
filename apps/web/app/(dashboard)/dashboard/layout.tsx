@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -10,7 +10,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
 // it for the account page.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/login");
 
   return (
