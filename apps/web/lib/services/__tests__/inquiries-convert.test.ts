@@ -5,8 +5,8 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
-const session: { user: { id: string } | null } = { user: null };
-vi.mock("@/lib/auth", () => ({ auth: async () => (session.user ? session : null) }));
+const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { inquiriesService } = await import("../inquiries.service");
 
@@ -30,7 +30,7 @@ describe("inquiriesService.convert", () => {
       .insert(users)
       .values({ name: "Agent Staff", role: "member" })
       .returning({ publicId: users.publicId });
-    session.user = { id: staff.publicId };
+    session.user = { id: staff.publicId, role: "member" };
     const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", source: "google" });
     const { deploymentId } = await inquiriesService.convert(inq.publicId, {
       planKey: plan.key,
