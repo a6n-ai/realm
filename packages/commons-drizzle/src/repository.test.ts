@@ -1,5 +1,5 @@
 import { bigint, pgTable, text } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { getTableName, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -97,4 +97,9 @@ describe.skipIf(!url)("repository public-id boundary (integration)", () => {
 
     expect(await repo.updateByPublicId("wdg_missing______", { label: "x" })).toBeNull();
   });
+});
+
+it("exposes the underlying table name", () => {
+  const repo = new BaseRepository(db, widgets, widgets.publicId, widgets.id);
+  expect(repo.tableName).toBe(getTableName(widgets));
 });

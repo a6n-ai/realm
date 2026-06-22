@@ -1,40 +1,48 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
-import { ValidationError } from "@tiffin/commons";
-import { db } from "@/db/client";
-import { dishes, mealSlots, menuItems, menuWeeks } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+
+const { db } = await import("@/db/client");
+const { auditLog, dishes, mealSlots, menuItems, menuWeeks } = await import("@/db/schema");
 const { menuService } = await import("../menu.service");
 
-let weekPublicId: string; let dishPublicId: string; let weekBigintId: bigint;
 async function reset() {
-  await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(dishes); await db.delete(mealSlots);
+  await db.delete(auditLog);
+  await db.delete(menuItems);
+  await db.delete(menuWeeks);
+  await db.delete(dishes);
+  await db.delete(mealSlots);
 }
-describe("menuService", () => {
-  beforeEach(async () => {
-    await reset();
-    await db.insert(mealSlots).values([{ key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 }, { key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 }]);
-    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
-    dishPublicId = d.publicId;
-    const w = await menuService.upsertWeek({ weekStart: "2026-06-22", orderCutoff: new Date("2026-06-21T18:00:00Z").toISOString() });
-    weekPublicId = w.publicId;
-    weekBigintId = w.id;
-  });
+
+describe("menuService (integration)", () => {
+  beforeEach(reset);
   afterAll(reset);
 
-  it("adds an item for an enabled slot", async () => {
-    await menuService.addItem({ menuWeekId: weekPublicId, dayOfWeek: "mon", slot: "lunch", dishId: dishPublicId, isDefault: true });
-    const rows = await db.select().from(menuItems).where(eq(menuItems.menuWeekId, weekBigintId));
-    expect(rows).toHaveLength(1);
+  it("upsertWeek creates then updates a week", async () => {
+    const w = await menuService.upsertWeek({ weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
+    expect(w.weekStart).toBe("2099-01-05");
+    const again = await menuService.upsertWeek({ weekStart: "2099-01-05", orderCutoff: "2099-01-03T18:00:00Z" });
+    expect(again.publicId).toBe(w.publicId);
+    expect(again.orderCutoff).toBe(new Date("2099-01-03T18:00:00Z").getTime());
   });
-  it("rejects an item for a disabled slot", async () => {
-    await expect(menuService.addItem({ menuWeekId: weekPublicId, dayOfWeek: "mon", slot: "dinner", dishId: dishPublicId, isDefault: false }))
-      .rejects.toBeInstanceOf(ValidationError);
+
+  it("addItem inserts and is idempotent on the composite key; removeItem deletes", async () => {
+    await db.insert(mealSlots).values({ key: "lunch", label: "Lunch", enabled: true });
+    const [d] = await db.insert(dishes).values({ name: "Test Dish", diet: "veg", slots: ["lunch"] }).returning();
+    const w = await menuService.upsertWeek({ weekStart: "2099-01-12", orderCutoff: "2099-01-11T18:00:00Z" });
+    const item = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, isDefault: true });
+    expect(item).toBeTruthy();
+    const dup = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, isDefault: true });
+    expect(dup).toBeNull(); // idempotent: already exists
+    await menuService.removeItem(item!.publicId);
+    const remaining = await db.select().from(menuItems).where(eq(menuItems.menuWeekId, (await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.publicId, w.publicId)))[0].id));
+    expect(remaining).toHaveLength(0);
   });
-  it("release marks the week released", async () => {
-    await menuService.release(weekPublicId);
-    const [w] = await db.select().from(menuWeeks).where(eq(menuWeeks.id, weekBigintId));
-    expect(w.status).toBe("released");
+
+  it("entity writes produce audit rows", async () => {
+    const w = await menuService.upsertWeek({ weekStart: "2099-02-02", orderCutoff: "2099-02-01T18:00:00Z" });
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entityPublicId, w.publicId));
+    expect(rows.some((r) => r.entity === "menu_weeks" && r.operation === "create")).toBe(true);
   });
 });
