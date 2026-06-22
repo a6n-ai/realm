@@ -273,6 +273,11 @@ export async function cancelOrder(publicId: string): Promise<void> {
 }
 
 export async function pauseOrder(publicId: string, window: { from: string; until: string }): Promise<void> {
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
+    throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
+  }
+  // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
   if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
   await transition(
     publicId,

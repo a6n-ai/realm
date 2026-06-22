@@ -65,10 +65,20 @@ describe("order lifecycle (integration)", () => {
     await expect(svc.pauseOrder(active, { from: "2026-07-10", until: "2026-07-06" })).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it("pauseOrder rejects malformed dates", async () => {
+    const id = await makeOrder("active");
+    await expect(svc.pauseOrder(id, { from: "2026/07/06", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+    await expect(svc.pauseOrder(id, { from: "2026-07-06", until: "2026/07/10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+    await expect(svc.pauseOrder(id, { from: "07-06-2026", until: "2026-07-10" })).rejects.toThrow("Pause dates must be ISO YYYY-MM-DD");
+  });
+
   it("cancelOrder works from any non-cancelled status", async () => {
     const id = await makeOrder("active");
     await svc.cancelOrder(id);
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("cancelled");
+    const acts = await svc.listOrderActivities(o.id);
+    expect(acts[0].type).toBe("cancelled");
+    expect(acts[0].toStatus).toBe("cancelled");
   });
 });
