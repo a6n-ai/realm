@@ -23,6 +23,7 @@
     "@tiffin/commons-drizzle": "workspace:*",
     "@tiffin/commons-next": "workspace:*",
     "bcryptjs": "^3.0.3",
+    "better-auth": "^1.6.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
