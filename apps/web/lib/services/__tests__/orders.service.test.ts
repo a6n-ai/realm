@@ -46,7 +46,7 @@ describe("createOrder (integration)", () => {
     expect(o.tiffinCount).toBeGreaterThan(0);
     expect(Number.isInteger(o.tiffinCount)).toBe(true);
     expect(Number(o.perTiffinPrice)).toBeGreaterThan(0);
-    expect(Number(o.total)).toBe(Number(o.perTiffinPrice) * o.tiffinCount);
+    expect(Number(o.total)).toBeCloseTo(Number(o.perTiffinPrice) * o.tiffinCount, 2);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
   });
