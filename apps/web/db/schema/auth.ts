@@ -1,6 +1,6 @@
-import { updatableColumns } from "@tiffin/commons-drizzle";
+import { makePublicId, updatableColumns } from "@tiffin/commons-drizzle";
 import { sql } from "drizzle-orm";
-import { bigint, integer, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
@@ -10,11 +10,14 @@ export const users = pgTable(
     ...updatableColumns("usr"),
     name: text("name"),
     email: text("email"),
-    emailVerified: timestamp("email_verified", { withTimezone: true }),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    phoneVerified: boolean("phone_verified").notNull().default(false),
     image: text("image"),
     passwordHash: text("password_hash"),
     phone: text("phone"),
     role: userRole("role").notNull().default("user"),
+    bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
+    bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("users_email_unique").on(t.email).where(sql`${t.email} is not null`),
@@ -22,36 +25,62 @@ export const users = pgTable(
   ],
 );
 
-export const accounts = pgTable(
-  "accounts",
+export const session = pgTable(
+  "session",
   {
+    id: text("id").primaryKey(),
+    publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ses")),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
     userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
-    type: text("type").notNull(),
-    provider: text("provider").notNull(),
-    providerAccountId: text("provider_account_id").notNull(),
-    refresh_token: text("refresh_token"),
-    access_token: text("access_token"),
-    expires_at: integer("expires_at"),
-    token_type: text("token_type"),
-    scope: text("scope"),
-    id_token: text("id_token"),
-    session_state: text("session_state"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (account) => [primaryKey({ columns: [account.provider, account.providerAccountId] })],
+  (t) => [index("session_user_id_idx").on(t.userId)],
 );
 
-export const sessions = pgTable("sessions", {
-  sessionToken: text("session_token").primaryKey(),
-  userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { withTimezone: true }).notNull(),
-});
-
-export const verificationTokens = pgTable(
-  "verification_tokens",
+export const account = pgTable(
+  "account",
   {
-    identifier: text("identifier").notNull(),
-    token: text("token").notNull(),
-    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    id: text("id").primaryKey(),
+    publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("act")),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })],
+  (t) => [index("account_user_id_idx").on(t.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ver")),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
