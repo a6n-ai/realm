@@ -11,10 +11,16 @@ export function toAccountRows(rows: CredUser[]) {
 }
 
 export async function run() {
-  // Use raw SQL to read password_hash — it still exists in the DB at backfill time
-  // (migration 0010 drops it only AFTER this runner completes; see runbook in 0010 SQL).
+  // Raw SQL: password_hash is intentionally KEPT in the DB (see 0010 runbook — the drop
+  // is deferred to a post-verification migration); the Drizzle schema no longer maps it.
+  // Idempotent — skip users that already have a credential account so re-runs never
+  // insert duplicates (the account table has no unique on (user_id, provider_id)).
   const rows = await db.execute<{ id: bigint; password_hash: string | null }>(
-    sql`SELECT id, password_hash FROM users WHERE password_hash IS NOT NULL`,
+    sql`SELECT u.id, u.password_hash FROM users u
+        WHERE u.password_hash IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM account a WHERE a.user_id = u.id AND a.provider_id = 'credential'
+          )`,
   );
   const credUsers: CredUser[] = rows.map((r) => ({ id: r.id, passwordHash: r.password_hash }));
   const values = toAccountRows(credUsers);

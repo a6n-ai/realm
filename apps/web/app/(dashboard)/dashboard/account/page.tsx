@@ -10,8 +10,8 @@ import { AccountForm } from "./account-form";
 export default async function AccountPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
-  // A JWT session can outlive its user row (e.g. the dev DB was reseeded). Treat
-  // a missing session user as an expired session and send them back to sign in.
+  // A session can reference a user row that no longer exists (e.g. the dev DB was
+  // reseeded). Treat a missing user as an expired session and send them back to sign in.
   let user;
   try {
     user = await usersService.read(session.user.id);
