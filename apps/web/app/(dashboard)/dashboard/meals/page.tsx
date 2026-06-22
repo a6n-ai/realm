@@ -1,21 +1,26 @@
 import { redirect } from "next/navigation";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { cutoffMsFor } from "@tiffin/commons";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { deliveryFrequencies, dishes, mealSlots, menuWeeks, orders, plans, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { orderDeliveryDays, visibleSlots } from "@/lib/menu/delivery-days";
+import { comingWeekStartIso, subscriptionDeliveryDates, type DeliveryDate } from "@/lib/menu/delivery-dates";
 import { selectionsService } from "@/lib/menu/selections.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 import { EmptyState, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MealsGrid } from "./meals-grid";
 
 export type GridCell = {
   day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+  dateIso: string;
   slot: string;
   personIndex: number;
   selectedDishId: string | null;
   dishes: { id: string; name: string; diet: "veg" | "nonveg" }[];
+  locked: boolean;
 };
 
 export default async function MealsPage() {
@@ -40,6 +45,8 @@ export default async function MealsPage() {
       mealSlots: orders.mealSlots,
       includeSaturday: orders.includeSaturday,
       includeSunday: orders.includeSunday,
+      startDate: orders.startDate,
+      durationWeeks: orders.durationWeeks,
       status: orders.status,
       frequencyKey: deliveryFrequencies.key,
     })
@@ -51,12 +58,16 @@ export default async function MealsPage() {
 
   const activeOrder = orderRow?.status === "active" ? orderRow : null;
 
-  const [releasedWeek] = await db
-    .select()
-    .from(menuWeeks)
-    .where(eq(menuWeeks.status, "released"))
-    .orderBy(desc(menuWeeks.weekStart))
-    .limit(1);
+  const { timezone, cutoffHour } = await getAppSettings();
+  const comingMonday = comingWeekStartIso(Date.now(), timezone);
+
+  const [releasedWeek] = activeOrder
+    ? await db
+        .select()
+        .from(menuWeeks)
+        .where(and(eq(menuWeeks.status, "released"), eq(menuWeeks.weekStart, comingMonday)))
+        .limit(1)
+    : [];
 
   if (!activeOrder || !releasedWeek) {
     return (
@@ -71,9 +82,33 @@ export default async function MealsPage() {
         ) : (
           <EmptyState
             icon={UtensilsCrossedIcon}
-            message="No menu has been published for this week. Check back soon."
+            message="The menu for the coming week hasn't been published yet. Check back soon."
           />
         )}
+      </PageShell>
+    );
+  }
+
+  const deliveryDays = orderDeliveryDays({
+    frequencyKey: activeOrder.frequencyKey,
+    includeSaturday: activeOrder.includeSaturday,
+    includeSunday: activeOrder.includeSunday,
+  });
+  const subDates: DeliveryDate[] = subscriptionDeliveryDates({
+    startDate: activeOrder.startDate,
+    durationWeeks: activeOrder.durationWeeks,
+    deliveryDays,
+  });
+  const weekDates = subDates.filter((d) => d.weekStartIso === releasedWeek.weekStart);
+
+  if (weekDates.length === 0) {
+    return (
+      <PageShell>
+        <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
+        <EmptyState
+          icon={UtensilsCrossedIcon}
+          message="No deliveries are scheduled for the coming week on your subscription."
+        />
       </PageShell>
     );
   }
@@ -111,17 +146,10 @@ export default async function MealsPage() {
   const purchasedSlotKeys = new Set(activeOrder.mealSlots);
   const orderSlotsRows = allSlotsRows.filter((s) => purchasedSlotKeys.has(s.key));
 
-  const deliveryDays = orderDeliveryDays({
-    frequencyKey: activeOrder.frequencyKey,
-    includeSaturday: activeOrder.includeSaturday,
-    includeSunday: activeOrder.includeSunday,
-  });
-
-  const isLocked = Date.now() > releasedWeek.orderCutoff;
-
   const grid: GridCell[] = [];
 
-  for (const day of deliveryDays) {
+  for (const { dateIso, dayOfWeek: day } of weekDates) {
+    const locked = Date.now() > cutoffMsFor(dateIso, cutoffHour, timezone);
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
     const slots = visibleSlots(activeOrder.mealSlots, activeOrder.mealSlots, dayItems);
 
@@ -148,10 +176,12 @@ export default async function MealsPage() {
 
         grid.push({
           day,
+          dateIso,
           slot,
           personIndex: p,
           selectedDishId,
           dishes: slotDishes,
+          locked,
         });
       }
     }
@@ -160,20 +190,16 @@ export default async function MealsPage() {
   return (
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-      {isLocked && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Selections are locked for this week. The cutoff has passed.
-        </div>
-      )}
-      <SectionCard title="This week's meals">
+      <SectionCard title={`Coming week — meals for ${releasedWeek.weekStart}`}>
         <MealsGrid
           orderId={activeOrder.publicId}
           menuWeekId={releasedWeek.publicId}
           grid={grid}
-          isLocked={isLocked}
           persons={activeOrder.persons}
-          deliveryDays={deliveryDays}
+          weekDates={weekDates}
           enabledSlots={orderSlotsRows}
+          timezone={timezone}
+          cutoffHour={cutoffHour}
         />
       </SectionCard>
     </PageShell>

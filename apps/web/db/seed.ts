@@ -1,5 +1,5 @@
 import { db } from "./client";
-import { featureFlags } from "./schema";
+import { appSettings, featureFlags } from "./schema";
 
 const FLAGS = [
   { key: "subscription_wizard", label: "Subscription Wizard", description: "Access the plan builder", defaultEnabled: true },
@@ -11,6 +11,8 @@ async function main() {
     await db.insert(featureFlags).values(f).onConflictDoNothing({ target: featureFlags.key });
   }
   console.log(`Seeded ${FLAGS.length} feature flags`);
+  const [existing] = await db.select({ publicId: appSettings.publicId }).from(appSettings).limit(1);
+  if (!existing) await db.insert(appSettings).values({ timezone: "America/Toronto", cutoffHour: 18 });
   process.exit(0);
 }
 
