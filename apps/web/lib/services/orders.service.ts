@@ -1,7 +1,7 @@
-import { generateCode, ValidationError } from "@tiffin/commons";
-import { eq, sql } from "drizzle-orm";
+import { generateCode, NotFoundError, ValidationError } from "@tiffin/commons";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
+import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
@@ -140,4 +140,80 @@ export async function createOrder(
 
     return { deploymentId, publicId: order.publicId };
   });
+}
+
+export type OrderListRow = {
+  publicId: string;
+  deploymentId: string;
+  fullName: string;
+  city: string;
+  planKey: string;
+  status: string;
+  startDate: string;
+  total: string;
+  createdAt: number;
+};
+
+export async function listOrders(filter: { status?: string; search?: string } = {}): Promise<OrderListRow[]> {
+  const conds = [];
+  if (filter.status && filter.status !== "all") {
+    conds.push(eq(orders.status, filter.status as typeof orders.status.enumValues[number]));
+  }
+  if (filter.search?.trim()) {
+    const q = `%${filter.search.trim()}%`;
+    conds.push(or(ilike(orders.fullName, q), ilike(orders.deploymentId, q)));
+  }
+  const rows = await db
+    .select({
+      publicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      fullName: orders.fullName,
+      city: orders.city,
+      planKey: plans.key,
+      status: orders.status,
+      startDate: orders.startDate,
+      total: orders.total,
+      createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(orders.createdAt))
+    .limit(500);
+  return rows as OrderListRow[];
+}
+
+export type OrderDetail = typeof orders.$inferSelect & {
+  planName: string;
+  planKey: string;
+  frequencyKey: string;
+  mealSizeName: string;
+  payments: { publicId: string; amount: string; status: string }[];
+};
+
+export async function readOrder(publicId: string): Promise<OrderDetail> {
+  const [row] = await db
+    .select({
+      order: orders,
+      planName: plans.name,
+      planKey: plans.key,
+      frequencyKey: deliveryFrequencies.key,
+      mealSizeName: mealSizes.name,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .where(eq(orders.publicId, publicId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  const pays = await db
+    .select({ publicId: payments.publicId, amount: payments.amount, status: payments.status })
+    .from(payments)
+    .where(eq(payments.orderId, row.order.id));
+  return { ...row.order, planName: row.planName, planKey: row.planKey, frequencyKey: row.frequencyKey, mealSizeName: row.mealSizeName, payments: pays };
+}
+
+export async function listOrderActivities(orderId: bigint) {
+  return db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId)).orderBy(desc(orderActivities.createdAt));
 }
