@@ -16,6 +16,11 @@ describe("app-settings service (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
+  it("returns defaults when no row exists", async () => {
+    const s = await getAppSettings();
+    expect(s).toEqual({ timezone: "America/Toronto", cutoffHour: 18 });
+  });
+
   it("creates then updates the singleton and audits both", async () => {
     await setAppSettings({ timezone: "America/Toronto", cutoffHour: 17 });
     let s = await getAppSettings();
