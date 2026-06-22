@@ -14,7 +14,8 @@
     "db:seed": "tsx db/seed.ts",
     "db:seed:admin": "tsx db/seed-admin.ts",
     "db:seed:catalog": "tsx db/seed-catalog.ts",
-    "db:seed:menu": "tsx db/seed-menu.ts"
+    "db:seed:menu": "tsx db/seed-menu.ts",
+    "db:migrate:passwords": "tsx db/migrate-passwords.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

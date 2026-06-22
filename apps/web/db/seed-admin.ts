@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { hashPassword } from "../lib/auth/password";
 import { db } from "./client";
-import { users } from "./schema";
+import { account, users } from "./schema";
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tiffingrab.ca";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
@@ -14,7 +14,13 @@ async function seedStaff(email: string, password: string, name: string, role: "a
     console.log(`${role} already exists: ${email}`);
     return;
   }
-  await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), role });
+  const [inserted] = await db.insert(users).values({ email, name, role }).returning({ id: users.id });
+  await db.insert(account).values({
+    accountId: String(inserted.id),
+    providerId: "credential",
+    userId: inserted.id,
+    password: await hashPassword(password),
+  });
   console.log(`Seeded ${role}: ${email} / ${password}`);
 }
 

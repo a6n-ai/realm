@@ -2,6 +2,8 @@ import { makePublicId, updatableColumns } from "@tiffin/commons-drizzle";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
+const uuidText = sql`gen_random_uuid()::text`;
+
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
 export const users = pgTable(
@@ -13,7 +15,6 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     phoneVerified: boolean("phone_verified").notNull().default(false),
     image: text("image"),
-    passwordHash: text("password_hash"),
     phone: text("phone"),
     role: userRole("role").notNull().default("user"),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
@@ -28,7 +29,7 @@ export const users = pgTable(
 export const session = pgTable(
   "session",
   {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(uuidText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ses")),
     token: text("token").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -47,7 +48,7 @@ export const session = pgTable(
 export const account = pgTable(
   "account",
   {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(uuidText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("act")),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
@@ -71,7 +72,7 @@ export const account = pgTable(
 export const verification = pgTable(
   "verification",
   {
-    id: text("id").primaryKey(),
+    id: text("id").primaryKey().default(uuidText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ver")),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
