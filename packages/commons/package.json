@@ -9,5 +9,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "zod": "^4.4.3",
+    "libphonenumber-js": "^1.11.0"
+  },
   "devDependencies": { "typescript": "^5", "vitest": "^4.1.9" }
 }
