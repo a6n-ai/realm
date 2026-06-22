@@ -73,7 +73,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       </SectionCard>
 
       <SectionCard title="Coming week meals">
-        {grid.empty === "no-week" ? (
+        {order.status === "cancelled" ? (
+          <p className="text-muted-foreground text-sm">This order is cancelled — meal selections are closed.</p>
+        ) : grid.empty === "no-week" ? (
           <p className="text-muted-foreground text-sm">The coming week&apos;s menu hasn&apos;t been published yet.</p>
         ) : grid.empty === "no-dates" ? (
           <p className="text-muted-foreground text-sm">No deliveries scheduled for the coming week on this order.</p>
@@ -91,11 +93,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       </SectionCard>
 
       <SectionCard title="Activity">
-        <div className="space-y-2">
-          {activities.map((a) => (
-            <ListRow key={a.publicId} title={describe(a)} meta={formatEpoch(a.createdAt, { mode: "datetime" })} />
-          ))}
-        </div>
+        {activities.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No activity yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {activities.map((a) => (
+              <ListRow key={a.publicId} title={describe(a)} meta={formatEpoch(a.createdAt, { mode: "datetime" })} />
+            ))}
+          </div>
+        )}
       </SectionCard>
     </PageShell>
   );

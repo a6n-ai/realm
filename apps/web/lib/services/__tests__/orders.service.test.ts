@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
+import { orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -49,6 +49,16 @@ describe("createOrder (integration)", () => {
     expect(Number(o.total)).toBeCloseTo(Number(o.perTiffinPrice) * o.tiffinCount, 2);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
+  });
+
+  it("seeds the activity timeline with a created row matching the initial status", async () => {
+    const snap = await loadCatalogSnapshot();
+    const { deploymentId } = await createOrder(baseInput(snap.mealSizes[0].publicId, snap.plans[0].key));
+    const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.orderId, o.id));
+    expect(acts).toHaveLength(1);
+    expect(acts[0].type).toBe("created");
+    expect(acts[0].toStatus).toBe(o.status);
   });
 
   it("reuses an existing customer on a second order with the same phone", async () => {

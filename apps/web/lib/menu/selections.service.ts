@@ -28,6 +28,7 @@ function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
 export const selectionsService = {
   async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: DayOfWeek; slot: string; personIndex: number; dishPublicId: string }) {
     const { order, menuWeek, dayOfWeek, slot, personIndex, dishPublicId } = input;
+    if (order.status === "cancelled") throw new ValidationError("This order is cancelled");
     if (personIndex < 1 || personIndex > order.persons) throw new ValidationError("Invalid person");
 
     const deliveryDateIso = dateInWeek(menuWeek.weekStart, dayOfWeek);

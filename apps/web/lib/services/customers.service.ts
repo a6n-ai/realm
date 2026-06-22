@@ -2,7 +2,6 @@ import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { inquiries, orders, users } from "@/db/schema";
-import { type OrderListRow } from "./orders.service";
 
 export async function getCustomer360(userPublicId: string) {
   const [user] = await db
@@ -18,7 +17,6 @@ export async function getCustomer360(userPublicId: string) {
       deploymentId: orders.deploymentId,
       fullName: orders.fullName,
       city: orders.city,
-      planKey: sql<string>`''`,
       status: orders.status,
       startDate: orders.startDate,
       total: orders.total,
@@ -46,13 +44,13 @@ export async function getCustomer360(userPublicId: string) {
     : [];
 
   const timeline = [
-    ...orderRows.map((o) => ({ kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
-    ...inqRows.map((i) => ({ kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
+    ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
+    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
   ].sort((a, b) => b.at - a.at);
 
   return {
     profile: { publicId: user.publicId, email: user.email, phone: user.phone },
-    orders: orderRows as OrderListRow[],
+    orders: orderRows,
     inquiries: inqRows,
     timeline,
   };

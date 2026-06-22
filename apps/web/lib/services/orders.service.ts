@@ -105,6 +105,8 @@ export async function createOrder(
         (await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1))[0].id;
     }
 
+    const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
+
     const [order] = await tx
       .insert(orders)
       .values({
@@ -122,7 +124,7 @@ export async function createOrder(
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
         pricingSnapshot: pricing,
         total: pricing.total.toFixed(2),
-        status: zoneRow ? "active" : "waitlisted",
+        status,
         deploymentId,
         zoneId: zoneRow?.id ?? null,
         fullName: input.contact.fullName,
@@ -137,6 +139,16 @@ export async function createOrder(
       orderId: order.id,
       status: "simulated_paid",
       amount: pricing.total.toFixed(2),
+      createdBy,
+    });
+
+    // Seed the activity timeline so the order-detail Activity section isn't empty
+    // until the first lifecycle action. Written in-tx via the raw insert because
+    // createOrder is the documented exception to the audited service layer.
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: "created",
+      toStatus: status,
       createdBy,
     });
 
@@ -182,7 +194,7 @@ export async function listOrders(filter: { status?: string; search?: string } = 
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(orders.createdAt))
     .limit(500);
-  return rows as OrderListRow[];
+  return rows satisfies OrderListRow[];
 }
 
 export type OrderDetail = typeof orders.$inferSelect & {

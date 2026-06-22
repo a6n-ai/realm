@@ -52,8 +52,8 @@ export default async function Customer360Page({ params }: { params: Promise<{ id
 
       <SectionCard title="Activity timeline">
         <div className="space-y-2">
-          {data.timeline.map((t, idx) => (
-            <ListRow key={idx} title={t.label} meta={formatEpoch(t.at, { mode: "datetime" })} />
+          {data.timeline.map((t) => (
+            <ListRow key={t.id} title={t.label} meta={formatEpoch(t.at, { mode: "datetime" })} />
           ))}
         </div>
       </SectionCard>
