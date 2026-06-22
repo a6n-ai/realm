@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { cutoffMsFor } from "@tiffin/commons";
 import { formatDeliveryTime } from "@/lib/format/datetime";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { pickDish } from "./actions";
@@ -10,7 +9,7 @@ import type { GridCell } from "./page";
 type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 const DAY_LABELS: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 type SlotMeta = { key: string; label: string; sortOrder: number };
-type WeekDate = { dateIso: string; dayOfWeek: DayOfWeek; weekStartIso: string };
+type WeekDate = { dateIso: string; dayOfWeek: DayOfWeek; weekStartIso: string; lockMs: number; locked: boolean };
 
 type Props = {
   orderId: string;
@@ -20,10 +19,9 @@ type Props = {
   weekDates: WeekDate[];
   enabledSlots: SlotMeta[];
   timezone: string;
-  cutoffHour: number;
 };
 
-export function MealsGrid({ orderId, menuWeekId, grid, persons, weekDates, enabledSlots, timezone, cutoffHour }: Props) {
+export function MealsGrid({ orderId, menuWeekId, grid, persons, weekDates, enabledSlots, timezone }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
@@ -41,9 +39,7 @@ export function MealsGrid({ orderId, menuWeekId, grid, persons, weekDates, enabl
           </tr>
         </thead>
         <tbody>
-          {weekDates.map(({ dateIso, dayOfWeek }) => {
-            const lockMs = cutoffMsFor(dateIso, cutoffHour, timezone);
-            const locked = Date.now() > lockMs;
+          {weekDates.map(({ dateIso, dayOfWeek, lockMs, locked }) => {
             return (
               <tr key={dateIso}>
                 <td className="border p-2 font-medium">

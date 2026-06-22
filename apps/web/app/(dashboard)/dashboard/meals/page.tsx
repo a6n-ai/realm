@@ -58,33 +58,36 @@ export default async function MealsPage() {
 
   const activeOrder = orderRow?.status === "active" ? orderRow : null;
 
-  const { timezone, cutoffHour } = await getAppSettings();
-  const comingMonday = comingWeekStartIso(Date.now(), timezone);
-
-  const [releasedWeek] = activeOrder
-    ? await db
-        .select()
-        .from(menuWeeks)
-        .where(and(eq(menuWeeks.status, "released"), eq(menuWeeks.weekStart, comingMonday)))
-        .limit(1)
-    : [];
-
-  if (!activeOrder || !releasedWeek) {
+  if (!activeOrder) {
     return (
       <PageShell>
         <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-        {!activeOrder ? (
-          <EmptyState
-            icon={UtensilsCrossedIcon}
-            message="You don't have an active subscription yet."
-            action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
-          />
-        ) : (
-          <EmptyState
-            icon={UtensilsCrossedIcon}
-            message="The menu for the coming week hasn't been published yet. Check back soon."
-          />
-        )}
+        <EmptyState
+          icon={UtensilsCrossedIcon}
+          message="You don't have an active subscription yet."
+          action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
+        />
+      </PageShell>
+    );
+  }
+
+  const { timezone, cutoffHour } = await getAppSettings();
+  const comingMonday = comingWeekStartIso(Date.now(), timezone);
+
+  const [releasedWeek] = await db
+    .select()
+    .from(menuWeeks)
+    .where(and(eq(menuWeeks.status, "released"), eq(menuWeeks.weekStart, comingMonday)))
+    .limit(1);
+
+  if (!releasedWeek) {
+    return (
+      <PageShell>
+        <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
+        <EmptyState
+          icon={UtensilsCrossedIcon}
+          message="The menu for the coming week hasn't been published yet. Check back soon."
+        />
       </PageShell>
     );
   }
@@ -146,10 +149,16 @@ export default async function MealsPage() {
   const purchasedSlotKeys = new Set(activeOrder.mealSlots);
   const orderSlotsRows = allSlotsRows.filter((s) => purchasedSlotKeys.has(s.key));
 
+  // Compute each delivery day's cutoff once, server-side — the single source of
+  // truth shared by the grid rows and the cells (no client recompute).
+  const weekDatesView = weekDates.map((d) => {
+    const lockMs = cutoffMsFor(d.dateIso, cutoffHour, timezone);
+    return { ...d, lockMs, locked: Date.now() > lockMs };
+  });
+
   const grid: GridCell[] = [];
 
-  for (const { dateIso, dayOfWeek: day } of weekDates) {
-    const locked = Date.now() > cutoffMsFor(dateIso, cutoffHour, timezone);
+  for (const { dateIso, dayOfWeek: day, locked } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
     const slots = visibleSlots(activeOrder.mealSlots, activeOrder.mealSlots, dayItems);
 
@@ -196,10 +205,9 @@ export default async function MealsPage() {
           menuWeekId={releasedWeek.publicId}
           grid={grid}
           persons={activeOrder.persons}
-          weekDates={weekDates}
+          weekDates={weekDatesView}
           enabledSlots={orderSlotsRows}
           timezone={timezone}
-          cutoffHour={cutoffHour}
         />
       </SectionCard>
     </PageShell>
