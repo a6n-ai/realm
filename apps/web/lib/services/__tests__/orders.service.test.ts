@@ -88,4 +88,14 @@ describe("createOrder (integration)", () => {
     input.contact.phone = "12";
     await expect(createOrder(input)).rejects.toBeInstanceOf(ValidationError);
   });
+
+  it("stores order phone as E.164 on the user row", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    input.contact.phone = "647 555 0100";
+    const { deploymentId } = await createOrder(input);
+    const [u] = await db.select().from(users).where(eq(users.phone, "+16475550100"));
+    expect(u).toBeDefined();
+    expect(u.phone).toBe("+16475550100");
+  });
 });

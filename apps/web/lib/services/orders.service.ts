@@ -1,4 +1,4 @@
-import { generateCode, NotFoundError, ValidationError } from "@tiffin/commons";
+import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -9,7 +9,6 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { hashPassword } from "@/lib/auth/password";
-import { isValidCaPhone, normalizeEmail } from "./users-contact";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
 
@@ -70,10 +69,15 @@ export async function createOrder(
   const zone = matchZone(input.contact.postalCode, snapshot.zones);
   const zoneRow = zone ? snapshot.zones.find((z) => z.name === zone.name) : undefined;
 
-  const phone = input.contact.phone.trim();
-  if (!phone) throw new ValidationError("Phone is required");
-  if (!isValidCaPhone(phone)) throw new ValidationError("Invalid phone number");
-  const email = input.contact.email?.trim() ? normalizeEmail(input.contact.email) : null;
+  const parsedPhone = phoneSchema().safeParse(input.contact.phone);
+  if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
+  const phone = parsedPhone.data;
+  let email: string | null = null;
+  if (input.contact.email?.trim()) {
+    const parsedEmail = emailSchema.safeParse(input.contact.email);
+    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
+    email = parsedEmail.data;
+  }
 
   const deploymentId = generateCode("SUB", 6);
 
