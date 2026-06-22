@@ -31,6 +31,10 @@ const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 // user id + role. The adapter is retained for user-table mapping.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter,
+  // Off-Vercel deploys (and proxied dev via ngrok/tunnels) must opt into
+  // deriving the request host from X-Forwarded-Host/-Proto headers; otherwise
+  // Auth.js v5 rejects any host that isn't localhost/AUTH_URL as untrusted.
+  trustHost: true,
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_S },
   pages: { signIn: "/login" },
   providers: [
