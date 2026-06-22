@@ -1,42 +1,61 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import { jwtCallback, sessionCallback } from "./callbacks";
-import { resolveCredentialUser } from "./resolve-user";
-import "./types";
-
-// NextAuth DrizzleAdapter removed — BA tables (account/session/verification)
-// now replace the old NextAuth accounts/sessions/verificationTokens tables.
-// The adapter wiring moves to Better Auth in Task 3; this file is replaced then.
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
+import { phoneNumber } from "better-auth/plugins";
+import { Role } from "@tiffin/commons";
+import { db } from "@/db/client";
+import { account, session, users, verification } from "@/db/schema";
+import { betterAuthPassword } from "./password";
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
-// Auth.js v5 only supports the Credentials provider with the JWT session
-// strategy (it hard-asserts UnsupportedStrategy under strategy:"database").
-// This is the documented fallback from the plan: JWT sessions carrying the
-// user id + role. The adapter was retained for user-table mapping; removed
-// with BA table migration — re-wired in Task 3.
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Off-Vercel deploys (and proxied dev via ngrok/tunnels) must opt into
-  // deriving the request host from X-Forwarded-Host/-Proto headers; otherwise
-  // Auth.js v5 rejects any host that isn't localhost/AUTH_URL as untrusted.
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  secret: process.env.BETTER_AUTH_SECRET,
   trustHost: true,
-  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_S },
-  pages: { signIn: "/login" },
-  providers: [
-    Credentials({
-      credentials: { identifier: {}, password: {} },
-      authorize: async (raw) => {
-        const user = await resolveCredentialUser(String(raw?.identifier ?? ""), String(raw?.password ?? ""));
-        return user ?? null;
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      return jwtCallback({ token, user: user ?? undefined });
-    },
-    async session({ session, token }) {
-      return sessionCallback({ session, token });
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema: { user: users, account, session, verification },
+  }),
+  advanced: { database: { generateId: false } },
+  session: { expiresIn: SESSION_MAX_AGE_S },
+  emailAndPassword: {
+    enabled: true,
+    password: betterAuthPassword,
+    sendResetPassword: async ({ user, url }) => {
+      console.info(`[auth] password reset for ${user.email ?? user.id}: ${url}`);
     },
   },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      console.info(`[auth] verify email for ${user.email ?? user.id}: ${url}`);
+    },
+  },
+  user: {
+    // BA's createdAt/updatedAt must point at the bauth_* timestamp columns, not
+    // the house bigint epoch-ms created_at/updated_at columns.
+    fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
+    additionalFields: {
+      role: { type: "string", required: false, defaultValue: Role.USER, input: false },
+      publicId: { type: "string", required: false, input: false },
+    },
+  },
+  plugins: [
+    phoneNumber({
+      sendOTP: async ({ phoneNumber: phone, code }) => {
+        console.info(`[auth] phone OTP for ${phone}: ${code}`);
+      },
+      // Map the plugin's phoneNumber/phoneNumberVerified model fields onto the
+      // existing `phone` and `phoneVerified` columns in the users table.
+      schema: {
+        user: {
+          fields: {
+            phoneNumber: "phone",
+            phoneNumberVerified: "phoneVerified",
+          },
+        },
+      },
+    }),
+    nextCookies(),
+  ],
 });

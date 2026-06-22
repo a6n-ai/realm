@@ -9,3 +9,8 @@ export function hashPassword(plain: string): Promise<string> {
 export function verifyPassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash);
 }
+
+export const betterAuthPassword = {
+  hash: (password: string) => hashPassword(password),
+  verify: ({ hash, password }: { hash: string; password: string }) => verifyPassword(password, hash),
+};
