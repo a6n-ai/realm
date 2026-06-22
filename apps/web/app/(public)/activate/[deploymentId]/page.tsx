@@ -29,12 +29,13 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
           password <code className="rounded bg-muted px-1">Tiffin123</code> to manage your delivery schedule.
         </p>
         <Separator className="my-4" />
-        <div className="font-medium">One more step</div>
+        <div className="font-medium">Pick your meals</div>
         <p className="mt-1 text-muted-foreground">
-          Catalog your ingredient thresholds and spice preferences before your first shipment:
+          Log in and open <span className="font-medium">My Meals</span> to choose your dishes for the
+          coming week before the cutoff.
         </p>
-        <a className="mt-2 inline-block text-primary underline" href="https://tiffingrab.ca/custom-allocation-form-v3" target="_blank" rel="noreferrer">
-          Complete the allocation survey →
+        <a className="mt-2 inline-block text-primary underline" href="/dashboard/meals">
+          Go to My Meals →
         </a>
       </Card>
     </main>

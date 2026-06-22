@@ -1,41 +1,35 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { cutoffMsFor } from "@tiffin/commons";
+import { formatDeliveryTime } from "@/lib/format/datetime";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { pickDish } from "./actions";
 import type { GridCell } from "./page";
 
 type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  mon: "Monday",
-  tue: "Tuesday",
-  wed: "Wednesday",
-  thu: "Thursday",
-  fri: "Friday",
-  sat: "Saturday",
-  sun: "Sunday",
-};
-
+const DAY_LABELS: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 type SlotMeta = { key: string; label: string; sortOrder: number };
+type WeekDate = { dateIso: string; dayOfWeek: DayOfWeek; weekStartIso: string };
 
 type Props = {
   orderId: string;
   menuWeekId: string;
   grid: GridCell[];
-  isLocked: boolean;
   persons: number;
-  deliveryDays: DayOfWeek[];
+  weekDates: WeekDate[];
   enabledSlots: SlotMeta[];
+  timezone: string;
+  cutoffHour: number;
 };
 
-export function MealsGrid({ orderId, menuWeekId, grid, isLocked, persons, deliveryDays, enabledSlots }: Props) {
+export function MealsGrid({ orderId, menuWeekId, grid, persons, weekDates, enabledSlots, timezone, cutoffHour }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th className="border p-2 text-left">Day</th>
+            <th className="border p-2 text-left">Delivery</th>
             {enabledSlots.map((s) =>
               Array.from({ length: persons }, (_, i) => (
                 <th key={`${s.key}-${i}`} className="border p-2 text-left">
@@ -47,35 +41,43 @@ export function MealsGrid({ orderId, menuWeekId, grid, isLocked, persons, delive
           </tr>
         </thead>
         <tbody>
-          {deliveryDays.map((day) => (
-            <tr key={day}>
-              <td className="border p-2 font-medium">{DAY_LABELS[day]}</td>
-              {enabledSlots.map((slot) =>
-                Array.from({ length: persons }, (_, i) => {
-                  const personIndex = i + 1;
-                  const cell = grid.find(
-                    (c) => c.day === day && c.slot === slot.key && c.personIndex === personIndex
-                  );
-                  if (!cell) {
-                    return (
-                      <td key={`${slot.key}-${personIndex}`} className="border p-2 text-xs text-muted-foreground">
-                        —
-                      </td>
+          {weekDates.map(({ dateIso, dayOfWeek }) => {
+            const lockMs = cutoffMsFor(dateIso, cutoffHour, timezone);
+            const locked = Date.now() > lockMs;
+            return (
+              <tr key={dateIso}>
+                <td className="border p-2 font-medium">
+                  <div>{DAY_LABELS[dayOfWeek]} {dateIso}</div>
+                  <div className="text-xs font-normal text-muted-foreground">
+                    {locked ? "Locked" : `Edit until ${formatDeliveryTime(lockMs, timezone)}`}
+                  </div>
+                </td>
+                {enabledSlots.map((slot) =>
+                  Array.from({ length: persons }, (_, i) => {
+                    const personIndex = i + 1;
+                    const cell = grid.find(
+                      (c) => c.dateIso === dateIso && c.slot === slot.key && c.personIndex === personIndex
                     );
-                  }
-                  return (
-                    <CellSelect
-                      key={`${day}-${slot.key}-${personIndex}`}
-                      cell={cell}
-                      isLocked={isLocked}
-                      orderId={orderId}
-                      menuWeekId={menuWeekId}
-                    />
-                  );
-                })
-              )}
-            </tr>
-          ))}
+                    if (!cell) {
+                      return (
+                        <td key={`${slot.key}-${personIndex}`} className="border p-2 text-xs text-muted-foreground">
+                          —
+                        </td>
+                      );
+                    }
+                    return (
+                      <CellSelect
+                        key={`${dateIso}-${slot.key}-${personIndex}`}
+                        cell={cell}
+                        orderId={orderId}
+                        menuWeekId={menuWeekId}
+                      />
+                    );
+                  })
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -84,12 +86,10 @@ export function MealsGrid({ orderId, menuWeekId, grid, isLocked, persons, delive
 
 function CellSelect({
   cell,
-  isLocked,
   orderId,
   menuWeekId,
 }: {
   cell: GridCell;
-  isLocked: boolean;
   orderId: string;
   menuWeekId: string;
 }) {
@@ -117,16 +117,12 @@ function CellSelect({
   return (
     <td className="border p-2 align-top">
       <div className="space-y-1">
-        {isLocked ? (
+        {cell.locked ? (
           <span className="text-sm">
             {cell.dishes.find((d) => d.id === cell.selectedDishId)?.name ?? "—"}
           </span>
         ) : (
-          <Select
-            value={cell.selectedDishId ?? undefined}
-            onValueChange={handleChange}
-            disabled={isLocked}
-          >
+          <Select value={cell.selectedDishId ?? undefined} onValueChange={handleChange}>
             <SelectTrigger className="h-8 min-w-[140px] text-xs">
               <SelectValue placeholder="Choose dish" />
             </SelectTrigger>
@@ -134,9 +130,7 @@ function CellSelect({
               {cell.dishes.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
                   {d.name}
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ({d.diet === "veg" ? "V" : "NV"})
-                  </span>
+                  <span className="ml-1 text-xs text-muted-foreground">({d.diet === "veg" ? "V" : "NV"})</span>
                 </SelectItem>
               ))}
             </SelectContent>
