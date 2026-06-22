@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emailSchema, normalizeEmail } from "./contact";
+import { emailSchema, normalizeEmail, phoneSchema, tzToDefaultCountry } from "./contact";
 
 describe("emailSchema", () => {
   it("accepts and normalizes a valid email", () => {
@@ -14,9 +14,10 @@ describe("normalizeEmail", () => {
   it("trims and lowercases", () => {
     expect(normalizeEmail("  Foo@Bar.COM ")).toBe("foo@bar.com");
   });
+  it("matches emailSchema normalization", () => {
+    expect(normalizeEmail("  Foo@Bar.COM ")).toBe(emailSchema.parse("  Foo@Bar.COM "));
+  });
 });
-
-import { phoneSchema } from "./contact";
 
 describe("phoneSchema", () => {
   it("accepts a national CA number and outputs E.164", () => {
@@ -35,8 +36,6 @@ describe("phoneSchema", () => {
     expect(phoneSchema().parse("647 555 0100")).toBe("+16475550100");
   });
 });
-
-import { tzToDefaultCountry } from "./contact";
 
 describe("tzToDefaultCountry", () => {
   it("maps Canadian zones to CA", () => {

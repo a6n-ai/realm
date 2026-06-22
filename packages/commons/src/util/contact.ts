@@ -11,12 +11,19 @@ export const emailSchema = z
   .toLowerCase()
   .pipe(z.email("Enter a valid email"));
 
-export function phoneSchema(defaultCountry: CountryCode = "CA") {
+export function phoneSchema(defaultCountry: CountryCode = "CA"): z.ZodType<string> {
   return z
     .string()
     .trim()
     .refine((v) => isValidPhoneNumber(v, defaultCountry), "Enter a valid phone number")
-    .transform((v) => parsePhoneNumber(v, defaultCountry)!.format("E.164"));
+    .transform((v, ctx) => {
+      const parsed = parsePhoneNumber(v, defaultCountry);
+      if (!parsed) {
+        ctx.addIssue({ code: "custom", message: "Enter a valid phone number" });
+        return z.NEVER;
+      }
+      return parsed.format("E.164");
+    });
 }
 
 export function tzToDefaultCountry(timezone: string): CountryCode {
