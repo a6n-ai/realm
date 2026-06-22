@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
+import { ValidationError } from "@tiffin/commons";
 
 // Session services transitively evaluate NextAuth(); stub it for the node env.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -40,5 +41,17 @@ describe("inquiriesService", () => {
     await inquiriesService.addNote(inq.publicId, "Called, no answer");
     const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts.some((a) => a.type === "note" && a.note === "Called, no answer")).toBe(true);
+  });
+
+  it("rejects an invalid phone", async () => {
+    await expect(
+      inquiriesService.create({ fullName: "X", phone: "12", source: "manual" }),
+    ).rejects.toThrow(/phone/i);
+  });
+
+  it("stores phone as E.164", async () => {
+    const inq = await inquiriesService.create({ fullName: "X", phone: "647 555 0100", source: "manual" });
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inq.publicId));
+    expect(row.phone).toBe("+16475550100");
   });
 });

@@ -1,5 +1,5 @@
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders } from "@/db/schema";
@@ -11,7 +11,15 @@ type Stage = (typeof inquiries.stage.enumValues)[number];
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async create(values: Record<string, unknown>) {
-    const inq = await super.create(values);
+    const parsedPhone = phoneSchema().safeParse(values.phone);
+    if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
+    const parsedEmail = values.email ? emailSchema.safeParse(values.email) : null;
+    if (parsedEmail && !parsedEmail.success) throw new ValidationError("Enter a valid email");
+    const inq = await super.create({
+      ...values,
+      phone: parsedPhone.data,
+      ...(parsedEmail ? { email: parsedEmail.data } : {}),
+    });
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "created",
