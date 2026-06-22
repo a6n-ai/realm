@@ -40,4 +40,5 @@ export async function pickDish(input: {
     dishPublicId: input.dishId,
   });
   revalidatePath("/dashboard/meals");
+  revalidatePath(`/dashboard/orders/${input.orderId}`);
 }
