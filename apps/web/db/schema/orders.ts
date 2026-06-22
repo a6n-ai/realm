@@ -3,8 +3,11 @@ import { bigint, boolean, date, integer, jsonb, numeric, pgEnum, pgTable, text }
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
-export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled"]);
+export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused"]);
 export const paymentStatus = pgEnum("payment_status", ["simulated_paid"]);
+export const orderActivityType = pgEnum("order_activity_type", [
+  "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
+]);
 
 export const orders = pgTable("orders", {
   ...updatableColumns("ord"),
@@ -23,6 +26,8 @@ export const orders = pgTable("orders", {
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
   status: orderStatus("status").notNull().default("pending"),
+  pausedFrom: date("paused_from"),
+  pausedUntil: date("paused_until"),
   deploymentId: text("deployment_id").notNull().unique(),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   fullName: text("full_name").notNull(),
@@ -36,4 +41,13 @@ export const payments = pgTable("payments", {
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
   status: paymentStatus("status").notNull().default("simulated_paid"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+});
+
+export const orderActivities = pgTable("order_activities", {
+  ...baseColumns("oac"),
+  orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id, { onDelete: "cascade" }),
+  type: orderActivityType("type").notNull(),
+  note: text("note"),
+  fromStatus: orderStatus("from_status"),
+  toStatus: orderStatus("to_status"),
 });
