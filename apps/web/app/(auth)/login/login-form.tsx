@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -30,8 +30,16 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof schema>) {
     setError(null);
-    const res = await signIn("credentials", { ...values, redirect: false });
-    if (res?.error) {
+    try {
+      const { identifier, password } = values;
+      const result = /@/.test(identifier)
+        ? await signIn.email({ email: identifier, password })
+        : await signIn.phoneNumber({ phoneNumber: identifier, password });
+      if (result?.error) {
+        setError("Invalid phone/email or password");
+        return;
+      }
+    } catch {
       setError("Invalid phone/email or password");
       return;
     }
