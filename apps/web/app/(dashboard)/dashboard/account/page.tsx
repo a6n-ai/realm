@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { UserIcon } from "lucide-react";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError, tzToDefaultCountry } from "@tiffin/commons";
 import { auth } from "@/lib/auth";
 import { usersService } from "@/lib/services/users.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { AccountForm } from "./account-form";
 
@@ -19,6 +20,9 @@ export default async function AccountPage() {
     throw err;
   }
 
+  const { timezone } = await getAppSettings();
+  const defaultCountry = tzToDefaultCountry(timezone);
+
   return (
     <PageShell>
       <PageHeader
@@ -27,7 +31,7 @@ export default async function AccountPage() {
         subtitle="Update your contact details. Phone and email must be unique."
       />
       <SectionCard title="Profile">
-        <AccountForm phone={user.phone ?? ""} email={user.email ?? ""} />
+        <AccountForm phone={user.phone ?? ""} email={user.email ?? ""} defaultCountry={defaultCountry} />
       </SectionCard>
     </PageShell>
   );
