@@ -12,3 +12,4 @@ export * from "./search-input";
 export * from "./filter-bar";
 export * from "./tabs";
 export * from "./pagination";
+export * from "./order-status-badge";

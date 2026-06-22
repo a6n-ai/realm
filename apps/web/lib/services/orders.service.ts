@@ -1,7 +1,8 @@
-import { generateCode, ValidationError } from "@tiffin/commons";
-import { eq, sql } from "drizzle-orm";
+import { generateCode, NotFoundError, ValidationError } from "@tiffin/commons";
+import { auth } from "@/lib/auth";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
+import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
@@ -140,4 +141,157 @@ export async function createOrder(
 
     return { deploymentId, publicId: order.publicId };
   });
+}
+
+export type OrderListRow = {
+  publicId: string;
+  deploymentId: string;
+  fullName: string;
+  city: string;
+  planKey: string;
+  status: string;
+  startDate: string;
+  total: string;
+  createdAt: number;
+};
+
+export async function listOrders(filter: { status?: string; search?: string } = {}): Promise<OrderListRow[]> {
+  const conds = [];
+  if (filter.status && filter.status !== "all") {
+    conds.push(eq(orders.status, filter.status as typeof orders.status.enumValues[number]));
+  }
+  if (filter.search?.trim()) {
+    const q = `%${filter.search.trim()}%`;
+    conds.push(or(ilike(orders.fullName, q), ilike(orders.deploymentId, q)));
+  }
+  const rows = await db
+    .select({
+      publicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      fullName: orders.fullName,
+      city: orders.city,
+      planKey: plans.key,
+      status: orders.status,
+      startDate: orders.startDate,
+      total: orders.total,
+      createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(orders.createdAt))
+    .limit(500);
+  return rows as OrderListRow[];
+}
+
+export type OrderDetail = typeof orders.$inferSelect & {
+  planName: string;
+  planKey: string;
+  frequencyKey: string;
+  mealSizeName: string;
+  payments: { publicId: string; amount: string; status: string }[];
+};
+
+export async function readOrder(publicId: string): Promise<OrderDetail> {
+  const [row] = await db
+    .select({
+      order: orders,
+      planName: plans.name,
+      planKey: plans.key,
+      frequencyKey: deliveryFrequencies.key,
+      mealSizeName: mealSizes.name,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .where(eq(orders.publicId, publicId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Order not found");
+  const pays = await db
+    .select({ publicId: payments.publicId, amount: payments.amount, status: payments.status })
+    .from(payments)
+    .where(eq(payments.orderId, row.order.id));
+  return { ...row.order, planName: row.planName, planKey: row.planKey, frequencyKey: row.frequencyKey, mealSizeName: row.mealSizeName, payments: pays };
+}
+
+export async function listOrderActivities(orderId: bigint) {
+  return db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId)).orderBy(desc(orderActivities.createdAt));
+}
+
+async function actorId(): Promise<bigint | null> {
+  try {
+    const publicId = (await auth())?.user?.id;
+    if (!publicId) return null;
+    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+    return row?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type OrderStatusValue = (typeof orders.status.enumValues)[number];
+
+async function transition(
+  publicId: string,
+  guard: (current: OrderStatusValue) => void,
+  patch: Partial<typeof orders.$inferInsert>,
+  activity: { type: (typeof orderActivities.type.enumValues)[number]; toStatus: OrderStatusValue },
+): Promise<void> {
+  const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+  if (!order) throw new NotFoundError("Order not found");
+  guard(order.status);
+  const createdBy = await actorId();
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set(patch).where(eq(orders.id, order.id));
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: activity.type,
+      fromStatus: order.status,
+      toStatus: activity.toStatus,
+      createdBy,
+    });
+  });
+}
+
+export async function activateOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
+    { status: "active" },
+    { type: "activated", toStatus: "active" },
+  );
+}
+
+export async function cancelOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
+    { status: "cancelled" },
+    { type: "cancelled", toStatus: "cancelled" },
+  );
+}
+
+export async function pauseOrder(publicId: string, window: { from: string; until: string }): Promise<void> {
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
+    throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
+  }
+  // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
+  if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
+  await transition(
+    publicId,
+    (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
+    { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
+    { type: "paused", toStatus: "paused" },
+  );
+}
+
+export async function resumeOrder(publicId: string): Promise<void> {
+  await transition(
+    publicId,
+    (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
+    { status: "active", pausedFrom: null, pausedUntil: null },
+    { type: "resumed", toStatus: "active" },
+  );
 }

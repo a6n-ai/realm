@@ -1,10 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { createOrder } from "../orders.service";
+
+vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const { createOrder } = await import("../orders.service");
 
 async function reset() {
   await db.delete(payments);
