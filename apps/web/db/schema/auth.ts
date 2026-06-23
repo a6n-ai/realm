@@ -1,6 +1,6 @@
 import { makePublicId, updatableColumns } from "@tiffin/commons-drizzle";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const uuidText = sql`gen_random_uuid()::text`;
 
@@ -17,6 +17,8 @@ export const users = pgTable(
     image: text("image"),
     phone: text("phone"),
     role: userRole("role").notNull().default("user"),
+    pinHash: text("pin_hash"),
+    pinAttempts: integer("pin_attempts").notNull().default(0),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
