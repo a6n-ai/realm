@@ -4,11 +4,8 @@ import { NotFoundError, tzToDefaultCountry } from "@tiffin/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { Badge } from "@/components/ui/badge";
-import { AccountForm } from "./account-form";
-import { ResendVerification } from "./resend-verification";
-import { SignOutButton } from "./sign-out-button";
+import { PageShell, PageHeader } from "@/components/ds";
+import { AccountTabs } from "./account-tabs";
 
 export default async function AccountPage() {
   const session = await getSession();
@@ -31,30 +28,16 @@ export default async function AccountPage() {
       <PageHeader
         icon={UserIcon}
         title="Account"
-        subtitle="Update your contact details. Phone and email must be unique."
+        subtitle="Manage your profile, contact details, and security settings."
       />
-      <SectionCard title="Profile">
-        <AccountForm phone={user.phone ?? ""} email={user.email ?? ""} defaultCountry={defaultCountry} />
-        {user.email && (
-          <div className="mt-3 flex flex-col gap-2 max-w-md">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Email status:</span>
-              {user.emailVerified ? (
-                <Badge variant="secondary">Verified</Badge>
-              ) : (
-                <Badge variant="outline">Unverified</Badge>
-              )}
-            </div>
-            {!user.emailVerified && <ResendVerification email={user.email} />}
-          </div>
-        )}
-      </SectionCard>
-      <SectionCard title="Security">
-        <div className="flex flex-col gap-3">
-          <p className="text-muted-foreground text-sm">Sign out of your account on this device.</p>
-          <SignOutButton />
-        </div>
-      </SectionCard>
+      <AccountTabs
+        image={user.image ?? null}
+        name={user.name ?? null}
+        phone={user.phone ?? ""}
+        email={user.email ?? ""}
+        emailVerified={user.emailVerified ?? false}
+        defaultCountry={defaultCountry}
+      />
     </PageShell>
   );
 }

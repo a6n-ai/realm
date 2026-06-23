@@ -11,3 +11,11 @@ export async function updateMyContact(input: { phone?: string; email?: string })
   await usersService.updateContact(session.user.id, input);
   revalidatePath("/dashboard/account");
 }
+
+export async function updateMyName(name: string) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new AuthError();
+  await usersService.updateProfile(session.user.id, { name });
+  revalidatePath("/dashboard/account");
+  return { ok: true };
+}
