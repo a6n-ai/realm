@@ -47,7 +47,13 @@ export function SignupForm() {
       setError(result.error);
       return;
     }
-    await signIn.phoneNumber({ phoneNumber: values.phone, password: values.password });
+    const signedIn = await signIn.phoneNumber({ phoneNumber: values.phone, password: values.password });
+    if (signedIn?.error) {
+      // Account was created but auto sign-in failed — send them to sign in manually.
+      setError("Account created. Please sign in.");
+      router.push("/login");
+      return;
+    }
     router.push("/dashboard");
     router.refresh();
   }

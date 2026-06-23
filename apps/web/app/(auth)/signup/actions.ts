@@ -33,6 +33,9 @@ export async function signUpCustomer(input: {
   }
 
   const { phone, email, name, password } = parsed.data;
+  // Hash outside the transaction — bcrypt is CPU-bound (~100ms) and must not hold
+  // the DB connection open.
+  const passwordHash = await hashPassword(password);
 
   try {
     return await db.transaction(async (tx) => {
@@ -67,12 +70,14 @@ export async function signUpCustomer(input: {
         accountId: String(inserted.id),
         providerId: "credential",
         userId: inserted.id,
-        password: await hashPassword(password),
+        password: passwordHash,
       });
 
       return { ok: true };
     });
   } catch {
-    return { ok: false, error: "An account with this phone already exists." };
+    // The explicit uniqueness checks above return the phone/email-taken messages;
+    // anything reaching here is an unexpected failure (the tx has rolled back).
+    return { ok: false, error: "Something went wrong. Please try again." };
   }
 }
