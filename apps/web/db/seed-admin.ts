@@ -14,12 +14,17 @@ async function seedStaff(email: string, password: string, name: string, role: "a
     console.log(`${role} already exists: ${email}`);
     return;
   }
-  const [inserted] = await db.insert(users).values({ email, name, role }).returning({ id: users.id });
-  await db.insert(account).values({
-    accountId: String(inserted.id),
-    providerId: "credential",
-    userId: inserted.id,
-    password: await hashPassword(password),
+  const passwordHash = await hashPassword(password);
+  // Atomic: a user must never be left without its credential account (a partial
+  // seed makes the next run skip it as "already exists" → an unloginnable user).
+  await db.transaction(async (tx) => {
+    const [inserted] = await tx.insert(users).values({ email, name, role }).returning({ id: users.id });
+    await tx.insert(account).values({
+      accountId: String(inserted.id),
+      providerId: "credential",
+      userId: inserted.id,
+      password: passwordHash,
+    });
   });
   console.log(`Seeded ${role}: ${email} / ${password}`);
 }

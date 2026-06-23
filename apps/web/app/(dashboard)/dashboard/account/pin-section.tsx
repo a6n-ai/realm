@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type ControllerRenderProps, type FieldPath, type FieldValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -25,9 +25,39 @@ type SetValues = z.infer<typeof setSchema>;
 const removeSchema = z.object({ currentPassword: z.string().min(1, "Current password is required") });
 type RemoveValues = z.infer<typeof removeSchema>;
 
-export function PinSection({ hasPin }: { hasPin: boolean }) {
-  const [showPw, setShowPw] = useState(false);
+// Self-contained password field: owns its own show/hide so two fields never share
+// reveal state, and spreads the full RHF field (ref/onBlur/disabled preserved).
+function PasswordInput<T extends FieldValues, N extends FieldPath<T>>({ field }: { field: ControllerRenderProps<T, N> }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input type={show ? "text" : "password"} {...field} />
+      <button
+        type="button"
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground"
+        onClick={() => setShow((v) => !v)}
+      >
+        {show ? "Hide" : "Show"}
+      </button>
+    </div>
+  );
+}
 
+// PIN field: spreads the full RHF field then narrows onChange to digits only.
+function PinInput<T extends FieldValues, N extends FieldPath<T>>({ field }: { field: ControllerRenderProps<T, N> }) {
+  return (
+    <Input
+      {...field}
+      type="password"
+      inputMode="numeric"
+      maxLength={4}
+      autoComplete="off"
+      onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+    />
+  );
+}
+
+export function PinSection({ hasPin }: { hasPin: boolean }) {
   const setForm = useForm<SetValues>({
     resolver: zodResolver(setSchema),
     defaultValues: { currentPassword: "", newPin: "", confirm: "" },
@@ -57,18 +87,6 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
     removeForm.reset();
   }
 
-  const pinInput = (field: { value: string; onChange: (v: string) => void; name: string }) => (
-    <Input
-      type="password"
-      inputMode="numeric"
-      maxLength={4}
-      autoComplete="off"
-      value={field.value}
-      onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
-      name={field.name}
-    />
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -85,16 +103,7 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
               <FormItem>
                 <FormLabel>Current password</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Input type={showPw ? "text" : "password"} {...field} />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground"
-                      onClick={() => setShowPw((v) => !v)}
-                    >
-                      {showPw ? "Hide" : "Show"}
-                    </button>
-                  </div>
+                  <PasswordInput field={field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -106,7 +115,9 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>New PIN</FormLabel>
-                <FormControl>{pinInput(field)}</FormControl>
+                <FormControl>
+                  <PinInput field={field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -117,7 +128,9 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Confirm PIN</FormLabel>
-                <FormControl>{pinInput(field)}</FormControl>
+                <FormControl>
+                  <PinInput field={field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -141,7 +154,7 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
                 <FormItem>
                   <FormLabel>Current password</FormLabel>
                   <FormControl>
-                    <Input type="password" {...field} />
+                    <PasswordInput field={field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
