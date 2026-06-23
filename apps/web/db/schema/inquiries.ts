@@ -19,7 +19,10 @@ export const inquiries = pgTable("inquiries", {
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   prefs: jsonb("prefs"),
   notes: text("notes"),
-}, (t) => [index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`)]);
+}, (t) => [
+  index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
+  index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
+]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
   ...baseColumns("iac"),

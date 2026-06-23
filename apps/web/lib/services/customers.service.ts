@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { desc, eq, or, sql } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { inquiries, orders, users } from "@/db/schema";
@@ -27,7 +27,7 @@ export async function getCustomer360(userPublicId: string) {
     .orderBy(desc(orders.createdAt));
 
   const matchConds = [];
-  if (user.email) matchConds.push(ilike(inquiries.email, user.email));
+  if (user.email) matchConds.push(eq(sql`lower(${inquiries.email})`, user.email.toLowerCase()));
   if (user.phone) matchConds.push(eq(sql`lower(${inquiries.phone})`, user.phone.toLowerCase()));
   const inqRows = matchConds.length
     ? await db

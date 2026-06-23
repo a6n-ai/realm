@@ -92,6 +92,13 @@
 			"when": 1782800001000,
 			"tag": "0012_inquiries_phone_lower_idx",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1782800002000,
+			"tag": "0013_inquiries_email_lower_idx",
+			"breakpoints": true
 		}
 	]
 }
