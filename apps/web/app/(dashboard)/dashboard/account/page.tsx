@@ -6,6 +6,7 @@ import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { AccountForm } from "./account-form";
+import { SignOutButton } from "./sign-out-button";
 
 export default async function AccountPage() {
   const session = await getSession();
@@ -32,6 +33,12 @@ export default async function AccountPage() {
       />
       <SectionCard title="Profile">
         <AccountForm phone={user.phone ?? ""} email={user.email ?? ""} defaultCountry={defaultCountry} />
+      </SectionCard>
+      <SectionCard title="Security">
+        <div className="flex flex-col gap-3">
+          <p className="text-muted-foreground text-sm">Sign out of your account on this device.</p>
+          <SignOutButton />
+        </div>
       </SectionCard>
     </PageShell>
   );

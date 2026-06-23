@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -81,6 +81,7 @@ const SECTIONS: NavSection[] = [
 
 export function AppSidebar({ user }: { user: { email: string; role: string } }) {
   const pathname = usePathname();
+  const router = useRouter();
   const initials = user.email.slice(0, 2).toUpperCase();
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
@@ -147,7 +148,7 @@ export function AppSidebar({ user }: { user: { email: string; role: string } }) 
                 <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}>
+                  <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/login"); } } })}>
                     <LogOutIcon data-icon="inline-start" />
                     Sign out
                   </DropdownMenuItem>
