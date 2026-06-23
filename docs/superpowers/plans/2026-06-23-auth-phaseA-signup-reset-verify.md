@@ -163,21 +163,86 @@ git commit -m "feat(auth): sign-out control on account; confirm sidebar signOut 
 
 ---
 
-### Task 3: Customer signup wizard (`/signup`)
+### Task 3: Customer signup — server action + single-step form (`/signup`)
+
+**DECISION (resolved):** Better Auth 1.6.20's phoneNumber plugin cannot create a null-email user, so signup does NOT use the plugin's OTP/`signUpOnVerification`. Instead a **server action creates the user + a credential `account` row directly** (the exact pattern `createOrder` and `seed-admin.ts` already use), keeping email truly optional and skipping OTP. The client then signs in with `signIn.phoneNumber`. No fake emails, no OTP step.
 
 **Files:**
+- Create: `apps/web/app/(auth)/signup/actions.ts` (server action)
 - Create: `apps/web/app/(auth)/signup/page.tsx`
 - Create: `apps/web/app/(auth)/signup/signup-form.tsx`
-- Create: `apps/web/app/(auth)/signup/__tests__/signup-form.test.tsx`
+- Test: `apps/web/app/(auth)/signup/__tests__/signup-action.test.ts` (server action — pure logic, no DOM) AND `apps/web/app/(auth)/signup/__tests__/signup-form.test.tsx` (render)
 
 **Interfaces:**
-- Consumes: `authClient` from `@/lib/auth/client` (`authClient.phoneNumber.sendOtp`, `authClient.phoneNumber.verify`, `authClient.setPassword`), `phoneSchema`/`emailSchema`/`passwordSchema` from `@tiffin/commons`, the committed `PhoneInput` (`@/components/ui/phone-input`).
+- Produces: `signUpCustomer(input: { phone: string; email?: string; name?: string; password: string }): Promise<{ ok: true } | { ok: false; error: string }>` — validates, enforces uniqueness, inserts user (role `user`) + credential account in one transaction.
+- Consumes (form): `signUpCustomer`, `signIn` from `@/lib/auth/client`, `PhoneInput`, `phoneSchema`/`emailSchema`/`passwordSchema`.
 
-**Flow (phone-first, OTP stubbed):** Step 1 — collect phone (required, `PhoneInput`), optional name/email, password (`passwordSchema`) → call `authClient.phoneNumber.sendOtp({ phoneNumber })`; advance to Step 2. Step 2 — enter the 6-digit code (logged to console in dev) → `authClient.phoneNumber.verify({ phoneNumber, code })` (creates + signs in the user) → `authClient.setPassword({ newPassword: password })` → if name/email provided, `authClient.updateUser({ name, email })` → `router.push("/dashboard"); router.refresh()`. Generic error messaging; never reveal existence.
+**Flow:** Single form — phone (`PhoneInput`, required), email (optional), name (optional), password (`passwordSchema`, show/hide). Submit → `await signUpCustomer({...})`. On `{ ok: false }` → show its `error` (e.g. "An account with this phone already exists." — signup may reveal phone-taken; that's standard, acceptable UX). On `{ ok: true }` → `await signIn.phoneNumber({ phoneNumber: phone, password })` → `router.push("/dashboard"); router.refresh()`.
 
-- [ ] **Step 1: Write the failing render test**
+**Server action internals (mirror `lib/services/orders.service.ts` createOrder + `db/seed-admin.ts`):** read those first. Validate with `phoneSchema()`/`emailSchema.optional()`/`passwordSchema` (E.164-normalize phone). In a `db.transaction`: check phone (and email if given) not already taken (reuse the uniqueness approach from `users.service.ts`); insert the user `{ phone, email?, name?, role: "user" }` `.returning({ id })`; insert an `account` row `{ providerId: "credential", accountId: String(id), userId: id, password: await hashPassword(password) }` (id/publicId/timestamps auto-fill via DB defaults / `$defaultFn`). Return `{ ok: true }`, or `{ ok: false, error }` on a uniqueness conflict. Hash via `@/lib/auth/password` `hashPassword`.
 
-Create `apps/web/app/(auth)/signup/__tests__/signup-form.test.tsx`:
+- [ ] **Step 1: Write the failing server-action test**
+
+Create `apps/web/app/(auth)/signup/__tests__/signup-action.test.ts` — a DB-integration test mirroring `lib/services/__tests__/inquiries-convert.test.ts` (real `db`, `beforeEach` cleanup of `account`/`users`). Assert: (a) `signUpCustomer({ phone:"+16475550111", password:"hunter2!" })` returns `{ ok: true }`, creates exactly one `users` row (role `user`, that phone, null email) and one `account` row (`providerId:"credential"`, password NOT equal to the plaintext); (b) a second call with the same phone returns `{ ok: false }` and does NOT create a second user; (c) `passwordSchema` rejection: `{ phone:"+16475550112", password:"short" }` returns `{ ok: false }`.
+
+```ts
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { account, users } from "@/db/schema";
+import { signUpCustomer } from "../actions";
+
+async function reset() { await db.delete(account); await db.delete(users); }
+
+describe("signUpCustomer", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("creates a phone-only customer + credential account", async () => {
+    const r = await signUpCustomer({ phone: "+16475550111", password: "hunter2!" });
+    expect(r.ok).toBe(true);
+    const [u] = await db.select().from(users).where(eq(users.phone, "+16475550111"));
+    expect(u.role).toBe("user");
+    expect(u.email).toBeNull();
+    const [a] = await db.select().from(account).where(eq(account.userId, u.id));
+    expect(a.providerId).toBe("credential");
+    expect(a.password).not.toBe("hunter2!");
+  });
+
+  it("rejects a duplicate phone without creating a second user", async () => {
+    await signUpCustomer({ phone: "+16475550111", password: "hunter2!" });
+    const r = await signUpCustomer({ phone: "+16475550111", password: "another1!" });
+    expect(r.ok).toBe(false);
+    const rows = await db.select().from(users).where(eq(users.phone, "+16475550111"));
+    expect(rows.length).toBe(1);
+  });
+
+  it("rejects a too-short password", async () => {
+    const r = await signUpCustomer({ phone: "+16475550112", password: "short" });
+    expect(r.ok).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run it (RED)**
+
+Run: `pnpm --filter web exec vitest run "app/(auth)/signup/__tests__/signup-action.test.ts"`
+Expected: FAIL — `../actions` missing.
+
+- [ ] **Step 3: Implement the server action**
+
+Create `apps/web/app/(auth)/signup/actions.ts` with `"use server"` and `signUpCustomer` per the internals above. Reuse `hashPassword` from `@/lib/auth/password`, `phoneSchema`/`emailSchema`/`passwordSchema` from `@tiffin/commons`, `db`, `users`, `account`. Wrap insert in `db.transaction`. Return the `{ ok }` union; catch uniqueness violations → `{ ok: false, error: "An account with this phone already exists." }`.
+
+- [ ] **Step 4: Run it (GREEN)**
+
+Run: `pnpm --filter web exec vitest run "app/(auth)/signup/__tests__/signup-action.test.ts"`
+Expected: PASS (requires the dev DB; if `DATABASE_URL` is unset, report BLOCKED and the controller runs it).
+
+- [ ] **Step 5: Implement the form + page + render test**
+
+Create `signup-form.tsx` (`"use client"`) mirroring `login-form.tsx`'s login-04 split-card structure (brand panel right, RHF+zod, show/hide password, generic-error line). Fields: phone (`PhoneInput`, see `account-form.tsx` for `defaultCountry` usage), email (optional `Input`), name (optional `Input`), password (`passwordSchema`, toggle). Submit handler calls `signUpCustomer` then `signIn.phoneNumber` then redirect, per Flow. Footer "Already have an account? Sign in" → `Link href="/login"`.
+
+Create `signup-form.test.tsx`:
 
 ```tsx
 // @vitest-environment jsdom
@@ -185,49 +250,27 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SignupForm } from "../signup-form";
 
-vi.mock("@/lib/auth/client", () => ({
-  authClient: { phoneNumber: { sendOtp: vi.fn(), verify: vi.fn() }, setPassword: vi.fn(), updateUser: vi.fn() },
-}));
+vi.mock("../actions", () => ({ signUpCustomer: vi.fn() }));
+vi.mock("@/lib/auth/client", () => ({ signIn: { phoneNumber: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 describe("SignupForm", () => {
-  it("renders the phone step with a create-account action", () => {
+  it("renders a create-account action", () => {
     render(<SignupForm />);
-    expect(screen.getByRole("button", { name: /send code|create account|continue/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /create account|sign up/i })).toBeDefined();
   });
 });
 ```
 
-- [ ] **Step 2: Run it (RED)**
+Create `signup/page.tsx` mirroring `login/page.tsx` wrapper (`<main className="bg-muted flex min-h-svh ...">` + `max-w-sm md:max-w-3xl`, `<Suspense>`), rendering `<SignupForm />`.
 
-Run: `pnpm --filter web exec vitest run "app/(auth)/signup/__tests__/signup-form.test.tsx"`
-Expected: FAIL — module missing.
+- [ ] **Step 6: Run the render test (GREEN) + typecheck + commit**
 
-- [ ] **Step 3: Implement the signup form**
-
-Create `apps/web/app/(auth)/signup/signup-form.tsx` as a `"use client"` component. Use the committed `login-form.tsx` as the structural/style template (same `Card`/`CardContent` two-column split, brand panel right, RHF + zod, show/hide password, generic error `<p className="text-destructive text-sm">`). Two internal steps via `useState<"details" | "code">`.
-
-- Step "details" form (zod schema: `phone` = `phoneSchema()` required, `email` = `emailSchema.optional()`, `name` optional, `password` = `passwordSchema`): on submit, `await authClient.phoneNumber.sendOtp({ phoneNumber: phone })`; on success store the form values + setStep("code"); on error set generic message.
-- Step "code" form (zod: `code` = 6-digit string): on submit, `const v = await authClient.phoneNumber.verify({ phoneNumber, code })`; if `v.error` → generic "Invalid or expired code"; else `await authClient.setPassword({ newPassword: password })`, then if `email`/`name` present `await authClient.updateUser({ ...(email && { email }), ...(name && { name }) })`, then `router.push("/dashboard"); router.refresh()`.
-- Add a "We sent a code to {phone}" helper line and a dev hint is NOT shown (code is server-logged only).
-- Footer link "Already have an account? Sign in" → `Link href="/login"`.
-
-Use `PhoneInput` for the phone field (see `account-form.tsx` for its usage + `defaultCountry`). For the OTP field use a plain `Input inputMode="numeric" maxLength={6}`.
-
-Create `apps/web/app/(auth)/signup/page.tsx` mirroring `login/page.tsx`'s wrapper (`<main className="bg-muted flex min-h-svh ...">` + `max-w-sm md:max-w-3xl` + `<Suspense>`), rendering `<SignupForm />`.
-
-- [ ] **Step 4: Run the test (GREEN)**
-
-Run: `pnpm --filter web exec vitest run "app/(auth)/signup/__tests__/signup-form.test.tsx"`
-Expected: PASS.
-
-- [ ] **Step 5: Typecheck + commit**
-
-Run: `pnpm --filter web typecheck`
+Run: `pnpm --filter web exec vitest run "app/(auth)/signup/__tests__/signup-form.test.tsx"` and `pnpm --filter web typecheck`.
 
 ```bash
 git add "apps/web/app/(auth)/signup"
-git commit -m "feat(auth): customer signup wizard (phone OTP -> set password), login-04 styling"
+git commit -m "feat(auth): customer signup via server action (phone + optional email, no OTP); login-04 styling"
 ```
 
 ---
