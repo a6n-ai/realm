@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, users } from "@/db/schema";
+import { account, auditLog, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { usersService } from "@/lib/services/users.service";
 
@@ -23,8 +23,9 @@ async function seedUser() {
 }
 
 async function cleanup() {
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.phone, PHONE));
+  const rows = await db.select({ id: users.id, publicId: users.publicId }).from(users).where(eq(users.phone, PHONE));
   for (const r of rows) {
+    await db.delete(auditLog).where(eq(auditLog.entityPublicId, r.publicId));
     await db.delete(account).where(eq(account.userId, r.id));
     await db.delete(users).where(eq(users.id, r.id));
   }
@@ -65,5 +66,29 @@ describe("UsersService PIN methods", () => {
     await expect(usersService.removePin(u.publicId, "wrong")).rejects.toThrow();
     await usersService.removePin(u.publicId, PASSWORD);
     expect(await usersService.hasPin(u.publicId)).toBe(false);
+  });
+
+  it("setPin does not write a bcrypt hash to audit_log", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    const rows = await db.select({ changes: auditLog.changes }).from(auditLog).where(eq(auditLog.entityPublicId, u.publicId));
+    expect(JSON.stringify(rows)).not.toMatch(/\$2[aby]\$/);
+    for (const row of rows) {
+      const ch = row.changes as Record<string, unknown> | null;
+      if (ch && "pinHash" in ch) {
+        expect(ch.pinHash).toBe("[redacted]");
+      }
+    }
+  });
+
+  it("verifyPin does not write any audit_log rows", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    const beforeCount = await db.$count(auditLog, eq(auditLog.entityPublicId, u.publicId));
+    await usersService.verifyPin(u.publicId, "0000");
+    await usersService.verifyPin(u.publicId, "0000");
+    await usersService.verifyPin(u.publicId, "0000");
+    const afterCount = await db.$count(auditLog, eq(auditLog.entityPublicId, u.publicId));
+    expect(afterCount).toBe(beforeCount);
   });
 });

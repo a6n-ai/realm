@@ -93,13 +93,17 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
     return row;
   }
 
+  protected auditChanges(patch: Record<string, unknown>): Record<string, unknown> | null {
+    return stripManaged(patch);
+  }
+
   async update(publicId: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
     const row = await super.update(publicId, patch);
     await recordAudit({
       entity: this.repo.tableName,
       entityPublicId: (row as { publicId: string }).publicId,
       operation: "update",
-      changes: stripManaged(patch),
+      changes: this.auditChanges(patch),
       createdBy: await this.currentUserId(),
     });
     return row;

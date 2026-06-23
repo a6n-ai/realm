@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@tiffin/commons-drizzle";
+import { UpdatableRepository, stripManaged } from "@tiffin/commons-drizzle";
 import { Role, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -8,6 +8,20 @@ import { SessionUpdatableService } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
 class UsersService extends SessionUpdatableService<typeof users> {
+  // Never let a PIN hash reach the audit trail (it is brute-forceable), and drop
+  // the internal pin_attempts counter from audit noise. The real pin_hash is still
+  // written to the users table — only the audit `changes` is redacted.
+  protected auditChanges(patch: Record<string, unknown>): Record<string, unknown> | null {
+    const base = stripManaged(patch);
+    if (!base) return base;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(base)) {
+      if (k === "pinAttempts") continue;
+      out[k] = k === "pinHash" && v != null ? "[redacted]" : v;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
   async create(values: Record<string, unknown>) {
     return super.create(pickUserWritable(values));
   }
@@ -81,15 +95,16 @@ class UsersService extends SessionUpdatableService<typeof users> {
       .limit(1);
     if (!u?.pinHash) return { ok: false };
     if (await verifyPassword(pin, u.pinHash)) {
-      await super.update(userId, { pinAttempts: 0 });
+      // ponytail: counter bookkeeping — direct write, not an audited domain mutation
+      await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
       return { ok: true };
     }
     const attempts = (u.pinAttempts ?? 0) + 1;
     if (attempts >= 5) {
-      await super.update(userId, { pinAttempts: 0 });
+      await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
       return { ok: false, forcePassword: true };
     }
-    await super.update(userId, { pinAttempts: attempts });
+    await db.update(users).set({ pinAttempts: attempts }).where(eq(users.publicId, userId));
     return { ok: false };
   }
 
