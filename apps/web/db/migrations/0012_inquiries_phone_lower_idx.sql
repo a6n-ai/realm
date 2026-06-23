@@ -1,0 +1,1 @@
+CREATE INDEX "inquiries_phone_lower_idx" ON "inquiries" USING btree (lower("phone"));

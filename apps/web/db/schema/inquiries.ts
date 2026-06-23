@@ -1,5 +1,6 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
-import { bigint, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, index, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 
@@ -18,7 +19,7 @@ export const inquiries = pgTable("inquiries", {
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   prefs: jsonb("prefs"),
   notes: text("notes"),
-});
+}, (t) => [index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`)]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
   ...baseColumns("iac"),
