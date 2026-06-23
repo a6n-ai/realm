@@ -60,6 +60,16 @@ describe("UsersService PIN methods", () => {
     expect(row.a).toBe(0);
   });
 
+  it("counts every concurrent wrong attempt (no lost increments under TOCTOU)", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    // Four simultaneous wrong PINs; atomic increments must land all four (none
+    // reaches the 5-fail reset). Read-then-write would under-count here.
+    await Promise.all(Array.from({ length: 4 }, () => usersService.verifyPin(u.publicId, "0000")));
+    const [row] = await db.select({ a: users.pinAttempts }).from(users).where(eq(users.publicId, u.publicId));
+    expect(row.a).toBe(4);
+  });
+
   it("removePin clears the PIN after a correct password", async () => {
     const u = await seedUser();
     await usersService.setPin(u.publicId, PASSWORD, "1357");

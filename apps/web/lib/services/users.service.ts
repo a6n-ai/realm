@@ -1,6 +1,6 @@
 import { UpdatableRepository, stripManaged } from "@tiffin/commons-drizzle";
 import { Role, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -89,7 +89,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
 
   async verifyPin(userId: string, pin: string): Promise<{ ok: boolean; forcePassword?: boolean }> {
     const [u] = await db
-      .select({ pinHash: users.pinHash, pinAttempts: users.pinAttempts })
+      .select({ pinHash: users.pinHash })
       .from(users)
       .where(eq(users.publicId, userId))
       .limit(1);
@@ -99,12 +99,18 @@ class UsersService extends SessionUpdatableService<typeof users> {
       await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
       return { ok: true };
     }
-    const attempts = (u.pinAttempts ?? 0) + 1;
-    if (attempts >= 5) {
+    // Wrong PIN: atomic increment + RETURNING so concurrent attempts can't both
+    // read a stale count and lose increments (TOCTOU). The new value is read back
+    // from the same statement, never a prior SELECT.
+    const [row] = await db
+      .update(users)
+      .set({ pinAttempts: sql`${users.pinAttempts} + 1` })
+      .where(eq(users.publicId, userId))
+      .returning({ pinAttempts: users.pinAttempts });
+    if ((row?.pinAttempts ?? 0) >= 5) {
       await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
       return { ok: false, forcePassword: true };
     }
-    await db.update(users).set({ pinAttempts: attempts }).where(eq(users.publicId, userId));
     return { ok: false };
   }
 
