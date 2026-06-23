@@ -24,7 +24,7 @@ export function LockForm() {
       return;
     }
     if (res.forcePassword) {
-      router.push("/login");
+      await signOut({ fetchOptions: { onSuccess: () => router.push("/login") } });
       return;
     }
     setError("Incorrect PIN. Try again.");
