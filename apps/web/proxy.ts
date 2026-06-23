@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// JWT session strategy: the proxy runs on the edge runtime, so we do an
-// OPTIMISTIC cookie-presence gate here and the authoritative `await auth()`
-// role checks live in the (Node-runtime) dashboard layout and pages.
-// Cookie names per Auth.js v5 (dev + secure).
-const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
+// The proxy runs on the edge runtime, so we do an OPTIMISTIC cookie-presence
+// gate here; the authoritative `getSession` role checks live in the
+// (Node-runtime) dashboard layout and pages.
+// Better Auth session cookie: `${prefix}.session_token` (default prefix
+// "better-auth"; `__Secure-` prefixed when cookies are secure / in production).
+const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
 
 export function proxy(request: NextRequest) {
   const onDashboard = request.nextUrl.pathname.startsWith("/dashboard");
