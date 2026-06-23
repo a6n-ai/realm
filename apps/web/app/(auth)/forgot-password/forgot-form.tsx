@@ -54,12 +54,9 @@ export function ForgotForm() {
       });
       setStep("sent");
     } else {
-      const result = await authClient.phoneNumber.sendOtp({ phoneNumber: identifier });
-      if (result?.error) {
-        setStep("phone-reset");
-        setPhone(identifier);
-        return;
-      }
+      // Phone path: the phoneNumber plugin's dedicated OTP password-reset.
+      // Always advance to the reset step regardless of result (no enumeration).
+      await authClient.phoneNumber.requestPasswordReset({ phoneNumber: identifier });
       setPhone(identifier);
       setStep("phone-reset");
     }
@@ -68,13 +65,12 @@ export function ForgotForm() {
   async function onPhoneResetSubmit(values: z.infer<typeof phoneResetSchema>) {
     setError(null);
     const { code, newPassword } = values;
-    const verifyResult = await authClient.phoneNumber.verify({ phoneNumber: phone, code });
-    if (verifyResult?.error) {
-      setError("Invalid or expired code.");
-      return;
-    }
-    const setResult = await authClient.resetPassword({ newPassword });
-    if (setResult?.error) {
+    const result = await authClient.phoneNumber.resetPassword({
+      phoneNumber: phone,
+      otp: code,
+      newPassword,
+    });
+    if (result?.error) {
       setError("Invalid or expired code.");
       return;
     }
