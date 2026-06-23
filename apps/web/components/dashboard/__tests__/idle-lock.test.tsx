@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 import { IdleLock } from "../idle-lock";
 
-afterEach(() => { cleanup(); vi.clearAllTimers(); vi.useRealTimers(); lockSession.mockClear(); });
+afterEach(() => { cleanup(); vi.clearAllTimers(); vi.useRealTimers(); lockSession.mockClear(); push.mockClear(); });
 
 describe("IdleLock", () => {
   it("locks the session after the idle threshold elapses", async () => {

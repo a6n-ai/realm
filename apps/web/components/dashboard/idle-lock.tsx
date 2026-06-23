@@ -15,8 +15,13 @@ export function IdleLock({ thresholdMs = IDLE_MS }: { thresholdMs?: number }) {
     const reset = () => {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(async () => {
-        await lockSession();
-        router.push("/lock");
+        // Navigate to /lock regardless — a transient lockSession failure must
+        // not strand the user on the dashboard (worst case: re-lock on arrival).
+        try {
+          await lockSession();
+        } finally {
+          router.push("/lock");
+        }
       }, thresholdMs);
     };
     for (const e of ACTIVITY) window.addEventListener(e, reset, { passive: true });
