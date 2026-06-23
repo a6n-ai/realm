@@ -1,0 +1,187 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { passwordSchema } from "@tiffin/commons";
+import { authClient } from "@/lib/auth/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const schema = z
+  .object({
+    newPassword: passwordSchema,
+    confirm: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
+
+type FormValues = z.infer<typeof schema>;
+
+export function ResetForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const token = params.get("token");
+  const hasError = params.get("error") !== null;
+
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { newPassword: "", confirm: "" },
+  });
+
+  async function onSubmit(values: FormValues) {
+    if (!token) return;
+    setSubmitError(null);
+    const r = await authClient.resetPassword({ newPassword: values.newPassword, token });
+    if (r.error) {
+      setSubmitError("This reset link is invalid or has expired.");
+      return;
+    }
+    setSuccess(true);
+    router.push("/login");
+  }
+
+  if (!token || hasError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Card className="overflow-hidden p-0">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <h1 className="text-2xl font-bold">Link expired</h1>
+              <p className="text-muted-foreground text-balance">
+                This reset link is invalid or has expired.
+              </p>
+              <Link
+                href="/forgot-password"
+                className="underline underline-offset-4"
+              >
+                Request a new reset link
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Card className="overflow-hidden p-0">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <h1 className="text-2xl font-bold">Password updated</h1>
+              <p className="text-muted-foreground">
+                Your password has been reset. Redirecting to sign in…
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card className="overflow-hidden p-0">
+        <CardContent className="grid p-0 md:grid-cols-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col items-center text-center">
+                  <h1 className="text-2xl font-bold">Set new password</h1>
+                  <p className="text-muted-foreground text-balance">
+                    Choose a strong password for your account.
+                  </p>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showNew ? "text" : "password"}
+                            autoComplete="new-password"
+                            className="pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNew((v) => !v)}
+                            aria-label={showNew ? "Hide password" : "Show password"}
+                            aria-pressed={showNew}
+                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                          >
+                            {showNew ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showConfirm ? "text" : "password"}
+                            autoComplete="new-password"
+                            className="pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirm((v) => !v)}
+                            aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                            aria-pressed={showConfirm}
+                            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                          >
+                            {showConfirm ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {submitError ? <p className="text-destructive text-sm">{submitError}</p> : null}
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                  Reset password
+                </Button>
+              </div>
+            </form>
+          </Form>
+          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
+            <span className="text-foreground text-2xl font-bold">Tiffin Grab</span>
+            <p className="text-balance text-center text-sm">
+              Fresh tiffin meals, delivered on your schedule.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
