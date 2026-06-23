@@ -40,6 +40,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# uploads (keep dir, ignore contents)
+apps/web/public/uploads/*
+!apps/web/public/uploads/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
