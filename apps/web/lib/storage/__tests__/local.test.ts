@@ -15,4 +15,12 @@ describe("LocalStorageDriver", () => {
     await driver.delete("test-key.png"); // must not throw
     await driver.delete("test-key.png"); // idempotent — missing file is fine
   });
+
+  it("rejects non-bare keys (path-traversal guard)", async () => {
+    const bytes = new Uint8Array([1]);
+    for (const bad of ["../escape.png", "/etc/passwd", "a/b.png", "a\\b.png", ".."]) {
+      await expect(driver.put(bad, bytes, "image/png")).rejects.toThrow(/invalid storage key/);
+      await expect(driver.delete(bad)).rejects.toThrow(/invalid storage key/);
+    }
+  });
 });
