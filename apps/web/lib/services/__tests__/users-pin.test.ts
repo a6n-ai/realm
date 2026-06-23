@@ -1,0 +1,69 @@
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { account, users } from "@/db/schema";
+import { hashPassword } from "@/lib/auth/password";
+import { usersService } from "@/lib/services/users.service";
+
+const PHONE = "+15550000333";
+const PASSWORD = "correct-horse";
+
+async function seedUser() {
+  const [u] = await db
+    .insert(users)
+    .values({ name: "Pin Tester", phone: PHONE, role: "user" })
+    .returning({ id: users.id, publicId: users.publicId });
+  await db.insert(account).values({
+    accountId: String(u.id),
+    providerId: "credential",
+    userId: u.id,
+    password: await hashPassword(PASSWORD),
+  });
+  return u;
+}
+
+async function cleanup() {
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.phone, PHONE));
+  for (const r of rows) {
+    await db.delete(account).where(eq(account.userId, r.id));
+    await db.delete(users).where(eq(users.id, r.id));
+  }
+}
+
+describe("UsersService PIN methods", () => {
+  beforeEach(cleanup);
+  afterAll(cleanup);
+
+  it("setPin rejects a wrong password and writes nothing", async () => {
+    const u = await seedUser();
+    await expect(usersService.setPin(u.publicId, "wrong", "1357")).rejects.toThrow();
+    expect(await usersService.hasPin(u.publicId)).toBe(false);
+  });
+
+  it("setPin with the right password sets the PIN; verifyPin confirms it", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    expect(await usersService.hasPin(u.publicId)).toBe(true);
+    expect(await usersService.verifyPin(u.publicId, "1357")).toEqual({ ok: true });
+    expect(await usersService.verifyPin(u.publicId, "2468")).toEqual({ ok: false });
+  });
+
+  it("forces password after 5 wrong PINs and resets the counter", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    for (let i = 0; i < 4; i++) {
+      expect(await usersService.verifyPin(u.publicId, "0000")).toEqual({ ok: false });
+    }
+    expect(await usersService.verifyPin(u.publicId, "0000")).toEqual({ ok: false, forcePassword: true });
+    const [row] = await db.select({ a: users.pinAttempts }).from(users).where(eq(users.publicId, u.publicId));
+    expect(row.a).toBe(0);
+  });
+
+  it("removePin clears the PIN after a correct password", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
+    await expect(usersService.removePin(u.publicId, "wrong")).rejects.toThrow();
+    await usersService.removePin(u.publicId, PASSWORD);
+    expect(await usersService.hasPin(u.publicId)).toBe(false);
+  });
+});

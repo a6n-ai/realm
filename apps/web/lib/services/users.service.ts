@@ -1,8 +1,9 @@
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
-import { Role, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
+import { Role, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { account, users } from "@/db/schema";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
@@ -58,6 +59,60 @@ class UsersService extends SessionUpdatableService<typeof users> {
     }
     if (input.image !== undefined) patch.image = input.image;
     return super.update(userId, patch);
+  }
+
+  async setPin(userId: string, currentPassword: string, newPin: string) {
+    const parsed = pinSchema.safeParse(newPin);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid PIN");
+    await this.assertPassword(userId, currentPassword);
+    return super.update(userId, { pinHash: await hashPassword(parsed.data), pinAttempts: 0 });
+  }
+
+  async removePin(userId: string, currentPassword: string) {
+    await this.assertPassword(userId, currentPassword);
+    return super.update(userId, { pinHash: null, pinAttempts: 0 });
+  }
+
+  async verifyPin(userId: string, pin: string): Promise<{ ok: boolean; forcePassword?: boolean }> {
+    const [u] = await db
+      .select({ pinHash: users.pinHash, pinAttempts: users.pinAttempts })
+      .from(users)
+      .where(eq(users.publicId, userId))
+      .limit(1);
+    if (!u?.pinHash) return { ok: false };
+    if (await verifyPassword(pin, u.pinHash)) {
+      await super.update(userId, { pinAttempts: 0 });
+      return { ok: true };
+    }
+    const attempts = (u.pinAttempts ?? 0) + 1;
+    if (attempts >= 5) {
+      await super.update(userId, { pinAttempts: 0 });
+      return { ok: false, forcePassword: true };
+    }
+    await super.update(userId, { pinAttempts: attempts });
+    return { ok: false };
+  }
+
+  async hasPin(userId: string): Promise<boolean> {
+    const [u] = await db
+      .select({ pinHash: users.pinHash })
+      .from(users)
+      .where(eq(users.publicId, userId))
+      .limit(1);
+    return Boolean(u?.pinHash);
+  }
+
+  private async assertPassword(userId: string, currentPassword: string): Promise<void> {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
+    if (!u) throw new ValidationError("User not found");
+    const [acct] = await db
+      .select({ password: account.password })
+      .from(account)
+      .where(and(eq(account.userId, u.id), eq(account.providerId, "credential")))
+      .limit(1);
+    if (!acct?.password || !(await verifyPassword(currentPassword, acct.password))) {
+      throw new ValidationError("Password is incorrect");
+    }
   }
 
   private async assertFree(userId: string, field: "phone" | "email", value: string) {
