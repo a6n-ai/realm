@@ -5,7 +5,9 @@ import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { Badge } from "@/components/ui/badge";
 import { AccountForm } from "./account-form";
+import { ResendVerification } from "./resend-verification";
 import { SignOutButton } from "./sign-out-button";
 
 export default async function AccountPage() {
@@ -33,6 +35,19 @@ export default async function AccountPage() {
       />
       <SectionCard title="Profile">
         <AccountForm phone={user.phone ?? ""} email={user.email ?? ""} defaultCountry={defaultCountry} />
+        {user.email && (
+          <div className="mt-3 flex flex-col gap-2 max-w-md">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-sm">Email status:</span>
+              {user.emailVerified ? (
+                <Badge variant="secondary">Verified</Badge>
+              ) : (
+                <Badge variant="outline">Unverified</Badge>
+              )}
+            </div>
+            {!user.emailVerified && <ResendVerification email={user.email} />}
+          </div>
+        )}
       </SectionCard>
       <SectionCard title="Security">
         <div className="flex flex-col gap-3">
