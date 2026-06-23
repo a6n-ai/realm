@@ -2,12 +2,25 @@ import { headers } from "next/headers";
 import { Role, type RoleValue } from "@tiffin/commons";
 import { auth } from "./index";
 
+function isDynamicServerError(e: unknown): boolean {
+  // Next.js throws this (digest "DYNAMIC_SERVER_USAGE") when `headers()` is used
+  // during static generation, to mark the route dynamic. It MUST propagate — if we
+  // swallow it the route is wrongly prerendered and guards throw at build time.
+  return (
+    typeof e === "object" && e !== null && "digest" in e &&
+    typeof (e as { digest?: unknown }).digest === "string" &&
+    ((e as { digest: string }).digest === "DYNAMIC_SERVER_USAGE" ||
+      (e as { digest: string }).digest.startsWith("DYNAMIC_SERVER_USAGE"))
+  );
+}
+
 export async function getSession() {
   let s: Awaited<ReturnType<typeof auth.api.getSession>> | null;
   try {
     s = await auth.api.getSession({ headers: await headers() });
-  } catch {
-    // No request context (tests, scripts, build-time) → treat as unauthenticated.
+  } catch (e) {
+    if (isDynamicServerError(e)) throw e; // let Next mark the route dynamic
+    // Genuine no-request-context (tests, scripts) → treat as unauthenticated.
     return null;
   }
   if (!s?.user) return null;
