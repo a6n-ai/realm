@@ -47,16 +47,19 @@ export function ForgotForm() {
   async function onRequestSubmit(values: z.infer<typeof requestSchema>) {
     setError(null);
     const { identifier } = values;
+    // Both branches advance regardless of result so the response never reveals
+    // whether the account exists. Genuine failures are logged (not shown) for
+    // observability — they don't change the UX.
     if (/@/.test(identifier)) {
-      await authClient.requestPasswordReset({
+      const r = await authClient.requestPasswordReset({
         email: identifier,
         redirectTo: `${window.location.origin}/reset-password`,
       });
+      if (r?.error) console.error("[forgot] requestPasswordReset failed", r.error);
       setStep("sent");
     } else {
-      // Phone path: the phoneNumber plugin's dedicated OTP password-reset.
-      // Always advance to the reset step regardless of result (no enumeration).
-      await authClient.phoneNumber.requestPasswordReset({ phoneNumber: identifier });
+      const r = await authClient.phoneNumber.requestPasswordReset({ phoneNumber: identifier });
+      if (r?.error) console.error("[forgot] phone requestPasswordReset failed", r.error);
       setPhone(identifier);
       setStep("phone-reset");
     }
@@ -158,6 +161,7 @@ export function ForgotForm() {
                           <FormControl>
                             <Input
                               inputMode="numeric"
+                              maxLength={6}
                               autoComplete="one-time-code"
                               placeholder="123456"
                               {...field}
