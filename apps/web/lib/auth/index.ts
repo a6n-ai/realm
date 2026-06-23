@@ -50,6 +50,12 @@ export const auth = betterAuth({
       sendOTP: async ({ phoneNumber: phone, code }) => {
         console.info(`[auth] phone OTP for ${phone}: ${code}`);
       },
+      // The plugin's /request-password-reset dispatches its OTP through THIS callback,
+      // not sendOTP. Without it the phone password-reset code is generated but never
+      // sent, so the reset can never complete. Stubbed (logged) until SMS exists.
+      sendPasswordResetOTP: async ({ phoneNumber: phone, code }) => {
+        console.info(`[auth] phone password-reset OTP for ${phone}: ${code}`);
+      },
       // Map the plugin's phoneNumber/phoneNumberVerified model fields onto the
       // existing `phone` and `phoneVerified` columns in the users table.
       schema: {
