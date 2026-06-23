@@ -347,7 +347,7 @@ git commit -m "feat(pin): UsersService setPin/removePin/verifyPin/hasPin (passwo
 
 ---
 
-### Task 4: Lock state + `/lock` route + dashboard-layout enforcement
+### Task 4: Lock state + `/lock` route
 
 **Files:**
 - Create: `apps/web/lib/auth/lock.ts` (cookie helpers)
@@ -355,7 +355,8 @@ git commit -m "feat(pin): UsersService setPin/removePin/verifyPin/hasPin (passwo
 - Create: `apps/web/app/(auth)/lock/page.tsx`
 - Create: `apps/web/app/(auth)/lock/lock-form.tsx`
 - Create: `apps/web/app/(auth)/lock/actions.ts` (`verifyPinAction`)
-- Modify: `apps/web/app/(dashboard)/dashboard/layout.tsx`
+
+(Layout enforcement is wired in Task 5, once `IdleLock` and the sidebar `hasPin` prop exist, so every task commits typecheck-green.)
 
 **Interfaces:**
 - Consumes: `usersService.verifyPin`, `usersService.hasPin` (Task 3); `getSession` (`@/lib/auth/session`); `auth` (`@/lib/auth`).
@@ -527,51 +528,13 @@ export function LockForm() {
 }
 ```
 
-- [ ] **Step 6: Enforce the lock in the dashboard layout**
+- [ ] **Step 6: Typecheck + commit**
 
-In `apps/web/app/(dashboard)/dashboard/layout.tsx`, add imports:
-
-```ts
-import { isLocked } from "@/lib/auth/lock";
-import { usersService } from "@/lib/services/users.service";
-import { IdleLock } from "@/components/dashboard/idle-lock";
-```
-
-Replace the guard block and the `<AppSidebar … />` line / children render. The new body of `DashboardLayout`:
-
-```tsx
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
-
-  const hasPin = await usersService.hasPin(session.user.id);
-  if (hasPin && (await isLocked())) redirect("/lock");
-
-  return (
-    <SidebarProvider>
-      <AppSidebar user={{ email: session.user.email ?? "", role: session.user.role }} hasPin={hasPin} />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <span className="text-sm font-medium">Dashboard</span>
-          <div className="ml-auto">
-            <ModeToggle />
-          </div>
-        </header>
-        <div className="flex-1 p-6">{children}</div>
-      </SidebarInset>
-      {hasPin && <IdleLock />}
-    </SidebarProvider>
-  );
-```
-
-(`IdleLock` and the `AppSidebar` `hasPin` prop are implemented in Task 5 — typecheck is expected to fail until then. Do not run the gate at this task's end; commit and proceed.)
-
-- [ ] **Step 7: Commit**
+Run: `pnpm --filter web typecheck` → 0 errors (these files are self-contained; the layout is wired in Task 5).
 
 ```bash
-git add apps/web/lib/auth/lock.ts apps/web/lib/auth/lock-actions.ts "apps/web/app/(auth)/lock" "apps/web/app/(dashboard)/dashboard/layout.tsx"
-git commit -m "feat(pin): tg_locked cookie, /lock route + verifyPinAction, layout redirect when locked"
+git add apps/web/lib/auth/lock.ts apps/web/lib/auth/lock-actions.ts "apps/web/app/(auth)/lock"
+git commit -m "feat(pin): tg_locked cookie helpers, /lock route + verifyPinAction"
 ```
 
 ---
@@ -581,11 +544,12 @@ git commit -m "feat(pin): tg_locked cookie, /lock route + verifyPinAction, layou
 **Files:**
 - Create: `apps/web/components/dashboard/idle-lock.tsx`
 - Modify: `apps/web/components/dashboard/app-sidebar.tsx`
+- Modify: `apps/web/app/(dashboard)/dashboard/layout.tsx`
 - Test: `apps/web/components/dashboard/__tests__/idle-lock.test.tsx`
 
 **Interfaces:**
-- Consumes: `lockSession` (Task 4, `@/lib/auth/lock-actions`).
-- Produces: `<IdleLock thresholdMs?>` (default 15 min) — consumed by the layout (Task 4); `AppSidebar` now takes `hasPin: boolean`.
+- Consumes: `lockSession` (Task 4, `@/lib/auth/lock-actions`); `isLocked` (Task 4, `@/lib/auth/lock`); `usersService.hasPin` (Task 3).
+- Produces: `<IdleLock thresholdMs?>` (default 15 min) mounted by the layout; `AppSidebar` now takes `hasPin: boolean`; the dashboard layout redirects to `/lock` when locked.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -702,13 +666,51 @@ In the footer dropdown, add a Lock item before the Sign-out item (inside the exi
                 </DropdownMenuGroup>
 ```
 
-- [ ] **Step 6: Typecheck + commit**
+- [ ] **Step 6: Wire enforcement into the dashboard layout**
 
-Run: `pnpm --filter web typecheck` → 0 errors (the layout from Task 4 now resolves).
+In `apps/web/app/(dashboard)/dashboard/layout.tsx`, add imports:
+
+```ts
+import { isLocked } from "@/lib/auth/lock";
+import { usersService } from "@/lib/services/users.service";
+import { IdleLock } from "@/components/dashboard/idle-lock";
+```
+
+Replace the guard block + return. The new body of `DashboardLayout`:
+
+```tsx
+  const session = await getSession();
+  if (!session?.user) redirect("/login");
+
+  const hasPin = await usersService.hasPin(session.user.id);
+  if (hasPin && (await isLocked())) redirect("/lock");
+
+  return (
+    <SidebarProvider>
+      <AppSidebar user={{ email: session.user.email ?? "", role: session.user.role }} hasPin={hasPin} />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <span className="text-sm font-medium">Dashboard</span>
+          <div className="ml-auto">
+            <ModeToggle />
+          </div>
+        </header>
+        <div className="flex-1 p-6">{children}</div>
+      </SidebarInset>
+      {hasPin && <IdleLock />}
+    </SidebarProvider>
+  );
+```
+
+- [ ] **Step 7: Typecheck + commit**
+
+Run: `pnpm --filter web typecheck` → 0 errors (IdleLock, sidebar `hasPin`, and the layout all resolve now).
 
 ```bash
-git add apps/web/components/dashboard/idle-lock.tsx apps/web/components/dashboard/app-sidebar.tsx apps/web/components/dashboard/__tests__/idle-lock.test.tsx
-git commit -m "feat(pin): IdleLock idle-timeout + manual Lock button (shown when PIN set)"
+git add apps/web/components/dashboard/idle-lock.tsx apps/web/components/dashboard/app-sidebar.tsx apps/web/components/dashboard/__tests__/idle-lock.test.tsx "apps/web/app/(dashboard)/dashboard/layout.tsx"
+git commit -m "feat(pin): IdleLock idle-timeout + manual Lock button + layout lock enforcement"
 ```
 
 ---
