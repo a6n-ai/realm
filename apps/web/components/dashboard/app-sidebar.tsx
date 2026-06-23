@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   ClipboardListIcon,
   LayoutDashboardIcon,
+  LockIcon,
   LogOutIcon,
   type LucideIcon,
   PackageIcon,
@@ -15,6 +16,7 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
+import { lockSession } from "@/lib/auth/lock-actions";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -79,7 +81,7 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export function AppSidebar({ user }: { user: { email: string; role: string } }) {
+export function AppSidebar({ user, hasPin }: { user: { email: string; role: string }; hasPin: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const initials = user.email.slice(0, 2).toUpperCase();
@@ -148,6 +150,17 @@ export function AppSidebar({ user }: { user: { email: string; role: string } }) 
                 <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  {hasPin && (
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        await lockSession();
+                        router.push("/lock");
+                      }}
+                    >
+                      <LockIcon data-icon="inline-start" />
+                      Lock
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/login"); } } })}>
                     <LogOutIcon data-icon="inline-start" />
                     Sign out
