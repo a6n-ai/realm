@@ -22,6 +22,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     password: betterAuthPassword,
+    minPasswordLength: 8,
+    maxPasswordLength: 256,
+    requireEmailVerification: false, // customers are phone-first; email optional
+    resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
       console.info(`[auth] password reset for ${user.email ?? user.id}: ${url}`);
     },

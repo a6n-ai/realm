@@ -7,3 +7,4 @@ export * from "./util/code";
 export * from "./util/dates";
 export * from "./util/zoned-time";
 export * from "./util/contact";
+export * from "./util/password";
