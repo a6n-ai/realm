@@ -49,6 +49,17 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return super.update(userId, patch);
   }
 
+  async updateProfile(userId: string, input: { name?: string | null; image?: string | null }) {
+    const patch: { name?: string | null; image?: string | null } = {};
+    if (input.name !== undefined) {
+      const name = (input.name ?? "").trim();
+      if (name.length > 120) throw new ValidationError("Name is too long");
+      patch.name = name === "" ? null : name;
+    }
+    if (input.image !== undefined) patch.image = input.image;
+    return super.update(userId, patch);
+  }
+
   private async assertFree(userId: string, field: "phone" | "email", value: string) {
     const col = field === "phone" ? users.phone : users.email;
     const [clash] = await db
