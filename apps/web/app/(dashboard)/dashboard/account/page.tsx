@@ -37,6 +37,7 @@ export default async function AccountPage() {
         email={user.email ?? ""}
         emailVerified={user.emailVerified ?? false}
         defaultCountry={defaultCountry}
+        hasPin={Boolean(user.pinHash)}
       />
     </PageShell>
   );

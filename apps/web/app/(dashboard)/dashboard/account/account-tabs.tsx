@@ -9,6 +9,7 @@ import { AccountForm } from "./account-form";
 import { ResendVerification } from "./resend-verification";
 import { ChangePasswordForm } from "./change-password-form";
 import { SignOutButton } from "./sign-out-button";
+import { PinSection } from "./pin-section";
 
 interface AccountTabsProps {
   image: string | null;
@@ -17,6 +18,7 @@ interface AccountTabsProps {
   email: string;
   emailVerified: boolean;
   defaultCountry: CountryCode;
+  hasPin: boolean;
 }
 
 export function AccountTabs({
@@ -26,6 +28,7 @@ export function AccountTabs({
   email,
   emailVerified,
   defaultCountry,
+  hasPin,
 }: AccountTabsProps) {
   return (
     <Tabs defaultValue="profile">
@@ -59,6 +62,7 @@ export function AccountTabs({
 
       <TabsContent value="security" className="mt-4 flex flex-col gap-6">
         <ChangePasswordForm />
+        <PinSection hasPin={hasPin} />
         <div className="flex flex-col gap-3">
           <p className="text-muted-foreground text-sm">Sign out of your account on this device.</p>
           <SignOutButton />
