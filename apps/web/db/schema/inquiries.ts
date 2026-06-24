@@ -1,27 +1,42 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
 import { sql } from "drizzle-orm";
-import { bigint, index, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, date, index, integer, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
+import { leadSources, leadSubsources } from "./lead-sources";
+import { deliveryZones } from "./catalog";
 
 export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "follow_up", "converted", "lost"]);
-export const inquirySource = pgEnum("inquiry_source", ["website", "facebook", "google", "manual", "referral"]);
-export const inquiryActivityType = pgEnum("inquiry_activity_type", ["created", "note", "stage_change", "converted"]);
+export const inquiryActivityType = pgEnum("inquiry_activity_type", [
+  "created", "note", "stage_change", "converted", "call", "whatsapp", "email",
+]);
+export const inquiryLostReason = pgEnum("inquiry_lost_reason", [
+  "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other",
+]);
 
 export const inquiries = pgTable("inquiries", {
   ...updatableColumns("inq"),
   fullName: text("full_name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
-  source: inquirySource("source").notNull().default("manual"),
+  sourceId: bigint("source_id", { mode: "bigint" }).notNull().references(() => leadSources.id),
+  subSourceId: bigint("sub_source_id", { mode: "bigint" }).references(() => leadSubsources.id),
   stage: inquiryStage("stage").notNull().default("new"),
-  assignedTo: bigint("assigned_to", { mode: "bigint" }).references(() => users.id),
+  currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
-  prefs: jsonb("prefs"),
+  planInterest: text("plan_interest"),
+  mealSizeInterest: text("meal_size_interest"),
+  personsInterest: integer("persons_interest"),
+  postalCode: text("postal_code"),
+  zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
+  preferredStart: date("preferred_start"),
+  quotedPrice: numeric("quoted_price", { precision: 10, scale: 2 }),
+  lostReason: inquiryLostReason("lost_reason"),
   notes: text("notes"),
 }, (t) => [
   index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
   index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
+  index("inquiries_owner_idx").on(t.currentOwner),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
@@ -29,6 +44,8 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   inquiryId: bigint("inquiry_id", { mode: "bigint" }).notNull().references(() => inquiries.id, { onDelete: "cascade" }),
   type: inquiryActivityType("type").notNull(),
   note: text("note"),
+  outcome: text("outcome"),
+  nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   fromStage: inquiryStage("from_stage"),
   toStage: inquiryStage("to_stage"),
 });
