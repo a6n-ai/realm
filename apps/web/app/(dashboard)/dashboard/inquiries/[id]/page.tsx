@@ -38,7 +38,6 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         icon={ClipboardListIcon}
         title={inq.fullName}
-        breadcrumbOverrides={{ [inq.publicId]: inq.fullName }}
       />
 
       <SectionCard title="Details">

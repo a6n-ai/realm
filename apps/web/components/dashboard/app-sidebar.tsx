@@ -29,6 +29,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -41,12 +42,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
-type NavSection = { label: string; items: NavItem[] };
+export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
+export type NavSection = { label: string; items: NavItem[] };
 
 // Grouped navigation. A section renders only when the current user's role
-// matches at least one of its items.
-const SECTIONS: NavSection[] = [
+// matches at least one of its items. Exported so the command palette reuses it.
+export const SECTIONS: NavSection[] = [
   {
     label: "Operations",
     items: [
@@ -89,13 +90,13 @@ export function AppSidebar({ user, hasPin }: { user: { email: string; role: stri
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/dashboard" className="group flex items-center gap-2 px-2 py-1.5">
-          <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md">
+          <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
             <UtensilsCrossedIcon className="icon-pop size-4" />
           </div>
-          <div className="flex flex-col leading-tight">
+          <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold">Tiffin Grab</span>
             <span className="text-muted-foreground text-xs">Operations</span>
           </div>
@@ -171,6 +172,7 @@ export function AppSidebar({ user, hasPin }: { user: { email: string; role: stri
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

@@ -20,7 +20,7 @@ export default async function Customer360Page({ params }: { params: Promise<{ id
 
   return (
     <PageShell>
-      <PageHeader icon={UsersIcon} title={data.profile.email ?? data.profile.publicId} breadcrumbOverrides={{ [data.profile.publicId]: data.profile.email ?? data.profile.publicId }} />
+      <PageHeader icon={UsersIcon} title={data.profile.email ?? data.profile.publicId} />
 
       <SectionCard title="Profile">
         <p className="text-sm text-muted-foreground">{data.profile.phone ?? "no phone"} · {data.profile.email ?? "no email"}</p>

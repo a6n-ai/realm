@@ -29,7 +29,6 @@ export default async function AgentOrderPage({ params }: { params: Promise<{ id:
       <PageHeader
         icon={ClipboardListIcon}
         title="New order"
-        breadcrumbOverrides={{ [inq.publicId]: inq.fullName }}
       />
       <SectionCard title={`Order for ${inq.fullName}`}>
         <OrderForm

@@ -50,7 +50,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <PageShell>
-      <PageHeader icon={PackageIcon} title={order.fullName} breadcrumbOverrides={{ [order.publicId]: order.fullName }} />
+      <PageHeader icon={PackageIcon} title={order.fullName} />
 
       <SectionCard title="Summary">
         <div className="space-y-2 text-sm">

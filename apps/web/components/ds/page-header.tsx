@@ -1,23 +1,19 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Breadcrumbs } from "./breadcrumbs";
 
 export function PageHeader({
   icon: Icon,
   title,
   subtitle,
-  breadcrumbOverrides,
   actions,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
-  breadcrumbOverrides?: Record<string, string>;
   actions?: ReactNode;
 }) {
   return (
     <div className="space-y-3">
-      <Breadcrumbs overrides={breadcrumbOverrides} />
       <div className="flex items-start justify-between gap-4">
         <div className="group flex items-center gap-3">
           <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
