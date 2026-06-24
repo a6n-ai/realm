@@ -12,6 +12,7 @@ export const orderActivityType = pgEnum("order_activity_type", [
 export const orders = pgTable("orders", {
   ...updatableColumns("ord"),
   userId: bigint("user_id", { mode: "bigint" }).references(() => users.id),
+  currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
   planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
   mealSizeId: bigint("meal_size_id", { mode: "bigint" }).notNull().references(() => mealSizes.id),
   frequencyId: bigint("frequency_id", { mode: "bigint" }).notNull().references(() => deliveryFrequencies.id),
