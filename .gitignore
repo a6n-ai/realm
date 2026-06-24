@@ -47,3 +47,6 @@ apps/web/public/uploads/*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# graphify knowledge-graph artifacts
+graphify-out/
