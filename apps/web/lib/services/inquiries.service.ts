@@ -91,7 +91,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
     const actorPublicId = (await getSession())?.user?.id ?? null;
-    const result = await createOrder(orderInput, { actorId: actorPublicId });
+    const result = await createOrder(
+      { ...orderInput, currentOwner: inq.currentOwner },
+      { actorId: actorPublicId },
+    );
     const [order] = await db
       .select({ id: orders.id })
       .from(orders)

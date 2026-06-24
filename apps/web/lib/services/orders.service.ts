@@ -18,6 +18,10 @@ export interface CreateOrderInput {
   selections: PricingSelections;
   planKey: string;
   contact: { fullName: string; phone: string; email?: string; addressLine: string; city: string; postalCode: string };
+  // Internal users.id of the lead owner to carry onto the order (set by the
+  // convert flow so the order inherits the inquiry's currentOwner). Null/omitted
+  // for ordinary checkout.
+  currentOwner?: bigint | null;
 }
 
 export interface CreateOrderOptions {
@@ -142,6 +146,7 @@ export async function createOrder(
         addressLine: input.contact.addressLine,
         city: input.contact.city,
         postalCode: input.contact.postalCode,
+        currentOwner: input.currentOwner ?? null,
         createdBy,
       })
       .returning({ id: orders.id, publicId: orders.publicId });

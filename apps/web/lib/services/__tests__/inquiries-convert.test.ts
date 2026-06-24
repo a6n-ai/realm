@@ -31,7 +31,8 @@ describe("inquiriesService.convert", () => {
       .values({ name: "Agent Staff", role: "member" })
       .returning({ publicId: users.publicId });
     session.user = { id: staff.publicId, role: "member" };
-    const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", source: "google" });
+    const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", sourceKey: "manual" });
+    const [inqRow] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     const { deploymentId } = await inquiriesService.convert(inq.publicId, {
       planKey: plan.key,
       selections: {
@@ -53,6 +54,8 @@ describe("inquiriesService.convert", () => {
     expect(row.convertedOrderId).toBe(order.id);
     expect(order.publicId).toMatch(/^ord_/);
     expect(order.createdBy).not.toBeNull();
+    expect(inqRow.currentOwner).not.toBeNull();
+    expect(order.currentOwner).toBe(inqRow.currentOwner);
     const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts.some((a) => a.type === "converted")).toBe(true);
   });

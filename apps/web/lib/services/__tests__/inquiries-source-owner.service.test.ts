@@ -37,7 +37,13 @@ describe("inquiriesService source + owner resolution", () => {
   });
 
   it("inbound source with no actor falls back to the system user", async () => {
-    const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+    let [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+    if (!sys) {
+      [sys] = await db
+        .insert(users)
+        .values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true })
+        .returning({ id: users.id });
+    }
     const inq = await inquiriesService.create({ fullName: "Lead W", phone: "+16475552002", sourceKey: "website" });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.currentOwner).toBe(sys.id);
