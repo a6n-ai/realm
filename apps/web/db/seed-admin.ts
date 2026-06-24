@@ -29,7 +29,20 @@ async function seedStaff(email: string, password: string, name: string, role: "a
   console.log(`Seeded ${role}: ${email} / ${password}`);
 }
 
+async function seedSystemUser() {
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+  if (existing) { console.log("system user already exists"); return; }
+  await db.insert(users).values({
+    name: "System",
+    email: "system@tiffingrab.internal",
+    role: "admin",
+    isSystem: true,
+  });
+  console.log("Seeded system user (no login)");
+}
+
 async function main() {
+  await seedSystemUser();
   await seedStaff(ADMIN_EMAIL, ADMIN_PASSWORD, "Tiffin Admin", "admin");
   await seedStaff(MEMBER_EMAIL, MEMBER_PASSWORD, "Sales Agent", "member");
   process.exit(0);
