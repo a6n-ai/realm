@@ -52,13 +52,14 @@ export class SessionBaseService<TTable extends PgTable> extends BaseService<TTab
   }
 
   async create(values: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    const row = await super.create(values);
+    const actorId = await this.currentUserId();
+    const row = await super.create({ ...values, createdBy: actorId });
     await recordAudit({
       entity: this.repo.tableName,
       entityPublicId: (row as { publicId: string }).publicId,
       operation: "create",
       changes: stripManaged(values),
-      createdBy: await this.currentUserId(),
+      createdBy: actorId,
     });
     return row;
   }
@@ -82,13 +83,14 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
   }
 
   async create(values: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    const row = await super.create(values);
+    const actorId = await this.currentUserId();
+    const row = await super.create({ ...values, createdBy: actorId });
     await recordAudit({
       entity: this.repo.tableName,
       entityPublicId: (row as { publicId: string }).publicId,
       operation: "create",
       changes: stripManaged(values),
-      createdBy: await this.currentUserId(),
+      createdBy: actorId,
     });
     return row;
   }
@@ -98,13 +100,14 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
   }
 
   async update(publicId: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
-    const row = await super.update(publicId, patch);
+    const actorId = await this.currentUserId();
+    const row = await super.update(publicId, { ...patch, updatedBy: actorId });
     await recordAudit({
       entity: this.repo.tableName,
       entityPublicId: (row as { publicId: string }).publicId,
       operation: "update",
       changes: this.auditChanges(patch),
-      createdBy: await this.currentUserId(),
+      createdBy: actorId,
     });
     return row;
   }
