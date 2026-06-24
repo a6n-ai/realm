@@ -2,7 +2,7 @@ import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, orders } from "@/db/schema";
+import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
@@ -10,15 +10,52 @@ import { createOrder, type CreateOrderInput } from "./orders.service";
 type Stage = (typeof inquiries.stage.enumValues)[number];
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
+  private async resolveSource(sourceKey: string, subSourceKey?: string) {
+    const [src] = await db
+      .select({ id: leadSources.id, isInbound: leadSources.isInbound })
+      .from(leadSources)
+      .where(eq(leadSources.key, sourceKey))
+      .limit(1);
+    if (!src) throw new ValidationError(`Unknown lead source: ${sourceKey}`);
+    let subSourceId: bigint | null = null;
+    if (subSourceKey) {
+      const [sub] = await db
+        .select({ id: leadSubsources.id })
+        .from(leadSubsources)
+        .where(eq(leadSubsources.key, subSourceKey))
+        .limit(1);
+      subSourceId = sub?.id ?? null;
+    }
+    return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
+  }
+
+  private async resolveOwner(isInbound: boolean): Promise<bigint | null> {
+    if (!isInbound) return this.currentUserId();
+    const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+    return sys?.id ?? null;
+  }
+
   async create(values: Record<string, unknown>) {
     const parsedPhone = phoneSchema().safeParse(values.phone);
     if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
     const parsedEmail = values.email ? emailSchema.safeParse(values.email) : null;
     if (parsedEmail && !parsedEmail.success) throw new ValidationError("Enter a valid email");
+
+    const { sourceKey, subSourceKey, ...rest } = values as {
+      sourceKey: string;
+      subSourceKey?: string;
+      [k: string]: unknown;
+    };
+    const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
+    const currentOwner = await this.resolveOwner(isInbound);
+
     const inq = await super.create({
-      ...values,
+      ...rest,
       phone: parsedPhone.data,
       ...(parsedEmail ? { email: parsedEmail.data } : {}),
+      sourceId,
+      subSourceId,
+      currentOwner,
     });
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
