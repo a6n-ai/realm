@@ -1,7 +1,7 @@
 import { desc, eq, or, sql } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { inquiries, orders, users } from "@/db/schema";
+import { inquiries, leadSources, orders, users } from "@/db/schema";
 
 export async function getCustomer360(userPublicId: string) {
   const [user] = await db
@@ -35,10 +35,11 @@ export async function getCustomer360(userPublicId: string) {
           publicId: inquiries.publicId,
           fullName: inquiries.fullName,
           stage: inquiries.stage,
-          source: inquiries.source,
+          source: leadSources.label,
           createdAt: inquiries.createdAt,
         })
         .from(inquiries)
+        .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
         .where(or(...matchConds))
         .orderBy(desc(inquiries.createdAt))
     : [];

@@ -1,8 +1,8 @@
-import { count, desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
 import { tzToDefaultCountry } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { inquiries } from "@/db/schema";
+import { inquiries, leadSources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,19 @@ export default async function InquiriesPage() {
     getAppSettings(),
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
-    db.select().from(inquiries).orderBy(desc(inquiries.createdAt)).limit(500),
+    db
+      .select({
+        publicId: inquiries.publicId,
+        fullName: inquiries.fullName,
+        phone: inquiries.phone,
+        source: leadSources.label,
+        stage: inquiries.stage,
+        createdAt: inquiries.createdAt,
+      })
+      .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .orderBy(desc(inquiries.createdAt))
+      .limit(500),
   ]);
 
   const defaultCountry = tzToDefaultCountry(timezone);

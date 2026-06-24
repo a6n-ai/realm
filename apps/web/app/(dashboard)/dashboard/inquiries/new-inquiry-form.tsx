@@ -38,7 +38,7 @@ export function AddInquirySheet({ trigger, defaultCountry }: { trigger: React.Re
   const [open, setOpen] = useState(false);
   const form = useForm<InquiryFormValues>({
     resolver: zodResolver(inquiryFormSchema),
-    defaultValues: { fullName: "", phone: "", email: "", source: "manual", notes: "" },
+    defaultValues: { fullName: "", phone: "", email: "", sourceKey: "manual", notes: "" },
   });
 
   async function onSubmit(values: InquiryFormValues) {
@@ -47,7 +47,7 @@ export function AddInquirySheet({ trigger, defaultCountry }: { trigger: React.Re
         fullName: values.fullName,
         phone: values.phone,
         email: values.email || undefined,
-        source: values.source,
+        sourceKey: values.sourceKey,
         notes: values.notes || undefined,
       });
       form.reset();
@@ -110,7 +110,7 @@ export function AddInquirySheet({ trigger, defaultCountry }: { trigger: React.Re
               />
               <FormField
                 control={form.control}
-                name="source"
+                name="sourceKey"
                 render={({ field }) => (
                   <FormItem className="grid gap-2">
                     <FormLabel>Source</FormLabel>

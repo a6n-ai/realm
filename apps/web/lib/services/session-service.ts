@@ -32,13 +32,23 @@ export type AuditEntry = {
 // Best-effort persistent audit write. Raw insert (the logger cannot log through
 // the audited service path), wrapped so an audit failure never breaks the
 // caller's operation.
+// jsonb columns go through JSON.stringify, which throws on bigint values
+// (resolved FK ids like sourceId/currentOwner). Coerce bigints to strings so an
+// audit blob carrying ids never fails the write.
+function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (value == null) return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) out[k] = typeof v === "bigint" ? v.toString() : v;
+  return out;
+}
+
 export async function recordAudit(entry: AuditEntry): Promise<void> {
   try {
     await db.insert(auditLog).values({
       entity: entry.entity,
       entityPublicId: entry.entityPublicId,
       operation: entry.operation,
-      changes: entry.changes,
+      changes: jsonSafe(entry.changes),
       createdBy: entry.createdBy,
     });
   } catch (err) {

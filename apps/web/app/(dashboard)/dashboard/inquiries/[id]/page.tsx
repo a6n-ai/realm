@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClipboardListIcon } from "lucide-react";
+import { eq } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
+import { db } from "@/db/client";
+import { leadSources } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
@@ -31,6 +34,11 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
     throw e;
   }
   const activities = await inquiriesService.listActivities(id);
+  const [source] = await db
+    .select({ label: leadSources.label })
+    .from(leadSources)
+    .where(eq(leadSources.id, inq.sourceId))
+    .limit(1);
   const converted = inq.stage === "converted";
 
   return (
@@ -51,7 +59,7 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
                 <Link href={`/dashboard/inquiries/${inq.publicId}/order`}>Create order</Link>
               </Button>
             )}
-            <Badge variant="secondary" className="ml-auto capitalize">{inq.source}</Badge>
+            <Badge variant="secondary" className="ml-auto capitalize">{source?.label}</Badge>
           </div>
           <p className="text-muted-foreground text-sm">{inq.phone}{inq.email ? ` · ${inq.email}` : ""}</p>
           {inq.notes ? (

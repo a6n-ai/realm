@@ -19,7 +19,7 @@ describe("audit logging via the intermediate layer (integration)", () => {
   afterAll(reset);
 
   it("writes a create audit row when a service creates an entity", async () => {
-    const inq = await inquiriesService.create({ fullName: "Aud Test", phone: "+16475550000", source: "manual" });
+    const inq = await inquiriesService.create({ fullName: "Aud Test", phone: "+16475550000", sourceKey: "manual" });
     const rows = await db.select().from(auditLog).where(eq(auditLog.entityPublicId, inq.publicId));
     const created = rows.find((r) => r.operation === "create");
     expect(created).toBeTruthy();
@@ -28,7 +28,7 @@ describe("audit logging via the intermediate layer (integration)", () => {
   });
 
   it("writes an update audit row when a service updates an entity", async () => {
-    const inq = await inquiriesService.create({ fullName: "Up Test", phone: "+16475550001", source: "manual" });
+    const inq = await inquiriesService.create({ fullName: "Up Test", phone: "+16475550001", sourceKey: "manual" });
     await db.delete(auditLog);
     await inquiriesService.changeStage(inq.publicId, "contacted");
     const updates = await db.select().from(auditLog)

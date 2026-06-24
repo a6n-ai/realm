@@ -42,9 +42,8 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
     fullName,
     phone,
     email,
-    source: "website",
+    sourceKey: "website",
     notes: input.message?.trim() || null,
-    prefs: { servedZone, waitlisted },
   });
 
   return { ok: true, waitlisted };
