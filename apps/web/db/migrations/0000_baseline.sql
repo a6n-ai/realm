@@ -20,8 +20,8 @@ CREATE TYPE "public"."plan_type" AS ENUM('tiffin', 'healthy');--> statement-brea
 CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('pending', 'active', 'waitlisted', 'cancelled', 'paused');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('simulated_paid');--> statement-breakpoint
-CREATE TYPE "public"."inquiry_activity_type" AS ENUM('created', 'note', 'stage_change', 'converted');--> statement-breakpoint
-CREATE TYPE "public"."inquiry_source" AS ENUM('website', 'facebook', 'google', 'manual', 'referral');--> statement-breakpoint
+CREATE TYPE "public"."inquiry_activity_type" AS ENUM('created', 'note', 'stage_change', 'converted', 'call', 'whatsapp', 'email');--> statement-breakpoint
+CREATE TYPE "public"."inquiry_lost_reason" AS ENUM('price', 'out_of_zone', 'no_response', 'chose_competitor', 'not_ready', 'other');--> statement-breakpoint
 CREATE TYPE "public"."inquiry_stage" AS ENUM('new', 'contacted', 'follow_up', 'converted', 'lost');--> statement-breakpoint
 CREATE TYPE "public"."day_of_week" AS ENUM('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun');--> statement-breakpoint
 CREATE TYPE "public"."dish_diet" AS ENUM('veg', 'nonveg');--> statement-breakpoint
@@ -90,6 +90,9 @@ CREATE TABLE "users" (
 	"role" "user_role" DEFAULT 'user' NOT NULL,
 	"pin_hash" text,
 	"pin_attempts" integer DEFAULT 0 NOT NULL,
+	"accepts_leads" boolean DEFAULT false NOT NULL,
+	"in_default_pool" boolean DEFAULT false NOT NULL,
+	"is_system" boolean DEFAULT false NOT NULL,
 	"bauth_created_at" timestamp DEFAULT now() NOT NULL,
 	"bauth_updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_public_id_unique" UNIQUE("public_id")
@@ -256,6 +259,7 @@ CREATE TABLE "orders" (
 	"updated_at" bigint NOT NULL,
 	"updated_by" bigint,
 	"user_id" bigint,
+	"current_owner" bigint,
 	"plan_id" bigint NOT NULL,
 	"meal_size_id" bigint NOT NULL,
 	"frequency_id" bigint NOT NULL,
@@ -303,11 +307,19 @@ CREATE TABLE "inquiries" (
 	"full_name" text NOT NULL,
 	"phone" text NOT NULL,
 	"email" text,
-	"source" "inquiry_source" DEFAULT 'manual' NOT NULL,
+	"source_id" bigint NOT NULL,
+	"sub_source_id" bigint,
 	"stage" "inquiry_stage" DEFAULT 'new' NOT NULL,
-	"assigned_to" bigint,
+	"current_owner" bigint,
 	"converted_order_id" bigint,
-	"prefs" jsonb,
+	"plan_interest" text,
+	"meal_size_interest" text,
+	"persons_interest" integer,
+	"postal_code" text,
+	"zone_id" bigint,
+	"preferred_start" date,
+	"quoted_price" numeric(10, 2),
+	"lost_reason" "inquiry_lost_reason",
 	"notes" text,
 	CONSTRAINT "inquiries_public_id_unique" UNIQUE("public_id")
 );
@@ -320,9 +332,40 @@ CREATE TABLE "inquiry_activities" (
 	"inquiry_id" bigint NOT NULL,
 	"type" "inquiry_activity_type" NOT NULL,
 	"note" text,
+	"outcome" text,
+	"next_follow_up_at" bigint,
 	"from_stage" "inquiry_stage",
 	"to_stage" "inquiry_stage",
 	CONSTRAINT "inquiry_activities_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
+CREATE TABLE "lead_sources" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"key" text NOT NULL,
+	"label" text NOT NULL,
+	"is_inbound" boolean DEFAULT true NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	CONSTRAINT "lead_sources_public_id_unique" UNIQUE("public_id"),
+	CONSTRAINT "lead_sources_key_unique" UNIQUE("key")
+);
+--> statement-breakpoint
+CREATE TABLE "lead_subsources" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"source_id" bigint NOT NULL,
+	"key" text NOT NULL,
+	"label" text NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	CONSTRAINT "lead_subsources_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
 CREATE TABLE "dishes" (
@@ -432,14 +475,19 @@ ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_user_id_user
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_flag_id_feature_flags_id_fk" FOREIGN KEY ("flag_id") REFERENCES "public"."feature_flags"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_activities" ADD CONSTRAINT "order_activities_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_current_owner_users_id_fk" FOREIGN KEY ("current_owner") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_meal_size_id_meal_sizes_id_fk" FOREIGN KEY ("meal_size_id") REFERENCES "public"."meal_sizes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_frequency_id_delivery_frequencies_id_fk" FOREIGN KEY ("frequency_id") REFERENCES "public"."delivery_frequencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_zone_id_delivery_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."delivery_zones"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payments" ADD CONSTRAINT "payments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_assigned_to_users_id_fk" FOREIGN KEY ("assigned_to") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_sub_source_id_lead_subsources_id_fk" FOREIGN KEY ("sub_source_id") REFERENCES "public"."lead_subsources"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_current_owner_users_id_fk" FOREIGN KEY ("current_owner") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_converted_order_id_orders_id_fk" FOREIGN KEY ("converted_order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inquiries" ADD CONSTRAINT "inquiries_zone_id_delivery_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."delivery_zones"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiry_activities" ADD CONSTRAINT "inquiry_activities_inquiry_id_inquiries_id_fk" FOREIGN KEY ("inquiry_id") REFERENCES "public"."inquiries"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "lead_subsources" ADD CONSTRAINT "lead_subsources_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_menu_week_id_menu_weeks_id_fk" FOREIGN KEY ("menu_week_id") REFERENCES "public"."menu_weeks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_dish_id_dishes_id_fk" FOREIGN KEY ("dish_id") REFERENCES "public"."dishes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -452,5 +500,7 @@ CREATE UNIQUE INDEX "users_phone_unique" ON "users" USING btree ("phone") WHERE 
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "inquiries_phone_lower_idx" ON "inquiries" USING btree (lower("phone"));--> statement-breakpoint
 CREATE INDEX "inquiries_email_lower_idx" ON "inquiries" USING btree (lower("email"));--> statement-breakpoint
+CREATE INDEX "inquiries_owner_idx" ON "inquiries" USING btree ("current_owner");--> statement-breakpoint
+CREATE INDEX "lead_subsources_source_idx" ON "lead_subsources" USING btree ("source_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index");--> statement-breakpoint
 CREATE UNIQUE INDEX "menu_items_unique" ON "menu_items" USING btree ("menu_week_id","day_of_week","slot","dish_id");

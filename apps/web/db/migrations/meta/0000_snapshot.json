@@ -1,5 +1,5 @@
 {
-  "id": "11469fda-77b9-4a50-8dd0-f6f98c566f9a",
+  "id": "b9c40825-db35-466d-97c3-a011a3ca2a54",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -446,6 +446,27 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "accepts_leads": {
+          "name": "accepts_leads",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "in_default_pool": {
+          "name": "in_default_pool",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_system": {
+          "name": "is_system",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "bauth_created_at": {
           "name": "bauth_created_at",
@@ -1542,6 +1563,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "current_owner": {
+          "name": "current_owner",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "plan_id": {
           "name": "plan_id",
           "type": "bigint",
@@ -1689,6 +1716,19 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "orders_current_owner_users_id_fk": {
+          "name": "orders_current_owner_users_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "users",
+          "columnsFrom": [
+            "current_owner"
           ],
           "columnsTo": [
             "id"
@@ -1909,13 +1949,17 @@
           "primaryKey": false,
           "notNull": false
         },
-        "source": {
-          "name": "source",
-          "type": "inquiry_source",
-          "typeSchema": "public",
+        "source_id": {
+          "name": "source_id",
+          "type": "bigint",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'manual'"
+          "notNull": true
+        },
+        "sub_source_id": {
+          "name": "sub_source_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "stage": {
           "name": "stage",
@@ -1925,8 +1969,8 @@
           "notNull": true,
           "default": "'new'"
         },
-        "assigned_to": {
-          "name": "assigned_to",
+        "current_owner": {
+          "name": "current_owner",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
@@ -1937,9 +1981,52 @@
           "primaryKey": false,
           "notNull": false
         },
-        "prefs": {
-          "name": "prefs",
-          "type": "jsonb",
+        "plan_interest": {
+          "name": "plan_interest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meal_size_interest": {
+          "name": "meal_size_interest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "persons_interest": {
+          "name": "persons_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postal_code": {
+          "name": "postal_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone_id": {
+          "name": "zone_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_start": {
+          "name": "preferred_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quoted_price": {
+          "name": "quoted_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lost_reason": {
+          "name": "lost_reason",
+          "type": "inquiry_lost_reason",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -1980,15 +2067,56 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "inquiries_owner_idx": {
+          "name": "inquiries_owner_idx",
+          "columns": [
+            {
+              "expression": "current_owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "inquiries_assigned_to_users_id_fk": {
-          "name": "inquiries_assigned_to_users_id_fk",
+        "inquiries_source_id_lead_sources_id_fk": {
+          "name": "inquiries_source_id_lead_sources_id_fk",
+          "tableFrom": "inquiries",
+          "tableTo": "lead_sources",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inquiries_sub_source_id_lead_subsources_id_fk": {
+          "name": "inquiries_sub_source_id_lead_subsources_id_fk",
+          "tableFrom": "inquiries",
+          "tableTo": "lead_subsources",
+          "columnsFrom": [
+            "sub_source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inquiries_current_owner_users_id_fk": {
+          "name": "inquiries_current_owner_users_id_fk",
           "tableFrom": "inquiries",
           "tableTo": "users",
           "columnsFrom": [
-            "assigned_to"
+            "current_owner"
           ],
           "columnsTo": [
             "id"
@@ -2002,6 +2130,19 @@
           "tableTo": "orders",
           "columnsFrom": [
             "converted_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "inquiries_zone_id_delivery_zones_id_fk": {
+          "name": "inquiries_zone_id_delivery_zones_id_fk",
+          "tableFrom": "inquiries",
+          "tableTo": "delivery_zones",
+          "columnsFrom": [
+            "zone_id"
           ],
           "columnsTo": [
             "id"
@@ -2072,6 +2213,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "next_follow_up_at": {
+          "name": "next_follow_up_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "from_stage": {
           "name": "from_stage",
           "type": "inquiry_stage",
@@ -2107,6 +2260,210 @@
       "uniqueConstraints": {
         "inquiry_activities_public_id_unique": {
           "name": "inquiry_activities_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lead_sources": {
+      "name": "lead_sources",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_inbound": {
+          "name": "is_inbound",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "lead_sources_public_id_unique": {
+          "name": "lead_sources_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        },
+        "lead_sources_key_unique": {
+          "name": "lead_sources_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lead_subsources": {
+      "name": "lead_subsources",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "lead_subsources_source_idx": {
+          "name": "lead_subsources_source_idx",
+          "columns": [
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lead_subsources_source_id_lead_sources_id_fk": {
+          "name": "lead_subsources_source_id_lead_sources_id_fk",
+          "tableFrom": "lead_subsources",
+          "tableTo": "lead_sources",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "lead_subsources_public_id_unique": {
+          "name": "lead_subsources_public_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "public_id"
@@ -2941,18 +3298,22 @@
         "created",
         "note",
         "stage_change",
-        "converted"
+        "converted",
+        "call",
+        "whatsapp",
+        "email"
       ]
     },
-    "public.inquiry_source": {
-      "name": "inquiry_source",
+    "public.inquiry_lost_reason": {
+      "name": "inquiry_lost_reason",
       "schema": "public",
       "values": [
-        "website",
-        "facebook",
-        "google",
-        "manual",
-        "referral"
+        "price",
+        "out_of_zone",
+        "no_response",
+        "chose_competitor",
+        "not_ready",
+        "other"
       ]
     },
     "public.inquiry_stage": {
