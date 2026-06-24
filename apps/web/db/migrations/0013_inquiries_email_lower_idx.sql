@@ -1,1 +1,0 @@
-CREATE INDEX "inquiries_email_lower_idx" ON "inquiries" USING btree (lower("email"));
