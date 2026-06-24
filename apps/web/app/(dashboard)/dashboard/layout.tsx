@@ -45,7 +45,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <Breadcrumbs />
           <div className="ml-auto flex items-center gap-1">
             <GlobalSearch role={role} />
-            {hasPin && <LockButton />}
+            <LockButton hasPin={hasPin} />
             <ModeToggle />
           </div>
         </header>
