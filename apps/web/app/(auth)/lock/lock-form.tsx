@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PinOtp } from "@/components/pin-otp";
 import { verifyPinAction } from "./actions";
 
 export function LockForm() {
@@ -13,11 +13,10 @@ export function LockForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function verify(value: string) {
     setPending(true);
     setError(null);
-    const res = await verifyPinAction(pin);
+    const res = await verifyPinAction(value);
     if (res.ok) {
       router.push("/dashboard");
       router.refresh();
@@ -33,20 +32,17 @@ export function LockForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <Input
-        type="password"
-        inputMode="numeric"
-        autoComplete="off"
-        maxLength={4}
-        autoFocus
+    <form onSubmit={(e) => { e.preventDefault(); verify(pin); }} className="flex flex-col items-center gap-3">
+      <PinOtp
         value={pin}
-        onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-        className="text-center text-2xl tracking-[0.5em]"
+        onChange={setPin}
+        onComplete={verify}
+        autoFocus
+        disabled={pending}
         aria-label="PIN"
       />
       {error && <p className="text-destructive text-sm">{error}</p>}
-      <Button type="submit" disabled={pending || pin.length !== 4}>
+      <Button type="submit" disabled={pending || pin.length !== 4} className="w-full">
         Unlock
       </Button>
       <button

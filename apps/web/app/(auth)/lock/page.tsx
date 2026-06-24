@@ -8,7 +8,7 @@ export default async function LockPage() {
   if (!session?.user?.id) redirect("/login");
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-sm flex-col justify-center gap-6 p-6">
+    <div className="mx-auto flex max-w-sm flex-col justify-center gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-md">
           <LockIcon className="size-5" />

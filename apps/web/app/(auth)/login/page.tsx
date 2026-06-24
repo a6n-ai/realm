@@ -1,14 +1,23 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { LockIcon } from "lucide-react";
+import { getSession } from "@/lib/auth/session";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await getSession();
   return (
-    <main className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm md:max-w-3xl">
-        <Suspense>
-          <LoginForm />
-        </Suspense>
-      </div>
-    </main>
+    <Suspense>
+      {session?.user ? (
+        <Link
+          href="/lock"
+          className="bg-card text-card-foreground hover:bg-accent mb-4 flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-medium shadow-sm"
+        >
+          <LockIcon className="size-4" />
+          Unlock with your PIN instead
+        </Link>
+      ) : null}
+      <LoginForm />
+    </Suspense>
   );
 }

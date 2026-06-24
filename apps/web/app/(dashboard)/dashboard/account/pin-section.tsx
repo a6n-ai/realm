@@ -11,6 +11,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PinOtp } from "@/components/pin-otp";
 import { setMyPin, removeMyPin } from "./actions";
 
 const setSchema = z
@@ -43,18 +44,15 @@ function PasswordInput<T extends FieldValues, N extends FieldPath<T>>({ field }:
   );
 }
 
-// PIN field: spreads the full RHF field then narrows onChange to digits only.
-function PinInput<T extends FieldValues, N extends FieldPath<T>>({ field }: { field: ControllerRenderProps<T, N> }) {
-  return (
-    <Input
-      {...field}
-      type="password"
-      inputMode="numeric"
-      maxLength={4}
-      autoComplete="off"
-      onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
-    />
-  );
+// PIN field: masked 4-digit OTP wired to the RHF field.
+function PinInput<T extends FieldValues, N extends FieldPath<T>>({
+  field,
+  invalid,
+}: {
+  field: ControllerRenderProps<T, N>;
+  invalid?: boolean;
+}) {
+  return <PinOtp value={field.value} onChange={field.onChange} aria-invalid={invalid} />;
 }
 
 export function PinSection({ hasPin }: { hasPin: boolean }) {
@@ -112,11 +110,11 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
           <FormField
             control={setForm.control}
             name="newPin"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>New PIN</FormLabel>
                 <FormControl>
-                  <PinInput field={field} />
+                  <PinInput field={field} invalid={fieldState.invalid} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -125,11 +123,11 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
           <FormField
             control={setForm.control}
             name="confirm"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Confirm PIN</FormLabel>
                 <FormControl>
-                  <PinInput field={field} />
+                  <PinInput field={field} invalid={fieldState.invalid} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
