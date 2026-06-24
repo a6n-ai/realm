@@ -8,7 +8,6 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
-import { UserMenu } from "@/components/dashboard/user-menu";
 import { Breadcrumbs } from "@/components/ds/breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -38,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <SidebarProvider>
-      <AppSidebar user={{ email, role }} hasPin={hasPin} />
+      <AppSidebar user={{ email, role, name: user.name ?? null, image: user.image ?? null }} hasPin={hasPin} />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
@@ -48,7 +47,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <GlobalSearch role={role} />
             {hasPin && <LockButton />}
             <ModeToggle />
-            <UserMenu user={{ email, role, name: user.name ?? null, image: user.image ?? null }} hasPin={hasPin} />
           </div>
         </header>
         <div className="flex-1 p-6">{children}</div>

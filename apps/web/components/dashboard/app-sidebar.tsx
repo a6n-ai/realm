@@ -40,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };
@@ -82,10 +82,16 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-export function AppSidebar({ user, hasPin }: { user: { email: string; role: string }; hasPin: boolean }) {
+export function AppSidebar({
+  user,
+  hasPin,
+}: {
+  user: { email: string; role: string; name: string | null; image: string | null };
+  hasPin: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
-  const initials = user.email.slice(0, 2).toUpperCase();
+  const initials = (user.name?.trim() || user.email).slice(0, 2).toUpperCase();
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
@@ -139,18 +145,36 @@ export function AppSidebar({ user, hasPin }: { user: { email: string; role: stri
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar className="size-8 rounded-md">
+                    <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} className="rounded-md" />
                     <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col leading-tight">
-                    <span className="truncate text-sm font-medium">{user.email}</span>
+                    <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>
                     <span className="text-muted-foreground text-xs capitalize">{user.role}</span>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
-                <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                <DropdownMenuLabel className="flex flex-col">
+                  <span className="truncate font-medium">{user.name?.trim() || user.email}</span>
+                  <span className="text-muted-foreground truncate text-xs font-normal capitalize">{user.role}</span>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/account">
+                      <UserIcon data-icon="inline-start" />
+                      Account
+                    </Link>
+                  </DropdownMenuItem>
+                  {user.role === "admin" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/settings">
+                        <SettingsIcon data-icon="inline-start" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {hasPin && (
                     <DropdownMenuItem
                       onClick={async () => {
@@ -159,14 +183,15 @@ export function AppSidebar({ user, hasPin }: { user: { email: string; role: stri
                       }}
                     >
                       <LockIcon data-icon="inline-start" />
-                      Lock
+                      Lock session
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/login"); } } })}>
-                    <LogOutIcon data-icon="inline-start" />
-                    Sign out
-                  </DropdownMenuItem>
                 </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/login"); } } })}>
+                  <LogOutIcon data-icon="inline-start" />
+                  Sign out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
