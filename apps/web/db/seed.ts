@@ -1,5 +1,6 @@
 import { db } from "./client";
 import { appSettings, featureFlags } from "./schema";
+import { seedLeadSources } from "./seed-sources";
 
 const FLAGS = [
   { key: "subscription_wizard", label: "Subscription Wizard", description: "Access the plan builder", defaultEnabled: true },
@@ -7,6 +8,7 @@ const FLAGS = [
 ];
 
 async function main() {
+  await seedLeadSources();
   for (const f of FLAGS) {
     await db.insert(featureFlags).values(f).onConflictDoNothing({ target: featureFlags.key });
   }
