@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArchiveIcon, CheckIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon,
+  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon,
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ds";
+import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -129,6 +130,93 @@ function FieldControl({
   );
 }
 
+/**
+ * Live mirror of how a row renders on the customer site. Reuses the real
+ * marketing components (MealCard) and replicates the exact /pricing markup so
+ * the preview can't drift from production. Resources with no public surface say
+ * so honestly instead of inventing a fake look.
+ */
+function num(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function optMacro(v: unknown): number | null {
+  return v === "" || v == null ? null : num(v);
+}
+
+const INTERNAL_PREVIEW: Record<string, string> = {
+  "delivery-zones": "Not shown on the public site. Used to match a customer's postal code to a delivery window.",
+  "pricing-tiers": "Not shown directly. Shapes the per-tiffin rate as order volume increases.",
+  addons: "Not shown on the public site yet. Offered as an order add-on.",
+};
+
+function WebsitePreview({ resource, values }: { resource: string; values: Record<string, unknown> }) {
+  let body: React.ReactNode;
+
+  if (resource === "meal-sizes") {
+    body = (
+      <div className="max-w-xs">
+        <MealCard
+          meal={{
+            id: 0n,
+            publicId: "preview",
+            key: String(values.key ?? ""),
+            name: String(values.name || "Meal name"),
+            tier: (values.tier as "budget" | "medium" | "premium") || "budget",
+            diet: (values.diet as "veg" | "nonveg" | "both") || "veg",
+            components: (values.components as string[]) ?? [],
+            kcalMin: num(values.kcalMin),
+            kcalMax: num(values.kcalMax),
+            proteinG: optMacro(values.proteinG),
+            carbsG: optMacro(values.carbsG),
+            fatG: optMacro(values.fatG),
+            basePrice: num(values.basePrice),
+          }}
+        />
+      </div>
+    );
+  } else if (resource === "plans") {
+    // Mirrors the "Nutrition baselines" card on /pricing.
+    body = (
+      <div className="max-w-xs rounded-lg border p-5">
+        <h3 className="font-medium">{String(values.name || "Plan name")}</h3>
+        {values.description ? <p className="text-muted-foreground mt-1 text-sm">{String(values.description)}</p> : null}
+      </div>
+    );
+  } else if (resource === "delivery-frequencies") {
+    // Mirrors the "Frequencies" list on /pricing.
+    body = (
+      <ul className="text-muted-foreground max-w-xs space-y-1 text-sm">
+        <li className="flex justify-between"><span>{String(values.name || "Frequency")}</span></li>
+      </ul>
+    );
+  } else if (resource === "duration-packages") {
+    // Mirrors the "Commitment" list on /pricing.
+    const w = num(values.weeks);
+    body = (
+      <ul className="text-muted-foreground max-w-xs space-y-1 text-sm">
+        <li className="flex justify-between"><span>{w || "—"} week{w === 1 ? "" : "s"}</span></li>
+      </ul>
+    );
+  } else {
+    body = (
+      <p className="text-muted-foreground flex items-start gap-2 text-sm">
+        <EyeOffIcon className="mt-0.5 size-4 shrink-0" />
+        {INTERNAL_PREVIEW[resource] ?? "Not shown on the public site."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="border-border/70 bg-muted/30 sm:col-span-2 -mx-5 -mb-5 mt-1 border-t px-5 py-4">
+      <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+        Website preview
+      </p>
+      <div className="mt-3">{body}</div>
+    </div>
+  );
+}
+
 function EditorDialog({
   resource, def, options, editing, onClose,
 }: {
@@ -166,6 +254,7 @@ function EditorDialog({
 
   const submitting = form.formState.isSubmitting;
   const keyField = def.fields.find((f) => f.key === "key");
+  const watched = form.watch();
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -196,6 +285,7 @@ function EditorDialog({
                   {form.formState.errors.root.message as string}
                 </p>
               ) : null}
+              <WebsitePreview resource={resource} values={watched} />
             </div>
             <div className="border-border/70 bg-muted/40 flex justify-end gap-2 rounded-b-xl border-t px-5 py-4">
               <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
