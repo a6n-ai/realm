@@ -8,6 +8,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
+import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
+import { pickAssignee, strategyFor } from "./assignment";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType = "call" | "whatsapp" | "email" | "note";
@@ -39,10 +41,45 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
   }
 
-  private async resolveOwner(isInbound: boolean): Promise<bigint | null> {
-    if (!isInbound) return this.currentUserId();
+  private async resolveOwner(sourceKey: string, isInbound: boolean): Promise<bigint> {
+    if (!isInbound) {
+      const actor = await this.currentUserId();
+      return actor ?? (await this.systemUserId());
+    }
+    const cfg = await getLeadAssignment();
+    const strat = strategyFor(cfg, sourceKey);
+    if (strat === "creator") {
+      const actor = await this.currentUserId();
+      return actor ?? (await this.systemUserId());
+    }
+    // eligible pool: acceptsLeads, else inDefaultPool
+    const eligible = await this.pool({ acceptsLeads: true });
+    const pool = eligible.length ? eligible : await this.pool({ inDefaultPool: true });
+    if (!pool.length) return this.systemUserId();
+
+    const roll = await this.rollFor();
+    const { chosen, cursorPublicId } = pickAssignee(strat, pool, cfg, sourceKey, roll);
+    if (!chosen) return this.systemUserId();
+    if (strat === "round_robin" && cursorPublicId) {
+      await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [sourceKey]: cursorPublicId } });
+    }
+    return chosen.id;
+  }
+
+  private async pool(flag: { acceptsLeads?: boolean; inDefaultPool?: boolean }) {
+    const col = flag.acceptsLeads ? users.acceptsLeads : users.inDefaultPool;
+    return db.select({ id: users.id, publicId: users.publicId }).from(users).where(eq(col, true));
+  }
+
+  private async systemUserId(): Promise<bigint> {
     const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-    return sys?.id ?? null;
+    if (!sys) throw new Error("system user not seeded");
+    return sys.id;
+  }
+
+  private async rollFor(): Promise<number> {
+    // percentage strategy only; derive from current epoch ms fractional — adequate for weighting
+    return (Date.now() % 1000) / 1000;
   }
 
   private async resolveZoneId(postalCode?: string): Promise<bigint | null> {
@@ -65,7 +102,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       [k: string]: unknown;
     };
     const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
-    const currentOwner = await this.resolveOwner(isInbound);
+    const currentOwner = await this.resolveOwner(sourceKey, isInbound);
     const zoneId = await this.resolveZoneId(rest.postalCode as string | undefined);
 
     const inq = await super.create({
