@@ -1,9 +1,17 @@
 "use client";
 
+import type { ComponentType } from "react";
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Cropper from "react-easy-crop";
-import type { Area } from "react-easy-crop";
+import dynamic from "next/dynamic";
+import type { Area, CropperProps } from "react-easy-crop";
+
+// react-easy-crop's default export is a class with `defaultProps`; next/dynamic's
+// return type drops the JSX LibraryManagedAttributes optionality, so reproduce it.
+type CropperType = (typeof import("react-easy-crop"))["default"];
+const Cropper = dynamic(() => import("react-easy-crop"), {
+  ssr: false,
+}) as ComponentType<React.JSX.LibraryManagedAttributes<CropperType, CropperProps>>;
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,

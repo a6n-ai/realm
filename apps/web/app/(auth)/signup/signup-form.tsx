@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,8 +15,12 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/ui/phone-input";
 import { signUpCustomer } from "./actions";
+
+const PhoneInput = dynamic(
+  () => import("@/components/ui/phone-input").then((m) => m.PhoneInput),
+  { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
+);
 
 const schema = z.object({
   phone: z.string().min(1, "Phone is required"),

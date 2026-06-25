@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Send } from "lucide-react";
+import dynamic from "next/dynamic";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -10,8 +11,12 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
+
+const PhoneInput = dynamic(
+  () => import("@/components/ui/phone-input").then((m) => m.PhoneInput),
+  { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
+);
 import { contactFormSchema, type ContactFormValues } from "./schema";
 import { createWebsiteInquiry } from "./actions";
 
