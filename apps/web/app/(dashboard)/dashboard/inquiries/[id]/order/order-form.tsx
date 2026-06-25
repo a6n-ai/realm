@@ -32,12 +32,14 @@ export function OrderForm({
   catalog,
   enabledSlots,
   prefill,
+  onCreate,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
   prefill?: Partial<OrderFormInput>;
+  onCreate?: (order: CreateOrderInput) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -133,7 +135,12 @@ export function OrderForm({
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
     try {
-      await convertInquiry(inquiryId, buildInput(v));
+      const orderInput = buildInput(v);
+      if (onCreate) {
+        await onCreate(orderInput);
+        return;
+      }
+      await convertInquiry(inquiryId, orderInput);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create order");
     }
