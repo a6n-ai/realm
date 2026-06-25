@@ -28,14 +28,14 @@ Healthy later), (c) publishes the poster to the **marketing website** (homepage
 ## Scope
 
 **Phase 1 (this spec):** Admin builds + publishes weekly menus per plan;
-poster renders on marketing site; PDF download; customizable plan settings.
+poster renders on marketing site; react-pdf download; puppeteer email PDF
+(pending mailer — see Email gap); customizable plan settings.
 
 **Phase 2 (later, not built now):** Customers order/select dishes off a
 released week, feeding `meal_selections` + order cutoff. Schema is designed so
 this attaches cleanly.
 
-**Out of scope:** Nutrition/calorie data, the "Healthy" plan's content,
-pixel-perfect PDF rendering (phase-1 PDF = browser print of the poster).
+**Out of scope:** Nutrition/calorie data, the "Healthy" plan's content.
 
 ## Decisions
 
@@ -47,9 +47,19 @@ pixel-perfect PDF rendering (phase-1 PDF = browser print of the poster).
 - **Old slot-based builder:** **replaced** by the poster-style builder. Existing
   `menu_weeks`/`menu_items` data is backfilled into the seeded "Tiffin" plan so
   nothing is orphaned (required by the new NOT NULL `plan_id`).
-- **PDF:** phase 1 = print-CSS on the poster + "Download PDF" via browser print
-  (zero deps). `@react-pdf/renderer` deferred until pixel-perfect download is
-  actually needed.
+- **PDF — two paths (deliberate split):**
+  - **Email attachment → puppeteer** (`puppeteer-core` + `@sparticuz/chromium-min`).
+    Renders the *actual* marketing poster route to a brand-exact PDF (bg images,
+    overlap, photos, web fonts). Runs ~once/week, so chromium cold-start cost is
+    fine. This is the customer-facing artifact.
+  - **Website "Download PDF" → `@react-pdf/renderer`.** Light, cheap, no chromium
+    on the hot interactive path. Renders a **simpler branded dish-list** (NOT the
+    Canva poster — react-pdf can't do bg images/overlap). Accepted tradeoff: the
+    download looks plainer than the emailed poster.
+  - Two layouts; they can drift. Documented and accepted.
+  - **Abstracted behind one contract** (see Services): both paths implement an
+    abstract `WeeklyMenuPdfRenderer`, so callers (email job, download route)
+    depend on the interface, not the engine.
 
 ## Data model
 
@@ -121,6 +131,40 @@ convention):
   evict on release — mirrors `app-settings.service` and the catalog snapshot
   cache). Returns the current released week's poster data.
 
+### PDF renderer abstraction
+
+One abstract base, two concrete engines, so callers depend on the contract not
+the engine (consistent with the commons "subclass + override" convention):
+
+```ts
+type WeeklyMenuPdfInput = {
+  plan: MenuPlan;
+  week: PublishedWeek;        // resolved poster data from getPublishedWeek
+};
+
+abstract class WeeklyMenuPdfRenderer {
+  // template method: fetch -> render -> return bytes
+  async generate(planKey: string, weekStart?: string): Promise<Uint8Array> {
+    const input = await this.resolve(planKey, weekStart); // shared
+    return this.render(input);                             // engine-specific
+  }
+  protected resolve = getPublishedWeek;                    // shared, overridable
+  protected abstract render(input: WeeklyMenuPdfInput): Promise<Uint8Array>;
+}
+```
+
+Concrete subclasses:
+
+- `PuppeteerPdfRenderer extends WeeklyMenuPdfRenderer` — `render()` launches
+  `@sparticuz/chromium-min`, navigates to the poster route (or sets its HTML),
+  `page.pdf()`. Used by the **email** path.
+- `ReactPdfRenderer extends WeeklyMenuPdfRenderer` — `render()` builds the
+  `@react-pdf/renderer` `<Document>` (simpler branded dish-list) and returns
+  bytes. Used by the **download** route.
+
+Callers (email job, `/menu/weekly/pdf`) hold a `WeeklyMenuPdfRenderer` and call
+`generate()` — swappable, testable, single resolve path.
+
 ## UI
 
 **Admin `/dashboard/menus` (rebuilt, poster-style):**
@@ -143,7 +187,25 @@ convention):
 - Rendered on **homepage** (section) and a **dedicated route**
   (`/menu/weekly`), both reading `getPublishedWeek("tiffin")`. Static + ISR /
   revalidate-on-release (matches `/menu` page caching).
-- **Download PDF** button → print-CSS poster via browser print.
+- **Download PDF** button → route `/menu/weekly/pdf` backed by
+  `ReactPdfRenderer.generate()`. Streams `application/pdf` (simpler branded
+  dish-list, accent from plan `config.theme`).
+
+## Email
+
+Admin action "Email this week's menu" generates the brand-exact poster PDF via
+`PuppeteerPdfRenderer.generate()` and attaches it to the outgoing email.
+One-off cadence → chromium cost acceptable. `requireAdmin`-guarded.
+
+> **Gap / dependency:** there is **no mail-sending infrastructure** in the repo
+> today (`email` is only a stored contact field; no provider, no transport).
+> The email feature requires adding a mail provider (Resend recommended for
+> Vercel — simple attachment API; nodemailer/SMTP as fallback) behind a small
+> `mailer` service. Recipient list (all active subscribers? a test address?) is
+> **TBD — needs your input before the email path is planned.** The PDF
+> abstraction and puppeteer renderer can be built independently of this; email
+> wiring is the last step and may slip to its own slice if the recipient model
+> is unsettled.
 
 ## Error handling
 
@@ -155,6 +217,14 @@ convention):
 - Admin actions are `requireAdmin`-guarded server actions (existing pattern),
   `revalidatePath` on marketing + dashboard.
 
+## New dependencies
+
+- `puppeteer-core` + `@sparticuz/chromium-min` (email PDF). Add
+  `serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"]` to
+  `next.config.ts`.
+- `@react-pdf/renderer` (download PDF).
+- Mail provider (`resend` recommended) — only when the email path is built.
+
 ## Testing
 
 - Service tests against the live seeded Postgres (harness convention,
@@ -163,6 +233,10 @@ convention):
   cache-evicted on release; weekend-day storage.
 - Backfill migration: existing weeks land on the tiffin plan.
 - Marketing: empty-state when no released week.
+- PDF abstraction: `WeeklyMenuPdfRenderer.generate()` shared `resolve` path
+  tested once; each engine's `render()` smoke-tested (puppeteer produces a
+  non-empty `application/pdf`; react-pdf doc builds for a sample week). Engine
+  launch can be mocked where chromium isn't available in CI.
 
 ## Phase-2 readiness (not built)
 
