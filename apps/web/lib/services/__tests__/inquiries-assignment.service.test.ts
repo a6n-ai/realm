@@ -9,6 +9,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? s
 
 const { inquiriesService } = await import("../inquiries.service");
 const { setLeadAssignment } = await import("../app-settings.service");
+const { resetPoolCache } = await import("../inquiry-user-config.service");
 
 const seededUserIds: bigint[] = [];
 
@@ -49,6 +50,8 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await db.delete(inquiries);
     // Only clear the config rows we own; never touch other tables' fixtures.
     if (seededUserIds.length) await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+    // Raw enroll() bypasses setMembership, so reset the pool cache alongside the rows.
+    await resetPoolCache();
     session.user = null;
   });
 
