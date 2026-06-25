@@ -5,12 +5,29 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { appSettings, auditLog } = await import("@/db/schema");
-const { getAppSettings, setAppSettings } = await import("../app-settings.service");
+const { getAppSettings, setAppSettings, getMealTypes, setMealTypes } = await import("../app-settings.service");
+const { DEFAULT_MEAL_TYPES } = await import("@/lib/menu/meal-types");
 
 async function reset() {
   await db.delete(auditLog);
   await db.delete(appSettings);
 }
+
+describe("meal types", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("returns defaults when unset", async () => {
+    expect(await getMealTypes()).toEqual(DEFAULT_MEAL_TYPES);
+  });
+
+  it("persists and reads back; rejects invalid", async () => {
+    const cfg = { ...DEFAULT_MEAL_TYPES, tiffin: { ...DEFAULT_MEAL_TYPES.tiffin, titlePrefix: "Tiffin Specials" } };
+    await setMealTypes(cfg);
+    expect((await getMealTypes()).tiffin.titlePrefix).toBe("Tiffin Specials");
+    await expect(setMealTypes({ tiffin: { slots: [], accent: "#000000", titlePrefix: "x" } } as never)).rejects.toThrow();
+  });
+});
 
 describe("app-settings service (integration)", () => {
   beforeEach(reset);
