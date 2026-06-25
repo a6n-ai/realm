@@ -4,7 +4,7 @@ import { PackageIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { PhoneInput } from "@/components/ui/phone-input";
+import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,6 +43,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Req() {
   return <span className="text-primary">*</span>;
 }
+
+// Heavy (~265 flag SVGs); sheet-gated, so lazy-load behind a plain skeleton.
+const PhoneInput = dynamic(() => import("@/components/ui/phone-input").then((m) => m.PhoneInput), {
+  ssr: false,
+  loading: () => <Input disabled placeholder="Phone" />,
+});
 
 export function NewOrderSheet({
   trigger,

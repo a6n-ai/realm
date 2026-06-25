@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { PhoneInput } from "@/components/ui/phone-input";
+import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,6 +46,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Req() {
   return <span className="text-primary">*</span>;
 }
+
+// Heavy (~265 flag SVGs); sheet-gated, so lazy-load behind a plain skeleton.
+const PhoneInput = dynamic(() => import("@/components/ui/phone-input").then((m) => m.PhoneInput), {
+  ssr: false,
+  loading: () => <Input disabled placeholder="Phone" />,
+});
 
 export function NewCustomerSheet({
   trigger,

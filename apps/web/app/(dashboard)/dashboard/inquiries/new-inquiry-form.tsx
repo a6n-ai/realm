@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { matchZone } from "@/lib/catalog/postal";
 import { cn } from "@/lib/utils";
-import { PhoneInput } from "@/components/ui/phone-input";
+import dynamic from "next/dynamic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sheet,
@@ -57,6 +57,12 @@ function Req() {
  * the caller (the "Add inquiry" insight card) and passed in as children so the
  * card stays a pure presentational tile.
  */
+// Heavy (~265 flag SVGs); sheet-gated, so lazy-load behind a plain skeleton.
+const PhoneInput = dynamic(() => import("@/components/ui/phone-input").then((m) => m.PhoneInput), {
+  ssr: false,
+  loading: () => <Input disabled placeholder="Phone" />,
+});
+
 export function AddInquirySheet({
   trigger,
   defaultCountry,
