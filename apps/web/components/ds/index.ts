@@ -13,3 +13,4 @@ export * from "./filter-bar";
 export * from "./tabs";
 export * from "./pagination";
 export * from "./order-status-badge";
+export * from "./sortable-header";
