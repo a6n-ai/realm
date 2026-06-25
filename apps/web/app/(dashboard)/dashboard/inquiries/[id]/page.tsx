@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardListIcon } from "lucide-react";
+import {
+  ClipboardListIcon,
+  PhoneIcon,
+  MessageCircleIcon,
+  MailIcon,
+  StickyNoteIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+} from "lucide-react";
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
 import { db } from "@/db/client";
@@ -11,13 +19,25 @@ import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.se
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageShell, PageHeader, SectionCard, ListRow } from "@/components/ds";
-import { NoteForm, StageControl } from "./inquiry-controls";
+import { ActivityComposer, MarkLostDialog, StageControl } from "./inquiry-controls";
 
-function describe(a: { type: string; note: string | null; fromStage: string | null; toStage: string | null }) {
+const ICON: Record<string, typeof PhoneIcon> = {
+  call: PhoneIcon,
+  whatsapp: MessageCircleIcon,
+  email: MailIcon,
+  note: StickyNoteIcon,
+  stage_change: ArrowRightIcon,
+  created: ArrowRightIcon,
+  converted: CheckCircleIcon,
+};
+
+function describe(a: { type: string; note: string | null; outcome: string | null; fromStage: string | null; toStage: string | null }) {
   switch (a.type) {
     case "created": return "Inquiry created";
     case "converted": return "Converted to an order";
     case "stage_change": return `Stage: ${a.fromStage} → ${a.toStage}`;
+    case "call": case "whatsapp": case "email":
+      return `${a.type[0].toUpperCase()}${a.type.slice(1)}${a.outcome ? ` — ${a.outcome}` : ""}`;
     default: return a.note ?? "";
   }
 }
@@ -40,6 +60,8 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
     .where(eq(leadSources.id, inq.sourceId))
     .limit(1);
   const converted = inq.stage === "converted";
+  const lost = inq.stage === "lost";
+  const now = Date.now();
 
   return (
     <PageShell>
@@ -55,9 +77,12 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
             {converted ? (
               <span className="text-muted-foreground text-sm">Converted</span>
             ) : (
-              <Button asChild>
-                <Link href={`/dashboard/inquiries/${inq.publicId}/order`}>Create order</Link>
-              </Button>
+              <>
+                <Button asChild>
+                  <Link href={`/dashboard/inquiries/${inq.publicId}/order`}>Create order</Link>
+                </Button>
+                {lost ? null : <MarkLostDialog inquiryId={inq.publicId} />}
+              </>
             )}
             <Badge variant="secondary" className="ml-auto capitalize">{source?.label}</Badge>
           </div>
@@ -72,15 +97,29 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
 
       <SectionCard title="Activity">
         <div className="space-y-3">
-          <NoteForm inquiryId={inq.publicId} />
+          <ActivityComposer inquiryId={inq.publicId} />
           <div className="space-y-2">
-            {activities.map((a) => (
-              <ListRow
-                key={a.publicId}
-                title={describe(a)}
-                meta={formatEpoch(a.createdAt, { mode: "datetime" })}
-              />
-            ))}
+            {activities.map((a, i) => {
+              const Icon = ICON[a.type] ?? StickyNoteIcon;
+              const overdue =
+                a.nextFollowUpAt != null && a.nextFollowUpAt < now && i === 0 && !converted && !lost;
+              return (
+                <ListRow
+                  key={a.publicId}
+                  avatar={<Icon className="size-4" />}
+                  title={describe(a)}
+                  meta={
+                    <>
+                      <div>{formatEpoch(a.createdAt, { mode: "datetime" })}</div>
+                      {a.nextFollowUpAt != null ? (
+                        <div>↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date" })}</div>
+                      ) : null}
+                    </>
+                  }
+                  trailing={overdue ? <Badge variant="destructive">Overdue</Badge> : undefined}
+                />
+              );
+            })}
           </div>
         </div>
       </SectionCard>
