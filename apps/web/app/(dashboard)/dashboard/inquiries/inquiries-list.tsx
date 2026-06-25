@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import {
-  FilterBar, FilterPill, SearchInput, ListRow, StageBadge, EmptyState,
-} from "@/components/ds";
+import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
+import {
+  FilterBar, FilterPill, SearchInput, StageBadge, EmptyState,
+} from "@/components/ds";
+import {
+  Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { formatEpoch } from "@/lib/format/datetime";
+import type { PipelineRow } from "@/lib/services/inquiries.service";
 
 const STAGE_PILLS = [
   { key: "all", label: "All" },
@@ -13,41 +23,44 @@ const STAGE_PILLS = [
   { key: "follow_up", label: "Follow-up" },
   { key: "converted", label: "Converted" },
   { key: "lost", label: "Lost" },
+  { key: "overdue", label: "Overdue" },
 ] as const;
 
-type InquiryRow = {
-  publicId: string;
-  fullName: string;
-  phone: string;
-  source: string;
-  stage: string;
-  createdAt: number;
-};
+const ALL_OWNERS = "__all__";
 
 export function InquiriesList({
   rows,
   stageCounts,
 }: {
-  rows: InquiryRow[];
+  rows: PipelineRow[];
   stageCounts: { stage: string; n: number }[];
 }) {
   const [search, setSearch] = useState("");
   const [activeStage, setActiveStage] = useState<string>("all");
+  const [owner, setOwner] = useState<string>(ALL_OWNERS);
 
-  const countOf = (stage: string) =>
-    stage === "all"
-      ? rows.length
-      : stageCounts.find((r) => r.stage === stage)?.n ?? 0;
+  const owners = Array.from(
+    new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
+  ).sort();
+
+  const countOf = (stage: string) => {
+    if (stage === "all") return rows.length;
+    if (stage === "overdue") return rows.filter((r) => r.overdue).length;
+    return stageCounts.find((r) => r.stage === stage)?.n ?? 0;
+  };
 
   const filtered = rows.filter((r) => {
-    const matchStage = activeStage === "all" || r.stage === activeStage;
+    const matchStage =
+      activeStage === "all" ||
+      (activeStage === "overdue" ? r.overdue : r.stage === activeStage);
+    const matchOwner = owner === ALL_OWNERS || r.ownerName === owner;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
       r.fullName.toLowerCase().includes(q) ||
       r.phone.includes(q) ||
       r.source.toLowerCase().includes(q);
-    return matchStage && matchSearch;
+    return matchStage && matchOwner && matchSearch;
   });
 
   return (
@@ -67,23 +80,76 @@ export function InquiriesList({
                 onClick={() => setActiveStage(p.key)}
               />
             ))}
+            <Select value={owner} onValueChange={setOwner}>
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue placeholder="All owners" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
+                {owners.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </>
         }
       />
       {filtered.length === 0 ? (
         <EmptyState icon={ClipboardListIcon} message="No inquiries match your filter." />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((inq) => (
-            <ListRow
-              key={inq.publicId}
-              title={inq.fullName}
-              meta={`${inq.phone} · ${inq.source}`}
-              trailing={<StageBadge stage={inq.stage} />}
-              href={`/dashboard/inquiries/${inq.publicId}`}
-            />
-          ))}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Last touch</TableHead>
+              <TableHead>Next action</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((r) => (
+              <TableRow key={r.publicId}>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/dashboard/inquiries/${r.publicId}`}
+                    className="hover:underline"
+                  >
+                    {r.fullName}
+                  </Link>
+                  <div className="text-muted-foreground text-xs">{r.phone}</div>
+                </TableCell>
+                <TableCell>{r.ownerName ?? "—"}</TableCell>
+                <TableCell>
+                  <StageBadge stage={r.stage} />
+                </TableCell>
+                <TableCell>{r.source}</TableCell>
+                <TableCell>
+                  {r.lastTouchAt != null
+                    ? formatEpoch(r.lastTouchAt, { mode: "datetime" })
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  {r.nextFollowUpAt != null ? (
+                    <span className="inline-flex items-center gap-2">
+                      {formatEpoch(r.nextFollowUpAt, { mode: "date" })}
+                      {r.overdue ? (
+                        <Badge variant="destructive">Overdue</Badge>
+                      ) : null}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell>{formatEpoch(r.createdAt, { mode: "date" })}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

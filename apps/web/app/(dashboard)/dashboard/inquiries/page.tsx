@@ -1,10 +1,11 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
 import { tzToDefaultCountry } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { inquiriesService } from "@/lib/services/inquiries.service";
 import { Button } from "@/components/ui/button";
 import { PageShell, PageHeader, SectionCard, StatCard } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
@@ -17,19 +18,7 @@ export default async function InquiriesPage() {
     getAppSettings(),
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
-    db
-      .select({
-        publicId: inquiries.publicId,
-        fullName: inquiries.fullName,
-        phone: inquiries.phone,
-        source: leadSources.label,
-        stage: inquiries.stage,
-        createdAt: inquiries.createdAt,
-      })
-      .from(inquiries)
-      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-      .orderBy(desc(inquiries.createdAt))
-      .limit(500),
+    inquiriesService.listForPipeline(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
       .from(leadSources),
