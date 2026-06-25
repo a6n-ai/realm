@@ -14,4 +14,5 @@ export const inquiryFormSchema = z.object({
   quotedPrice: z.coerce.number().nonnegative().optional(),
   notes: z.string().optional(),
 });
+export type InquiryFormInput = z.input<typeof inquiryFormSchema>;
 export type InquiryFormValues = z.infer<typeof inquiryFormSchema>;

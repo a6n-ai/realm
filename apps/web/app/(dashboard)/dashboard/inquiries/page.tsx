@@ -2,7 +2,7 @@ import { count, desc, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
 import { tzToDefaultCountry } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { inquiries, leadSources } from "@/db/schema";
+import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { InquiriesList } from "./inquiries-list";
 export default async function InquiriesPage() {
   await requireStaff();
 
-  const [{ timezone }, stageCounts, [{ total }], rows] = await Promise.all([
+  const [{ timezone }, stageCounts, [{ total }], rows, sourceRows, subRows, zones] = await Promise.all([
     getAppSettings(),
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
@@ -30,9 +30,39 @@ export default async function InquiriesPage() {
       .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
       .orderBy(desc(inquiries.createdAt))
       .limit(500),
+    db
+      .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
+      .from(leadSources),
+    db
+      .select({
+        sourceId: leadSubsources.sourceId,
+        key: leadSubsources.key,
+        label: leadSubsources.label,
+        active: leadSubsources.active,
+      })
+      .from(leadSubsources),
+    db
+      .select({
+        name: deliveryZones.name,
+        postalPrefixes: deliveryZones.postalPrefixes,
+        slotWindow: deliveryZones.slotWindow,
+        active: deliveryZones.active,
+      })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.active, true)),
   ]);
 
   const defaultCountry = tzToDefaultCountry(timezone);
+
+  const sources = sourceRows
+    .filter((s) => s.active)
+    .map((s) => ({
+      key: s.key,
+      label: s.label,
+      subs: subRows
+        .filter((sub) => sub.active && sub.sourceId === s.id)
+        .map((sub) => ({ key: sub.key, label: sub.label })),
+    }));
 
   const countOf = (...stages: string[]) =>
     stageCounts.filter((r) => stages.includes(r.stage)).reduce((sum, r) => sum + r.n, 0);
@@ -50,6 +80,8 @@ export default async function InquiriesPage() {
         actions={
           <AddInquirySheet
             defaultCountry={defaultCountry}
+            sources={sources}
+            zones={zones}
             trigger={
               <Button>
                 <PlusIcon className="size-4" />
