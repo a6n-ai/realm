@@ -10,7 +10,7 @@ import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useUrlState } from "@/lib/list/use-url-state";
+import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import type { SortState } from "@/lib/list/sort";
 
@@ -36,11 +36,9 @@ export function OrdersList({
   const [search, setSearch] = useUrlState("q", "");
   const [status, setStatus] = useUrlState("status", "all");
 
+  const clearUrlKeys = useClearUrlKeys();
   const hasFilters = !!search || status !== "all";
-  const clearFilters = () => {
-    setSearch("");
-    setStatus("all");
-  };
+  const clearFilters = () => clearUrlKeys(["q", "status"]);
 
   const countOf = (s: string) =>
     s === "all" ? rows.length : rows.filter((r) => r.status === s).length;

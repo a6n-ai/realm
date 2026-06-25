@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeParam } from "../use-url-state";
+import { mergeParam, dropParams } from "../use-url-state";
 
 describe("mergeParam", () => {
   it("sets a value", () => {
@@ -15,5 +15,15 @@ describe("mergeParam", () => {
     const out = mergeParam("sort=name&dir=asc", "owner", "Asha", "ALL");
     expect(new URLSearchParams(out).get("sort")).toBe("name");
     expect(new URLSearchParams(out).get("owner")).toBe("Asha");
+  });
+});
+
+describe("dropParams", () => {
+  it("removes all listed keys in one pass, preserving the rest", () => {
+    const out = dropParams("q=hi&stage=new&owner=Asha&sort=name", ["q", "stage", "owner"]);
+    expect(out).toBe("sort=name");
+  });
+  it("is a no-op for absent keys", () => {
+    expect(dropParams("sort=name", ["q", "stage"])).toBe("sort=name");
   });
 });

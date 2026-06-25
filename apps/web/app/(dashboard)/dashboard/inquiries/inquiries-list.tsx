@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useUrlState } from "@/lib/list/use-url-state";
+import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 
 const STAGE_PILLS = [
@@ -46,12 +46,9 @@ export function InquiriesList({
   const [activeStage, setActiveStage] = useUrlState("stage", "all");
   const [owner, setOwner] = useUrlState("owner", ALL_OWNERS);
 
+  const clearUrlKeys = useClearUrlKeys();
   const hasFilters = !!search || activeStage !== "all" || owner !== ALL_OWNERS;
-  const clearFilters = () => {
-    setSearch("");
-    setActiveStage("all");
-    setOwner(ALL_OWNERS);
-  };
+  const clearFilters = () => clearUrlKeys(["q", "stage", "owner"]);
 
   const owners = Array.from(
     new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
