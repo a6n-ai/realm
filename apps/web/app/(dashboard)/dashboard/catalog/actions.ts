@@ -3,13 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import {
+  addonService,
   deliveryFrequencyService,
   deliveryZoneService,
   durationPackageService,
   mealSizeService,
   planService,
+  pricingTierService,
 } from "@/lib/services/catalog.service";
-import { leadSourceService, leadSubsourceService } from "@/lib/services/lead-sources.service";
+// NOTE: lead-source services were never catalog resources — drop them from this map;
+// lead sources are managed on /dashboard/settings/lead-sources.
 
 const SERVICES = {
   plans: planService,
@@ -17,8 +20,8 @@ const SERVICES = {
   "delivery-frequencies": deliveryFrequencyService,
   "duration-packages": durationPackageService,
   "delivery-zones": deliveryZoneService,
-  "lead-sources": leadSourceService,
-  "lead-subsources": leadSubsourceService,
+  "pricing-tiers": pricingTierService,
+  addons: addonService,
 } as const;
 
 export type ResourceKey = keyof typeof SERVICES;
