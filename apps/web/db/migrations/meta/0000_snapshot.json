@@ -1,5 +1,5 @@
 {
-  "id": "a5e4cc99-0398-41ee-8d82-50929cbac939",
+  "id": "9b6e98cd-9c69-42ca-9eec-a9fe071754b8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2065,6 +2065,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "inquiries_open_phone_source_uq": {
+          "name": "inquiries_open_phone_source_uq",
+          "columns": [
+            {
+              "expression": "lower(\"phone\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"inquiries\".\"stage\" not in ('converted', 'lost')",
           "concurrently": false,
           "method": "btree",
           "with": {}

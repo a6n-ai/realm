@@ -32,6 +32,20 @@ export function computeOverdue(stage: string, nextFollowUpAt: number | null, now
   return nextFollowUpAt < now;
 }
 
+// True when a Postgres unique-violation (23505) hit the open-lead partial index.
+// drizzle wraps the driver error, so the real PostgresError (with code +
+// constraint_name) sits on .cause; postgres.js names the field constraint_name.
+function isOpenLeadConflict(e: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+  const err = e as PgErr;
+  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) =>
+      l.code === "23505" &&
+      (l.constraint ?? l.constraint_name ?? "").includes("inquiries_open_phone_source_uq"),
+  );
+}
+
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   private async resolveSource(sourceKey: string, subSourceKey?: string) {
     const [src] = await db
@@ -110,15 +124,37 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const currentOwner = await this.resolveOwner(sourceId, sourceKey, isInbound);
     const zoneId = await this.resolveZoneId(rest.postalCode as string | undefined);
 
-    const inq = await super.create({
-      ...rest,
-      phone: parsedPhone.data,
-      ...(parsedEmail ? { email: parsedEmail.data } : {}),
-      sourceId,
-      subSourceId,
-      currentOwner,
-      zoneId,
-    });
+    let inq: typeof inquiries.$inferSelect;
+    try {
+      inq = await super.create({
+        ...rest,
+        phone: parsedPhone.data,
+        ...(parsedEmail ? { email: parsedEmail.data } : {}),
+        sourceId,
+        subSourceId,
+        currentOwner,
+        zoneId,
+      });
+    } catch (e) {
+      // Partial unique index inquiries_open_phone_source_uq: one open lead per
+      // (phone, source). A concurrent insert lost the race — reuse the existing
+      // open inquiry rather than erroring (the dedup rule, enforced at the DB).
+      if (isOpenLeadConflict(e)) {
+        const [existing] = await db
+          .select()
+          .from(inquiries)
+          .where(
+            and(
+              eq(sql`lower(${inquiries.phone})`, parsedPhone.data.toLowerCase()),
+              eq(inquiries.sourceId, sourceId),
+              notInArray(inquiries.stage, ["converted", "lost"]),
+            ),
+          )
+          .limit(1);
+        if (existing) return existing;
+      }
+      throw e;
+    }
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: "created",

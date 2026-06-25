@@ -53,3 +53,28 @@ describe("inquiriesService.resolveForSource", () => {
     ).rejects.toThrow(ValidationError);
   });
 });
+
+// The partial unique index makes the "one open lead per (phone, source)" rule
+// hold for ALL callers — including the plain add-inquiry form — by reusing the
+// existing open inquiry on conflict instead of erroring.
+describe("inquiriesService.create — open-lead dedup", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("reuses the existing open inquiry on a same phone+source create (no duplicate row, no extra activity)", async () => {
+    const phone = "+16475554100";
+    const first = await inquiriesService.create({ fullName: "Dup", phone, sourceKey: "facebook" });
+    const second = await inquiriesService.create({ fullName: "Dup Again", phone, sourceKey: "facebook" });
+    expect(second.publicId).toBe(first.publicId);
+    expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1);
+    const acts = await inquiriesService.listActivities(first.publicId);
+    expect(acts.filter((a) => a.type === "created")).toHaveLength(1);
+  });
+
+  it("still allows a new inquiry for the same phone under a different source", async () => {
+    const phone = "+16475554101";
+    await inquiriesService.create({ fullName: "S1", phone, sourceKey: "facebook" });
+    await inquiriesService.create({ fullName: "S2", phone, sourceKey: "manual" });
+    expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(2);
+  });
+});
