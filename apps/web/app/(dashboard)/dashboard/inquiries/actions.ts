@@ -8,7 +8,14 @@ export async function createInquiry(input: {
   fullName: string;
   phone: string;
   email?: string;
-  sourceKey?: string;
+  sourceKey: string;
+  subSourceKey?: string;
+  planInterest?: string;
+  mealSizeInterest?: string;
+  personsInterest?: number;
+  postalCode?: string;
+  preferredStart?: string;
+  quotedPrice?: number;
   notes?: string;
 }) {
   await requireStaff();
