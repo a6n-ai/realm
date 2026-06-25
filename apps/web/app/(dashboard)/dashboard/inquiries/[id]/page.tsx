@@ -49,14 +49,17 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
   await requireStaff();
   const { id } = await params;
 
+  const inqP = inquiriesService.read(id);
+  const activitiesP = inquiriesService.listActivities(id);
   let inq;
   try {
-    inq = await inquiriesService.read(id);
+    inq = await inqP;
   } catch (e) {
+    void activitiesP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const activities = await inquiriesService.listActivities(id);
+  const activities = await activitiesP;
   const [source] = await db
     .select({ label: leadSources.label })
     .from(leadSources)

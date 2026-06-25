@@ -91,38 +91,40 @@ export async function getCustomer360(userPublicId: string) {
     .limit(1);
   if (!user || user.role !== "user") throw new NotFoundError("Customer not found");
 
-  const orderRows = await db
-    .select({
-      publicId: orders.publicId,
-      deploymentId: orders.deploymentId,
-      fullName: orders.fullName,
-      city: orders.city,
-      status: orders.status,
-      startDate: orders.startDate,
-      total: orders.total,
-      createdAt: orders.createdAt,
-    })
-    .from(orders)
-    .where(eq(orders.userId, user.id))
-    .orderBy(desc(orders.createdAt));
-
   const matchConds = [];
   if (user.email) matchConds.push(eq(sql`lower(${inquiries.email})`, user.email.toLowerCase()));
   if (user.phone) matchConds.push(eq(sql`lower(${inquiries.phone})`, user.phone.toLowerCase()));
-  const inqRows = matchConds.length
-    ? await db
-        .select({
-          publicId: inquiries.publicId,
-          fullName: inquiries.fullName,
-          stage: inquiries.stage,
-          source: leadSources.label,
-          createdAt: inquiries.createdAt,
-        })
-        .from(inquiries)
-        .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-        .where(or(...matchConds))
-        .orderBy(desc(inquiries.createdAt))
-    : [];
+
+  const [orderRows, inqRows] = await Promise.all([
+    db
+      .select({
+        publicId: orders.publicId,
+        deploymentId: orders.deploymentId,
+        fullName: orders.fullName,
+        city: orders.city,
+        status: orders.status,
+        startDate: orders.startDate,
+        total: orders.total,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(eq(orders.userId, user.id))
+      .orderBy(desc(orders.createdAt)),
+    matchConds.length
+      ? db
+          .select({
+            publicId: inquiries.publicId,
+            fullName: inquiries.fullName,
+            stage: inquiries.stage,
+            source: leadSources.label,
+            createdAt: inquiries.createdAt,
+          })
+          .from(inquiries)
+          .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+          .where(or(...matchConds))
+          .orderBy(desc(inquiries.createdAt))
+      : Promise.resolve([]),
+  ]);
 
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),

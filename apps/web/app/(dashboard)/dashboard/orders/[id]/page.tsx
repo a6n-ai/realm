@@ -28,15 +28,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   await requireStaff();
   const { id } = await params;
 
+  const settingsP = getAppSettings();
   let order;
   try {
     order = await readOrder(id);
   } catch (e) {
+    void settingsP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const activities = await listOrderActivities(order.id);
-  const settings = await getAppSettings();
+  const [activities, settings] = await Promise.all([listOrderActivities(order.id), settingsP]);
 
   const grid = await buildMealsGrid(
     {

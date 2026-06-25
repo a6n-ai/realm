@@ -35,19 +35,21 @@ export default async function DashboardOverviewPage() {
     redirect("/dashboard/account");
   }
 
-  const stats = await loadStats();
-  const recent = await db
-    .select({
-      deploymentId: orders.deploymentId,
-      status: orders.status,
-      fullName: orders.fullName,
-      city: orders.city,
-      total: orders.total,
-      createdAt: orders.createdAt,
-    })
-    .from(orders)
-    .orderBy(desc(orders.createdAt))
-    .limit(5);
+  const [stats, recent] = await Promise.all([
+    loadStats(),
+    db
+      .select({
+        deploymentId: orders.deploymentId,
+        status: orders.status,
+        fullName: orders.fullName,
+        city: orders.city,
+        total: orders.total,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .orderBy(desc(orders.createdAt))
+      .limit(5),
+  ]);
 
   const cards = [
     { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
