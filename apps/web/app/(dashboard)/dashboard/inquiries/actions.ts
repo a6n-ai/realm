@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
+import {
+  inquiriesService,
+  type ActivityType,
+  type InquiryStage,
+  type LostReason,
+} from "@/lib/services/inquiries.service";
 
 export async function createInquiry(input: {
   fullName: string;
@@ -29,6 +34,23 @@ export async function setStage(inquiryId: string, toStage: InquiryStage) {
   await inquiriesService.changeStage(inquiryId, toStage);
   revalidatePath("/dashboard/inquiries");
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+}
+
+export async function logActivity(
+  inquiryId: string,
+  input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number },
+) {
+  await requireStaff();
+  await inquiriesService.logActivity(inquiryId, input);
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  revalidatePath("/dashboard/inquiries");
+}
+
+export async function markLost(inquiryId: string, reason: LostReason, note?: string) {
+  await requireStaff();
+  await inquiriesService.markLost(inquiryId, reason, note);
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  revalidatePath("/dashboard/inquiries");
 }
 
 export async function addNote(inquiryId: string, note: string) {
