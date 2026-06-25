@@ -1,7 +1,7 @@
 # Weekly Menu Section — Design
 
 **Date:** 2026-06-26
-**Status:** Approved v1; **v2 unified-model revision pending review**
+**Status:** v2 unified model, email descoped — **pending review**
 **Author:** brainstormed with hrithikraj1997@gmail.com
 
 ## Problem
@@ -16,8 +16,12 @@ Tiffin Grab publishes a weekly menu as a Canva PDF poster
 
 We want an in-app weekly-menu section that lets admins compose the week per
 **meal type** (tiffin/healthy), publishes to the marketing site (homepage +
-`/menu/weekly`), downloads as a PDF, and emails as a brand-exact PDF. Built so
-customer **ordering** can attach later without rework.
+`/menu/weekly`), and downloads as a PDF. Built so customer **ordering** can
+attach later without rework.
+
+**Email is explicitly out of scope.** A dedicated emailing system (multiple
+workflows: this-week's-order customers, inquiries, segments) is a separate
+future project. No mail provider, no puppeteer, no PDF-by-email here.
 
 ## The unified plan/slot model (v2)
 
@@ -60,14 +64,14 @@ Defaults:
 
 **Phase 1 (this spec):** Settings panel for meal-type slots+theme; poster-style
 admin builder per plan type; marketing poster (homepage + `/menu/weekly`);
-react-pdf download; puppeteer email PDF (pending mailer — see Email gap);
-catalog reads slots from the new config.
+react-pdf download; catalog reads slots from the new config.
 
 **Phase 2 (later):** Customers order/select dishes off a released week
 (`meal_selections` + cutoff). Schema designed so this attaches cleanly.
 
-**Out of scope:** nutrition data; expanding the `plan_type` enum (keep
-tiffin/healthy); drag-reorder UI (handle deferred; `position` set by add order).
+**Out of scope:** all email / the emailing system (separate future project);
+nutrition data; expanding the `plan_type` enum (keep tiffin/healthy);
+drag-reorder UI (handle deferred; `position` set by add order).
 
 ## Decisions
 
@@ -82,11 +86,10 @@ tiffin/healthy); drag-reorder UI (handle deferred; `position` set by add order).
   grouped under slot subheaders (healthy).
 - **Weekends merged** (Sat+Sun) as a poster column; dishes stored under `sat`.
 - **Old slot-based builder replaced** by the poster-style builder.
-- **PDF — two paths behind one abstract class** (`WeeklyMenuPdfRenderer`):
-  - **Email → puppeteer** (`puppeteer-core` + `@sparticuz/chromium-min`): prints
-    the real marketing poster route, brand-exact. ~once/week, cost fine.
-  - **Download → `@react-pdf/renderer`**: light, simpler branded list, no
-    chromium on the interactive path. Plainer than the emailed poster (accepted).
+- **PDF — download only, via `@react-pdf/renderer`**: light, no chromium, a
+  simpler branded dish-list. One concrete renderer, no abstract base (single
+  impl = YAGNI). When the future emailing system adds a puppeteer brand-exact
+  engine, reintroduce the `WeeklyMenuPdfRenderer` abstract seam then.
 - **Marketing placement:** homepage section + dedicated `/menu/weekly` route.
 
 ## Data model
@@ -136,20 +139,20 @@ Pure, tested:
   day group, and within it either a flat dish list (1 slot) or
   `{ slotLabel, dishes }[]` subgroups (>1 slot), ordered by (day index, position).
 
-### PDF renderer abstraction (`lib/menu/pdf/`)
+### PDF download (`lib/menu/pdf/`)
+
+A single function/class:
 
 ```ts
-abstract class WeeklyMenuPdfRenderer {
-  async generate(planType, weekStart?): Promise<Uint8Array> {
-    const pub = await getPublishedWeek(planType, weekStart);
-    if (!pub) throw new NotFoundError(...);
-    return this.render({ titlePrefix: pub.theme.titlePrefix, accent: pub.theme.accent,
-      weekStart: pub.weekStart, columns: buildPosterColumns(pub.slots, pub.items) });
-  }
-  protected abstract render(input: WeeklyMenuPdfInput): Promise<Uint8Array>;
+async function renderWeeklyMenuPdf(planType, weekStart?): Promise<Uint8Array> {
+  const pub = await getPublishedWeek(planType, weekStart);
+  if (!pub) throw new NotFoundError(...);
+  return reactPdfBytes({ titlePrefix: pub.theme.titlePrefix, accent: pub.theme.accent,
+    weekStart: pub.weekStart, columns: buildPosterColumns(pub.slots, pub.items) });
 }
 ```
-- `ReactPdfRenderer` (download), `PuppeteerPdfRenderer(posterUrl)` (email).
+No abstract base now (one impl). The emailing-system project re-adds the
+abstraction + a puppeteer engine when it needs brand-exact email PDFs.
 
 ## UI
 
@@ -167,22 +170,16 @@ text effects). Renders flat or slot-grouped per the type's slots. On homepage +
 `/menu/weekly`. **Download PDF** → `/menu/weekly/pdf` (react-pdf). Empty state
 when nothing released. Nav link added.
 
-## Email
+## Email — deferred to a separate project
 
-Admin action "Email this week's menu" → `PuppeteerPdfRenderer.generate()` →
-attach to mail. `requireAdmin`.
-
-> **Gap:** no mail infrastructure exists (`email` is only a contact field). Needs
-> a mail provider (Resend recommended). Recipient model (all subscribers vs a
-> test address) **TBD**. Phase-1 ships a single admin-entered recipient; broaden
-> later. Email is the slippable last slice.
+Not built here. A future emailing system will own recipient workflows
+(this-week's-order customers, inquiries, segments), a mail provider, CASL
+unsubscribe, batching, and a puppeteer brand-exact PDF engine. The weekly-menu
+poster route + `getPublishedWeek` are the integration points it will consume.
 
 ## New dependencies
 
-- `@react-pdf/renderer` (download).
-- `puppeteer-core` + `@sparticuz/chromium-min` (email); add to
-  `serverExternalPackages` in `next.config.ts`.
-- `resend` (email only, when built).
+- `@react-pdf/renderer` (download). No other new deps.
 
 ## Error handling
 
@@ -203,8 +200,8 @@ attach to mail. `requireAdmin`.
   config; `reorderItems` writes position; `getPublishedWeek` released-only +
   cache-evict on release.
 - `catalog/load`: `offeredSlots` derived from config.
-- PDF: shared resolve path once; react-pdf produces `%PDF-`; puppeteer wiring
-  smoke (no chromium launch in CI).
+- PDF: `renderWeeklyMenuPdf` produces a `%PDF-` byte stream for a published
+  week; throws when nothing is released.
 
 ## Phase-2 readiness
 
