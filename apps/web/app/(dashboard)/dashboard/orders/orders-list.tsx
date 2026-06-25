@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -34,6 +35,12 @@ export function OrdersList({
 }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
+
+  const hasFilters = !!search || status !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+  };
 
   const countOf = (s: string) =>
     s === "all" ? rows.length : rows.filter((r) => r.status === s).length;
@@ -70,7 +77,19 @@ export function OrdersList({
         }
       />
       {filtered.length === 0 ? (
-        <EmptyState icon={PackageIcon} message="No orders match your filter." />
+        hasFilters ? (
+          <EmptyState
+            icon={PackageIcon}
+            message="No orders match your filter."
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={PackageIcon} message="No orders yet." />
+        )
       ) : (
         <Table>
           <TableHeader>

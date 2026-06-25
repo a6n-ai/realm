@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, UsersIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   FilterBar, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -43,7 +44,19 @@ export function CustomersList({
         filters={null}
       />
       {filtered.length === 0 ? (
-        <EmptyState icon={UsersIcon} message="No customers match your search." />
+        q ? (
+          <EmptyState
+            icon={UsersIcon}
+            message="No customers match your search."
+            action={
+              <Button variant="outline" size="sm" onClick={() => setSearch("")}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={UsersIcon} message="No customers yet." />
+        )
       ) : (
         <Table>
           <TableHeader>

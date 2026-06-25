@@ -104,7 +104,24 @@ export default async function InquiriesPage({
       </div>
 
       <SectionCard title="All inquiries" subtitle={total === 0 ? "Nothing yet" : undefined}>
-        <InquiriesList rows={rows} stageCounts={stageCounts} sort={sort} />
+        <InquiriesList
+          rows={rows}
+          stageCounts={stageCounts}
+          sort={sort}
+          emptyCta={
+            <AddInquirySheet
+              defaultCountry={defaultCountry}
+              sources={sources}
+              zones={zones}
+              trigger={
+                <Button>
+                  <PlusIcon className="size-4" />
+                  New inquiry
+                </Button>
+              }
+            />
+          }
+        />
       </SectionCard>
     </PageShell>
   );

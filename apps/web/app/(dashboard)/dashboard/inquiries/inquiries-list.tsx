@@ -1,8 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   FilterBar, FilterPill, SearchInput, StageBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -33,14 +35,23 @@ export function InquiriesList({
   rows,
   stageCounts,
   sort,
+  emptyCta,
 }: {
   rows: PipelineRow[];
   stageCounts: { stage: string; n: number }[];
   sort: SortState<"name" | "owner" | "stage" | "source" | "lastTouch" | "created">;
+  emptyCta?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [activeStage, setActiveStage] = useState<string>("all");
   const [owner, setOwner] = useState<string>(ALL_OWNERS);
+
+  const hasFilters = !!search || activeStage !== "all" || owner !== ALL_OWNERS;
+  const clearFilters = () => {
+    setSearch("");
+    setActiveStage("all");
+    setOwner(ALL_OWNERS);
+  };
 
   const owners = Array.from(
     new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
@@ -100,7 +111,23 @@ export function InquiriesList({
         }
       />
       {filtered.length === 0 ? (
-        <EmptyState icon={ClipboardListIcon} message="No inquiries match your filter." />
+        hasFilters ? (
+          <EmptyState
+            icon={ClipboardListIcon}
+            message="No inquiries match your filter."
+            action={
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={ClipboardListIcon}
+            message="No inquiries yet."
+            action={emptyCta}
+          />
+        )
       ) : (
         <Table>
           <TableHeader>
