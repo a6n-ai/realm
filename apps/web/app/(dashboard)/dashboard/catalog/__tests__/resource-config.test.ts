@@ -47,6 +47,43 @@ describe("addons resource exists", () => {
   });
 });
 
+describe("blank numeric fields (form feeds \"\")", () => {
+  it("pricing-tiers: blank maxQty becomes null, not 0 or a throw (unbounded top band)", () => {
+    const out = RESOURCES["pricing-tiers"].schema.parse({ minQty: "0", maxQty: "", upliftPct: "2.5" });
+    expect(out.maxQty).toBeNull();
+    expect(out.minQty).toBe(0);
+    expect(out.upliftPct).toBe(2.5);
+  });
+
+  it("pricing-tiers: re-saving an unbounded tier via partial keeps maxQty null", () => {
+    const out = RESOURCES["pricing-tiers"].schema.partial().parse({ maxQty: "" });
+    expect(out.maxQty).toBeNull();
+  });
+
+  it("pricing-tiers: maxQty of 0 is still rejected", () => {
+    expect(() => RESOURCES["pricing-tiers"].schema.parse({ minQty: "0", maxQty: "0", upliftPct: "1" })).toThrow();
+  });
+
+  it("meal-sizes: blank macros round-trip to null instead of 0", () => {
+    const out = RESOURCES["meal-sizes"].schema.parse({
+      key: "x", name: "X", tier: "budget", diet: "veg", components: [],
+      kcalMin: "300", kcalMax: "500", proteinG: "", carbsG: "", fatG: "", basePrice: "10",
+    });
+    expect(out.proteinG).toBeNull();
+    expect(out.carbsG).toBeNull();
+    expect(out.fatG).toBeNull();
+  });
+
+  it("required numeric blank is rejected rather than silently coerced to 0", () => {
+    expect(() => RESOURCES["pricing-tiers"].schema.parse({ minQty: "", maxQty: "", upliftPct: "1" })).toThrow();
+  });
+
+  it("blank field with a default falls back to the default", () => {
+    const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5", courierDiscountPct: "" });
+    expect(out.courierDiscountPct).toBe(0);
+  });
+});
+
 describe("rowToForm", () => {
   it("keeps arrays as arrays and stringifies scalars", () => {
     const out = rowToForm(RESOURCES.plans, { key: "x", name: "X", planType: "tiffin", offeredSlots: ["bf", "dn"], allowedStartDays: ["mon"], description: null });

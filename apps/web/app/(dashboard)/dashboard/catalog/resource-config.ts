@@ -40,6 +40,14 @@ const key = z.string().trim().regex(/^[a-z0-9-]+$/, "lowercase letters, numbers 
 const name = z.string().trim().min(1, "Name is required");
 const active = z.boolean().optional();
 
+// Form number inputs serialize blanks as "" (see emptyForm/rowToForm). z.coerce.number()
+// turns "" into 0 *before* .optional()/.nullable() are consulted, so without these wrappers
+// a blank required field silently becomes 0 and a blank optional field becomes 0 (or throws
+// on .positive()). Preprocess the blank away first so blanks round-trip correctly.
+const reqNum = <T extends z.ZodTypeAny>(inner: T) => z.preprocess((v) => (v === "" ? undefined : v), inner);
+const optNum = <T extends z.ZodTypeAny>(inner: T) =>
+  z.preprocess((v) => (v === "" || v == null ? null : v), inner.nullable().optional());
+
 const plansSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
@@ -54,25 +62,25 @@ const mealSizesSchema = z.object({
   tier: z.enum(["budget", "medium", "premium"]),
   diet: z.enum(["veg", "nonveg", "both"]),
   components: z.array(z.string()).default([]),
-  kcalMin: z.coerce.number().int().nonnegative(),
-  kcalMax: z.coerce.number().int().nonnegative(),
-  proteinG: z.coerce.number().int().nonnegative().optional().nullable(),
-  carbsG: z.coerce.number().int().nonnegative().optional().nullable(),
-  fatG: z.coerce.number().int().nonnegative().optional().nullable(),
-  basePrice: z.coerce.number().nonnegative(),
+  kcalMin: reqNum(z.coerce.number().int().nonnegative()),
+  kcalMax: reqNum(z.coerce.number().int().nonnegative()),
+  proteinG: optNum(z.coerce.number().int().nonnegative()),
+  carbsG: optNum(z.coerce.number().int().nonnegative()),
+  fatG: optNum(z.coerce.number().int().nonnegative()),
+  basePrice: reqNum(z.coerce.number().nonnegative()),
   active,
 });
 
 const deliveryFrequenciesSchema = z.object({
   key, name,
-  daysPerWeek: z.coerce.number().int().min(1).max(7),
-  courierDiscountPct: z.coerce.number().int().min(0).max(100).default(0),
+  daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7)),
+  courierDiscountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   active,
 });
 
 const durationPackagesSchema = z.object({
-  weeks: z.coerce.number().int().positive(),
-  discountPct: z.coerce.number().int().min(0).max(100).default(0),
+  weeks: reqNum(z.coerce.number().int().positive()),
+  discountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   active,
 });
 
@@ -84,15 +92,15 @@ const deliveryZonesSchema = z.object({
 });
 
 const pricingTiersSchema = z.object({
-  minQty: z.coerce.number().int().nonnegative(),
-  maxQty: z.coerce.number().int().positive().optional().nullable(),
-  upliftPct: z.coerce.number(),
+  minQty: reqNum(z.coerce.number().int().nonnegative()),
+  maxQty: optNum(z.coerce.number().int().positive()),
+  upliftPct: reqNum(z.coerce.number()),
   active,
 });
 
 const addonsSchema = z.object({
   key, name,
-  pricePerWeek: z.coerce.number().nonnegative(),
+  pricePerWeek: reqNum(z.coerce.number().nonnegative()),
   active,
 });
 
