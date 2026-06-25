@@ -50,7 +50,7 @@ export function CustomersList({
             <TableRow>
               <SortableHeader column="email" label="Email" currentSort={sort.column} currentDir={sort.dir} />
               <SortableHeader column="phone" label="Phone" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="orders" label="Orders" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="orders" label="Orders" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
               <TableHead>Latest status</TableHead>
             </TableRow>
           </TableHeader>
@@ -66,7 +66,7 @@ export function CustomersList({
                   </Link>
                 </TableCell>
                 <TableCell>{c.phone ?? "no phone"}</TableCell>
-                <TableCell>{c.orderCount}</TableCell>
+                <TableCell className="text-right"><span className="nums">{c.orderCount}</span></TableCell>
                 <TableCell>
                   {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
                 </TableCell>

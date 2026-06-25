@@ -17,7 +17,7 @@ export function StatCard({
         <span>{label}</span>
         {Icon && <Icon className="size-4" />}
       </div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      <div className="nums mt-2 text-2xl font-semibold">{value}</div>
       {hint && <div className="text-muted-foreground mt-1 text-xs">{hint}</div>}
       {delta && <div className={cn("mt-1 text-xs", delta.dir === "up" ? "text-ok" : "text-bad")}>{delta.text}</div>}
     </Card>

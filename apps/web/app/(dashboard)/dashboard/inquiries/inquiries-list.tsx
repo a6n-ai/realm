@@ -109,9 +109,9 @@ export function InquiriesList({
               <SortableHeader column="owner" label="Owner" currentSort={sort.column} currentDir={sort.dir} />
               <SortableHeader column="stage" label="Stage" currentSort={sort.column} currentDir={sort.dir} />
               <SortableHeader column="source" label="Source" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="lastTouch" label="Last touch" currentSort={sort.column} currentDir={sort.dir} />
-              <TableHead>Next action</TableHead>
-              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="lastTouch" label="Last touch" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
+              <TableHead className="text-right">Next action</TableHead>
+              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -131,15 +131,17 @@ export function InquiriesList({
                   <StageBadge stage={r.stage} />
                 </TableCell>
                 <TableCell>{r.source}</TableCell>
-                <TableCell>
-                  {r.lastTouchAt != null
-                    ? formatEpoch(r.lastTouchAt, { mode: "datetime" })
-                    : "—"}
+                <TableCell className="text-right">
+                  <span className="nums">
+                    {r.lastTouchAt != null
+                      ? formatEpoch(r.lastTouchAt, { mode: "datetime" })
+                      : "—"}
+                  </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-right">
                   {r.nextFollowUpAt != null ? (
                     <span className="inline-flex items-center gap-2">
-                      {formatEpoch(r.nextFollowUpAt, { mode: "date" })}
+                      <span className="nums">{formatEpoch(r.nextFollowUpAt, { mode: "date" })}</span>
                       {r.overdue ? (
                         <Badge variant="destructive">Overdue</Badge>
                       ) : null}
@@ -148,7 +150,7 @@ export function InquiriesList({
                     "—"
                   )}
                 </TableCell>
-                <TableCell>{formatEpoch(r.createdAt, { mode: "date" })}</TableCell>
+                <TableCell className="text-right"><span className="nums">{formatEpoch(r.createdAt, { mode: "date" })}</span></TableCell>
               </TableRow>
             ))}
           </TableBody>

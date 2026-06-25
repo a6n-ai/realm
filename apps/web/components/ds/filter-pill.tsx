@@ -20,7 +20,7 @@ export function FilterPill({
     >
       {label}
       {count !== undefined && (
-        <span className={cn("rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+        <span className={cn("nums rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
       )}
     </button>
   );

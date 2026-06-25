@@ -79,9 +79,9 @@ export function OrdersList({
               <SortableHeader column="deployment" label="Deployment" currentSort={sort.column} currentDir={sort.dir} />
               <TableHead>City</TableHead>
               <SortableHeader column="status" label="Status" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="start" label="Start" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="total" label="Total" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="start" label="Start" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
+              <SortableHeader column="total" label="Total" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
+              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -100,9 +100,9 @@ export function OrdersList({
                 <TableCell>
                   <OrderStatusBadge status={o.status} />
                 </TableCell>
-                <TableCell>{o.startDate}</TableCell>
-                <TableCell>{fmt(Number(o.total))}</TableCell>
-                <TableCell>{formatEpoch(o.createdAt, { mode: "date" })}</TableCell>
+                <TableCell className="text-right"><span className="nums">{o.startDate}</span></TableCell>
+                <TableCell className="text-right"><span className="nums">{fmt(Number(o.total))}</span></TableCell>
+                <TableCell className="text-right"><span className="nums">{formatEpoch(o.createdAt, { mode: "date" })}</span></TableCell>
               </TableRow>
             ))}
           </TableBody>
