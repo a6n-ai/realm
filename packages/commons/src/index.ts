@@ -9,3 +9,4 @@ export * from "./util/zoned-time";
 export * from "./util/contact";
 export * from "./util/password";
 export * from "./util/pin";
+export * from "./cache";

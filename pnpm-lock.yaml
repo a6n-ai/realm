@@ -150,6 +150,9 @@ importers:
       libphonenumber-js:
         specifier: ^1.11.0
         version: 1.13.7
+      lru-cache:
+        specifier: ^11.5.1
+        version: 11.5.1
       zod:
         specifier: ^4.4.3
         version: 4.4.3
