@@ -7,8 +7,9 @@ import { Section } from "@/components/marketing/section";
 
 export const metadata: Metadata = { title: "Pricing — Tiffin Grab", description: "Plans, delivery frequencies, and volume-based per-tiffin pricing. Pricing is built from your selections." };
 
-// Read live so admin catalog edits surface without a rebuild.
-export const dynamic = "force-dynamic";
+// Catalog is cached (loadCatalogSnapshot) and admin edits revalidate this path,
+// so the page can be static with a 10m ISR safety net instead of force-dynamic.
+export const revalidate = 600;
 
 export default async function PricingPage() {
   const { plans, frequencies, durations } = await loadCatalogSnapshot();

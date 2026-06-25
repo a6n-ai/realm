@@ -8,8 +8,9 @@ import { MealCard } from "@/components/marketing/cards";
 
 export const metadata: Metadata = { title: "Menu — Tiffin Grab", description: "Browse meal sizes by tier, with calories and macros, available across the GTA." };
 
-// Read live so admin catalog edits surface without a rebuild.
-export const dynamic = "force-dynamic";
+// Catalog is cached (loadCatalogSnapshot) and admin edits revalidate this path,
+// so the page can be static with a 10m ISR safety net instead of force-dynamic.
+export const revalidate = 600;
 
 const TIERS = [
   { key: "budget", label: "Budget" },

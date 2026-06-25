@@ -1,9 +1,24 @@
 import { eq } from "drizzle-orm";
+import { LruTier, TieredCache } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import type { CatalogSnapshot } from "./types";
 
+// Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
+// the subscribe hot path. Cache it; catalog admin mutations call
+// invalidateCatalogSnapshot(). 60s TTL bounds cross-instance staleness until a
+// Redis tier broadcasts eviction.
+const catalogCache = new TieredCache({ name: "catalog", tiers: [new LruTier()], defaultTtlMs: 60_000 });
+
+export function invalidateCatalogSnapshot(): Promise<void> {
+  return catalogCache.evictAll();
+}
+
 export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
+  return catalogCache.getOrSet("snapshot", fetchCatalogSnapshot);
+}
+
+async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
   const [planRows, mealRows, freqRows, durRows, zoneRows, tierRows] = await Promise.all([
     db.select().from(plans).where(eq(plans.active, true)),
     db.select().from(mealSizes).where(eq(mealSizes.active, true)),
