@@ -1,9 +1,8 @@
 import { asc, desc } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { featureFlags, users } from "@/db/schema";
+import { featureFlags, userFeatureFlags, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getEffectiveFlags } from "@/lib/flags";
 import { parseSort } from "@/lib/list/sort";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader, PageShell, SectionCard, SortableHeader } from "@/components/ds";
@@ -22,25 +21,36 @@ export default async function UsersPage({
   const sortCol = sort.column === "role" ? users.role : users.email;
   const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
 
-  const [allUsers, allFlags] = await Promise.all([
+  const [allUsers, allFlags, allOverrides] = await Promise.all([
     db.select().from(users).orderBy(orderBy),
     db.select().from(featureFlags),
+    db.select().from(userFeatureFlags),
   ]);
 
-  const rows = await Promise.all(
-    allUsers.map(async (u) => {
-      const effective = await getEffectiveFlags(u.publicId);
-      return {
-        user: {
-          id: u.publicId,
-          email: u.email,
-          phone: u.phone,
-          role: u.role,
-        },
-        flags: allFlags.map((f) => ({ id: f.publicId, key: f.key, label: f.label, enabled: effective[f.key] ?? false })),
-      };
-    }),
-  );
+  const overridesByUser = new Map<bigint, Map<bigint, boolean>>();
+  for (const o of allOverrides) {
+    let m = overridesByUser.get(o.userId);
+    if (!m) overridesByUser.set(o.userId, (m = new Map()));
+    m.set(o.flagId, Boolean(o.enabled));
+  }
+
+  const rows = allUsers.map((u) => {
+    const ov = overridesByUser.get(u.id);
+    return {
+      user: {
+        id: u.publicId,
+        email: u.email,
+        phone: u.phone,
+        role: u.role,
+      },
+      flags: allFlags.map((f) => ({
+        id: f.publicId,
+        key: f.key,
+        label: f.label,
+        enabled: ov?.has(f.id) ? (ov.get(f.id) as boolean) : f.defaultEnabled,
+      })),
+    };
+  });
 
   return (
     <PageShell>
