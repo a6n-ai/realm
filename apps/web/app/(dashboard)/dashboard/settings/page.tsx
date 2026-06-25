@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon, SettingsIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, SettingsIcon, UsersIcon, UtensilsCrossedIcon, Webhook, type LucideIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ds";
@@ -18,6 +18,18 @@ const SETTINGS: SettingLink[] = [
     description: "Enable or disable the meal slots offered in weekly menus.",
     href: "/dashboard/settings/meal-slots",
     icon: UtensilsCrossedIcon,
+  },
+  {
+    title: "Lead sources",
+    description: "Manage lead sources and their sub-sources.",
+    href: "/dashboard/settings/lead-sources",
+    icon: Webhook,
+  },
+  {
+    title: "Lead assignment",
+    description: "Routing strategy and per-source staff pools.",
+    href: "/dashboard/settings/lead-assignment",
+    icon: UsersIcon,
   },
 ];
 

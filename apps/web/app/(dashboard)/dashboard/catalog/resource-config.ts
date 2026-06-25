@@ -88,22 +88,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "upliftPct", label: "Uplift %", type: "number" },
     ],
   },
-  "lead-sources": {
-    key: "lead-sources", label: "Lead sources",
-    fields: [
-      { key: "key", label: "Key", type: "text" },
-      { key: "label", label: "Label", type: "text" },
-      { key: "isInbound", label: "Inbound (auto-assign)", type: "boolean" },
-    ],
-  },
-  "lead-subsources": {
-    key: "lead-subsources", label: "Lead sub-sources",
-    fields: [
-      { key: "sourceId", label: "Source", type: "select", optionsSource: "leadSources" },
-      { key: "key", label: "Key", type: "text" },
-      { key: "label", label: "Label", type: "text" },
-    ],
-  },
+  // Lead sources & sub-sources are managed on the dedicated relational page at
+  // /dashboard/settings/lead-sources (the generic editor leaked raw source ids).
 };
 
 // Convert a raw DB row into the editor's string-keyed field values.
