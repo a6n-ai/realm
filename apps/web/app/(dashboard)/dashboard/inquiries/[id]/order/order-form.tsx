@@ -150,6 +150,8 @@ export function OrderForm({
     <Form {...form}>
     <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-[1fr_280px]">
       <div className="space-y-4">
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-foreground mb-1">Plan & Schedule</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -230,7 +232,10 @@ export function OrderForm({
             )}
           />
         </div>
+        </fieldset>
 
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-foreground mb-1">Meal Options</legend>
         {enabledSlots.length > 0 && (
           <div className="space-y-2">
             <Label>Meal slots</Label>
@@ -259,7 +264,10 @@ export function OrderForm({
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={(c) => form.setValue("includeSaturday", c)} /> Saturday</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={(c) => form.setValue("includeSunday", c)} /> Sunday</label>
         </div>
+        </fieldset>
 
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-foreground mb-1">Delivery</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" {...form.register("email")} /></div>
           <FormField
@@ -296,6 +304,7 @@ export function OrderForm({
             )}
           />
         </div>
+        </fieldset>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         {missing.length > 0 && (
