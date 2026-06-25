@@ -454,6 +454,7 @@ CREATE TABLE "app_settings" (
 	"updated_by" bigint,
 	"timezone" text DEFAULT 'America/Toronto' NOT NULL,
 	"cutoff_hour" integer DEFAULT 18 NOT NULL,
+	"lead_assignment" jsonb,
 	CONSTRAINT "app_settings_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
