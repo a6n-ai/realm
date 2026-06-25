@@ -73,8 +73,11 @@ export async function createCustomer(
 }
 
 export async function findExistingByContact(phone: string, email?: string | null) {
-  const conds = [eq(sql`lower(${users.phone})`, phone.toLowerCase())];
-  if (email) conds.push(eq(sql`lower(${users.email})`, email.toLowerCase()));
+  // Raw equality against the stored canonical values (phone is E.164, email is
+  // lowercased on write) so the users_phone_unique / users_email_unique indexes
+  // are usable — a lower() wrap forced a seq scan.
+  const conds = [eq(users.phone, phone)];
+  if (email) conds.push(eq(users.email, email.toLowerCase()));
   const [row] = await db
     .select({ publicId: users.publicId, name: users.name })
     .from(users)
