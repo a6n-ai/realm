@@ -1,61 +1,35 @@
 import { asc, eq } from "drizzle-orm";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes, mealSlots } from "@/db/schema";
+import { dishes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
+import { getMealTypes } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder } from "./menu-builder";
+import type { PlanType } from "@/lib/menu/meal-types";
 
-export default async function MenusPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ week?: string }>;
-}) {
+export default async function MenusPage({ searchParams }: { searchParams: Promise<{ type?: string; week?: string }> }) {
   await requireAdmin();
+  const { type, week: weekId } = await searchParams;
+  const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const { week: weekId } = await searchParams;
-
-  const [enabledSlots, activeDishesList, allDishesForMap] = await Promise.all([
-    db
-      .select({ key: mealSlots.key, label: mealSlots.label, sortOrder: mealSlots.sortOrder })
-      .from(mealSlots)
-      .where(eq(mealSlots.enabled, true))
-      .orderBy(asc(mealSlots.sortOrder)),
-    db
-      .select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, slots: dishes.slots })
-      .from(dishes)
-      .where(eq(dishes.active, true))
-      .orderBy(asc(dishes.name)),
-    db
-      .select({ bigintId: dishes.id, publicId: dishes.publicId })
-      .from(dishes),
+  const [mealTypes, activeDishes] = await Promise.all([
+    getMealTypes(),
+    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
   ]);
 
-  const dishPublicIdByBigintId = new Map(allDishesForMap.map((d) => [d.bigintId, d.publicId]));
-
   let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
-  let items: {
-    id: string;
-    dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-    slot: string;
-    dishId: string;
-    position: number;
-  }[] = [];
-
+  let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number }[] = [];
   if (weekId) {
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
-      week = {
-        id: result.week.publicId,
-        weekStart: result.week.weekStart,
-        status: result.week.status,
-        orderCutoff: new Date(result.week.orderCutoff).toISOString(),
-      };
+      week = { id: result.week.publicId, weekStart: result.week.weekStart, status: result.week.status, orderCutoff: new Date(result.week.orderCutoff).toISOString() };
+      const dishRows = await db.select({ bigintId: dishes.id, publicId: dishes.publicId }).from(dishes);
+      const byId = new Map(dishRows.map((d) => [d.bigintId, d.publicId]));
       items = result.items.flatMap((i) => {
-        const dishId = dishPublicIdByBigintId.get(i.dishId);
-        if (!dishId) return [];
-        return [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position }];
+        const dishId = byId.get(i.dishId);
+        return dishId ? [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position }] : [];
       });
     }
   }
@@ -64,12 +38,7 @@ export default async function MenusPage({
     <PageShell>
       <PageHeader icon={CalendarIcon} title="Weekly Menus" />
       <SectionCard title="Menu builder">
-        <MenuBuilder
-          slots={enabledSlots}
-          dishes={activeDishesList}
-          week={week}
-          items={items}
-        />
+        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} />
       </SectionCard>
     </PageShell>
   );
