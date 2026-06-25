@@ -114,7 +114,7 @@ export function AddInquirySheet({
                 name="fullName"
                 render={({ field }) => (
                   <FormItem className="grid gap-2">
-                    <FormLabel>Full name</FormLabel>
+                    <FormLabel>Full name <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -125,7 +125,7 @@ export function AddInquirySheet({
                 name="phone"
                 render={({ field }) => (
                   <FormItem className="grid gap-2">
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <PhoneInput {...field} defaultCountry={defaultCountry} />
                     </FormControl>
@@ -149,7 +149,7 @@ export function AddInquirySheet({
                 name="sourceKey"
                 render={({ field }) => (
                   <FormItem className="grid gap-2">
-                    <FormLabel>Source</FormLabel>
+                    <FormLabel>Source <span className="text-destructive">*</span></FormLabel>
                     <Select
                       value={field.value}
                       onValueChange={(v) => {

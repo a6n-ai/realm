@@ -5,6 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { nextWeekday } from "@tiffin/commons";
 import { Button } from "@/components/ui/button";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -136,46 +139,96 @@ export function OrderForm({
     }
   });
 
+  const missing = [
+    !startDate && "start date",
+    !addressLine && "address",
+    !city && "city",
+    !postalCode && "postal code",
+  ].filter(Boolean) as string[];
+
   return (
+    <Form {...form}>
     <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-[1fr_280px]">
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label>Plan</Label>
-            <Select value={planKey} onValueChange={(v) => form.setValue("planKey", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{catalog.plans.map((p) => <SelectItem key={p.key} value={p.key}>{p.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Meal size</Label>
-            <Select value={mealSizeId} onValueChange={(v) => form.setValue("mealSizeId", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{catalog.mealSizes.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.diet})</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Frequency</Label>
-            <Select value={frequencyKey} onValueChange={(v) => form.setValue("frequencyKey", v as "5_day" | "mwf")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{catalog.frequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="qty">Persons</Label>
-            <Input id="qty" type="number" min={1} max={5} {...form.register("persons")} />
-          </div>
-          <div>
-            <Label>Duration (weeks)</Label>
-            <Select value={String(durationWeeks)} onValueChange={(v) => form.setValue("durationWeeks", Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="start-date">Start date</Label>
-            <Input id="start-date" type="date" min={minStart} {...form.register("startDate")} />
-          </div>
+          <FormField
+            control={form.control}
+            name="planKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Plan <span className="text-destructive">*</span></FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{catalog.plans.map((p) => <SelectItem key={p.key} value={p.key}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="mealSizeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Meal size <span className="text-destructive">*</span></FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{catalog.mealSizes.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.diet})</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="frequencyKey"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Frequency <span className="text-destructive">*</span></FormLabel>
+                <Select value={field.value} onValueChange={(v) => field.onChange(v as "5_day" | "mwf")}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{catalog.frequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="persons"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Persons <span className="text-destructive">*</span></FormLabel>
+                <FormControl><Input type="number" min={1} max={5} {...field} value={String(field.value ?? "")} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="durationWeeks"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration (weeks) <span className="text-destructive">*</span></FormLabel>
+                <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start date <span className="text-destructive">*</span></FormLabel>
+                <FormControl><Input type="date" min={minStart} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         {enabledSlots.length > 0 && (
@@ -208,12 +261,45 @@ export function OrderForm({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" {...form.register("email")} /></div>
-          <div><Label htmlFor="addr">Address</Label><Input id="addr" {...form.register("addressLine")} /></div>
-          <div><Label htmlFor="city">City</Label><Input id="city" {...form.register("city")} /></div>
-          <div><Label htmlFor="postal">Postal code</Label><Input id="postal" {...form.register("postalCode")} /></div>
+          <FormField
+            control={form.control}
+            name="addressLine"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Address <span className="text-destructive">*</span></FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="city"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>City <span className="text-destructive">*</span></FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="postalCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Postal code <span className="text-destructive">*</span></FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
+        {missing.length > 0 && (
+          <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>
+        )}
         <Button type="submit" disabled={form.formState.isSubmitting || !startDate || !addressLine || !city || !postalCode}>Create order &amp; convert</Button>
       </div>
 
@@ -234,5 +320,6 @@ export function OrderForm({
         )}
       </aside>
     </form>
+    </Form>
   );
 }
