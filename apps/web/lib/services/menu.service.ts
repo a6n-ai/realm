@@ -1,46 +1,41 @@
 import { ValidationError } from "@tiffin/commons";
+import { LruTier, TieredCache } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSlots, menuItems, menuWeeks } from "@/db/schema";
+import { dishes, menuItems, menuWeeks } from "@/db/schema";
+import { getMealTypes } from "./app-settings.service";
+import type { PlanType } from "@/lib/menu/meal-types";
+import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 
-const menuWeeksEntity = new SessionUpdatableService(
-  new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id),
-);
-const menuItemsEntity = new SessionBaseService(
-  new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id),
-);
+const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id));
+const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
+
+const publishedCache = new TieredCache({ name: "published-week", tiers: [new LruTier()], defaultTtlMs: 60_000 });
 
 export const menuService = {
-  async upsertWeek(input: { weekStart: string; orderCutoff: string }) {
+  async upsertWeek(input: { planType: PlanType; weekStart: string; orderCutoff: string }) {
     const cutoffMs = new Date(input.orderCutoff).getTime();
-    const [existing] = await db.select().from(menuWeeks).where(eq(menuWeeks.weekStart, input.weekStart)).limit(1);
-    if (existing) {
-      return menuWeeksEntity.update(existing.publicId, { orderCutoff: cutoffMs });
-    }
-    return menuWeeksEntity.create({ weekStart: input.weekStart, orderCutoff: cutoffMs });
+    const [existing] = await db.select().from(menuWeeks)
+      .where(and(eq(menuWeeks.planType, input.planType), eq(menuWeeks.weekStart, input.weekStart))).limit(1);
+    if (existing) return menuWeeksEntity.update(existing.publicId, { orderCutoff: cutoffMs });
+    return menuWeeksEntity.create({ planType: input.planType, weekStart: input.weekStart, orderCutoff: cutoffMs });
   },
 
-  async addItem(input: { menuWeekId: string; dayOfWeek: "mon"|"tue"|"wed"|"thu"|"fri"|"sat"|"sun"; slot: string; dishId: string; isDefault: boolean }) {
-    const [slot] = await db.select().from(mealSlots).where(and(eq(mealSlots.key, input.slot), eq(mealSlots.enabled, true))).limit(1);
-    if (!slot) throw new ValidationError("Slot is not enabled");
-    const [week] = await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
+  async addItem(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; dishId: string; position: number }) {
+    const [week] = await db.select({ id: menuWeeks.id, planType: menuWeeks.planType }).from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
     if (!week) throw new ValidationError("Week not found");
+    const mealTypes = await getMealTypes();
+    const allowed = new Set(mealTypes[week.planType as PlanType].slots.map((s) => s.key));
+    if (!allowed.has(input.slot)) throw new ValidationError(`Slot "${input.slot}" is not configured for this plan type`);
     const [dish] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, input.dishId)).limit(1);
     if (!dish) throw new ValidationError("Dish not found");
-    // Idempotent on the composite key: commons create() does a plain insert, so
-    // check for an existing row first (preserves the old onConflictDoNothing).
     const [dupe] = await db.select({ id: menuItems.id }).from(menuItems)
-      .where(and(
-        eq(menuItems.menuWeekId, week.id),
-        eq(menuItems.dayOfWeek, input.dayOfWeek),
-        eq(menuItems.slot, input.slot),
-        eq(menuItems.dishId, dish.id),
-      )).limit(1);
+      .where(and(eq(menuItems.menuWeekId, week.id), eq(menuItems.dayOfWeek, input.dayOfWeek), eq(menuItems.slot, input.slot), eq(menuItems.dishId, dish.id))).limit(1);
     if (dupe) return null;
     return menuItemsEntity.create({
-      menuWeekId: week.id, dayOfWeek: input.dayOfWeek, slot: input.slot, dishId: dish.id, isDefault: input.isDefault,
+      menuWeekId: week.id, dayOfWeek: input.dayOfWeek, slot: input.slot, dishId: dish.id, isDefault: false, position: input.position,
     });
   },
 
@@ -48,24 +43,38 @@ export const menuService = {
     await menuItemsEntity.delete(publicId);
   },
 
-  async setDefault(itemPublicId: string) {
-    const [item] = await db.select().from(menuItems).where(eq(menuItems.publicId, itemPublicId)).limit(1);
-    if (!item) throw new ValidationError("Item not found");
-    // Raw bulk update by composite key (clear other defaults for this slot, then
-    // set this one). No commons bulk helper this slice → NOT audited. Documented.
-    await db.update(menuItems).set({ isDefault: false })
-      .where(and(eq(menuItems.menuWeekId, item.menuWeekId), eq(menuItems.dayOfWeek, item.dayOfWeek), eq(menuItems.slot, item.slot)));
-    await db.update(menuItems).set({ isDefault: true }).where(eq(menuItems.publicId, itemPublicId));
+  async reorderItems(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; orderedItemIds: string[] }) {
+    // Raw bulk position update by public id; NOT audited (matches existing bulk pattern). Documented.
+    await Promise.all(input.orderedItemIds.map((pid, idx) => db.update(menuItems).set({ position: idx }).where(eq(menuItems.publicId, pid))));
   },
 
   async release(weekPublicId: string) {
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
+    await publishedCache.evictAll();
   },
 
   async weekWithItems(weekPublicId: string) {
     const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) return { week: undefined, items: [] };
-    const items = await db.select().from(menuItems).where(eq(menuItems.menuWeekId, week.id));
+    const items = await db.select().from(menuItems).where(eq(menuItems.menuWeekId, week.id)).orderBy(asc(menuItems.position));
     return { week, items };
+  },
+
+  async getPublishedWeek(planType: PlanType, weekStart?: string) {
+    return publishedCache.getOrSet(`${planType}:${weekStart ?? "current"}`, async () => {
+      const base = and(eq(menuWeeks.planType, planType), eq(menuWeeks.status, "released"));
+      const [week] = await db.select().from(menuWeeks)
+        .where(weekStart ? and(base, eq(menuWeeks.weekStart, weekStart)) : base)
+        .orderBy(asc(menuWeeks.weekStart)).limit(1);
+      if (!week) return null;
+      const rows = await db
+        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
+        .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+        .where(eq(menuItems.menuWeekId, week.id)).orderBy(asc(menuItems.position));
+      const mealTypes = await getMealTypes();
+      const cfg = mealTypes[planType];
+      const items: PosterItem[] = rows.map((r) => ({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, diet: r.diet, position: r.position }));
+      return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: week.weekStart, slots: cfg.slots, items };
+    });
   },
 };

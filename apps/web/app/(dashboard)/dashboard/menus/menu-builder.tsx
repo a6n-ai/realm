@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addItem, releaseWeek, removeItem, setDefault, upsertWeek } from "./actions";
+import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
 
 type Slot = { key: string; label: string; sortOrder: number };
 type Dish = { id: string; name: string; diet: "veg" | "nonveg"; slots: string[] };
@@ -13,7 +13,7 @@ type MenuItem = {
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
   slot: string;
   dishId: string;
-  isDefault: boolean;
+  position: number;
 };
 type Week = { id: string; weekStart: string; status: string; orderCutoff: string };
 
@@ -57,7 +57,7 @@ export function MenuBuilder({
   const handleUpsertWeek = () => {
     if (!weekStart || !orderCutoff) return;
     run(async () => {
-      const w = await upsertWeek({ weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
+      const w = await upsertWeek({ planType: "tiffin", weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
       router.push(`/dashboard/menus?week=${w.publicId}`);
     });
   };
@@ -136,21 +136,7 @@ export function MenuBuilder({
                             const dish = dishes.find((d) => d.id === item.dishId);
                             return (
                               <div key={item.id} className="flex items-center gap-1">
-                                <span className={item.isDefault ? "font-medium" : ""}>
-                                  {dish?.name ?? item.dishId}
-                                </span>
-                                {!item.isDefault && (
-                                  <button
-                                    className="text-xs text-muted-foreground underline"
-                                    disabled={pending}
-                                    onClick={() => run(() => setDefault(item.id))}
-                                  >
-                                    default
-                                  </button>
-                                )}
-                                {item.isDefault && (
-                                  <span className="text-xs text-muted-foreground">★</span>
-                                )}
+                                <span>{dish?.name ?? item.dishId}</span>
                                 <button
                                   className="text-xs text-destructive"
                                   disabled={pending}
@@ -170,7 +156,7 @@ export function MenuBuilder({
                                     dayOfWeek: day,
                                     slot: slot.key,
                                     dishId,
-                                    isDefault: cellItems.length === 0,
+                                    position: cellItems.length,
                                   }).then(() => {})
                                 )
                               }

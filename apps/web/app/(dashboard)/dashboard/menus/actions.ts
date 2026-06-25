@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
+import type { PlanType } from "@/lib/menu/meal-types";
 import { menuService } from "@/lib/services/menu.service";
 
-export async function upsertWeek(input: { weekStart: string; orderCutoff: string }) {
+export async function upsertWeek(input: { planType: PlanType; weekStart: string; orderCutoff: string }) {
   await requireAdmin();
   const week = await menuService.upsertWeek(input);
   revalidatePath("/dashboard/menus");
@@ -16,7 +17,7 @@ export async function addItem(input: {
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
   slot: string;
   dishId: string;
-  isDefault: boolean;
+  position: number;
 }) {
   await requireAdmin();
   const item = await menuService.addItem(input);
@@ -27,12 +28,6 @@ export async function addItem(input: {
 export async function removeItem(id: string) {
   await requireAdmin();
   await menuService.removeItem(id);
-  revalidatePath("/dashboard/menus");
-}
-
-export async function setDefault(itemId: string) {
-  await requireAdmin();
-  await menuService.setDefault(itemId);
   revalidatePath("/dashboard/menus");
 }
 

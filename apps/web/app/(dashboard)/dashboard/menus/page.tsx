@@ -40,7 +40,7 @@ export default async function MenusPage({
     dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
     slot: string;
     dishId: string;
-    isDefault: boolean;
+    position: number;
   }[] = [];
 
   if (weekId) {
@@ -55,7 +55,7 @@ export default async function MenusPage({
       items = result.items.flatMap((i) => {
         const dishId = dishPublicIdByBigintId.get(i.dishId);
         if (!dishId) return [];
-        return [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, isDefault: i.isDefault }];
+        return [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position }];
       });
     }
   }
