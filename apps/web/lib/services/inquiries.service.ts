@@ -1,6 +1,6 @@
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -260,6 +260,35 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .from(inquiryActivities)
       .where(eq(inquiryActivities.inquiryId, inq.id))
       .orderBy(desc(inquiryActivities.createdAt));
+  }
+
+  async findOpenByPhone(phone: string): Promise<
+    { publicId: string; sourceKey: string; sourceLabel: string; stage: Stage; createdAt: number }[]
+  > {
+    const rows = await db
+      .select({
+        publicId: inquiries.publicId,
+        sourceKey: leadSources.key,
+        sourceLabel: leadSources.label,
+        stage: inquiries.stage,
+        createdAt: inquiries.createdAt,
+      })
+      .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .where(
+        and(
+          eq(sql`lower(${inquiries.phone})`, phone.toLowerCase()),
+          notInArray(inquiries.stage, ["converted", "lost"]),
+        ),
+      )
+      .orderBy(desc(inquiries.createdAt));
+    return rows as {
+      publicId: string;
+      sourceKey: string;
+      sourceLabel: string;
+      stage: Stage;
+      createdAt: number;
+    }[];
   }
 }
 
