@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 // shared dev DB without a loginnable admin. Re-run the admin seed once after the
 // whole run so the DB always ends in a usable state. Best-effort: a failure here
 // must not fail the test run.
-export default function teardown() {
+export function teardown() {
   try {
     execFileSync("pnpm", ["db:seed:admin"], {
       stdio: "inherit",
