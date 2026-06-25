@@ -2,6 +2,7 @@ import { asc, desc } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { featureFlags, users } from "@/db/schema";
+import { requireAdmin } from "@/lib/auth/guards";
 import { getEffectiveFlags } from "@/lib/flags";
 import { parseSort } from "@/lib/list/sort";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +14,7 @@ export default async function UsersPage({
 }: {
   searchParams: Promise<{ sort?: string; dir?: string }>;
 }) {
+  await requireAdmin();
   const sort = parseSort(await searchParams, ["email", "role"], {
     column: "email",
     dir: "asc",
