@@ -290,6 +290,41 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       createdAt: number;
     }[];
   }
+
+  async resolveForSource(input: {
+    phone: string;
+    sourceKey: string;
+    contact: { fullName: string; email?: string };
+    interest?: {
+      planInterest?: string;
+      mealSizeInterest?: string;
+      personsInterest?: number;
+      postalCode?: string;
+      preferredStart?: string;
+      quotedPrice?: number;
+      subSourceKey?: string;
+      notes?: string;
+    };
+    pickedId?: string;
+  }): Promise<string> {
+    if (input.pickedId) {
+      const picked = await this.read(input.pickedId);
+      if (picked.stage === "converted") throw new ValidationError("That inquiry is already converted");
+      return picked.publicId;
+    }
+    const open = await this.findOpenByPhone(input.phone);
+    const sameSource = open.find((o) => o.sourceKey === input.sourceKey);
+    if (sameSource) return sameSource.publicId;
+
+    const inq = await this.create({
+      fullName: input.contact.fullName,
+      phone: input.phone,
+      ...(input.contact.email ? { email: input.contact.email } : {}),
+      sourceKey: input.sourceKey,
+      ...(input.interest ?? {}),
+    });
+    return inq.publicId;
+  }
 }
 
 const repo = new UpdatableRepository(db, inquiries, inquiries.publicId, inquiries.id);
