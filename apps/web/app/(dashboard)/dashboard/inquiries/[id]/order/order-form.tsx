@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { nextWeekday } from "@tiffin/commons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
+import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice } from "./actions";
 
 type Catalog = {
@@ -25,106 +28,153 @@ export function OrderForm({
   contact,
   catalog,
   enabledSlots,
+  prefill,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
+  prefill?: Partial<OrderFormInput>;
 }) {
-  const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
 
-  const [planKey, setPlanKey] = useState(catalog.plans[0]?.key ?? "");
-  const [mealSizeId, setMealSizeId] = useState(catalog.mealSizes[0]?.id ?? "");
-  const [frequencyKey, setFrequencyKey] = useState<"5_day" | "mwf">("5_day");
-  const [persons, setPersons] = useState(1);
-  const [mealSlots, setMealSlots] = useState<string[]>(
-    enabledSlots.some((s) => s.key === "lunch") ? ["lunch"] : enabledSlots.slice(0, 1).map((s) => s.key),
-  );
-  const [includeSaturday, setSat] = useState(false);
-  const [includeSunday, setSun] = useState(false);
-  const [durationWeeks, setDuration] = useState(catalog.durations[0]?.weeks ?? 1);
+  const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
+    ? ["lunch"]
+    : enabledSlots.slice(0, 1).map((s) => s.key);
 
-  const [startDate, setStartDate] = useState("");
-  const [addr, setAddr] = useState({ addressLine: "", city: "", postalCode: "" });
-  const [email, setEmail] = useState(contact.email);
+  const form = useForm<OrderFormInput, unknown, OrderFormValues>({
+    resolver: zodResolver(orderFormSchema),
+    defaultValues: {
+      planKey: catalog.plans[0]?.key ?? "",
+      mealSizeId: catalog.mealSizes[0]?.id ?? "",
+      frequencyKey: "5_day",
+      persons: 1,
+      mealSlots: defaultSlots,
+      includeSaturday: false,
+      includeSunday: false,
+      durationWeeks: catalog.durations[0]?.weeks ?? 1,
+      startDate: "",
+      email: contact.email,
+      addressLine: "",
+      city: "",
+      postalCode: "",
+      ...prefill,
+    },
+  });
 
   const minStart = nextWeekday(new Date()).toISOString().slice(0, 10);
 
-  const buildInput = (): CreateOrderInput => ({
-    planKey,
-    selections: { mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate },
+  const planKey = form.watch("planKey");
+  const mealSizeId = form.watch("mealSizeId");
+  const frequencyKey = form.watch("frequencyKey");
+  const persons = form.watch("persons");
+  const mealSlots = form.watch("mealSlots");
+  const includeSaturday = form.watch("includeSaturday");
+  const includeSunday = form.watch("includeSunday");
+  const durationWeeks = form.watch("durationWeeks");
+  const startDate = form.watch("startDate");
+  const addressLine = form.watch("addressLine");
+  const city = form.watch("city");
+  const postalCode = form.watch("postalCode");
+  const email = form.watch("email");
+
+  const buildInput = (v: OrderFormValues): CreateOrderInput => ({
+    planKey: v.planKey,
+    selections: {
+      mealSizeId: v.mealSizeId,
+      frequencyKey: v.frequencyKey,
+      persons: v.persons,
+      mealSlots: v.mealSlots,
+      includeSaturday: v.includeSaturday,
+      includeSunday: v.includeSunday,
+      durationWeeks: v.durationWeeks,
+      startDate: v.startDate,
+    },
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
-      email: email || undefined,
-      addressLine: addr.addressLine,
-      city: addr.city,
-      postalCode: addr.postalCode,
+      email: v.email || undefined,
+      addressLine: v.addressLine,
+      city: v.city,
+      postalCode: v.postalCode,
     },
   });
 
   useEffect(() => {
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
-    previewPrice(buildInput())
+    previewPrice(
+      buildInput({
+        planKey,
+        mealSizeId,
+        frequencyKey,
+        persons: Number(persons),
+        mealSlots,
+        includeSaturday,
+        includeSunday,
+        durationWeeks: Number(durationWeeks),
+        startDate,
+        email: email ?? "",
+        addressLine: addressLine ?? "",
+        city: city ?? "",
+        postalCode: postalCode ?? "",
+      }),
+    )
       .then((r) => { if (!cancelled) setPreview(r); })
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate]);
 
-  const submit = () => {
+  const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
-    start(async () => {
-      try {
-        await convertInquiry(inquiryId, buildInput());
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to create order");
-      }
-    });
-  };
+    try {
+      await convertInquiry(inquiryId, buildInput(v));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create order");
+    }
+  });
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+    <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-[1fr_280px]">
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label>Plan</Label>
-            <Select value={planKey} onValueChange={setPlanKey}>
+            <Select value={planKey} onValueChange={(v) => form.setValue("planKey", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{catalog.plans.map((p) => <SelectItem key={p.key} value={p.key}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label>Meal size</Label>
-            <Select value={mealSizeId} onValueChange={setMealSizeId}>
+            <Select value={mealSizeId} onValueChange={(v) => form.setValue("mealSizeId", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{catalog.mealSizes.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.diet})</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label>Frequency</Label>
-            <Select value={frequencyKey} onValueChange={(v) => setFrequencyKey(v as "5_day" | "mwf")}>
+            <Select value={frequencyKey} onValueChange={(v) => form.setValue("frequencyKey", v as "5_day" | "mwf")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{catalog.frequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label htmlFor="qty">Persons</Label>
-            <Input id="qty" type="number" min={1} max={5} value={persons} onChange={(e) => setPersons(Number(e.target.value))} />
+            <Input id="qty" type="number" min={1} max={5} {...form.register("persons")} />
           </div>
           <div>
             <Label>Duration (weeks)</Label>
-            <Select value={String(durationWeeks)} onValueChange={(v) => setDuration(Number(v))}>
+            <Select value={String(durationWeeks)} onValueChange={(v) => form.setValue("durationWeeks", Number(v))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{catalog.durations.map((d) => <SelectItem key={d.weeks} value={String(d.weeks)}>{d.weeks}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label htmlFor="start-date">Start date</Label>
-            <Input id="start-date" type="date" min={minStart} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <Input id="start-date" type="date" min={minStart} {...form.register("startDate")} />
           </div>
         </div>
 
@@ -137,12 +187,12 @@ export function OrderForm({
                   <input
                     type="checkbox"
                     checked={mealSlots.includes(slot.key)}
-                    onChange={(e) =>
-                      setMealSlots((prev) => {
-                        const next = e.target.checked ? [...prev, slot.key] : prev.filter((k) => k !== slot.key);
-                        return next.length === 0 ? prev : next;
-                      })
-                    }
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...mealSlots, slot.key]
+                        : mealSlots.filter((k) => k !== slot.key);
+                      if (next.length > 0) form.setValue("mealSlots", next);
+                    }}
                   />
                   {slot.label}
                 </label>
@@ -152,19 +202,19 @@ export function OrderForm({
         )}
 
         <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={setSat} /> Saturday</label>
-          <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={setSun} /> Sunday</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={(c) => form.setValue("includeSaturday", c)} /> Saturday</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={(c) => form.setValue("includeSunday", c)} /> Sunday</label>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-          <div><Label htmlFor="addr">Address</Label><Input id="addr" value={addr.addressLine} onChange={(e) => setAddr((a) => ({ ...a, addressLine: e.target.value }))} /></div>
-          <div><Label htmlFor="city">City</Label><Input id="city" value={addr.city} onChange={(e) => setAddr((a) => ({ ...a, city: e.target.value }))} /></div>
-          <div><Label htmlFor="postal">Postal code</Label><Input id="postal" value={addr.postalCode} onChange={(e) => setAddr((a) => ({ ...a, postalCode: e.target.value }))} /></div>
+          <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" {...form.register("email")} /></div>
+          <div><Label htmlFor="addr">Address</Label><Input id="addr" {...form.register("addressLine")} /></div>
+          <div><Label htmlFor="city">City</Label><Input id="city" {...form.register("city")} /></div>
+          <div><Label htmlFor="postal">Postal code</Label><Input id="postal" {...form.register("postalCode")} /></div>
         </div>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
-        <Button onClick={submit} disabled={pending || !startDate || !addr.addressLine || !addr.city || !addr.postalCode}>Create order &amp; convert</Button>
+        <Button type="submit" disabled={form.formState.isSubmitting || !startDate || !addressLine || !city || !postalCode}>Create order &amp; convert</Button>
       </div>
 
       <aside className="h-fit rounded-lg border p-4 text-sm">
@@ -183,6 +233,6 @@ export function OrderForm({
           <p className="text-muted-foreground">Select options to preview.</p>
         )}
       </aside>
-    </div>
+    </form>
   );
 }
