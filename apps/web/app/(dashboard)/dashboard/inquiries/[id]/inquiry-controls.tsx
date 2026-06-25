@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { logActivity, markLost, setStage } from "../actions";
 import type { ActivityType, InquiryStage, LostReason } from "@/lib/services/inquiries.service";
 
@@ -99,8 +100,7 @@ export function ActivityComposer({ inquiryId }: { inquiryId: string }) {
           />
         </div>
       </div>
-      <textarea
-        className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none"
+      <Textarea
         placeholder="Note (optional)…"
         value={note}
         onChange={(e) => setNote(e.target.value)}
@@ -151,8 +151,7 @@ export function MarkLostDialog({ inquiryId }: { inquiryId: string }) {
               </SelectContent>
             </Select>
           </div>
-          <textarea
-            className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none"
+          <Textarea
             placeholder="Note (optional)…"
             value={note}
             onChange={(e) => setNote(e.target.value)}

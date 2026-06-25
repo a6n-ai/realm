@@ -25,6 +25,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
 
@@ -202,10 +203,7 @@ export function AddInquirySheet({
               )}
               <FormItem className="grid gap-2">
                 <FormLabel>Notes</FormLabel>
-                <textarea
-                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-20 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-1 focus-visible:outline-none"
-                  {...form.register("notes")}
-                />
+                <Textarea {...form.register("notes")} />
               </FormItem>
 
               <details className="border-border rounded-md border px-3 py-2 [&_summary]:cursor-pointer">

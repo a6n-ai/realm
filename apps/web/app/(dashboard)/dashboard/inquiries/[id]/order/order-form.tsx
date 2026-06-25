@@ -239,6 +239,7 @@ export function OrderForm({
                 <label key={slot.key} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
+                    className="accent-[var(--brand)] size-4 rounded border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                     checked={mealSlots.includes(slot.key)}
                     onChange={(e) => {
                       const next = e.target.checked
