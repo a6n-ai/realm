@@ -10,6 +10,8 @@ import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
+type ActivityType = "call" | "whatsapp" | "email" | "note";
+type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   private async resolveSource(sourceKey: string, subSourceKey?: string) {
@@ -86,6 +88,33 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     });
   }
 
+  async logActivity(
+    publicId: string,
+    input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number },
+  ) {
+    const inq = await this.read(publicId);
+    await inquiryActivitiesService.create({
+      inquiryId: inq.id,
+      type: input.type,
+      note: input.note ?? null,
+      outcome: input.outcome ?? null,
+      nextFollowUpAt: input.nextFollowUpAt ?? null,
+    });
+  }
+
+  async markLost(publicId: string, reason: LostReason, note?: string) {
+    const current = await this.read(publicId);
+    if (current.stage === "converted") throw new ValidationError("Converted inquiry cannot be marked lost");
+    await this.update(publicId, { stage: "lost", lostReason: reason });
+    await inquiryActivitiesService.create({
+      inquiryId: current.id,
+      type: "stage_change",
+      fromStage: current.stage,
+      toStage: "lost",
+      note: note ?? null,
+    });
+  }
+
   async changeStage(publicId: string, toStage: Stage) {
     const current = await this.read(publicId);
     if (current.stage === toStage) return current;
@@ -138,4 +167,4 @@ export const inquiriesService = new InquiriesService(repo);
 const inquiryActivitiesService = new SessionBaseService(
   new BaseRepository(db, inquiryActivities, inquiryActivities.publicId, inquiryActivities.id),
 );
-export type { Stage as InquiryStage };
+export type { Stage as InquiryStage, ActivityType, LostReason };
