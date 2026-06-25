@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,19 +41,27 @@ export function OrdersList({
   const hasFilters = !!search || status !== "all";
   const clearFilters = () => clearUrlKeys(["q", "status"]);
 
-  const countOf = (s: string) =>
-    s === "all" ? rows.length : rows.filter((r) => r.status === s).length;
+  // One pass over rows for all pill counts; search-independent so it only
+  // recomputes when rows change, not on every keystroke.
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const r of rows) c[r.status] = (c[r.status] ?? 0) + 1;
+    return c;
+  }, [rows]);
+  const countOf = (s: string) => (s === "all" ? rows.length : counts[s] ?? 0);
 
-  const filtered = rows.filter((r) => {
-    const matchStatus = status === "all" || r.status === status;
+  const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      r.fullName.toLowerCase().includes(q) ||
-      r.deploymentId.toLowerCase().includes(q) ||
-      r.city.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
-  });
+    return rows.filter((r) => {
+      const matchStatus = status === "all" || r.status === status;
+      const matchSearch =
+        !q ||
+        r.fullName.toLowerCase().includes(q) ||
+        r.deploymentId.toLowerCase().includes(q) ||
+        r.city.toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
+  }, [rows, status, search]);
 
   return (
     <div className="space-y-4">
