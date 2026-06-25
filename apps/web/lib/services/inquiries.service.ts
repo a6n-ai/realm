@@ -120,9 +120,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       subSourceKey?: string;
       [k: string]: unknown;
     };
+    // Zone resolution depends only on the postal code, so run it alongside the
+    // source→owner chain instead of after it.
+    const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
     const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
     const currentOwner = await this.resolveOwner(sourceId, sourceKey, isInbound);
-    const zoneId = await this.resolveZoneId(rest.postalCode as string | undefined);
+    const zoneId = await zoneIdP;
 
     let inq: typeof inquiries.$inferSelect;
     try {

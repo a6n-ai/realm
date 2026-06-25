@@ -19,16 +19,21 @@ export async function pickDish(input: {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
 
-  const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
-  if (!order) throw new ValidationError("Order not found");
+  // Order and menu-week lookups are independent — start both, then gate on order
+  // for the auth check. Guard the early-started week query against the throw paths.
+  const orderP = db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
+  const weekP = db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
+
+  const [order] = await orderP;
+  if (!order) { void weekP.catch(() => {}); throw new ValidationError("Order not found"); }
 
   const isStaff = session.user.role === "admin" || session.user.role === "member";
   if (!isStaff) {
     const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    if (!actor || order.userId !== actor.id) throw new AuthError();
+    if (!actor || order.userId !== actor.id) { void weekP.catch(() => {}); throw new AuthError(); }
   }
 
-  const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
+  const [week] = await weekP;
   if (!week) throw new ValidationError("Menu week not found");
 
   await selectionsService.setSelection({

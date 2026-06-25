@@ -60,19 +60,15 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
     throw e;
   }
   const activities = await activitiesP;
-  const [source] = await db
-    .select({ label: leadSources.label })
-    .from(leadSources)
-    .where(eq(leadSources.id, inq.sourceId))
-    .limit(1);
   const converted = inq.stage === "converted";
   const lost = inq.stage === "lost";
   const now = Date.now();
 
-  const [catalog, slots, existing] = await Promise.all([
+  const [catalog, slots, existing, [source]] = await Promise.all([
     loadCatalogSnapshot(),
     mealSlotsService.enabledSlots(),
     findExistingByContact(inq.phone, inq.email),
+    db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
   ]);
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {

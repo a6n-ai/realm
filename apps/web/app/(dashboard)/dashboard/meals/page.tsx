@@ -15,14 +15,8 @@ export default async function MealsPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const [userRow] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.publicId, session.user.id))
-    .limit(1);
-
-  if (!userRow) redirect("/login");
-
+  // One join keyed on users.public_id instead of a publicId→id lookup then a
+  // second filtered query (two serial round trips on the customer's main page).
   const [orderRow] = await db
     .select({
       id: orders.id,
@@ -42,7 +36,8 @@ export default async function MealsPage() {
     })
     .from(orders)
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-    .where(eq(orders.userId, userRow.id))
+    .innerJoin(users, eq(orders.userId, users.id))
+    .where(eq(users.publicId, session.user.id))
     .orderBy(desc(orders.createdAt))
     .limit(1);
 
