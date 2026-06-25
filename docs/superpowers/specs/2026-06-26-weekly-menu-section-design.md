@@ -1,246 +1,213 @@
 # Weekly Menu Section — Design
 
 **Date:** 2026-06-26
-**Status:** Approved (pending written-spec review)
+**Status:** Approved v1; **v2 unified-model revision pending review**
 **Author:** brainstormed with hrithikraj1997@gmail.com
 
 ## Problem
 
-Tiffin Grab publishes a weekly tiffin menu as a Canva PDF poster
-(see `tiffingrab.ca/.../Tiffin-Menu-*.pdf`). The poster format is:
+Tiffin Grab publishes a weekly menu as a Canva PDF poster
+(see `tiffingrab.ca/.../Tiffin-Menu-*.pdf`):
 
-- Title: `Tiffin Menu - <start date> - <end date>` (one week).
+- Title: `Tiffin Menu - <start> - <end>` (one week).
 - Six columns: **Mon, Tue, Wed, Thu, Fri** + **WEEKENDS** (Sat+Sun merged).
-- Each weekday lists **3 dishes** (flat list of names); weekends list **2**.
-- Dishes mix veg/nonveg. No lunch/dinner slots, no portions, no per-dish detail.
+- Each weekday lists **3 dishes** (flat names); weekends list **2**.
+- Veg/nonveg mix. The tiffin poster shows **no meal slots** (it's lunch-only).
 
-The existing in-app menu (`/dashboard/menus`, `menu.ts`) over-models this: it
-has meal *slots* (lunch/dinner), `isDefault`, per-person `meal_selections`, and
-order cutoffs — none of which appear in the real weekly poster. It does not
-match how the business actually publishes menus.
+We want an in-app weekly-menu section that lets admins compose the week per
+**meal type** (tiffin/healthy), publishes to the marketing site (homepage +
+`/menu/weekly`), downloads as a PDF, and emails as a brand-exact PDF. Built so
+customer **ordering** can attach later without rework.
 
-We want an in-app **weekly menu section** that (a) lets admins build the week's
-poster matching the real format, (b) supports **multiple plans** (Tiffin now,
-Healthy later), (c) publishes the poster to the **marketing website** (homepage
-+ dedicated route), and (d) supports **PDF download**. Built so customer
-**ordering** can attach in a later phase without rework.
+## The unified plan/slot model (v2)
 
-## Scope
+There is already a `plan_type` pgEnum `('tiffin','healthy')` on the catalog
+`plans` table, plus `plans.offeredSlots text[]`. This enum **is** the plan
+dimension. We do NOT introduce a separate plans table for the weekly menu.
 
-**Phase 1 (this spec):** Admin builds + publishes weekly menus per plan;
-poster renders on marketing site; react-pdf download; puppeteer email PDF
-(pending mailer — see Email gap); customizable plan settings.
+- **`plan_type`** (tiffin/healthy) — kept as-is, the single plan axis.
+- **Meal slots belong to a plan type**, not to the catalog. tiffin → `[lunch]`;
+  healthy → `[breakfast, lunch, dinner]`.
+- **Source of truth moves to Settings**: a new `app_settings.mealTypes` JSON,
+  keyed by plan type, holds each type's slots + poster theme. The standalone
+  catalog meal-slots editor is dropped. Catalog `plans.offeredSlots` is **derived
+  from** this config at snapshot-load time (the column stays but is no longer the
+  source).
+- **Weekly menu is keyed by `plan_type`**; its structure (day × slots) follows
+  that type's slot setting.
 
-**Phase 2 (later, not built now):** Customers order/select dishes off a
-released week, feeding `meal_selections` + order cutoff. Schema is designed so
-this attaches cleanly.
-
-**Out of scope:** Nutrition/calorie data, the "Healthy" plan's content.
-
-## Decisions
-
-- **Approach A — extend menu tables, add a Plan dimension.** Rejected: separate
-  poster tables (double maintenance) and JSON-blob-per-week (breaks phase-2
-  ordering, which needs real `dish_id` rows).
-- **Marketing placement:** current-week poster on the **homepage** *and* a
-  **dedicated route**.
-- **Old slot-based builder:** **replaced** by the poster-style builder. Existing
-  `menu_weeks`/`menu_items` data is backfilled into the seeded "Tiffin" plan so
-  nothing is orphaned (required by the new NOT NULL `plan_id`).
-- **PDF — two paths (deliberate split):**
-  - **Email attachment → puppeteer** (`puppeteer-core` + `@sparticuz/chromium-min`).
-    Renders the *actual* marketing poster route to a brand-exact PDF (bg images,
-    overlap, photos, web fonts). Runs ~once/week, so chromium cold-start cost is
-    fine. This is the customer-facing artifact.
-  - **Website "Download PDF" → `@react-pdf/renderer`.** Light, cheap, no chromium
-    on the hot interactive path. Renders a **simpler branded dish-list** (NOT the
-    Canva poster — react-pdf can't do bg images/overlap). Accepted tradeoff: the
-    download looks plainer than the emailed poster.
-  - Two layouts; they can drift. Documented and accepted.
-  - **Abstracted behind one contract** (see Services): both paths implement an
-    abstract `WeeklyMenuPdfRenderer`, so callers (email job, download route)
-    depend on the interface, not the engine.
-
-## Data model
-
-New table `menu_plans`:
-
-| column      | type                  | notes                                  |
-|-------------|-----------------------|----------------------------------------|
-| (updatable) | `mpl` prefix          | commons `updatableColumns`             |
-| `key`       | text unique           | `tiffin`, `healthy`, …                 |
-| `label`     | text                  | display name                           |
-| `active`    | boolean default true  | hide a plan without deleting           |
-| `sortOrder` | integer default 0     | ordering in pickers / marketing        |
-| `config`    | jsonb                 | see below                              |
-
-`config` shape (typed, validated):
+`app_settings.mealTypes` shape:
 
 ```ts
-type PlanConfig = {
-  columns: { label: string; days: DayOfWeek[]; dishCount: number }[];
-  theme: { accent: string; titlePrefix: string };
+type MealTypeConfig = {
+  slots: { key: string; label: string }[];   // ordered
+  accent: string;                              // "#RRGGBB"
+  titlePrefix: string;                         // e.g. "Tiffin Menu"
 };
+type MealTypesSettings = Record<"tiffin" | "healthy", MealTypeConfig>;
 ```
 
-Tiffin default `config`:
+Defaults:
 
 ```ts
 {
-  columns: [
-    { label: "Monday",   days: ["mon"], dishCount: 3 },
-    { label: "Tuesday",  days: ["tue"], dishCount: 3 },
-    { label: "Wednesday",days: ["wed"], dishCount: 3 },
-    { label: "Thursday", days: ["thu"], dishCount: 3 },
-    { label: "Friday",   days: ["fri"], dishCount: 3 },
-    { label: "Weekends", days: ["sat","sun"], dishCount: 2 },
-  ],
-  theme: { accent: "#F0820A", titlePrefix: "Tiffin Menu" },
+  tiffin:  { slots: [{ key: "lunch", label: "Lunch" }], accent: "#F0820A", titlePrefix: "Tiffin Menu" },
+  healthy: { slots: [{ key: "breakfast", label: "Breakfast" }, { key: "lunch", label: "Lunch" }, { key: "dinner", label: "Dinner" }], accent: "#1FAE54", titlePrefix: "Healthy Menu" },
 }
 ```
 
-`dishCount` is **soft guidance** (UI nudges, doesn't hard-block) — admins can
-add fewer/more without an error.
+## Scope
 
-Changes to existing tables:
+**Phase 1 (this spec):** Settings panel for meal-type slots+theme; poster-style
+admin builder per plan type; marketing poster (homepage + `/menu/weekly`);
+react-pdf download; puppeteer email PDF (pending mailer — see Email gap);
+catalog reads slots from the new config.
 
-- `menu_weeks` += `planId bigint NOT NULL REFERENCES menu_plans(id)`. Unique
-  constraint changes from `weekStart` to **`(plan_id, week_start)`**.
-- `menu_items` += `position integer NOT NULL DEFAULT 0` (poster ordering within a
-  column). `slot` stays in the schema but the builder writes a single implicit
-  slot value `"main"` for poster-only plans, keeping phase-2 keys clean.
-- `meal_selections`: **unchanged** (phase 2). Weekend dishes are stored under
-  `sat`; phase-2 weekend selection maps both sat+sun to the merged column's
-  dishes (documented for the phase-2 implementer).
+**Phase 2 (later):** Customers order/select dishes off a released week
+(`meal_selections` + cutoff). Schema designed so this attaches cleanly.
 
-**Migration:** Drizzle `db:generate` (squashed baseline convention). Seed a
-`tiffin` plan; backfill any existing `menu_weeks.plan_id` to it before the NOT
-NULL constraint applies.
+**Out of scope:** nutrition data; expanding the `plan_type` enum (keep
+tiffin/healthy); drag-reorder UI (handle deferred; `position` set by add order).
+
+## Decisions
+
+- **No new plans table.** Reuse `plan_type` enum. `menu_weeks` gets a `planType`
+  enum column; unique becomes `(plan_type, week_start)`.
+- **Meal-type config (slots + theme) in `app_settings.mealTypes` JSON**, edited
+  in a Settings panel. Catalog meal-slots editor removed; `offeredSlots` derived
+  from config. The existing `mealSlots` table is retired from the weekly-menu
+  path (left in place to avoid migration churn; marked deprecated).
+- **Poster slot rendering follows the type's slot count:** 1 slot → flat dish
+  list per day (tiffin, matches the PDF, slot header hidden); >1 slot → dishes
+  grouped under slot subheaders (healthy).
+- **Weekends merged** (Sat+Sun) as a poster column; dishes stored under `sat`.
+- **Old slot-based builder replaced** by the poster-style builder.
+- **PDF — two paths behind one abstract class** (`WeeklyMenuPdfRenderer`):
+  - **Email → puppeteer** (`puppeteer-core` + `@sparticuz/chromium-min`): prints
+    the real marketing poster route, brand-exact. ~once/week, cost fine.
+  - **Download → `@react-pdf/renderer`**: light, simpler branded list, no
+    chromium on the interactive path. Plainer than the emailed poster (accepted).
+- **Marketing placement:** homepage section + dedicated `/menu/weekly` route.
+
+## Data model
+
+Changes:
+
+- `db/schema/app-settings.ts`: add `mealTypes jsonb` to `app_settings`.
+- `db/schema/menu.ts`:
+  - `menu_weeks` += `planType` enum (`plan_type`, default `'tiffin'`); unique
+    changes from `week_start` to `(plan_type, week_start)`.
+  - `menu_items` += `position integer NOT NULL DEFAULT 0`. `slot` stays and now
+    holds the **real** slot key from the type's config (no `"main"` placeholder).
+  - `mealSlots` table: unchanged but deprecated (no longer read by the menu).
+- `meal_selections`: **unchanged** (phase 2). Weekend dishes stored under `sat`;
+  phase-2 weekend selection maps both sat+sun to the merged column.
+
+**Migration:** `pnpm --filter web db:generate`, then apply. `planType` has a
+default so existing rows backfill to `'tiffin'`. Seed `app_settings.mealTypes`
+with the defaults above.
 
 ## Services
 
-`menu.service.ts` (extends commons abstract services, subclass overrides per
-convention):
+`app-settings.service.ts`:
+- `getMealTypes(): Promise<MealTypesSettings>` (cached, defaults when unset).
+- `setMealTypes(cfg: MealTypesSettings): Promise<void>` (validated; evicts cache).
 
-- Plan CRUD via a `MenuPlansService` (commons `UpdatableRepository`); `config`
-  validated against a Zod/typed schema before write.
-- Week + items: keep `upsertWeek`/`addItem`/`removeItem`/`weekWithItems`,
-  re-scoped by `planId`; add `reorderItems(weekId, day, orderedIds)` writing
-  `position`; `release` unchanged.
-- A cached `getPublishedWeek(planKey, weekStart?)` for marketing (TieredCache,
-  evict on release — mirrors `app-settings.service` and the catalog snapshot
-  cache). Returns the current released week's poster data.
+`menu.service.ts` (commons subclass + override convention):
+- `upsertWeek({ planType, weekStart, orderCutoff })` — scoped by `planType`.
+- `addItem({ menuWeekId, dayOfWeek, slot, dishId, position })` — `slot` validated
+  against the plan type's configured slots (replaces the old `mealSlots.enabled`
+  check).
+- `removeItem`, `reorderItems({ menuWeekId, dayOfWeek, slot, orderedItemIds })`,
+  `release` (evicts published cache).
+- `weekWithItems(weekPublicId)`.
+- `getPublishedWeek(planType, weekStart?)` — cached; returns
+  `{ planType; theme; weekStart; slots; items: PosterItem[] }` where
+  `PosterItem = { dayOfWeek; slot; dishName; diet; position }`.
 
-### PDF renderer abstraction
+`catalog/load.ts`: derive each plan's `offeredSlots` from
+`getMealTypes()[plan.planType].slots` (keys) instead of the column.
 
-One abstract base, two concrete engines, so callers depend on the contract not
-the engine (consistent with the commons "subclass + override" convention):
+### Poster mapping (`lib/menu/plan-config.ts`)
+
+Pure, tested:
+- `WEEKEND_COLUMNS`/day-grouping constants (Mon…Fri + Weekends[sat,sun]).
+- `buildPosterColumns(slots, items)` → `RenderedColumn[]` where each column is a
+  day group, and within it either a flat dish list (1 slot) or
+  `{ slotLabel, dishes }[]` subgroups (>1 slot), ordered by (day index, position).
+
+### PDF renderer abstraction (`lib/menu/pdf/`)
 
 ```ts
-type WeeklyMenuPdfInput = {
-  plan: MenuPlan;
-  week: PublishedWeek;        // resolved poster data from getPublishedWeek
-};
-
 abstract class WeeklyMenuPdfRenderer {
-  // template method: fetch -> render -> return bytes
-  async generate(planKey: string, weekStart?: string): Promise<Uint8Array> {
-    const input = await this.resolve(planKey, weekStart); // shared
-    return this.render(input);                             // engine-specific
+  async generate(planType, weekStart?): Promise<Uint8Array> {
+    const pub = await getPublishedWeek(planType, weekStart);
+    if (!pub) throw new NotFoundError(...);
+    return this.render({ titlePrefix: pub.theme.titlePrefix, accent: pub.theme.accent,
+      weekStart: pub.weekStart, columns: buildPosterColumns(pub.slots, pub.items) });
   }
-  protected resolve = getPublishedWeek;                    // shared, overridable
   protected abstract render(input: WeeklyMenuPdfInput): Promise<Uint8Array>;
 }
 ```
-
-Concrete subclasses:
-
-- `PuppeteerPdfRenderer extends WeeklyMenuPdfRenderer` — `render()` launches
-  `@sparticuz/chromium-min`, navigates to the poster route (or sets its HTML),
-  `page.pdf()`. Used by the **email** path.
-- `ReactPdfRenderer extends WeeklyMenuPdfRenderer` — `render()` builds the
-  `@react-pdf/renderer` `<Document>` (simpler branded dish-list) and returns
-  bytes. Used by the **download** route.
-
-Callers (email job, `/menu/weekly/pdf`) hold a `WeeklyMenuPdfRenderer` and call
-`generate()` — swappable, testable, single resolve path.
+- `ReactPdfRenderer` (download), `PuppeteerPdfRenderer(posterUrl)` (email).
 
 ## UI
 
-**Admin `/dashboard/menus` (rebuilt, poster-style):**
+**Settings → Meal types panel** (`/dashboard/settings`): per plan type, edit
+ordered slots (key+label, add/remove), accent color, title prefix. Typed
+controls. Saves via `setMealTypes`. Replaces the catalog meal-slots editor.
 
-- Plan picker (typed `Select`) → week picker / "new week" (date input, Monday).
-- One card per `config.columns` entry. Each card: dish list with veg/nonveg dot,
-  add-dish (typed `Select` from active dishes — no free-text, TD-3), remove,
-  drag-reorder (writes `position`). Soft count hint from `dishCount`.
-- Draft → **Release** action.
-- **Live poster preview** mirroring the marketing render (pattern from the
-  catalog live-preview commit `7dda875`).
-- **Settings** panel for plan `config`: columns (label/days/count), theme
-  (accent color, title prefix) — all typed controls.
+**Admin `/dashboard/menus` (rebuilt):** plan-type picker → week picker/new →
+day columns; within each day, dish add per slot (single slot → flat add; multi →
+one add control per slot label). Typed `Select` from active dishes. Draft →
+Release. **Live poster preview** mirroring marketing.
 
-**Marketing:**
-
-- New `WeeklyMenuPoster` component (orange Canva look: brand header, day
-  columns, dish lists, footer with phone/site). Solid colors only — no text
-  effects (per `no-text-effects` memory).
-- Rendered on **homepage** (section) and a **dedicated route**
-  (`/menu/weekly`), both reading `getPublishedWeek("tiffin")`. Static + ISR /
-  revalidate-on-release (matches `/menu` page caching).
-- **Download PDF** button → route `/menu/weekly/pdf` backed by
-  `ReactPdfRenderer.generate()`. Streams `application/pdf` (simpler branded
-  dish-list, accent from plan `config.theme`).
+**Marketing:** `WeeklyMenuPoster` component (brand look, solid colors only — no
+text effects). Renders flat or slot-grouped per the type's slots. On homepage +
+`/menu/weekly`. **Download PDF** → `/menu/weekly/pdf` (react-pdf). Empty state
+when nothing released. Nav link added.
 
 ## Email
 
-Admin action "Email this week's menu" generates the brand-exact poster PDF via
-`PuppeteerPdfRenderer.generate()` and attaches it to the outgoing email.
-One-off cadence → chromium cost acceptable. `requireAdmin`-guarded.
+Admin action "Email this week's menu" → `PuppeteerPdfRenderer.generate()` →
+attach to mail. `requireAdmin`.
 
-> **Gap / dependency:** there is **no mail-sending infrastructure** in the repo
-> today (`email` is only a stored contact field; no provider, no transport).
-> The email feature requires adding a mail provider (Resend recommended for
-> Vercel — simple attachment API; nodemailer/SMTP as fallback) behind a small
-> `mailer` service. Recipient list (all active subscribers? a test address?) is
-> **TBD — needs your input before the email path is planned.** The PDF
-> abstraction and puppeteer renderer can be built independently of this; email
-> wiring is the last step and may slip to its own slice if the recipient model
-> is unsettled.
-
-## Error handling
-
-- Plan `config` validated before persist; invalid JSON rejected with
-  `ValidationError`.
-- Releasing a week with empty columns warns but is allowed (admin choice).
-- Marketing render: no released week → graceful "menu coming soon" empty state,
-  not a crash.
-- Admin actions are `requireAdmin`-guarded server actions (existing pattern),
-  `revalidatePath` on marketing + dashboard.
+> **Gap:** no mail infrastructure exists (`email` is only a contact field). Needs
+> a mail provider (Resend recommended). Recipient model (all subscribers vs a
+> test address) **TBD**. Phase-1 ships a single admin-entered recipient; broaden
+> later. Email is the slippable last slice.
 
 ## New dependencies
 
-- `puppeteer-core` + `@sparticuz/chromium-min` (email PDF). Add
-  `serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium-min"]` to
-  `next.config.ts`.
-- `@react-pdf/renderer` (download PDF).
-- Mail provider (`resend` recommended) — only when the email path is built.
+- `@react-pdf/renderer` (download).
+- `puppeteer-core` + `@sparticuz/chromium-min` (email); add to
+  `serverExternalPackages` in `next.config.ts`.
+- `resend` (email only, when built).
+
+## Error handling
+
+- `mealTypes` + slot keys validated before persist (`ValidationError`).
+- `addItem` rejects a slot not in the plan type's config.
+- Releasing an empty week warns but is allowed.
+- Marketing render: no released week → "menu coming soon" empty state.
+- Admin actions `requireAdmin`-guarded; `revalidatePath` on `/`, `/menu/weekly`,
+  `/dashboard/menus`.
 
 ## Testing
 
-- Service tests against the live seeded Postgres (harness convention,
-  `live-db-test-harness`): plan CRUD + config validation; week scoped by plan;
-  reorder writes `position`; `getPublishedWeek` returns released-only and is
-  cache-evicted on release; weekend-day storage.
-- Backfill migration: existing weeks land on the tiffin plan.
-- Marketing: empty-state when no released week.
-- PDF abstraction: `WeeklyMenuPdfRenderer.generate()` shared `resolve` path
-  tested once; each engine's `render()` smoke-tested (puppeteer produces a
-  non-empty `application/pdf`; react-pdf doc builds for a sample week). Engine
-  launch can be mocked where chromium isn't available in CI.
+- `app-settings.service`: get/set `mealTypes`, defaults, validation, cache evict
+  + audit rows (live-DB template).
+- `plan-config`: `buildPosterColumns` flat (1 slot) and grouped (>1 slot),
+  weekend merge, position ordering.
+- `menu.service`: week scoped by `planType`; `addItem` slot-validation against
+  config; `reorderItems` writes position; `getPublishedWeek` released-only +
+  cache-evict on release.
+- `catalog/load`: `offeredSlots` derived from config.
+- PDF: shared resolve path once; react-pdf produces `%PDF-`; puppeteer wiring
+  smoke (no chromium launch in CI).
 
-## Phase-2 readiness (not built)
+## Phase-2 readiness
 
-`meal_selections` + cutoff already model ordering. A released week's
-`menu_items` (real `dish_id` rows, with `slot="main"`) are the orderable units;
-weekend selection resolves both sat+sun to the merged column. No phase-1 schema
-choice blocks this.
+`meal_selections` + cutoff already model ordering. A released week's `menu_items`
+(real `dish_id`, real `slot`) are the orderable units; weekend resolves sat+sun.
+No phase-1 choice blocks it.
