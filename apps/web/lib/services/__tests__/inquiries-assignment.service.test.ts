@@ -24,11 +24,13 @@ async function seedMember(name: string, flags: { acceptsLeads?: boolean; inDefau
 async function ensureSystemUser() {
   const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
   if (sys) return sys;
+  // The system user is a permanent fixture (seeded by db:seed:admin). Create it
+  // if a bare test DB lacks it, but NEVER register it for afterAll deletion —
+  // other live-DB suites route inbound inquiries through systemUserId().
   const [created] = await db
     .insert(users)
     .values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true })
     .returning({ id: users.id });
-  seededUserIds.push(created.id);
   return created;
 }
 
