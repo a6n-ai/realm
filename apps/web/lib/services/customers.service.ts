@@ -1,7 +1,18 @@
-import { desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { NotFoundError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { inquiries, leadSources, orders, users } from "@/db/schema";
+
+export async function findExistingByContact(phone: string, email?: string | null) {
+  const conds = [eq(sql`lower(${users.phone})`, phone.toLowerCase())];
+  if (email) conds.push(eq(sql`lower(${users.email})`, email.toLowerCase()));
+  const [row] = await db
+    .select({ publicId: users.publicId, name: users.name })
+    .from(users)
+    .where(and(eq(users.role, "user"), or(...conds)))
+    .limit(1);
+  return row ? { publicId: row.publicId, fullName: row.name ?? "Customer" } : null;
+}
 
 export async function getCustomer360(userPublicId: string) {
   const [user] = await db

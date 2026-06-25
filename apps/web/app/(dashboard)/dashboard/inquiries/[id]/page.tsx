@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ClipboardListIcon,
@@ -16,10 +15,14 @@ import { leadSources } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
-import { Button } from "@/components/ui/button";
+import { findExistingByContact } from "@/lib/services/customers.service";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { Badge } from "@/components/ui/badge";
 import { PageShell, PageHeader, SectionCard, ListRow } from "@/components/ds";
 import { ActivityComposer, MarkLostDialog, StageControl } from "./inquiry-controls";
+import { ConvertSheet } from "./convert-sheet";
+import type { OrderFormInput } from "./order-schema";
 
 const ICON: Record<string, typeof PhoneIcon> = {
   call: PhoneIcon,
@@ -63,6 +66,26 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
   const lost = inq.stage === "lost";
   const now = Date.now();
 
+  const [catalog, slots, existing] = await Promise.all([
+    loadCatalogSnapshot(),
+    mealSlotsService.enabledSlots(),
+    findExistingByContact(inq.phone, inq.email),
+  ]);
+  const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
+  const convertCatalog = {
+    plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
+    mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.diet })),
+    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name })),
+    durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
+  };
+  const prefill: Partial<OrderFormInput> = {
+    ...(inq.planInterest ? { planKey: inq.planInterest } : {}),
+    ...(inq.mealSizeInterest ? { mealSizeId: inq.mealSizeInterest } : {}),
+    ...(inq.personsInterest != null ? { persons: inq.personsInterest } : {}),
+    ...(inq.preferredStart ? { startDate: inq.preferredStart } : {}),
+    ...(inq.postalCode ? { postalCode: inq.postalCode } : {}),
+  };
+
   return (
     <PageShell>
       <PageHeader
@@ -78,9 +101,14 @@ export default async function InquiryDetailPage({ params }: { params: Promise<{ 
               <span className="text-muted-foreground text-sm">Converted</span>
             ) : (
               <>
-                <Button asChild>
-                  <Link href={`/dashboard/inquiries/${inq.publicId}/order`}>Create order</Link>
-                </Button>
+                <ConvertSheet
+                  inquiryId={inq.publicId}
+                  contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
+                  catalog={convertCatalog}
+                  enabledSlots={enabledSlots}
+                  prefill={prefill}
+                  existing={existing}
+                />
                 {lost ? null : <MarkLostDialog inquiryId={inq.publicId} />}
               </>
             )}
