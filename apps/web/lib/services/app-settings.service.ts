@@ -5,7 +5,7 @@ import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18 } as const;
-const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, weights: {}, cursor: {} };
+const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
 
 const appSettingsEntity = new SessionUpdatableService(
   new UpdatableRepository(db, appSettings, appSettings.publicId, appSettings.id),

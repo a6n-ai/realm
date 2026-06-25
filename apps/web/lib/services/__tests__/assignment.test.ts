@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { pickAssignee, strategyFor, type PoolMember, type LeadAssignmentConfig } from "../assignment";
 
-const pool: PoolMember[] = [{ id: 1n, publicId: "a" }, { id: 2n, publicId: "b" }, { id: 3n, publicId: "c" }];
-const base: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, weights: {}, cursor: {} };
+const pool: PoolMember[] = [{ id: 1n, publicId: "a", weight: 1 }, { id: 2n, publicId: "b", weight: 1 }, { id: 3n, publicId: "c", weight: 1 }];
+const base: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };
 
 describe("strategyFor", () => {
   it("uses per-source override when present", () => {
@@ -30,11 +30,10 @@ describe("round_robin", () => {
 });
 
 describe("percentage", () => {
-  it("weights selection by configured weight (roll lands in b's band)", () => {
-    const cfg: LeadAssignmentConfig = { ...base, strategy: "percentage", weights: { a: 1, b: 3 } };
-    // a band [0,0.25), b band [0.25,1). roll 0.5 -> b
-    expect(pickAssignee("percentage", pool, cfg, "x", 0.5).chosen?.publicId).toBe("b");
-    expect(pickAssignee("percentage", pool, cfg, "x", 0.1).chosen?.publicId).toBe("a");
+  const wpool: PoolMember[] = [{ id: 1n, publicId: "a", weight: 1 }, { id: 2n, publicId: "b", weight: 3 }, { id: 3n, publicId: "c", weight: 1 }];
+  it("weights selection by member weight", () => {
+    expect(pickAssignee("percentage", wpool, base, "x", 0.5).chosen?.publicId).toBe("b"); // b band [0.2,1)
+    expect(pickAssignee("percentage", wpool, base, "x", 0.1).chosen?.publicId).toBe("a");
   });
 });
 

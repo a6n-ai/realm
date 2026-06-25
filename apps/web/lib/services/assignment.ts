@@ -1,6 +1,6 @@
 export type Strategy = "creator" | "round_robin" | "percentage";
-export interface LeadAssignmentConfig { strategy: Strategy; perSource: Record<string, Strategy>; weights: Record<string, number>; cursor: Record<string, string> }
-export interface PoolMember { id: bigint; publicId: string }
+export interface LeadAssignmentConfig { strategy: Strategy; perSource: Record<string, Strategy>; cursor: Record<string, string> }
+export interface PoolMember { id: bigint; publicId: string; weight: number }
 export interface PickResult { chosen: PoolMember | null; cursorPublicId: string | null }
 
 export function strategyFor(cfg: LeadAssignmentConfig, sourceKey: string): Strategy {
@@ -12,7 +12,7 @@ export function pickAssignee(strategy: Strategy, pool: PoolMember[], cfg: LeadAs
   const sorted = [...pool].sort((a, b) => a.publicId.localeCompare(b.publicId));
 
   if (strategy === "percentage") {
-    const weights = sorted.map((m) => Math.max(0, cfg.weights[m.publicId] ?? 1));
+    const weights = sorted.map((m) => Math.max(0, m.weight));
     const total = weights.reduce((s, w) => s + w, 0) || sorted.length;
     let acc = 0;
     const target = Math.min(0.999999, Math.max(0, roll)) * total;
