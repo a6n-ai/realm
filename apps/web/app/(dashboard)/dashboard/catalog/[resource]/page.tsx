@@ -51,7 +51,7 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title={def.label} />
       <SectionCard title="Entries">
-        <ResourceEditor resource={resource} def={def} rows={rows} dynamicOptions={dynamicOptions} />
+        <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} />
       </SectionCard>
     </PageShell>
   );

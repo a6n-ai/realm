@@ -16,7 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
-  emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,
+  RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,
 } from "../resource-config";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
@@ -182,13 +182,13 @@ function EditorSheet({
 }
 
 export function ResourceEditor({
-  resource, def, rows, dynamicOptions,
+  resource, rows, dynamicOptions,
 }: {
   resource: string;
-  def: ResourceDef;
   rows: Row[];
   dynamicOptions: Options;
 }) {
+  const def = RESOURCES[resource];
   const router = useRouter();
   const [editing, setEditing] = useState<{ id: string; row: Row | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
