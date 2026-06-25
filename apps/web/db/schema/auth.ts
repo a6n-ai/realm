@@ -19,8 +19,6 @@ export const users = pgTable(
     role: userRole("role").notNull().default("user"),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
-    acceptsLeads: boolean("accepts_leads").notNull().default(false),
-    inDefaultPool: boolean("in_default_pool").notNull().default(false),
     isSystem: boolean("is_system").notNull().default(false),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
