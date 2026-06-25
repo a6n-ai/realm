@@ -16,7 +16,14 @@ export default async function UsersPage() {
     allUsers.map(async (u) => {
       const effective = await getEffectiveFlags(u.publicId);
       return {
-        user: { id: u.publicId, email: u.email, phone: u.phone, role: u.role },
+        user: {
+          id: u.publicId,
+          email: u.email,
+          phone: u.phone,
+          role: u.role,
+          acceptsLeads: u.acceptsLeads,
+          inDefaultPool: u.inDefaultPool,
+        },
         flags: allFlags.map((f) => ({ id: f.publicId, key: f.key, label: f.label, enabled: effective[f.key] ?? false })),
       };
     }),
@@ -31,6 +38,7 @@ export default async function UsersPage() {
             <TableRow>
               <TableHead>Contact</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Lead routing</TableHead>
               <TableHead>Feature flags</TableHead>
             </TableRow>
           </TableHeader>

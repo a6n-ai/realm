@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { setUserFlag, setUserRole } from "./actions";
+import { setLeadFlags, setUserFlag, setUserRole } from "./actions";
 
 type FlagState = { id: string; key: string; label: string; enabled: boolean };
 
@@ -13,7 +13,14 @@ export function UserRow({
   user,
   flags,
 }: {
-  user: { id: string; email: string | null; phone: string | null; role: RoleValue };
+  user: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    role: RoleValue;
+    acceptsLeads: boolean;
+    inDefaultPool: boolean;
+  };
   flags: FlagState[];
 }) {
   const [pending, start] = useTransition();
@@ -33,6 +40,30 @@ export function UserRow({
             ))}
           </SelectContent>
         </Select>
+      </TableCell>
+      <TableCell>
+        {user.role === Role.USER ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={user.acceptsLeads}
+                onCheckedChange={(c) => start(() => setLeadFlags(user.id, { acceptsLeads: c }))}
+                disabled={pending}
+              />
+              Accepts leads
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={user.inDefaultPool}
+                onCheckedChange={(c) => start(() => setLeadFlags(user.id, { inDefaultPool: c }))}
+                disabled={pending}
+              />
+              Default pool
+            </label>
+          </div>
+        )}
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-3">
