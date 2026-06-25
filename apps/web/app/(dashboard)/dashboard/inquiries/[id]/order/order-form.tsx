@@ -307,10 +307,18 @@ export function OrderForm({
         </fieldset>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
-        {missing.length > 0 && (
-          <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>
-        )}
-        <Button type="submit" disabled={form.formState.isSubmitting || !startDate || !addressLine || !city || !postalCode}>Create order &amp; convert</Button>
+
+        <div className="sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-3 border-t bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <div className="text-sm">
+            <span className="text-muted-foreground">Total </span>
+            <span className="nums font-medium">{preview ? `$${preview.total.toFixed(2)}` : "—"}</span>
+            {preview ? <span className="text-muted-foreground nums"> · {preview.tiffinCount} tiffins</span> : null}
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {missing.length > 0 && <p className="text-muted-foreground text-xs">Missing: {missing.join(", ")}</p>}
+            <Button type="submit" disabled={form.formState.isSubmitting || missing.length > 0}>Create order &amp; convert</Button>
+          </div>
+        </div>
       </div>
 
       <aside className="h-fit rounded-lg border p-4 text-sm">
