@@ -3,6 +3,8 @@ import { ArrowRightIcon, SettingsIcon, UsersIcon, UtensilsCrossedIcon, Webhook, 
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ds";
+import { getMealTypes } from "@/lib/services/app-settings.service";
+import { MealTypesForm } from "./meal-types-form";
 
 type SettingLink = { title: string; description: string; href: string; icon: LucideIcon };
 
@@ -35,6 +37,7 @@ const SETTINGS: SettingLink[] = [
 
 export default async function SettingsPage() {
   await requireAdmin();
+  const mealTypes = await getMealTypes();
 
   return (
     <PageShell>
@@ -64,6 +67,7 @@ export default async function SettingsPage() {
           ))}
         </div>
       </SectionCard>
+      <SectionCard title="Meal types &amp; slots"><MealTypesForm initial={mealTypes} /></SectionCard>
     </PageShell>
   );
 }
