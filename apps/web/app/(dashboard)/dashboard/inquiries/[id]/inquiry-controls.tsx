@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,7 +44,18 @@ export function StageControl({ inquiryId, stage }: { inquiryId: string; stage: I
     <Select
       defaultValue={stage}
       disabled={pending}
-      onValueChange={(v) => start(async () => { await setStage(inquiryId, v as InquiryStage); router.refresh(); })}
+      onValueChange={(v) => start(async () => {
+        const { previous } = await setStage(inquiryId, v as InquiryStage);
+        router.refresh();
+        if (previous !== v) {
+          toast(`Stage → ${v}`, {
+            action: {
+              label: "Undo",
+              onClick: () => start(async () => { await setStage(inquiryId, previous); router.refresh(); }),
+            },
+          });
+        }
+      })}
     >
       <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
       <SelectContent>{STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>

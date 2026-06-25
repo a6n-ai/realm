@@ -163,17 +163,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     });
   }
 
-  async changeStage(publicId: string, toStage: Stage) {
+  async changeStage(publicId: string, toStage: Stage): Promise<{ previous: Stage }> {
     const current = await this.read(publicId);
-    if (current.stage === toStage) return current;
-    const updated = await this.update(publicId, { stage: toStage });
+    const previous = current.stage as Stage;
+    if (current.stage === toStage) return { previous };
+    await this.update(publicId, { stage: toStage });
     await inquiryActivitiesService.create({
       inquiryId: current.id,
       type: "stage_change",
       fromStage: current.stage,
       toStage,
     });
-    return updated;
+    return { previous };
   }
 
   async convert(publicId: string, orderInput: CreateOrderInput) {

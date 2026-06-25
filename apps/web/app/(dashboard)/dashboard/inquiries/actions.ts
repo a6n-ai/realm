@@ -29,11 +29,15 @@ export async function createInquiry(input: {
   return { publicId: inq.publicId };
 }
 
-export async function setStage(inquiryId: string, toStage: InquiryStage) {
+export async function setStage(
+  inquiryId: string,
+  toStage: InquiryStage,
+): Promise<{ previous: InquiryStage }> {
   await requireStaff();
-  await inquiriesService.changeStage(inquiryId, toStage);
+  const { previous } = await inquiriesService.changeStage(inquiryId, toStage);
   revalidatePath("/dashboard/inquiries");
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  return { previous: previous as InquiryStage };
 }
 
 export async function logActivity(
