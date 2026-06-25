@@ -1,6 +1,6 @@
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -12,6 +12,12 @@ import { createOrder, type CreateOrderInput } from "./orders.service";
 type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType = "call" | "whatsapp" | "email" | "note";
 type LostReason = (typeof inquiries.lostReason.enumValues)[number];
+
+export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
+  if (nextFollowUpAt == null) return false;
+  if (stage === "converted" || stage === "lost") return false;
+  return nextFollowUpAt < now;
+}
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   private async resolveSource(sourceKey: string, subSourceKey?: string) {
@@ -151,6 +157,40 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return result;
   }
 
+  async listForPipeline() {
+    const agg = db
+      .select({
+        inquiryId: inquiryActivities.inquiryId,
+        lastTouchAt: sql<number>`max(${inquiryActivities.createdAt})`.as("last_touch_at"),
+        nextFollowUpAt: sql<number | null>`max(${inquiryActivities.nextFollowUpAt})`.as("next_follow_up_at"),
+      })
+      .from(inquiryActivities)
+      .groupBy(inquiryActivities.inquiryId)
+      .as("agg");
+
+    const rows = await db
+      .select({
+        publicId: inquiries.publicId,
+        fullName: inquiries.fullName,
+        phone: inquiries.phone,
+        source: leadSources.label,
+        stage: inquiries.stage,
+        ownerName: users.name,
+        createdAt: inquiries.createdAt,
+        lastTouchAt: agg.lastTouchAt,
+        nextFollowUpAt: agg.nextFollowUpAt,
+      })
+      .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .leftJoin(users, eq(inquiries.currentOwner, users.id))
+      .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
+      .orderBy(desc(inquiries.createdAt))
+      .limit(500);
+
+    const now = Date.now();
+    return rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+  }
+
   async listActivities(publicId: string) {
     const inq = await this.read(publicId);
     return db
@@ -167,4 +207,5 @@ export const inquiriesService = new InquiriesService(repo);
 const inquiryActivitiesService = new SessionBaseService(
   new BaseRepository(db, inquiryActivities, inquiryActivities.publicId, inquiryActivities.id),
 );
+export type PipelineRow = Awaited<ReturnType<InquiriesService["listForPipeline"]>>[number];
 export type { Stage as InquiryStage, ActivityType, LostReason };
