@@ -180,6 +180,9 @@ export function NewCustomerSheet({
                           onClick={() => {
                             setSourceKey(s.key);
                             setSubSourceKey("");
+                            // Drop any matched inquiry — it belonged to the old source.
+                            // InquiryMatch re-locks if the new source has its own open match.
+                            setPickedId(null);
                           }}
                           className={cn(
                             "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",

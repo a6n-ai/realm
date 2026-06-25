@@ -312,13 +312,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       if (picked.stage === "converted") throw new ValidationError("That inquiry is already converted");
       return picked.publicId;
     }
-    const open = await this.findOpenByPhone(input.phone);
+    // Normalize once so the dedup lookup and the stored row use the identical
+    // canonical (E.164) phone — an unnormalized lookup would miss the normalized
+    // record and let a duplicate inquiry slip through.
+    const parsedPhone = phoneSchema().safeParse(input.phone);
+    const phone = parsedPhone.success ? parsedPhone.data : input.phone;
+    const open = await this.findOpenByPhone(phone);
     const sameSource = open.find((o) => o.sourceKey === input.sourceKey);
     if (sameSource) return sameSource.publicId;
 
     const inq = await this.create({
       fullName: input.contact.fullName,
-      phone: input.phone,
+      phone,
       ...(input.contact.email ? { email: input.contact.email } : {}),
       sourceKey: input.sourceKey,
       ...(input.interest ?? {}),
