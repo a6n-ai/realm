@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { deliveryFrequencies, deliveryZones, durationPackages, leadSources, leadSubsources, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -16,6 +17,8 @@ const TABLES: Record<string, PgTable> = {
   "duration-packages": durationPackages,
   "delivery-zones": deliveryZones,
   "pricing-tiers": pricingTiers,
+  "lead-sources": leadSources,
+  "lead-subsources": leadSubsources,
 };
 
 export default async function CatalogResourcePage({ params }: { params: Promise<{ resource: string }> }) {
@@ -33,6 +36,12 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
       dynamicOptions[f.key] = slotRows.map((s) => ({ value: s.key, label: s.label }));
     } else if (f.optionsSource === "weekdays") {
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
+    } else if (f.optionsSource === "leadSources") {
+      const sources = await db
+        .select({ id: leadSources.id, label: leadSources.label })
+        .from(leadSources)
+        .where(eq(leadSources.active, true));
+      dynamicOptions[f.key] = sources.map((s) => ({ value: String(s.id), label: s.label }));
     }
   }
 

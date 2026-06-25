@@ -1,10 +1,10 @@
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean";
 export interface FieldDef {
   key: string;
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "mealSlots" | "weekdays";
+  optionsSource?: "mealSlots" | "weekdays" | "leadSources";
   optionLabels?: Record<string, string>;
   unit?: string;
   optional?: boolean;
@@ -88,6 +88,22 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "upliftPct", label: "Uplift %", type: "number" },
     ],
   },
+  "lead-sources": {
+    key: "lead-sources", label: "Lead sources",
+    fields: [
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+      { key: "isInbound", label: "Inbound (auto-assign)", type: "boolean" },
+    ],
+  },
+  "lead-subsources": {
+    key: "lead-subsources", label: "Lead sub-sources",
+    fields: [
+      { key: "sourceId", label: "Source", type: "select", optionsSource: "leadSources" },
+      { key: "key", label: "Key", type: "text" },
+      { key: "label", label: "Label", type: "text" },
+    ],
+  },
 };
 
 // Convert a raw DB row into the editor's string-keyed field values.
@@ -95,7 +111,7 @@ export function rowToFields(def: ResourceDef, row: Record<string, unknown>): Rec
   const out: Record<string, string> = {};
   for (const f of def.fields) {
     const v = row[f.key];
-    out[f.key] = (f.type === "csv" || f.type === "multiselect") && Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v);
+    out[f.key] = (f.type === "csv" || f.type === "multiselect") && Array.isArray(v) ? v.join(", ") : f.type === "boolean" ? String(v ?? false) : v == null ? "" : String(v);
   }
   return out;
 }
@@ -109,6 +125,10 @@ export function fieldsToPatch(def: ResourceDef, values: Record<string, string>):
       patch[f.key] = raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
     } else if (f.type === "number") {
       patch[f.key] = raw === "" ? null : Number(raw);
+    } else if (f.type === "boolean") {
+      patch[f.key] = raw === "true";
+    } else if (f.optionsSource === "leadSources") {
+      patch[f.key] = raw === "" ? null : BigInt(raw);
     } else {
       patch[f.key] = raw === "" ? (f.optional ? null : "") : raw;
     }

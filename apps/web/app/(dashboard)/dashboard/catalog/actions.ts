@@ -9,6 +9,7 @@ import {
   mealSizeService,
   planService,
 } from "@/lib/services/catalog.service";
+import { leadSourceService, leadSubsourceService } from "@/lib/services/lead-sources.service";
 
 const SERVICES = {
   plans: planService,
@@ -16,6 +17,8 @@ const SERVICES = {
   "delivery-frequencies": deliveryFrequencyService,
   "duration-packages": durationPackageService,
   "delivery-zones": deliveryZoneService,
+  "lead-sources": leadSourceService,
+  "lead-subsources": leadSubsourceService,
 } as const;
 
 export type ResourceKey = keyof typeof SERVICES;

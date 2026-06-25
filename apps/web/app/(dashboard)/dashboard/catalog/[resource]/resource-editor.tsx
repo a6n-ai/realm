@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   fieldsToPatch,
@@ -57,6 +58,10 @@ function FieldInputs({
                     {o.label}
                   </label>
                 ))}
+              </div>
+            ) : f.type === "boolean" ? (
+              <div className="mt-1 flex items-center">
+                <Switch checked={values[f.key] === "true"} onCheckedChange={(v) => set(f.key, String(v))} />
               </div>
             ) : f.type === "date" ? (
               <Input type="date" value={values[f.key] ?? ""} onChange={(e) => set(f.key, e.target.value)} />
