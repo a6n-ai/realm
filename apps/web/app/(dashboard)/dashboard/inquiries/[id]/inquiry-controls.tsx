@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircleIcon } from "lucide-react";
 import { logActivity, markLost, setStage } from "../actions";
 import type { ActivityType, InquiryStage, LostReason } from "@/lib/services/inquiries.service";
 
@@ -41,25 +43,31 @@ export function StageControl({ inquiryId, stage }: { inquiryId: string; stage: I
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
-    <Select
-      defaultValue={stage}
-      disabled={pending}
-      onValueChange={(v) => start(async () => {
-        const { previous } = await setStage(inquiryId, v as InquiryStage);
-        router.refresh();
-        if (previous !== v) {
-          toast(`Stage → ${v}`, {
-            action: {
-              label: "Undo",
-              onClick: () => start(async () => { await setStage(inquiryId, previous); router.refresh(); }),
-            },
-          });
-        }
-      })}
-    >
-      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-      <SelectContent>{STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-    </Select>
+    <div className="flex items-center gap-2">
+      <Select
+        defaultValue={stage}
+        disabled={pending}
+        onValueChange={(v) => start(async () => {
+          const { previous } = await setStage(inquiryId, v as InquiryStage);
+          router.refresh();
+          if (previous !== v) {
+            toast(`Stage → ${v}`, {
+              action: {
+                label: "Undo",
+                onClick: () => start(async () => { await setStage(inquiryId, previous); router.refresh(); }),
+              },
+            });
+          }
+        })}
+      >
+        <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+        <SelectContent>{STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+      </Select>
+      <Tooltip>
+        <TooltipTrigger asChild><button type="button" aria-label="What is a stage?"><HelpCircleIcon className="text-muted-foreground size-4" /></button></TooltipTrigger>
+        <TooltipContent>Where this lead sits in the pipeline: new → contacted → follow-up → converted / lost.</TooltipContent>
+      </Tooltip>
+    </div>
   );
 }
 

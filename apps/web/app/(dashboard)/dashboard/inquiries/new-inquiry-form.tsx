@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { HelpCircleIcon, PlusIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useRouter } from "next/navigation";
@@ -26,6 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
 
@@ -181,7 +182,13 @@ export function AddInquirySheet({
                   name="subSourceKey"
                   render={({ field }) => (
                     <FormItem className="grid gap-2">
-                      <FormLabel>Sub-source <span className="text-muted-foreground">(optional)</span></FormLabel>
+                      <FormLabel className="flex items-center gap-1.5">
+                        Sub-source <span className="text-muted-foreground">(optional)</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild><button type="button" aria-label="What is a sub-source?"><HelpCircleIcon className="text-muted-foreground size-4" /></button></TooltipTrigger>
+                          <TooltipContent>A finer breakdown of the source, e.g. Facebook → Facebook Ads.</TooltipContent>
+                        </Tooltip>
+                      </FormLabel>
                       <Select value={field.value || ""} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
