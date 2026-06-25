@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { Role, type RoleValue } from "@tiffin/commons";
 import { auth } from "./index";
@@ -14,7 +15,7 @@ function isDynamicServerError(e: unknown): boolean {
   );
 }
 
-export async function getSession() {
+export const getSession = cache(async () => {
   let s: Awaited<ReturnType<typeof auth.api.getSession>> | null;
   try {
     s = await auth.api.getSession({ headers: await headers() });
@@ -32,4 +33,4 @@ export async function getSession() {
   // rather than leak the bigint.
   if (!u.publicId) return null;
   return { user: { id: u.publicId, role: u.role ?? Role.USER, email: u.email ?? "" } };
-}
+});
