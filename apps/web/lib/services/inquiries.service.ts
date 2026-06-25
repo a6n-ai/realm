@@ -162,7 +162,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .select({
         inquiryId: inquiryActivities.inquiryId,
         lastTouchAt: sql<number>`max(${inquiryActivities.createdAt})`.as("last_touch_at"),
-        nextFollowUpAt: sql<number | null>`max(${inquiryActivities.nextFollowUpAt})`.as("next_follow_up_at"),
       })
       .from(inquiryActivities)
       .groupBy(inquiryActivities.inquiryId)
@@ -178,7 +177,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         ownerName: users.name,
         createdAt: inquiries.createdAt,
         lastTouchAt: agg.lastTouchAt,
-        nextFollowUpAt: agg.nextFollowUpAt,
+        // The LATEST activity's nextFollowUpAt (null when the most recent touch
+        // scheduled none) — a newer touch with no follow-up clears overdue. This
+        // matches the detail-page timeline (latest-row) overdue semantics.
+        nextFollowUpAt: sql<number | null>`(
+          select a.next_follow_up_at from inquiry_activities a
+          where a.inquiry_id = ${inquiries.id}
+          order by a.created_at desc limit 1
+        )`,
       })
       .from(inquiries)
       .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
