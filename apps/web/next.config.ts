@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@tiffin/commons", "@tiffin/commons-drizzle", "@tiffin/commons-next"],
   turbopack: { root: path.join(import.meta.dirname, "..", "..") },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
+  experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
 };
 
 export default nextConfig;
