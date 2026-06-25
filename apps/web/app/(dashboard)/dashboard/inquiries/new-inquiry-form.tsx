@@ -1,18 +1,25 @@
 "use client";
 
-import { HelpCircleIcon, PlusIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  HelpCircleIcon,
+  Loader2Icon,
+  MapPinIcon,
+  PlusIcon,
+} from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { matchZone } from "@/lib/catalog/postal";
+import { cn } from "@/lib/utils";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -21,7 +28,6 @@ import {
   SheetContent,
   SheetDescription,
   SheetFooter,
-  SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
@@ -32,6 +38,19 @@ import { createInquiry } from "./actions";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Zone = { name: string; postalPrefixes: string[]; slotWindow: string; active: boolean };
+
+/** Uppercase section eyebrow. Sections are visually grouped instead of a flat field stack. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+      {children}
+    </p>
+  );
+}
+
+function Req() {
+  return <span className="text-primary">*</span>;
+}
 
 /**
  * Add-inquiry flow surfaced as a slide-over Sheet. The trigger is rendered by
@@ -72,6 +91,17 @@ export function AddInquirySheet({
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
   const zone = postal ? matchZone(postal, zones) : null;
 
+  // Live count of filled optional-interest fields, surfaced on the collapsible header.
+  const interest = form.watch([
+    "planInterest",
+    "mealSizeInterest",
+    "personsInterest",
+    "postalCode",
+    "preferredStart",
+    "quotedPrice",
+  ]);
+  const interestCount = interest.filter((v) => v !== "" && v != null).length;
+
   async function onSubmit(values: InquiryFormValues) {
     try {
       await createInquiry({
@@ -96,172 +126,234 @@ export function AddInquirySheet({
     }
   }
 
+  const submitting = form.formState.isSubmitting;
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent className="flex flex-col gap-0 sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <PlusIcon className="size-4" />
-            New inquiry
-          </SheetTitle>
-          <SheetDescription>Capture a lead. It lands in the pipeline as "New".</SheetDescription>
-        </SheetHeader>
+      <SheetContent className="flex flex-col gap-0 p-0 sm:max-w-lg">
+        {/* Warm header band: saffron tile anchors the action, sets the tone. */}
+        <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
+          <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
+            <PlusIcon className="size-[18px]" />
+          </span>
+          <div className="grid gap-0.5">
+            <SheetTitle className="text-pretty">New inquiry</SheetTitle>
+            <SheetDescription>Capture a lead. It lands in the pipeline as "New".</SheetDescription>
+          </div>
+        </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col gap-0 overflow-hidden">
-            <div className="grid flex-1 gap-4 overflow-y-auto px-4">
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Full name <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Phone <span className="text-destructive">*</span></FormLabel>
-                    <FormControl>
-                      <PhoneInput {...field} defaultCountry={defaultCountry} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Email <span className="text-muted-foreground">(optional)</span></FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="sourceKey"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Source <span className="text-destructive">*</span></FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(v) => {
-                        field.onChange(v);
-                        form.setValue("subSourceKey", "");
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sources.map((s) => (
-                          <SelectItem key={s.key} value={s.key}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {subs.length > 0 && (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+              {/* Contact */}
+              <section
+                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "40ms" }}
+              >
+                <SectionLabel>Contact</SectionLabel>
                 <FormField
                   control={form.control}
-                  name="subSourceKey"
+                  name="fullName"
                   render={({ field }) => (
-                    <FormItem className="grid gap-2">
-                      <FormLabel className="flex items-center gap-1.5">
-                        Sub-source <span className="text-muted-foreground">(optional)</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild><button type="button" aria-label="What is a sub-source?"><HelpCircleIcon className="text-muted-foreground size-4" /></button></TooltipTrigger>
-                          <TooltipContent>A finer breakdown of the source, e.g. Facebook → Facebook Ads.</TooltipContent>
-                        </Tooltip>
-                      </FormLabel>
-                      <Select value={field.value || ""} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select sub-source" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {subs.map((sub) => (
-                            <SelectItem key={sub.key} value={sub.key}>
-                              {sub.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>Full name <Req /></FormLabel>
+                      <FormControl><Input autoFocus placeholder="e.g. Priya Sharma" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
-              <FormItem className="grid gap-2">
-                <FormLabel>Notes</FormLabel>
-                <Textarea {...form.register("notes")} />
-              </FormItem>
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>Phone <Req /></FormLabel>
+                      <FormControl>
+                        <PhoneInput {...field} defaultCountry={defaultCountry} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>
+                        Email <span className="text-muted-foreground font-normal">optional</span>
+                      </FormLabel>
+                      <FormControl><Input type="email" placeholder="name@email.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
 
-              <details className="border-border rounded-md border px-3 py-2 [&_summary]:cursor-pointer">
-                <summary className="text-sm font-medium">Interest (optional)</summary>
-                <div className="grid gap-4 pt-3">
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Plan</FormLabel>
-                    <Input {...form.register("planInterest")} />
-                  </FormItem>
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Meal size / diet</FormLabel>
-                    <Input {...form.register("mealSizeInterest")} />
-                  </FormItem>
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Persons</FormLabel>
-                    <Input type="number" min={1} max={20} {...form.register("personsInterest")} />
-                  </FormItem>
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Postal code</FormLabel>
-                    <Input {...form.register("postalCode")} />
-                    {postal ? (
-                      zone ? (
-                        <Badge>Zone: {zone.name}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Out of delivery area — waitlist</span>
-                      )
-                    ) : null}
-                  </FormItem>
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Preferred start</FormLabel>
-                    <Input type="date" {...form.register("preferredStart")} />
-                  </FormItem>
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Quoted price</FormLabel>
-                    <Input type="number" min={0} step="0.01" {...form.register("quotedPrice")} />
-                  </FormItem>
-                </div>
-              </details>
+              {/* Source: one-click pills for fast capture mid-call. */}
+              <section
+                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "120ms" }}
+              >
+                <SectionLabel>Source</SectionLabel>
+                <FormField
+                  control={form.control}
+                  name="sourceKey"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-1.5">
+                      <FormLabel>Where did they come from? <Req /></FormLabel>
+                      <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
+                        {sources.map((s) => {
+                          const active = field.value === s.key;
+                          return (
+                            <button
+                              key={s.key}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => {
+                                field.onChange(s.key);
+                                form.setValue("subSourceKey", "");
+                              }}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",
+                                active
+                                  ? "border-primary/30 bg-primary/12 text-primary"
+                                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                              )}
+                            >
+                              {s.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {subs.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="subSourceKey"
+                    render={({ field }) => (
+                      <FormItem className="grid gap-1.5">
+                        <FormLabel className="flex items-center gap-1.5">
+                          Sub-source <span className="text-muted-foreground font-normal">optional</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" aria-label="What is a sub-source?" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <HelpCircleIcon className="size-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>A finer breakdown of the source, e.g. Facebook → Facebook Ads.</TooltipContent>
+                          </Tooltip>
+                        </FormLabel>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sub-source" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {subs.map((sub) => (
+                              <SelectItem key={sub.key} value={sub.key}>
+                                {sub.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </section>
+
+              {/* Interest: progressive disclosure, kept out of the way until needed. */}
+              <section
+                className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "200ms" }}
+              >
+                <Collapsible className="border-border/70 group rounded-xl border">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl px-3.5 py-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50">
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      Interest details
+                      {interestCount > 0 && (
+                        <span className="bg-primary/12 text-primary nums rounded-full px-1.5 py-0.5 text-[0.7rem] font-semibold">
+                          {interestCount}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronDownIcon className="text-muted-foreground size-4 transition-transform duration-300 group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                    <div className="grid gap-4 px-3.5 pt-1 pb-4 sm:grid-cols-2">
+                      <FormItem className="grid gap-1.5">
+                        <FormLabel>Plan</FormLabel>
+                        <Input placeholder="e.g. Veg weekly" {...form.register("planInterest")} />
+                      </FormItem>
+                      <FormItem className="grid gap-1.5">
+                        <FormLabel>Meal size / diet</FormLabel>
+                        <Input placeholder="e.g. Jain, large" {...form.register("mealSizeInterest")} />
+                      </FormItem>
+                      <FormItem className="grid gap-1.5">
+                        <FormLabel>Persons</FormLabel>
+                        <Input className="nums" type="number" min={1} max={20} placeholder="1" {...form.register("personsInterest")} />
+                      </FormItem>
+                      <FormItem className="grid gap-1.5">
+                        <FormLabel>Quoted price</FormLabel>
+                        <Input className="nums" type="number" min={0} step="0.01" placeholder="0.00" {...form.register("quotedPrice")} />
+                      </FormItem>
+                      <FormItem className="grid gap-1.5 sm:col-span-2">
+                        <FormLabel>Postal code</FormLabel>
+                        <Input className="uppercase" placeholder="e.g. M5V 2T6" {...form.register("postalCode")} />
+                        {postal ? (
+                          zone ? (
+                            <span className="text-ok flex items-center gap-1.5 text-sm font-medium">
+                              <MapPinIcon className="size-3.5" />
+                              Zone {zone.name} · {zone.slotWindow}
+                            </span>
+                          ) : (
+                            <span className="text-warn flex items-center gap-1.5 text-sm font-medium">
+                              <MapPinIcon className="size-3.5" />
+                              Out of delivery area — waitlist
+                            </span>
+                          )
+                        ) : null}
+                      </FormItem>
+                      <FormItem className="grid gap-1.5 sm:col-span-2">
+                        <FormLabel>Preferred start</FormLabel>
+                        <Input type="date" {...form.register("preferredStart")} />
+                      </FormItem>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </section>
+
+              {/* Notes */}
+              <section
+                className="grid gap-1.5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "280ms" }}
+              >
+                <SectionLabel>Notes</SectionLabel>
+                <Textarea rows={3} placeholder="Anything worth remembering from the conversation…" {...form.register("notes")} />
+              </section>
+
               {form.formState.errors.root && (
-                <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
+                <p className="text-destructive text-sm" role="alert">{form.formState.errors.root.message}</p>
               )}
             </div>
 
-            <SheetFooter className="flex-row justify-end gap-2">
+            <SheetFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover">
               <SheetClose asChild>
-                <Button type="button" variant="outline" disabled={form.formState.isSubmitting}>
+                <Button type="button" variant="outline" disabled={submitting}>
                   Cancel
                 </Button>
               </SheetClose>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Adding…" : "Add inquiry"}
+              <Button type="submit" disabled={submitting} className="active:scale-[0.98]">
+                {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
+                {submitting ? "Adding…" : "Add inquiry"}
               </Button>
             </SheetFooter>
           </form>
