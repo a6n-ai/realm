@@ -53,4 +53,8 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   fromStage: inquiryStage("from_stage"),
   toStage: inquiryStage("to_stage"),
-});
+}, (t) => [
+  // Pipeline list runs a per-row "latest activity" correlated subquery
+  // (inquiry_id = ? order by created_at desc limit 1) — index both columns.
+  index("inquiry_activities_inquiry_created_idx").on(t.inquiryId, t.createdAt),
+]);

@@ -1,5 +1,5 @@
 {
-  "id": "9b6e98cd-9c69-42ca-9eec-a9fe071754b8",
+  "id": "7c36987b-36c2-4efc-9646-ccd089aa7652",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1472,7 +1472,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "order_activities_order_created_idx": {
+          "name": "order_activities_order_created_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "order_activities_order_id_orders_id_fk": {
           "name": "order_activities_order_id_orders_id_fk",
@@ -1694,7 +1716,29 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "orders_user_created_idx": {
+          "name": "orders_user_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "orders_user_id_users_id_fk": {
           "name": "orders_user_id_users_id_fk",
@@ -1846,7 +1890,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "payments_order_idx": {
+          "name": "payments_order_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "payments_order_id_orders_id_fk": {
           "name": "payments_order_id_orders_id_fk",
@@ -2248,7 +2308,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "inquiry_activities_inquiry_created_idx": {
+          "name": "inquiry_activities_inquiry_created_idx",
+          "columns": [
+            {
+              "expression": "inquiry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "inquiry_activities_inquiry_id_inquiries_id_fk": {
           "name": "inquiry_activities_inquiry_id_inquiries_id_fk",

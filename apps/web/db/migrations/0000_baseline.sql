@@ -513,10 +513,14 @@ CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> stat
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email") WHERE "users"."email" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_phone_unique" ON "users" USING btree ("phone") WHERE "users"."phone" is not null;--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE INDEX "order_activities_order_created_idx" ON "order_activities" USING btree ("order_id","created_at");--> statement-breakpoint
+CREATE INDEX "orders_user_created_idx" ON "orders" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "payments_order_idx" ON "payments" USING btree ("order_id");--> statement-breakpoint
 CREATE INDEX "inquiries_phone_lower_idx" ON "inquiries" USING btree (lower("phone"));--> statement-breakpoint
 CREATE INDEX "inquiries_email_lower_idx" ON "inquiries" USING btree (lower("email"));--> statement-breakpoint
 CREATE INDEX "inquiries_owner_idx" ON "inquiries" USING btree ("current_owner");--> statement-breakpoint
 CREATE UNIQUE INDEX "inquiries_open_phone_source_uq" ON "inquiries" USING btree (lower("phone"),"source_id") WHERE "inquiries"."stage" not in ('converted', 'lost');--> statement-breakpoint
+CREATE INDEX "inquiry_activities_inquiry_created_idx" ON "inquiry_activities" USING btree ("inquiry_id","created_at");--> statement-breakpoint
 CREATE INDEX "lead_subsources_source_idx" ON "lead_subsources" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "inquiry_user_config_source_idx" ON "inquiry_user_config" USING btree ("source_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index");--> statement-breakpoint

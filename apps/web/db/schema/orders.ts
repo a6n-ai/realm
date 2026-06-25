@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
-import { bigint, boolean, date, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
@@ -35,14 +35,19 @@ export const orders = pgTable("orders", {
   addressLine: text("address_line").notNull(),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
-});
+}, (t) => [
+  // Customer 360 + lists filter user_id and sort created_at desc.
+  index("orders_user_created_idx").on(t.userId, t.createdAt),
+]);
 
 export const payments = pgTable("payments", {
   ...baseColumns("pay"),
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
   status: paymentStatus("status").notNull().default("simulated_paid"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-});
+}, (t) => [
+  index("payments_order_idx").on(t.orderId),
+]);
 
 export const orderActivities = pgTable("order_activities", {
   ...baseColumns("oac"),
@@ -51,4 +56,6 @@ export const orderActivities = pgTable("order_activities", {
   note: text("note"),
   fromStatus: orderStatus("from_status"),
   toStatus: orderStatus("to_status"),
-});
+}, (t) => [
+  index("order_activities_order_created_idx").on(t.orderId, t.createdAt),
+]);
