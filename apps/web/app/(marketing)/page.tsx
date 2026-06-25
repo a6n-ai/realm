@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description: "Build and subscribe to home-style, customizable tiffin meal plans delivered across the Greater Toronto Area.",
 };
 
+// ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
+export const revalidate = 600;
+
 const VALUES = [
   { title: "You customize everything", body: "Nutrition baseline, meal size, schedule, quantity, and duration — your plan, your way." },
   { title: "Fresh & home-style", body: "Balanced thalis and bowls cooked the way you'd make them at home." },
