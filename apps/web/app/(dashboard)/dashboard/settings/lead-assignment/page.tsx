@@ -19,7 +19,7 @@ export default async function LeadAssignmentPage() {
     db
       .select({ userId: users.id, publicId: users.publicId, name: users.name })
       .from(users)
-      .where(ne(users.role, "user")),
+      .where(and(ne(users.role, "user"), eq(users.isSystem, false))),
     listConfig(),
   ]);
 
