@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { appSettings, inquiries, inquiryActivities, users } from "@/db/schema";
+import { appSettings, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
 import type { LeadAssignmentConfig } from "../assignment";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -12,13 +12,20 @@ const { setLeadAssignment } = await import("../app-settings.service");
 
 const seededUserIds: bigint[] = [];
 
-async function seedMember(name: string, flags: { acceptsLeads?: boolean; inDefaultPool?: boolean }) {
-  const [u] = await db
-    .insert(users)
-    .values({ name, acceptsLeads: flags.acceptsLeads ?? false, inDefaultPool: flags.inDefaultPool ?? false, role: "member" })
-    .returning({ id: users.id, publicId: users.publicId });
+async function seedMember(name: string) {
+  const [u] = await db.insert(users).values({ name, role: "member" }).returning({ id: users.id, publicId: users.publicId });
   seededUserIds.push(u.id);
   return u;
+}
+
+async function enroll(userId: bigint, sourceId: bigint | null, weight = 1) {
+  await db.insert(inquiryUserConfig).values({ userId, sourceId, weight });
+}
+
+async function sourceIdFor(key: string): Promise<bigint> {
+  const [s] = await db.select({ id: leadSources.id }).from(leadSources).where(eq(leadSources.key, key)).limit(1);
+  if (!s) throw new Error(`lead source not seeded: ${key}`);
+  return s.id;
 }
 
 async function ensureSystemUser() {
@@ -34,32 +41,34 @@ async function ensureSystemUser() {
   return created;
 }
 
-async function clearPoolFlags() {
-  // No pre-existing seeded user should carry pool flags into these assertions.
-  await db.update(users).set({ acceptsLeads: false, inDefaultPool: false });
-}
-
-const RR: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, weights: {}, cursor: {} };
+const RR: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };
 
 describe("inquiriesService inbound owner resolution via assignment engine", () => {
   beforeEach(async () => {
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
+    // Only clear the config rows we own; never touch other tables' fixtures.
+    if (seededUserIds.length) await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
     session.user = null;
-    await clearPoolFlags();
   });
 
   afterAll(async () => {
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
-    if (seededUserIds.length) await db.delete(users).where(inArray(users.id, seededUserIds));
+    if (seededUserIds.length) {
+      await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
+      await db.delete(users).where(inArray(users.id, seededUserIds));
+    }
     await db.delete(appSettings);
   });
 
-  it("round_robin assigns two consecutive inbound creates to two different acceptsLeads members", async () => {
-    const m1 = await seedMember("RR One", { acceptsLeads: true });
-    const m2 = await seedMember("RR Two", { acceptsLeads: true });
+  it("round_robin assigns two consecutive inbound creates to two different source-pool members", async () => {
+    const m1 = await seedMember("RR One");
+    const m2 = await seedMember("RR Two");
     await ensureSystemUser();
+    const websiteId = await sourceIdFor("website");
+    await enroll(m1.id, websiteId);
+    await enroll(m2.id, websiteId);
     await setLeadAssignment(RR);
 
     const a = await inquiriesService.create({ fullName: "Lead A", phone: "+16475553001", sourceKey: "website" });
@@ -73,9 +82,10 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     expect(owners).toEqual(expect.arrayContaining([m1.id, m2.id]));
   });
 
-  it("falls back to an inDefaultPool member when no acceptsLeads members exist", async () => {
-    const pool = await seedMember("Pool Member", { inDefaultPool: true });
+  it("falls back to a default-pool member when the source pool is empty", async () => {
+    const pool = await seedMember("Pool Member");
     await ensureSystemUser();
+    await enroll(pool.id, null);
     await setLeadAssignment(RR);
 
     const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475553003", sourceKey: "website" });

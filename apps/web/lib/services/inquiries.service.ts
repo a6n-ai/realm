@@ -10,6 +10,7 @@ import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
+import { poolForSource } from "./inquiry-user-config.service";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType = "call" | "whatsapp" | "email" | "note";
@@ -41,7 +42,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
   }
 
-  private async resolveOwner(sourceKey: string, isInbound: boolean): Promise<bigint> {
+  private async resolveOwner(sourceId: bigint, sourceKey: string, isInbound: boolean): Promise<bigint> {
     if (!isInbound) {
       const actor = await this.currentUserId();
       return actor ?? (await this.systemUserId());
@@ -52,9 +53,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       const actor = await this.currentUserId();
       return actor ?? (await this.systemUserId());
     }
-    // eligible pool: acceptsLeads, else inDefaultPool
-    const eligible = await this.pool({ acceptsLeads: true });
-    const pool = eligible.length ? eligible : await this.pool({ inDefaultPool: true });
+    const sourcePool = await poolForSource(sourceId);
+    const pool = sourcePool.length ? sourcePool : await poolForSource(null);
     if (!pool.length) return this.systemUserId();
 
     const roll = await this.rollFor();
@@ -64,11 +64,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [sourceKey]: cursorPublicId } });
     }
     return chosen.id;
-  }
-
-  private async pool(flag: { acceptsLeads?: boolean; inDefaultPool?: boolean }) {
-    const col = flag.acceptsLeads ? users.acceptsLeads : users.inDefaultPool;
-    return db.select({ id: users.id, publicId: users.publicId }).from(users).where(eq(col, true));
   }
 
   private async systemUserId(): Promise<bigint> {
@@ -102,7 +97,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       [k: string]: unknown;
     };
     const { sourceId, subSourceId, isInbound } = await this.resolveSource(sourceKey, subSourceKey);
-    const currentOwner = await this.resolveOwner(sourceKey, isInbound);
+    const currentOwner = await this.resolveOwner(sourceId, sourceKey, isInbound);
     const zoneId = await this.resolveZoneId(rest.postalCode as string | undefined);
 
     const inq = await super.create({
