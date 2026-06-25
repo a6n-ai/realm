@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags, users } from "@/db/schema";
 import { userFeatureFlagsService } from "../user-feature-flags.service";
@@ -8,7 +9,7 @@ let flagId: string;
 
 async function reset() {
   await db.delete(userFeatureFlags);
-  await db.delete(users);
+  await db.delete(users).where(ne(users.isSystem, true));
   await db.delete(featureFlags);
 }
 

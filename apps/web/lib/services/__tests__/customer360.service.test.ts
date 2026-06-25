@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -13,7 +13,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(inquiries);
-  await db.delete(users);
+  await db.delete(users).where(ne(users.isSystem, true));
 }
 
 describe("getCustomer360 (integration)", () => {

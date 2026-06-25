@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags, users } from "@/db/schema";
@@ -9,7 +9,7 @@ let userInternalId: bigint;
 
 async function reset() {
   await db.delete(userFeatureFlags);
-  await db.delete(users);
+  await db.delete(users).where(ne(users.isSystem, true));
   await db.delete(featureFlags);
 }
 

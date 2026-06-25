@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
@@ -22,7 +22,7 @@ let vegDishBigintId: bigint;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users);
+  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
 }
 
 describe("selectionsService.setSelection", () => {

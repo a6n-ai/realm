@@ -1,10 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { signUpCustomer } from "../actions";
 
-async function reset() { await db.delete(account); await db.delete(users); }
+async function reset() { await db.delete(account); await db.delete(users).where(ne(users.isSystem, true)); }
 
 describe("signUpCustomer", () => {
   beforeEach(reset);

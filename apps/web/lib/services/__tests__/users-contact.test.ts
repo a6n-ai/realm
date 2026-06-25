@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { ne } from "drizzle-orm";
 import { ValidationError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -11,7 +12,7 @@ const { usersService } = await import("../users.service");
 
 let custId: string;
 async function reset() {
-  await db.delete(users);
+  await db.delete(users).where(ne(users.isSystem, true));
 }
 
 describe("usersService.updateContact", () => {
