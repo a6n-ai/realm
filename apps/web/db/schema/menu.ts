@@ -1,5 +1,6 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
 import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { planType } from "./catalog";
 import { orders } from "./orders";
 
 export const mealSlots = pgTable("meal_slots", {
@@ -25,13 +26,18 @@ export const dishes = pgTable("dishes", {
 export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);
 export const dayOfWeek = pgEnum("day_of_week", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 
-export const menuWeeks = pgTable("menu_weeks", {
-  ...updatableColumns("mnw"),
-  weekStart: date("week_start").notNull().unique(),
-  status: menuWeekStatus("status").notNull().default("draft"),
-  orderCutoff: bigint("order_cutoff", { mode: "number" }).notNull(),
-  releasedAt: bigint("released_at", { mode: "number" }),
-});
+export const menuWeeks = pgTable(
+  "menu_weeks",
+  {
+    ...updatableColumns("mnw"),
+    planType: planType("plan_type").notNull().default("tiffin"),
+    weekStart: date("week_start").notNull(),
+    status: menuWeekStatus("status").notNull().default("draft"),
+    orderCutoff: bigint("order_cutoff", { mode: "number" }).notNull(),
+    releasedAt: bigint("released_at", { mode: "number" }),
+  },
+  (t) => [uniqueIndex("menu_weeks_type_week_unique").on(t.planType, t.weekStart)],
+);
 
 export const menuItems = pgTable(
   "menu_items",
@@ -42,6 +48,7 @@ export const menuItems = pgTable(
     slot: text("slot").notNull(),
     dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
     isDefault: boolean("is_default").notNull().default(false),
+    position: integer("position").notNull().default(0),
   },
   (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.slot, t.dishId)],
 );
