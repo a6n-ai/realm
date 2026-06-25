@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
 import type { SortState } from "@/lib/list/sort";
+import { useUrlState } from "@/lib/list/use-url-state";
 import type { CustomerSortColumn } from "./page";
 
 type Row = {
@@ -28,7 +28,7 @@ export function CustomersList({
   rows: Row[];
   sort: SortState<CustomerSortColumn>;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("q", "");
   const q = search.toLowerCase();
   const filtered = rows.filter(
     (r) =>

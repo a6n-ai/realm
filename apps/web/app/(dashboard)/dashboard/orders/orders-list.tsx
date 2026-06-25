@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
+import { useUrlState } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import type { SortState } from "@/lib/list/sort";
 
@@ -33,8 +33,8 @@ export function OrdersList({
   rows: OrderListRow[];
   sort: SortState<OrderSortColumn>;
 }) {
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
+  const [search, setSearch] = useUrlState("q", "");
+  const [status, setStatus] = useUrlState("status", "all");
 
   const hasFilters = !!search || status !== "all";
   const clearFilters = () => {

@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { formatEpoch } from "@/lib/format/datetime";
+import { useUrlState } from "@/lib/list/use-url-state";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 
 const STAGE_PILLS = [
@@ -42,9 +42,9 @@ export function InquiriesList({
   sort: SortState<"name" | "owner" | "stage" | "source" | "lastTouch" | "created">;
   emptyCta?: ReactNode;
 }) {
-  const [search, setSearch] = useState("");
-  const [activeStage, setActiveStage] = useState<string>("all");
-  const [owner, setOwner] = useState<string>(ALL_OWNERS);
+  const [search, setSearch] = useUrlState("q", "");
+  const [activeStage, setActiveStage] = useUrlState("stage", "all");
+  const [owner, setOwner] = useUrlState("owner", ALL_OWNERS);
 
   const hasFilters = !!search || activeStage !== "all" || owner !== ALL_OWNERS;
   const clearFilters = () => {
