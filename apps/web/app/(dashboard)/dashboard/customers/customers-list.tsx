@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { UsersIcon } from "lucide-react";
+import { ChevronRightIcon, UsersIcon } from "lucide-react";
 import {
   FilterBar, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -52,15 +52,16 @@ export function CustomersList({
               <SortableHeader column="phone" label="Phone" currentSort={sort.column} currentDir={sort.dir} />
               <SortableHeader column="orders" label="Orders" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
               <TableHead>Latest status</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((c) => (
-              <TableRow key={c.publicId}>
+              <TableRow key={c.publicId} className="group cursor-pointer">
                 <TableCell className="font-medium">
                   <Link
                     href={`/dashboard/customers/${c.publicId}`}
-                    className="hover:underline"
+                    className="group-hover:underline"
                   >
                     {c.email ?? "(no email)"}
                   </Link>
@@ -69,6 +70,9 @@ export function CustomersList({
                 <TableCell className="text-right"><span className="nums">{c.orderCount}</span></TableCell>
                 <TableCell>
                   {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
+                </TableCell>
+                <TableCell>
+                  <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
                 </TableCell>
               </TableRow>
             ))}

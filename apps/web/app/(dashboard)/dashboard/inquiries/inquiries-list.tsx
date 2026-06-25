@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ClipboardListIcon } from "lucide-react";
+import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
 import {
   FilterBar, FilterPill, SearchInput, StageBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -112,15 +112,16 @@ export function InquiriesList({
               <SortableHeader column="lastTouch" label="Last touch" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
               <TableHead className="text-right">Next action</TableHead>
               <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((r) => (
-              <TableRow key={r.publicId}>
+              <TableRow key={r.publicId} className="group cursor-pointer">
                 <TableCell className="font-medium">
                   <Link
                     href={`/dashboard/inquiries/${r.publicId}`}
-                    className="hover:underline"
+                    className="group-hover:underline"
                   >
                     {r.fullName}
                   </Link>
@@ -151,6 +152,9 @@ export function InquiriesList({
                   )}
                 </TableCell>
                 <TableCell className="text-right"><span className="nums">{formatEpoch(r.createdAt, { mode: "date" })}</span></TableCell>
+                <TableCell>
+                  <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

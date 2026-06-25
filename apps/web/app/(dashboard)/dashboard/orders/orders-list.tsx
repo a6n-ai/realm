@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PackageIcon } from "lucide-react";
+import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import {
   FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -82,15 +82,16 @@ export function OrdersList({
               <SortableHeader column="start" label="Start" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
               <SortableHeader column="total" label="Total" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
               <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((o) => (
-              <TableRow key={o.publicId}>
+              <TableRow key={o.publicId} className="group cursor-pointer">
                 <TableCell className="font-medium">
                   <Link
                     href={`/dashboard/orders/${o.publicId}`}
-                    className="hover:underline"
+                    className="group-hover:underline"
                   >
                     {o.fullName}
                   </Link>
@@ -103,6 +104,9 @@ export function OrdersList({
                 <TableCell className="text-right"><span className="nums">{o.startDate}</span></TableCell>
                 <TableCell className="text-right"><span className="nums">{fmt(Number(o.total))}</span></TableCell>
                 <TableCell className="text-right"><span className="nums">{formatEpoch(o.createdAt, { mode: "date" })}</span></TableCell>
+                <TableCell>
+                  <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
