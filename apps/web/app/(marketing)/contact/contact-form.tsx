@@ -12,13 +12,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { contactFormSchema, type ContactFormValues } from "./schema";
+import { createWebsiteInquiry } from "./actions";
 
 const PhoneInput = dynamic(
   () => import("@/components/ui/phone-input").then((m) => m.PhoneInput),
   { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
 );
-import { contactFormSchema, type ContactFormValues } from "./schema";
-import { createWebsiteInquiry } from "./actions";
 
 export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode }) {
   const [done, setDone] = useState<null | { waitlisted: boolean }>(null);
