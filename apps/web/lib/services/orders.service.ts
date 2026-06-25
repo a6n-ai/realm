@@ -1,19 +1,17 @@
 import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
-import { hashPassword } from "@/lib/auth/password";
+import { provisionCustomerByPhone } from "./customers.service";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
-
-const TEMP_PASSWORD = "Tiffin123";
 
 export interface CreateOrderInput {
   selections: PricingSelections;
@@ -99,26 +97,11 @@ export async function createOrder(
       userId = existing?.id ?? null;
     }
     if (!userId) {
-      if (email) {
-        const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-        if (clash) throw new ValidationError("That email is already in use");
-      }
-      const inserted = await tx
-        .insert(users)
-        .values({ phone, email, name: input.contact.fullName, role: "user", createdBy })
-        .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
-        .returning({ id: users.id });
-      if (inserted[0]?.id) {
-        await tx.insert(account).values({
-          accountId: String(inserted[0].id),
-          providerId: "credential",
-          userId: inserted[0].id,
-          password: await hashPassword(TEMP_PASSWORD),
-        });
-        userId = inserted[0].id;
-      } else {
-        userId = (await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1))[0].id;
-      }
+      userId = await provisionCustomerByPhone(
+        tx,
+        { fullName: input.contact.fullName, phone, email },
+        createdBy,
+      );
     }
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
