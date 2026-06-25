@@ -12,6 +12,8 @@ export interface FieldDef {
   unit?: string;
   optional?: boolean;
   readOnlyOnEdit?: boolean;
+  // Edited in the dialog but kept out of the list table to keep it scannable.
+  tableHidden?: boolean;
 }
 
 export interface ResourceDef {
@@ -110,7 +112,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
-      { key: "description", label: "Description", type: "text", optional: true },
+      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
       { key: "offeredSlots", label: "Offered slots", type: "multiselect", optionsSource: "mealSlots" },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
@@ -126,9 +128,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "components", label: "Components", type: "csv" },
       { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
       { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },
-      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true },
-      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true },
-      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true },
+      { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true },
+      { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true },
+      { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true },
       { key: "basePrice", label: "Base price", type: "number", unit: "$" },
     ],
   },

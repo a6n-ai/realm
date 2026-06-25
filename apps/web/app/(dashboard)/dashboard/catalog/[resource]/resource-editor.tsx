@@ -1,19 +1,25 @@
 "use client";
 
-import { Loader2Icon, PencilIcon, PlusIcon } from "lucide-react";
+import {
+  ArchiveIcon, CheckIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon,
+} from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ds";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,
@@ -23,16 +29,34 @@ import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actio
 type Row = Record<string, unknown> & { publicId: string };
 type Options = Record<string, { value: string; label: string }[]>;
 
+const isNumberType = (f: FieldDef) => f.type === "number";
+const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
+
+/** Resolve a stored option value to its human label (dynamic source wins, then static map). */
+function labelFor(f: FieldDef, value: string, options: Options): string {
+  return options[f.key]?.find((o) => o.value === value)?.label ?? f.optionLabels?.[value] ?? value;
+}
+
+function formatNumber(f: FieldDef, n: number): string {
+  if (f.unit === "$") return `$${n.toFixed(2)}`;
+  if (f.unit === "%") return `${n}%`;
+  if (f.unit) return `${n} ${f.unit}`;
+  return String(n);
+}
+
+/* ─────────────────────────── Dialog form ─────────────────────────── */
+
 function FieldControl({
-  f, def, form, options, isNew,
+  f, form, options, isNew,
 }: {
   f: FieldDef;
-  def: ResourceDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
   isNew: boolean;
 }) {
-  const opts = f.optionsSource ? (options[f.key] ?? []) : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
+  const opts = f.optionsSource
+    ? (options[f.key] ?? [])
+    : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
 
   return (
@@ -62,7 +86,7 @@ function FieldControl({
                     aria-pressed={on}
                     onClick={() => field.onChange(on ? arr.filter((x) => x !== o.value) : [...arr, o.value])}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors active:scale-[0.97]",
+                      "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color] active:scale-[0.96]",
                       on ? "border-primary/30 bg-primary/12 text-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
@@ -88,8 +112,8 @@ function FieldControl({
               {f.unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}
               <FormControl>
                 <Input
-                  className={f.type === "number" ? "nums" : undefined}
-                  type={f.type === "number" ? "number" : "text"}
+                  className={isNumberType(f) ? "nums" : undefined}
+                  type={isNumberType(f) ? "number" : "text"}
                   disabled={keyFrozen}
                   value={(field.value as string) ?? ""}
                   onChange={field.onChange}
@@ -105,23 +129,23 @@ function FieldControl({
   );
 }
 
-function EditorSheet({
+function EditorDialog({
   resource, def, options, editing, onClose,
 }: {
   resource: string;
   def: ResourceDef;
   options: Options;
-  editing: { id: string; row: Row | null } | null;
+  editing: { id: string; row: Row | null };
   onClose: () => void;
 }) {
   const router = useRouter();
-  const isNew = editing?.id === "__new__";
+  const isNew = editing.id === "__new__";
   const form = useForm<Record<string, unknown>>({
     resolver: zodResolver(def.schema),
-    defaultValues: editing?.row ? rowToForm(def, editing.row) : emptyForm(def),
+    defaultValues: editing.row ? rowToForm(def, editing.row) : emptyForm(def),
   });
 
-  // On create, keep `key` mirrored to slug(name) until the user unlocks it manually.
+  // On create, mirror `key` to slug(name) until the user unlocks it manually.
   const [keyManual, setKeyManual] = useState(false);
   const nameVal = form.watch("name");
   useEffect(() => {
@@ -130,7 +154,7 @@ function EditorSheet({
 
   async function onSubmit(values: Record<string, unknown>) {
     try {
-      await saveItem(resource as ResourceKey, isNew ? null : editing!.id, values);
+      await saveItem(resource as ResourceKey, isNew ? null : editing.id, values);
       onClose();
       router.refresh();
     } catch (e) {
@@ -144,41 +168,70 @@ function EditorSheet({
   const keyField = def.fields.find((f) => f.key === "key");
 
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="flex flex-col gap-0 p-0 sm:max-w-lg">
-        <SheetHeader className="border-border/70 border-b px-5 py-4">
-          <SheetTitle>{isNew ? `New ${def.singular}` : `Edit ${def.singular}`}</SheetTitle>
-          <SheetDescription>Typed fields — values are validated before saving.</SheetDescription>
-        </SheetHeader>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="border-border/70 border-b px-5 py-4">
+          <DialogTitle className="text-pretty">{isNew ? `New ${def.singular}` : `Edit ${def.singular}`}</DialogTitle>
+          <DialogDescription>Typed fields, validated before saving.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
-            <div className="grid flex-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
               {def.fields.map((f) => (
-                <div key={f.key} className={f.type === "multiselect" || f.type === "csv" ? "sm:col-span-2" : undefined}>
-                  <FieldControl f={f} def={def} form={form} options={options} isNew={isNew} />
+                <div key={f.key} className={isArrayType(f) ? "sm:col-span-2" : undefined}>
+                  <FieldControl f={f} form={form} options={options} isNew={isNew} />
                   {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
-                    <button type="button" className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs" onClick={() => setKeyManual(true)}>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
+                      onClick={() => setKeyManual(true)}
+                    >
                       <PencilIcon className="size-3" /> Edit key
                     </button>
                   ) : null}
                 </div>
               ))}
               {form.formState.errors.root ? (
-                <p className="text-destructive sm:col-span-2 text-sm" role="alert">{form.formState.errors.root.message as string}</p>
+                <p className="text-destructive text-sm sm:col-span-2" role="alert">
+                  {form.formState.errors.root.message as string}
+                </p>
               ) : null}
             </div>
-            <SheetFooter className="border-border/70 flex-row justify-end gap-2 border-t">
-              <SheetClose asChild><Button type="button" variant="outline" disabled={submitting}>Cancel</Button></SheetClose>
-              <Button type="submit" disabled={submitting} className="active:scale-[0.98]">
+            <div className="border-border/70 bg-muted/40 flex justify-end gap-2 rounded-b-xl border-t px-5 py-4">
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+              <Button type="submit" disabled={submitting} className="active:scale-[0.96]">
                 {submitting ? <Loader2Icon className="size-4 animate-spin" /> : null}
                 {submitting ? "Saving…" : "Save"}
               </Button>
-            </SheetFooter>
+            </div>
           </form>
         </Form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
+}
+
+/* ─────────────────────────── List table ─────────────────────────── */
+
+function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Options }) {
+  if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
+    return <span className="text-muted-foreground/50">—</span>;
+  }
+  if (f.type === "select") {
+    return <Badge variant="secondary" className="font-normal">{labelFor(f, String(value), options)}</Badge>;
+  }
+  if (isArrayType(f)) {
+    const labels = (value as string[]).map((v) => labelFor(f, v, options));
+    const text = labels.join(", ");
+    return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
+  }
+  if (f.type === "boolean") {
+    return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
+  }
+  if (isNumberType(f)) {
+    return <span className="nums">{formatNumber(f, Number(value))}</span>;
+  }
+  return <span>{String(value)}</span>;
 }
 
 export function ResourceEditor({
@@ -192,47 +245,110 @@ export function ResourceEditor({
   const router = useRouter();
   const [editing, setEditing] = useState<{ id: string; row: Row | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const primary = def.fields[0].key;
-  const secondary = def.fields.find((f) => f.type === "select");
+  // Columns: every visible field except the slug key (shown as subtext under the first column).
+  const cols = def.fields.filter((f) => !f.tableHidden && f.key !== "key");
+  const retired = rows.filter((r) => r.active === false).length;
+  const activeCount = rows.length - retired;
 
-  const act = async (fn: () => Promise<void>) => {
+  const act = (id: string, fn: () => Promise<void>) => {
     setError(null);
-    try { await fn(); router.refresh(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
+    setBusyId(id);
+    fn()
+      .then(() => router.refresh())
+      .catch((e) => setError(e instanceof Error ? e.message : "Action failed"))
+      .finally(() => setBusyId(null));
   };
 
   return (
     <div className="space-y-4">
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button onClick={() => setEditing({ id: "__new__", row: null })}>
-        <PlusIcon className="size-4" /> Add {def.singular}
-      </Button>
-
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.publicId} className="flex items-center justify-between rounded-md border p-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{String(row[primary] ?? row.publicId)}</span>
-              {secondary && row[secondary.key] != null ? (
-                <Badge variant="secondary">{secondary.optionLabels?.[String(row[secondary.key])] ?? String(row[secondary.key])}</Badge>
-              ) : null}
-              {row.active === false ? <Badge variant="outline">retired</Badge> : null}
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setEditing({ id: row.publicId, row })}>Edit</Button>
-              {row.active === false ? (
-                <Button size="sm" variant="outline" onClick={() => act(() => reactivateItem(resource as ResourceKey, row.publicId))}>Reactivate</Button>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => act(() => retireItem(resource as ResourceKey, row.publicId))}>Retire</Button>
-              )}
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-muted-foreground text-sm">
+          <span className="nums text-foreground font-medium">{activeCount}</span> active
+          {retired ? <> · <span className="nums">{retired}</span> retired</> : null}
+        </p>
+        <Button onClick={() => setEditing({ id: "__new__", row: null })} className="active:scale-[0.96]">
+          <PlusIcon className="size-4" /> Add {def.singular}
+        </Button>
       </div>
 
+      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={InboxIcon}
+          message={`No ${def.label.toLowerCase()} yet.`}
+          action={
+            <Button variant="outline" size="sm" onClick={() => setEditing({ id: "__new__", row: null })}>
+              <PlusIcon className="size-4" /> Add {def.singular}
+            </Button>
+          }
+        />
+      ) : (
+        <div className="rounded-xl border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{cols[0]?.label ?? "Name"}</TableHead>
+                {cols.slice(1).map((f) => (
+                  <TableHead key={f.key} className={isNumberType(f) ? "text-right" : undefined}>{f.label}</TableHead>
+                ))}
+                <TableHead>Status</TableHead>
+                <TableHead className="w-px text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => {
+                const isRetired = row.active === false;
+                const busy = busyId === row.publicId;
+                const first = cols[0];
+                const rest = cols.slice(1);
+                return (
+                  <TableRow
+                    key={row.publicId}
+                    className={cn("transition-colors", isRetired && "opacity-55", busy && "pointer-events-none opacity-60")}
+                  >
+                    <TableCell className="font-medium">
+                      <span className="text-balance">{String(row[first.key] ?? row.publicId)}</span>
+                      {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
+                    </TableCell>
+                    {rest.map((f) => (
+                      <TableCell key={f.key} className={isNumberType(f) ? "text-right" : undefined}>
+                        <Cell f={f} value={row[f.key]} options={dynamicOptions} />
+                      </TableCell>
+                    ))}
+                    <TableCell>
+                      {isRetired
+                        ? <Badge variant="outline" className="text-muted-foreground font-normal">Retired</Badge>
+                        : <span className="text-ok inline-flex items-center gap-1.5 text-xs font-medium"><span className="bg-ok size-1.5 rounded-full" />Active</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
+                          <PencilIcon className="size-3.5" /> Edit
+                        </Button>
+                        {isRetired ? (
+                          <Button size="sm" variant="ghost" onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                            <RotateCcwIcon className="size-3.5" /> Restore
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                            <ArchiveIcon className="size-3.5" /> Retire
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       {editing ? (
-        <EditorSheet
+        <EditorDialog
           key={editing.id}
           resource={resource}
           def={def}
