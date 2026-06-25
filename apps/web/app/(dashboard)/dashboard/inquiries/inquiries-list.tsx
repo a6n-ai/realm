@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
 import {
-  FilterBar, FilterPill, SearchInput, StageBadge, EmptyState,
+  FilterBar, FilterPill, SearchInput, StageBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
+import type { SortState } from "@/lib/list/sort";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
@@ -31,9 +32,11 @@ const ALL_OWNERS = "__all__";
 export function InquiriesList({
   rows,
   stageCounts,
+  sort,
 }: {
   rows: PipelineRow[];
   stageCounts: { stage: string; n: number }[];
+  sort: SortState<"name" | "owner" | "stage" | "source" | "lastTouch" | "created">;
 }) {
   const [search, setSearch] = useState("");
   const [activeStage, setActiveStage] = useState<string>("all");
@@ -102,13 +105,13 @@ export function InquiriesList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Last touch</TableHead>
+              <SortableHeader column="name" label="Name" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="owner" label="Owner" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="stage" label="Stage" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="source" label="Source" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="lastTouch" label="Last touch" currentSort={sort.column} currentDir={sort.dir} />
               <TableHead>Next action</TableHead>
-              <TableHead>Created</TableHead>
+              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} />
             </TableRow>
           </TableHeader>
           <TableBody>

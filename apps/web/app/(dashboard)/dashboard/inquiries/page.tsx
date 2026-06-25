@@ -6,19 +6,30 @@ import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/sche
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
+import { parseSort } from "@/lib/list/sort";
 import { Button } from "@/components/ui/button";
 import { PageShell, PageHeader, SectionCard, StatCard } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList } from "./inquiries-list";
 
-export default async function InquiriesPage() {
+export default async function InquiriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string }>;
+}) {
   await requireStaff();
+
+  const sort = parseSort(
+    await searchParams,
+    ["name", "owner", "stage", "source", "lastTouch", "created"],
+    { column: "created", dir: "desc" },
+  );
 
   const [{ timezone }, stageCounts, [{ total }], rows, sourceRows, subRows, zones] = await Promise.all([
     getAppSettings(),
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     db.select({ total: count() }).from(inquiries),
-    inquiriesService.listForPipeline(),
+    inquiriesService.listForPipeline(sort),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
       .from(leadSources),
@@ -93,7 +104,7 @@ export default async function InquiriesPage() {
       </div>
 
       <SectionCard title="All inquiries" subtitle={total === 0 ? "Nothing yet" : undefined}>
-        <InquiriesList rows={rows} stageCounts={stageCounts} />
+        <InquiriesList rows={rows} stageCounts={stageCounts} sort={sort} />
       </SectionCard>
     </PageShell>
   );

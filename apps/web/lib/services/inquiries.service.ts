@@ -1,6 +1,6 @@
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
-import { desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -11,6 +11,16 @@ import { createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolForSource } from "./inquiry-user-config.service";
+import type { SortState } from "@/lib/list/sort";
+
+export type PipelineSortColumn =
+  | "name"
+  | "owner"
+  | "stage"
+  | "source"
+  | "lastTouch"
+  | "nextAction"
+  | "created";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType = "call" | "whatsapp" | "email" | "note";
@@ -189,7 +199,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return result;
   }
 
-  async listForPipeline() {
+  async listForPipeline(
+    sort: SortState<PipelineSortColumn> = { column: "created", dir: "desc" },
+  ) {
     const agg = db
       .select({
         inquiryId: inquiryActivities.inquiryId,
@@ -198,6 +210,17 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .from(inquiryActivities)
       .groupBy(inquiryActivities.inquiryId)
       .as("agg");
+
+    const SORT_COL = {
+      name: inquiries.fullName,
+      stage: inquiries.stage,
+      source: leadSources.label,
+      created: inquiries.createdAt,
+      owner: users.name,
+      lastTouch: agg.lastTouchAt,
+    } as const;
+    // nextAction sorts by the correlated subquery alias; fall back to created when unsupported.
+    const col = SORT_COL[sort.column as keyof typeof SORT_COL] ?? inquiries.createdAt;
 
     const rows = await db
       .select({
@@ -222,7 +245,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
       .leftJoin(users, eq(inquiries.currentOwner, users.id))
       .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
-      .orderBy(desc(inquiries.createdAt))
+      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
       .limit(500);
 
     const now = Date.now();
