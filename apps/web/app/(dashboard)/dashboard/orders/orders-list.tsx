@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PackageIcon } from "lucide-react";
-import { FilterBar, FilterPill, SearchInput, ListRow, OrderStatusBadge, EmptyState } from "@/components/ds";
-import type { OrderListRow } from "@/lib/services/orders.service";
+import {
+  FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
+} from "@/components/ds";
+import {
+  Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
+} from "@/components/ui/table";
+import { formatEpoch } from "@/lib/format/datetime";
+import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
+import type { SortState } from "@/lib/list/sort";
 
 const STATUS_PILLS = [
   { key: "all", label: "All" },
@@ -17,7 +25,13 @@ const STATUS_PILLS = [
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
-export function OrdersList({ rows }: { rows: OrderListRow[] }) {
+export function OrdersList({
+  rows,
+  sort,
+}: {
+  rows: OrderListRow[];
+  sort: SortState<OrderSortColumn>;
+}) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
 
@@ -58,17 +72,41 @@ export function OrdersList({ rows }: { rows: OrderListRow[] }) {
       {filtered.length === 0 ? (
         <EmptyState icon={PackageIcon} message="No orders match your filter." />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((o) => (
-            <ListRow
-              key={o.publicId}
-              title={o.fullName}
-              meta={`${o.deploymentId} · ${o.city} · ${o.planKey} · ${fmt(Number(o.total))}`}
-              trailing={<OrderStatusBadge status={o.status} />}
-              href={`/dashboard/orders/${o.publicId}`}
-            />
-          ))}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortableHeader column="name" label="Name" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="deployment" label="Deployment" currentSort={sort.column} currentDir={sort.dir} />
+              <TableHead>City</TableHead>
+              <SortableHeader column="status" label="Status" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="start" label="Start" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="total" label="Total" currentSort={sort.column} currentDir={sort.dir} />
+              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((o) => (
+              <TableRow key={o.publicId}>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/dashboard/orders/${o.publicId}`}
+                    className="hover:underline"
+                  >
+                    {o.fullName}
+                  </Link>
+                </TableCell>
+                <TableCell>{o.deploymentId}</TableCell>
+                <TableCell>{o.city}</TableCell>
+                <TableCell>
+                  <OrderStatusBadge status={o.status} />
+                </TableCell>
+                <TableCell>{o.startDate}</TableCell>
+                <TableCell>{fmt(Number(o.total))}</TableCell>
+                <TableCell>{formatEpoch(o.createdAt, { mode: "date" })}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

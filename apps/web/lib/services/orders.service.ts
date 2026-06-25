@@ -1,9 +1,10 @@
 import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
+import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
@@ -184,7 +185,15 @@ export type OrderListRow = {
   createdAt: number;
 };
 
-export async function listOrders(filter: { status?: string; search?: string } = {}): Promise<OrderListRow[]> {
+export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
+
+export async function listOrders(
+  filter: {
+    status?: string;
+    search?: string;
+    sort?: SortState<OrderSortColumn>;
+  } = {},
+): Promise<OrderListRow[]> {
   const conds = [];
   if (filter.status && filter.status !== "all") {
     conds.push(eq(orders.status, filter.status as typeof orders.status.enumValues[number]));
@@ -193,6 +202,18 @@ export async function listOrders(filter: { status?: string; search?: string } = 
     const q = `%${filter.search.trim()}%`;
     conds.push(or(ilike(orders.fullName, q), ilike(orders.deploymentId, q)));
   }
+
+  const sort = filter.sort ?? { column: "created", dir: "desc" };
+  const SORT_COL = {
+    name: orders.fullName,
+    deployment: orders.deploymentId,
+    status: orders.status,
+    start: orders.startDate,
+    total: orders.total,
+    created: orders.createdAt,
+  } as const;
+  const col = SORT_COL[sort.column] ?? orders.createdAt;
+
   const rows = await db
     .select({
       publicId: orders.publicId,
@@ -208,7 +229,7 @@ export async function listOrders(filter: { status?: string; search?: string } = 
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .where(conds.length ? and(...conds) : undefined)
-    .orderBy(desc(orders.createdAt))
+    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
     .limit(500);
   return rows satisfies OrderListRow[];
 }
