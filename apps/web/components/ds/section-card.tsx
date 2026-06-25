@@ -12,10 +12,10 @@ export function SectionCard({
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold text-balance">{title}</h2>
         {action}
       </div>
-      {subtitle && <p className="text-muted-foreground mb-3 text-sm">{subtitle}</p>}
+      {subtitle && <p className="text-muted-foreground mb-3 text-sm text-pretty">{subtitle}</p>}
       <div className={subtitle ? undefined : "mt-3"}>{children}</div>
     </Card>
   );

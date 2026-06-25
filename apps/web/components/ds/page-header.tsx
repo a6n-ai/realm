@@ -20,8 +20,8 @@ export function PageHeader({
             <Icon className="icon-pop size-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold">{title}</h1>
-            {subtitle && <p className="text-muted-foreground text-sm">{subtitle}</p>}
+            <h1 className="text-2xl font-semibold text-balance">{title}</h1>
+            {subtitle && <p className="text-muted-foreground text-sm text-pretty">{subtitle}</p>}
           </div>
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
