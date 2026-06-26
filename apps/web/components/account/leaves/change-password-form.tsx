@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { passwordSchema } from "@tiffin/commons";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
@@ -124,8 +125,19 @@ export function ChangePasswordForm() {
         {form.formState.errors.root && (
           <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
         )}
-        <Button type="submit" disabled={form.formState.isSubmitting} className="w-fit">
-          Change password
+        <Button
+          type="submit"
+          disabled={!form.formState.isDirty || form.formState.isSubmitting}
+          className="w-full min-w-32 sm:w-auto"
+        >
+          {form.formState.isSubmitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Saving...
+            </>
+          ) : (
+            "Change password"
+          )}
         </Button>
       </form>
     </Form>

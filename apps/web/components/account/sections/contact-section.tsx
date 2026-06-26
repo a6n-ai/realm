@@ -1,5 +1,3 @@
-"use client";
-
 import type { Country as CountryCode } from "react-phone-number-input";
 import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +9,17 @@ export function ContactSection({
   email,
   emailVerified,
   defaultCountry,
+  titleAs,
 }: {
   phone: string;
   email: string;
   emailVerified: boolean;
   defaultCountry: CountryCode;
+  titleAs?: "h2" | "h3";
 }) {
   return (
     <section id="contact" className="scroll-mt-24">
-      <SectionCard title="Contact" subtitle="How we reach you for orders and account updates.">
+      <SectionCard variant="flat" titleAs={titleAs} title="Contact" subtitle="How we reach you for orders and account updates.">
         <div className="flex flex-col gap-4">
           <AccountForm phone={phone} email={email} defaultCountry={defaultCountry} />
           {email && (

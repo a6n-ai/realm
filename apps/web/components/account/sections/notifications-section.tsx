@@ -12,9 +12,11 @@ type Channel = "email" | "sms";
 export function NotificationsSection({
   notifyEmail,
   notifySms,
+  titleAs,
 }: {
   notifyEmail: boolean;
   notifySms: boolean;
+  titleAs?: "h2" | "h3";
 }) {
   const [email, setEmail] = useState(notifyEmail);
   const [sms, setSms] = useState(notifySms);
@@ -46,8 +48,10 @@ export function NotificationsSection({
   }
 
   return (
-    <div id="notifications" className="scroll-mt-24">
+    <section id="notifications" className="scroll-mt-24">
       <SectionCard
+        variant="flat"
+        titleAs={titleAs}
         title="Notifications"
         subtitle="Choose how we reach you about orders and account updates."
       >
@@ -88,6 +92,6 @@ export function NotificationsSection({
           </div>
         </div>
       </SectionCard>
-    </div>
+    </section>
   );
 }

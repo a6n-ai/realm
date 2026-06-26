@@ -36,14 +36,3 @@ export const SECTION_GROUPS: Record<RoleValue, SectionGroupSpec[]> = {
     { heading: "Security", sections: ["password"] },
   ],
 };
-
-export const SECTION_META: Record<SectionKey, { id: string; title: string; subtitle?: string }> = {
-  profile: { id: "profile", title: "Profile" },
-  contact: { id: "contact", title: "Contact" },
-  address: { id: "address", title: "Delivery address" },
-  dietary: { id: "dietary", title: "Dietary & allergens" },
-  deliveryNotes: { id: "delivery-notes", title: "Delivery notes" },
-  notifications: { id: "notifications", title: "Notifications" },
-  pin: { id: "pin", title: "PIN" },
-  password: { id: "password", title: "Password" },
-};

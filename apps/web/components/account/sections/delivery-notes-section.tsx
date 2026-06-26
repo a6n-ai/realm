@@ -19,7 +19,13 @@ const deliveryNotesSchema = z.object({
 
 type DeliveryNotesValues = z.infer<typeof deliveryNotesSchema>;
 
-export function DeliveryNotesSection({ deliveryNotes }: { deliveryNotes: string }) {
+export function DeliveryNotesSection({
+  deliveryNotes,
+  titleAs,
+}: {
+  deliveryNotes: string;
+  titleAs?: "h2" | "h3";
+}) {
   const form = useForm<DeliveryNotesValues>({
     resolver: zodResolver(deliveryNotesSchema),
     defaultValues: { deliveryNotes: deliveryNotes ?? "" },
@@ -41,6 +47,8 @@ export function DeliveryNotesSection({ deliveryNotes }: { deliveryNotes: string 
   return (
     <section id="delivery-notes" className="scroll-mt-24">
       <SectionCard
+        variant="flat"
+        titleAs={titleAs}
         title="Delivery notes"
         subtitle="Help the driver find you — gate code, drop-off spot, or a nearby landmark."
       >

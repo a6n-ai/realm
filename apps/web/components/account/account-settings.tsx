@@ -52,48 +52,64 @@ export function AccountSettings({
 }) {
   const groups = SECTION_GROUPS[role] ?? [];
 
-  const render: Record<SectionKey, ReactNode> = {
-    profile: <ProfileSection image={user.image} name={user.name} />,
-    contact: (
-      <ContactSection
-        phone={user.phone ?? ""}
-        email={user.email ?? ""}
-        emailVerified={user.emailVerified ?? false}
-        defaultCountry={defaultCountry}
-      />
-    ),
-    address: (
-      <AddressSection
-        addressLine={user.addressLine ?? ""}
-        addressUnit={user.addressUnit ?? ""}
-        city={user.city ?? ""}
-        postalCode={user.postalCode ?? ""}
-        province={user.province ?? ""}
-      />
-    ),
-    dietary: (
-      <DietarySection
-        dietaryNotes={user.dietaryNotes ?? ""}
-        allergens={splitAllergens(user.allergens)}
-      />
-    ),
-    deliveryNotes: <DeliveryNotesSection deliveryNotes={user.deliveryNotes ?? ""} />,
-    notifications: (
-      <NotificationsSection
-        notifyEmail={user.notifyEmail ?? true}
-        notifySms={user.notifySms ?? false}
-      />
-    ),
-    pin: <PinSection hasPin={Boolean(user.pinHash)} />,
-    password: <PasswordSection />,
-  };
+  // Card titles nest one level below a labelled group heading (h2 -> h3); cards
+  // in an unheaded group sit directly under the page h1 and stay h2.
+  function renderSection(key: SectionKey, titleAs: "h2" | "h3"): ReactNode {
+    switch (key) {
+      case "profile":
+        return <ProfileSection image={user.image} name={user.name} titleAs={titleAs} />;
+      case "contact":
+        return (
+          <ContactSection
+            phone={user.phone ?? ""}
+            email={user.email ?? ""}
+            emailVerified={user.emailVerified ?? false}
+            defaultCountry={defaultCountry}
+            titleAs={titleAs}
+          />
+        );
+      case "address":
+        return (
+          <AddressSection
+            addressLine={user.addressLine ?? ""}
+            addressUnit={user.addressUnit ?? ""}
+            city={user.city ?? ""}
+            postalCode={user.postalCode ?? ""}
+            province={user.province ?? ""}
+            titleAs={titleAs}
+          />
+        );
+      case "dietary":
+        return (
+          <DietarySection
+            dietaryNotes={user.dietaryNotes ?? ""}
+            allergens={splitAllergens(user.allergens)}
+            titleAs={titleAs}
+          />
+        );
+      case "deliveryNotes":
+        return <DeliveryNotesSection deliveryNotes={user.deliveryNotes ?? ""} titleAs={titleAs} />;
+      case "notifications":
+        return (
+          <NotificationsSection
+            notifyEmail={user.notifyEmail ?? true}
+            notifySms={user.notifySms ?? false}
+            titleAs={titleAs}
+          />
+        );
+      case "pin":
+        return <PinSection hasPin={Boolean(user.pinHash)} titleAs={titleAs} />;
+      case "password":
+        return <PasswordSection titleAs={titleAs} />;
+    }
+  }
 
   return (
     <div className="max-w-2xl space-y-10">
       {groups.map((group, i) => (
         <SectionGroup key={group.heading ?? `group-${i}`} heading={group.heading}>
           {group.sections.map((key) => (
-            <div key={key}>{render[key]}</div>
+            <div key={key}>{renderSection(key, group.heading ? "h3" : "h2")}</div>
           ))}
         </SectionGroup>
       ))}

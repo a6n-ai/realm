@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/select";
 import { updateMyAddress } from "@/app/(dashboard)/dashboard/account/actions";
 
+// Radix Select forbids an empty-string item value, so a sentinel maps back to ""
+// in onValueChange to let a customer clear a mis-selected province.
+const NO_PROVINCE = "__none__";
+
 const PROVINCES: { value: string; label: string }[] = [
   { value: "AB", label: "Alberta" },
   { value: "BC", label: "British Columbia" },
@@ -48,12 +52,14 @@ export function AddressSection({
   city = "",
   postalCode = "",
   province = "",
+  titleAs,
 }: {
   addressLine?: string;
   addressUnit?: string;
   city?: string;
   postalCode?: string;
   province?: string;
+  titleAs?: "h2" | "h3";
 }) {
   const form = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
@@ -61,10 +67,17 @@ export function AddressSection({
   });
 
   async function onSubmit(values: AddressFormValues) {
+    const next = {
+      addressLine: values.addressLine.trim(),
+      addressUnit: values.addressUnit.trim(),
+      city: values.city.trim(),
+      postalCode: values.postalCode.trim(),
+      province: values.province.trim(),
+    };
     try {
-      await updateMyAddress(values);
+      await updateMyAddress(next);
       toast.success("Delivery address saved.");
-      form.reset(values);
+      form.reset(next);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save address.");
     }
@@ -73,11 +86,13 @@ export function AddressSection({
   const hasAddress = Boolean(addressLine || city || postalCode || province);
 
   return (
-    <SectionCard
-      title="Delivery address"
-      subtitle={hasAddress ? undefined : "Add a delivery address to speed up checkout."}
-    >
-      <div id="address" className="scroll-mt-24">
+    <section id="address" className="scroll-mt-24">
+      <SectionCard
+        variant="flat"
+        titleAs={titleAs}
+        title="Delivery address"
+        subtitle={hasAddress ? undefined : "Add a delivery address to speed up checkout."}
+      >
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -156,7 +171,7 @@ export function AddressSection({
                   <FormLabel>Province</FormLabel>
                   <Select
                     value={field.value || undefined}
-                    onValueChange={field.onChange}
+                    onValueChange={(v) => field.onChange(v === NO_PROVINCE ? "" : v)}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -164,6 +179,7 @@ export function AddressSection({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value={NO_PROVINCE}>No province</SelectItem>
                       {PROVINCES.map((p) => (
                         <SelectItem key={p.value} value={p.value}>
                           {p.label}
@@ -193,7 +209,7 @@ export function AddressSection({
             </div>
           </form>
         </Form>
-      </div>
-    </SectionCard>
+      </SectionCard>
+    </section>
   );
 }

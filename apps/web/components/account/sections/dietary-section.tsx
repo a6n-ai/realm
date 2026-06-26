@@ -34,13 +34,38 @@ type DietaryValues = z.infer<typeof dietarySchema>;
 function AllergensMultiselect({
   value,
   onChange,
+  id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [focusedBadge, setFocusedBadge] = React.useState<string | null>(null);
   const [announcement, setAnnouncement] = React.useState("");
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  // Index of the badge to focus after a badge-initiated removal (-1 = trigger,
+  // null = no retarget, e.g. removal from the dropdown). Read in a layout effect
+  // once the list has re-rendered so focus never falls back to <body>.
+  const pendingFocus = React.useRef<number | null>(null);
+
+  React.useLayoutEffect(() => {
+    const target = pendingFocus.current;
+    if (target === null) return;
+    pendingFocus.current = null;
+    const root = rootRef.current;
+    if (!root) return;
+    if (target < 0) {
+      root.querySelector<HTMLElement>('[role="combobox"]')?.focus();
+      return;
+    }
+    const badges = root.querySelectorAll<HTMLElement>('[role="button"]');
+    (badges[target] ?? badges[badges.length - 1])?.focus();
+  }, [value]);
 
   const add = (item: string) => {
     if (value.includes(item)) return;
@@ -54,6 +79,13 @@ function AllergensMultiselect({
     setFocusedBadge(null);
   };
 
+  const removeViaBadge = (item: string) => {
+    const idx = value.indexOf(item);
+    const remainingLen = value.length - 1;
+    pendingFocus.current = remainingLen === 0 ? -1 : Math.min(idx, remainingLen - 1);
+    remove(item);
+  };
+
   const toggle = (item: string) => {
     if (value.includes(item)) remove(item);
     else add(item);
@@ -62,14 +94,14 @@ function AllergensMultiselect({
   const onBadgeKeyDown = (e: React.KeyboardEvent, item: string) => {
     if (e.key === "Backspace" || e.key === "Delete" || e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      remove(item);
+      removeViaBadge(item);
     }
   };
 
   const available = ALLERGEN_OPTIONS.filter((o) => !value.includes(o));
 
   return (
-    <div className="grid gap-2">
+    <div ref={rootRef} className="grid gap-2">
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label="Selected allergens">
           {value.map((item) => (
@@ -86,7 +118,7 @@ function AllergensMultiselect({
                   "cursor-pointer gap-1 pr-1 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   focusedBadge === item && "ring-[3px] ring-ring/50",
                 )}
-                onClick={() => remove(item)}
+                onClick={() => removeViaBadge(item)}
               >
                 {item}
                 <X className="size-3 opacity-70" aria-hidden />
@@ -102,6 +134,9 @@ function AllergensMultiselect({
             type="button"
             variant="outline"
             role="combobox"
+            id={id}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
             aria-expanded={open}
             className="w-full justify-between font-normal text-muted-foreground sm:w-72"
           >
@@ -122,6 +157,7 @@ function AllergensMultiselect({
                       key={item}
                       value={item}
                       data-checked={selected}
+                      aria-checked={selected}
                       onSelect={() => toggle(item)}
                     >
                       {item}
@@ -148,9 +184,11 @@ function AllergensMultiselect({
 export function DietarySection({
   dietaryNotes,
   allergens,
+  titleAs,
 }: {
   dietaryNotes: string;
   allergens: string[];
+  titleAs?: "h2" | "h3";
 }) {
   const form = useForm<DietaryValues>({
     resolver: zodResolver(dietarySchema),
@@ -177,6 +215,8 @@ export function DietarySection({
   return (
     <section id="dietary" className="scroll-mt-24">
       <SectionCard
+        variant="flat"
+        titleAs={titleAs}
         title="Dietary & allergens"
         subtitle="Tell the kitchen what to avoid. Allergens are flagged on every order."
       >

@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -25,10 +26,13 @@ export function ProfileForm({ name }: { name: string }) {
     defaultValues: { name },
   });
 
+  const { isDirty, isSubmitting } = form.formState;
+
   async function onSubmit(values: ProfileFormValues) {
     try {
       await updateMyName(values.name);
       toast.success("Name updated.");
+      form.reset(values);
       router.refresh();
     } catch (e) {
       form.setError("root", { message: e instanceof Error ? e.message : "Failed to update" });
@@ -54,8 +58,19 @@ export function ProfileForm({ name }: { name: string }) {
         {form.formState.errors.root && (
           <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
         )}
-        <Button type="submit" disabled={form.formState.isSubmitting} className="w-fit">
-          Save name
+        <Button
+          type="submit"
+          disabled={!isDirty || isSubmitting}
+          className="w-full min-w-32 sm:w-auto"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              Saving...
+            </>
+          ) : (
+            "Save name"
+          )}
         </Button>
       </form>
     </Form>

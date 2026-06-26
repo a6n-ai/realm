@@ -5,6 +5,7 @@ import { useForm, type ControllerRenderProps, type FieldPath, type FieldValues }
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { pinSchema } from "@tiffin/commons";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,8 +137,21 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
           {setForm.formState.errors.root && (
             <p className="text-destructive text-sm">{setForm.formState.errors.root.message}</p>
           )}
-          <Button type="submit" disabled={setForm.formState.isSubmitting} className="w-fit">
-            {hasPin ? "Update PIN" : "Set PIN"}
+          <Button
+            type="submit"
+            disabled={!setForm.formState.isDirty || setForm.formState.isSubmitting}
+            className="w-full min-w-32 sm:w-auto"
+          >
+            {setForm.formState.isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Saving...
+              </>
+            ) : hasPin ? (
+              "Update PIN"
+            ) : (
+              "Set PIN"
+            )}
           </Button>
         </form>
       </Form>
@@ -161,8 +175,20 @@ export function PinSection({ hasPin }: { hasPin: boolean }) {
             {removeForm.formState.errors.root && (
               <p className="text-destructive text-sm">{removeForm.formState.errors.root.message}</p>
             )}
-            <Button type="submit" variant="destructive" disabled={removeForm.formState.isSubmitting} className="w-fit">
-              Remove PIN
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={!removeForm.formState.isDirty || removeForm.formState.isSubmitting}
+              className="w-full min-w-32 sm:w-auto"
+            >
+              {removeForm.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  Removing...
+                </>
+              ) : (
+                "Remove PIN"
+              )}
             </Button>
           </form>
         </Form>
