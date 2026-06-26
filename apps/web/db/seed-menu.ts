@@ -3,9 +3,10 @@ import { db } from "./client";
 import { dishes, mealSlots, menuItems, menuWeeks } from "./schema";
 
 const SLOTS = [
-  { key: "breakfast", label: "Breakfast", enabled: false, sortOrder: 0 },
-  { key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
-  { key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 },
+  { planType: "tiffin" as const, key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+  { planType: "healthy" as const, key: "breakfast", label: "Breakfast", enabled: true, sortOrder: 0 },
+  { planType: "healthy" as const, key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+  { planType: "healthy" as const, key: "dinner", label: "Dinner", enabled: true, sortOrder: 2 },
 ];
 
 const DISHES = [
@@ -28,7 +29,7 @@ function nextMonday(from: Date): Date {
 
 async function main() {
   for (const s of SLOTS) {
-    await db.insert(mealSlots).values(s).onConflictDoNothing({ target: mealSlots.key });
+    await db.insert(mealSlots).values(s).onConflictDoNothing({ target: [mealSlots.planType, mealSlots.key] });
   }
   console.log(`Seeded ${SLOTS.length} meal slots`);
 
