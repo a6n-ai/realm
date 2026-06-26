@@ -23,3 +23,29 @@ describe("mealSlotsService.enabledSlots", () => {
     expect(slots.map((s) => s.key)).toEqual(["lunch"]);
   });
 });
+
+describe("mealSlotsService.forPlanType", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("forPlanType returns only that type's enabled slots, ordered", async () => {
+    await db.insert(mealSlots).values([
+      { planType: "tiffin", key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+      { planType: "healthy", key: "breakfast", label: "Breakfast", enabled: true, sortOrder: 0 },
+      { planType: "healthy", key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+      { planType: "healthy", key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 },
+    ]);
+    expect((await mealSlotsService.forPlanType("tiffin")).map((s) => s.key)).toEqual(["lunch"]);
+    expect((await mealSlotsService.forPlanType("healthy")).map((s) => s.key)).toEqual(["breakfast", "lunch"]);
+  });
+  it("enabledSlots dedupes by key across types", async () => {
+    await db.insert(mealSlots).values([
+      { planType: "tiffin", key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+      { planType: "healthy", key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
+      { planType: "healthy", key: "breakfast", label: "Breakfast", enabled: true, sortOrder: 0 },
+    ]);
+    const keys = (await mealSlotsService.enabledSlots()).map((s) => s.key);
+    expect(keys).toEqual([...new Set(keys)]); // no dupes
+    expect(keys).toContain("lunch"); expect(keys).toContain("breakfast");
+  });
+});
