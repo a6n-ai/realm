@@ -50,4 +50,17 @@ describe("menuService (integration)", () => {
     const mon = pub!.items.filter((x) => x.dayOfWeek === "mon").sort((a, b) => a.position - b.position);
     expect(mon.map((x) => x.dishName)).toEqual(["Dal", "Paneer"]);
   });
+
+  it("listWeeks returns the plan's weeks newest-first with item counts", async () => {
+    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
+    const older = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-02", orderCutoff: "2099-03-01T18:00:00Z" });
+    const newer = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-09", orderCutoff: "2099-03-08T18:00:00Z" });
+    await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-03-09", orderCutoff: "2099-03-08T18:00:00Z" });
+    await menuService.addItem({ menuWeekId: newer.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
+
+    const weeks = await menuService.listWeeks("tiffin");
+    expect(weeks.map((w) => w.weekStart)).toEqual(["2099-03-09", "2099-03-02"]); // newest first, healthy excluded
+    expect(weeks.find((w) => w.publicId === newer.publicId)!.itemCount).toBe(1);
+    expect(weeks.find((w) => w.publicId === older.publicId)!.itemCount).toBe(0);
+  });
 });

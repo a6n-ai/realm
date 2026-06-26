@@ -14,9 +14,10 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const [mealTypes, activeDishes] = await Promise.all([
+  const [mealTypes, activeDishes, weeks] = await Promise.all([
     getMealTypes(),
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    menuService.listWeeks(planType),
   ]);
 
   let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
@@ -38,7 +39,38 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
     <PageShell>
       <PageHeader icon={CalendarIcon} title="Weekly Menus" />
       <SectionCard title="Menu builder">
+        {activeDishes.length === 0 && (
+          <p className="mb-3 text-sm text-muted-foreground">
+            No active dishes yet — add dishes in the Dishes section before building a menu.
+          </p>
+        )}
         <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} />
+      </SectionCard>
+
+      <SectionCard title="Past menus">
+        {weeks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No {planType} menus yet.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {weeks.map((w) => (
+              <li key={w.publicId} className="flex items-center justify-between gap-3 py-2">
+                <a
+                  href={`/dashboard/menus?type=${planType}&week=${w.publicId}`}
+                  className={`font-medium hover:underline ${w.publicId === week?.id ? "text-primary" : ""}`}
+                >
+                  Week of {w.weekStart}
+                </a>
+                <span className="flex items-center gap-3 text-muted-foreground">
+                  <span>{w.itemCount} dishes</span>
+                  <span className={`rounded px-2 py-0.5 text-xs ${w.status === "released" ? "bg-green-100 text-green-800" : "bg-muted"}`}>
+                    {w.status}
+                  </span>
+                  {w.releasedAt ? <span className="text-xs">released {new Date(w.releasedAt).toLocaleDateString("en-CA")}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </SectionCard>
     </PageShell>
   );

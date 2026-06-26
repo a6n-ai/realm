@@ -1,7 +1,7 @@
 import { ValidationError } from "@tiffin/commons";
 import { LruTier, TieredCache } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";
 import { getMealTypes } from "./app-settings.service";
@@ -51,6 +51,23 @@ export const menuService = {
   async release(weekPublicId: string) {
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
     await publishedCache.evictAll();
+  },
+
+  async listWeeks(planType: PlanType) {
+    const rows = await db
+      .select({
+        publicId: menuWeeks.publicId,
+        weekStart: menuWeeks.weekStart,
+        status: menuWeeks.status,
+        releasedAt: menuWeeks.releasedAt,
+        itemCount: sql<number>`count(${menuItems.id})`,
+      })
+      .from(menuWeeks)
+      .leftJoin(menuItems, eq(menuItems.menuWeekId, menuWeeks.id))
+      .where(eq(menuWeeks.planType, planType))
+      .groupBy(menuWeeks.id)
+      .orderBy(desc(menuWeeks.weekStart));
+    return rows.map((r) => ({ ...r, itemCount: Number(r.itemCount) }));
   },
 
   async weekWithItems(weekPublicId: string) {
