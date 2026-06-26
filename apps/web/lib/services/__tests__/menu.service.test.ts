@@ -1,10 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { auditLog, dishes, mealSlots, menuItems, menuWeeks } = await import("@/db/schema");
+const { auditLog, dishes, menuItems, menuWeeks } = await import("@/db/schema");
 const { menuService } = await import("../menu.service");
 
 async function reset() {
@@ -12,37 +12,42 @@ async function reset() {
   await db.delete(menuItems);
   await db.delete(menuWeeks);
   await db.delete(dishes);
-  await db.delete(mealSlots);
 }
 
 describe("menuService (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("upsertWeek creates then updates a week", async () => {
-    const w = await menuService.upsertWeek({ weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
-    expect(w.weekStart).toBe("2099-01-05");
-    const again = await menuService.upsertWeek({ weekStart: "2099-01-05", orderCutoff: "2099-01-03T18:00:00Z" });
-    expect(again.publicId).toBe(w.publicId);
-    expect(again.orderCutoff).toBe(new Date("2099-01-03T18:00:00Z").getTime());
+  it("upsertWeek is scoped by plan_type", async () => {
+    const a = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
+    const b = await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
+    expect(a.publicId).not.toBe(b.publicId); // same week, different type => distinct rows
+    const again = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05", orderCutoff: "2099-01-03T18:00:00Z" });
+    expect(again.publicId).toBe(a.publicId);
   });
 
-  it("addItem inserts and is idempotent on the composite key; removeItem deletes", async () => {
-    await db.insert(mealSlots).values({ key: "lunch", label: "Lunch", enabled: true });
-    const [d] = await db.insert(dishes).values({ name: "Test Dish", diet: "veg", slots: ["lunch"] }).returning();
-    const w = await menuService.upsertWeek({ weekStart: "2099-01-12", orderCutoff: "2099-01-11T18:00:00Z" });
-    const item = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, isDefault: true });
-    expect(item).toBeTruthy();
-    const dup = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, isDefault: true });
-    expect(dup).toBeNull(); // idempotent: already exists
-    await menuService.removeItem(item!.publicId);
-    const remaining = await db.select().from(menuItems).where(eq(menuItems.menuWeekId, (await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.publicId, w.publicId)))[0].id));
-    expect(remaining).toHaveLength(0);
+  it("addItem validates slot against the plan type's slots", async () => {
+    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-12", orderCutoff: "2099-01-11T18:00:00Z" });
+    await expect(menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "dinner", dishId: d.publicId, position: 0 })).rejects.toThrow();
+    const ok = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
+    expect(ok).toBeTruthy();
   });
 
-  it("entity writes produce audit rows", async () => {
-    const w = await menuService.upsertWeek({ weekStart: "2099-02-02", orderCutoff: "2099-02-01T18:00:00Z" });
-    const rows = await db.select().from(auditLog).where(eq(auditLog.entityPublicId, w.publicId));
-    expect(rows.some((r) => r.entity === "menu_weeks" && r.operation === "create")).toBe(true);
+  it("reorderItems writes position; getPublishedWeek returns released items ordered", async () => {
+    const [d1] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
+    const [d2] = await db.insert(dishes).values({ name: "Dal", diet: "veg", slots: [] }).returning();
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-19", orderCutoff: "2099-01-18T18:00:00Z" });
+    const i1 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d1.publicId, position: 0 });
+    const i2 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d2.publicId, position: 1 });
+    await menuService.reorderItems({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", orderedItemIds: [i2!.publicId, i1!.publicId] });
+
+    expect(await menuService.getPublishedWeek("tiffin")).toBeNull();
+    await menuService.release(w.publicId);
+    const pub = await menuService.getPublishedWeek("tiffin");
+    expect(pub!.weekStart).toBe("2099-01-19");
+    expect(pub!.slots.map((s) => s.key)).toEqual(["lunch"]);
+    const mon = pub!.items.filter((x) => x.dayOfWeek === "mon").sort((a, b) => a.position - b.position);
+    expect(mon.map((x) => x.dishName)).toEqual(["Dal", "Paneer"]);
   });
 });

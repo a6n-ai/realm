@@ -3,11 +3,16 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Hero } from "@/components/marketing/hero";
 import { Section } from "@/components/marketing/section";
+import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
+import { menuService } from "@/lib/services/menu.service";
 
 export const metadata: Metadata = {
   title: "Tiffin Grab — Customizable tiffin delivery in the GTA",
   description: "Build and subscribe to home-style, customizable tiffin meal plans delivered across the Greater Toronto Area.",
 };
+
+// ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
+export const revalidate = 600;
 
 const VALUES = [
   { title: "You customize everything", body: "Nutrition baseline, meal size, schedule, quantity, and duration — your plan, your way." },
@@ -15,7 +20,8 @@ const VALUES = [
   { title: "Across the GTA", body: "Delivery to eleven regions, with slot windows matched to your postal code." },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const pub = await menuService.getPublishedWeek("tiffin");
   return (
     <>
       <Hero />
@@ -27,6 +33,12 @@ export default function LandingPage() {
           </div>
         ))}
       </Section>
+      {pub && (
+        <Section className="space-y-6">
+          <h2 className="text-2xl font-semibold tracking-tight">This week&apos;s menu</h2>
+          <WeeklyMenuPoster titlePrefix={pub.theme.titlePrefix} weekStart={pub.weekStart} slots={pub.slots} items={pub.items} accent={pub.theme.accent} />
+        </Section>
+      )}
       <Section className="flex flex-col items-center gap-4 text-center">
         <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
         <Button asChild size="lg" className="hover-lift animate-pulse-ring"><Link href="/subscribe">Start your plan</Link></Button>

@@ -1,72 +1,50 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addItem, releaseWeek, removeItem, setDefault, upsertWeek } from "./actions";
+import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
+import { DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
+import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
 
-type Slot = { key: string; label: string; sortOrder: number };
-type Dish = { id: string; name: string; diet: "veg" | "nonveg"; slots: string[] };
-type MenuItem = {
-  id: string;
-  dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-  slot: string;
-  dishId: string;
-  isDefault: boolean;
-};
+type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string; orderCutoff: string };
-
-const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-type Day = (typeof DAYS)[number];
-
-const DAY_LABELS: Record<Day, string> = {
-  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
-};
+type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number };
 
 export function MenuBuilder({
-  slots,
-  dishes,
-  week,
-  items,
-}: {
-  slots: Slot[];
-  dishes: Dish[];
-  week: Week | null;
-  items: MenuItem[];
-}) {
+  planType, mealType, dishes, week, items,
+}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(week?.weekStart ?? "");
-  const [orderCutoff, setOrderCutoff] = useState(
-    week?.orderCutoff ? new Date(week.orderCutoff).toISOString().slice(0, 16) : ""
-  );
+  const [orderCutoff, setOrderCutoff] = useState(week?.orderCutoff ? new Date(week.orderCutoff).toISOString().slice(0, 16) : "");
 
-  const run = (fn: () => Promise<void>) =>
-    start(async () => {
-      setError(null);
-      try {
-        await fn();
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Action failed");
-      }
-    });
+  const run = (fn: () => Promise<void>) => start(async () => {
+    setError(null);
+    try { await fn(); router.refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
+  });
 
-  const handleUpsertWeek = () => {
+  const dishById = useMemo(() => new Map(dishes.map((d) => [d.id, d])), [dishes]);
+  const posterItems: PosterItem[] = items.flatMap((i) => {
+    const d = dishById.get(i.dishId);
+    return d ? [{ dayOfWeek: i.dayOfWeek as DayOfWeek, slot: i.slot, dishName: d.name, diet: d.diet, position: i.position }] : [];
+  });
+
+  const handleUpsert = () => {
     if (!weekStart || !orderCutoff) return;
     run(async () => {
-      const w = await upsertWeek({ weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
-      router.push(`/dashboard/menus?week=${w.publicId}`);
+      const w = await upsertWeek({ planType, weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
+      router.push(`/dashboard/menus?type=${planType}&week=${w.publicId}`);
     });
   };
 
-  const getItems = (day: Day, slotKey: string) =>
-    items.filter((i) => i.dayOfWeek === day && i.slot === slotKey);
-
-  const dishesForSlot = (slotKey: string) =>
-    dishes.filter((d) => d.slots.includes(slotKey));
+  const cellItems = (days: DayOfWeek[], slot: string) =>
+    items.filter((i) => days.includes(i.dayOfWeek as DayOfWeek) && i.slot === slot)
+      .sort((a, b) => days.indexOf(a.dayOfWeek as DayOfWeek) - days.indexOf(b.dayOfWeek as DayOfWeek) || a.position - b.position);
 
   return (
     <div className="space-y-6">
@@ -74,127 +52,72 @@ export function MenuBuilder({
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
         <div>
+          <label className="mb-1 block text-sm font-medium">Plan type</label>
+          <Select value={planType} onValueChange={(t) => router.push(`/dashboard/menus?type=${t}`)}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tiffin">Tiffin</SelectItem>
+              <SelectItem value="healthy">Healthy</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium">Week start (Monday)</label>
-          <input
-            type="date"
-            className="rounded-md border px-3 py-2 text-sm"
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-          />
+          <input type="date" className="rounded-md border px-3 py-2 text-sm" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Order cutoff</label>
-          <input
-            type="datetime-local"
-            className="rounded-md border px-3 py-2 text-sm"
-            value={orderCutoff}
-            onChange={(e) => setOrderCutoff(e.target.value)}
-          />
+          <input type="datetime-local" className="rounded-md border px-3 py-2 text-sm" value={orderCutoff} onChange={(e) => setOrderCutoff(e.target.value)} />
         </div>
-        <Button onClick={handleUpsertWeek} disabled={pending || !weekStart || !orderCutoff}>
-          {week ? "Update week" : "Create week"}
-        </Button>
-        {week && week.status === "draft" && (
-          <Button
-            variant="destructive"
-            disabled={pending}
-            onClick={() => run(() => releaseWeek(week.id))}
-          >
-            Release
-          </Button>
-        )}
-        {week && week.status === "released" && (
-          <span className="text-sm text-muted-foreground">Released</span>
-        )}
+        <Button onClick={handleUpsert} disabled={pending || !weekStart || !orderCutoff}>{week ? "Update week" : "Create week"}</Button>
+        {week && week.status === "draft" && <Button variant="destructive" disabled={pending} onClick={() => run(() => releaseWeek(week.id))}>Release</Button>}
+        {week && week.status === "released" && <span className="text-sm text-muted-foreground">Released</span>}
       </div>
 
       {week && (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                <th className="border p-2 text-left">Day</th>
-                {slots.map((s) => (
-                  <th key={s.key} className="border p-2 text-left">{s.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {DAYS.map((day) => (
-                <tr key={day}>
-                  <td className="border p-2 font-medium">{DAY_LABELS[day]}</td>
-                  {slots.map((slot) => {
-                    const cellItems = getItems(day, slot.key);
-                    const slotDishes = dishesForSlot(slot.key);
-                    const addableDishes = slotDishes.filter(
-                      (d) => !cellItems.some((i) => i.dishId === d.id)
-                    );
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-4">
+            {DAY_COLUMNS.map((col) => {
+              const storeDay = col.days[0]; // weekend dishes stored under sat
+              return (
+                <div key={col.label} className="rounded-lg border p-3">
+                  <h4 className="mb-2 text-sm font-semibold">{col.label}</h4>
+                  {mealType.slots.map((slot) => {
+                    const ci = cellItems(col.days, slot.key);
+                    const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
                     return (
-                      <td key={slot.key} className="border p-2 align-top">
+                      <div key={slot.key} className="mb-2">
+                        {mealType.slots.length > 1 && <p className="text-xs text-muted-foreground">{slot.label}</p>}
                         <div className="space-y-1">
-                          {cellItems.map((item) => {
-                            const dish = dishes.find((d) => d.id === item.dishId);
+                          {ci.map((i) => {
+                            const d = dishById.get(i.dishId);
                             return (
-                              <div key={item.id} className="flex items-center gap-1">
-                                <span className={item.isDefault ? "font-medium" : ""}>
-                                  {dish?.name ?? item.dishId}
-                                </span>
-                                {!item.isDefault && (
-                                  <button
-                                    className="text-xs text-muted-foreground underline"
-                                    disabled={pending}
-                                    onClick={() => run(() => setDefault(item.id))}
-                                  >
-                                    default
-                                  </button>
-                                )}
-                                {item.isDefault && (
-                                  <span className="text-xs text-muted-foreground">★</span>
-                                )}
-                                <button
-                                  className="text-xs text-destructive"
-                                  disabled={pending}
-                                  onClick={() => run(() => removeItem(item.id))}
-                                >
-                                  ✕
-                                </button>
+                              <div key={i.id} className="flex items-center gap-2 text-sm">
+                                <span className={`size-2 rounded-full ${d?.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                                <span className="flex-1">{d?.name ?? i.dishId}</span>
+                                {week.status === "draft" && <button className="text-xs text-destructive" disabled={pending} onClick={() => run(() => removeItem(i.id))}>✕</button>}
                               </div>
                             );
                           })}
-                          {addableDishes.length > 0 && week.status === "draft" && (
-                            <Select
-                              onValueChange={(dishId) =>
-                                run(() =>
-                                  addItem({
-                                    menuWeekId: week.id,
-                                    dayOfWeek: day,
-                                    slot: slot.key,
-                                    dishId,
-                                    isDefault: cellItems.length === 0,
-                                  }).then(() => {})
-                                )
-                              }
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue placeholder="+ add dish" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {addableDishes.map((d) => (
-                                  <SelectItem key={d.id} value={d.id}>
-                                    {d.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
+                          {week.status === "draft" && addable.length > 0 && (
+                            <Select onValueChange={(dishId) => run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId, position: ci.length }).then(() => {}))}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="+ add dish" /></SelectTrigger>
+                              <SelectContent>{addable.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
                             </Select>
                           )}
                         </div>
-                      </td>
+                      </div>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="lg:sticky lg:top-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={mealType.slots} items={posterItems} accent={mealType.accent} />
+          </div>
         </div>
       )}
     </div>

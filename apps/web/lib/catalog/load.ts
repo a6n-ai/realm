@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { LruTier, TieredCache } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { getMealTypes } from "@/lib/services/app-settings.service";
 import type { CatalogSnapshot } from "./types";
 
 // Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
@@ -19,17 +20,18 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
 }
 
 async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
-  const [planRows, mealRows, freqRows, durRows, zoneRows, tierRows] = await Promise.all([
+  const [planRows, mealRows, freqRows, durRows, zoneRows, tierRows, mealTypes] = await Promise.all([
     db.select().from(plans).where(eq(plans.active, true)),
     db.select().from(mealSizes).where(eq(mealSizes.active, true)),
     db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.active, true)),
     db.select().from(durationPackages).where(eq(durationPackages.active, true)),
     db.select().from(deliveryZones).where(eq(deliveryZones.active, true)),
     db.select().from(pricingTiers).where(eq(pricingTiers.active, true)),
+    getMealTypes(),
   ]);
 
   return {
-    plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: p.offeredSlots, allowedStartDays: p.allowedStartDays })),
+    plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: mealTypes[p.planType as "tiffin" | "healthy"].slots.map((s) => s.key), allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => ({
       id: m.id, publicId: m.publicId, key: m.key, name: m.name, tier: m.tier, diet: m.diet, components: m.components,
       kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,

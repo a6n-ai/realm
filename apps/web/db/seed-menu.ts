@@ -62,7 +62,7 @@ async function main() {
 
   const [week] = await db
     .insert(menuWeeks)
-    .values({ weekStart: weekStartStr, status: "released", orderCutoff: orderCutoff.getTime() })
+    .values({ planType: "tiffin", weekStart: weekStartStr, status: "released", orderCutoff: orderCutoff.getTime() })
     .returning({ id: menuWeeks.id });
 
   console.log(`Seeded menu week ${weekStartStr} (released)`);
@@ -77,6 +77,7 @@ async function main() {
           slot: "lunch",
           dishId: dishIds[i],
           isDefault: i === 0,
+          position: i,
         })
         .onConflictDoNothing();
     }

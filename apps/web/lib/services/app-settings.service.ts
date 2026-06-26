@@ -2,6 +2,7 @@ import { LruTier, TieredCache } from "@tiffin/commons";
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import { db } from "@/db/client";
 import { appSettings } from "@/db/schema";
+import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
@@ -66,4 +67,23 @@ export async function setLeadAssignment(cfg: LeadAssignmentConfig): Promise<void
   const [row] = await db.select({ publicId: appSettings.publicId }).from(appSettings).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { leadAssignment: cfg });
   else await appSettingsEntity.create({ ...DEFAULTS, leadAssignment: cfg });
+}
+
+export async function getMealTypes(): Promise<MealTypesSettings> {
+  return settingsCache.getOrSet("mealTypes", async () => {
+    const [row] = await db.select({ mt: appSettings.mealTypes }).from(appSettings).limit(1);
+    if (!row?.mt) return DEFAULT_MEAL_TYPES;
+    try {
+      return parseMealTypes(row.mt);
+    } catch {
+      return DEFAULT_MEAL_TYPES;
+    }
+  });
+}
+
+export async function setMealTypes(cfg: MealTypesSettings): Promise<void> {
+  const parsed = parseMealTypes(cfg);
+  const [row] = await db.select({ publicId: appSettings.publicId }).from(appSettings).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { mealTypes: parsed });
+  else await appSettingsEntity.create({ ...DEFAULTS, mealTypes: parsed });
 }
