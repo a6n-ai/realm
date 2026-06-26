@@ -75,6 +75,72 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return super.update(userId, patch);
   }
 
+  async updateAddress(
+    userId: string,
+    input: {
+      addressLine?: string | null;
+      addressUnit?: string | null;
+      city?: string | null;
+      postalCode?: string | null;
+      province?: string | null;
+    },
+  ) {
+    const patch: {
+      addressLine?: string | null;
+      addressUnit?: string | null;
+      city?: string | null;
+      postalCode?: string | null;
+      province?: string | null;
+    } = {};
+    const norm = (v: string | null | undefined, max: number, label: string) => {
+      const s = (v ?? "").trim();
+      if (s.length > max) throw new ValidationError(`${label} is too long`);
+      return s === "" ? null : s;
+    };
+    if (input.addressLine !== undefined) patch.addressLine = norm(input.addressLine, 200, "Address");
+    if (input.addressUnit !== undefined) patch.addressUnit = norm(input.addressUnit, 60, "Unit");
+    if (input.city !== undefined) patch.city = norm(input.city, 120, "City");
+    if (input.postalCode !== undefined) patch.postalCode = norm(input.postalCode, 20, "Postal code");
+    if (input.province !== undefined) patch.province = norm(input.province, 60, "Province");
+    return super.update(userId, patch);
+  }
+
+  async updatePreferences(
+    userId: string,
+    input: {
+      dietaryNotes?: string | null;
+      allergens?: string[];
+      deliveryNotes?: string | null;
+      notifyEmail?: boolean;
+      notifySms?: boolean;
+    },
+  ) {
+    const patch: {
+      dietaryNotes?: string | null;
+      allergens?: string | null;
+      deliveryNotes?: string | null;
+      notifyEmail?: boolean;
+      notifySms?: boolean;
+    } = {};
+    if (input.dietaryNotes !== undefined) {
+      const s = (input.dietaryNotes ?? "").trim();
+      if (s.length > 1000) throw new ValidationError("Dietary notes are too long");
+      patch.dietaryNotes = s === "" ? null : s;
+    }
+    if (input.allergens !== undefined) {
+      const cleaned = input.allergens.map((a) => a.trim()).filter((a) => a !== "");
+      patch.allergens = cleaned.length ? cleaned.join(",") : null;
+    }
+    if (input.deliveryNotes !== undefined) {
+      const s = (input.deliveryNotes ?? "").trim();
+      if (s.length > 1000) throw new ValidationError("Delivery notes are too long");
+      patch.deliveryNotes = s === "" ? null : s;
+    }
+    if (input.notifyEmail !== undefined) patch.notifyEmail = input.notifyEmail;
+    if (input.notifySms !== undefined) patch.notifySms = input.notifySms;
+    return super.update(userId, patch);
+  }
+
   async setPin(userId: string, currentPassword: string, newPin: string) {
     const parsed = pinSchema.safeParse(newPin);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid PIN");

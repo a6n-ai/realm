@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { PinSection } from "../pin-section";
 
-vi.mock("../actions", () => ({ setMyPin: vi.fn(), removeMyPin: vi.fn() }));
+vi.mock("@/app/(dashboard)/dashboard/account/actions", () => ({ setMyPin: vi.fn(), removeMyPin: vi.fn() }));
 
 afterEach(cleanup);
 

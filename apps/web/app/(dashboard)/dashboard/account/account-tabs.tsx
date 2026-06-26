@@ -3,13 +3,13 @@
 import type { Country as CountryCode } from "react-phone-number-input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { AvatarField } from "./avatar-field";
-import { ProfileForm } from "./profile-form";
-import { AccountForm } from "./account-form";
-import { ResendVerification } from "./resend-verification";
-import { ChangePasswordForm } from "./change-password-form";
-import { SignOutButton } from "./sign-out-button";
-import { PinSection } from "./pin-section";
+import { AvatarField } from "@/components/account/leaves/avatar-field";
+import { ProfileForm } from "@/components/account/leaves/profile-form";
+import { AccountForm } from "@/components/account/leaves/account-form";
+import { ResendVerification } from "@/components/account/leaves/resend-verification";
+import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
+import { SignOutButton } from "@/components/account/leaves/sign-out-button";
+import { PinSection } from "@/components/account/leaves/pin-section";
 
 interface AccountTabsProps {
   image: string | null;

@@ -10,7 +10,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { updateMyName } from "./actions";
+import { updateMyName } from "@/app/(dashboard)/dashboard/account/actions";
 
 const profileFormSchema = z.object({
   name: z.string().max(120, "Name is too long"),

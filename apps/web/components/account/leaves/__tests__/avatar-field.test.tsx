@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AvatarField } from "../avatar-field";
 
-vi.mock("../avatar-actions", () => ({ updateMyAvatar: vi.fn(), removeMyAvatar: vi.fn() }));
+vi.mock("@/app/(dashboard)/dashboard/account/avatar-actions", () => ({ updateMyAvatar: vi.fn(), removeMyAvatar: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("react-easy-crop", () => ({ default: () => null }));
 

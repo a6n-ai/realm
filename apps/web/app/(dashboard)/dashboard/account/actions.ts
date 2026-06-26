@@ -12,6 +12,32 @@ export async function updateMyContact(input: { phone?: string; email?: string })
   revalidatePath("/dashboard/account");
 }
 
+export async function updateMyAddress(input: {
+  addressLine?: string;
+  addressUnit?: string;
+  city?: string;
+  postalCode?: string;
+  province?: string;
+}) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new AuthError();
+  await usersService.updateAddress(session.user.id, input);
+  revalidatePath("/dashboard/account");
+}
+
+export async function updateMyPreferences(input: {
+  dietaryNotes?: string;
+  allergens?: string[];
+  deliveryNotes?: string;
+  notifyEmail?: boolean;
+  notifySms?: boolean;
+}) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new AuthError();
+  await usersService.updatePreferences(session.user.id, input);
+  revalidatePath("/dashboard/account");
+}
+
 export async function updateMyName(name: string) {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();

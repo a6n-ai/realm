@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { accountFormSchema, type AccountFormValues } from "./schema";
-import { updateMyContact } from "./actions";
+import { updateMyContact } from "@/app/(dashboard)/dashboard/account/actions";
 
 export function AccountForm({ phone, email, defaultCountry }: { phone: string; email: string; defaultCountry: CountryCode }) {
   const router = useRouter();

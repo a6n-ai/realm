@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getCroppedBlob } from "@/lib/images/crop";
-import { updateMyAvatar, removeMyAvatar } from "./avatar-actions";
+import { updateMyAvatar, removeMyAvatar } from "@/app/(dashboard)/dashboard/account/avatar-actions";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
