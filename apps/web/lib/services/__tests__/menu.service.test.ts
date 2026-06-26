@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { auditLog, dishes, menuItems, menuWeeks } = await import("@/db/schema");
+const { auditLog, dishes, mealSlots, menuItems, menuWeeks } = await import("@/db/schema");
 const { menuService } = await import("../menu.service");
 
 async function reset() {
@@ -12,6 +12,8 @@ async function reset() {
   await db.delete(menuItems);
   await db.delete(menuWeeks);
   await db.delete(dishes);
+  await db.delete(mealSlots);
+  await db.insert(mealSlots).values({ planType: "tiffin", key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 });
 }
 
 describe("menuService (integration)", () => {

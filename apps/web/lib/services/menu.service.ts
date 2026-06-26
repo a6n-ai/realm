@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
+import { mealSlotsService } from "./meal-slots.service";
 import type { PlanType } from "@/lib/menu/meal-types";
 import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
@@ -31,8 +32,7 @@ export const menuService = {
   async addItem(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; dishId: string; position: number }) {
     const [week] = await db.select({ id: menuWeeks.id, planType: menuWeeks.planType }).from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
     if (!week) throw new ValidationError("Week not found");
-    const mealTypes = await getMealTypes();
-    const allowed = new Set(mealTypes[week.planType as PlanType].slots.map((s) => s.key));
+    const allowed = new Set((await mealSlotsService.forPlanType(week.planType as PlanType)).map((s) => s.key));
     if (!allowed.has(input.slot)) throw new ValidationError(`Slot "${input.slot}" is not configured for this plan type`);
     const [dish] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, input.dishId)).limit(1);
     if (!dish) throw new ValidationError("Dish not found");
@@ -81,7 +81,7 @@ export const menuService = {
       .from(menuWeeks)
       .where(eq(menuWeeks.planType, planType))
       .orderBy(desc(menuWeeks.weekStart));
-    const slots = (await getMealTypes())[planType].slots;
+    const slots = await mealSlotsService.forPlanType(planType);
     if (weeks.length === 0) return [];
     const rows = await db
       .select({ menuWeekId: menuItems.menuWeekId, dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
@@ -119,10 +119,10 @@ export const menuService = {
         .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
         .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
         .where(eq(menuItems.menuWeekId, week.id)).orderBy(asc(menuItems.position));
-      const mealTypes = await getMealTypes();
-      const cfg = mealTypes[planType];
+      const slots = await mealSlotsService.forPlanType(planType);
+      const cfg = (await getMealTypes())[planType];
       const items: PosterItem[] = rows.map((r) => ({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, diet: r.diet, position: r.position }));
-      return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: week.weekStart, slots: cfg.slots, items };
+      return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: week.weekStart, slots, items };
     });
   },
 };
