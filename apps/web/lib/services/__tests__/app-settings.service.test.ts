@@ -25,7 +25,7 @@ describe("meal types", () => {
     const cfg = { ...DEFAULT_MEAL_TYPES, tiffin: { ...DEFAULT_MEAL_TYPES.tiffin, titlePrefix: "Tiffin Specials" } };
     await setMealTypes(cfg);
     expect((await getMealTypes()).tiffin.titlePrefix).toBe("Tiffin Specials");
-    await expect(setMealTypes({ tiffin: { slots: [], accent: "#000000", titlePrefix: "x" } } as never)).rejects.toThrow();
+    await expect(setMealTypes({ tiffin: { accent: "nope", titlePrefix: "x" } } as never)).rejects.toThrow();
   });
 });
 
