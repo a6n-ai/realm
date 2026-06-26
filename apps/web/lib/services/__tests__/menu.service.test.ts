@@ -19,16 +19,16 @@ describe("menuService (integration)", () => {
   afterAll(reset);
 
   it("upsertWeek is scoped by plan_type", async () => {
-    const a = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
-    const b = await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-01-05", orderCutoff: "2099-01-04T18:00:00Z" });
+    const a = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05" });
+    const b = await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-01-05" });
     expect(a.publicId).not.toBe(b.publicId); // same week, different type => distinct rows
-    const again = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05", orderCutoff: "2099-01-03T18:00:00Z" });
+    const again = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-05" });
     expect(again.publicId).toBe(a.publicId);
   });
 
   it("addItem validates slot against the plan type's slots", async () => {
     const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-12", orderCutoff: "2099-01-11T18:00:00Z" });
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-12" });
     await expect(menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "dinner", dishId: d.publicId, position: 0 })).rejects.toThrow();
     const ok = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
     expect(ok).toBeTruthy();
@@ -37,7 +37,7 @@ describe("menuService (integration)", () => {
   it("reorderItems writes position; getPublishedWeek returns released items ordered", async () => {
     const [d1] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
     const [d2] = await db.insert(dishes).values({ name: "Dal", diet: "veg", slots: [] }).returning();
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-19", orderCutoff: "2099-01-18T18:00:00Z" });
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-19" });
     const i1 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d1.publicId, position: 0 });
     const i2 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d2.publicId, position: 1 });
     await menuService.reorderItems({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", orderedItemIds: [i2!.publicId, i1!.publicId] });
@@ -53,9 +53,9 @@ describe("menuService (integration)", () => {
 
   it("listWeeks returns the plan's weeks newest-first with item counts", async () => {
     const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
-    const older = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-02", orderCutoff: "2099-03-01T18:00:00Z" });
-    const newer = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-09", orderCutoff: "2099-03-08T18:00:00Z" });
-    await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-03-09", orderCutoff: "2099-03-08T18:00:00Z" });
+    const older = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-02" });
+    const newer = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-09" });
+    await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-03-09" });
     await menuService.addItem({ menuWeekId: newer.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
 
     const weeks = await menuService.listWeeks("tiffin");
@@ -66,7 +66,7 @@ describe("menuService (integration)", () => {
 
   it("listWeekMenus returns each week's items + slots for the plan", async () => {
     const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-04-06", orderCutoff: "2099-04-05T18:00:00Z" });
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-04-06" });
     await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
 
     const menus = await menuService.listWeekMenus("tiffin");

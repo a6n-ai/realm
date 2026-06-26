@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
@@ -12,17 +12,21 @@ import { WeekStartPicker } from "./week-start-picker";
 import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
-type Week = { id: string; weekStart: string; status: string; orderCutoff: string };
+type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number };
 
+function formatHour(hour: number): string {
+  const h12 = ((hour + 11) % 12) + 1;
+  return `${h12}:00 ${hour < 12 ? "AM" : "PM"}`;
+}
+
 export function MenuBuilder({
-  planType, mealType, dishes, week, items,
-}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[] }) {
+  planType, mealType, dishes, week, items, cutoffHour, timezone,
+}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[]; cutoffHour: number; timezone: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(week?.weekStart ?? "");
-  const [orderCutoff, setOrderCutoff] = useState(week?.orderCutoff ? new Date(week.orderCutoff).toISOString().slice(0, 16) : "");
 
   const run = (fn: () => Promise<void>) => start(async () => {
     setError(null);
@@ -37,12 +41,14 @@ export function MenuBuilder({
   });
 
   const handleUpsert = () => {
-    if (!weekStart || !orderCutoff) return;
+    if (!weekStart) return;
     run(async () => {
-      const w = await upsertWeek({ planType, weekStart, orderCutoff: new Date(orderCutoff).toISOString() });
+      const w = await upsertWeek({ planType, weekStart });
       router.push(`/dashboard/menus?type=${planType}&week=${w.publicId}`);
     });
   };
+
+  const closeToList = () => router.push(`/dashboard/menus?type=${planType}`);
 
   const cellItems = (days: DayOfWeek[], slot: string) =>
     items.filter((i) => days.includes(i.dayOfWeek as DayOfWeek) && i.slot === slot)
@@ -67,25 +73,48 @@ export function MenuBuilder({
           <label className="block text-sm font-medium">Week start (Monday)</label>
           <WeekStartPicker value={weekStart} onChange={setWeekStart} />
         </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Order cutoff</label>
-          <input
-            type="datetime-local"
-            className="h-9 rounded-md border bg-transparent px-3 text-sm tabular-nums shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            value={orderCutoff}
-            onChange={(e) => setOrderCutoff(e.target.value)}
-          />
-        </div>
-        <Button className="transition-transform active:scale-[0.96]" onClick={handleUpsert} disabled={pending || !weekStart || !orderCutoff}>
-          {week ? "Update week" : "Create week"}
-        </Button>
-        {week && week.status === "draft" && (
-          <Button variant="destructive" className="transition-transform active:scale-[0.96]" disabled={pending} onClick={() => run(() => releaseWeek(week.id))}>
-            Release
+        {!week && (
+          <Button className="transition-transform active:scale-[0.96]" onClick={handleUpsert} disabled={pending || !weekStart}>
+            Create draft
           </Button>
         )}
-        {week && week.status === "released" && <span className="text-sm font-medium text-green-700">Released</span>}
       </div>
+
+      {week && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
+          <div className="flex items-center gap-2 text-sm">
+            {week.status === "draft" ? (
+              <>
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span className="font-medium">Draft saved automatically</span>
+                <span className="text-muted-foreground">— every dish you add or remove is saved.</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span className="font-medium text-green-700">Released</span>
+                <span className="text-muted-foreground">— live on the website.</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {week.status === "draft" && (
+              <Button variant="default" className="transition-transform active:scale-[0.96]" disabled={pending} onClick={() => run(() => releaseWeek(week.id))}>
+                Release menu
+              </Button>
+            )}
+            <Button variant="outline" className="transition-transform active:scale-[0.96]" onClick={closeToList}>
+              {week.status === "draft" ? "Save & close" : "Close"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {week && (
+        <p className="text-xs text-muted-foreground">
+          Customers can pick or edit each day&apos;s meal until {formatHour(cutoffHour)} ({timezone}) the day before delivery. Change this in Settings.
+        </p>
+      )}
 
       {week && (
         <div className="grid gap-6 lg:grid-cols-2">

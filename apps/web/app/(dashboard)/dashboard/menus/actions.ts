@@ -11,7 +11,7 @@ function revalidate() {
   revalidatePath("/");
 }
 
-export async function upsertWeek(input: { planType: PlanType; weekStart: string; orderCutoff: string }) {
+export async function upsertWeek(input: { planType: PlanType; weekStart: string }) {
   await requireAdmin();
   const w = await menuService.upsertWeek(input);
   revalidate();

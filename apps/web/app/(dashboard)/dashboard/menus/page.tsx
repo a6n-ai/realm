@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { dishes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
-import { getMealTypes } from "@/lib/services/app-settings.service";
+import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder } from "./menu-builder";
 import { MenuHistoryCard } from "./menu-history-card";
@@ -15,18 +15,19 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const [mealTypes, activeDishes, weeks] = await Promise.all([
+  const [mealTypes, appSettings, activeDishes, weeks] = await Promise.all([
     getMealTypes(),
+    getAppSettings(),
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
   ]);
 
-  let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
+  let week: { id: string; weekStart: string; status: string } | null = null;
   let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number }[] = [];
   if (weekId) {
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
-      week = { id: result.week.publicId, weekStart: result.week.weekStart, status: result.week.status, orderCutoff: new Date(result.week.orderCutoff).toISOString() };
+      week = { id: result.week.publicId, weekStart: result.week.weekStart, status: result.week.status };
       const dishRows = await db.select({ bigintId: dishes.id, publicId: dishes.publicId }).from(dishes);
       const byId = new Map(dishRows.map((d) => [d.bigintId, d.publicId]));
       items = result.items.flatMap((i) => {
@@ -45,7 +46,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
             No active dishes yet — add dishes in the Dishes section before building a menu.
           </p>
         )}
-        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} />
+        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} cutoffHour={appSettings.cutoffHour} timezone={appSettings.timezone} />
       </SectionCard>
 
       <SectionCard title="Past menus">

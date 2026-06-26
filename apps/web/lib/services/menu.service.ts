@@ -1,10 +1,10 @@
 import { ValidationError } from "@tiffin/commons";
-import { LruTier, TieredCache } from "@tiffin/commons";
+import { cutoffMsFor, LruTier, TieredCache } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";
-import { getMealTypes } from "./app-settings.service";
+import { getAppSettings, getMealTypes } from "./app-settings.service";
 import type { PlanType } from "@/lib/menu/meal-types";
 import type { DayOfWeek, PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
@@ -15,8 +15,13 @@ const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems,
 const publishedCache = new TieredCache({ name: "published-week", tiers: [new LruTier()], defaultTtlMs: 60_000 });
 
 export const menuService = {
-  async upsertWeek(input: { planType: PlanType; weekStart: string; orderCutoff: string }) {
-    const cutoffMs = new Date(input.orderCutoff).getTime();
+  async upsertWeek(input: { planType: PlanType; weekStart: string }) {
+    // Ordering/edit locks roll per-day at cutoffHour (delivery TZ) — see
+    // selectionsService. menu_weeks.orderCutoff is a NOT NULL column we keep
+    // populated with a representative value (the first delivery day's cutoff),
+    // derived TZ-correctly so it is never the admin's ambiguous local time.
+    const { timezone, cutoffHour } = await getAppSettings();
+    const cutoffMs = cutoffMsFor(input.weekStart, cutoffHour, timezone);
     const [existing] = await db.select().from(menuWeeks)
       .where(and(eq(menuWeeks.planType, input.planType), eq(menuWeeks.weekStart, input.weekStart))).limit(1);
     if (existing) return menuWeeksEntity.update(existing.publicId, { orderCutoff: cutoffMs });
