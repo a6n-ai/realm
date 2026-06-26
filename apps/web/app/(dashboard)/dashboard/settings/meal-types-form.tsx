@@ -11,7 +11,7 @@ import { saveMealTypes, saveSlot, deleteSlot } from "./actions";
 
 type SlotData = {
   id: string;
-  planType: string;
+  planType: PlanType;
   key: string;
   label: string;
   enabled: boolean;
@@ -159,7 +159,7 @@ export function MealTypesForm({
                 <Input
                   placeholder="key (e.g. lunch)"
                   value={newSlots[t].key}
-                  onChange={(e) => updateNew(t, { key: e.target.value.replace(/[^a-z0-9_-]/gi, "") })}
+                  onChange={(e) => updateNew(t, { key: e.target.value.replace(/[^a-z0-9_]/g, "") })}
                   className="w-36"
                 />
                 <Input
@@ -223,7 +223,7 @@ function SlotRow({
       <Input
         placeholder="key"
         value={local.key}
-        onChange={(e) => patch({ key: e.target.value.replace(/[^a-z0-9_-]/gi, "") })}
+        onChange={(e) => patch({ key: e.target.value.replace(/[^a-z0-9_]/g, "") })}
         className="w-36"
       />
       <Input

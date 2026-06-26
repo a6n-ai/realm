@@ -4,9 +4,18 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { setMealTypes } from "@/lib/services/app-settings.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { menuService } from "@/lib/services/menu.service";
+import { ValidationError } from "@tiffin/commons";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 
-function bust() {
+const SLOT_KEY_RE = /^[a-z0-9_]+$/;
+
+// Slot edits + theme both feed the cached catalog snapshot AND the published-week
+// cache (slots + theme). Evict both so subscribe/ordering and the public poster
+// see the change on the next request.
+async function bust() {
+  await invalidateCatalogSnapshot();
+  await menuService.evictPublishedCache();
   revalidatePath("/dashboard/settings");
   revalidatePath("/menu/weekly");
   revalidatePath("/");
@@ -15,8 +24,7 @@ function bust() {
 export async function saveMealTypes(cfg: MealTypesSettings) {
   await requireAdmin();
   await setMealTypes(cfg);
-  await invalidateCatalogSnapshot();
-  bust();
+  await bust();
 }
 
 export async function saveSlot(input: {
@@ -29,18 +37,14 @@ export async function saveSlot(input: {
 }) {
   await requireAdmin();
   const { id, ...rest } = input;
-  if (id) {
-    await mealSlotsService.update(id, { planType: rest.planType, key: rest.key, label: rest.label, enabled: rest.enabled, sortOrder: rest.sortOrder });
-  } else {
-    await mealSlotsService.create({ planType: rest.planType, key: rest.key, label: rest.label, enabled: rest.enabled, sortOrder: rest.sortOrder });
-  }
-  await invalidateCatalogSnapshot();
-  bust();
+  if (!SLOT_KEY_RE.test(rest.key)) throw new ValidationError("Slot key must be lowercase letters, numbers, or underscores");
+  if (id) await mealSlotsService.update(id, rest);
+  else await mealSlotsService.create(rest);
+  await bust();
 }
 
 export async function deleteSlot(id: string) {
   await requireAdmin();
   await mealSlotsService.delete(id);
-  await invalidateCatalogSnapshot();
-  bust();
+  await bust();
 }

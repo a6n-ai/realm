@@ -58,6 +58,12 @@ export const menuService = {
     await publishedCache.evictAll();
   },
 
+  // getPublishedWeek caches slots + theme per plan; callers that change either
+  // (slot edits, meal-type theme) must evict so the public poster isn't stale.
+  async evictPublishedCache() {
+    await publishedCache.evictAll();
+  },
+
   async listWeeks(planType: PlanType) {
     const rows = await db
       .select({
