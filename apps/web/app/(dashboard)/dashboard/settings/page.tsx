@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { ArrowRightIcon, SettingsIcon, UsersIcon, UtensilsCrossedIcon, Webhook, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, SettingsIcon, UsersIcon, Webhook, type LucideIcon } from "lucide-react";
+import { asc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ds";
 import { getMealTypes } from "@/lib/services/app-settings.service";
+import { db } from "@/db/client";
+import { mealSlots } from "@/db/schema";
 import { MealTypesForm } from "./meal-types-form";
 
 type SettingLink = { title: string; description: string; href: string; icon: LucideIcon };
@@ -14,12 +17,6 @@ const SETTINGS: SettingLink[] = [
     description: "App timezone and meal-selection cutoff.",
     href: "/dashboard/settings/general",
     icon: SettingsIcon,
-  },
-  {
-    title: "Meal slots",
-    description: "Enable or disable the meal slots offered in weekly menus.",
-    href: "/dashboard/settings/meal-slots",
-    icon: UtensilsCrossedIcon,
   },
   {
     title: "Lead sources",
@@ -38,6 +35,17 @@ const SETTINGS: SettingLink[] = [
 export default async function SettingsPage() {
   await requireAdmin();
   const mealTypes = await getMealTypes();
+  const allSlots = await db
+    .select({
+      id: mealSlots.publicId,
+      planType: mealSlots.planType,
+      key: mealSlots.key,
+      label: mealSlots.label,
+      enabled: mealSlots.enabled,
+      sortOrder: mealSlots.sortOrder,
+    })
+    .from(mealSlots)
+    .orderBy(asc(mealSlots.sortOrder));
 
   return (
     <PageShell>
@@ -67,7 +75,9 @@ export default async function SettingsPage() {
           ))}
         </div>
       </SectionCard>
-      <SectionCard title="Meal types &amp; slots"><MealTypesForm initial={mealTypes} /></SectionCard>
+      <SectionCard title="Meal types &amp; slots">
+        <MealTypesForm initial={mealTypes} slots={allSlots} />
+      </SectionCard>
     </PageShell>
   );
 }
