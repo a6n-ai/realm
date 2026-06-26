@@ -1,13 +1,23 @@
 import { desc, eq, sql } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClockIcon, DollarSignIcon, LayoutDashboardIcon, PackageIcon, UsersIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  ClockIcon,
+  DollarSignIcon,
+  LayoutDashboardIcon,
+  PackageIcon,
+  UserIcon,
+  UsersIcon,
+  UtensilsCrossedIcon,
+} from "lucide-react";
 import { Role } from "@tiffin/commons";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PageShell, PageHeader, StatCard, SectionCard } from "@/components/ds";
+import { PageShell, PageHeader, StatCard, SectionCard, Card } from "@/components/ds";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
@@ -32,7 +42,7 @@ export default async function DashboardOverviewPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
-    redirect("/dashboard/account");
+    return <CustomerWelcome />;
   }
 
   const [stats, recent] = await Promise.all([
@@ -102,6 +112,54 @@ export default async function DashboardOverviewPage() {
           </Table>
         )}
       </SectionCard>
+    </PageShell>
+  );
+}
+
+const CUSTOMER_LINKS = [
+  {
+    href: "/dashboard/meals",
+    title: "My meals",
+    description: "See this week's menu and what's arriving at your door.",
+    icon: UtensilsCrossedIcon,
+  },
+  {
+    href: "/dashboard/account",
+    title: "Account",
+    description: "Delivery address, dietary preferences, and notifications.",
+    icon: UserIcon,
+  },
+] as const;
+
+function CustomerWelcome() {
+  return (
+    <PageShell>
+      <PageHeader
+        icon={LayoutDashboardIcon}
+        title="Welcome back"
+        subtitle="Pick up where you left off — your meals and account are a tap away."
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        {CUSTOMER_LINKS.map((link) => (
+          <Link key={link.href} href={link.href} className="group rounded-xl">
+            <Card className="flex h-full items-start justify-between gap-4 p-5 transition-colors group-hover:border-foreground/20">
+              <div className="flex items-start gap-3">
+                <link.icon className="text-muted-foreground mt-0.5 size-5 shrink-0" aria-hidden />
+                <div>
+                  <h2 className="text-base font-semibold">{link.title}</h2>
+                  <p className="text-muted-foreground mt-1 text-sm text-pretty">
+                    {link.description}
+                  </p>
+                </div>
+              </div>
+              <ChevronRightIcon
+                className="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Card>
+          </Link>
+        ))}
+      </div>
     </PageShell>
   );
 }

@@ -1,0 +1,199 @@
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { Loader2Icon } from "lucide-react";
+import { SectionCard } from "@/components/ds";
+import { Button } from "@/components/ui/button";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { updateMyAddress } from "@/app/(dashboard)/dashboard/account/actions";
+
+const PROVINCES: { value: string; label: string }[] = [
+  { value: "AB", label: "Alberta" },
+  { value: "BC", label: "British Columbia" },
+  { value: "MB", label: "Manitoba" },
+  { value: "NB", label: "New Brunswick" },
+  { value: "NL", label: "Newfoundland and Labrador" },
+  { value: "NS", label: "Nova Scotia" },
+  { value: "NT", label: "Northwest Territories" },
+  { value: "NU", label: "Nunavut" },
+  { value: "ON", label: "Ontario" },
+  { value: "PE", label: "Prince Edward Island" },
+  { value: "QC", label: "Quebec" },
+  { value: "SK", label: "Saskatchewan" },
+  { value: "YT", label: "Yukon" },
+];
+
+const addressFormSchema = z.object({
+  addressLine: z.string().max(200, "Address is too long"),
+  addressUnit: z.string().max(40, "Unit is too long"),
+  city: z.string().max(100, "City is too long"),
+  postalCode: z.string().max(12, "Postal code is too long"),
+  province: z.string().max(2),
+});
+
+type AddressFormValues = z.infer<typeof addressFormSchema>;
+
+export function AddressSection({
+  addressLine = "",
+  addressUnit = "",
+  city = "",
+  postalCode = "",
+  province = "",
+}: {
+  addressLine?: string;
+  addressUnit?: string;
+  city?: string;
+  postalCode?: string;
+  province?: string;
+}) {
+  const form = useForm<AddressFormValues>({
+    resolver: zodResolver(addressFormSchema),
+    defaultValues: { addressLine, addressUnit, city, postalCode, province },
+  });
+
+  async function onSubmit(values: AddressFormValues) {
+    try {
+      await updateMyAddress(values);
+      toast.success("Delivery address saved.");
+      form.reset(values);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save address.");
+    }
+  }
+
+  const hasAddress = Boolean(addressLine || city || postalCode || province);
+
+  return (
+    <SectionCard
+      title="Delivery address"
+      subtitle={hasAddress ? undefined : "Add a delivery address to speed up checkout."}
+    >
+      <div id="address" className="scroll-mt-24">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            <FormField
+              control={form.control}
+              name="addressLine"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Street address</FormLabel>
+                  <FormControl>
+                    <Input
+                      autoComplete="address-line1"
+                      placeholder="123 Maple St"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="addressUnit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit / Apt</FormLabel>
+                  <FormControl>
+                    <Input
+                      autoComplete="address-line2"
+                      placeholder="Apt 4B"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="address-level2" placeholder="Toronto" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="postalCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal code</FormLabel>
+                  <FormControl>
+                    <Input
+                      autoComplete="postal-code"
+                      placeholder="M5V 2T6"
+                      className="tabular-nums"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="province"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Province</FormLabel>
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select province" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PROVINCES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="sm:col-span-2">
+              <Button
+                type="submit"
+                disabled={!form.formState.isDirty || form.formState.isSubmitting}
+                className="w-full min-w-[8rem] sm:w-auto"
+              >
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save address"
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    </SectionCard>
+  );
+}
