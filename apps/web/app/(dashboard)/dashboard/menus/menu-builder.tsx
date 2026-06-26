@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
+import { WeekStartPicker } from "./week-start-picker";
 import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
@@ -50,9 +52,9 @@ export function MenuBuilder({
     <div className="space-y-6">
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Plan type</label>
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Plan type</label>
           <Select value={planType} onValueChange={(t) => router.push(`/dashboard/menus?type=${t}`)}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -61,17 +63,28 @@ export function MenuBuilder({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Week start (Monday)</label>
-          <input type="date" className="rounded-md border px-3 py-2 text-sm" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Week start (Monday)</label>
+          <WeekStartPicker value={weekStart} onChange={setWeekStart} />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Order cutoff</label>
-          <input type="datetime-local" className="rounded-md border px-3 py-2 text-sm" value={orderCutoff} onChange={(e) => setOrderCutoff(e.target.value)} />
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Order cutoff</label>
+          <input
+            type="datetime-local"
+            className="h-9 rounded-md border bg-transparent px-3 text-sm tabular-nums shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            value={orderCutoff}
+            onChange={(e) => setOrderCutoff(e.target.value)}
+          />
         </div>
-        <Button onClick={handleUpsert} disabled={pending || !weekStart || !orderCutoff}>{week ? "Update week" : "Create week"}</Button>
-        {week && week.status === "draft" && <Button variant="destructive" disabled={pending} onClick={() => run(() => releaseWeek(week.id))}>Release</Button>}
-        {week && week.status === "released" && <span className="text-sm text-muted-foreground">Released</span>}
+        <Button className="transition-transform active:scale-[0.96]" onClick={handleUpsert} disabled={pending || !weekStart || !orderCutoff}>
+          {week ? "Update week" : "Create week"}
+        </Button>
+        {week && week.status === "draft" && (
+          <Button variant="destructive" className="transition-transform active:scale-[0.96]" disabled={pending} onClick={() => run(() => releaseWeek(week.id))}>
+            Release
+          </Button>
+        )}
+        {week && week.status === "released" && <span className="text-sm font-medium text-green-700">Released</span>}
       </div>
 
       {week && (
@@ -79,36 +92,49 @@ export function MenuBuilder({
           <div className="space-y-4">
             {DAY_COLUMNS.map((col) => {
               const storeDay = col.days[0]; // weekend dishes stored under sat
+              const dayCount = mealType.slots.reduce((n, s) => n + cellItems(col.days, s.key).length, 0);
               return (
-                <div key={col.label} className="rounded-lg border p-3">
-                  <h4 className="mb-2 text-sm font-semibold">{col.label}</h4>
-                  {mealType.slots.map((slot) => {
-                    const ci = cellItems(col.days, slot.key);
-                    const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
-                    return (
-                      <div key={slot.key} className="mb-2">
-                        {mealType.slots.length > 1 && <p className="text-xs text-muted-foreground">{slot.label}</p>}
-                        <div className="space-y-1">
+                <div key={col.label} className="rounded-xl border p-4 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-sm font-semibold">{col.label}</h4>
+                    <span className="text-xs text-muted-foreground tabular-nums">{dayCount} dishes</span>
+                  </div>
+                  <div className="space-y-3">
+                    {mealType.slots.map((slot) => {
+                      const ci = cellItems(col.days, slot.key);
+                      const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
+                      return (
+                        <div key={slot.key} className="space-y-1.5">
+                          {mealType.slots.length > 1 && <p className="text-xs font-medium text-muted-foreground">{slot.label}</p>}
                           {ci.map((i) => {
                             const d = dishById.get(i.dishId);
                             return (
-                              <div key={i.id} className="flex items-center gap-2 text-sm">
-                                <span className={`size-2 rounded-full ${d?.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
-                                <span className="flex-1">{d?.name ?? i.dishId}</span>
-                                {week.status === "draft" && <button className="text-xs text-destructive" disabled={pending} onClick={() => run(() => removeItem(i.id))}>✕</button>}
+                              <div key={i.id} className="group flex items-center gap-2 rounded-lg bg-muted/40 py-1.5 pl-2.5 pr-1 text-sm">
+                                <span aria-hidden className={`size-2 shrink-0 rounded-full ${d?.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                                <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
+                                    disabled={pending}
+                                    aria-label={`Remove ${d?.name ?? "dish"}`}
+                                    onClick={() => run(() => removeItem(i.id))}
+                                  >
+                                    <X className="size-3.5" />
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
                           {week.status === "draft" && addable.length > 0 && (
                             <Select onValueChange={(dishId) => run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId, position: ci.length }).then(() => {}))}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="+ add dish" /></SelectTrigger>
+                              <SelectTrigger className="h-9 rounded-lg text-xs text-muted-foreground"><SelectValue placeholder="+ add dish" /></SelectTrigger>
                               <SelectContent>{addable.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
                             </Select>
                           )}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}

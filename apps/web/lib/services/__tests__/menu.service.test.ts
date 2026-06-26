@@ -63,4 +63,16 @@ describe("menuService (integration)", () => {
     expect(weeks.find((w) => w.publicId === newer.publicId)!.itemCount).toBe(1);
     expect(weeks.find((w) => w.publicId === older.publicId)!.itemCount).toBe(0);
   });
+
+  it("listWeekMenus returns each week's items + slots for the plan", async () => {
+    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: [] }).returning();
+    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-04-06", orderCutoff: "2099-04-05T18:00:00Z" });
+    await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "lunch", dishId: d.publicId, position: 0 });
+
+    const menus = await menuService.listWeekMenus("tiffin");
+    const wk = menus.find((m) => m.publicId === w.publicId)!;
+    expect(wk.slots.map((s) => s.key)).toEqual(["lunch"]);
+    expect(wk.items).toHaveLength(1);
+    expect(wk.items[0]).toMatchObject({ dayOfWeek: "mon", slot: "lunch", dishName: "Paneer", diet: "veg" });
+  });
 });

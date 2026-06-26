@@ -1,7 +1,7 @@
 import { ValidationError } from "@tiffin/commons";
 import { LruTier, TieredCache } from "@tiffin/commons";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";
 import { getMealTypes } from "./app-settings.service";
@@ -68,6 +68,32 @@ export const menuService = {
       .groupBy(menuWeeks.id)
       .orderBy(desc(menuWeeks.weekStart));
     return rows.map((r) => ({ ...r, itemCount: Number(r.itemCount) }));
+  },
+
+  async listWeekMenus(planType: PlanType) {
+    const weeks = await db
+      .select({ id: menuWeeks.id, publicId: menuWeeks.publicId, weekStart: menuWeeks.weekStart, status: menuWeeks.status, releasedAt: menuWeeks.releasedAt })
+      .from(menuWeeks)
+      .where(eq(menuWeeks.planType, planType))
+      .orderBy(desc(menuWeeks.weekStart));
+    const slots = (await getMealTypes())[planType].slots;
+    if (weeks.length === 0) return [];
+    const rows = await db
+      .select({ menuWeekId: menuItems.menuWeekId, dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
+      .from(menuItems)
+      .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+      .where(inArray(menuItems.menuWeekId, weeks.map((w) => w.id)))
+      .orderBy(asc(menuItems.position));
+    const byWeek = new Map<bigint, PosterItem[]>();
+    for (const r of rows) {
+      const list = byWeek.get(r.menuWeekId) ?? [];
+      list.push({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, diet: r.diet, position: r.position });
+      byWeek.set(r.menuWeekId, list);
+    }
+    return weeks.map((w) => {
+      const items = byWeek.get(w.id) ?? [];
+      return { publicId: w.publicId, weekStart: w.weekStart, status: w.status, releasedAt: w.releasedAt, itemCount: items.length, slots, items };
+    });
   },
 
   async weekWithItems(weekPublicId: string) {

@@ -7,6 +7,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder } from "./menu-builder";
+import { MenuHistoryCard } from "./menu-history-card";
 import type { PlanType } from "@/lib/menu/meal-types";
 
 export default async function MenusPage({ searchParams }: { searchParams: Promise<{ type?: string; week?: string }> }) {
@@ -17,7 +18,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const [mealTypes, activeDishes, weeks] = await Promise.all([
     getMealTypes(),
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
-    menuService.listWeeks(planType),
+    menuService.listWeekMenus(planType),
   ]);
 
   let week: { id: string; weekStart: string; status: string; orderCutoff: string } | null = null;
@@ -51,25 +52,11 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
         {weeks.length === 0 ? (
           <p className="text-sm text-muted-foreground">No {planType} menus yet.</p>
         ) : (
-          <ul className="divide-y text-sm">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {weeks.map((w) => (
-              <li key={w.publicId} className="flex items-center justify-between gap-3 py-2">
-                <a
-                  href={`/dashboard/menus?type=${planType}&week=${w.publicId}`}
-                  className={`font-medium hover:underline ${w.publicId === week?.id ? "text-primary" : ""}`}
-                >
-                  Week of {w.weekStart}
-                </a>
-                <span className="flex items-center gap-3 text-muted-foreground">
-                  <span>{w.itemCount} dishes</span>
-                  <span className={`rounded px-2 py-0.5 text-xs ${w.status === "released" ? "bg-green-100 text-green-800" : "bg-muted"}`}>
-                    {w.status}
-                  </span>
-                  {w.releasedAt ? <span className="text-xs">released {new Date(w.releasedAt).toLocaleDateString("en-CA")}</span> : null}
-                </span>
-              </li>
+              <MenuHistoryCard key={w.publicId} week={w} planType={planType} accent={mealTypes[planType].accent} />
             ))}
-          </ul>
+          </div>
         )}
       </SectionCard>
     </PageShell>
