@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +9,7 @@ import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";
 import { saveMealTypes, saveSlot, deleteSlot } from "./actions";
 
-type SlotRow = {
+type SlotData = {
   id: string;
   planType: string;
   key: string;
@@ -31,7 +31,7 @@ export function MealTypesForm({
   slots,
 }: {
   initial: MealTypesSettings;
-  slots: SlotRow[];
+  slots: SlotData[];
 }) {
   const router = useRouter();
   const [cfg, setCfg] = useState<MealTypesSettings>(initial);
@@ -56,7 +56,7 @@ export function MealTypesForm({
       }
     });
 
-  const handleSaveSlot = (slot: SlotRow) =>
+  const handleSaveSlot = (slot: SlotData) =>
     start(async () => {
       setError(null);
       try {
@@ -207,14 +207,16 @@ function SlotRow({
   onDelete,
   disabled,
 }: {
-  slot: SlotRow;
-  onSave: (s: SlotRow) => void;
+  slot: SlotData;
+  onSave: (s: SlotData) => void;
   onDelete: (id: string) => void;
   disabled: boolean;
 }) {
   const [local, setLocal] = useState(slot);
 
-  const patch = (p: Partial<SlotRow>) => setLocal((prev) => ({ ...prev, ...p }));
+  useEffect(() => { setLocal(slot); }, [slot]);
+
+  const patch = (p: Partial<SlotData>) => setLocal((prev) => ({ ...prev, ...p }));
 
   return (
     <div className="flex items-center gap-2">

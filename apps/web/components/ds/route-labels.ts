@@ -8,7 +8,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   meals: "My Meals",
   account: "Account",
   settings: "Settings",
-order: "New order",
+  order: "New order",
   design: "Design system",
 };
 
