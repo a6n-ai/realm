@@ -17,9 +17,12 @@ function label(value: string): string {
 
 // Week menus always start on a Monday; the calendar disables every other day so
 // the constraint is enforced at the input, not validated after the fact.
-export function WeekStartPicker({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+export function WeekStartPicker({
+  value, onChange, disabledDates = [],
+}: { value: string; onChange: (iso: string) => void; disabledDates?: string[] }) {
   const [open, setOpen] = useState(false);
   const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+  const taken = new Set(disabledDates);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -36,7 +39,7 @@ export function WeekStartPicker({ value, onChange }: { value: string; onChange: 
           mode="single"
           selected={selected}
           defaultMonth={selected}
-          disabled={(date) => date.getDay() !== 1}
+          disabled={(date) => date.getDay() !== 1 || taken.has(toIso(date))}
           onSelect={(d) => {
             if (d) onChange(toIso(d));
             setOpen(false);

@@ -1,4 +1,4 @@
-import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
+import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 
 function weekRangeLabel(weekStart: string): string {
@@ -30,7 +30,7 @@ export function WeeklyMenuPoster({
                     <li className="text-sm text-muted-foreground">—</li>
                   ) : g.dishes.map((d, i) => (
                     <li key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                      <span aria-hidden className={`size-2 rounded-full ${d.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                      <span aria-hidden className={`size-2 rounded-full ${dietDotClass(d.diet, d.name)}`} />
                       <span>{d.name}</span>
                     </li>
                   ))}

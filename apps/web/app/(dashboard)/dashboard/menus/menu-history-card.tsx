@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
+import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 
 type WeekMenu = {
@@ -26,19 +26,31 @@ function weekRange(weekStart: string): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function MenuHistoryCard({ week, planType, accent }: { week: WeekMenu; planType: string; accent: string }) {
+export function MenuHistoryCard({
+  week, planType, accent, highlight = null,
+}: { week: WeekMenu; planType: string; accent: string; highlight?: "current" | "upcoming" | null }) {
   const columns = buildPosterColumns(week.slots, week.items);
   const [day, setDay] = useState(0);
   const col = columns[day];
   const cycle = (dir: number) => setDay((d) => (d + dir + columns.length) % columns.length);
 
+  // Outer glow in the plan accent marks the live ("current") and next ("upcoming") weeks.
+  const glowStyle = highlight ? { boxShadow: `0 0 0 2px ${accent}66, 0 0 22px ${accent}40` } : undefined;
+
   return (
-    <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
+    <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm" style={glowStyle}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold tracking-tight" style={{ color: accent }}>
-            {weekRange(week.weekStart)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-base font-semibold tracking-tight" style={{ color: accent }}>
+              {weekRange(week.weekStart)}
+            </p>
+            {highlight ? (
+              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ backgroundColor: `${accent}22`, color: accent }}>
+                {highlight === "current" ? "This week" : "Upcoming"}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {week.itemCount} dishes
             {week.releasedAt ? ` · released ${new Date(week.releasedAt).toLocaleDateString("en-CA")}` : ""}
@@ -83,7 +95,7 @@ export function MenuHistoryCard({ week, planType, accent }: { week: WeekMenu; pl
               ) : (
                 g.dishes.map((d, i) => (
                   <div key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                    <span aria-hidden className={`size-2 shrink-0 rounded-full ${d.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                    <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d.diet, d.name)}`} />
                     <span className="text-pretty">{d.name}</span>
                   </div>
                 ))

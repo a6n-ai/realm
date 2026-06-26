@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { zonedDateIso } from "@tiffin/commons";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { dishes } from "@/db/schema";
@@ -37,6 +38,16 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
     }
   }
 
+  const today = zonedDateIso(Date.now(), appSettings.timezone);
+  const addDaysIso = (iso: string, n: number) => {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const currentId = weeks.find((w) => w.weekStart <= today && today <= addDaysIso(w.weekStart, 6))?.publicId;
+  const futureStarts = weeks.filter((w) => w.weekStart > today).map((w) => w.weekStart).sort();
+  const upcomingId = futureStarts.length ? weeks.find((w) => w.weekStart === futureStarts[0])?.publicId : undefined;
+
   return (
     <PageShell>
       <PageHeader icon={CalendarIcon} title="Weekly Menus" />
@@ -46,7 +57,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
             No active dishes yet — add dishes in the Dishes section before building a menu.
           </p>
         )}
-        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} cutoffHour={appSettings.cutoffHour} timezone={appSettings.timezone} />
+        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} takenWeekStarts={weeks.map((w) => w.weekStart)} />
       </SectionCard>
 
       <SectionCard title="Past menus">
@@ -55,7 +66,13 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {weeks.map((w) => (
-              <MenuHistoryCard key={w.publicId} week={w} planType={planType} accent={mealTypes[planType].accent} />
+              <MenuHistoryCard
+                key={w.publicId}
+                week={w}
+                planType={planType}
+                accent={mealTypes[planType].accent}
+                highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null}
+              />
             ))}
           </div>
         )}

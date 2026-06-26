@@ -16,6 +16,13 @@ export const DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
   { label: "Weekends", days: ["sat", "sun"] },
 ];
 
+// Diet indicator colour. Egg dishes are stored as `nonveg` but get a distinct
+// yellow dot, detected by name (no separate enum value).
+export function dietDotClass(diet: "veg" | "nonveg", dishName: string): string {
+  if (/\begg\b/i.test(dishName)) return "bg-yellow-500";
+  return diet === "veg" ? "bg-green-600" : "bg-red-600";
+}
+
 export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
   const flat = slots.length <= 1;
   return DAY_COLUMNS.map((col) => {

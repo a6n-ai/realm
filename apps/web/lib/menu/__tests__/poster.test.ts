@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildPosterColumns } from "../poster";
+import { buildPosterColumns, dietDotClass } from "../poster";
+
+describe("dietDotClass", () => {
+  it("veg green, nonveg red, egg yellow (by name)", () => {
+    expect(dietDotClass("veg", "Aloo Gobi")).toBe("bg-green-600");
+    expect(dietDotClass("nonveg", "Chicken Curry")).toBe("bg-red-600");
+    expect(dietDotClass("nonveg", "Egg Bhurji")).toBe("bg-yellow-500");
+    expect(dietDotClass("nonveg", "Egg Curry")).toBe("bg-yellow-500");
+  });
+});
 
 const tiffinSlots = [{ key: "lunch", label: "Lunch" }];
 const healthySlots = [

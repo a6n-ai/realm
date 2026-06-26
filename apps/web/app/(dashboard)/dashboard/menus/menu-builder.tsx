@@ -6,7 +6,7 @@ import { CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
-import { DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
@@ -15,14 +15,9 @@ type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number };
 
-function formatHour(hour: number): string {
-  const h12 = ((hour + 11) % 12) + 1;
-  return `${h12}:00 ${hour < 12 ? "AM" : "PM"}`;
-}
-
 export function MenuBuilder({
-  planType, mealType, dishes, week, items, cutoffHour, timezone,
-}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[]; cutoffHour: number; timezone: string }) {
+  planType, mealType, dishes, week, items, takenWeekStarts,
+}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[]; takenWeekStarts: string[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +66,7 @@ export function MenuBuilder({
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">Week start (Monday)</label>
-          <WeekStartPicker value={weekStart} onChange={setWeekStart} />
+          <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
         </div>
         {!week && (
           <Button className="transition-transform active:scale-[0.96]" onClick={handleUpsert} disabled={pending || !weekStart}>
@@ -110,11 +105,6 @@ export function MenuBuilder({
         </div>
       )}
 
-      {week && (
-        <p className="text-xs text-muted-foreground">
-          Customers can pick or edit each day&apos;s meal until {formatHour(cutoffHour)} ({timezone}) the day before delivery. Change this in Settings.
-        </p>
-      )}
 
       {week && (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -139,7 +129,7 @@ export function MenuBuilder({
                             const d = dishById.get(i.dishId);
                             return (
                               <div key={i.id} className="group flex items-center gap-2 rounded-lg bg-muted/40 py-1.5 pl-2.5 pr-1 text-sm">
-                                <span aria-hidden className={`size-2 shrink-0 rounded-full ${d?.diet === "veg" ? "bg-green-600" : "bg-red-600"}`} />
+                                <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
                                 {week.status === "draft" && (
                                   <button
