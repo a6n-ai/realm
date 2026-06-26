@@ -10,6 +10,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   settings: "Settings",
   order: "New order",
   design: "Design system",
+  "meal-types": "Meal types & slots",
 };
 
 export function labelForSegment(segment: string): string {

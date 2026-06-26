@@ -1,9 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";
@@ -18,13 +20,19 @@ type SlotData = {
   sortOrder: number;
 };
 
-type NewSlot = {
-  planType: PlanType;
+type NewSlotDraft = {
   key: string;
   label: string;
   enabled: boolean;
   sortOrder: number;
 };
+
+const emptyDraft = (): NewSlotDraft => ({
+  key: "",
+  label: "",
+  enabled: true,
+  sortOrder: 0,
+});
 
 export function MealTypesForm({
   initial,
@@ -35,233 +43,310 @@ export function MealTypesForm({
 }) {
   const router = useRouter();
   const [cfg, setCfg] = useState<MealTypesSettings>(initial);
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [newSlots, setNewSlots] = useState<Record<PlanType, NewSlot>>({
-    tiffin: { planType: "tiffin", key: "", label: "", enabled: true, sortOrder: 0 },
-    healthy: { planType: "healthy", key: "", label: "", enabled: true, sortOrder: 0 },
+  const [typesPending, startTypes] = useTransition();
+  const [typesError, setTypesError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<PlanType, NewSlotDraft>>({
+    tiffin: emptyDraft(),
+    healthy: emptyDraft(),
   });
+  const [addPending, setAddPending] = useState<PlanType | null>(null);
+  const [addErrors, setAddErrors] = useState<Record<PlanType, string | null>>({
+    tiffin: null,
+    healthy: null,
+  });
+
+  const refresh = () => router.refresh();
 
   const update = (t: PlanType, patch: Partial<MealTypesSettings[PlanType]>) =>
     setCfg((c) => ({ ...c, [t]: { ...c[t], ...patch } }));
 
-  const saveTypes = () =>
-    start(async () => {
-      setError(null);
+  const patchDraft = (t: PlanType, patch: Partial<NewSlotDraft>) =>
+    setDrafts((prev) => ({ ...prev, [t]: { ...prev[t], ...patch } }));
+
+  const handleSaveTypes = () =>
+    startTypes(async () => {
+      setTypesError(null);
       try {
         await saveMealTypes(cfg);
-        router.refresh();
+        refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed");
+        setTypesError(e instanceof Error ? e.message : "Save failed");
       }
     });
 
-  const handleSaveSlot = (slot: SlotData) =>
-    start(async () => {
-      setError(null);
-      try {
-        await saveSlot({
-          id: slot.id,
-          planType: slot.planType as PlanType,
-          key: slot.key,
-          label: slot.label,
-          enabled: slot.enabled,
-          sortOrder: slot.sortOrder,
-        });
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed");
-      }
-    });
-
-  const handleDeleteSlot = (id: string) =>
-    start(async () => {
-      setError(null);
-      try {
-        await deleteSlot(id);
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Delete failed");
-      }
-    });
-
-  const handleAddSlot = (t: PlanType) =>
-    start(async () => {
-      setError(null);
-      const ns = newSlots[t];
-      if (!ns.key.trim() || !ns.label.trim()) {
-        setError("Key and label are required");
-        return;
-      }
-      try {
-        await saveSlot({ id: null, ...ns });
-        setNewSlots((prev) => ({
-          ...prev,
-          [t]: { planType: t, key: "", label: "", enabled: true, sortOrder: 0 },
-        }));
-        router.refresh();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed");
-      }
-    });
-
-  const updateNew = (t: PlanType, patch: Partial<NewSlot>) =>
-    setNewSlots((prev) => ({ ...prev, [t]: { ...prev[t], ...patch } }));
+  const handleAddSlot = async (t: PlanType) => {
+    const draft = drafts[t];
+    if (!draft.key.trim() || !draft.label.trim()) {
+      setAddErrors((prev) => ({ ...prev, [t]: "Key and label are required" }));
+      return;
+    }
+    setAddPending(t);
+    setAddErrors((prev) => ({ ...prev, [t]: null }));
+    try {
+      await saveSlot({ id: null, planType: t, ...draft });
+      setDrafts((prev) => ({ ...prev, [t]: emptyDraft() }));
+      refresh();
+    } catch (e) {
+      setAddErrors((prev) => ({
+        ...prev,
+        [t]: e instanceof Error ? e.message : "Save failed",
+      }));
+    } finally {
+      setAddPending(null);
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
-
+    <div className="space-y-5">
       {PLAN_TYPES.map((t) => {
-        const typeSlots = slots.filter((s) => s.planType === t);
-        return (
-          <div key={t} className="rounded-lg border p-4 space-y-4">
-            <h3 className="font-medium capitalize">{t}</h3>
+        const planSlots = slots.filter((s) => s.planType === t);
+        const accent = cfg[t].accent;
 
-            <div className="flex flex-wrap gap-3 items-end">
-              <label className="text-sm">
-                Title prefix
+        return (
+          <div
+            key={t}
+            className="rounded-xl border-l-[3px] bg-muted/30 p-4 space-y-4"
+            style={{ borderLeftColor: accent }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="size-3 shrink-0 rounded-full"
+                style={{ background: accent }}
+                aria-hidden
+              />
+              <h3 className="font-semibold capitalize text-balance">{t}</h3>
+            </div>
+
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Title prefix</Label>
                 <Input
                   value={cfg[t].titlePrefix}
                   onChange={(e) => update(t, { titlePrefix: e.target.value })}
-                  className="mt-1"
+                  className="h-10 w-52"
                 />
-              </label>
-              <label className="text-sm">
-                Accent
-                <Input
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Accent colour</Label>
+                <input
                   type="color"
                   value={cfg[t].accent}
                   onChange={(e) => update(t, { accent: e.target.value })}
-                  className="mt-1 w-16 h-9 p-1 cursor-pointer"
+                  className="h-10 w-16 cursor-pointer rounded-lg border border-input bg-transparent p-1"
                 />
-              </label>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Meal slots</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Meal slots
+              </p>
 
-              {typeSlots.length === 0 && (
-                <p className="text-muted-foreground text-sm">No slots yet.</p>
+              {planSlots.length === 0 && (
+                <p className="text-muted-foreground text-sm py-1">No slots yet.</p>
               )}
 
-              {typeSlots.map((slot) => (
-                <SlotRow
-                  key={slot.id}
-                  slot={slot}
-                  onSave={handleSaveSlot}
-                  onDelete={handleDeleteSlot}
-                  disabled={pending}
-                />
+              {planSlots.map((slot) => (
+                <SlotRow key={slot.id} slot={slot} onDone={refresh} />
               ))}
 
-              <div className="flex items-center gap-2 pt-2 border-t">
-                <Input
-                  placeholder="key (e.g. lunch)"
-                  value={newSlots[t].key}
-                  onChange={(e) => updateNew(t, { key: e.target.value.replace(/[^a-z0-9_]/g, "") })}
-                  className="w-36"
-                />
-                <Input
-                  placeholder="Label (e.g. Lunch)"
-                  value={newSlots[t].label}
-                  onChange={(e) => updateNew(t, { label: e.target.value })}
-                  className="w-44"
-                />
-                <Input
-                  type="number"
-                  placeholder="Order"
-                  value={newSlots[t].sortOrder}
-                  onChange={(e) => updateNew(t, { sortOrder: Number(e.target.value) })}
-                  className="w-20"
-                />
-                <Switch
-                  checked={newSlots[t].enabled}
-                  onCheckedChange={(v) => updateNew(t, { enabled: v })}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => handleAddSlot(t)}
-                >
-                  Add slot
-                </Button>
+              <div className="mt-1 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border/60 bg-background/60 p-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Key</Label>
+                  <Input
+                    placeholder="e.g. lunch"
+                    value={drafts[t].key}
+                    onChange={(e) =>
+                      patchDraft(t, { key: e.target.value.replace(/[^a-z0-9_]/g, "") })
+                    }
+                    className="h-10 w-32"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Label</Label>
+                  <Input
+                    placeholder="e.g. Lunch"
+                    value={drafts[t].label}
+                    onChange={(e) => patchDraft(t, { label: e.target.value })}
+                    className="h-10 w-40"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Order</Label>
+                  <Input
+                    type="number"
+                    value={drafts[t].sortOrder}
+                    onChange={(e) => patchDraft(t, { sortOrder: Number(e.target.value) })}
+                    className="h-10 w-20 tabular-nums"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Enabled</Label>
+                  <div className="flex h-10 items-center">
+                    <Switch
+                      checked={drafts[t].enabled}
+                      onCheckedChange={(v) => patchDraft(t, { enabled: v })}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {addErrors[t] && (
+                    <p className="text-destructive text-xs">{addErrors[t]}</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
+                    disabled={addPending === t}
+                    onClick={() => handleAddSlot(t)}
+                  >
+                    <PlusIcon className="size-3.5" />
+                    Add slot
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         );
       })}
 
-      <Button onClick={saveTypes} disabled={pending}>
-        Save meal types
-      </Button>
+      <div className="flex items-center gap-3 pt-1">
+        <Button
+          onClick={handleSaveTypes}
+          disabled={typesPending}
+          className="h-10 gap-2 active:scale-[0.96] transition-transform"
+        >
+          <SaveIcon className="size-4" />
+          Save meal types
+        </Button>
+        {typesError && <p className="text-destructive text-sm">{typesError}</p>}
+      </div>
     </div>
   );
 }
 
 function SlotRow({
   slot,
-  onSave,
-  onDelete,
-  disabled,
+  onDone,
 }: {
   slot: SlotData;
-  onSave: (s: SlotData) => void;
-  onDelete: (id: string) => void;
-  disabled: boolean;
+  onDone: () => void;
 }) {
   const [local, setLocal] = useState(slot);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setLocal(slot); }, [slot]);
+  useEffect(() => {
+    setLocal({
+      id: slot.id,
+      planType: slot.planType,
+      key: slot.key,
+      label: slot.label,
+      enabled: slot.enabled,
+      sortOrder: slot.sortOrder,
+    });
+  }, [slot.id, slot.planType, slot.key, slot.label, slot.enabled, slot.sortOrder]);
 
-  const patch = (p: Partial<SlotData>) => setLocal((prev) => ({ ...prev, ...p }));
+  const patch = (p: Partial<SlotData>) =>
+    setLocal((prev) => ({ ...prev, ...p }));
+
+  const handleSave = () =>
+    start(async () => {
+      setError(null);
+      try {
+        await saveSlot({
+          id: local.id,
+          planType: local.planType,
+          key: local.key,
+          label: local.label,
+          enabled: local.enabled,
+          sortOrder: local.sortOrder,
+        });
+        onDone();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Save failed");
+      }
+    });
+
+  const handleDelete = () =>
+    start(async () => {
+      setError(null);
+      try {
+        await deleteSlot(slot.id);
+        onDone();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Delete failed");
+      }
+    });
 
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        placeholder="key"
-        value={local.key}
-        onChange={(e) => patch({ key: e.target.value.replace(/[^a-z0-9_]/g, "") })}
-        className="w-36"
-      />
-      <Input
-        placeholder="Label"
-        value={local.label}
-        onChange={(e) => patch({ label: e.target.value })}
-        className="w-44"
-      />
-      <Input
-        type="number"
-        placeholder="Order"
-        value={local.sortOrder}
-        onChange={(e) => patch({ sortOrder: Number(e.target.value) })}
-        className="w-20"
-      />
-      <Switch
-        checked={local.enabled}
-        onCheckedChange={(v) => patch({ enabled: v })}
-      />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={disabled}
-        onClick={() => onSave(local)}
-      >
-        Save
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:text-destructive"
-        disabled={disabled}
-        onClick={() => onDelete(slot.id)}
-      >
-        Delete
-      </Button>
+    <div className="flex flex-wrap items-end gap-3 rounded-lg bg-background/80 p-2">
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">Key</Label>
+        <Input
+          placeholder="key"
+          value={local.key}
+          onChange={(e) =>
+            patch({ key: e.target.value.replace(/[^a-z0-9_]/g, "") })
+          }
+          className="h-10 w-32"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">Label</Label>
+        <Input
+          placeholder="Label"
+          value={local.label}
+          onChange={(e) => patch({ label: e.target.value })}
+          className="h-10 w-40"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">Order</Label>
+        <Input
+          type="number"
+          value={local.sortOrder}
+          onChange={(e) => patch({ sortOrder: Number(e.target.value) })}
+          className="h-10 w-20 tabular-nums"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">Enabled</Label>
+        <div className="flex h-10 items-center">
+          <Switch
+            checked={local.enabled}
+            onCheckedChange={(v) => patch({ enabled: v })}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {error && <p className="text-destructive text-xs">{error}</p>}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
+            disabled={pending}
+            onClick={handleSave}
+          >
+            <SaveIcon className="size-3.5" />
+            Save
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-10 w-10 p-0 text-destructive hover:text-destructive active:scale-[0.96] transition-transform"
+            disabled={pending}
+            onClick={handleDelete}
+            aria-label="Delete slot"
+          >
+            <Trash2Icon className="size-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
