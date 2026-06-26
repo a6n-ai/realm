@@ -1,5 +1,5 @@
 import { UpdatableRepository, stripManaged } from "@tiffin/commons-drizzle";
-import { Role, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
+import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
@@ -144,11 +144,13 @@ class UsersService extends SessionUpdatableService<typeof users> {
   async setPin(userId: string, currentPassword: string, newPin: string) {
     const parsed = pinSchema.safeParse(newPin);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid PIN");
+    await this.assertStaff(userId);
     await this.assertPassword(userId, currentPassword);
     return super.update(userId, { pinHash: await hashPassword(parsed.data), pinAttempts: 0 });
   }
 
   async removePin(userId: string, currentPassword: string) {
+    await this.assertStaff(userId);
     await this.assertPassword(userId, currentPassword);
     return super.update(userId, { pinHash: null, pinAttempts: 0 });
   }
@@ -187,6 +189,15 @@ class UsersService extends SessionUpdatableService<typeof users> {
       .where(eq(users.publicId, userId))
       .limit(1);
     return Boolean(u?.pinHash);
+  }
+
+  // PIN backs the staff idle-lock; it must never exist on a customer row. The
+  // render layer gates the control, but the rule lives here so the action POST
+  // endpoints can't be invoked by a customer to set/clear a PIN on their own row.
+  private async assertStaff(userId: string): Promise<void> {
+    const [u] = await db.select({ role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
+    if (!u) throw new ValidationError("User not found");
+    if (u.role !== Role.ADMIN && u.role !== Role.MEMBER) throw new AuthError();
   }
 
   private async assertPassword(userId: string, currentPassword: string): Promise<void> {

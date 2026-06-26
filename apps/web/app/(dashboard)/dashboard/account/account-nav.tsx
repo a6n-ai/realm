@@ -25,7 +25,7 @@ export function AccountNav({ role }: { role: RoleValue }) {
   return (
     <nav aria-label="Account settings">
       {/* Mobile (<md): a single horizontally scrollable row of every item. */}
-      <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 md:hidden">
+      <ul className="-mx-1 -my-1 flex gap-1 overflow-x-auto px-1 py-1 md:hidden">
         {groups
           .flatMap((g) => g.items)
           .map((item) => {
@@ -44,33 +44,46 @@ export function AccountNav({ role }: { role: RoleValue }) {
           })}
       </ul>
 
-      {/* Desktop (md+): grouped vertical rail with muted group headings. */}
+      {/* Desktop (md+): grouped vertical rail. Group labels are non-heading
+          elements (role=group + aria-labelledby) so they stay out of the document
+          heading outline — the section content cards own the only h2s. */}
       <div className="hidden md:flex md:flex-col md:gap-6">
-        {groups.map((group, i) => (
-          <div key={group.heading ?? i} className="flex flex-col gap-1">
-            {group.heading && (
-              <h2 className="text-muted-foreground px-3 text-xs font-medium tracking-wide uppercase">
-                {group.heading}
-              </h2>
-            )}
-            <ul className="flex flex-col gap-0.5">
-              {group.items.map((item) => {
-                const active = isActive(item.href);
-                return (
-                  <li key={item.key}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(linkClass(active), "block px-3 py-1.5")}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+        {groups.map((group, i) => {
+          const labelId = group.heading ? `account-nav-group-${i}` : undefined;
+          return (
+            <div
+              key={group.heading ?? i}
+              className="flex flex-col gap-1"
+              role={group.heading ? "group" : undefined}
+              aria-labelledby={labelId}
+            >
+              {group.heading && (
+                <p
+                  id={labelId}
+                  className="text-muted-foreground px-3 text-xs font-medium tracking-wide uppercase"
+                >
+                  {group.heading}
+                </p>
+              )}
+              <ul className="flex flex-col gap-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <li key={item.key}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(linkClass(active), "block px-3 py-1.5")}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </div>
     </nav>
   );

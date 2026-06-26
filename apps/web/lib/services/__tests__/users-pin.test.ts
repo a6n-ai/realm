@@ -1,17 +1,19 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, auditLog, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { usersService } from "@/lib/services/users.service";
 
+// PIN backs the staff idle-lock, so the mechanics are exercised on a staff user.
 const PHONE = "+15550000333";
+const CUSTOMER_PHONE = "+15550000334";
 const PASSWORD = "correct-horse";
 
-async function seedUser() {
+async function seedUser(role: "member" | "user" = "member", phone = PHONE) {
   const [u] = await db
     .insert(users)
-    .values({ name: "Pin Tester", phone: PHONE, role: "user" })
+    .values({ name: "Pin Tester", phone, role })
     .returning({ id: users.id, publicId: users.publicId });
   await db.insert(account).values({
     accountId: String(u.id),
@@ -23,7 +25,10 @@ async function seedUser() {
 }
 
 async function cleanup() {
-  const rows = await db.select({ id: users.id, publicId: users.publicId }).from(users).where(eq(users.phone, PHONE));
+  const rows = await db
+    .select({ id: users.id, publicId: users.publicId })
+    .from(users)
+    .where(inArray(users.phone, [PHONE, CUSTOMER_PHONE]));
   for (const r of rows) {
     await db.delete(auditLog).where(eq(auditLog.entityPublicId, r.publicId));
     await db.delete(account).where(eq(account.userId, r.id));
@@ -100,5 +105,12 @@ describe("UsersService PIN methods", () => {
     await usersService.verifyPin(u.publicId, "0000");
     const afterCount = await db.$count(auditLog, eq(auditLog.entityPublicId, u.publicId));
     expect(afterCount).toBe(beforeCount);
+  });
+
+  it("a customer cannot set or remove a PIN even with the right password", async () => {
+    const u = await seedUser("user", CUSTOMER_PHONE);
+    await expect(usersService.setPin(u.publicId, PASSWORD, "1357")).rejects.toThrow();
+    expect(await usersService.hasPin(u.publicId)).toBe(false);
+    await expect(usersService.removePin(u.publicId, PASSWORD)).rejects.toThrow();
   });
 });
