@@ -3,13 +3,18 @@ import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } fr
 import { planType } from "./catalog";
 import { orders } from "./orders";
 
-export const mealSlots = pgTable("meal_slots", {
-  ...updatableColumns("slt"),
-  key: text("key").notNull().unique(),
-  label: text("label").notNull(),
-  enabled: boolean("enabled").notNull().default(false),
-  sortOrder: integer("sort_order").notNull().default(0),
-});
+export const mealSlots = pgTable(
+  "meal_slots",
+  {
+    ...updatableColumns("slt"),
+    planType: planType("plan_type").notNull().default("tiffin"),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [uniqueIndex("meal_slots_type_key_unique").on(t.planType, t.key)],
+);
 
 export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
 
