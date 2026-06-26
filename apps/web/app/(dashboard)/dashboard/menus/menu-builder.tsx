@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
-import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
+import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, upsertWeek } from "./actions";
 
@@ -21,7 +21,7 @@ type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; posit
 
 export function MenuBuilder({
   planType, mealType, dishes, week, items, takenWeekStarts,
-}: { planType: PlanType; mealType: MealTypeConfig; dishes: Dish[]; week: Week | null; items: Item[]; takenWeekStarts: string[] }) {
+}: { planType: PlanType; mealType: MealTypeConfig & { slots: MealSlot[] }; dishes: Dish[]; week: Week | null; items: Item[]; takenWeekStarts: string[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);

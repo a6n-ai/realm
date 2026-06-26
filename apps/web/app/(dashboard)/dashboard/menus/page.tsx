@@ -6,6 +6,7 @@ import { dishes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
+import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder } from "./menu-builder";
 import { MenuHistoryCard } from "./menu-history-card";
@@ -16,12 +17,14 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const [mealTypes, appSettings, activeDishes, weeks] = await Promise.all([
+  const [mealTypes, appSettings, activeDishes, weeks, slots] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
+    mealSlotsService.forPlanType(planType),
   ]);
+  const mealType = { ...mealTypes[planType], slots: slots.map((s) => ({ key: s.key, label: s.label })) };
 
   let week: { id: string; weekStart: string; status: string } | null = null;
   let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number }[] = [];
@@ -57,7 +60,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
             No active dishes yet — add dishes in the Dishes section before building a menu.
           </p>
         )}
-        <MenuBuilder planType={planType} mealType={mealTypes[planType]} dishes={activeDishes} week={week} items={items} takenWeekStarts={weeks.map((w) => w.weekStart)} />
+        <MenuBuilder planType={planType} mealType={mealType} dishes={activeDishes} week={week} items={items} takenWeekStarts={weeks.map((w) => w.weekStart)} />
       </SectionCard>
 
       <SectionCard title="Past menus">
