@@ -4,12 +4,16 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
-import { addItem, releaseWeek, removeItem, upsertWeek } from "./actions";
+import { addItem, createDish, releaseWeek, removeItem, upsertWeek } from "./actions";
+
+const CREATE_VALUE = "__create__";
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
@@ -22,6 +26,9 @@ export function MenuBuilder({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(week?.weekStart ?? "");
+  const [createTarget, setCreateTarget] = useState<{ storeDay: DayOfWeek; slot: string; position: number } | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newDiet, setNewDiet] = useState<"veg" | "nonveg">("veg");
 
   const run = (fn: () => Promise<void>) => start(async () => {
     setError(null);
@@ -44,6 +51,18 @@ export function MenuBuilder({
   };
 
   const closeToList = () => router.push(`/dashboard/menus?type=${planType}`);
+
+  const handleCreateDish = () => {
+    const t = createTarget;
+    if (!t || !week || !newName.trim()) return;
+    run(async () => {
+      const d = await createDish({ name: newName, diet: newDiet });
+      await addItem({ menuWeekId: week.id, dayOfWeek: t.storeDay, slot: t.slot, dishId: d.publicId, position: t.position });
+      setCreateTarget(null);
+      setNewName("");
+      setNewDiet("veg");
+    });
+  };
 
   const cellItems = (days: DayOfWeek[], slot: string) =>
     items.filter((i) => days.includes(i.dayOfWeek as DayOfWeek) && i.slot === slot)
@@ -144,10 +163,24 @@ export function MenuBuilder({
                               </div>
                             );
                           })}
-                          {week.status === "draft" && addable.length > 0 && (
-                            <Select onValueChange={(dishId) => run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId, position: ci.length }).then(() => {}))}>
+                          {week.status === "draft" && (
+                            <Select
+                              value=""
+                              onValueChange={(v) => {
+                                if (v === CREATE_VALUE) {
+                                  setNewName("");
+                                  setNewDiet("veg");
+                                  setCreateTarget({ storeDay, slot: slot.key, position: ci.length });
+                                  return;
+                                }
+                                run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId: v, position: ci.length }).then(() => {}));
+                              }}
+                            >
                               <SelectTrigger className="h-9 rounded-lg text-xs text-muted-foreground"><SelectValue placeholder="+ add dish" /></SelectTrigger>
-                              <SelectContent>{addable.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                              <SelectContent>
+                                {addable.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                <SelectItem value={CREATE_VALUE} className="text-primary">+ Create new dish…</SelectItem>
+                              </SelectContent>
                             </Select>
                           )}
                         </div>
@@ -165,6 +198,33 @@ export function MenuBuilder({
           </div>
         </div>
       )}
+
+      <Dialog open={!!createTarget} onOpenChange={(o) => { if (!o) setCreateTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>New dish</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Dish name"
+              value={newName}
+              autoFocus
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreateDish(); }}
+            />
+            <Select value={newDiet} onValueChange={(d) => setNewDiet(d as "veg" | "nonveg")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="veg">Veg</SelectItem>
+                <SelectItem value="nonveg">Non-veg</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Tip: include &quot;Egg&quot; in the name for a yellow indicator.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateTarget(null)} disabled={pending}>Cancel</Button>
+            <Button onClick={handleCreateDish} disabled={pending || !newName.trim()} className="transition-transform active:scale-[0.96]">Create &amp; add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
+import { dishesService } from "@/lib/services/dishes.service";
 import type { PlanType } from "@/lib/menu/meal-types";
 import type { DayOfWeek } from "@/lib/menu/poster";
 
@@ -29,6 +30,16 @@ export async function removeItem(id: string) {
   await requireAdmin();
   await menuService.removeItem(id);
   revalidate();
+}
+
+export async function createDish(input: { name: string; diet: "veg" | "nonveg" }) {
+  await requireAdmin();
+  const name = input.name.trim();
+  if (!name) throw new Error("Dish name is required");
+  const row = await dishesService.create({ name, description: null, diet: input.diet, slots: [], imageUrl: null });
+  revalidate();
+  revalidatePath("/dashboard/dishes");
+  return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };
 }
 
 export async function releaseWeek(menuWeekId: string) {
