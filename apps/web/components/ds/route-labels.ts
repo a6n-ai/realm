@@ -11,6 +11,13 @@ export const ROUTE_LABELS: Record<string, string> = {
   order: "New order",
   design: "Design system",
   "meal-types": "Meal types & slots",
+  profile: "Profile",
+  contact: "Contact",
+  address: "Delivery address",
+  dietary: "Dietary & allergens",
+  "delivery-notes": "Delivery notes",
+  notifications: "Notifications",
+  security: "Security",
 };
 
 export function labelForSegment(segment: string): string {
