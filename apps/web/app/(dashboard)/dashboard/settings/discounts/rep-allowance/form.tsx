@@ -34,7 +34,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
     enabled !== policy.repDaily.enabled ||
     Number(capPct) !== policy.repDaily.defaultCapPct ||
     Number(capAmount) !== policy.repDaily.defaultCapAmount ||
-    Number(dailyUses) !== policy.repDaily.defaultDailyUses;
+    (numOrNull(dailyUses) ?? policy.repDaily.defaultDailyUses) !== policy.repDaily.defaultDailyUses;
 
   const save = () => {
     const pctN = numOrNull(capPct);

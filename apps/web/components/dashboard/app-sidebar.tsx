@@ -257,7 +257,7 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
       <SidebarGroupContent>
         <div className="bg-sidebar-accent/40 grid gap-2 rounded-lg border p-2.5">
           <div className="flex items-center gap-1.5">
-            <code className="bg-background flex-1 truncate rounded-md border px-2 py-1.5 font-mono text-xs tabular-nums">
+            <code className="bg-background flex-1 break-all rounded-md border px-2 py-1.5 font-mono text-xs tabular-nums">
               {coupon.code}
             </code>
             <button
@@ -276,6 +276,9 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
                 <CopyIcon className="size-4" aria-hidden />
               )}
             </button>
+            <span role="status" aria-live="polite" className="sr-only">
+              {copied ? "Coupon code copied" : ""}
+            </span>
           </div>
           {reached ? (
             <p className="text-muted-foreground text-xs">Daily limit reached</p>
