@@ -422,12 +422,15 @@ Route `app/(dashboard)/dashboard/settings/discounts/`. Admin-only. Add a card to
 ## 8. Sales-Rep Daily-Coupon Governance
 
 ### 8.1 Minting (cron)
-- **Mechanism: Vercel Cron** (the deploy target; see Open Question Q6) → a protected Next.js route handler.
-  `vercel.json` at repo/app root:
-  ```json
-  { "crons": [ { "path": "/api/cron/mint-rep-coupons", "schedule": "30 18 * * *" } ] }
-  ```
-  `30 18 * * *` UTC = **00:00 IST** (IST = UTC+5:30, no DST → fixed instant year-round).
+- **Mechanism: scheduler-agnostic protected route (NOT DEPLOYED YET — locked decision).** Build the route
+  + a manual/`tsx` trigger now; wire a real scheduler when a host is chosen. The route is the contract; the
+  scheduler is swappable:
+  - now: a `CRON_SECRET`-guarded route handler + a `tsx` script (`db/mint-rep-coupons.ts`) that hits/calls
+    the same mint logic, runnable by hand or any external scheduler.
+  - later (Vercel): add `vercel.json` `{ "crons": [{ "path": "/api/cron/mint-rep-coupons", "schedule": "30 18 * * *" }] }`.
+  - later (self-host): system crontab `30 18 * * *` curling the route with the bearer secret.
+  `30 18 * * *` UTC = **00:00 IST** (IST = UTC+5:30, no DST → fixed instant year-round). No `vercel.json`
+  is committed in this slice.
 - **Route** `app/api/cron/mint-rep-coupons/route.ts`: verify `Authorization: Bearer ${CRON_SECRET}`
   (reject otherwise). Compute the IST date string via `util/zoned-time`. Read
   `app_settings.discountPolicy.repDaily`. If disabled, no-op. List active reps (`role='member'`, `active`,
@@ -498,9 +501,10 @@ Apply `make-interfaces-feel-better`, `impeccable`, and `vercel-react-best-practi
    `live-db-test-harness` (resolution math, lower-of-two ceiling, usage caps, total-spent).
 2. **Admin settings sub-page** — `settings/discounts/{page,actions,manager}.tsx`; add the index card;
    coupon CRUD + global/per-rep ceilings + enabled-kinds, all typed controls; admin-gated.
-3. **Governance + cron** — `vercel.json` cron, `app/api/cron/mint-rep-coupons/route.ts` (CRON_SECRET
-   guard, idempotent mint), `validateRepCoupon`/`mintRepDaily`, and the staff discount panel in the order
-   form. (Read the bundled Next docs first per AGENTS.md.)
+3. **Governance + cron** — `app/api/cron/mint-rep-coupons/route.ts` (CRON_SECRET guard, idempotent mint) +
+   a `db/mint-rep-coupons.ts` manual/`tsx` trigger (no `vercel.json` this slice — not deployed yet),
+   `validateRepCoupon`/`mintRepDaily`, and the staff discount panel in the order form. (Read the bundled
+   Next docs first per AGENTS.md.)
 4. **Application points** — wire `reprice` + `createOrder` (customer public coupon) and
    `previewPrice` + the convert path (rep coupon) through `adjustments[]`; redeem + ledger writes in the
    order tx; the hard server-side rejection of unbacked discounts.
@@ -510,18 +514,18 @@ Each step is independently shippable: after (1) the hook exists but is dormant; 
 
 ---
 
-## 12. Open Questions (need the user)
+## 12. Resolved Decisions (locked 2026-06-27)
 
-1. **Sales-rep identity** — there is no `sales_rep` role; `role='member'` = all staff. Mint daily coupons
-   for *every* active member, or gate on a new `users.isSalesRep` flag / a roster in `discountPolicy`?
-   (Recommend a per-rep roster in `discountPolicy.repDaily.perRep`, defaulting to all active members.)
-2. **Money unit** — confirm staying in `numeric(10,2)` dollars (consistent with the engine + existing
-   columns) rather than introducing integer cents.
-3. **`free_delivery`** — there is no discrete delivery line in pricing today. Ship `free_delivery` as a
-   `$0` placeholder now, or add a delivery line item to the engine first (larger change)?
-4. **Stacking** — confirm "≤ one rep_daily + ≤ one stackable public coupon per order," or a different
-   policy.
-5. **Customer coupon field timing** — the customer *dashboard* is a later slice, but does the **checkout
-   wizard** get its coupon-code input now (the application point is in this slice)? Recommend yes.
-6. **Deploy target / cron** — confirm Vercel Cron (drives `vercel.json` + `CRON_SECRET`). If self-hosted,
-   we need an alternative scheduler (system cron hitting the protected route, or a worker).
+1. **Rep coupon storage** — a `kind='rep_daily'` **row in the `coupons` table** (owner via `ownerUserId`,
+   analogous to inquiries' `current_owner`), NOT a separate table. Reuses the redemption/validation/pricing
+   pipeline.
+2. **Sales-rep identity** — a **roster in `discountPolicy.repDaily.perRep`**, defaulting to all active
+   `role='member'` users. No new role/flag column.
+3. **Money unit** — stays `numeric(10,2)` dollars (matches engine + existing columns). No cents.
+4. **`free_delivery`** — ships as a **`$0` placeholder** now (modeled but resolves to 0 until a discrete
+   delivery line exists in the engine). No engine delivery-line change this slice.
+5. **Stacking** — **≤ one `rep_daily` + ≤ one stackable public coupon per order.** Default non-stackable.
+6. **Customer coupon field** — the **checkout wizard gets its coupon-code input this slice** (the
+   application point lives here; the customer dashboard/wallet is a later slice).
+7. **Deploy / cron** — **not deployed yet.** Build a `CRON_SECRET`-guarded route + a manual/`tsx` trigger
+   now; the scheduler (Vercel Cron / system cron) is wired when a host is chosen. No `vercel.json` committed.
