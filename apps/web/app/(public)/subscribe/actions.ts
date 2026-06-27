@@ -4,10 +4,36 @@ import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
+import { couponsService } from "@/lib/services/coupons.service";
 
-export async function reprice(selections: PricingSelections): Promise<PricingResult> {
+// reprice always returns a valid base PricingResult; when a coupon code is
+// supplied it is validated server-side and folded into adjustments. An invalid /
+// expired / min-spend / not-first-order code yields `couponError` (inline in the
+// wizard) while pricing falls back to the un-discounted total. The amount is
+// never trusted from the client — createOrder re-resolves it at order time.
+export interface RepriceResult {
+  pricing: PricingResult;
+  couponError?: string;
+}
+
+export async function reprice(
+  selections: PricingSelections,
+  couponCode?: string,
+  planType?: string,
+): Promise<RepriceResult> {
   const snapshot = await loadCatalogSnapshot();
-  return priceSubscription(selections, buildPricingCatalog(snapshot, selections));
+  const catalog = buildPricingCatalog(snapshot, selections);
+  const base = priceSubscription(selections, catalog);
+
+  const code = couponCode?.trim();
+  if (!code) return { pricing: base };
+
+  try {
+    const line = await couponsService.validatePublicCode(code, { subtotal: base.subtotal, planType });
+    return { pricing: priceSubscription(selections, catalog, [line]) };
+  } catch (e) {
+    return { pricing: base, couponError: e instanceof Error ? e.message : "Invalid coupon code" };
+  }
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {

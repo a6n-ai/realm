@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, orders, payments, users } from "@/db/schema";
+import { inquiries, inquiryActivities, ledgerEntries, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -11,6 +11,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? s
 const { inquiriesService } = await import("../inquiries.service");
 
 async function reset() {
+  await db.delete(ledgerEntries);
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
   await db.delete(payments);

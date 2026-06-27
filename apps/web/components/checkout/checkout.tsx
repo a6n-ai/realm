@@ -22,6 +22,9 @@ export function Checkout() {
   const [contact, setContact] = useState<Contact>(emptyContact);
   const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
 
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -30,7 +33,7 @@ export function Checkout() {
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
-    reprice(s).then(setResult).catch(() => setResult(null));
+    reprice(s).then((r) => setResult(r.pricing)).catch(() => setResult(null));
   }, [router]);
 
   const checkPostal = async () => {
@@ -40,11 +43,38 @@ export function Checkout() {
 
   const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
 
+  const applyCoupon = async () => {
+    if (!selections) return;
+    const code = couponCode.trim();
+    if (!code) {
+      setAppliedCode(null);
+      setCouponState({ status: "idle" });
+      const r = await reprice(selections);
+      setResult(r.pricing);
+      return;
+    }
+    setCouponState({ status: "checking" });
+    const r = await reprice(selections, code, selections.planKey ?? undefined);
+    setResult(r.pricing);
+    if (r.couponError) {
+      setAppliedCode(null);
+      setCouponState({ status: "error", message: r.couponError });
+    } else {
+      setAppliedCode(code);
+      setCouponState({ status: "applied", message: "Coupon applied" });
+    }
+  };
+
   const confirm = async () => {
     if (!selections) return;
     setSubmitting(true);
     try {
-      const { deploymentId } = await confirmSubscription({ selections, planKey: selections.planKey!, contact });
+      const { deploymentId } = await confirmSubscription({
+        selections,
+        planKey: selections.planKey!,
+        contact,
+        couponCode: appliedCode ?? undefined,
+      });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
       router.push(`/activate/${deploymentId}`);
     } finally {
@@ -99,6 +129,23 @@ export function Checkout() {
       <aside className="space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground">Order summary</h3>
         <Invoice result={result} />
+        <div className="rounded-lg border p-3">
+          <Label htmlFor="coupon" className="text-xs text-muted-foreground">Coupon code</Label>
+          <div className="mt-1 flex gap-2">
+            <Input
+              id="coupon"
+              value={couponCode}
+              onChange={(e) => { setCouponCode(e.target.value); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
+              placeholder="e.g. SAVE10"
+              autoCapitalize="characters"
+            />
+            <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              {couponState.status === "checking" ? "Checking…" : "Apply"}
+            </Button>
+          </div>
+          {couponState.status === "applied" && <p className="mt-1.5 text-xs text-emerald-600">{couponState.message}</p>}
+          {couponState.status === "error" && <p className="mt-1.5 text-xs text-amber-600">{couponState.message}</p>}
+        </div>
         {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
       </aside>
     </div>

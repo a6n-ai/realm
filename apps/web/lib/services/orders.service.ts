@@ -2,16 +2,61 @@ import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema 
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { coupons, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { priceSubscription, type PricingSelections } from "@/lib/pricing";
+import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { couponsService } from "./coupons.service";
+import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
+
+// A transaction handle (or the base db) — payments + their ledger credit are
+// written inside the same tx as the order they settle.
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type PaymentStatusValue = (typeof payments.status.enumValues)[number];
+type PaymentMethodValue = (typeof payments.method.enumValues)[number];
+
+// tx-aware payment recording: writes the payments row AND a matching ledger
+// credit (type 'payment') in the same tx, so every recorded payment makes the
+// customer's totalSpent real. Capture stays manual/simulated (no gateway).
+export async function recordPayment(
+  tx: Tx,
+  input: {
+    orderId: bigint;
+    userId: bigint;
+    amount: number;
+    status?: PaymentStatusValue;
+    method?: PaymentMethodValue;
+    note?: string | null;
+    createdBy?: bigint | null;
+  },
+): Promise<bigint> {
+  const [pay] = await tx
+    .insert(payments)
+    .values({
+      orderId: input.orderId,
+      status: input.status ?? "simulated_paid",
+      method: input.method ?? "simulated",
+      amount: input.amount.toFixed(2),
+      note: input.note ?? null,
+      createdBy: input.createdBy ?? null,
+    })
+    .returning({ id: payments.id });
+  await ledgerService.record(tx, {
+    userId: input.userId,
+    orderId: input.orderId,
+    paymentId: pay.id,
+    direction: "credit",
+    type: "payment",
+    amount: input.amount,
+  });
+  return pay.id;
+}
 
 export interface CreateOrderInput {
   selections: PricingSelections;
@@ -21,6 +66,13 @@ export interface CreateOrderInput {
   // convert flow so the order inherits the inquiry's currentOwner). Null/omitted
   // for ordinary checkout.
   currentOwner?: bigint | null;
+  // Customer-entered public coupon code. Re-resolved server-side here — never
+  // trust a client-sent discount amount.
+  couponCode?: string | null;
+  // Staff-applied rep daily coupon: the code the actor owns plus the amount they
+  // requested (clamped to the dual ceiling on the server). A requestedAmount that
+  // arrives without a backing valid rep coupon owned by the actor is rejected.
+  repCoupon?: { code: string; requestedAmount: number } | null;
 }
 
 export interface CreateOrderOptions {
@@ -66,7 +118,10 @@ export async function createOrder(
   validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
-  const pricing = priceSubscription(input.selections, buildPricingCatalog(snapshot, input.selections));
+  const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
+  // Base price (no discounts). Coupons are re-resolved server-side inside the tx
+  // — where the owner/actor ids exist — then folded into the final total.
+  const basePricing = priceSubscription(input.selections, pricingCatalog);
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);
@@ -103,6 +158,48 @@ export async function createOrder(
         createdBy,
       );
     }
+    if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    // Server-side discount resolution. Both coupon kinds land as a single
+    // adjustments[] line; the redemptions (row + ledger debit) are written
+    // in-tx below once the order id exists. The client never sets the amount.
+    const adjustments: PricingLine[] = [];
+    const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
+
+    if (input.repCoupon) {
+      // Hard gate: a discount amount with no acting staff member is rejected.
+      if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
+      const line = await couponsService.validateRepCoupon(input.repCoupon.code, {
+        subtotal: basePricing.subtotal,
+        requestedAmount: input.repCoupon.requestedAmount,
+        actorId: createdBy,
+        planType: plan.planType,
+        userId,
+      });
+      const coupon = await couponsService.findByCode(input.repCoupon.code);
+      adjustments.push(line);
+      redemptions.push({ coupon, amount: line.amount, redeemedBy: createdBy });
+    }
+
+    if (input.couponCode) {
+      const line = await couponsService.validatePublicCode(input.couponCode, {
+        subtotal: basePricing.subtotal,
+        planType: plan.planType,
+        userId,
+      });
+      const coupon = await couponsService.findByCode(input.couponCode);
+      // Stacking: a public coupon may ride alongside the rep coupon only when it is
+      // explicitly stackable; at most one rep_daily + one stackable public per order.
+      if (input.repCoupon && !coupon.stackable) {
+        throw new ValidationError("This coupon cannot be combined with another discount");
+      }
+      adjustments.push(line);
+      redemptions.push({ coupon, amount: line.amount, redeemedBy: createdBy });
+    }
+
+    const pricing = adjustments.length
+      ? priceSubscription(input.selections, pricingCatalog, adjustments)
+      : basePricing;
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
@@ -135,12 +232,20 @@ export async function createOrder(
       })
       .returning({ id: orders.id, publicId: orders.publicId });
 
-    await tx.insert(payments).values({
-      orderId: order.id,
-      status: "simulated_paid",
-      amount: pricing.total.toFixed(2),
-      createdBy,
-    });
+    // Payment + matching ledger credit (the discounted total is what's paid).
+    await recordPayment(tx, { orderId: order.id, userId, amount: pricing.total, createdBy });
+
+    // Redeem each applied coupon: usage row, count bump, and discount ledger debit.
+    for (const r of redemptions) {
+      await couponsService.redeem(tx, {
+        coupon: r.coupon,
+        userId,
+        orderId: order.id,
+        redeemedBy: r.redeemedBy,
+        amountApplied: r.amount,
+        context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
+      });
+    }
 
     // Seed the activity timeline so the order-detail Activity section isn't empty
     // until the first lifecycle action. Written in-tx via the raw insert because

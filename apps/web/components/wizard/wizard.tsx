@@ -27,7 +27,7 @@ export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapsh
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!selections.mealSizeId) { setResult(null); return; }
     let active = true;
-    reprice(selections).then((r) => { if (active) setResult(r); }).catch(() => { if (active) setResult(null); });
+    reprice(selections).then((r) => { if (active) setResult(r.pricing); }).catch(() => { if (active) setResult(null); });
     return () => { active = false; };
   }, [selections]);
 

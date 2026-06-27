@@ -186,11 +186,13 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   }
 
   // Cron mint: idempotent via the partial unique index (one per rep per IST day).
-  async mintRepDaily(tx: Tx, input: MintRepDailyInput): Promise<void> {
+  // Returns true when a row was actually inserted, false when the rep already had
+  // today's coupon (the conflict path) — lets the caller report minted vs skipped.
+  async mintRepDaily(tx: Tx, input: MintRepDailyInput): Promise<boolean> {
     // Code is client-facing: derive the suffix from the public id (never the
     // internal bigint). Idempotency is guaranteed by the partial unique index.
     const suffix = input.ownerPublicId.split("_").at(-1) ?? input.ownerPublicId;
-    await tx
+    const inserted = await tx
       .insert(coupons)
       .values({
         code: `REP-${input.istDate}-${suffix}`,
@@ -206,7 +208,15 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         active: true,
         config: { kind: "rep_daily" },
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning({ id: coupons.id });
+    return inserted.length > 0;
+  }
+
+  // Public accessor: createOrder validates a code, then needs the resolved row to
+  // redeem inside its tx. Shares the active-coupon guard with the validators.
+  async findByCode(code: string): Promise<Coupon> {
+    return this.loadByCode(code);
   }
 
   private async loadByCode(code: string): Promise<Coupon> {

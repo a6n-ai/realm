@@ -15,7 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
-import { convertInquiry, previewPrice } from "./actions";
+import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
+
+const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 type Catalog = {
   plans: { key: string; name: string }[];
@@ -43,6 +45,11 @@ export function OrderForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
+  // The acting rep's own daily coupon (server-discovered) and the clamped amount
+  // they choose to apply. The amount is bounded by a server-computed ceiling — it
+  // is never a free-text discount (createOrder re-validates and clamps again).
+  const [repInfo, setRepInfo] = useState<RepCouponInfo | null>(null);
+  const [discount, setDiscount] = useState(0);
 
   const defaultSlots = enabledSlots.some((s) => s.key === "lunch")
     ? ["lunch"]
@@ -104,11 +111,28 @@ export function OrderForm({
       city: v.city,
       postalCode: v.postalCode,
     },
+    repCoupon: repInfo?.available && discount > 0
+      ? { code: repInfo.code, requestedAmount: discount }
+      : undefined,
   });
+
+  // Server-side ceiling for the rep discount: the lower of (cap% of subtotal, cap$).
+  // The number input is bounded by this — the rep can never type past it.
+  const subtotal = preview?.subtotal ?? 0;
+  const ceiling = repInfo?.available
+    ? round2(Math.min((subtotal * repInfo.capPct) / 100, repInfo.capAmount))
+    : 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    repCouponInfo().then((r) => { if (!cancelled) setRepInfo(r); }).catch(() => { if (!cancelled) setRepInfo(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
+    const repCode = repInfo?.available ? repInfo.code : undefined;
     previewPrice(
       buildInput({
         planKey,
@@ -125,12 +149,20 @@ export function OrderForm({
         city: city ?? "",
         postalCode: postalCode ?? "",
       }),
+      repCode,
+      discount > 0 ? discount : undefined,
     )
       .then((r) => { if (!cancelled) setPreview(r); })
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate]);
+  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo]);
+
+  useEffect(() => {
+    // Keep the chosen discount within the live ceiling as the subtotal changes.
+    if (discount > ceiling) setDiscount(ceiling);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ceiling]);
 
   const onSubmit = form.handleSubmit(async (v) => {
     setError(null);
@@ -312,6 +344,45 @@ export function OrderForm({
           />
         </div>
         </fieldset>
+
+        {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium text-foreground mb-1">Rep discount</legend>
+            {repInfo.available ? (
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{repInfo.name} <span className="nums">({repInfo.code})</span></span>
+                  <span className="text-muted-foreground text-xs">
+                    Up to {repInfo.capPct}% or ${repInfo.capAmount.toFixed(2)}, whichever is lower
+                  </span>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="repDiscount">Discount amount</Label>
+                    <Input
+                      id="repDiscount"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      max={ceiling}
+                      step={0.01}
+                      value={discount ? String(discount) : ""}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        setDiscount(Number.isFinite(n) ? Math.max(0, Math.min(round2(n), ceiling)) : 0);
+                      }}
+                    />
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setDiscount(ceiling)} disabled={ceiling <= 0}>Max</Button>
+                  {discount > 0 && <Button type="button" variant="ghost" onClick={() => setDiscount(0)}>Clear</Button>}
+                </div>
+                <p className="text-muted-foreground text-xs nums">Ceiling for this order: ${ceiling.toFixed(2)}</p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">No discount available today.</p>
+            )}
+          </fieldset>
+        )}
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
 

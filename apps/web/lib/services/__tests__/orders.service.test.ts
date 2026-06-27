@@ -2,13 +2,14 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { orderActivities, orders, payments, users } from "@/db/schema";
+import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createOrder } = await import("../orders.service");
 
 async function reset() {
+  await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(users).where(ne(users.isSystem, true));
