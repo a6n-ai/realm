@@ -185,38 +185,48 @@ export async function createOrder(
     // optional manual code, re-resolved server-side (never trusting a client
     // amount). resolveBestCoupons returns the winning set + each coupon row to
     // redeem; rep_daily coupons are excluded from this optimizer entirely.
+    //
+    // Rep-aware: when a rep coupon is also applied, an exclusive coupon could never
+    // legally ride alongside it, so we ask for the best STACKABLE-only combo. This
+    // picks the largest stackable discount that can combine with the rep lane,
+    // rather than letting an exclusive win the global optimum and then discarding
+    // it (which would leave the customer with rep + nothing).
     const best = await couponsService.resolveBestCoupons({
       subtotal: basePricing.subtotal,
       planType: plan.planType,
       userId,
       manualCode: input.couponCode,
+      stackableOnly: !!input.repCoupon,
     });
     // A manual code that was explicitly entered but is invalid / expired /
     // ineligible fails the order with the reason — the auto set would otherwise
     // silently drop it. Auto-apply coupons never trigger this.
     if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
 
-    // Stacking with the rep lane: an exclusive coupon must be used alone, so when
-    // a rep coupon is also applied only the stackable customer coupons may ride
-    // alongside it (one rep + the stackable set). A customer who *explicitly* typed
-    // an exclusive code alongside a rep discount is told they cannot combine
-    // (preserving the documented one-rep + one-stackable rule); an auto-apply
-    // exclusive is simply dropped in that case. Re-distribute every kept line
-    // against the running remaining subtotal so the summed redemption amounts (and
-    // their discount ledger debits) can never exceed the order subtotal, even
-    // though the customer total is independently floored at 0.
-    if (input.repCoupon) {
-      const manual = input.couponCode?.trim().toUpperCase();
-      const manualExclusive = manual
-        ? best.redemptions.find((r) => r.coupon.code.toUpperCase() === manual && !r.coupon.stackable)
-        : undefined;
-      if (manualExclusive) throw new ValidationError("This coupon cannot be combined with another discount");
+    // Stacking with the rep lane: a customer who *explicitly* typed an exclusive
+    // code alongside a rep discount is always told they cannot combine (preserving
+    // the documented one-rep + one-stackable rule) — regardless of whether that
+    // exclusive would have won the optimizer. The code reaching here is valid +
+    // eligible (an invalid/ineligible one already threw via manualError above), so
+    // a non-stackable resolution means the customer asked for an illegal combo.
+    if (input.repCoupon && input.couponCode?.trim()) {
+      const manualCoupon = await couponsService.findByCode(input.couponCode.trim());
+      if (!manualCoupon.stackable) {
+        throw new ValidationError("This coupon cannot be combined with another discount");
+      }
     }
-    const customerSet = input.repCoupon ? best.redemptions.filter((r) => r.coupon.stackable) : best.redemptions;
+    // best.redemptions already excludes exclusives when a rep coupon is present
+    // (stackableOnly), so the kept customer set rides alongside the rep lane.
+    // Re-distribute every kept line against the running remaining subtotal so the
+    // summed redemption amounts (and their discount ledger debits) can never exceed
+    // the order subtotal, even though the customer total is independently floored
+    // at 0. Lines that clamp to 0 here are skipped so they don't burn a redemption.
+    const customerSet = best.redemptions;
     for (const r of customerSet) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
       const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
       const amount = Math.min(r.amount, remaining);
+      if (amount <= 0) continue;
       adjustments.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
       redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
     }

@@ -35,6 +35,13 @@ export interface BestCouponsContext {
   planType?: string;
   userId?: bigint | null;
   manualCode?: string | null;
+  // When set, enumerate ONLY the all-stackable set and skip the per-exclusive
+  // sets. createOrder passes this when a rep_daily coupon is also applied: an
+  // exclusive coupon must be used alone, so it can never ride alongside the rep
+  // lane. Resolving stackable-only here picks the best stackable combo that *can*
+  // legally combine with the rep coupon, instead of letting an exclusive win the
+  // global optimum only to be discarded by the caller.
+  stackableOnly?: boolean;
 }
 
 // The winning set: discount lines (already distributed against the running
@@ -172,12 +179,14 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       }
     }
 
-    // (b) Enumerate stacking-valid final sets.
+    // (b) Enumerate stacking-valid final sets. When stackableOnly is set (rep lane
+    // present) the per-exclusive sets are skipped entirely, since an exclusive
+    // coupon could never legally combine with the rep coupon anyway.
     const stackables = candidates.filter((c) => c.coupon.stackable);
     const exclusives = candidates.filter((c) => !c.coupon.stackable);
     const sets: Candidate[][] = [];
     if (stackables.length) sets.push(stackables);
-    for (const ex of exclusives) sets.push([ex]);
+    if (!ctx.stackableOnly) for (const ex of exclusives) sets.push([ex]);
 
     // (c) Distribute each set against the running remaining subtotal and pick the
     // set with the largest total discount (lowest customer total). The empty set
@@ -193,6 +202,11 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       const redemptions: { coupon: Coupon; amount: number }[] = [];
       for (const { coupon, line } of set) {
         const amount = Math.min(line.amount, remaining);
+        // Skip zero-benefit coupons (free_delivery placeholders, or trailing
+        // coupons clamped to 0 once earlier ones exhausted the subtotal): selecting
+        // them gives the customer nothing yet would burn a redemption + maxPerUser
+        // allowance and emit a $0 ledger debit.
+        if (amount <= 0) continue;
         lines.push({ ...line, amount });
         redemptions.push({ coupon, amount });
         remaining = round2(remaining - amount);
@@ -298,7 +312,14 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   }
 
   private async loadByCode(code: string): Promise<Coupon> {
-    const [coupon] = await db.select().from(coupons).where(eq(coupons.code, code)).limit(1);
+    // Case-insensitive match: codes are entered/compared uppercased elsewhere
+    // (checkout UI, createOrder dedup), so a customer typing 'save10' must resolve
+    // the stored 'SAVE10' rather than being told the code is invalid.
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(sql`upper(${coupons.code}) = ${code.trim().toUpperCase()}`)
+      .limit(1);
     if (!coupon || !coupon.active) throw new ValidationError("Invalid coupon code");
     return coupon;
   }
