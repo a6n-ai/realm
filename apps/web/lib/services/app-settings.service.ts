@@ -3,11 +3,18 @@ import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import { db } from "@/db/client";
 import { appSettings } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
+import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import type { LeadAssignmentConfig } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", cutoffHour: 18 } as const;
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSource: {}, cursor: {} };
+// Default discount governance: every kind honored, rep daily allowance OFF until
+// an admin opts in and sets ceilings. Mirrors the leadAssignment default shape.
+const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
+  enabledKinds: [...couponKind.enumValues],
+  repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, perRep: {} },
+};
 
 // app_settings is a single global row read on hot paths (cutoff calc, every
 // inbound inquiry's owner resolution) and written only by admins. Cache it; the
@@ -67,6 +74,23 @@ export async function setLeadAssignment(cfg: LeadAssignmentConfig): Promise<void
   const [row] = await db.select({ publicId: appSettings.publicId }).from(appSettings).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { leadAssignment: cfg });
   else await appSettingsEntity.create({ ...DEFAULTS, leadAssignment: cfg });
+}
+
+export async function getDiscountPolicy(): Promise<DiscountPolicy> {
+  return settingsCache.getOrSet("discountPolicy", async () => {
+    const [row] = await db.select({ dp: appSettings.discountPolicy }).from(appSettings).limit(1);
+    const dp = (row?.dp as Partial<DiscountPolicy>) ?? {};
+    return {
+      enabledKinds: dp.enabledKinds ?? [...DISCOUNT_POLICY_DEFAULT.enabledKinds],
+      repDaily: { ...DISCOUNT_POLICY_DEFAULT.repDaily, ...(dp.repDaily ?? {}) },
+    };
+  });
+}
+
+export async function setDiscountPolicy(policy: DiscountPolicy): Promise<void> {
+  const [row] = await db.select({ publicId: appSettings.publicId }).from(appSettings).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { discountPolicy: policy });
+  else await appSettingsEntity.create({ ...DEFAULTS, discountPolicy: policy });
 }
 
 export async function getMealTypes(): Promise<MealTypesSettings> {

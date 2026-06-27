@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRightIcon, SettingsIcon, UsersIcon, UtensilsCrossedIcon, Webhook, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, SettingsIcon, TicketPercentIcon, UsersIcon, UtensilsCrossedIcon, Webhook, type LucideIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ds";
@@ -30,6 +30,12 @@ const SETTINGS: SettingLink[] = [
     description: "Per-plan-type meal slots, accent and menu title.",
     href: "/dashboard/settings/meal-types",
     icon: UtensilsCrossedIcon,
+  },
+  {
+    title: "Discounts & Coupons",
+    description: "Coupons and the sales-rep daily discount allowance.",
+    href: "/dashboard/settings/discounts",
+    icon: TicketPercentIcon,
   },
 ];
 
