@@ -55,6 +55,9 @@ export const coupons = pgTable("coupons", {
   maxPerUser: integer("max_per_user"),
   redemptionCount: integer("redemption_count").notNull().default(0),
   stackable: boolean("stackable").notNull().default(false),
+  // Auto-applied at checkout when valid (no code needed). Festival/launch promos
+  // are just autoApply coupons with a startsAt/expiresAt window — no special kind.
+  autoApply: boolean("auto_apply").notNull().default(false),
   planTypes: text("plan_types").array().notNull().default([]),
 
   // validity window (epoch-ms)

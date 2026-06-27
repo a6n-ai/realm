@@ -11,6 +11,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { coupons, couponRedemptions, ledgerEntries } = await import("@/db/schema");
+const { couponKind } = await import("@/db/schema/coupons");
+const { setDiscountPolicy } = await import("@/lib/services/app-settings.service");
 const { saveCoupon, setCouponActive } = await import(
   "@/app/(dashboard)/dashboard/settings/discounts/actions"
 );
@@ -19,6 +21,7 @@ const basePatch = {
   code: "WELCOME10",
   name: "Welcome offer",
   stackable: false,
+  autoApply: false,
   active: true,
   planTypes: [] as string[],
 };
@@ -28,6 +31,13 @@ async function reset() {
   await db.delete(couponRedemptions);
   await db.delete(coupons).where(ne(coupons.kind, "rep_daily"));
   await db.delete(coupons);
+  // The shared app_settings.discountPolicy is mutated by other live-DB suites
+  // (e.g. wf3 leaves enabledKinds restricted). Restore the all-kinds default so
+  // saveCoupon's enabled-kind gate doesn't depend on cross-file run order.
+  await setDiscountPolicy({
+    enabledKinds: [...couponKind.enumValues],
+    repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, perRep: {} },
+  });
 }
 
 describe("discounts settings actions", () => {

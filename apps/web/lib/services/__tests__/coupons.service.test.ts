@@ -33,6 +33,7 @@ const fakeCoupon = (over: Partial<Coupon>): Coupon => ({
   maxPerUser: null,
   redemptionCount: 0,
   stackable: false,
+  autoApply: false,
   planTypes: [],
   startsAt: null,
   expiresAt: null,

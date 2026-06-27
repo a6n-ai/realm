@@ -181,28 +181,44 @@ export async function createOrder(
       redemptions.push({ coupon, amount: line.amount, redeemedBy: createdBy });
     }
 
-    if (input.couponCode) {
-      const line = await couponsService.validatePublicCode(input.couponCode, {
-        subtotal: basePricing.subtotal,
-        planType: plan.planType,
-        userId,
-      });
-      const coupon = await couponsService.findByCode(input.couponCode);
-      // Stacking: a public coupon may ride alongside the rep coupon only when it is
-      // explicitly stackable; at most one rep_daily + one stackable public per order.
-      if (input.repCoupon && !coupon.stackable) {
-        throw new ValidationError("This coupon cannot be combined with another discount");
-      }
-      // Distribute against the running remaining subtotal: when this stackable
-      // public coupon rides alongside a rep coupon, clamp it to what's left after
-      // the prior line so the summed redemption amounts (and discount ledger
-      // debits) can never exceed the order subtotal even though the customer
-      // total is independently floored at 0.
+    // Customer lane: the best valid combination of auto-apply coupons plus an
+    // optional manual code, re-resolved server-side (never trusting a client
+    // amount). resolveBestCoupons returns the winning set + each coupon row to
+    // redeem; rep_daily coupons are excluded from this optimizer entirely.
+    const best = await couponsService.resolveBestCoupons({
+      subtotal: basePricing.subtotal,
+      planType: plan.planType,
+      userId,
+      manualCode: input.couponCode,
+    });
+    // A manual code that was explicitly entered but is invalid / expired /
+    // ineligible fails the order with the reason — the auto set would otherwise
+    // silently drop it. Auto-apply coupons never trigger this.
+    if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
+
+    // Stacking with the rep lane: an exclusive coupon must be used alone, so when
+    // a rep coupon is also applied only the stackable customer coupons may ride
+    // alongside it (one rep + the stackable set). A customer who *explicitly* typed
+    // an exclusive code alongside a rep discount is told they cannot combine
+    // (preserving the documented one-rep + one-stackable rule); an auto-apply
+    // exclusive is simply dropped in that case. Re-distribute every kept line
+    // against the running remaining subtotal so the summed redemption amounts (and
+    // their discount ledger debits) can never exceed the order subtotal, even
+    // though the customer total is independently floored at 0.
+    if (input.repCoupon) {
+      const manual = input.couponCode?.trim().toUpperCase();
+      const manualExclusive = manual
+        ? best.redemptions.find((r) => r.coupon.code.toUpperCase() === manual && !r.coupon.stackable)
+        : undefined;
+      if (manualExclusive) throw new ValidationError("This coupon cannot be combined with another discount");
+    }
+    const customerSet = input.repCoupon ? best.redemptions.filter((r) => r.coupon.stackable) : best.redemptions;
+    for (const r of customerSet) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
       const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
-      const amount = Math.min(line.amount, remaining);
-      adjustments.push({ ...line, amount });
-      redemptions.push({ coupon, amount, redeemedBy: createdBy });
+      const amount = Math.min(r.amount, remaining);
+      adjustments.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
+      redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
     }
 
     const pricing = adjustments.length

@@ -61,6 +61,7 @@ type CouponRow = {
   maxPerUser: number | null;
   redemptionCount: number;
   stackable: boolean;
+  autoApply: boolean;
   planTypes: string[];
   startsAt: number | null;
   expiresAt: number | null;
@@ -136,6 +137,7 @@ type Draft = {
   startsAt: string;
   expiresAt: string;
   stackable: boolean;
+  autoApply: boolean;
   active: boolean;
 };
 
@@ -156,6 +158,7 @@ function emptyDraft(): Draft {
     startsAt: "",
     expiresAt: "",
     stackable: false,
+    autoApply: false,
     active: true,
   };
 }
@@ -177,6 +180,7 @@ function toDraft(c: CouponRow): Draft {
     startsAt: toLocalInput(c.startsAt),
     expiresAt: toLocalInput(c.expiresAt),
     stackable: c.stackable,
+    autoApply: c.autoApply,
     active: c.active,
   };
 }
@@ -223,6 +227,7 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
       maxRedemptions: numOrNull(draft.maxRedemptions),
       maxPerUser: numOrNull(draft.maxPerUser),
       stackable: draft.stackable,
+      autoApply: draft.autoApply,
       planTypes: draft.planTypes,
       startsAt: fromLocalInput(draft.startsAt),
       expiresAt: fromLocalInput(draft.expiresAt),
@@ -442,7 +447,7 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
                   />
                   <NumberField
                     id="cpn-maxr"
-                    label="Max uses"
+                    label="Total uses (all customers)"
                     min={1}
                     step={1}
                     value={draft.maxRedemptions}
@@ -450,7 +455,7 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
                   />
                   <NumberField
                     id="cpn-maxu"
-                    label="Per user"
+                    label="Max uses (per account)"
                     min={1}
                     step={1}
                     value={draft.maxPerUser}
@@ -480,9 +485,16 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
                 </div>
 
                 <ToggleRow
+                  id="cpn-auto"
+                  label="Auto-apply"
+                  hint="Applies automatically at checkout when valid — no code needed; great for festival/launch promos."
+                  checked={draft.autoApply}
+                  onChange={(v) => setDraft({ ...draft, autoApply: v })}
+                />
+                <ToggleRow
                   id="cpn-stack"
                   label="Stackable"
-                  hint="May combine with one rep daily coupon."
+                  hint="Stackable coupons (auto-applied or entered) combine into the best discount; may also ride alongside one rep daily coupon. Leave off to require this coupon be used alone."
                   checked={draft.stackable}
                   onChange={(v) => setDraft({ ...draft, stackable: v })}
                 />

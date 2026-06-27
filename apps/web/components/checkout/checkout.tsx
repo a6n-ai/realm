@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice, validatePostal } from "@/app/(public)/subscribe/actions";
+import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
@@ -24,6 +24,7 @@ export function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
 
   useEffect(() => {
@@ -33,7 +34,9 @@ export function Checkout() {
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
-    reprice(s).then((r) => setResult(r.pricing)).catch(() => setResult(null));
+    reprice(s, undefined, s.planKey ?? undefined)
+      .then((r) => { setResult(r.pricing); setApplied(r.appliedCoupons); })
+      .catch(() => setResult(null));
   }, [router]);
 
   const checkPostal = async () => {
@@ -46,23 +49,28 @@ export function Checkout() {
   const applyCoupon = async () => {
     if (!selections) return;
     const code = couponCode.trim();
+    setCouponState({ status: code ? "checking" : "idle" });
+    const r = await reprice(selections, code || undefined, selections.planKey ?? undefined);
+    setResult(r.pricing);
+    setApplied(r.appliedCoupons);
     if (!code) {
       setAppliedCode(null);
       setCouponState({ status: "idle" });
-      const r = await reprice(selections);
-      setResult(r.pricing);
       return;
     }
-    setCouponState({ status: "checking" });
-    const r = await reprice(selections, code, selections.planKey ?? undefined);
-    setResult(r.pricing);
     if (r.couponError) {
       setAppliedCode(null);
       setCouponState({ status: "error", message: r.couponError });
-    } else {
-      setAppliedCode(code);
-      setCouponState({ status: "applied", message: "Coupon applied" });
+      return;
     }
+    // The manual code is honored only if it landed in the winning set — a better
+    // auto-apply combo can beat it, in which case the auto set still applies.
+    const inSet = r.appliedCoupons.some((c) => c.code.toUpperCase() === code.toUpperCase());
+    setAppliedCode(inSet ? code : null);
+    setCouponState({
+      status: "applied",
+      message: inSet ? "Coupon applied" : "A better discount is already applied",
+    });
   };
 
   const confirm = async () => {
@@ -129,6 +137,21 @@ export function Checkout() {
       <aside className="space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground">Order summary</h3>
         <Invoice result={result} />
+        {applied.length > 0 && (
+          <ul className="grid gap-1.5 rounded-lg border p-3 text-xs">
+            {applied.map((c) => (
+              <li key={c.code} className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="font-mono">{c.code}</span>
+                  <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    {c.auto ? "Auto-applied" : "Entered"}
+                  </span>
+                </span>
+                <span className="tabular-nums text-emerald-600">−${c.amount.toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="rounded-lg border p-3">
           <Label htmlFor="coupon" className="text-xs text-muted-foreground">Coupon code</Label>
           <div className="mt-1 flex gap-2">

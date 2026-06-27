@@ -27,6 +27,7 @@ export default async function DiscountsSettingsPage() {
         maxPerUser: coupons.maxPerUser,
         redemptionCount: coupons.redemptionCount,
         stackable: coupons.stackable,
+        autoApply: coupons.autoApply,
         planTypes: coupons.planTypes,
         startsAt: coupons.startsAt,
         expiresAt: coupons.expiresAt,

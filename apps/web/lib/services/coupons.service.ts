@@ -1,6 +1,6 @@
 import { ValidationError } from "@tiffin/commons";
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders } from "@/db/schema";
 import type { CouponConfig } from "@/db/schema/coupons";
@@ -26,6 +26,25 @@ export interface PublicCodeContext {
   subtotal: number;
   planType?: string;
   userId?: bigint | null;
+}
+
+// Auto-apply optimizer input. The customer may also type a manual code, which
+// need NOT be autoApply — if eligible it competes with the auto-apply set.
+export interface BestCouponsContext {
+  subtotal: number;
+  planType?: string;
+  userId?: bigint | null;
+  manualCode?: string | null;
+}
+
+// The winning set: discount lines (already distributed against the running
+// subtotal) plus the coupon rows + applied amount for in-tx redemption. When a
+// manual code was supplied but rejected, manualError carries the reason so the
+// caller can surface it inline without failing the whole resolution.
+export interface BestCouponsResult {
+  lines: PricingLine[];
+  redemptions: { coupon: Coupon; amount: number }[];
+  manualError?: string;
 }
 
 export interface RepCouponContext {
@@ -100,30 +119,89 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // Customer self-serve: validate a public code, then resolve. Rejects rep_daily.
   async validatePublicCode(code: string, ctx: PublicCodeContext): Promise<PricingLine> {
     const coupon = await this.loadByCode(code);
-    if (coupon.kind === "rep_daily") throw new ValidationError("This code cannot be used here");
-    this.assertWindow(coupon);
-
-    if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
-      throw new ValidationError(`Minimum spend of $${num(coupon.minSubtotal).toFixed(2)} not met`);
-    }
-    if (coupon.planTypes.length && (!ctx.planType || !coupon.planTypes.includes(ctx.planType))) {
-      throw new ValidationError("This coupon is not valid for the selected plan");
-    }
-    if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
-      throw new ValidationError("This coupon has been fully redeemed");
-    }
-    if (ctx.userId != null && coupon.maxPerUser != null) {
-      const used = await this.userRedemptionCount(db, coupon.id, ctx.userId);
-      if (used >= coupon.maxPerUser) throw new ValidationError("You have already used this coupon");
-    }
-    if (coupon.kind === "first_order" && ctx.userId != null) {
-      const [{ n }] = await db
-        .select({ n: sql<number>`cast(count(*) as int)` })
-        .from(orders)
-        .where(eq(orders.userId, ctx.userId));
-      if (n > 0) throw new ValidationError("This coupon is only valid on your first order");
-    }
+    const err = await this.publicEligibilityError(coupon, ctx);
+    if (err) throw new ValidationError(err);
     return this.resolveDiscount(coupon, ctx);
+  }
+
+  // The customer auto-apply optimizer: find the best valid combination of
+  // autoApply coupons for this cart, optionally competing against a manual code.
+  //
+  // Best = maximum customer discount (lowest checkout total), respecting
+  // stacking (an exclusive coupon must be used ALONE; stackable coupons may all
+  // combine), per-coupon eligibility (window / plan / min-spend), global +
+  // per-user usage caps, and the $0 floor. rep_daily coupons are excluded here —
+  // that staff lane lives in validateRepCoupon.
+  //
+  // ponytail: brute-force subset search, assumes a handful of active auto-apply
+  // coupons; revisit with a greedy/DP if the catalog grows. Because discounts are
+  // non-negative, the maximal "all stackable" set dominates any stackable subset,
+  // so the candidate final sets are: {all stackable} and each {exclusive} alone.
+  async resolveBestCoupons(ctx: BestCouponsContext): Promise<BestCouponsResult> {
+    const pubCtx: PublicCodeContext = { subtotal: ctx.subtotal, planType: ctx.planType, userId: ctx.userId };
+
+    // (a) Gather auto-apply candidates that pass eligibility for this cart.
+    const autoRows = await db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.active, true), eq(coupons.autoApply, true), ne(coupons.kind, "rep_daily")));
+
+    type Candidate = { coupon: Coupon; line: PricingLine };
+    const candidates: Candidate[] = [];
+    for (const coupon of autoRows) {
+      const err = await this.publicEligibilityError(coupon, pubCtx);
+      if (err) continue;
+      candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+    }
+
+    // Plus the manual code (need not be autoApply). A failure is reported via
+    // manualError rather than thrown, so the auto set still resolves.
+    let manualError: string | undefined;
+    const manualCode = ctx.manualCode?.trim();
+    if (manualCode) {
+      try {
+        const coupon = await this.loadByCode(manualCode);
+        const err = await this.publicEligibilityError(coupon, pubCtx);
+        if (err) {
+          manualError = err;
+        } else if (!candidates.some((c) => c.coupon.id === coupon.id)) {
+          candidates.push({ coupon, line: this.resolveDiscount(coupon, pubCtx) });
+        }
+      } catch (e) {
+        manualError = e instanceof Error ? e.message : "Invalid coupon code";
+      }
+    }
+
+    // (b) Enumerate stacking-valid final sets.
+    const stackables = candidates.filter((c) => c.coupon.stackable);
+    const exclusives = candidates.filter((c) => !c.coupon.stackable);
+    const sets: Candidate[][] = [];
+    if (stackables.length) sets.push(stackables);
+    for (const ex of exclusives) sets.push([ex]);
+
+    // (c) Distribute each set against the running remaining subtotal and pick the
+    // set with the largest total discount (lowest customer total). The empty set
+    // (no discount) is the implicit baseline when no set beats it.
+    let best: { lines: PricingLine[]; redemptions: { coupon: Coupon; amount: number }[]; discount: number } = {
+      lines: [],
+      redemptions: [],
+      discount: 0,
+    };
+    for (const set of sets) {
+      let remaining = ctx.subtotal;
+      const lines: PricingLine[] = [];
+      const redemptions: { coupon: Coupon; amount: number }[] = [];
+      for (const { coupon, line } of set) {
+        const amount = Math.min(line.amount, remaining);
+        lines.push({ ...line, amount });
+        redemptions.push({ coupon, amount });
+        remaining = round2(remaining - amount);
+      }
+      const discount = round2(ctx.subtotal - remaining);
+      if (discount > best.discount) best = { lines, redemptions, discount };
+    }
+
+    return { lines: best.lines, redemptions: best.redemptions, manualError };
   }
 
   // Staff: validate the actor's OWN rep_daily coupon and clamp to the dual ceiling.
@@ -225,10 +303,46 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     return coupon;
   }
 
-  private assertWindow(coupon: Coupon): void {
+  // Non-throwing eligibility for a customer-facing (non-rep) coupon. Returns the
+  // rejection reason, or null when the coupon is valid for this cart. Shared by
+  // validatePublicCode (which throws) and resolveBestCoupons (which skips).
+  private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<string | null> {
+    if (coupon.kind === "rep_daily") return "This code cannot be used here";
+    const w = this.windowError(coupon);
+    if (w) return w;
+    if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
+      return `Minimum spend of $${num(coupon.minSubtotal).toFixed(2)} not met`;
+    }
+    if (coupon.planTypes.length && (!ctx.planType || !coupon.planTypes.includes(ctx.planType))) {
+      return "This coupon is not valid for the selected plan";
+    }
+    if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
+      return "This coupon has been fully redeemed";
+    }
+    if (ctx.userId != null && coupon.maxPerUser != null) {
+      const used = await this.userRedemptionCount(db, coupon.id, ctx.userId);
+      if (used >= coupon.maxPerUser) return "You have already used this coupon";
+    }
+    if (coupon.kind === "first_order" && ctx.userId != null) {
+      const [{ n }] = await db
+        .select({ n: sql<number>`cast(count(*) as int)` })
+        .from(orders)
+        .where(eq(orders.userId, ctx.userId));
+      if (n > 0) return "This coupon is only valid on your first order";
+    }
+    return null;
+  }
+
+  private windowError(coupon: Coupon): string | null {
     const now = Date.now();
-    if (coupon.startsAt != null && now < coupon.startsAt) throw new ValidationError("This coupon is not active yet");
-    if (coupon.expiresAt != null && now > coupon.expiresAt) throw new ValidationError("This coupon has expired");
+    if (coupon.startsAt != null && now < coupon.startsAt) return "This coupon is not active yet";
+    if (coupon.expiresAt != null && now > coupon.expiresAt) return "This coupon has expired";
+    return null;
+  }
+
+  private assertWindow(coupon: Coupon): void {
+    const w = this.windowError(coupon);
+    if (w) throw new ValidationError(w);
   }
 
   private async userRedemptionCount(conn: Tx | typeof db, couponId: bigint, userId: bigint): Promise<number> {

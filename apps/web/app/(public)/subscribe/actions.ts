@@ -6,13 +6,25 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
 
-// reprice always returns a valid base PricingResult; when a coupon code is
-// supplied it is validated server-side and folded into adjustments. An invalid /
-// expired / min-spend / not-first-order code yields `couponError` (inline in the
-// wizard) while pricing falls back to the un-discounted total. The amount is
-// never trusted from the client — createOrder re-resolves it at order time.
+// An applied discount line, projected for the wizard's breakdown. `auto` is true
+// for coupons that auto-applied (festival/launch promos), false for a manually
+// entered code — so the UI can label which is which.
+export interface AppliedCoupon {
+  code: string;
+  name: string;
+  amount: number;
+  auto: boolean;
+}
+
+// reprice always returns a valid PricingResult with the BEST valid combination of
+// auto-apply coupons already folded into adjustments. When the customer also
+// types a code it competes with the auto set (joins if stackable, replaces if
+// better used alone). An invalid / expired / ineligible manual code yields
+// `couponError` (inline in the wizard) while pricing keeps the auto-applied best.
+// The amount is never trusted from the client — createOrder re-resolves it.
 export interface RepriceResult {
   pricing: PricingResult;
+  appliedCoupons: AppliedCoupon[];
   couponError?: string;
 }
 
@@ -25,20 +37,25 @@ export async function reprice(
   const catalog = buildPricingCatalog(snapshot, selections);
   const base = priceSubscription(selections, catalog);
 
-  const code = couponCode?.trim();
-  if (!code) return { pricing: base };
-
   // Resolve the plan's plan_type enum server-side from the catalog snapshot — the
-  // client passes a plan KEY, not the plan_type. validatePublicCode checks
+  // client passes a plan KEY, not the plan_type. The optimizer checks
   // coupon.planTypes against the enum, so passing the key would wrongly reject
-  // plan-restricted public coupons. Mirrors createOrder / staff previewPrice.
+  // plan-restricted coupons. Mirrors createOrder / staff previewPrice.
   const planType = planKey ? snapshot.plans.find((p) => p.key === planKey)?.planType : undefined;
-  try {
-    const line = await couponsService.validatePublicCode(code, { subtotal: base.subtotal, planType });
-    return { pricing: priceSubscription(selections, catalog, [line]) };
-  } catch (e) {
-    return { pricing: base, couponError: e instanceof Error ? e.message : "Invalid coupon code" };
-  }
+  const best = await couponsService.resolveBestCoupons({
+    subtotal: base.subtotal,
+    planType,
+    manualCode: couponCode?.trim() || undefined,
+  });
+
+  const pricing = best.lines.length ? priceSubscription(selections, catalog, best.lines) : base;
+  const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
+    code: r.coupon.code,
+    name: r.coupon.name,
+    amount: r.amount,
+    auto: r.coupon.autoApply,
+  }));
+  return { pricing, appliedCoupons, couponError: best.manualError };
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {
