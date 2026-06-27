@@ -47,6 +47,7 @@ export interface RedeemInput {
 
 export interface MintRepDailyInput {
   ownerUserId: bigint;
+  ownerPublicId: string; // usr_<nanoid>; the code suffix is derived from this, never the internal id
   istDate: string;
   capPct: number;
   capAmount: number;
@@ -142,12 +143,10 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   async redeem(tx: Tx, input: RedeemInput): Promise<void> {
     const { coupon, userId, orderId, amountApplied } = input;
 
-    if (coupon.maxPerUser != null) {
-      const used = await this.userRedemptionCount(tx, coupon.id, userId);
-      if (used >= coupon.maxPerUser) throw new ValidationError("Per-user redemption limit reached");
-    }
-
     // Atomic global-cap guard: bump only while under the cap; no row → cap hit.
+    // The UPDATE ... RETURNING also locks the coupon row for the rest of the tx,
+    // so concurrent redemptions of the same coupon serialize here — the per-user
+    // count below then runs under that lock and observes prior committed rows.
     const conds = [eq(coupons.id, coupon.id)];
     if (coupon.maxRedemptions != null) {
       conds.push(sql`${coupons.redemptionCount} < ${coupons.maxRedemptions}`);
@@ -158,6 +157,14 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .where(and(...conds))
       .returning({ id: coupons.id });
     if (bumped.length === 0) throw new ValidationError("Coupon redemption limit reached");
+
+    // Per-user cap: counted AFTER the lock above so concurrent same-user redeems
+    // serialize and the loser sees the winner's committed redemption. Throwing
+    // here rolls back the bump with the rest of the caller's tx.
+    if (coupon.maxPerUser != null) {
+      const used = await this.userRedemptionCount(tx, coupon.id, userId);
+      if (used >= coupon.maxPerUser) throw new ValidationError("Per-user redemption limit reached");
+    }
 
     await tx.insert(couponRedemptions).values({
       couponId: coupon.id,
@@ -180,10 +187,13 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
 
   // Cron mint: idempotent via the partial unique index (one per rep per IST day).
   async mintRepDaily(tx: Tx, input: MintRepDailyInput): Promise<void> {
+    // Code is client-facing: derive the suffix from the public id (never the
+    // internal bigint). Idempotency is guaranteed by the partial unique index.
+    const suffix = input.ownerPublicId.split("_").at(-1) ?? input.ownerPublicId;
     await tx
       .insert(coupons)
       .values({
-        code: `REP-${input.istDate}-${input.ownerUserId}`,
+        code: `REP-${input.istDate}-${suffix}`,
         kind: "rep_daily",
         name: `Rep daily ${input.istDate}`,
         capPct: input.capPct.toFixed(2),
