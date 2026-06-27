@@ -28,24 +28,37 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const [enabled, setEnabled] = React.useState(policy.repDaily.enabled);
   const [capPct, setCapPct] = React.useState(String(policy.repDaily.defaultCapPct));
   const [capAmount, setCapAmount] = React.useState(String(policy.repDaily.defaultCapAmount));
+  const [dailyUses, setDailyUses] = React.useState(String(policy.repDaily.defaultDailyUses));
 
   const dirty =
     enabled !== policy.repDaily.enabled ||
     Number(capPct) !== policy.repDaily.defaultCapPct ||
-    Number(capAmount) !== policy.repDaily.defaultCapAmount;
+    Number(capAmount) !== policy.repDaily.defaultCapAmount ||
+    Number(dailyUses) !== policy.repDaily.defaultDailyUses;
 
   const save = () => {
     const pctN = numOrNull(capPct);
     const amtN = numOrNull(capAmount);
+    const usesN = numOrNull(dailyUses);
     if (pctN == null || amtN == null) {
       toast.error("Both ceilings are required");
+      return;
+    }
+    if (usesN == null || usesN < 1 || !Number.isInteger(usesN)) {
+      toast.error("Discounts per day must be a whole number of 1 or more");
       return;
     }
     start(async () => {
       try {
         await saveDiscountPolicy({
           ...policy,
-          repDaily: { ...policy.repDaily, enabled, defaultCapPct: pctN, defaultCapAmount: amtN },
+          repDaily: {
+            ...policy.repDaily,
+            enabled,
+            defaultCapPct: pctN,
+            defaultCapAmount: amtN,
+            defaultDailyUses: usesN,
+          },
         });
         toast.success("Rep ceilings saved");
         router.refresh();
@@ -87,6 +100,20 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             onChange={setCapAmount}
           />
         </div>
+        <div className="grid gap-1.5 sm:max-w-[13rem]">
+          <NumberField
+            id="rep-daily-uses"
+            label="Discounts per day"
+            min={1}
+            max={99}
+            step={1}
+            value={dailyUses}
+            onChange={setDailyUses}
+          />
+          <p className="text-muted-foreground text-xs text-pretty">
+            How many discounts each rep can give per day. Sets a daily target so reps don&apos;t discount every order.
+          </p>
+        </div>
         <Button onClick={save} disabled={pending || !dirty} className="w-fit">
           Save ceilings
         </Button>
@@ -119,20 +146,27 @@ function RepRow({
   override,
 }: {
   rep: RepOption;
-  override?: { capPct?: number; capAmount?: number; active: boolean };
+  override?: { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean };
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [capPct, setCapPct] = React.useState(override?.capPct == null ? "" : String(override.capPct));
   const [capAmount, setCapAmount] = React.useState(override?.capAmount == null ? "" : String(override.capAmount));
+  const [dailyUses, setDailyUses] = React.useState(override?.dailyUses == null ? "" : String(override.dailyUses));
   const [active, setActive] = React.useState(override?.active ?? true);
 
   const save = () => {
+    const usesN = numOrNull(dailyUses);
+    if (usesN != null && (usesN < 1 || !Number.isInteger(usesN))) {
+      toast.error("Discounts per day must be a whole number of 1 or more");
+      return;
+    }
     start(async () => {
       try {
         await setRepCeiling(rep.publicId, {
           capPct: numOrNull(capPct) ?? undefined,
           capAmount: numOrNull(capAmount) ?? undefined,
+          dailyUses: usesN ?? undefined,
           active,
         });
         toast.success(`Saved ${rep.name ?? rep.publicId}`);
@@ -172,6 +206,17 @@ function RepRow({
           placeholder="default"
           value={capAmount}
           onChange={setCapAmount}
+          className="w-32"
+        />
+        <NumberField
+          id={`rep-${rep.publicId}-uses`}
+          label="Per day"
+          min={1}
+          max={99}
+          step={1}
+          placeholder="default"
+          value={dailyUses}
+          onChange={setDailyUses}
           className="w-32"
         />
         <Button onClick={save} disabled={pending} size="sm" variant="outline">

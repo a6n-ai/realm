@@ -30,7 +30,11 @@ export interface DiscountPolicy {
     enabled: boolean;
     defaultCapPct: number;
     defaultCapAmount: number;
-    perRep: Record<string, { capPct?: number; capAmount?: number; active: boolean }>;
+    // How many times a rep may apply their daily coupon to grant a discount that
+    // day (snapshotted onto the minted coupon's maxRedemptions). 1 = single-use,
+    // preserving the legacy behavior until an admin raises it.
+    defaultDailyUses: number;
+    perRep: Record<string, { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean }>;
   };
 }
 

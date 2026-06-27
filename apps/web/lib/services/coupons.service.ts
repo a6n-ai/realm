@@ -2,7 +2,7 @@ import { ValidationError } from "@tiffin/commons";
 import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, orders } from "@/db/schema";
+import { couponRedemptions, coupons, orders, users } from "@/db/schema";
 import type { CouponConfig } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
 import { ledgerService } from "./ledger.service";
@@ -77,7 +77,19 @@ export interface MintRepDailyInput {
   istDate: string;
   capPct: number;
   capAmount: number;
+  // The rep's daily use budget → snapshotted onto maxRedemptions (floored at 1).
+  dailyUses: number;
   expiresAt: number;
+}
+
+// Serializable projection of a rep's coupon for the day — safe to hand to a
+// client component (no bigint, no internal ids).
+export interface RepCouponToday {
+  code: string;
+  used: number;
+  total: number;
+  capPct: number | null;
+  capAmount: number | null;
 }
 
 class CouponsService extends SessionUpdatableService<typeof coupons> {
@@ -226,7 +238,12 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       throw new ValidationError("This coupon is not yours to apply");
     }
     this.assertWindow(coupon);
-    if (coupon.redemptionCount !== 0) throw new ValidationError("This coupon has already been used today");
+    // Per-rep daily budget: maxRedemptions is the snapshotted daily use count. The
+    // atomic guard in redeem() is authoritative under concurrency; this is the
+    // clean up-front rejection once the rep has spent today's budget.
+    if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
+      throw new ValidationError("You have reached today's discount limit");
+    }
     return this.resolveDiscount(coupon, ctx);
   }
 
@@ -292,7 +309,10 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         name: `Rep daily ${input.istDate}`,
         capPct: input.capPct.toFixed(2),
         capAmount: input.capAmount.toFixed(2),
-        maxRedemptions: 1,
+        // The daily use budget (≥1) is snapshotted here; redeem()'s conditional
+        // UPDATE then enforces it atomically. maxPerUser stays 1 so a rep cannot
+        // stack their coupon twice onto a single customer.
+        maxRedemptions: Math.max(1, Math.trunc(input.dailyUses)),
         maxPerUser: 1,
         ownerUserId: input.ownerUserId,
         istDate: input.istDate,
@@ -309,6 +329,43 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // redeem inside its tx. Shares the active-coupon guard with the validators.
   async findByCode(code: string): Promise<Coupon> {
     return this.loadByCode(code);
+  }
+
+  // Sidebar accessor: the rep's OWN coupon for the given IST day, projected to a
+  // serializable shape (used/total budget + ceilings). Accepts the owner's public
+  // id (resolved to the internal bigint here) or the bigint directly. Returns null
+  // when the rep has no coupon today (allowance off / not minted yet / not a rep).
+  async getTodayRepCoupon(ownerPublicIdOrId: string | bigint, istDate: string): Promise<RepCouponToday | null> {
+    let ownerId: bigint | null;
+    if (typeof ownerPublicIdOrId === "bigint") {
+      ownerId = ownerPublicIdOrId;
+    } else {
+      const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, ownerPublicIdOrId)).limit(1);
+      ownerId = u?.id ?? null;
+    }
+    if (ownerId == null) return null;
+
+    const [row] = await db
+      .select()
+      .from(coupons)
+      .where(
+        and(
+          eq(coupons.kind, "rep_daily"),
+          eq(coupons.ownerUserId, ownerId),
+          eq(coupons.istDate, istDate),
+          eq(coupons.active, true),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+
+    return {
+      code: row.code,
+      used: row.redemptionCount,
+      total: row.maxRedemptions ?? 1,
+      capPct: row.capPct != null ? num(row.capPct) : null,
+      capAmount: row.capAmount != null ? num(row.capAmount) : null,
+    };
   }
 
   private async loadByCode(code: string): Promise<Coupon> {

@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError, zonedDateIso } from "@tiffin/commons";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
+import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { usersService } from "@/lib/services/users.service";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
@@ -35,9 +37,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
 
+  // Sales reps (role member) get today's daily-coupon card in the sidebar, but
+  // only when the allowance is on and this rep is not disabled. publicId is the
+  // session id; the service resolves it to the internal owner id server-side.
+  let repCoupon: RepCouponToday | null = null;
+  if (role === "member") {
+    const policy = await getDiscountPolicy();
+    const override = policy.repDaily.perRep[session.user.id];
+    const repActive = !(override && override.active === false);
+    if (policy.repDaily.enabled && repActive) {
+      const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
+      repCoupon = await couponsService.getTodayRepCoupon(session.user.id, istDate);
+    }
+  }
+
   return (
     <SidebarProvider>
-      <AppSidebar user={{ email, role, name: user.name ?? null, image: user.image ?? null }} hasPin={hasPin} />
+      <AppSidebar
+        user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
+        hasPin={hasPin}
+        repCoupon={repCoupon}
+      />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />

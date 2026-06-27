@@ -123,11 +123,13 @@ const policySchema = z.object({
     enabled: z.boolean(),
     defaultCapPct: z.number().min(0).max(100),
     defaultCapAmount: z.number().min(0),
+    defaultDailyUses: z.number().int().min(1).max(99),
     perRep: z.record(
       z.string(),
       z.object({
         capPct: z.number().min(0).max(100).optional(),
         capAmount: z.number().min(0).optional(),
+        dailyUses: z.number().int().min(1).max(99).optional(),
         active: z.boolean(),
       }),
     ),
@@ -153,12 +155,13 @@ export async function saveDiscountPolicy(policy: unknown) {
 const repCeilingSchema = z.object({
   capPct: z.number().min(0).max(100).optional(),
   capAmount: z.number().min(0).optional(),
+  dailyUses: z.number().int().min(1).max(99).optional(),
   active: z.boolean(),
 });
 
 export async function setRepCeiling(
   repPublicId: string,
-  input: { capPct?: number; capAmount?: number; active: boolean },
+  input: { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean },
 ) {
   await requireAdmin();
   const parsed = repCeilingSchema.parse(input);
@@ -176,14 +179,15 @@ export async function setRepCeiling(
   // getter returns, or a concurrent read could observe the unpersisted change.
   const current = await getDiscountPolicy();
   const perRep = { ...current.repDaily.perRep };
-  if (parsed.capPct == null && parsed.capAmount == null && parsed.active) {
-    // Fully default (no caps, allowed) — drop the key so "absent = use default" holds
-    // rather than accumulating a redundant override entry.
+  if (parsed.capPct == null && parsed.capAmount == null && parsed.dailyUses == null && parsed.active) {
+    // Fully default (no overrides, allowed) — drop the key so "absent = use default"
+    // holds rather than accumulating a redundant override entry.
     delete perRep[repPublicId];
   } else {
     perRep[repPublicId] = {
       ...(parsed.capPct != null ? { capPct: parsed.capPct } : {}),
       ...(parsed.capAmount != null ? { capAmount: parsed.capAmount } : {}),
+      ...(parsed.dailyUses != null ? { dailyUses: parsed.dailyUses } : {}),
       active: parsed.active,
     };
   }

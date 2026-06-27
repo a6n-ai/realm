@@ -54,6 +54,7 @@ export async function mintRepCoupons(now: number = Date.now()): Promise<MintSumm
     }
     const capPct = override?.capPct ?? policy.repDaily.defaultCapPct;
     const capAmount = override?.capAmount ?? policy.repDaily.defaultCapAmount;
+    const dailyUses = override?.dailyUses ?? policy.repDaily.defaultDailyUses;
     const inserted = await db.transaction((tx) =>
       couponsService.mintRepDaily(tx, {
         ownerUserId: rep.id,
@@ -61,6 +62,7 @@ export async function mintRepCoupons(now: number = Date.now()): Promise<MintSumm
         istDate,
         capPct,
         capAmount,
+        dailyUses,
         expiresAt,
       }),
     );

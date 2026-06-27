@@ -1,8 +1,11 @@
 "use client";
 
+import * as React from "react";
 import {
   CalendarIcon,
+  CheckIcon,
   ClipboardListIcon,
+  CopyIcon,
   LayoutDashboardIcon,
   LockIcon,
   LogOutIcon,
@@ -11,6 +14,7 @@ import {
   PaletteIcon,
   SaladIcon,
   SettingsIcon,
+  TicketPercentIcon,
   UserIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -19,11 +23,13 @@ import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -82,12 +88,24 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
+// Serializable rep-coupon projection (mirrors RepCouponToday) — kept local so the
+// client bundle never imports the server-only coupons service module.
+export type RepCouponView = {
+  code: string;
+  used: number;
+  total: number;
+  capPct: number | null;
+  capAmount: number | null;
+};
+
 export function AppSidebar({
   user,
   hasPin,
+  repCoupon,
 }: {
   user: { email: string; role: string; name: string | null; image: string | null };
   hasPin: boolean;
+  repCoupon?: RepCouponView | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -137,6 +155,8 @@ export function AppSidebar({
           );
         })}
       </SidebarContent>
+
+      {repCoupon && <RepCouponCard coupon={repCoupon} />}
 
       <SidebarFooter>
         <SidebarMenu>
@@ -199,5 +219,79 @@ export function AppSidebar({
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+// Compact sidebar card showing the rep's coupon for today: the code with a copy
+// button, plus a used/remaining count against their daily budget. Hidden entirely
+// when the rail is collapsed to icons (the detail would not fit).
+function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
+  const [copied, setCopied] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(coupon.code);
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (insecure context / denied) — silently no-op; the
+      // code is still visible for manual entry.
+    }
+  };
+
+  const reached = coupon.used >= coupon.total;
+  const ceiling = [
+    coupon.capPct != null ? `${coupon.capPct}%` : null,
+    coupon.capAmount != null ? `$${coupon.capAmount.toFixed(2)}` : null,
+  ].filter(Boolean).join(" / ");
+
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel className="gap-1.5">
+        <TicketPercentIcon className="size-3.5" aria-hidden />
+        Today&apos;s discount coupon
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <div className="bg-sidebar-accent/40 grid gap-2 rounded-lg border p-2.5">
+          <div className="flex items-center gap-1.5">
+            <code className="bg-background flex-1 truncate rounded-md border px-2 py-1.5 font-mono text-xs tabular-nums">
+              {coupon.code}
+            </code>
+            <button
+              type="button"
+              onClick={copy}
+              aria-label={copied ? "Coupon code copied" : "Copy coupon code"}
+              className={cn(
+                "text-muted-foreground hover:text-foreground hover:bg-accent flex size-10 shrink-0 items-center justify-center rounded-md border",
+                "transition-[transform,color,background-color] duration-150 active:scale-[0.96]",
+                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+              )}
+            >
+              {copied ? (
+                <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              ) : (
+                <CopyIcon className="size-4" aria-hidden />
+              )}
+            </button>
+          </div>
+          {reached ? (
+            <p className="text-muted-foreground text-xs">Daily limit reached</p>
+          ) : (
+            <p className="text-xs">
+              <span className="tabular-nums font-medium">{coupon.used}</span>
+              <span className="text-muted-foreground"> of </span>
+              <span className="tabular-nums font-medium">{coupon.total}</span>
+              <span className="text-muted-foreground"> used today</span>
+            </p>
+          )}
+          {ceiling && (
+            <p className="text-muted-foreground text-xs tabular-nums">up to {ceiling}</p>
+          )}
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }

@@ -36,7 +36,7 @@ async function reset() {
   // saveCoupon's enabled-kind gate doesn't depend on cross-file run order.
   await setDiscountPolicy({
     enabledKinds: [...couponKind.enumValues],
-    repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, perRep: {} },
+    repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, defaultDailyUses: 1, perRep: {} },
   });
 }
 

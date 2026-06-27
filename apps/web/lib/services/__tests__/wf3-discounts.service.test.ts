@@ -58,7 +58,7 @@ describe("WF3 — cron mint governance", () => {
     const [rep] = await db.insert(users).values({ email: "rep@x.com", name: "Rep One", role: "member" }).returning();
     await setDiscountPolicy({
       enabledKinds: ["percentage", "fixed", "free_delivery", "first_order", "rep_daily"],
-      repDaily: { enabled: true, defaultCapPct: 50, defaultCapAmount: 30, perRep: {} },
+      repDaily: { enabled: true, defaultCapPct: 50, defaultCapAmount: 30, defaultDailyUses: 1, perRep: {} },
     });
 
     const first = await mintRepCoupons();
@@ -77,7 +77,7 @@ describe("WF3 — cron mint governance", () => {
     // already-minted coupon keeps its snapshotted ceilings.
     await setDiscountPolicy({
       enabledKinds: ["percentage", "fixed", "free_delivery", "first_order", "rep_daily"],
-      repDaily: { enabled: true, defaultCapPct: 10, defaultCapAmount: 5, perRep: {} },
+      repDaily: { enabled: true, defaultCapPct: 10, defaultCapAmount: 5, defaultDailyUses: 1, perRep: {} },
     });
     const second = await mintRepCoupons();
     expect(second.minted).toBe(0);
@@ -92,7 +92,7 @@ describe("WF3 — cron mint governance", () => {
     await db.insert(users).values({ email: "rep2@x.com", role: "member" });
     await setDiscountPolicy({
       enabledKinds: ["rep_daily"],
-      repDaily: { enabled: false, defaultCapPct: 50, defaultCapAmount: 30, perRep: {} },
+      repDaily: { enabled: false, defaultCapPct: 50, defaultCapAmount: 30, defaultDailyUses: 1, perRep: {} },
     });
     const r = await mintRepCoupons();
     expect(r.minted).toBe(0);

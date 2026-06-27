@@ -13,7 +13,7 @@ const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "creator", perSourc
 // an admin opts in and sets ceilings. Mirrors the leadAssignment default shape.
 const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
   enabledKinds: [...couponKind.enumValues],
-  repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, perRep: {} },
+  repDaily: { enabled: false, defaultCapPct: 0, defaultCapAmount: 0, defaultDailyUses: 1, perRep: {} },
 };
 
 // app_settings is a single global row read on hot paths (cutoff calc, every
