@@ -97,7 +97,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
 
   if (publicId) await couponsService.update(publicId, values);
   else await couponsService.create(values);
-  revalidatePath(PATH);
+  revalidatePath(PATH, "layout");
 }
 
 export async function setCouponActive(publicId: string, active: boolean) {
@@ -114,7 +114,7 @@ export async function setCouponActive(publicId: string, active: boolean) {
     throw new ValidationError("Rep daily coupons are managed automatically and cannot be toggled here");
   }
   await couponsService.update(publicId, { active });
-  revalidatePath(PATH);
+  revalidatePath(PATH, "layout");
 }
 
 const policySchema = z.object({
@@ -147,7 +147,7 @@ export async function saveDiscountPolicy(policy: unknown) {
     repDaily: { ...data.repDaily, perRep: current.repDaily.perRep },
   };
   await setDiscountPolicy(merged);
-  revalidatePath(PATH);
+  revalidatePath(PATH, "layout");
 }
 
 const repCeilingSchema = z.object({
@@ -189,5 +189,5 @@ export async function setRepCeiling(
   }
   const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
   await setDiscountPolicy(next);
-  revalidatePath(PATH);
+  revalidatePath(PATH, "layout");
 }

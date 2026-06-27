@@ -1,10 +1,9 @@
-import { UtensilsCrossedIcon } from "lucide-react";
 import { asc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { db } from "@/db/client";
 import { mealSlots } from "@/db/schema";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
 import { MealTypesForm } from "../meal-types-form";
 
 export default async function MealTypesPage() {
@@ -26,15 +25,11 @@ export default async function MealTypesPage() {
   ]);
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={UtensilsCrossedIcon}
-        title="Meal types & slots"
-        subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
-      />
-      <SectionCard title="Plan configuration">
-        <MealTypesForm initial={mealTypes} slots={allSlots} />
-      </SectionCard>
-    </PageShell>
+    <SectionCard
+      title="Plan configuration"
+      subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
+    >
+      <MealTypesForm initial={mealTypes} slots={allSlots} />
+    </SectionCard>
   );
 }

@@ -1,9 +1,7 @@
 import { asc } from "drizzle-orm";
-import { Webhook } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
-import { PageShell, PageHeader } from "@/components/ds";
 import { LeadSourcesManager } from "./manager";
 
 export default async function LeadSourcesSettingsPage() {
@@ -46,14 +44,5 @@ export default async function LeadSourcesSettingsPage() {
       .map((ss) => ({ publicId: ss.publicId, key: ss.key, label: ss.label, active: ss.active })),
   }));
 
-  return (
-    <PageShell>
-      <PageHeader
-        icon={Webhook}
-        title="Lead sources"
-        subtitle="Where leads come from, and the finer sub-sources beneath each."
-      />
-      <LeadSourcesManager sources={sources} />
-    </PageShell>
-  );
+  return <LeadSourcesManager sources={sources} />;
 }

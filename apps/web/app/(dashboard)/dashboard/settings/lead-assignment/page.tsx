@@ -1,11 +1,10 @@
-import { SettingsIcon } from "lucide-react";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
 import { listConfig } from "@/lib/services/inquiry-user-config.service";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
 import { LeadAssignmentForm } from "./form";
 
 export default async function LeadAssignmentPage() {
@@ -40,11 +39,11 @@ export default async function LeadAssignmentPage() {
   }
 
   return (
-    <PageShell>
-      <PageHeader icon={SettingsIcon} title="Lead assignment" subtitle="Routing strategy, per-source overrides, and pool membership" />
-      <SectionCard title="Strategy & pools">
-        <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
-      </SectionCard>
-    </PageShell>
+    <SectionCard
+      title="Strategy & pools"
+      subtitle="Routing strategy, per-source overrides, and pool membership."
+    >
+      <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
+    </SectionCard>
   );
 }
