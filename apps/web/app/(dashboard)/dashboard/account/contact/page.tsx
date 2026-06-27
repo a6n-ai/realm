@@ -11,6 +11,7 @@ export default async function AccountContactPage() {
       phone={user.phone ?? ""}
       email={user.email ?? ""}
       emailVerified={user.emailVerified ?? false}
+      phoneVerified={user.phoneVerified ?? false}
       defaultCountry={defaultCountry}
     />
   );
