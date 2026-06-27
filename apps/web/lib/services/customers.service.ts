@@ -1,8 +1,9 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
 import { db } from "@/db/client";
-import { account, inquiries, leadSources, orders, users } from "@/db/schema";
+import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";
+import { ledgerService } from "./ledger.service";
 
 const TEMP_PASSWORD = "Tiffin123";
 
@@ -84,6 +85,90 @@ export async function findExistingByContact(phone: string, email?: string | null
     .where(and(eq(users.role, "user"), or(...conds)))
     .limit(1);
   return row ? { publicId: row.publicId, fullName: row.name ?? "Customer" } : null;
+}
+
+// Serializable order row for the customer's own dashboard. Carries plan + meal
+// size names and pricing so the self-view never needs a follow-up read, and
+// never exposes an internal bigint id (publicId only).
+export type CustomerDashboardOrder = {
+  publicId: string;
+  deploymentId: string;
+  planName: string;
+  mealSizeName: string;
+  durationWeeks: number;
+  perTiffinPrice: string;
+  total: string;
+  status: string;
+  startDate: string;
+  createdAt: number;
+};
+
+export type CustomerDashboard = {
+  profile: { name: string | null; email: string | null };
+  current: CustomerDashboardOrder | null;
+  orders: CustomerDashboardOrder[];
+  ordersCount: number;
+  activeCount: number;
+  totalSpent: string;
+};
+
+// Live-status precedence for "the subscription that matters now": an active plan
+// wins over a paused one, then waitlisted, then pending; a cancelled order is the
+// fallback of last resort. Orders arrive newest-first, so ties resolve to the most
+// recent of the winning status.
+const SUBSCRIPTION_RANK: Record<string, number> = {
+  active: 0, paused: 1, waitlisted: 2, pending: 3, cancelled: 4,
+};
+
+// The signed-in customer's own dashboard: profile, every order (newest-first), the
+// current/most-relevant subscription, and lifetime spend. Resolves the user
+// public_id to the internal id here so totalSpent can run on the bigint while the
+// returned shape stays public_id-only and fully serializable for the client.
+export async function getCustomerDashboard(userPublicId: string): Promise<CustomerDashboard> {
+  const [user] = await db
+    .select({ id: users.id, name: users.name, email: users.email, role: users.role })
+    .from(users)
+    .where(eq(users.publicId, userPublicId))
+    .limit(1);
+  if (!user || user.role !== "user") throw new NotFoundError("Customer not found");
+
+  const [orderRows, totalSpent] = await Promise.all([
+    db
+      .select({
+        publicId: orders.publicId,
+        deploymentId: orders.deploymentId,
+        planName: plans.name,
+        mealSizeName: mealSizes.name,
+        durationWeeks: orders.durationWeeks,
+        perTiffinPrice: orders.perTiffinPrice,
+        total: orders.total,
+        status: orders.status,
+        startDate: orders.startDate,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .innerJoin(plans, eq(orders.planId, plans.id))
+      .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+      .where(eq(orders.userId, user.id))
+      .orderBy(desc(orders.createdAt)),
+    ledgerService.totalSpent(user.id),
+  ]);
+
+  const current = orderRows.reduce<CustomerDashboardOrder | null>((best, o) => {
+    if (!best) return o;
+    const rank = SUBSCRIPTION_RANK[o.status] ?? Number.MAX_SAFE_INTEGER;
+    const bestRank = SUBSCRIPTION_RANK[best.status] ?? Number.MAX_SAFE_INTEGER;
+    return rank < bestRank ? o : best;
+  }, null);
+
+  return {
+    profile: { name: user.name, email: user.email },
+    current,
+    orders: orderRows,
+    ordersCount: orderRows.length,
+    activeCount: orderRows.filter((o) => o.status === "active").length,
+    totalSpent,
+  };
 }
 
 export async function getCustomer360(userPublicId: string) {
