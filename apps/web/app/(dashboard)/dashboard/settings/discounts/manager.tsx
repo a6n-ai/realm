@@ -4,7 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronsUpDownIcon, PencilIcon, PlusIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { tzOffsetMinutes } from "@tiffin/commons";
 import type { CouponConfig, CouponKind, DiscountPolicy } from "@/db/schema/coupons";
+import type { planType } from "@/db/schema/catalog";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +40,13 @@ const KIND_LABELS: Record<CouponKind, string> = {
 };
 const ALL_KINDS = Object.keys(KIND_LABELS) as CouponKind[];
 const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily");
-const PLAN_TYPES: { value: string; label: string }[] = [
-  { value: "tiffin", label: "Tiffin" },
-  { value: "healthy", label: "Healthy" },
-];
-const PLAN_LABEL: Record<string, string> = { tiffin: "Tiffin", healthy: "Healthy" };
+// Keyed by the plan_type enum (type-only import — erased at compile, no drizzle in the
+// client bundle) so adding an enum value is a compile error rather than silent drift.
+type PlanType = (typeof planType.enumValues)[number];
+const PLAN_LABEL: Record<PlanType, string> = { tiffin: "Tiffin", healthy: "Healthy" };
+const PLAN_TYPES: { value: PlanType; label: string }[] = (Object.keys(PLAN_LABEL) as PlanType[]).map(
+  (value) => ({ value, label: PLAN_LABEL[value] }),
+);
 
 type CouponRow = {
   publicId: string;
@@ -74,16 +78,23 @@ const numOrNull = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-// epoch-ms <-> <input type="datetime-local"> value (rendered in the viewer's local zone).
+// Coupon windows are entered/displayed in a fixed business zone (staff are IST) so the
+// stored absolute instant is unambiguous regardless of the admin's browser zone (TD-4).
+const BUSINESS_TZ = "Asia/Kolkata";
+const BUSINESS_TZ_LABEL = "IST";
+
+// epoch-ms <-> <input type="datetime-local"> value, anchored to BUSINESS_TZ (not the viewer's).
 function toLocalInput(ms: number | null): string {
   if (ms == null) return "";
-  const off = new Date(ms).getTimezoneOffset() * 60000;
-  return new Date(ms - off).toISOString().slice(0, 16);
+  const wall = ms + tzOffsetMinutes(BUSINESS_TZ, ms) * 60000;
+  return new Date(wall).toISOString().slice(0, 16);
 }
 function fromLocalInput(s: string): number | null {
   if (!s) return null;
-  const n = new Date(s).getTime();
-  return Number.isFinite(n) ? n : null;
+  // Treat the entered wall-clock as BUSINESS_TZ, then convert to the absolute instant.
+  const asUtc = new Date(`${s}:00Z`).getTime();
+  if (!Number.isFinite(asUtc)) return null;
+  return asUtc - tzOffsetMinutes(BUSINESS_TZ, asUtc) * 60000;
 }
 
 export function DiscountsManager({
@@ -449,7 +460,7 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cpn-start">Starts at</Label>
+                    <Label htmlFor="cpn-start">Starts at ({BUSINESS_TZ_LABEL})</Label>
                     <Input
                       id="cpn-start"
                       type="datetime-local"
@@ -458,7 +469,7 @@ function CouponsSection({ coupons }: { coupons: CouponRow[] }) {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cpn-end">Expires at</Label>
+                    <Label htmlFor="cpn-end">Expires at ({BUSINESS_TZ_LABEL})</Label>
                     <Input
                       id="cpn-end"
                       type="datetime-local"
@@ -874,6 +885,7 @@ function Multiselect({
                     <CommandItem
                       key={o.value}
                       value={o.value}
+                      keywords={[o.label]}
                       data-checked={selected}
                       aria-checked={selected}
                       onSelect={() => toggle(o.value)}

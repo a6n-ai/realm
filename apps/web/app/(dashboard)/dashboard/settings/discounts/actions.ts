@@ -6,7 +6,7 @@ import { z } from "zod";
 import { ValidationError } from "@tiffin/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { coupons, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
 import { planType } from "@/db/schema/catalog";
 import { couponsService } from "@/lib/services/coupons.service";
@@ -45,6 +45,13 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
     throw new ValidationError("Rep daily coupons are minted automatically and cannot be created here");
   }
 
+  // Creation-time gating: a kind disabled in the policy may not be created or edited
+  // from this surface (honor-time enforcement at checkout is a later WF).
+  const policy = await getDiscountPolicy();
+  if (!policy.enabledKinds.includes(data.kind)) {
+    throw new ValidationError(`The ${data.kind} coupon kind is currently disabled`);
+  }
+
   if (data.startsAt != null && data.expiresAt != null && data.expiresAt <= data.startsAt) {
     throw new ValidationError("Expiry must be after the start date");
   }
@@ -63,13 +70,18 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
   const config: CouponConfig =
     data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
 
+  // Persist only the value column that the resolved kind/mode actually reads; clear
+  // the other so a kind switch on edit cannot leave a stale, misleading value behind.
+  const usesPct = data.kind === "percentage" || (data.kind === "first_order" && (data.mode ?? "fixed") === "percentage");
+  const usesAmount = data.kind === "fixed" || (data.kind === "first_order" && (data.mode ?? "fixed") === "fixed");
+
   const values = {
     code: data.code,
     kind: data.kind,
     name: data.name,
     description: data.description ?? null,
-    valuePct: money(data.valuePct),
-    valueAmount: money(data.valueAmount),
+    valuePct: usesPct ? money(data.valuePct) : null,
+    valueAmount: usesAmount ? money(data.valueAmount) : null,
     minSubtotal: money(data.minSubtotal),
     maxRedemptions: data.maxRedemptions ?? null,
     maxPerUser: data.maxPerUser ?? null,
@@ -88,6 +100,17 @@ export async function saveCoupon(publicId: string | null, patch: unknown) {
 
 export async function setCouponActive(publicId: string, active: boolean) {
   await requireAdmin();
+  // Defense-in-depth: this server action is independently invokable, so reject
+  // toggling rep_daily coupons here too (consistent with saveCoupon's guard).
+  const [row] = await db
+    .select({ kind: coupons.kind })
+    .from(coupons)
+    .where(eq(coupons.publicId, publicId))
+    .limit(1);
+  if (!row) throw new ValidationError("Unknown coupon");
+  if (row.kind === "rep_daily") {
+    throw new ValidationError("Rep daily coupons are managed automatically and cannot be toggled here");
+  }
   await couponsService.update(publicId, { active });
   revalidatePath(PATH);
 }
@@ -112,7 +135,16 @@ const policySchema = z.object({
 export async function saveDiscountPolicy(policy: unknown) {
   await requireAdmin();
   const data = policySchema.parse(policy) as DiscountPolicy;
-  await setDiscountPolicy(data);
+  // The ceilings / enabled-kinds sections send a full policy snapshot that may carry a
+  // stale perRep map. perRep is owned exclusively by setRepCeiling, so keep the server's
+  // current perRep and only take enabledKinds + the global repDaily fields from the client,
+  // preventing a stale snapshot from clobbering concurrent per-rep overrides.
+  const current = await getDiscountPolicy();
+  const merged: DiscountPolicy = {
+    enabledKinds: data.enabledKinds,
+    repDaily: { ...data.repDaily, perRep: current.repDaily.perRep },
+  };
+  await setDiscountPolicy(merged);
   revalidatePath(PATH);
 }
 
@@ -138,15 +170,22 @@ export async function setRepCeiling(
     .limit(1);
   if (!rep) throw new ValidationError("Unknown sales rep");
 
-  const policy = await getDiscountPolicy();
-  policy.repDaily.perRep = {
-    ...policy.repDaily.perRep,
-    [repPublicId]: {
+  // Build the next policy from a shallow clone — never mutate the cached object the
+  // getter returns, or a concurrent read could observe the unpersisted change.
+  const current = await getDiscountPolicy();
+  const perRep = { ...current.repDaily.perRep };
+  if (parsed.capPct == null && parsed.capAmount == null && parsed.active) {
+    // Fully default (no caps, allowed) — drop the key so "absent = use default" holds
+    // rather than accumulating a redundant override entry.
+    delete perRep[repPublicId];
+  } else {
+    perRep[repPublicId] = {
       ...(parsed.capPct != null ? { capPct: parsed.capPct } : {}),
       ...(parsed.capAmount != null ? { capAmount: parsed.capAmount } : {}),
       active: parsed.active,
-    },
-  };
-  await setDiscountPolicy(policy);
+    };
+  }
+  const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
+  await setDiscountPolicy(next);
   revalidatePath(PATH);
 }
