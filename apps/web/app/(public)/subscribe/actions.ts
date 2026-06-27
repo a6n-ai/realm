@@ -19,7 +19,7 @@ export interface RepriceResult {
 export async function reprice(
   selections: PricingSelections,
   couponCode?: string,
-  planType?: string,
+  planKey?: string,
 ): Promise<RepriceResult> {
   const snapshot = await loadCatalogSnapshot();
   const catalog = buildPricingCatalog(snapshot, selections);
@@ -28,6 +28,11 @@ export async function reprice(
   const code = couponCode?.trim();
   if (!code) return { pricing: base };
 
+  // Resolve the plan's plan_type enum server-side from the catalog snapshot — the
+  // client passes a plan KEY, not the plan_type. validatePublicCode checks
+  // coupon.planTypes against the enum, so passing the key would wrongly reject
+  // plan-restricted public coupons. Mirrors createOrder / staff previewPrice.
+  const planType = planKey ? snapshot.plans.find((p) => p.key === planKey)?.planType : undefined;
   try {
     const line = await couponsService.validatePublicCode(code, { subtotal: base.subtotal, planType });
     return { pricing: priceSubscription(selections, catalog, [line]) };

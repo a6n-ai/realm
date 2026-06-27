@@ -193,8 +193,16 @@ export async function createOrder(
       if (input.repCoupon && !coupon.stackable) {
         throw new ValidationError("This coupon cannot be combined with another discount");
       }
-      adjustments.push(line);
-      redemptions.push({ coupon, amount: line.amount, redeemedBy: createdBy });
+      // Distribute against the running remaining subtotal: when this stackable
+      // public coupon rides alongside a rep coupon, clamp it to what's left after
+      // the prior line so the summed redemption amounts (and discount ledger
+      // debits) can never exceed the order subtotal even though the customer
+      // total is independently floored at 0.
+      const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
+      const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+      const amount = Math.min(line.amount, remaining);
+      adjustments.push({ ...line, amount });
+      redemptions.push({ coupon, amount, redeemedBy: createdBy });
     }
 
     const pricing = adjustments.length

@@ -11,5 +11,9 @@ export async function confirmSubscription(input: ConfirmInput): Promise<{ deploy
   // the internal bigint. A logged-in customer's checkout attaches to their own
   // account; anonymous checkout provisions by phone.
   const userId = session?.user?.id ?? null;
-  return createOrder(input, { actorId: userId, ownerUserId: userId });
+  // Defense-in-depth: rep coupons flow only through the staff convert path. Never
+  // honor a repCoupon arriving on the public checkout payload — even from a
+  // logged-in member whose owner==actor check would otherwise pass — so the role
+  // boundary is explicit rather than incidental.
+  return createOrder({ ...input, repCoupon: null }, { actorId: userId, ownerUserId: userId });
 }

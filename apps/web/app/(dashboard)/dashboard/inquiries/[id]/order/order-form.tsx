@@ -379,7 +379,13 @@ export function OrderForm({
                 <p className="text-muted-foreground text-xs nums">Ceiling for this order: ${ceiling.toFixed(2)}</p>
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">No discount available today.</p>
+              <p className="text-muted-foreground text-sm">
+                {repInfo.reason === "used"
+                  ? "Today's coupon was already used."
+                  : repInfo.reason === "expired"
+                    ? "Today's coupon has expired."
+                    : "No discount available today."}
+              </p>
             )}
           </fieldset>
         )}
