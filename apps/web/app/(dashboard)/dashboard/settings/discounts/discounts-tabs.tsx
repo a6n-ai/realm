@@ -31,7 +31,7 @@ export function DiscountsTabs() {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-9 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap",
+                  "inline-flex h-10 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap",
                   "ring-offset-background transition-[color,background-color,box-shadow,transform] outline-none active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   active
                     ? "bg-background text-foreground shadow-sm"

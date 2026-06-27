@@ -32,7 +32,7 @@ export function SettingsTabs() {
 
   return (
     <nav aria-label="Settings sections" className="border-border/60 -mb-px border-b">
-      <ul className="-mb-px flex gap-1 overflow-x-auto">
+      <ul className="-mb-px flex gap-1 overflow-x-auto pt-1">
         {TABS.map((tab) => {
           const active = isActive(tab.href);
           return (
