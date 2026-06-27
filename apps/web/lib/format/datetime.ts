@@ -12,12 +12,12 @@ const PRESETS: Record<Exclude<FormatMode, "relative">, Intl.DateTimeFormatOption
 
 export function formatEpoch(
   ms: number,
-  opts: { timeZone?: string; mode?: FormatMode; withZone?: boolean } = {},
+  opts: { timeZone?: string; mode?: FormatMode; withZone?: boolean; locale?: string } = {},
 ): string {
-  const { mode = "datetime", timeZone, withZone } = opts;
+  const { mode = "datetime", timeZone, withZone, locale } = opts;
   if (mode === "relative") {
     const diff = ms - Date.now();
-    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
     const mins = Math.round(diff / 60000);
     if (Math.abs(mins) < 60) return rtf.format(mins, "minute");
     const hours = Math.round(mins / 60);
@@ -25,7 +25,7 @@ export function formatEpoch(
     return rtf.format(Math.round(hours / 24), "day");
   }
   const presetOpts = PRESETS[mode];
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     ...presetOpts,
     timeZone,
     ...(withZone ? { timeZoneName: "short" } : {}),

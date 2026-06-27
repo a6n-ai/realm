@@ -31,6 +31,7 @@ import {
   ListRow,
   EmptyState,
   OrderStatusBadge,
+  ORDER_STATUS_LABEL,
 } from "@/components/ds";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
@@ -145,10 +146,6 @@ const CUSTOMER_LINKS = [
   },
 ] as const;
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending", active: "Active", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled",
-};
-
 // startDate is a calendar date (YYYY-MM-DD) with no time-of-day, so it carries no
 // TZ offset of its own. Render it at noon UTC formatted in the delivery (Canada)
 // timezone so it never slips to the previous/next day across a DST boundary.
@@ -206,6 +203,10 @@ async function CustomerDashboard({ userId }: { userId: string }) {
   const tz = settings.timezone;
   const firstName = data.profile.name?.trim().split(/\s+/)[0];
   const { current } = data;
+  // A cancelled order is terminal, not a live subscription: don't advertise it on the
+  // lifetime card or render it as the current plan. active/paused/waitlisted/pending
+  // remain real (live or upcoming) subscriptions.
+  const subscription = current && current.status !== "cancelled" ? current : null;
 
   const cards = [
     {
@@ -215,9 +216,9 @@ async function CustomerDashboard({ userId }: { userId: string }) {
       icon: DollarSignIcon,
     },
     {
-      label: "Active subscription",
-      value: current ? STATUS_LABEL[current.status] ?? current.status : "None",
-      hint: current ? current.planName : "no plan yet",
+      label: "Subscription",
+      value: subscription ? ORDER_STATUS_LABEL[subscription.status] ?? subscription.status : "None",
+      hint: subscription ? subscription.planName : "no active plan",
       icon: SparklesIcon,
     },
     {
@@ -244,22 +245,22 @@ async function CustomerDashboard({ userId }: { userId: string }) {
 
       <SectionCard
         title="Current subscription"
-        subtitle={current ? `Dates shown in delivery time (${zoneAbbrev(tz)}).` : undefined}
-        action={current ? <OrderStatusBadge status={current.status} /> : undefined}
+        subtitle={subscription ? `Dates shown in delivery time (${zoneAbbrev(tz)}).` : undefined}
+        action={subscription ? <OrderStatusBadge status={subscription.status} /> : undefined}
       >
-        {current ? (
+        {subscription ? (
           <div className="flex flex-col gap-4">
             <div>
-              <div className="text-base font-semibold">{current.planName}</div>
+              <div className="text-base font-semibold">{subscription.planName}</div>
               <div className="text-muted-foreground text-sm">
-                {current.mealSizeName} · {current.durationWeeks} week{current.durationWeeks === 1 ? "" : "s"}
+                {subscription.mealSizeName} · {subscription.durationWeeks} week{subscription.durationWeeks === 1 ? "" : "s"}
               </div>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-              <DetailField label="Per tiffin" value={fmt(Number(current.perTiffinPrice))} />
-              <DetailField label="Plan total" value={fmt(Number(current.total))} />
-              <DetailField label="Starts" value={formatDeliveryDate(current.startDate, tz)} />
-              <DetailField label="Reference" value={current.deploymentId} mono />
+              <DetailField label="Per tiffin" value={fmt(Number(subscription.perTiffinPrice))} />
+              <DetailField label="Plan total" value={fmt(Number(subscription.total))} />
+              <DetailField label="Starts" value={formatDeliveryDate(subscription.startDate, tz)} />
+              <DetailField label="Reference" value={subscription.deploymentId} mono />
             </dl>
             <Link
               href="/dashboard/meals"
@@ -273,18 +274,21 @@ async function CustomerDashboard({ userId }: { userId: string }) {
             icon={UtensilsCrossedIcon}
             message="You don't have a subscription yet. Build a plan to start getting fresh tiffins delivered."
             action={
-              <a
+              <Link
                 href="/subscribe"
                 className="bg-primary text-primary-foreground inline-block rounded-md px-4 py-2 text-sm font-medium"
               >
                 Subscribe now
-              </a>
+              </Link>
             }
           />
         )}
       </SectionCard>
 
-      <SectionCard title="Past orders" subtitle="Every plan you've ordered, newest first.">
+      <SectionCard
+        title="Past orders"
+        subtitle={`Every plan you've ordered, newest first. Dates in delivery time (${zoneAbbrev(tz)}).`}
+      >
         {data.orders.length === 0 ? (
           <EmptyState icon={ReceiptIcon} message="No orders yet." />
         ) : (
@@ -293,7 +297,7 @@ async function CustomerDashboard({ userId }: { userId: string }) {
               <ListRow
                 key={o.publicId}
                 title={`${o.planName} · ${o.mealSizeName}`}
-                meta={`${o.durationWeeks} week${o.durationWeeks === 1 ? "" : "s"} · ${formatEpoch(o.createdAt, { timeZone: tz, mode: "date" })} · ${o.deploymentId}`}
+                meta={`${o.durationWeeks} week${o.durationWeeks === 1 ? "" : "s"} · ${formatEpoch(o.createdAt, { timeZone: tz, mode: "date", locale: "en-CA" })} · ${o.deploymentId}`}
                 trailing={
                   <>
                     <span className="nums text-sm font-medium">{fmt(Number(o.total))}</span>

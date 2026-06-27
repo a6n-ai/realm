@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-const STATUS_LABEL: Record<string, string> = {
+export const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "Pending", active: "Active", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled",
 };
 type Variant = "neutral" | "ok" | "warn" | "bad";
@@ -18,7 +18,7 @@ export function OrderStatusBadge({ status }: { status: string }) {
   const v = STATUS_VARIANT[status] ?? "neutral";
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", VARIANT_CLASS[v])}>
-      {STATUS_LABEL[status] ?? status}
+      {ORDER_STATUS_LABEL[status] ?? status}
     </span>
   );
 }
