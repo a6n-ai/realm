@@ -3,7 +3,11 @@ import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } fr
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
-export function priceSubscription(selections: PricingSelections, catalog: PricingCatalog): PricingResult {
+export function priceSubscription(
+  selections: PricingSelections,
+  catalog: PricingCatalog,
+  adjustments: PricingLine[] = [],
+): PricingResult {
   assertValidTiers(catalog.tiers);
 
   const deliveryDays =
@@ -22,9 +26,8 @@ export function priceSubscription(selections: PricingSelections, catalog: Pricin
     { label: `Tiffins (${tiffinCount} × $${perTiffinPrice.toFixed(2)})`, amount: subtotal },
   ];
 
-  // Coupon hook: future slice pushes discount lines here; total subtracts their sum.
-  const adjustments: PricingLine[] = [];
-  const total = round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0));
+  // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; total floored at 0.
+  const total = Math.max(0, round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0)));
 
   return { lineItems, adjustments, tiffinCount, perTiffinPrice, tier, subtotal, total };
 }

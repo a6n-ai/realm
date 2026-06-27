@@ -24,7 +24,7 @@ export interface PricingLine {
 
 export interface PricingResult {
   lineItems: PricingLine[];
-  adjustments: PricingLine[]; // coupon hook — always [] in this slice
+  adjustments: PricingLine[]; // resolved discount lines (positive magnitudes), subtracted from subtotal
   tiffinCount: number;
   perTiffinPrice: number;
   tier: PricingTier;

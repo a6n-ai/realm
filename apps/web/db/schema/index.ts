@@ -3,6 +3,7 @@ export * from "./auth";
 export * from "./user-feature-flags";
 export * from "./catalog";
 export * from "./orders";
+export * from "./coupons";
 export * from "./inquiries";
 export * from "./lead-sources";
 export * from "./inquiry-user-config";

@@ -87,3 +87,28 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(() => priceSubscription(sel(), { ...catalog(10), tiers: [{ minQty: 100, maxQty: null, upliftPct: 0 }] })).toThrow();
   });
 });
+
+describe("priceSubscription (adjustments)", () => {
+  it("defaults adjustments to [] — existing callers unaffected", () => {
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10));
+    expect(r.adjustments).toEqual([]);
+    expect(r.total).toBe(r.subtotal);
+  });
+
+  it("subtracts the sum of adjustment magnitudes from total", () => {
+    // 20 tiffins → $200 subtotal; two discount lines = $70 off → $130
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10), [
+      { label: "Coupon A", amount: 50 },
+      { label: "Coupon B", amount: 20 },
+    ]);
+    expect(r.subtotal).toBe(200);
+    expect(r.total).toBe(130);
+    expect(r.adjustments).toHaveLength(2);
+  });
+
+  it("floors total at 0 when adjustments exceed subtotal", () => {
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10), [{ label: "Huge", amount: 999 }]);
+    expect(r.subtotal).toBe(200);
+    expect(r.total).toBe(0);
+  });
+});

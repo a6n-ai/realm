@@ -4,7 +4,9 @@ import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog"
 import { users } from "./auth";
 
 export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused"]);
-export const paymentStatus = pgEnum("payment_status", ["simulated_paid"]);
+// Additive: 'simulated_paid' stays the default; 'pending' / 'refunded' added for manual capture.
+export const paymentStatus = pgEnum("payment_status", ["simulated_paid", "pending", "refunded"]);
+export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
 export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
 ]);
@@ -44,7 +46,10 @@ export const payments = pgTable("payments", {
   ...baseColumns("pay"),
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
   status: paymentStatus("status").notNull().default("simulated_paid"),
+  method: paymentMethod("method").notNull().default("simulated"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  capturedAt: bigint("captured_at", { mode: "number" }),
+  note: text("note"),
 }, (t) => [
   index("payments_order_idx").on(t.orderId),
 ]);
