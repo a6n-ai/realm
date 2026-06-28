@@ -10,3 +10,4 @@ export * from "./inquiry-user-config";
 export * from "./menu";
 export * from "./app-settings";
 export * from "./audit";
+export * from "./wallet";
