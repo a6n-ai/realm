@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, auditLog, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";
@@ -96,15 +96,32 @@ describe("UsersService PIN methods", () => {
     }
   });
 
-  it("verifyPin does not write any audit_log rows", async () => {
+  it("verifyPin correct PIN writes a login audit row with method=pin and no PIN/hash value", async () => {
     const u = await seedUser();
     await usersService.setPin(u.publicId, PASSWORD, "1357");
-    const beforeCount = await db.$count(auditLog, eq(auditLog.entityPublicId, u.publicId));
+    await usersService.verifyPin(u.publicId, "1357");
+    const rows = await db
+      .select({ operation: auditLog.operation, changes: auditLog.changes })
+      .from(auditLog)
+      .where(and(eq(auditLog.entityPublicId, u.publicId), eq(auditLog.operation, "login")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.changes).toEqual({ method: "pin" });
+    expect(JSON.stringify(rows)).not.toMatch(/\$2[aby]\$/);
+    expect(JSON.stringify(rows)).not.toMatch(/1357/);
+  });
+
+  it("verifyPin wrong PIN writes a login_failed audit row with method=pin and no PIN/hash value", async () => {
+    const u = await seedUser();
+    await usersService.setPin(u.publicId, PASSWORD, "1357");
     await usersService.verifyPin(u.publicId, "0000");
-    await usersService.verifyPin(u.publicId, "0000");
-    await usersService.verifyPin(u.publicId, "0000");
-    const afterCount = await db.$count(auditLog, eq(auditLog.entityPublicId, u.publicId));
-    expect(afterCount).toBe(beforeCount);
+    const rows = await db
+      .select({ operation: auditLog.operation, changes: auditLog.changes })
+      .from(auditLog)
+      .where(and(eq(auditLog.entityPublicId, u.publicId), eq(auditLog.operation, "login_failed")));
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    expect(rows[0]!.changes).toMatchObject({ method: "pin" });
+    expect(JSON.stringify(rows)).not.toMatch(/\$2[aby]\$/);
+    expect(JSON.stringify(rows)).not.toMatch(/0000/);
   });
 
   it("a customer cannot set or remove a PIN even with the right password", async () => {

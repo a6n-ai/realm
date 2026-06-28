@@ -4,7 +4,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { SessionUpdatableService } from "./session-service";
+import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
@@ -172,10 +172,14 @@ class UsersService extends SessionUpdatableService<typeof users> {
       .from(users)
       .where(eq(users.publicId, userId))
       .limit(1);
-    if (!u?.pinHash) return { ok: false };
+    if (!u?.pinHash) {
+      await recordAudit({ entity: "auth", entityPublicId: userId, operation: "login_failed", changes: { method: "pin" }, createdBy: await this.currentUserId() });
+      return { ok: false };
+    }
     if (await verifyPassword(pin, u.pinHash)) {
       // ponytail: counter bookkeeping — direct write, not an audited domain mutation
       await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
+      await recordAudit({ entity: "auth", entityPublicId: userId, operation: "login", changes: { method: "pin" }, createdBy: await this.currentUserId() });
       return { ok: true };
     }
     // Wrong PIN: atomic increment + RETURNING so concurrent attempts can't both
@@ -188,8 +192,10 @@ class UsersService extends SessionUpdatableService<typeof users> {
       .returning({ pinAttempts: users.pinAttempts });
     if ((row?.pinAttempts ?? 0) >= 5) {
       await db.update(users).set({ pinAttempts: 0 }).where(eq(users.publicId, userId));
+      await recordAudit({ entity: "auth", entityPublicId: userId, operation: "login_failed", changes: { method: "pin", lockout: true }, createdBy: await this.currentUserId() });
       return { ok: false, forcePassword: true };
     }
+    await recordAudit({ entity: "auth", entityPublicId: userId, operation: "login_failed", changes: { method: "pin" }, createdBy: await this.currentUserId() });
     return { ok: false };
   }
 
