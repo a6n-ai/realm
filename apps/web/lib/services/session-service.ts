@@ -24,7 +24,7 @@ async function sessionActorId(): Promise<bigint | null> {
 export type AuditEntry = {
   entity: string;
   entityPublicId: string;
-  operation: "create" | "update" | "delete";
+  operation: "create" | "update" | "delete" | "read" | "login" | "logout" | "login_failed";
   changes: Record<string, unknown> | null;
   createdBy: bigint | null;
 };

@@ -1,7 +1,9 @@
 import { baseColumns } from "@tiffin/commons-drizzle";
 import { jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
-export const auditOperation = pgEnum("audit_operation", ["create", "update", "delete"]);
+export const auditOperation = pgEnum("audit_operation", [
+  "create", "update", "delete", "read", "login", "logout", "login_failed",
+]);
 
 export const auditLog = pgTable("audit_log", {
   ...baseColumns("aud"),

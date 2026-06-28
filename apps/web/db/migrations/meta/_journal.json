@@ -43,6 +43,13 @@
       "when": 1782565965197,
       "tag": "0005_useful_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782626301092,
+      "tag": "0006_huge_iron_fist",
+      "breakpoints": true
     }
   ]
 }
