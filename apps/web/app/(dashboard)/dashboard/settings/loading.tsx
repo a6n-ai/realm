@@ -1,8 +1,14 @@
-import { SkeletonFormCard } from "@/components/ds";
+import { PageHeader, SkeletonCardGrid } from "@/components/ds";
+import { SettingsIcon } from "lucide-react";
 
-// Fills the content slot below the settings tabs; the layout keeps painting the
-// page header + SettingsTabs. Sections are config forms (and one or two tables);
-// a single form card is the common-case placeholder.
+// Loading for the settings INDEX route — mirrors its card grid. Flat sub-pages
+// (general, lead-sources, …) and the wallet/discounts layouts ship their own
+// loading.tsx so they override this rather than inheriting the grid.
 export default function Loading() {
-  return <SkeletonFormCard fields={4} />;
+  return (
+    <>
+      <PageHeader icon={SettingsIcon} title="Settings" subtitle="Configure how the platform runs." />
+      <SkeletonCardGrid count={6} className="sm:grid-cols-2 lg:grid-cols-3" />
+    </>
+  );
 }
