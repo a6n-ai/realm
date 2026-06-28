@@ -1,4 +1,4 @@
-import { UpdatableRepository, stripManaged } from "@tiffin/commons-drizzle";
+import { UpdatableRepository } from "@tiffin/commons-drizzle";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -7,19 +7,26 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
+// Never let a PIN hash reach the audit trail (it is brute-forceable), and drop
+// the internal pin_attempts counter from audit noise. The real pin_hash is still
+// written to the users table — only the audit `changes` is redacted.
+export function redactUserChanges(
+  changes: Record<string, { from: unknown; to: unknown }> | null,
+): Record<string, { from: unknown; to: unknown }> | null {
+  if (!changes) return changes;
+  const out: Record<string, { from: unknown; to: unknown }> = {};
+  for (const [k, v] of Object.entries(changes)) {
+    if (k === "pinAttempts") continue;
+    out[k] = k === "pinHash" ? { from: "[redacted]", to: "[redacted]" } : v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 class UsersService extends SessionUpdatableService<typeof users> {
-  // Never let a PIN hash reach the audit trail (it is brute-forceable), and drop
-  // the internal pin_attempts counter from audit noise. The real pin_hash is still
-  // written to the users table — only the audit `changes` is redacted.
-  protected auditChanges(patch: Record<string, unknown>): Record<string, unknown> | null {
-    const base = stripManaged(patch);
-    if (!base) return base;
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(base)) {
-      if (k === "pinAttempts") continue;
-      out[k] = k === "pinHash" && v != null ? "[redacted]" : v;
-    }
-    return Object.keys(out).length ? out : null;
+  protected redactChanges(
+    changes: Record<string, { from: unknown; to: unknown }> | null,
+  ): Record<string, { from: unknown; to: unknown }> | null {
+    return redactUserChanges(changes);
   }
 
   async create(values: Record<string, unknown>) {

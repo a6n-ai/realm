@@ -29,6 +29,23 @@ export type AuditEntry = {
   createdBy: bigint | null;
 };
 
+// Diff the patched fields only, comparing prior vs resulting row. Managed
+// fields (updatedBy/updatedAt/etc.) are never audited as changes.
+export function diffChanges(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, { from: unknown; to: unknown }> | null {
+  const keys = Object.keys(stripManaged(patch));
+  const diff: Record<string, { from: unknown; to: unknown }> = {};
+  for (const k of keys) {
+    const from = before?.[k];
+    const to = after[k];
+    if (from !== to) diff[k] = { from, to };
+  }
+  return Object.keys(diff).length ? diff : null;
+}
+
 // Best-effort persistent audit write. Raw insert (the logger cannot log through
 // the audited service path), wrapped so an audit failure never breaks the
 // caller's operation.
@@ -105,20 +122,30 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
     return row;
   }
 
-  protected auditChanges(patch: Record<string, unknown>): Record<string, unknown> | null {
-    return stripManaged(patch);
+  // Overridable: shape/redact the computed {field:{from,to}} diff before it is
+  // written to the audit trail. Base writes it verbatim.
+  protected redactChanges(
+    changes: Record<string, { from: unknown; to: unknown }> | null,
+  ): Record<string, { from: unknown; to: unknown }> | null {
+    return changes;
   }
 
   async update(publicId: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
     const actorId = await this.currentUserId();
+    const before = await this.repo.findByPublicId(publicId);
     const row = await super.update(publicId, { ...patch, updatedBy: actorId });
-    await recordAudit({
-      entity: this.repo.tableName,
-      entityPublicId: (row as { publicId: string }).publicId,
-      operation: "update",
-      changes: this.auditChanges(patch),
-      createdBy: actorId,
-    });
+    const changes = this.redactChanges(
+      diffChanges(before as Record<string, unknown> | null, row as Record<string, unknown>, patch),
+    );
+    if (changes) {
+      await recordAudit({
+        entity: this.repo.tableName,
+        entityPublicId: (row as { publicId: string }).publicId,
+        operation: "update",
+        changes,
+        createdBy: actorId,
+      });
+    }
     return row;
   }
 

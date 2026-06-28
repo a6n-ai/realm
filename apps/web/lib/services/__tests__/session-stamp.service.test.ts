@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@tiffin/commons-drizzle", async (orig) => {
   const actual = await orig<typeof import("@tiffin/commons-drizzle")>();
   class FakeBase {
-    repo = { tableName: "widgets" };
+    repo = { tableName: "widgets", findByPublicId: async () => null };
     async create(v: Record<string, unknown>) { created.push(v); return { publicId: "wid_1", ...v }; }
   }
   class FakeUpd extends FakeBase {

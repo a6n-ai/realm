@@ -91,7 +91,7 @@ describe("UsersService PIN methods", () => {
     for (const row of rows) {
       const ch = row.changes as Record<string, unknown> | null;
       if (ch && "pinHash" in ch) {
-        expect(ch.pinHash).toBe("[redacted]");
+        expect(ch.pinHash).toEqual({ from: "[redacted]", to: "[redacted]" });
       }
     }
   });
