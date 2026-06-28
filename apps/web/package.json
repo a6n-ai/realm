@@ -16,6 +16,7 @@
     "db:seed:sources": "tsx db/seed-sources.ts",
     "db:seed:catalog": "tsx db/seed-catalog.ts",
     "db:seed:menu": "tsx db/seed-menu.ts",
+    "db:seed:wallet": "tsx db/seed-wallet.ts",
     "db:migrate:passwords": "tsx db/migrate-passwords.ts"
   },
   "dependencies": {

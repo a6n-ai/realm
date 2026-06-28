@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CoinsIcon,
   SettingsIcon,
   TicketPercentIcon,
   UsersIcon,
@@ -20,6 +21,7 @@ const TABS: Tab[] = [
   { label: "Lead assignment", href: "/dashboard/settings/lead-assignment", icon: UsersIcon },
   { label: "Meal types", href: "/dashboard/settings/meal-types", icon: UtensilsCrossedIcon },
   { label: "Discounts", href: "/dashboard/settings/discounts", icon: TicketPercentIcon },
+  { label: "Wallet", href: "/dashboard/settings/wallet", icon: CoinsIcon },
 ];
 
 // Routed top-tabs for the settings shell. usePathname drives the active state so
