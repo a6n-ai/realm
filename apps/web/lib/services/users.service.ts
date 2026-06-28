@@ -7,9 +7,11 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
-// Never let a PIN hash reach the audit trail (it is brute-forceable), and drop
-// the internal pin_attempts counter from audit noise. The real pin_hash is still
+// Never let credential hashes reach the audit trail (brute-forceable), and drop
+// the internal pin_attempts counter from audit noise. The real values are still
 // written to the users table — only the audit `changes` is redacted.
+const REDACT_FIELDS = new Set(["pinHash", "password"]);
+
 export function redactUserChanges(
   changes: Record<string, { from: unknown; to: unknown }> | null,
 ): Record<string, { from: unknown; to: unknown }> | null {
@@ -17,7 +19,7 @@ export function redactUserChanges(
   const out: Record<string, { from: unknown; to: unknown }> = {};
   for (const [k, v] of Object.entries(changes)) {
     if (k === "pinAttempts") continue;
-    out[k] = k === "pinHash" ? { from: "[redacted]", to: "[redacted]" } : v;
+    out[k] = REDACT_FIELDS.has(k) ? { from: "[redacted]", to: "[redacted]" } : v;
   }
   return Object.keys(out).length ? out : null;
 }

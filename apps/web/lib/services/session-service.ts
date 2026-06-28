@@ -4,6 +4,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
+import { AUDIT_UPDATE_SKIP } from "./audit-config";
 
 // session.user.id is the acting user's public_id (usr_…); audit columns are
 // bigint. Resolve the public_id → users internal bigint once per call so the
@@ -132,6 +133,9 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
 
   async update(publicId: string, patch: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
     const actorId = await this.currentUserId();
+    if (AUDIT_UPDATE_SKIP.has(this.repo.tableName)) {
+      return super.update(publicId, { ...patch, updatedBy: actorId });
+    }
     const before = await this.repo.findByPublicId(publicId);
     const row = await super.update(publicId, { ...patch, updatedBy: actorId });
     const changes = this.redactChanges(

@@ -61,4 +61,15 @@ describe("redactUserChanges", () => {
   it("returns null for null input", () => {
     expect(redactUserChanges(null)).toBeNull();
   });
+
+  it("redacts password from/to as [redacted]", () => {
+    const result = redactUserChanges({
+      password: { from: "old_hash", to: "new_hash" },
+      name: { from: "Alice", to: "Bob" },
+    });
+    expect(result).toEqual({
+      password: { from: "[redacted]", to: "[redacted]" },
+      name: { from: "Alice", to: "Bob" },
+    });
+  });
 });
