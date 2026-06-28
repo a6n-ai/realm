@@ -1,10 +1,11 @@
 import { and, eq, ne } from "drizzle-orm";
+import { UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
 import { listConfig } from "@/lib/services/inquiry-user-config.service";
-import { SectionCard } from "@/components/ds";
+import { PageHeader, SectionCard } from "@/components/ds";
 import { LeadAssignmentForm } from "./form";
 
 export default async function LeadAssignmentPage() {
@@ -28,7 +29,6 @@ export default async function LeadAssignmentPage() {
     name: s.name,
   }));
 
-  // Group memberships by source key ("" = default pool), mapping userPublicId -> users.id string.
   const idByPublicId = new Map(staffOptions.map((s) => [s.publicId, s.userId]));
   const membership: Record<string, { userId: string; weight: number }[]> = {};
   for (const row of config) {
@@ -39,11 +39,14 @@ export default async function LeadAssignmentPage() {
   }
 
   return (
-    <SectionCard
-      title="Strategy & pools"
-      subtitle="Routing strategy, per-source overrides, and pool membership."
-    >
-      <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
-    </SectionCard>
+    <div className="grid gap-6">
+      <PageHeader icon={UsersIcon} title="Lead assignment" />
+      <SectionCard
+        title="Strategy & pools"
+        subtitle="Routing strategy, per-source overrides, and pool membership."
+      >
+        <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
+      </SectionCard>
+    </div>
   );
 }

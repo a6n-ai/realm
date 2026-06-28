@@ -1,9 +1,10 @@
 import { asc } from "drizzle-orm";
+import { UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { db } from "@/db/client";
 import { mealSlots } from "@/db/schema";
-import { SectionCard } from "@/components/ds";
+import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm } from "../meal-types-form";
 
 export default async function MealTypesPage() {
@@ -25,11 +26,14 @@ export default async function MealTypesPage() {
   ]);
 
   return (
-    <SectionCard
-      title="Plan configuration"
-      subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
-    >
-      <MealTypesForm initial={mealTypes} slots={allSlots} />
-    </SectionCard>
+    <div className="grid gap-6">
+      <PageHeader icon={UtensilsCrossedIcon} title="Meal types" />
+      <SectionCard
+        title="Plan configuration"
+        subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
+      >
+        <MealTypesForm initial={mealTypes} slots={allSlots} />
+      </SectionCard>
+    </div>
   );
 }

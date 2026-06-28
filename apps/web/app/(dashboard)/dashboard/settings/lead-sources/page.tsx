@@ -1,7 +1,9 @@
 import { asc } from "drizzle-orm";
+import { Webhook } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
+import { PageHeader } from "@/components/ds";
 import { LeadSourcesManager } from "./manager";
 
 export default async function LeadSourcesSettingsPage() {
@@ -31,8 +33,6 @@ export default async function LeadSourcesSettingsPage() {
       .orderBy(asc(leadSubsources.label)),
   ]);
 
-  // Group sub-sources under their parent and project to strings only — the
-  // bigint ids never leave the server.
   const sources = srcRows.map((s) => ({
     publicId: s.publicId,
     key: s.key,
@@ -44,5 +44,10 @@ export default async function LeadSourcesSettingsPage() {
       .map((ss) => ({ publicId: ss.publicId, key: ss.key, label: ss.label, active: ss.active })),
   }));
 
-  return <LeadSourcesManager sources={sources} />;
+  return (
+    <div className="grid gap-6">
+      <PageHeader icon={Webhook} title="Lead sources" />
+      <LeadSourcesManager sources={sources} />
+    </div>
+  );
 }
