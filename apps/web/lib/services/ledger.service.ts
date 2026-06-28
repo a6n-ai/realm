@@ -24,6 +24,8 @@ export interface LedgerRecordInput {
 // Append-only money ledger. Corrections are new `adjustment` rows, never edits —
 // so no update/delete is exposed.
 class LedgerService extends SessionBaseService<typeof ledgerEntries> {
+  protected sensitive = true;
+
   async record(tx: Tx, input: LedgerRecordInput): Promise<void> {
     const amount = typeof input.amount === "string" ? input.amount : input.amount.toFixed(2);
     await tx.insert(ledgerEntries).values({

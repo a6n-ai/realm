@@ -25,6 +25,8 @@ export function redactUserChanges(
 }
 
 class UsersService extends SessionUpdatableService<typeof users> {
+  protected sensitive = true;
+
   protected redactChanges(
     changes: Record<string, { from: unknown; to: unknown }> | null,
   ): Record<string, { from: unknown; to: unknown }> | null {

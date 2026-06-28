@@ -75,8 +75,24 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
 }
 
 export class SessionBaseService<TTable extends PgTable> extends BaseService<TTable> {
+  protected sensitive = false;
+
   protected currentUserId(): Promise<bigint | null> {
     return sessionActorId();
+  }
+
+  async read(publicId: string): Promise<TTable["$inferSelect"]> {
+    const row = await super.read(publicId);
+    if (this.sensitive) {
+      await recordAudit({
+        entity: this.repo.tableName,
+        entityPublicId: publicId,
+        operation: "read",
+        changes: null,
+        createdBy: await this.currentUserId(),
+      });
+    }
+    return row;
   }
 
   async create(values: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
@@ -106,8 +122,24 @@ export class SessionBaseService<TTable extends PgTable> extends BaseService<TTab
 }
 
 export class SessionUpdatableService<TTable extends PgTable> extends UpdatableService<TTable> {
+  protected sensitive = false;
+
   protected currentUserId(): Promise<bigint | null> {
     return sessionActorId();
+  }
+
+  async read(publicId: string): Promise<TTable["$inferSelect"]> {
+    const row = await super.read(publicId);
+    if (this.sensitive) {
+      await recordAudit({
+        entity: this.repo.tableName,
+        entityPublicId: publicId,
+        operation: "read",
+        changes: null,
+        createdBy: await this.currentUserId(),
+      });
+    }
+    return row;
   }
 
   async create(values: Record<string, unknown>): Promise<TTable["$inferSelect"]> {
