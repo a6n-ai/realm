@@ -9,7 +9,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
+import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
 
 const SECTIONS = [
   {
@@ -59,7 +59,7 @@ const SECTIONS = [
 export default async function SettingsPage() {
   await requireAdmin();
   return (
-    <PageShell>
+    <>
       <PageHeader icon={SettingsIcon} title="Settings" subtitle="Configure how the platform runs." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map((s) => (
@@ -79,6 +79,6 @@ export default async function SettingsPage() {
           </Link>
         ))}
       </div>
-    </PageShell>
+    </>
   );
 }
