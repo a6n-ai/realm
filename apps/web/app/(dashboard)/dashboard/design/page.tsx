@@ -1,4 +1,6 @@
 import {
+  AppWindowIcon,
+  CodeIcon,
   InboxIcon,
   PaletteIcon,
   TrendingDownIcon,
@@ -17,6 +19,10 @@ import {
   SectionCard,
   StageBadge,
   StatCard,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@/components/ds";
 import { InteractiveDemo } from "./interactive-demo";
 
@@ -132,6 +138,27 @@ export default async function DesignPage() {
             icon={TrendingDownIcon}
             message="No results match the current filters. Try adjusting your search or clearing the active filters."
           />
+        </SectionCard>
+
+        <SectionCard title="Tabs" subtitle="Icon tabs — used for settings sub-sections (wallet, discounts)">
+          <Tabs defaultValue="preview">
+            <TabsList>
+              <TabsTrigger value="preview">
+                <AppWindowIcon />
+                Preview
+              </TabsTrigger>
+              <TabsTrigger value="code">
+                <CodeIcon />
+                Code
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview" className="text-muted-foreground pt-4 text-sm">
+              Preview panel
+            </TabsContent>
+            <TabsContent value="code" className="text-muted-foreground pt-4 text-sm">
+              Code panel
+            </TabsContent>
+          </Tabs>
         </SectionCard>
 
         <InteractiveDemo />
