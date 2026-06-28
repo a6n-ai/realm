@@ -60,13 +60,32 @@ class WalletService {
     coins: number,
     order: { id: bigint; total: number; currency: string },
   ): Promise<{ coinsSpent: number; currencyValue: number }> {
+    // Fast fail: cheap pre-validation before opening a txn
     if (coins <= 0) throw new ValidationError("coins must be positive");
-    if (coins > (await this.balance(userId))) throw new ValidationError("insufficient coins");
+
     const rate = await this.activeRate(order.currency);
-    let currencyValue = Math.min(coins * rate, order.total);
-    const coinsSpent = Math.round(currencyValue / rate);
-    currencyValue = Number((coinsSpent * rate).toFixed(2));
+
+    // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
     return db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
+
+      // Authoritative balance check inside the locked txn to prevent TOCTOU double-spend
+      const [balRow] = await tx
+        .select({
+          bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+        })
+        .from(walletLedger)
+        .where(eq(walletLedger.userId, userId));
+      const balance = balRow?.bal ?? 0;
+
+      if (coins <= 0) throw new ValidationError("coins must be positive");
+      if (coins > balance) throw new ValidationError("insufficient coins");
+
+      let currencyValue = Math.min(coins * rate, order.total);
+      const coinsSpent = Math.round(currencyValue / rate);
+      // Re-apply cap after recompute: for non-round rates, coinsSpent*rate can exceed order.total
+      currencyValue = Math.min(Number((coinsSpent * rate).toFixed(2)), order.total);
+
       await tx.insert(walletLedger).values({
         userId,
         direction: "debit",
