@@ -14,3 +14,4 @@ export * from "./tabs";
 export * from "./pagination";
 export * from "./order-status-badge";
 export * from "./sortable-header";
+export * from "./skeletons";

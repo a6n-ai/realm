@@ -1,16 +1,18 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import {
+  PageShell, PageHeader, SectionCard, SkeletonStatCards, SkeletonFilterBar, SkeletonTable,
+} from "@/components/ds";
 import { ClipboardListIcon } from "lucide-react";
 
 export default function Loading() {
   return (
     <PageShell>
-      <PageHeader icon={ClipboardListIcon} title="Loading…" />
-      <SectionCard title=" ">
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
+      <PageHeader icon={ClipboardListIcon} title="Inquiries" actions={<Skeleton className="h-9 w-32" />} />
+      <SkeletonStatCards count={3} className="sm:grid-cols-3" />
+      <SectionCard title="All inquiries">
+        <div className="space-y-4">
+          <SkeletonFilterBar pills={7} dropdown />
+          <SkeletonTable columns={8} />
         </div>
       </SectionCard>
     </PageShell>

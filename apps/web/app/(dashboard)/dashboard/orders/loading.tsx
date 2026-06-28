@@ -1,16 +1,15 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, SkeletonFilterBar, SkeletonTable } from "@/components/ds";
 import { PackageIcon } from "lucide-react";
 
 export default function Loading() {
   return (
     <PageShell>
-      <PageHeader icon={PackageIcon} title="Loading…" />
-      <SectionCard title=" ">
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
+      <PageHeader icon={PackageIcon} title="Orders" actions={<Skeleton className="h-9 w-32" />} />
+      <SectionCard title="All orders">
+        <div className="space-y-4">
+          <SkeletonFilterBar pills={6} />
+          <SkeletonTable columns={8} />
         </div>
       </SectionCard>
     </PageShell>

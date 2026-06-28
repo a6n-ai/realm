@@ -1,16 +1,18 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { PageShell, PageHeader } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, SkeletonStatCards, SkeletonTable } from "@/components/ds";
 import { LayoutDashboardIcon } from "lucide-react";
 
 export default function Loading() {
   return (
     <PageShell>
-      <PageHeader icon={LayoutDashboardIcon} title="Loading…" />
-      <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full" />
-        ))}
-      </div>
+      <PageHeader
+        icon={LayoutDashboardIcon}
+        title="Overview"
+        subtitle="Operational snapshot across orders and members."
+      />
+      <SkeletonStatCards count={4} />
+      <SectionCard title="Recent orders" subtitle="The latest plans deployed through checkout.">
+        <SkeletonTable columns={5} />
+      </SectionCard>
     </PageShell>
   );
 }
