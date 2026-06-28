@@ -7,6 +7,7 @@ import {
   ClipboardListIcon,
   CopyIcon,
   LayoutDashboardIcon,
+  LifeBuoyIcon,
   LockIcon,
   LogOutIcon,
   type LucideIcon,
@@ -61,6 +62,7 @@ export const SECTIONS: NavSection[] = [
       { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
       { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
       { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
+      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: ["admin", "member"] },
     ],
   },
   {
@@ -83,6 +85,7 @@ export const SECTIONS: NavSection[] = [
     label: "Personal",
     items: [
       { title: "My meals", href: "/dashboard/meals", icon: UtensilsCrossedIcon, roles: ["user"] },
+      { title: "Support", href: "/dashboard/support", icon: LifeBuoyIcon, roles: ["user"] },
       { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ["admin", "member", "user"] },
     ],
   },

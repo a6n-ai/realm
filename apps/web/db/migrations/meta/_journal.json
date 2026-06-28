@@ -57,6 +57,13 @@
       "when": 1782635201556,
       "tag": "0007_colorful_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782665015851,
+      "tag": "0008_dashing_iceman",
+      "breakpoints": true
     }
   ]
 }

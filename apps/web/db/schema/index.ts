@@ -5,6 +5,7 @@ export * from "./catalog";
 export * from "./orders";
 export * from "./coupons";
 export * from "./inquiries";
+export * from "./tickets";
 export * from "./lead-sources";
 export * from "./inquiry-user-config";
 export * from "./menu";
