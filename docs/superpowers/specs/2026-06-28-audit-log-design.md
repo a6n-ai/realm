@@ -11,10 +11,19 @@ We need a CRM-wide audit trail: for every mutation, capture **what** changed, **
 
 ## What already exists (do not rebuild)
 
-- **`audit_log` table** (`apps/web/db/schema/audit.ts`) — `baseColumns("aud")` (so `createdBy` = actor, `createdAt` = when), `entity` text, `entityPublicId` text, `operation` enum, `changes` jsonb. **Currently dead — nothing writes to it.**
+**Audit writes are already wired — at the service layer, not the repo.** `apps/web/lib/services/session-service.ts` does the work:
+
+- **`audit_log` table** (`apps/web/db/schema/audit.ts`) — `baseColumns("aud")` (`createdBy` = actor, `createdAt` = when), `entity`, `entityPublicId`, `operation` enum, `changes` jsonb.
 - **`audit_operation` enum** — `create | update | delete`.
-- **Actor plumbing** — `BaseRepository.create`/`updateByPublicId` already receive `actorId` from `BaseService.currentUserId()`. Three services override `currentUserId` (`session-service`, `inquiries.service`).
-- **Managed fields** — `stripManaged`/`stripCreateOnly` guard reserved columns.
+- **`recordAudit(entry)`** — best-effort insert into `audit_log`; swallows failures (never breaks the caller); `jsonSafe` coerces bigints so jsonb never throws on FK ids.
+- **`SessionBaseService` / `SessionUpdatableService`** — already override `create`/`update`/`delete` to call `recordAudit`, resolve the actor via `sessionActorId()`, and stamp `createdBy`/`updatedBy`. Catalog, inquiries, etc. extend these.
+- **`auditChanges(patch)`** — overridable hook on `SessionUpdatableService`; today returns `stripManaged(patch)` (new values only).
+
+**This means writes + actor + when are DONE.** The remaining gaps are the only work:
+
+1. **Field-level diff** — `changes` stores new values, not `{from, to}`. Needs a before-read in `update`.
+2. **Sensitive reads** — not captured.
+3. **Auth events** — not captured.
 
 ## Scope
 
@@ -28,60 +37,46 @@ Three capture paths (all requested):
 
 ## Architecture
 
-### 1. Layering boundary: `AuditWriter` interface
+All changes live in `apps/web/lib/services/session-service.ts` (plus the enum and auth call sites). **No `commons-drizzle` change** — audit is already service-layer. Keep it there.
 
-`commons-drizzle` is generic and **must not import** `apps/web` schema (`audit_log` lives in the app). So:
+### 0. Enum extension (`audit.ts`)
 
-- **`commons-drizzle`** defines the interface and wires the calls:
-  ```ts
-  export interface AuditWriter {
-    record(entry: {
-      entity: string;
-      entityPublicId: string;
-      operation: "create" | "update" | "delete" | "read";
-      changes?: unknown;          // {field: {from, to}} for update; full values for create; null for read/delete
-      actorId: bigint | null;
-    }): Promise<void>;
-  }
-  ```
-- **`apps/web`** supplies `DrizzleAuditWriter` — inserts into `audit_log` using the same `db`.
+Widen `audit_operation` to:
+`create | update | delete | read | login | logout | login_failed`.
+Widen the `AuditEntry.operation` union in `session-service.ts` to match.
 
-`BaseRepository` gains an optional constructor arg `audit?: AuditWriter` and an optional `sensitive?: boolean`. When `audit` is absent the repo behaves exactly as today (audit is opt-in; tests/scripts pass nothing).
+### 1. Field-level diff on update
 
-### 2. Write capture (in `BaseRepository`)
+`SessionUpdatableService.update` currently stamps `changes = stripManaged(patch)` (new values only). Change it to capture `{from, to}`:
 
-- **create**: after insert, `audit.record({ entity: tableName, entityPublicId: row.publicId, operation: "create", changes: <inserted values, managed stripped>, actorId })`.
-- **update**: `updateByPublicId` currently does **not** read the prior row. Add a before-read inside the same call, compute a shallow diff of changed columns only → `changes = {field: {from, to}}`, then `record(operation: "update")`. Skip the audit row if the diff is empty.
-- **delete**: `record(operation: "delete", changes: null)` (capture the publicId being deleted).
+- Before calling `super.update`, read the prior row: `const before = await this.repo.findByPublicId(publicId)`.
+- After the update returns `row` (the after-state), compute the diff over the patched keys only:
+  `diff[field] = { from: before[field], to: row[field] }` for each key in `stripManaged(patch)` where `before[field] !== row[field]`.
+- If `diff` is empty, **skip** the audit row (no-op update).
+- Replace the `auditChanges(patch)` call with this before/after diff. Keep `auditChanges` overridable but redefine its signature to `auditChanges(before, after, patch)` so subclasses (e.g. catalog soft-delete) can still shape it.
 
-The audit insert runs on the same `db` handle as the mutation. If/when the write path adopts transactions, the audit insert joins the transaction; until then it is a best-effort follow-on insert — a failed audit insert must **not** roll back the business write (log and continue).
+> **ponytail:** one extra `findByPublicId` per update buys the diff. Acceptable at CRM scale; revisit only if update throughput is a measured problem.
 
-> **ponytail:** one extra `SELECT` per update buys the diff. Acceptable at CRM scale; revisit only if update throughput becomes a measured problem.
+### 2. Sensitive-read capture
 
-### 3. Sensitive-read capture
+- Add an optional `protected sensitive = false` field to `SessionBaseService`.
+- Override `read(publicId)` in `SessionBaseService`: call `super.read`, and if `this.sensitive`, `recordAudit({ operation: "read", changes: null, ... })`.
+- Subclasses that hold PII/payments set `sensitive = true` (users/customers, payments). Everything else stays unlogged — keeps volume sane.
 
-- `BaseRepository` constructor flag `sensitive?: boolean` (default false).
-- When `sensitive && audit`, `findByPublicId` records `operation: "read"`, `changes: null`.
-- Only flag repos that need it (customers/users, payments). Everything else stays unlogged — keeps volume sane.
-- **Enum change:** add `read` to `audit_operation`.
+### 3. Auth-event capture
 
-### 4. Auth-event capture
-
-- Auth flows (login, logout, failed PIN/login) don't pass through `BaseRepository`. Add explicit `auditWriter.record(...)` calls at those call sites with `entity: "auth"`, `entityPublicId: <user publicId or attempted identifier>`.
-- **Enum change:** add `login`, `logout`, `login_failed` to `audit_operation` (one enum, kept generic). Final enum:
-  `create | update | delete | read | login | logout | login_failed`.
-- `changes` for auth carries minimal context (e.g. `{ method, ip? }`) — **never** credentials.
+- Auth flows (login, logout, failed PIN/login) don't go through a service. Add explicit `recordAudit(...)` calls at those call sites with `entity: "auth"`, `entityPublicId: <user publicId or attempted identifier>`, `operation: login | logout | login_failed`.
+- `changes` carries minimal context (e.g. `{ method }`) — **never** credentials.
 
 ## Data flow
 
 ```
-Service.update(publicId, patch)
-  └─ currentUserId()  → actorId
-  └─ Repo.updateByPublicId(publicId, patch, actorId)
-       ├─ before = findByPublicId(publicId)
-       ├─ row    = UPDATE ... RETURNING
-       ├─ diff   = changedFields(before, row)
-       └─ audit.record({entity, entityPublicId, operation:"update", changes:diff, actorId})
+SessionUpdatableService.update(publicId, patch)
+  ├─ actorId = currentUserId()
+  ├─ before  = repo.findByPublicId(publicId)
+  ├─ row     = super.update(publicId, {...patch, updatedBy: actorId})   // after-state
+  ├─ diff    = changedFields(before, row, patch)   // {field:{from,to}}
+  └─ if diff non-empty: recordAudit({entity, entityPublicId, operation:"update", changes:diff, createdBy:actorId})
 ```
 
 ## Diff format (`changes` jsonb)
@@ -99,10 +94,9 @@ Service.update(publicId, patch)
 
 ## Testing
 
-- Repo unit tests (live-DB harness): create writes a `create` row with values; update writes `update` with correct `{from,to}`; no-op update writes nothing; delete writes `delete`.
-- Sensitive flag: `findByPublicId` on a flagged repo writes `read`; unflagged writes nothing.
+- Service tests (live-DB harness): update writes `update` with correct `{from,to}` for changed fields only; no-op update (patch equals current) writes nothing; create still writes `create`; delete still writes `delete`.
+- Sensitive flag: `read` on a `sensitive = true` service writes a `read` row; a normal service writes nothing on read.
 - Auth: login/logout/failed each write the right operation with no credential leakage.
-- Layering: `commons-drizzle` has zero import of `apps/web`.
 
 ## Out of scope
 
