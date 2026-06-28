@@ -443,13 +443,13 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       { status: "active" },
       { type: "activated", toStatus: "active" },
     );
-    try {
-      const order = await this.read(publicId);
-      if (order.userId != null) {
+    const order = await this.read(publicId);
+    if (order.userId != null) {
+      try {
         await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
+      } catch (e) {
+        console.error("[wallet] award on activation failed", e);
       }
-    } catch (e) {
-      console.error("[wallet] award on activation failed", e);
     }
   }
 

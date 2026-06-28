@@ -20,6 +20,7 @@ const svc = await import("../orders.service");
 // Phones in 555 test range, unlikely to collide with seed fixtures
 const TEST_PHONE = "+16475550019";
 const TEST_PHONE_2 = "+16475550020";
+const TEST_PHONE_3 = "+16475550021";
 
 async function cleanup() {
   // Delete wallet ledger entries for our test users first (FK order)
@@ -31,8 +32,12 @@ async function cleanup() {
     .select({ id: users.id })
     .from(users)
     .where(eq(users.phone, TEST_PHONE_2));
+  const testUsers3 = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.phone, TEST_PHONE_3));
 
-  for (const u of [...testUsers, ...testUsers2]) {
+  for (const u of [...testUsers, ...testUsers2, ...testUsers3]) {
     await db.delete(walletLedger).where(eq(walletLedger.userId, u.id));
   }
 
@@ -48,8 +53,13 @@ async function cleanup() {
     .from(orders)
     .innerJoin(users, eq(orders.userId, users.id))
     .where(eq(users.phone, TEST_PHONE_2));
+  const ourOrders3 = await db
+    .select({ id: orders.id, publicId: orders.publicId })
+    .from(orders)
+    .innerJoin(users, eq(orders.userId, users.id))
+    .where(eq(users.phone, TEST_PHONE_3));
 
-  for (const o of [...ourOrders, ...ourOrders2]) {
+  for (const o of [...ourOrders, ...ourOrders2, ...ourOrders3]) {
     await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, o.id));
     await db.delete(orderActivities).where(eq(orderActivities.orderId, o.id));
     await db.delete(payments).where(eq(payments.orderId, o.id));
@@ -59,6 +69,7 @@ async function cleanup() {
   // Delete test users
   await db.delete(users).where(eq(users.phone, TEST_PHONE));
   await db.delete(users).where(eq(users.phone, TEST_PHONE_2));
+  await db.delete(users).where(eq(users.phone, TEST_PHONE_3));
 }
 
 beforeAll(async () => {
@@ -123,6 +134,54 @@ describe("wallet award on order activation", () => {
     expect(credits[0].coins).toBe(75);
 
     // Assert balance reflects the award
+    const { walletService } = await import("../wallet.service");
+    expect(await walletService.balance(userId)).toBe(75);
+  });
+
+  it("createOrder (status=active) immediately awards wallet coins", async () => {
+    const snap = await loadCatalogSnapshot();
+    const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+
+    // M9V 1A1 — Etobicoke zone (prefix M9), present in catalog seed.
+    // If no matching active zone exists, the order lands "waitlisted" and the
+    // award path under test never fires — the assertion below catches that.
+    const { publicId } = await svc.createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId,
+        frequencyKey: "5_day",
+        persons: 1,
+        mealSlots: ["lunch"],
+        includeSaturday: false,
+        includeSunday: false,
+        durationWeeks: 1,
+        startDate,
+      },
+      contact: {
+        fullName: "Wallet CreateOrder Test",
+        phone: TEST_PHONE_3,
+        addressLine: "9 Etobicoke Ave",
+        city: "Etobicoke",
+        postalCode: "M9V 1A1",
+      },
+    });
+
+    const [orderRow] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+
+    // Hard guard: status must be "active" for the award path to have fired.
+    // If this fails, check that the Etobicoke zone (prefix M9) is seeded and active.
+    expect(orderRow.status, "order must land active — Etobicoke zone (M9) must be seeded and active").toBe("active");
+
+    const userId = orderRow.userId!;
+    const credits = await db
+      .select()
+      .from(walletLedger)
+      .where(eq(walletLedger.userId, userId));
+    expect(credits).toHaveLength(1);
+    expect(credits[0].direction).toBe("credit");
+    expect(credits[0].eventType).toBe("order_activated");
+    expect(credits[0].coins).toBe(75);
+
     const { walletService } = await import("../wallet.service");
     expect(await walletService.balance(userId)).toBe(75);
   });
