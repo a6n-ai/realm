@@ -9,6 +9,7 @@ import { walletService } from "../wallet.service";
 let userId: bigint;
 let orderId: bigint;
 let orderId2: bigint;
+let orderId3: bigint;
 let coinRateId: bigint;
 
 beforeAll(async () => {
@@ -60,6 +61,27 @@ beforeAll(async () => {
   }).returning();
   orderId2 = o2.id;
 
+  const [o3] = await db.insert(orders).values({
+    userId,
+    planId: snap.plans[0].id,
+    mealSizeId: snap.mealSizes[0].id,
+    frequencyId: snap.frequencies[0].id,
+    persons: 1,
+    durationWeeks: 1,
+    startDate: "2030-01-08",
+    tiffinCount: 5,
+    perTiffinPrice: "10.00",
+    pricingSnapshot: {},
+    total: "50.00",
+    status: "active",
+    deploymentId: "WALLET-TEST-03",
+    fullName: "Test User",
+    addressLine: "1 Test St",
+    city: "Toronto",
+    postalCode: "M5V 2T6",
+  }).returning();
+  orderId3 = o3.id;
+
   const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" }).returning();
   coinRateId = cr.id;
 });
@@ -67,10 +89,12 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId));
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId2));
+  await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId3));
   await db.delete(walletLedger).where(eq(walletLedger.userId, userId));
   await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
   await db.delete(orders).where(eq(orders.id, orderId));
   await db.delete(orders).where(eq(orders.id, orderId2));
+  await db.delete(orders).where(eq(orders.id, orderId3));
   await db.delete(users).where(eq(users.id, userId));
 });
 
@@ -123,8 +147,8 @@ describe("WalletService redeem", () => {
   });
 
   it("rejects redeeming more than balance", async () => {
-    await expect(walletService.redeem(userId, 9999, { id: orderId, total: 100, currency: "CAD" }))
-      .rejects.toThrow();
+    await expect(walletService.redeem(userId, 9999, { id: orderId3, total: 100, currency: "CAD" }))
+      .rejects.toThrow(/insufficient coins/i);
   });
 
   it("rejects zero coins", async () => {
