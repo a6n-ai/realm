@@ -14,6 +14,7 @@ import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
+import { walletService } from "./wallet.service";
 
 // A transaction handle (or the base db) — payments + their ledger credit are
 // written inside the same tx as the order they settle.
@@ -139,7 +140,7 @@ export async function createOrder(
 
   const deploymentId = generateCode("SUB", 6);
 
-  return db.transaction(async (tx) => {
+  const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
     const ownerId = await resolveUserId(tx, ownerUserId);
@@ -291,8 +292,18 @@ export async function createOrder(
       createdBy,
     });
 
-    return { deploymentId, publicId: order.publicId };
+    return { deploymentId, publicId: order.publicId, awardUserId: status === "active" ? userId : null };
   });
+
+  try {
+    if (txResult.awardUserId != null) {
+      await walletService.award(txResult.awardUserId, "order_activated", { type: "order", id: txResult.publicId });
+    }
+  } catch (e) {
+    console.error("[wallet] award on activation failed", e);
+  }
+
+  return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
 }
 
 export type OrderListRow = {
@@ -432,6 +443,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       { status: "active" },
       { type: "activated", toStatus: "active" },
     );
+    try {
+      const order = await this.read(publicId);
+      if (order.userId != null) {
+        await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
+      }
+    } catch (e) {
+      console.error("[wallet] award on activation failed", e);
+    }
   }
 
   async cancel(publicId: string): Promise<void> {
