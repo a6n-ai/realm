@@ -81,18 +81,22 @@ export const auth = betterAuth({
     session: {
       delete: {
         after: async (sess) => {
-          const [user] = await db
-            .select({ publicId: users.publicId })
-            .from(users)
-            .where(eq(users.id, BigInt(sess.userId as string)))
-            .limit(1);
-          await recordAudit({
-            entity: "auth",
-            entityPublicId: user?.publicId ?? sess.userId,
-            operation: "logout",
-            changes: null,
-            createdBy: null,
-          });
+          try {
+            const [user] = await db
+              .select({ publicId: users.publicId })
+              .from(users)
+              .where(eq(users.id, BigInt(sess.userId as string)))
+              .limit(1);
+            await recordAudit({
+              entity: "auth",
+              entityPublicId: user?.publicId ?? sess.userId,
+              operation: "logout",
+              changes: null,
+              createdBy: null,
+            });
+          } catch (e) {
+            console.error("[audit] logout hook failed", e);
+          }
         },
       },
     },
@@ -111,28 +115,36 @@ export const auth = betterAuth({
 
       if (newSession) {
         // Login succeeded — user.publicId is the additionalField usr_…
-        const publicId = (newSession.user as Record<string, unknown>).publicId as string | undefined;
-        await recordAudit({
-          entity: "auth",
-          entityPublicId: publicId ?? newSession.user.id,
-          operation: "login",
-          changes: { method },
-          createdBy: null,
-        });
+        try {
+          const publicId = (newSession.user as Record<string, unknown>).publicId as string | undefined;
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: publicId ?? newSession.user.id,
+            operation: "login",
+            changes: { method },
+            createdBy: null,
+          });
+        } catch (e) {
+          console.error("[audit] login hook failed", e);
+        }
         return;
       }
 
       if (ctx.context.returned instanceof APIError) {
         // Login failed — log the attempted identifier (never the password).
-        const body = ctx.body as { email?: string; phoneNumber?: string } | undefined;
-        const identifier = body?.email ?? body?.phoneNumber ?? "unknown";
-        await recordAudit({
-          entity: "auth",
-          entityPublicId: identifier,
-          operation: "login_failed",
-          changes: { method },
-          createdBy: null,
-        });
+        try {
+          const body = ctx.body as { email?: string; phoneNumber?: string } | undefined;
+          const identifier = body?.email ?? body?.phoneNumber ?? "unknown";
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: identifier,
+            operation: "login_failed",
+            changes: { method },
+            createdBy: null,
+          });
+        } catch (e) {
+          console.error("[audit] login_failed hook failed", e);
+        }
       }
     }),
   },
