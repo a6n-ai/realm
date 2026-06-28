@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { ValidationError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, walletLedger } from "@/db/schema";
@@ -80,6 +80,12 @@ class WalletService {
 
       if (coins <= 0) throw new ValidationError("coins must be positive");
       if (coins > balance) throw new ValidationError("insufficient coins");
+
+      const [existing] = await tx.select({ id: walletLedger.id })
+        .from(walletLedger)
+        .where(and(eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, order.id.toString())))
+        .limit(1);
+      if (existing) throw new ValidationError("coins already redeemed for this order");
 
       let currencyValue = Math.min(coins * rate, order.total);
       const coinsSpent = Math.round(currencyValue / rate);

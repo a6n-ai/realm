@@ -8,6 +8,7 @@ import { walletService } from "../wallet.service";
 
 let userId: bigint;
 let orderId: bigint;
+let orderId2: bigint;
 let coinRateId: bigint;
 
 beforeAll(async () => {
@@ -38,15 +39,38 @@ beforeAll(async () => {
   }).returning();
   orderId = o.id;
 
+  const [o2] = await db.insert(orders).values({
+    userId,
+    planId: snap.plans[0].id,
+    mealSizeId: snap.mealSizes[0].id,
+    frequencyId: snap.frequencies[0].id,
+    persons: 1,
+    durationWeeks: 1,
+    startDate: "2030-01-07",
+    tiffinCount: 5,
+    perTiffinPrice: "10.00",
+    pricingSnapshot: {},
+    total: "50.00",
+    status: "active",
+    deploymentId: "WALLET-TEST-02",
+    fullName: "Test User",
+    addressLine: "1 Test St",
+    city: "Toronto",
+    postalCode: "M5V 2T6",
+  }).returning();
+  orderId2 = o2.id;
+
   const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" }).returning();
   coinRateId = cr.id;
 });
 
 afterAll(async () => {
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId));
+  await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId2));
   await db.delete(walletLedger).where(eq(walletLedger.userId, userId));
   await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
   await db.delete(orders).where(eq(orders.id, orderId));
+  await db.delete(orders).where(eq(orders.id, orderId2));
   await db.delete(users).where(eq(users.id, userId));
 });
 
@@ -77,13 +101,21 @@ describe("WalletService redeem", () => {
     expect(await walletService.balance(userId)).toBe(20);
   });
 
+  it("is idempotent — same order cannot be redeemed twice", async () => {
+    const balBefore = await walletService.balance(userId);
+    await expect(walletService.redeem(userId, 10, { id: orderId, total: 100, currency: "CAD" }))
+      .rejects.toThrow("coins already redeemed for this order");
+    expect(await walletService.balance(userId)).toBe(balBefore);
+  });
+
   it("non-round rate: ledgerEntries amount never exceeds order.total", async () => {
     // Award coins so balance is enough to trigger the cap (need coins*0.07 >= 3.00 → 43+ coins)
     await walletService.award(userId, "order_activated", { type: "order", id: "ord-cap-rate-test" });
     // balance is now 20 + 50 = 70; 50*0.07=3.50 > 3.00 — triggers the cap
+    // Use orderId2 (a fresh order) so the idempotency guard does not fire
     const [cr07] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.0700" }).returning();
     try {
-      const r = await walletService.redeem(userId, 50, { id: orderId, total: 3.00, currency: "CAD" });
+      const r = await walletService.redeem(userId, 50, { id: orderId2, total: 3.00, currency: "CAD" });
       expect(r.currencyValue).toBeLessThanOrEqual(3.00);
     } finally {
       await db.delete(coinRate).where(eq(coinRate.id, cr07.id));
