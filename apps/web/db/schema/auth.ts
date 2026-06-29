@@ -6,6 +6,9 @@ const uuidText = sql`gen_random_uuid()::text`;
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
+/** Supported notification locales. Recipient locale → en fallback at render. */
+export const locale = pgEnum("locale", ["en", "fr"]);
+
 export const users = pgTable(
   "users",
   {
@@ -30,6 +33,7 @@ export const users = pgTable(
     deliveryNotes: text("delivery_notes"),
     notifyEmail: boolean("notify_email").notNull().default(true),
     notifySms: boolean("notify_sms").notNull().default(false),
+    locale: locale("locale").notNull().default("en"),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
