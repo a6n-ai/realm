@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -8,70 +8,101 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmailEditorField, type EmailEditorFieldHandle } from "./email-editor";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 
 type Channel = "email" | "in_app";
 type Locale = "en" | "fr";
-interface TemplateRow {
+interface Row {
   channel: Channel;
   locale: Locale;
   subject: string;
   body: string;
+  html: string;
+  text: string;
   enabled: boolean;
 }
 
-interface Props {
+export function TemplateEditor({
+  event,
+  variables,
+  initial,
+}: {
   event: string;
   variables: string[];
-  initial: TemplateRow[];
-}
-
-export function TemplateEditor({ event, variables, initial }: Props) {
+  initial: Row[];
+}) {
   const [channel, setChannel] = useState<Channel>("email");
   const [locale, setLocale] = useState<Locale>("en");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [emailHtml, setEmailHtml] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
+  const emailRef = useRef<EmailEditorFieldHandle>(null);
 
-  // Load the stored values whenever the channel/locale tab changes.
   useEffect(() => {
     const row = initial.find((t) => t.channel === channel && t.locale === locale);
     setSubject(row?.subject ?? "");
     setBody(row?.body ?? "");
+    setEmailHtml(row?.body ?? ""); // email reload source is stored in body
     setEnabled(row?.enabled ?? true);
     setPreview("");
   }, [channel, locale, initial]);
 
   async function save() {
     setBusy(true);
+    let payload: Record<string, unknown> = { event, channel, locale, subject, enabled };
+    if (channel === "email") {
+      if (!emailRef.current) {
+        setBusy(false);
+        toast.error("Editor not ready — please wait and try again");
+        return;
+      }
+      const out = await emailRef.current.exportEmail();
+      payload = { ...payload, body: out.body, html: out.html, text: out.text };
+    } else {
+      payload = { ...payload, body };
+    }
     const res = await fetch("/api/notifications/templates", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event, channel, locale, subject, body, enabled }),
+      body: JSON.stringify(payload),
     });
     setBusy(false);
-    if (res.ok) toast.success("Template saved");
-    else toast.error((await res.text().catch(() => "")) || "Save failed");
+    toast[res.ok ? "success" : "error"](res.ok ? "Template saved" : "Save failed");
   }
 
-  async function refreshPreview() {
-    const res = await fetch("/api/notifications/templates/preview", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event, subject, body }),
-    });
-    setPreview(res.ok ? await res.text() : "");
+  async function preview_() {
+    if (channel === "email") {
+      if (!emailRef.current) {
+        toast.error("Editor not ready — please wait and try again");
+        return;
+      }
+      const out = await emailRef.current.exportEmail();
+      setPreview(out.html);
+    } else {
+      setPreview(`<pre style="font-family:system-ui;padding:16px">${body}</pre>`);
+    }
   }
 
   async function sendTest() {
+    if (channel !== "email") {
+      toast.error("Test send is email only");
+      return;
+    }
+    if (!emailRef.current) {
+      toast.error("Editor not ready — please wait and try again");
+      return;
+    }
     setBusy(true);
+    const out = await emailRef.current.exportEmail();
     const res = await fetch("/api/notifications/templates/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event, subject, body }),
+      body: JSON.stringify({ event, subject, html: out.html, text: out.text }),
     });
     setBusy(false);
     toast[res.ok ? "success" : "error"](res.ok ? "Test sent" : "Test failed");
@@ -97,31 +128,53 @@ export function TemplateEditor({ event, variables, initial }: Props) {
         </label>
       </div>
 
-      <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject / in-app title" />
+      <Input
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        placeholder="Subject / in-app title"
+      />
 
-      {variables.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {variables.map((v) => (
-            <button
-              key={v}
-              type="button"
-              className="rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-accent"
-              onClick={() => setBody((b) => `${b}{{${v}}}`)}
-            >
-              {`{{${v}}}`}
-            </button>
-          ))}
-        </div>
+      {channel === "email" ? (
+        <EmailEditorField
+          key={`${channel}-${locale}`}
+          ref={emailRef}
+          initialHtml={emailHtml}
+          variables={variables}
+        />
+      ) : (
+        <>
+          {variables.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {variables.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className="rounded bg-muted px-2 py-0.5 font-mono text-xs hover:bg-accent"
+                  onClick={() => setBody((b) => `${b}{{${v}}}`)}
+                >
+                  {`{{${v}}}`}
+                </button>
+              ))}
+            </div>
+          )}
+          <div data-color-mode="light">
+            <MDEditor value={body} onChange={(v) => setBody(v ?? "")} height={280} />
+          </div>
+        </>
       )}
 
-      <div data-color-mode="light">
-        <MDEditor value={body} onChange={(v) => setBody(v ?? "")} height={280} />
-      </div>
-
       <div className="flex gap-2">
-        <Button onClick={save} disabled={busy}>Save</Button>
-        <Button variant="outline" onClick={refreshPreview} disabled={busy}>Preview</Button>
-        <Button variant="outline" onClick={sendTest} disabled={busy}>Send test</Button>
+        <Button onClick={save} disabled={busy}>
+          Save
+        </Button>
+        <Button variant="outline" onClick={preview_} disabled={busy}>
+          Preview
+        </Button>
+        {channel === "email" && (
+          <Button variant="outline" onClick={sendTest} disabled={busy}>
+            Send test
+          </Button>
+        )}
       </div>
 
       {preview && <iframe title="preview" srcDoc={preview} className="h-96 w-full rounded border" />}
