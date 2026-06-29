@@ -29,7 +29,7 @@ export default async function Page({ params }: { params: Promise<{ event: string
   return (
     <div className="space-y-6">
       <Link
-        href="/dashboard/settings/notifications"
+        href="/dashboard/notifications/templates"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" /> All templates

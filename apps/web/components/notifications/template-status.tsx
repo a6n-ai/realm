@@ -22,7 +22,7 @@ function Chip({ label, on }: { label: string; on: boolean }) {
 export function TemplateRow({ event, email, inApp }: { event: string; email: boolean; inApp: boolean }) {
   return (
     <Link
-      href={`/dashboard/settings/notifications/${event}`}
+      href={`/dashboard/notifications/templates/${event}`}
       className="group flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <span className="font-medium">{eventLabel(event)}</span>

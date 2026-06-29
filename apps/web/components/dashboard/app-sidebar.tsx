@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import {
+  BellIcon,
   CalendarIcon,
   CheckIcon,
   ClipboardListIcon,
+  CoinsIcon,
   CopyIcon,
   LayoutDashboardIcon,
   LifeBuoyIcon,
@@ -71,6 +73,19 @@ export const SECTIONS: NavSection[] = [
       { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
       { title: "Dishes", href: "/dashboard/dishes", icon: SaladIcon, roles: ["admin"] },
       { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { title: "Wallet", href: "/dashboard/settings/wallet", icon: CoinsIcon, roles: ["admin"] },
+      { title: "Discounts", href: "/dashboard/settings/discounts", icon: TicketPercentIcon, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Engagement",
+    items: [
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ["admin"] },
     ],
   },
   {

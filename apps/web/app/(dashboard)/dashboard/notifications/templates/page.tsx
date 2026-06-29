@@ -17,11 +17,8 @@ export default async function NotificationTemplatesPage() {
     }));
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-balance">Notification templates</h1>
-        <p className="text-muted-foreground">A channel with no template does not send. Select an event to edit.</p>
-      </div>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">A channel with no template does not send. Select an event to edit.</p>
       <TemplateList items={items} />
     </div>
   );

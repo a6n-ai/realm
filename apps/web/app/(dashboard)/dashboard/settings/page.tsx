@@ -1,10 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
-  BellIcon,
-  CoinsIcon,
   SettingsIcon,
-  TicketPercentIcon,
   UsersIcon,
   UtensilsCrossedIcon,
   Webhook,
@@ -40,27 +37,6 @@ const SECTIONS = [
     description: "Plan types, meal slots, and menu configuration.",
     icon: UtensilsCrossedIcon,
     href: "/dashboard/settings/meal-types",
-  },
-  {
-    key: "discounts",
-    label: "Discounts",
-    description: "Coupons, rep allowances, and enabled discount kinds.",
-    icon: TicketPercentIcon,
-    href: "/dashboard/settings/discounts",
-  },
-  {
-    key: "wallet",
-    label: "Wallet",
-    description: "Event payout rules and coin exchange rate.",
-    icon: CoinsIcon,
-    href: "/dashboard/settings/wallet",
-  },
-  {
-    key: "notifications",
-    label: "Notifications",
-    description: "Email + in-app templates per event and locale.",
-    icon: BellIcon,
-    href: "/dashboard/settings/notifications",
   },
 ] as const;
 
