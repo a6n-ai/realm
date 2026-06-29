@@ -6,12 +6,12 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate, eventPayout } from "@/db/schema";
-import { businessEvent } from "@/db/schema/wallet";
+import { appEvent } from "@/db/schema/wallet";
 
 const PATH = "/dashboard/settings/wallet";
 
 const payoutSchema = z.object({
-  eventType: z.enum(businessEvent.enumValues),
+  eventType: z.enum(appEvent.enumValues),
   enabled: z.boolean(),
   coins: z.number().int().min(0),
 });

@@ -6,20 +6,28 @@ import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@/components/ui/button";
 import { NumberField, ToggleRow } from "../discounts/controls";
+import type { appEvent } from "@/db/schema";
 import { savePayoutRow } from "./actions";
 
+type AppEvent = (typeof appEvent.enumValues)[number];
+
 type PayoutRow = {
-  eventType: "order_created" | "order_activated" | "order_completed" | "manual_adjustment";
+  eventType: AppEvent;
   enabled: boolean;
   coins: number;
 };
 
-const EVENT_LABELS: Record<PayoutRow["eventType"], string> = {
+const EVENT_LABELS: Partial<Record<AppEvent, string>> = {
   order_created: "Order created",
   order_activated: "Order activated",
   order_completed: "Order completed",
   manual_adjustment: "Manual adjustment",
 };
+
+/** Fallback label for events without a curated name: "order_cancelled" → "Order cancelled". */
+function eventLabel(e: AppEvent): string {
+  return EVENT_LABELS[e] ?? e.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
 
 export function PayoutGrid({ payouts }: { payouts: PayoutRow[] }) {
   return (
@@ -55,7 +63,7 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
     start(async () => {
       try {
         await savePayoutRow({ eventType: row.eventType, enabled, coins: n });
-        toast.success(`${EVENT_LABELS[row.eventType]} saved`);
+        toast.success(`${eventLabel(row.eventType)} saved`);
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -66,7 +74,7 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
   return (
     <div className="rounded-lg border p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm font-medium">{EVENT_LABELS[row.eventType]}</span>
+        <span className="text-sm font-medium">{eventLabel(row.eventType)}</span>
         <ToggleRow
           id={`payout-${row.eventType}-enabled`}
           label="Enabled"

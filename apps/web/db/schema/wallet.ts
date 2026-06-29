@@ -4,18 +4,24 @@ import { ledgerDirection } from "./coupons";
 import { orders } from "./orders";
 import { users } from "./auth";
 
-// Curated catalog of main business events. Admin decides per event whether it
-// pays coins (event_payout). Only events the app actually fires today.
-export const businessEvent = pgEnum("business_event", [
-  "order_created", "order_activated", "order_completed", "manual_adjustment",
-  // deferred (no trigger yet): "referral_converted", "signup"
+// Unified app-wide event catalog. Wallet payouts (event_payout) AND notification
+// templates key off this single enum. An event need not have a payout or a
+// template — each subsystem uses the subset that applies.
+export const appEvent = pgEnum("app_event", [
+  "order_created", "order_activated", "order_completed", "order_cancelled", "order_paused",
+  "payment_received", "refund_issued",
+  "menu_released",
+  "wallet_credited", "wallet_redeemed",
+  "inquiry_created", "inquiry_follow_up", "inquiry_converted",
+  "ticket_created", "ticket_reply", "ticket_resolved",
+  "signup", "manual_adjustment",
 ]);
 
 export const walletLedger = pgTable("wallet_ledger", {
   ...baseColumns("wlt"),
   userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id),
   direction: ledgerDirection("direction").notNull(),
-  eventType: businessEvent("event_type"),            // set on earn, null on spend
+  eventType: appEvent("event_type"),                 // set on earn, null on spend
   sourceType: text("source_type").notNull(),
   sourceId: text("source_id").notNull(),
   coins: integer("coins").notNull(),                  // always positive; direction gives sign
@@ -28,7 +34,7 @@ export const walletLedger = pgTable("wallet_ledger", {
 
 export const eventPayout = pgTable("event_payout", {
   ...updatableColumns("evp"),
-  eventType: businessEvent("event_type").notNull().unique(),
+  eventType: appEvent("event_type").notNull().unique(),
   enabled: boolean("enabled").notNull().default(false),
   coins: integer("coins").notNull().default(0),
 });

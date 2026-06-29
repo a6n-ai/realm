@@ -1,8 +1,8 @@
 import { db } from "./client";
-import { businessEvent, coinRate, eventPayout } from "./schema";
+import { appEvent, coinRate, eventPayout } from "./schema";
 
 async function main() {
-  for (const ev of businessEvent.enumValues) {
+  for (const ev of appEvent.enumValues) {
     await db.insert(eventPayout).values({ eventType: ev, enabled: false, coins: 0 })
       .onConflictDoNothing({ target: eventPayout.eventType });
   }

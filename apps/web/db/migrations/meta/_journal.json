@@ -64,6 +64,20 @@
       "when": 1782665015851,
       "tag": "0008_dashing_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782675267903,
+      "tag": "0009_dark_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782700000000,
+      "tag": "0010_unify_app_event",
+      "breakpoints": true
     }
   ]
 }
