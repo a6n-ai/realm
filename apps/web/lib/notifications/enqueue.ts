@@ -62,7 +62,8 @@ export async function enqueue(tx: Tx, input: EnqueueInput): Promise<void> {
   const allowed = resolveChannels(wanted, prefs, { notifyEmail: user?.notifyEmail ?? true });
   if (allowed.length === 0) return;
 
-  const payload = { title: input.title, body: input.body, href: input.href ?? null, ...input.data };
+  // vars = entity-field snapshot used by templates; title/body feed the generic fallback.
+  const payload = { title: input.title, body: input.body, href: input.href ?? null, vars: input.data ?? {} };
 
   await tx
     .insert(notificationOutbox)
