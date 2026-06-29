@@ -12,3 +12,5 @@ export * from "./menu";
 export * from "./app-settings";
 export * from "./audit";
 export * from "./wallet";
+export * from "./notifications";
+export * from "./notification-template";

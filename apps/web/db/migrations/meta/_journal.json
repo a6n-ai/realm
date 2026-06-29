@@ -85,6 +85,13 @@
       "when": 1782749965407,
       "tag": "0011_add_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782750323569,
+      "tag": "0012_notification_template",
+      "breakpoints": true
     }
   ]
 }
