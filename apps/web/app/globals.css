@@ -216,3 +216,23 @@
   }
   .hover-lift, .card-glow, .icon-pop, .icon-spin { transition: none; }
 }
+/* Email editor — paper canvas surface (emails render light; frame stays themed). */
+.tg-email-canvas .tiptap.ProseMirror {
+  min-height: 440px !important;
+  padding: 32px 36px !important;
+  outline: none;
+  color: #1c1c1c;
+  font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+}
+.tg-email-canvas .tiptap.ProseMirror:focus { outline: none; }
+.tg-email-canvas .tiptap.ProseMirror > * + * { margin-top: 0.75em; }
+.tg-email-canvas .tiptap.ProseMirror h1 { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.tg-email-canvas .tiptap.ProseMirror h2 { font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
+.tg-email-canvas .tiptap.ProseMirror p { line-height: 1.6; }
+.tg-email-canvas .tiptap.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
