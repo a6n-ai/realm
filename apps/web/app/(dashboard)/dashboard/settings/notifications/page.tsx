@@ -28,7 +28,7 @@ export default async function NotificationTemplatesPage() {
                 channel: t.channel as "email" | "in_app",
                 locale: t.locale as "en" | "fr",
                 subject: t.subject,
-                body: t.body,
+                body: t.body ?? "",
                 enabled: t.enabled,
               }))}
           />

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { pickTemplate } from "./template-service";
 
 const rows = [
-  { channel: "email", locale: "en", subject: "EN {{order.code}}", body: "en body", enabled: true },
-  { channel: "email", locale: "fr", subject: "FR {{order.code}}", body: "fr body", enabled: true },
+  { channel: "email", locale: "en", subject: "EN {{order.code}}", body: "<p>en</p>", html: "<p>en</p>", text: "en", enabled: true },
+  { channel: "email", locale: "fr", subject: "FR {{order.code}}", body: "<p>fr</p>", html: "<p>fr</p>", text: "fr", enabled: true },
 ];
 
 describe("pickTemplate", () => {
@@ -18,8 +18,8 @@ describe("pickTemplate", () => {
   });
   it("skips a disabled matching row, falling back to en", () => {
     const disabled = [
-      { channel: "email", locale: "en", subject: "EN {{order.code}}", body: "en body", enabled: true },
-      { channel: "email", locale: "fr", subject: "x", body: "y", enabled: false },
+      { channel: "email", locale: "en", subject: "EN {{order.code}}", body: "<p>en</p>", html: "<p>en</p>", text: "en", enabled: true },
+      { channel: "email", locale: "fr", subject: "x", body: "<p>y</p>", html: "<p>y</p>", text: "y", enabled: false },
     ];
     expect(pickTemplate(disabled, "email", "fr")?.subject).toBe("EN {{order.code}}");
   });
