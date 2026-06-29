@@ -16,7 +16,11 @@ export const notificationTemplate = pgTable("notification_template", {
   channel: notificationChannel("channel").notNull(),
   locale: locale("locale").notNull(),
   subject: text("subject").notNull(),
-  body: text("body").notNull(),
+  // in_app: markdown. email: the editor HTML (reload source for re-editing).
+  body: text("body"),
+  // email only: exported email-safe HTML + plaintext (pre-interpolation).
+  html: text("html"),
+  text: text("text"),
   enabled: boolean("enabled").notNull().default(true),
 }, (t) => [
   uniqueIndex("notification_template_key_idx").on(t.event, t.channel, t.locale),
