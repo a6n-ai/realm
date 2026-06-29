@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@react-email/editor": "^1.5.10",
     "@react-pdf/renderer": "^4.5.1",
     "@tiffin/commons": "workspace:*",
     "@tiffin/commons-drizzle": "workspace:*",
