@@ -15,7 +15,9 @@ const SEED: Row[] = [
   {
     event: "order_activated", channel: "email", locale: "en",
     subject: "Your Tiffin Grab order {{order.code}} is active",
-    body: "# Welcome aboard, {{order.customerName}}!\n\nYour **{{order.planType}}** plan ({{order.code}}) is active. First delivery on {{order.startDate}}.\n\nTotal: {{order.total}}",
+    body: "<h1>Welcome aboard, {{order.customerName}}!</h1><p>Your {{order.planType}} plan ({{order.code}}) is active. First delivery on {{order.startDate}}. Total: {{order.total}}.</p>",
+    html: "<h1>Welcome aboard, {{order.customerName}}!</h1><p>Your {{order.planType}} plan ({{order.code}}) is active. First delivery on {{order.startDate}}. Total: {{order.total}}.</p>",
+    text: "Welcome aboard, {{order.customerName}}! Your {{order.planType}} plan ({{order.code}}) is active. First delivery on {{order.startDate}}. Total: {{order.total}}.",
   },
   {
     event: "order_activated", channel: "in_app", locale: "en",
@@ -25,7 +27,9 @@ const SEED: Row[] = [
   {
     event: "menu_released", channel: "email", locale: "en",
     subject: "This week's menu is live",
-    body: "# This week's menu is ready\n\nPick your meals for the week starting **{{menuWeek.weekStartIso}}** before {{menuWeek.cutoffLabel}}.",
+    body: "<h1>This week's menu is ready</h1><p>Pick your meals for the week starting <strong>{{menuWeek.weekStartIso}}</strong> before {{menuWeek.cutoffLabel}}.</p>",
+    html: "<h1>This week's menu is ready</h1><p>Pick your meals for the week starting <strong>{{menuWeek.weekStartIso}}</strong> before {{menuWeek.cutoffLabel}}.</p>",
+    text: "This week's menu is ready. Pick your meals for the week starting {{menuWeek.weekStartIso}} before {{menuWeek.cutoffLabel}}.",
   },
   {
     event: "menu_released", channel: "in_app", locale: "en",
@@ -35,7 +39,9 @@ const SEED: Row[] = [
   {
     event: "payment_received", channel: "email", locale: "en",
     subject: "Payment received",
-    body: "We received your payment of **{{payment.amount}}** for order {{payment.orderCode}}.",
+    body: "<p>We received your payment of <strong>{{payment.amount}}</strong> for order {{payment.orderCode}}.</p>",
+    html: "<p>We received your payment of <strong>{{payment.amount}}</strong> for order {{payment.orderCode}}.</p>",
+    text: "We received your payment of {{payment.amount}} for order {{payment.orderCode}}.",
   },
   {
     event: "ticket_reply", channel: "in_app", locale: "en",
@@ -46,8 +52,9 @@ const SEED: Row[] = [
 
 async function main() {
   for (const t of SEED) {
-    await db.insert(notificationTemplate).values(t).onConflictDoNothing({
+    await db.insert(notificationTemplate).values(t).onConflictDoUpdate({
       target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
+      set: { subject: t.subject, body: t.body ?? null, html: t.html ?? null, text: t.text ?? null },
     });
   }
   console.log(`Seeded ${SEED.length} notification templates`);
