@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  BellIcon,
   CoinsIcon,
   SettingsIcon,
   TicketPercentIcon,
@@ -53,6 +54,13 @@ const SECTIONS = [
     description: "Event payout rules and coin exchange rate.",
     icon: CoinsIcon,
     href: "/dashboard/settings/wallet",
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    description: "Email + in-app templates per event and locale.",
+    icon: BellIcon,
+    href: "/dashboard/settings/notifications",
   },
 ] as const;
 
