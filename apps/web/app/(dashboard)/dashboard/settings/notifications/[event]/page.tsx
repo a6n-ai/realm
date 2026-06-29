@@ -6,6 +6,7 @@ import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { TemplateEditor } from "@/components/notifications/template-editor";
+import { eventLabel } from "@/components/notifications/template-status";
 
 export default async function Page({ params }: { params: Promise<{ event: string }> }) {
   await requireAdmin();
@@ -33,7 +34,10 @@ export default async function Page({ params }: { params: Promise<{ event: string
       >
         <ArrowLeftIcon className="size-4" /> All templates
       </Link>
-      <h1 className="text-2xl font-semibold">{event}</h1>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold text-balance">{eventLabel(event)}</h1>
+        <p className="text-sm text-muted-foreground">Email + in-app templates for this event, per locale.</p>
+      </div>
       <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />
     </div>
   );

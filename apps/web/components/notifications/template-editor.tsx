@@ -37,20 +37,22 @@ export function TemplateEditor({
   const [locale, setLocale] = useState<Locale>("en");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [emailHtml, setEmailHtml] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const emailRef = useRef<EmailEditorFieldHandle>(null);
 
+  // The row for the active channel/locale. The email editor loads its initial
+  // content synchronously from this (TipTap won't react to a later prop change),
+  // keyed by channel-locale so switching tabs remounts with the right content.
+  const current = initial.find((t) => t.channel === channel && t.locale === locale);
+
   useEffect(() => {
-    const row = initial.find((t) => t.channel === channel && t.locale === locale);
-    setSubject(row?.subject ?? "");
-    setBody(row?.body ?? "");
-    setEmailHtml(row?.body ?? ""); // email reload source is stored in body
-    setEnabled(row?.enabled ?? true);
+    setSubject(current?.subject ?? "");
+    setBody(current?.body ?? "");
+    setEnabled(current?.enabled ?? true);
     setPreview("");
-  }, [channel, locale, initial]);
+  }, [channel, locale, current]);
 
   async function save() {
     setBusy(true);
@@ -138,7 +140,7 @@ export function TemplateEditor({
         <EmailEditorField
           key={`${channel}-${locale}`}
           ref={emailRef}
-          initialHtml={emailHtml}
+          initialHtml={current?.body ?? ""}
           variables={variables}
         />
       ) : (
