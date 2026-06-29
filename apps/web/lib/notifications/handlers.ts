@@ -4,26 +4,30 @@ import { AppError } from "@tiffin/commons";
 import { db } from "@/db/client";
 import { notifications, notificationOutbox, users } from "@/db/schema";
 import { renderEmailForEvent, renderInAppForEvent } from "./template-service";
-import { renderEmailTemplate } from "./render-email";
 import { broadcast } from "./broadcast";
 
 type OutboxRow = typeof notificationOutbox.$inferSelect;
 type Channel = (typeof notificationOutbox.channel.enumValues)[number];
 
-/** A channel handler delivers one outbox row and returns the provider id. */
-export type ChannelHandler = (row: OutboxRow) => Promise<{ providerMessageId: string }>;
+/**
+ * Delivers one outbox row. Returns the provider id on send, or `null` to SKIP
+ * when no DB template exists for this event/channel — the DB template is the
+ * single source of truth, so an absent template means the channel is silently
+ * not delivered (the drainer records the skip).
+ */
+export type ChannelHandler = (row: OutboxRow) => Promise<{ providerMessageId: string } | null>;
 
 function payloadParts(row: OutboxRow) {
-  const p = row.payload as { title?: string; body?: string; href?: string | null; vars?: Record<string, unknown> };
-  return { title: p.title ?? "", body: p.body ?? "", href: p.href ?? null, vars: p.vars ?? {} };
+  const p = row.payload as { href?: string | null; vars?: Record<string, unknown> };
+  return { href: p.href ?? null, vars: p.vars ?? {} };
 }
 
-/** in_app: render from the DB template (or generic title/body), insert the feed
- *  row, then broadcast it over AppSync. */
+/** in_app: render the DB template; no template → skip. Insert feed row + broadcast. */
 const inApp: ChannelHandler = async (row) => {
-  const { title, body, href, vars } = payloadParts(row);
+  const { href, vars } = payloadParts(row);
   const [user] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, row.recipientId));
-  const rendered = (await renderInAppForEvent(row.event, user?.locale ?? "en", vars)) ?? { title, body };
+  const rendered = await renderInAppForEvent(row.event, user?.locale ?? "en", vars);
+  if (!rendered) return null;
   const [n] = await db
     .insert(notifications)
     .values({ userId: row.recipientId, event: row.event, title: rendered.title, body: rendered.body, href })
@@ -42,16 +46,15 @@ function buildEmailHandler(): ChannelHandler {
     },
   });
   return async (row) => {
+    const { vars } = payloadParts(row);
     const [user] = await db
       .select({ email: users.email, locale: users.locale })
       .from(users)
       .where(eq(users.id, row.recipientId));
     if (!user?.email) throw new AppError(`Recipient ${row.recipientId} has no email`, 422);
 
-    const { title, body, vars } = payloadParts(row);
-    const rendered =
-      (await renderEmailForEvent(row.event, user.locale, vars)) ??
-      (await renderEmailTemplate({ subject: title, body, vars })); // generic fallback
+    const rendered = await renderEmailForEvent(row.event, user.locale, vars);
+    if (!rendered) return null; // no DB template → don't send
 
     return provider.send({ to: { email: user.email }, subject: rendered.subject, html: rendered.html, text: rendered.text });
   };
