@@ -7,6 +7,7 @@ import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { TemplateEditor } from "@/components/notifications/template-editor";
 import { eventLabel } from "@/components/notifications/template-status";
+import { SectionCard } from "@/components/ds";
 
 export default async function Page({ params }: { params: Promise<{ event: string }> }) {
   await requireAdmin();
@@ -38,7 +39,9 @@ export default async function Page({ params }: { params: Promise<{ event: string
         <h1 className="text-2xl font-semibold text-balance">{eventLabel(event)}</h1>
         <p className="text-sm text-muted-foreground">Email + in-app templates for this event, per locale.</p>
       </div>
-      <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />
+      <SectionCard title="Template content">
+        <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />
+      </SectionCard>
     </div>
   );
 }
