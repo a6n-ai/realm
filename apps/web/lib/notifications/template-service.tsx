@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationTemplate } from "@/db/schema";
-import { interpolate } from "./interpolate";
+import { interpolate } from "@tiffin/commons-notify";
 
 type Locale = "en" | "fr";
 interface TemplateRow { channel: string; locale: string; subject: string; body: string | null; html: string | null; text: string | null; enabled: boolean }

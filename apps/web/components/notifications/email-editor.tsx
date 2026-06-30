@@ -37,10 +37,12 @@ interface EmailChain {
 interface Props {
   initialHtml: string;
   variables: string[];
+  /** Fires on every edit (and once on ready) so the parent can refresh a live preview. */
+  onChange?: () => void;
 }
 
 export const EmailEditorField = forwardRef<EmailEditorFieldHandle, Props>(
-  function EmailEditorField({ initialHtml, variables }, ref) {
+  function EmailEditorField({ initialHtml, variables, onChange }, ref) {
     const editorRef = useRef<EmailEditorRef>(null);
     const [ready, setReady] = useState(false);
 
@@ -109,7 +111,11 @@ export const EmailEditorField = forwardRef<EmailEditorFieldHandle, Props>(
                 ref={editorRef}
                 content={initialHtml || "<p></p>"}
                 theme="basic"
-                onReady={() => setReady(true)}
+                onReady={() => {
+                  setReady(true);
+                  onChange?.();
+                }}
+                onUpdate={() => onChange?.()}
               />
             </div>
           </div>

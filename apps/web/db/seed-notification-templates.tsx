@@ -1,16 +1,30 @@
+import { render } from "react-email";
 import { db } from "./client";
 import { notificationTemplate } from "./schema";
+import { OrderCreatedEmail } from "../emails/order-created";
 
 type Row = typeof notificationTemplate.$inferInsert;
 
 // English defaults. Variables must match EVENT_ENTITY in
 // lib/notifications/event-entities.ts. Without these rows the matching channel
-// does not send (DB template is the sole source of truth).
-const SEED: Row[] = [
+// does not send (DB template is the sole source of truth). Rich emails are
+// authored as react-email components in apps/web/emails and rendered to HTML
+// here; {{order.*}} tokens stay literal through render(), interpolated at send.
+async function buildSeed(): Promise<Row[]> {
+  const orderCreatedHtml = await render(<OrderCreatedEmail />);
+  const orderCreatedText = await render(<OrderCreatedEmail />, { plainText: true });
+  return [
   {
     event: "order_created", channel: "in_app", locale: "en",
     subject: "Order {{order.code}} received",
     body: "We received your order **{{order.code}}**, {{order.customerName}}.",
+  },
+  {
+    event: "order_created", channel: "email", locale: "en",
+    subject: "Order {{order.code}} received",
+    body: orderCreatedHtml,
+    html: orderCreatedHtml,
+    text: orderCreatedText,
   },
   {
     event: "order_activated", channel: "email", locale: "en",
@@ -48,16 +62,18 @@ const SEED: Row[] = [
     subject: "Reply on ticket {{ticket.code}}",
     body: "New reply on **{{ticket.subject}}**.",
   },
-];
+  ];
+}
 
 async function main() {
-  for (const t of SEED) {
+  const seed = await buildSeed();
+  for (const t of seed) {
     await db.insert(notificationTemplate).values(t).onConflictDoUpdate({
       target: [notificationTemplate.event, notificationTemplate.channel, notificationTemplate.locale],
       set: { subject: t.subject, body: t.body ?? null, html: t.html ?? null, text: t.text ?? null },
     });
   }
-  console.log(`Seeded ${SEED.length} notification templates`);
+  console.log(`Seeded ${seed.length} notification templates`);
 }
 
 main()

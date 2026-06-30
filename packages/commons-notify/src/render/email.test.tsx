@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderEmailTemplate, renderInApp } from "./render-email";
+import { renderEmailTemplate, renderInApp } from "./email";
 
 describe("render-email", () => {
   it("interpolates + renders markdown to HTML", async () => {

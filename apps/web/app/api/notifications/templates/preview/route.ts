@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/guards";
-import { renderEmailTemplate } from "@/lib/notifications/render-email";
+import { renderEmailTemplate } from "@tiffin/commons-notify";
 import { sampleVars } from "@/lib/services/notification-template.service";
 
 /** Render a template (with sample data) to email HTML for the editor iframe. */

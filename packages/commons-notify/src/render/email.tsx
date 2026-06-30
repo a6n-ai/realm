@@ -1,4 +1,4 @@
-import { render, Html, Head, Body, Container, Heading, Markdown } from "react-email";
+import { Body, Container, Head, Heading, Html, Markdown, render } from "@react-email/components";
 import { interpolate } from "./interpolate";
 
 const CONTAINER = { fontFamily: "system-ui, sans-serif", color: "#111", maxWidth: "520px", margin: "0 auto", padding: "24px", background: "#fff" };
