@@ -1,19 +1,24 @@
-import { LayersIcon, MailIcon, SmartphoneIcon, CircleSlashIcon } from "lucide-react";
+import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { SectionCard, StatCard } from "@/components/ds";
 import { TemplateList, type TemplateStatus } from "@/components/notifications/template-list";
 
+const CHANNEL_ORDER = ["email", "in_app", "sms", "whatsapp"];
+
 export default async function NotificationTemplatesPage() {
   await requireAdmin();
   const all = await listTemplates();
 
-  const agg = new Map<string, { email: Set<string>; inApp: Set<string>; updated: number }>();
+  // event → channel → set of locales (enabled templates only), plus latest update.
+  const agg = new Map<string, { channels: Map<string, Set<string>>; updated: number }>();
   for (const t of all) {
     if (!t.enabled) continue;
-    const e = agg.get(t.event) ?? { email: new Set<string>(), inApp: new Set<string>(), updated: 0 };
-    (t.channel === "email" ? e.email : e.inApp).add(t.locale);
+    const e = agg.get(t.event) ?? { channels: new Map<string, Set<string>>(), updated: 0 };
+    const set = e.channels.get(t.channel) ?? new Set<string>();
+    set.add(t.locale);
+    e.channels.set(t.channel, set);
     e.updated = Math.max(e.updated, t.updatedAt ?? 0);
     agg.set(t.event, e);
   }
@@ -22,25 +27,22 @@ export default async function NotificationTemplatesPage() {
     .filter((ev) => ev !== "manual_adjustment")
     .map((event) => {
       const e = agg.get(event);
-      return {
-        event,
-        emailLocales: e ? [...e.email].sort() : [],
-        inAppLocales: e ? [...e.inApp].sort() : [],
-        updatedAt: e?.updated || null,
-      };
+      const channels = e
+        ? [...e.channels.entries()]
+            .map(([channel, locales]) => ({ channel, locales: [...locales].sort() }))
+            .sort((a, b) => CHANNEL_ORDER.indexOf(a.channel) - CHANNEL_ORDER.indexOf(b.channel))
+        : [];
+      return { event, channels, updatedAt: e?.updated || null };
     });
 
-  const withEmail = items.filter((i) => i.emailLocales.length > 0).length;
-  const withInApp = items.filter((i) => i.inAppLocales.length > 0).length;
-  const missing = items.filter((i) => i.emailLocales.length === 0 && i.inAppLocales.length === 0).length;
+  const configured = items.filter((i) => i.channels.length > 0).length;
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard icon={LayersIcon} label="Events" value={items.length} hint="notification-producing events" />
-        <StatCard icon={MailIcon} label="Email configured" value={withEmail} />
-        <StatCard icon={SmartphoneIcon} label="In-app configured" value={withInApp} />
-        <StatCard icon={CircleSlashIcon} label="Not configured" value={missing} hint="no template — won't send" />
+        <StatCard icon={CheckCircleIcon} label="Configured" value={configured} hint="at least one channel" />
+        <StatCard icon={CircleSlashIcon} label="Not configured" value={items.length - configured} hint="no template — won't send" />
       </div>
 
       <SectionCard title="Templates" subtitle="A channel with no template does not send. Select an event to edit.">

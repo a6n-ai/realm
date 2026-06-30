@@ -2,28 +2,44 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRightIcon } from "lucide-react";
-import { FilterBar, SearchInput } from "@/components/ds";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PencilIcon } from "lucide-react";
+import { FilterBar, RowActionButton, RowActions, SearchInput } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { eventLabel } from "./template-status";
 
+export interface TemplateChannel {
+  channel: string;
+  locales: string[];
+}
 export interface TemplateStatus {
   event: string;
-  emailLocales: string[];
-  inAppLocales: string[];
+  channels: TemplateChannel[];
   updatedAt: number | null;
 }
 
-type Filter = "all" | "email" | "in_app" | "missing";
+/** Display names per channel. Unknown/future channels fall back to a humanized label. */
+const CHANNEL_LABEL: Record<string, string> = { email: "Email", in_app: "In-app", sms: "SMS", whatsapp: "WhatsApp" };
+const label = (c: string) => CHANNEL_LABEL[c] ?? c.replace(/_/g, " ").replace(/^./, (m) => m.toUpperCase());
 
-function LocaleCell({ locales }: { locales: string[] }) {
-  if (locales.length === 0) return <span className="text-xs text-muted-foreground">Not set</span>;
+type Filter = "all" | "configured" | "missing";
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "configured", label: "Configured" },
+  { key: "missing", label: "Not configured" },
+];
+
+function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
+  if (channels.length === 0) return <span className="text-xs text-muted-foreground">Not configured</span>;
   return (
-    <span className="flex flex-wrap gap-1">
-      {locales.map((l) => (
-        <span key={l} className="rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-          {l}
+    <span className="flex flex-wrap gap-1.5">
+      {channels.map((c) => (
+        <span
+          key={c.channel}
+          className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs"
+        >
+          {label(c.channel)}
+          <span className="font-mono text-[10px] uppercase text-muted-foreground">{c.locales.join("·")}</span>
         </span>
       ))}
     </span>
@@ -43,9 +59,8 @@ export function TemplateList({ items }: { items: TemplateStatus[] }) {
     const q = query.trim().toLowerCase();
     return items.filter((i) => {
       if (q && !eventLabel(i.event).toLowerCase().includes(q) && !i.event.includes(q)) return false;
-      if (filter === "email") return i.emailLocales.length > 0;
-      if (filter === "in_app") return i.inAppLocales.length > 0;
-      if (filter === "missing") return i.emailLocales.length === 0 && i.inAppLocales.length === 0;
+      if (filter === "configured") return i.channels.length > 0;
+      if (filter === "missing") return i.channels.length === 0;
       return true;
     });
   }, [items, query, filter]);
@@ -55,15 +70,21 @@ export function TemplateList({ items }: { items: TemplateStatus[] }) {
       <FilterBar
         search={<SearchInput value={query} onChange={setQuery} placeholder="Search events…" />}
         filters={
-          <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All events</SelectItem>
-              <SelectItem value="email">Has email</SelectItem>
-              <SelectItem value="in_app">Has in-app</SelectItem>
-              <SelectItem value="missing">Not configured</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="bg-muted/50 inline-flex items-center rounded-lg border p-0.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  filter === f.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         }
       />
 
@@ -72,33 +93,34 @@ export function TemplateList({ items }: { items: TemplateStatus[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Event</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>In-app</TableHead>
+              <TableHead>Channels</TableHead>
               <TableHead>Updated</TableHead>
-              <TableHead className="w-8" />
+              <TableHead className="w-16 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={4} className="h-24 text-center text-sm text-muted-foreground">
                   No events match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((i) => (
-                <TableRow
-                  key={i.event}
-                  onClick={() => router.push(`/dashboard/notifications/templates/${i.event}`)}
-                  className="cursor-pointer"
-                >
-                  <TableCell className="font-medium">{eventLabel(i.event)}</TableCell>
-                  <TableCell><LocaleCell locales={i.emailLocales} /></TableCell>
-                  <TableCell><LocaleCell locales={i.inAppLocales} /></TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{fmt(i.updatedAt)}</TableCell>
-                  <TableCell><ChevronRightIcon className="size-4 text-muted-foreground" /></TableCell>
-                </TableRow>
-              ))
+              filtered.map((i) => {
+                const href = `/dashboard/notifications/templates/${i.event}`;
+                return (
+                  <TableRow key={i.event} onClick={() => router.push(href)} className="group/row cursor-pointer">
+                    <TableCell className="font-medium">{eventLabel(i.event)}</TableCell>
+                    <TableCell><ChannelsCell channels={i.channels} /></TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">{fmt(i.updatedAt)}</TableCell>
+                    <TableCell>
+                      <RowActions>
+                        <RowActionButton icon={PencilIcon} label="Edit templates" href={href} />
+                      </RowActions>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
