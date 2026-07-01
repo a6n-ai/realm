@@ -48,6 +48,12 @@ export async function createDish(input: { name: string; diet: "veg" | "nonveg" }
   return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };
 }
 
+export async function reorderItems(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; orderedItemIds: string[] }) {
+  await requireAdmin();
+  await menuService.reorderItems(input);
+  revalidate();
+}
+
 export async function releaseWeek(menuWeekId: string) {
   await requireAdmin();
   await menuService.release(menuWeekId);

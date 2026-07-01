@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { CheckCircle2, Star, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
-import { addItem, createDish, releaseWeek, removeItem, setDefault, upsertWeek } from "./actions";
+import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
 
 const CREATE_VALUE = "__create__";
 
@@ -144,14 +144,41 @@ export function MenuBuilder({
                       return (
                         <div key={slot.key} className="space-y-1.5">
                           {mealType.slots.length > 1 && <p className="text-xs font-medium text-muted-foreground">{slot.label}</p>}
-                          {ci.map((i) => {
+                          {ci.map((i, idx) => {
                             const d = dishById.get(i.dishId);
+                            const move = (dir: -1 | 1) => {
+                              const ids = ci.map((x) => x.id);
+                              const j = idx + dir;
+                              if (j < 0 || j >= ids.length) return;
+                              [ids[idx], ids[j]] = [ids[j], ids[idx]];
+                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, orderedItemIds: ids }));
+                            };
                             return (
                               <div key={i.id} className={`group flex items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
                                 <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
                                 {i.isDefault && (
                                   <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Default</span>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground active:scale-[0.96] disabled:opacity-50"
+                                    disabled={pending || idx === 0}
+                                    aria-label="Move up"
+                                    onClick={() => move(-1)}
+                                  >
+                                    <ChevronUp className="size-3.5" />
+                                  </button>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground active:scale-[0.96] disabled:opacity-50"
+                                    disabled={pending || idx === ci.length - 1}
+                                    aria-label="Move down"
+                                    onClick={() => move(1)}
+                                  >
+                                    <ChevronDown className="size-3.5" />
+                                  </button>
                                 )}
                                 {week.status === "draft" && (
                                   <button
