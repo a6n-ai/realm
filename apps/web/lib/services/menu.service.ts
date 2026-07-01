@@ -53,6 +53,38 @@ export const menuService = {
     await Promise.all(input.orderedItemIds.map((pid, idx) => db.update(menuItems).set({ position: idx }).where(eq(menuItems.publicId, pid))));
   },
 
+  async setDefault(input: { itemId: string }) {
+    const [item] = await db
+      .select({
+        id: menuItems.id,
+        menuWeekId: menuItems.menuWeekId,
+        dayOfWeek: menuItems.dayOfWeek,
+        slot: menuItems.slot,
+        isDefault: menuItems.isDefault,
+        weekStatus: menuWeeks.status,
+      })
+      .from(menuItems)
+      .innerJoin(menuWeeks, eq(menuItems.menuWeekId, menuWeeks.id))
+      .where(eq(menuItems.publicId, input.itemId))
+      .limit(1);
+    if (!item) throw new ValidationError("Menu item not found");
+    if (item.weekStatus !== "draft") throw new ValidationError("Defaults can only be set on a draft week");
+
+    const wasDefault = item.isDefault;
+    // One default per (week, day, slot); toggle off if it was already default.
+    // Raw bulk update, NOT audited — matches the reorderItems pattern above.
+    await db.transaction(async (tx) => {
+      await tx.update(menuItems).set({ isDefault: false }).where(and(
+        eq(menuItems.menuWeekId, item.menuWeekId),
+        eq(menuItems.dayOfWeek, item.dayOfWeek),
+        eq(menuItems.slot, item.slot),
+      ));
+      if (!wasDefault) {
+        await tx.update(menuItems).set({ isDefault: true }).where(eq(menuItems.id, item.id));
+      }
+    });
+  },
+
   async release(weekPublicId: string) {
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
     await publishedCache.evictAll();
