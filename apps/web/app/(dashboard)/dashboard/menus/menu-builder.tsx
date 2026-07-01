@@ -155,7 +155,7 @@ export function MenuBuilder({
                                 )}
                                 {week.status === "draft" && (
                                   <button
-                                    className={`flex size-8 shrink-0 items-center justify-center rounded-md transition-colors active:scale-[0.96] disabled:opacity-50 ${i.isDefault ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary"}`}
+                                    className={`flex size-8 shrink-0 items-center justify-center rounded-md transition-colors active:scale-[0.96] disabled:opacity-50 ${i.isDefault ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-primary"}`}
                                     disabled={pending}
                                     aria-pressed={i.isDefault}
                                     aria-label={i.isDefault ? `Unset ${d?.name ?? "dish"} as default` : `Set ${d?.name ?? "dish"} as default`}
@@ -167,7 +167,7 @@ export function MenuBuilder({
                                 )}
                                 {week.status === "draft" && (
                                   <button
-                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
                                     disabled={pending}
                                     aria-label={`Remove ${d?.name ?? "dish"}`}
                                     onClick={() => run(() => removeItem(i.id))}
