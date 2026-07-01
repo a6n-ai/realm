@@ -67,6 +67,11 @@ describe.skipIf(!url)("FileSystemService (integration)", () => {
     expect(fd?.url).toBeUndefined();
   });
 
+  it("list on a non-existent directory returns empty, not the root listing", async () => {
+    await svc.create("menu/dish/a.png", "x");
+    expect(await svc.list("does/not/exist")).toEqual([]);
+  });
+
   it("delete removes the object and the row", async () => {
     await svc.create("x/a.png", "v");
     await svc.delete("x/a.png");

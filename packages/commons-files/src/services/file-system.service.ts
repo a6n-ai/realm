@@ -65,7 +65,12 @@ export class FileSystemService {
 
   async list(dirPath: string): Promise<FileDetail[]> {
     const key = toKey(dirPath);
-    const parentId = key === "" ? null : (await this.rowByPath(key))?.id ?? null;
+    let parentId: bigint | null = null;
+    if (key !== "") {
+      const dir = await this.rowByPath(key);
+      if (!dir) return [];
+      parentId = dir.id;
+    }
     const rows = await this.db
       .select()
       .from(fileSystem)
