@@ -1,3 +1,7 @@
+// NOTE (2026-07-01): the isDefault fallback for "what a subscriber receives when they
+// don't pick" lives only in buildMealsGrid (meals-grid.ts). No separate fulfillment read
+// exists yet. Any future kitchen/ops read MUST resolve the same way (explicit pick →
+// else the day/slot isDefault item) or subscribers get a different meal than the grid shows.
 import { ValidationError } from "@tiffin/commons";
 import { cutoffMsFor } from "@tiffin/commons";
 import { and, eq } from "drizzle-orm";
