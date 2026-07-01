@@ -5,6 +5,11 @@ import { account, inquiries, leadSources, mealSizes, orders, plans, users } from
 import { hashPassword } from "@/lib/auth/password";
 import { ledgerService } from "./ledger.service";
 
+// ponytail: SECURITY DEBT — every provisioned customer gets this same shared password,
+// and /activate prints it on screen. Deferred 2026-07-01 (no email/SES wired yet). When
+// notifications ship, replace with: provision with no usable password + a set-password
+// token emailed via the existing notification system (app_event + template). See the
+// account-activation spec (Spec A) in docs/superpowers/specs/.
 const TEMP_PASSWORD = "Tiffin123";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
