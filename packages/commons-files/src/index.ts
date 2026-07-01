@@ -4,3 +4,5 @@ export * from "./storage/s3-provider";
 export * from "./storage/memory-provider";
 export * from "./schema/files";
 export * from "./services/file-system.service";
+export * from "./services/access-path.service";
+export * from "./services/secured-access.service";
