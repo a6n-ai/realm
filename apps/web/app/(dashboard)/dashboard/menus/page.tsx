@@ -27,7 +27,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const mealType = { ...mealTypes[planType], slots: slots.map((s) => ({ key: s.key, label: s.label })) };
 
   let week: { id: string; weekStart: string; status: string } | null = null;
-  let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number }[] = [];
+  let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean }[] = [];
   if (weekId) {
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
@@ -36,7 +36,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
       const byId = new Map(dishRows.map((d) => [d.bigintId, d.publicId]));
       items = result.items.flatMap((i) => {
         const dishId = byId.get(i.dishId);
-        return dishId ? [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position }] : [];
+        return dishId ? [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position, isDefault: i.isDefault }] : [];
       });
     }
   }

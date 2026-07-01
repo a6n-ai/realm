@@ -32,6 +32,12 @@ export async function removeItem(id: string) {
   revalidate();
 }
 
+export async function setDefault(itemId: string) {
+  await requireAdmin();
+  await menuService.setDefault({ itemId });
+  revalidate();
+}
+
 export async function createDish(input: { name: string; diet: "veg" | "nonveg" }) {
   await requireAdmin();
   const name = input.name.trim();

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,13 +11,13 @@ import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
-import { addItem, createDish, releaseWeek, removeItem, upsertWeek } from "./actions";
+import { addItem, createDish, releaseWeek, removeItem, setDefault, upsertWeek } from "./actions";
 
 const CREATE_VALUE = "__create__";
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
-type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number };
+type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
 
 export function MenuBuilder({
   planType, mealType, dishes, week, items, takenWeekStarts,
@@ -147,12 +147,27 @@ export function MenuBuilder({
                           {ci.map((i) => {
                             const d = dishById.get(i.dishId);
                             return (
-                              <div key={i.id} className="group flex items-center gap-2 rounded-lg bg-muted/40 py-1.5 pl-2.5 pr-1 text-sm">
+                              <div key={i.id} className={`group flex items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
                                 <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
+                                {i.isDefault && (
+                                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Default</span>
+                                )}
                                 {week.status === "draft" && (
                                   <button
-                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
+                                    className={`flex size-8 shrink-0 items-center justify-center rounded-md transition-colors active:scale-[0.96] disabled:opacity-50 ${i.isDefault ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-primary"}`}
+                                    disabled={pending}
+                                    aria-pressed={i.isDefault}
+                                    aria-label={i.isDefault ? `Unset ${d?.name ?? "dish"} as default` : `Set ${d?.name ?? "dish"} as default`}
+                                    title={i.isDefault ? "Default for this day & slot" : "Set as default"}
+                                    onClick={() => run(() => setDefault(i.id))}
+                                  >
+                                    <Star className={`size-3.5 ${i.isDefault ? "fill-current" : ""}`} />
+                                  </button>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
                                     disabled={pending}
                                     aria-label={`Remove ${d?.name ?? "dish"}`}
                                     onClick={() => run(() => removeItem(i.id))}
