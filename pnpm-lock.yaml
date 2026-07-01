@@ -64,6 +64,9 @@ importers:
       '@tiffin/commons-drizzle':
         specifier: workspace:*
         version: link:../../packages/commons-drizzle
+      '@tiffin/commons-files':
+        specifier: workspace:*
+        version: link:../../packages/commons-files
       '@tiffin/commons-next':
         specifier: workspace:*
         version: link:../../packages/commons-next

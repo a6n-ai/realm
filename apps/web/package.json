@@ -28,6 +28,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@tiffin/commons": "workspace:*",
     "@tiffin/commons-drizzle": "workspace:*",
+    "@tiffin/commons-files": "workspace:*",
     "@tiffin/commons-next": "workspace:*",
     "@tiffin/commons-notify": "workspace:*",
     "@uiw/react-md-editor": "^4.0.7",

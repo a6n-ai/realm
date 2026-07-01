@@ -14,3 +14,4 @@ export * from "./audit";
 export * from "./wallet";
 export * from "./notifications";
 export * from "./notification-template";
+export * from "./files";
