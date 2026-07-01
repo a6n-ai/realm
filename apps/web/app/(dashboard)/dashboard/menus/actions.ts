@@ -32,6 +32,12 @@ export async function removeItem(id: string) {
   revalidate();
 }
 
+export async function setDefault(itemId: string) {
+  await requireAdmin();
+  await menuService.setDefault({ itemId });
+  revalidate();
+}
+
 export async function createDish(input: { name: string; diet: "veg" | "nonveg" }) {
   await requireAdmin();
   const name = input.name.trim();
@@ -40,6 +46,12 @@ export async function createDish(input: { name: string; diet: "veg" | "nonveg" }
   revalidate();
   revalidatePath("/dashboard/dishes");
   return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };
+}
+
+export async function reorderItems(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; orderedItemIds: string[] }) {
+  await requireAdmin();
+  await menuService.reorderItems(input);
+  revalidate();
 }
 
 export async function releaseWeek(menuWeekId: string) {

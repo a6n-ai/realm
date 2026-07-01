@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,13 +11,13 @@ import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
-import { addItem, createDish, releaseWeek, removeItem, upsertWeek } from "./actions";
+import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
 
 const CREATE_VALUE = "__create__";
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
-type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number };
+type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
 
 export function MenuBuilder({
   planType, mealType, dishes, week, items, takenWeekStarts,
@@ -95,7 +95,7 @@ export function MenuBuilder({
       </div>
 
       {week && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4 ${week.status === "released" ? "border-l-ok" : "border-l-muted-foreground/30"}`}>
           <div className="flex items-center gap-2 text-sm">
             {week.status === "draft" ? (
               <>
@@ -133,7 +133,7 @@ export function MenuBuilder({
               const dayCount = mealType.slots.reduce((n, s) => n + cellItems(col.days, s.key).length, 0);
               return (
                 <div key={col.label} className="rounded-xl border p-4 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex items-baseline justify-between">
                     <h4 className="text-sm font-semibold">{col.label}</h4>
                     <span className="text-xs text-muted-foreground tabular-nums">{dayCount} dishes</span>
                   </div>
@@ -144,15 +144,57 @@ export function MenuBuilder({
                       return (
                         <div key={slot.key} className="space-y-1.5">
                           {mealType.slots.length > 1 && <p className="text-xs font-medium text-muted-foreground">{slot.label}</p>}
-                          {ci.map((i) => {
+                          {ci.map((i, idx) => {
                             const d = dishById.get(i.dishId);
+                            const move = (dir: -1 | 1) => {
+                              const ids = ci.map((x) => x.id);
+                              const j = idx + dir;
+                              if (j < 0 || j >= ids.length) return;
+                              [ids[idx], ids[j]] = [ids[j], ids[idx]];
+                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, orderedItemIds: ids }));
+                            };
                             return (
-                              <div key={i.id} className="group flex items-center gap-2 rounded-lg bg-muted/40 py-1.5 pl-2.5 pr-1 text-sm">
+                              <div key={i.id} className={`group flex animate-in fade-in slide-in-from-top-1 duration-200 items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
                                 <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
+                                {i.isDefault && (
+                                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Default</span>
+                                )}
                                 {week.status === "draft" && (
                                   <button
-                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground active:scale-[0.96] disabled:opacity-50"
+                                    disabled={pending || idx === 0}
+                                    aria-label="Move up"
+                                    onClick={() => move(-1)}
+                                  >
+                                    <ChevronUp className="size-3.5" />
+                                  </button>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-foreground active:scale-[0.96] disabled:opacity-50"
+                                    disabled={pending || idx === ci.length - 1}
+                                    aria-label="Move down"
+                                    onClick={() => move(1)}
+                                  >
+                                    <ChevronDown className="size-3.5" />
+                                  </button>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className={`flex size-8 shrink-0 items-center justify-center rounded-md transition-colors active:scale-[0.96] disabled:opacity-50 ${i.isDefault ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:text-primary"}`}
+                                    disabled={pending}
+                                    aria-pressed={i.isDefault}
+                                    aria-label={i.isDefault ? `Unset ${d?.name ?? "dish"} as default` : `Set ${d?.name ?? "dish"} as default`}
+                                    title={i.isDefault ? "Default for this day & slot" : "Set as default"}
+                                    onClick={() => run(() => setDefault(i.id))}
+                                  >
+                                    <Star className={`size-3.5 ${i.isDefault ? "fill-current" : ""}`} />
+                                  </button>
+                                )}
+                                {week.status === "draft" && (
+                                  <button
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-destructive/10 hover:text-destructive active:scale-[0.96] disabled:opacity-50"
                                     disabled={pending}
                                     aria-label={`Remove ${d?.name ?? "dish"}`}
                                     onClick={() => run(() => removeItem(i.id))}
@@ -163,6 +205,9 @@ export function MenuBuilder({
                               </div>
                             );
                           })}
+                          {ci.length === 0 && (
+                            <p className="text-xs text-muted-foreground/70">No dish yet</p>
+                          )}
                           {week.status === "draft" && (
                             <Select
                               value=""
@@ -193,7 +238,7 @@ export function MenuBuilder({
           </div>
 
           <div className="lg:sticky lg:top-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
             <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={mealType.slots} items={posterItems} accent={mealType.accent} />
           </div>
         </div>

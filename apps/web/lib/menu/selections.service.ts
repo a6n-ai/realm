@@ -1,3 +1,7 @@
+// NOTE (2026-07-01): the isDefault fallback for "what a subscriber receives when they
+// don't pick" lives only in buildMealsGrid (meals-grid.ts). No separate fulfillment read
+// exists yet. Any future kitchen/ops read MUST resolve the same way (explicit pick →
+// else the day/slot isDefault item) or subscribers get a different meal than the grid shows.
 import { ValidationError } from "@tiffin/commons";
 import { cutoffMsFor } from "@tiffin/commons";
 import { and, eq } from "drizzle-orm";
@@ -65,6 +69,28 @@ export const selectionsService = {
         target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.slot, mealSelections.personIndex],
         set: { dishId },
       });
+  },
+
+  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; dishPublicId: string }) {
+    const { order, menuWeek, slot, personIndex, dishPublicId } = input;
+
+    const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
+    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
+    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow })
+      .filter((d) => d.weekStartIso === menuWeek.weekStart);
+
+    let applied = 0;
+    const skipped: { dateIso: string; reason: string }[] = [];
+    for (const d of dates) {
+      try {
+        await this.setSelection({ order, menuWeek, dayOfWeek: d.dayOfWeek, slot, personIndex, dishPublicId });
+        applied += 1;
+      } catch (e) {
+        skipped.push({ dateIso: d.dateIso, reason: e instanceof Error ? e.message : "Could not apply" });
+      }
+    }
+    return { applied, skipped };
   },
 
   async effectiveSelections(orderId: bigint, menuWeekId: bigint) {
