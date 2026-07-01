@@ -67,6 +67,28 @@ export const selectionsService = {
       });
   },
 
+  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; dishPublicId: string }) {
+    const { order, menuWeek, slot, personIndex, dishPublicId } = input;
+
+    const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
+    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
+    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow })
+      .filter((d) => d.weekStartIso === menuWeek.weekStart);
+
+    let applied = 0;
+    const skipped: { dateIso: string; reason: string }[] = [];
+    for (const d of dates) {
+      try {
+        await this.setSelection({ order, menuWeek, dayOfWeek: d.dayOfWeek, slot, personIndex, dishPublicId });
+        applied += 1;
+      } catch (e) {
+        skipped.push({ dateIso: d.dateIso, reason: e instanceof Error ? e.message : "Could not apply" });
+      }
+    }
+    return { applied, skipped };
+  },
+
   async effectiveSelections(orderId: bigint, menuWeekId: bigint) {
     const picks = await db.select().from(mealSelections)
       .where(and(eq(mealSelections.orderId, orderId), eq(mealSelections.menuWeekId, menuWeekId)));
