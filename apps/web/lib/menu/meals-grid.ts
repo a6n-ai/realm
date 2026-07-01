@@ -13,6 +13,7 @@ export type GridCell = {
   slot: string;
   personIndex: number;
   selectedDishId: string | null;
+  isDefaulted: boolean;
   dishes: { id: string; name: string; diet: "veg" | "nonveg" }[];
   locked: boolean;
 };
@@ -131,13 +132,15 @@ export async function buildMealsGrid(
           (sel) => sel.dayOfWeek === day && sel.slot === slot && sel.personIndex === p,
         );
         let selectedDishId: string | null = null;
+        let isDefaulted = false;
         if (pick) {
           selectedDishId = dishPublicIdByBigintId.get(pick.dishId) ?? null;
         } else {
           const defaultItem = slotItems.find((i) => i.isDefault);
           selectedDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
+          isDefaulted = selectedDishId !== null;
         }
-        grid.push({ day, dateIso, slot, personIndex: p, selectedDishId, dishes: slotDishes, locked });
+        grid.push({ day, dateIso, slot, personIndex: p, selectedDishId, isDefaulted, dishes: slotDishes, locked });
       }
     }
   }
