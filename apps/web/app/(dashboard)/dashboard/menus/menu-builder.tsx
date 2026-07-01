@@ -95,7 +95,7 @@ export function MenuBuilder({
       </div>
 
       {week && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4 ${week.status === "released" ? "border-l-ok" : "border-l-muted-foreground/30"}`}>
           <div className="flex items-center gap-2 text-sm">
             {week.status === "draft" ? (
               <>
@@ -133,7 +133,7 @@ export function MenuBuilder({
               const dayCount = mealType.slots.reduce((n, s) => n + cellItems(col.days, s.key).length, 0);
               return (
                 <div key={col.label} className="rounded-xl border p-4 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex items-baseline justify-between">
                     <h4 className="text-sm font-semibold">{col.label}</h4>
                     <span className="text-xs text-muted-foreground tabular-nums">{dayCount} dishes</span>
                   </div>
@@ -154,7 +154,7 @@ export function MenuBuilder({
                               run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, orderedItemIds: ids }));
                             };
                             return (
-                              <div key={i.id} className={`group flex items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
+                              <div key={i.id} className={`group flex animate-in fade-in slide-in-from-top-1 duration-200 items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
                                 <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
                                 {i.isDefault && (
@@ -205,6 +205,9 @@ export function MenuBuilder({
                               </div>
                             );
                           })}
+                          {ci.length === 0 && (
+                            <p className="text-xs text-muted-foreground/70">No dish yet</p>
+                          )}
                           {week.status === "draft" && (
                             <Select
                               value=""
@@ -235,7 +238,7 @@ export function MenuBuilder({
           </div>
 
           <div className="lg:sticky lg:top-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
             <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={mealType.slots} items={posterItems} accent={mealType.accent} />
           </div>
         </div>
