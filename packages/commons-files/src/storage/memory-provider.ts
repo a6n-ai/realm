@@ -68,7 +68,7 @@ export class MemoryStorageProvider implements StorageProvider {
     return `memory://get/${key}?ttl=${ttlSeconds}`;
   }
 
-  async presignPut(key: string, ttlSeconds: number): Promise<string> {
+  async presignPut(key: string, ttlSeconds: number, opts?: PutOptions): Promise<string> {
     return `memory://put/${key}?ttl=${ttlSeconds}`;
   }
 }
