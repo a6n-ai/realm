@@ -60,6 +60,8 @@ Apply `make-interfaces-feel-better` principles at build time. The builder works 
 2. **Reorder (optional, easy to cut).** `menuService.reorderItems` already exists but no UI calls it. Wire drag-to-reorder of dish rows within a cell, persisting `position`. Pure UI wiring — no backend cost.
 3. **Polish.** Optical alignment of rows, tabular-nums on the per-day dish count (already partial), consistent slot subheaders, an explicit empty-slot state, staggered list render, enter/exit transition on add/remove, refined draft/released status bar. Keep the sticky live poster preview (`WeeklyMenuPoster`).
 
+**Note:** this is the admin/staff builder (desktop-primary), so no mobile-first mandate here — but keep it responsive and don't regress on tablet. Mobile-first is a hard requirement only on the customer surface (Spec 2).
+
 ## Edge cases
 
 - Setting a new default unsets the prior atomically (same txn) — never two defaults in a cell.

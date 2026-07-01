@@ -54,14 +54,20 @@ No new query — `meals-grid.ts:137` already resolves the default; this exposes 
 - If a fulfillment read exists, route both it and the grid through one shared resolver (`effectiveDishFor(order, menuWeek, day, slot, person)`) so they cannot diverge.
 - If no fulfillment read exists yet, record that the default fallback currently lives only in the customer grid, and that any future fulfillment read must use the shared resolver. Do not build a fulfillment path here.
 
-## 4. UX revamp — `meals-grid.tsx`
+## 4. UX revamp — `meals-grid.tsx` (mobile-first)
 
-Apply `make-interfaces-feel-better` at build time. The current plain table of dropdowns becomes a polished selection surface:
+**Primary constraint: customers are mostly on phones.** The current wide `<table>` of dropdowns is unusable on a small screen (horizontal scroll, tiny targets). The revamp is **mobile-first** — design the phone layout as the baseline, then enhance for wider screens; not a desktop table squeezed down.
 
-- Cleaner per-day layout (cards or a refined grid), dish name + diet dot (+ thumbnail if available on the dish), clear "Locked" vs "Edit until HH:MM" states (data already present in `WeekDate`).
-- The "Apply to whole week" affordance per slot.
-- Default badges (section 2), optimistic updates, enter/exit + stagger motion, accessible controls, tabular-nums on times.
+Apply `frontend-design` (layout direction) + `make-interfaces-feel-better` (polish) at build time:
+
+- **Phone baseline:** a vertical stack of **per-delivery cards** (one card per delivery date), not a table. Each card: the date + "Locked / Edit until HH:MM", then one row per slot (× person) with the chosen/default dish and a tap-to-change control. No horizontal scrolling.
+- **Touch targets** ≥ 44px; dish picker is a full-width sheet/drawer on phone (not a cramped native `<select>`), a popover on desktop.
+- **Apply to whole week** as a clear per-slot button inside the relevant card / a sticky action, thumb-reachable.
+- Default badges (section 2), dish name + diet dot (+ thumbnail if the dish has one), optimistic updates, enter/exit + stagger motion, tabular-nums on times, accessible controls.
+- **Wider screens:** progressively widen to a multi-column/grid view; the table form is acceptable only as a `md:`+ enhancement, never the phone default.
 - Keep server actions as the write path; no client-side state divergence.
+
+The same mobile-first bar applies to the whole customer dashboard shell this page lives in (`app/(dashboard)`) where it affects this flow — nav, headers, and the order/subscription views the customer reaches from here should be thumb-friendly and single-column on phone. Scope the revamp to the meal-selection surface + its immediate navigation, not a full dashboard rewrite.
 
 ## Edge cases
 
