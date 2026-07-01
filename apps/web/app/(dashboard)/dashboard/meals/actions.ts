@@ -47,3 +47,37 @@ export async function pickDish(input: {
   revalidatePath("/dashboard/meals");
   revalidatePath(`/dashboard/orders/${input.orderId}`);
 }
+
+export async function applyDishToWeek(input: {
+  orderId: string;
+  menuWeekId: string;
+  slot: string;
+  personIndex: number;
+  dishId: string;
+}) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new AuthError();
+
+  const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
+  if (!order) throw new ValidationError("Order not found");
+
+  const isStaff = session.user.role === "admin" || session.user.role === "member";
+  if (!isStaff) {
+    const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
+    if (!actor || order.userId !== actor.id) throw new AuthError();
+  }
+
+  const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
+  if (!week) throw new ValidationError("Menu week not found");
+
+  const result = await selectionsService.applyToWeek({
+    order,
+    menuWeek: week,
+    slot: input.slot,
+    personIndex: input.personIndex,
+    dishPublicId: input.dishId,
+  });
+  revalidatePath("/dashboard/meals");
+  revalidatePath(`/dashboard/orders/${input.orderId}`);
+  return result;
+}
