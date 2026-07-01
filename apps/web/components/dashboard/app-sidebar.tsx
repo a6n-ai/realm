@@ -15,7 +15,6 @@ import {
   type LucideIcon,
   PackageIcon,
   PaletteIcon,
-  SaladIcon,
   SettingsIcon,
   TicketPercentIcon,
   UserIcon,
@@ -71,15 +70,14 @@ export const SECTIONS: NavSection[] = [
     label: "Catalog",
     items: [
       { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ["admin"] },
-      { title: "Dishes", href: "/dashboard/dishes", icon: SaladIcon, roles: ["admin"] },
       { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ["admin"] },
     ],
   },
   {
     label: "Finance",
     items: [
-      { title: "Wallet", href: "/dashboard/settings/wallet", icon: CoinsIcon, roles: ["admin"] },
-      { title: "Discounts", href: "/dashboard/settings/discounts", icon: TicketPercentIcon, roles: ["admin"] },
+      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, roles: ["admin"] },
+      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, roles: ["admin"] },
     ],
   },
   {

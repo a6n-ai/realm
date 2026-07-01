@@ -44,7 +44,7 @@ export async function createDish(input: { name: string; diet: "veg" | "nonveg" }
   if (!name) throw new Error("Dish name is required");
   const row = await dishesService.create({ name, description: null, diet: input.diet, slots: [], imageUrl: null });
   revalidate();
-  revalidatePath("/dashboard/dishes");
+  revalidatePath("/dashboard/catalog/dishes");
   return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };
 }
 

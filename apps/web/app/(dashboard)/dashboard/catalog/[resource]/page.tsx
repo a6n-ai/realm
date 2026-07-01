@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -10,6 +10,7 @@ import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type ResourceDef } from "..
 import { ResourceEditor } from "./resource-editor";
 
 const TABLES: Record<string, PgTable> = {
+  dishes,
   plans,
   "meal-sizes": mealSizes,
   "delivery-frequencies": deliveryFrequencies,

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { BellIcon, TriangleAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 import { lintEmailHtml } from "@/lib/notifications/email-compat";
+import { formatCode } from "@/lib/notifications/format";
 import { compileReactEmail, REACT_SOURCE_MARKER } from "@/lib/notifications/react-template";
 import "@uiw/react-md-editor/markdown-editor.css";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export function TemplateEditor({
   const [reactError, setReactError] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [preview, setPreview] = useState("");
+  const [testEmail, setTestEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const emailRef = useRef<EmailEditorFieldHandle>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -167,6 +169,17 @@ export function TemplateEditor({
     toast[res.ok ? "success" : "error"](res.ok ? "Template saved" : "Save failed");
   }
 
+  // Prettify the raw HTML / React source in place. Client-side, so a syntax
+  // error just surfaces as a toast rather than mangling the buffer.
+  async function format() {
+    try {
+      if (mode === "html") setRawHtml(await formatCode(rawHtml, "html"));
+      else if (mode === "react") setReactSource(await formatCode(reactSource, "react"));
+    } catch (e) {
+      toast.error(`Format failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   async function sendTest() {
     if (channel !== "email") {
       toast.error("Test send is email only");
@@ -198,10 +211,12 @@ export function TemplateEditor({
     const res = await fetch("/api/notifications/templates/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event, subject, html, text }),
+      body: JSON.stringify({ event, subject, html, text, to: testEmail.trim() || undefined }),
     });
     setBusy(false);
-    toast[res.ok ? "success" : "error"](res.ok ? "Test sent" : "Test failed");
+    toast[res.ok ? "success" : "error"](
+      res.ok ? `Test sent${testEmail.trim() ? ` to ${testEmail.trim()}` : ""}` : "Test failed",
+    );
   }
 
   return (
@@ -243,10 +258,17 @@ export function TemplateEditor({
                     <TabsTrigger value="react">React</TabsTrigger>
                   </TabsList>
                 </Tabs>
-                {mode !== "visual" && variables.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    Use {`{{var}}`} tokens, e.g. <code className="font-mono">{`{{${variables[0]}}}`}</code>
-                  </span>
+                {mode !== "visual" && (
+                  <div className="flex items-center gap-3">
+                    {variables.length > 0 && (
+                      <span className="hidden text-xs text-muted-foreground sm:inline">
+                        Use {`{{var}}`} tokens, e.g. <code className="font-mono">{`{{${variables[0]}}}`}</code>
+                      </span>
+                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={format}>
+                      Format
+                    </Button>
+                  </div>
                 )}
               </div>
               {mode === "visual" ? (
@@ -341,9 +363,18 @@ export function TemplateEditor({
               Save
             </Button>
             {channel === "email" && (
-              <Button variant="outline" onClick={sendTest} disabled={busy}>
-                Send test
-              </Button>
+              <>
+                <Input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test recipient (defaults to you)"
+                  className="max-w-64"
+                />
+                <Button variant="outline" onClick={sendTest} disabled={busy}>
+                  Send test
+                </Button>
+              </>
             )}
           </div>
         </div>

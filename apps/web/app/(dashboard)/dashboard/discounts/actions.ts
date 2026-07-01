@@ -12,7 +12,7 @@ import { planType } from "@/db/schema/catalog";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 
-const PATH = "/dashboard/settings/discounts";
+const PATH = "/dashboard/discounts";
 
 // Numeric columns are dollar strings; null clears the column.
 const money = (n: number | null | undefined): string | null => (n == null ? null : n.toFixed(2));

@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { coinRate, eventPayout } from "@/db/schema";
 import { appEvent } from "@/db/schema/wallet";
 
-const PATH = "/dashboard/settings/wallet";
+const PATH = "/dashboard/wallet";
 
 const payoutSchema = z.object({
   eventType: z.enum(appEvent.enumValues),

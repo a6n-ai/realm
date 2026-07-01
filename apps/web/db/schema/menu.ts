@@ -1,6 +1,6 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
 import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { planType } from "./catalog";
+import { dishes, planType } from "./catalog";
 import { orders } from "./orders";
 
 export const mealSlots = pgTable(
@@ -15,18 +15,6 @@ export const mealSlots = pgTable(
   },
   (t) => [uniqueIndex("meal_slots_type_key_unique").on(t.planType, t.key)],
 );
-
-export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
-
-export const dishes = pgTable("dishes", {
-  ...updatableColumns("dsh"),
-  name: text("name").notNull(),
-  description: text("description"),
-  diet: dishDiet("diet").notNull(),
-  slots: text("slots").array().notNull().default([]),
-  imageUrl: text("image_url"),
-  active: boolean("active").notNull().default(true),
-});
 
 export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);
 export const dayOfWeek = pgEnum("day_of_week", ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);

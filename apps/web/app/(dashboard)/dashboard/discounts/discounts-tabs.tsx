@@ -8,10 +8,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type SubTab = { label: string; href: string; icon: LucideIcon };
 
 const SUBTABS: SubTab[] = [
-  { label: "Logs", href: "/dashboard/settings/discounts/logs", icon: HistoryIcon },
-  { label: "Coupons", href: "/dashboard/settings/discounts/coupons", icon: TicketPercentIcon },
-  { label: "Rep allowance", href: "/dashboard/settings/discounts/rep-allowance", icon: PercentIcon },
-  { label: "Enabled kinds", href: "/dashboard/settings/discounts/kinds", icon: SlidersHorizontalIcon },
+  { label: "Logs", href: "/dashboard/discounts/logs", icon: HistoryIcon },
+  { label: "Coupons", href: "/dashboard/discounts/coupons", icon: TicketPercentIcon },
+  { label: "Rep allowance", href: "/dashboard/discounts/rep-allowance", icon: PercentIcon },
+  { label: "Enabled kinds", href: "/dashboard/discounts/kinds", icon: SlidersHorizontalIcon },
 ];
 
 // Routed sub-tabs styled with the shared shadcn Tabs. Each trigger is a real

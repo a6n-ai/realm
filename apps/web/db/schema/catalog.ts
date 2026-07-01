@@ -4,6 +4,17 @@ import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const mealDiet = pgEnum("meal_diet", ["veg", "nonveg", "both"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
+export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
+
+export const dishes = pgTable("dishes", {
+  ...updatableColumns("dsh"),
+  name: text("name").notNull(),
+  description: text("description"),
+  diet: dishDiet("diet").notNull(),
+  slots: text("slots").array().notNull().default([]),
+  imageUrl: text("image_url"),
+  active: boolean("active").notNull().default(true),
+});
 
 export const plans = pgTable("plans", {
   ...updatableColumns("pln"),

@@ -14,7 +14,7 @@ const { coupons, couponRedemptions, ledgerEntries } = await import("@/db/schema"
 const { couponKind } = await import("@/db/schema/coupons");
 const { setDiscountPolicy } = await import("@/lib/services/app-settings.service");
 const { saveCoupon, setCouponActive } = await import(
-  "@/app/(dashboard)/dashboard/settings/discounts/actions"
+  "@/app/(dashboard)/dashboard/discounts/actions"
 );
 
 const basePatch = {

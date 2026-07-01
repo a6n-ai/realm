@@ -106,7 +106,26 @@ const addonsSchema = z.object({
   active,
 });
 
+const dishesSchema = z.object({
+  name,
+  description: z.string().trim().optional().nullable(),
+  diet: z.enum(["veg", "nonveg"]),
+  slots: z.array(z.string()).default([]),
+  imageUrl: z.string().trim().optional().nullable(),
+  active,
+});
+
 export const RESOURCES: Record<string, ResourceDef> = {
+  dishes: {
+    key: "dishes", label: "Dishes", singular: "dish", keyed: false, schema: dishesSchema,
+    fields: [
+      { key: "name", label: "Name", type: "text" },
+      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
+      { key: "slots", label: "Slots", type: "multiselect", optionsSource: "mealSlots" },
+      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
+      { key: "imageUrl", label: "Image URL", type: "text", optional: true, tableHidden: true },
+    ],
+  },
   plans: {
     key: "plans", label: "Plans", singular: "plan", keyed: true, schema: plansSchema,
     fields: [

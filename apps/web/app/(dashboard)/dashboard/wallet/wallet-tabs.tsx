@@ -8,9 +8,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type SubTab = { label: string; href: string; icon: LucideIcon };
 
 const SUBTABS: SubTab[] = [
-  { label: "Ledger", href: "/dashboard/settings/wallet/ledger", icon: ScrollTextIcon },
-  { label: "Payouts", href: "/dashboard/settings/wallet/payouts", icon: BanknoteIcon },
-  { label: "Coin rate", href: "/dashboard/settings/wallet/coin-rate", icon: CoinsIcon },
+  { label: "Ledger", href: "/dashboard/wallet/ledger", icon: ScrollTextIcon },
+  { label: "Payouts", href: "/dashboard/wallet/payouts", icon: BanknoteIcon },
+  { label: "Coin rate", href: "/dashboard/wallet/coin-rate", icon: CoinsIcon },
 ];
 
 // Routed sub-tabs styled with the shared shadcn Tabs. Each trigger is a real
