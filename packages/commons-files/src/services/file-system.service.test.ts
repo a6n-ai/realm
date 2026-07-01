@@ -60,6 +60,13 @@ describe.skipIf(!url)("FileSystemService (integration)", () => {
     expect(roots[0]?.isDirectory).toBe(true);
   });
 
+  it("head on a directory returns no url", async () => {
+    await svc.create("menu/dish/a.png", "x");
+    const fd = await svc.head("menu/dish");
+    expect(fd?.isDirectory).toBe(true);
+    expect(fd?.url).toBeUndefined();
+  });
+
   it("delete removes the object and the row", async () => {
     await svc.create("x/a.png", "v");
     await svc.delete("x/a.png");

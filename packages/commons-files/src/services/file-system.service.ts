@@ -56,7 +56,7 @@ export class FileSystemService {
     const key = toKey(path);
     const row = await this.rowByPath(key);
     if (!row) return null;
-    return this.toFileDetail(row, await this.urlFor(key));
+    return this.toFileDetail(row, row.fileType === "file" ? await this.urlFor(key) : undefined);
   }
 
   async get(path: string): Promise<GetResult> {
@@ -80,6 +80,7 @@ export class FileSystemService {
     );
   }
 
+  // ponytail: deletes one object + its row (descendant rows cascade via FK). Deleting a non-empty directory leaves descendant blobs in storage — add prefix-based storage GC (storage.list(key) + delete) when directory delete is actually needed.
   async delete(path: string): Promise<void> {
     const key = toKey(path);
     const row = await this.rowByPath(key);
