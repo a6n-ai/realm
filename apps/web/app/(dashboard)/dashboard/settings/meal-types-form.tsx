@@ -105,8 +105,7 @@ export function MealTypesForm({
         return (
           <div
             key={t}
-            className="rounded-xl border-l-[3px] bg-muted/30 p-4 space-y-4"
-            style={{ borderLeftColor: accent }}
+            className="rounded-xl border bg-muted/30 p-4 space-y-4"
           >
             <div className="flex items-center gap-2">
               <span

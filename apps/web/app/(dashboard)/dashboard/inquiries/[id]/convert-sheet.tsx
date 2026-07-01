@@ -48,8 +48,8 @@ export function ConvertSheet({
         </SheetHeader>
         <div className="space-y-4 p-4 pt-0">
           {existing ? (
-            <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-              <AlertTriangleIcon className="size-4 shrink-0" />
+            <div className="flex items-center gap-2 rounded-md border border-warn/40 bg-warn/10 p-3 text-sm">
+              <AlertTriangleIcon className="size-4 shrink-0 text-warn" />
               <span>
                 Existing customer? {existing.fullName}{" "}
                 <Link

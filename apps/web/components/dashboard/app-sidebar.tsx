@@ -289,7 +289,7 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
               )}
             >
               {copied ? (
-                <CheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                <CheckIcon className="size-4 text-ok" aria-hidden />
               ) : (
                 <CopyIcon className="size-4" aria-hidden />
               )}

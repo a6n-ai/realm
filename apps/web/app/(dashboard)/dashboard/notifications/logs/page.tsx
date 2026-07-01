@@ -5,10 +5,10 @@ import { eventLabel } from "@/components/notifications/template-status";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const STATUS_STYLE: Record<string, string> = {
-  sent: "text-emerald-600 dark:text-emerald-400",
-  failed: "text-red-600 dark:text-red-400",
+  sent: "text-ok",
+  failed: "text-bad",
   pending: "text-muted-foreground",
-  processing: "text-amber-600 dark:text-amber-400",
+  processing: "text-warn",
 };
 
 function fmt(ms: number): string {

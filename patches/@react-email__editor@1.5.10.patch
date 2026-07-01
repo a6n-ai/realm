@@ -1,0 +1,26 @@
+diff --git a/dist/core-4eWA8YCs.mjs b/dist/core-4eWA8YCs.mjs
+index 9e4e27e96bd8732eb94197e81da1c0b396f27022..0fa3a073817c07214b741b354b9d6f6a8b0769ed 100644
+--- a/dist/core-4eWA8YCs.mjs
++++ b/dist/core-4eWA8YCs.mjs
+@@ -105,7 +105,7 @@ const composeReactEmail = async ({ editor, preview, previewMode = false }) => {
+ 						}, depth, editor) ?? {},
+ 						extension: emailMark,
+ 						children: renderedNode
+-					});
++					}, index);
+ 				}
+ 			}
+ 			return renderedNode;
+diff --git a/dist/core-DBuibK5E.cjs b/dist/core-DBuibK5E.cjs
+index 8439561e9e5943a62e5a648bd1992e6cc36c1cc4..fb971563e2ee583ac94083ba8b92d12b674e92a2 100644
+--- a/dist/core-DBuibK5E.cjs
++++ b/dist/core-DBuibK5E.cjs
+@@ -106,7 +106,7 @@ const composeReactEmail = async ({ editor, preview, previewMode = false }) => {
+ 						}, depth, editor) ?? {},
+ 						extension: emailMark,
+ 						children: renderedNode
+-					});
++					}, index);
+ 				}
+ 			}
+ 			return renderedNode;

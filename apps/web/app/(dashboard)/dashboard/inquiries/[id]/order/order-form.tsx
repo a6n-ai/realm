@@ -413,7 +413,7 @@ export function OrderForm({
               <div key={l.label} className="flex justify-between"><span className="text-muted-foreground">{l.label}</span><span className="nums">${l.amount.toFixed(2)}</span></div>
             ))}
             {preview.adjustments.map((d) => (
-              <div key={d.label} className="flex justify-between text-emerald-600"><span>{d.label}</span><span className="nums">-${d.amount.toFixed(2)}</span></div>
+              <div key={d.label} className="flex justify-between text-ok"><span>{d.label}</span><span className="nums">-${d.amount.toFixed(2)}</span></div>
             ))}
             <div className="mt-2 flex justify-between border-t pt-2 font-medium"><span>Total ({preview.tiffinCount} tiffins)</span><span className="nums">${preview.total.toFixed(2)}</span></div>
           </div>

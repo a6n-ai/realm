@@ -267,12 +267,12 @@ export function TemplateEditor({
                     className="h-[600px] w-full resize-y rounded-lg border bg-muted/20 p-3 font-mono text-xs leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   {compatWarnings.length > 0 && (
-                    <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-xs dark:border-amber-500/30 dark:bg-amber-950/30">
-                      <p className="mb-1.5 flex items-center gap-1.5 font-medium text-amber-900 dark:text-amber-200">
+                    <div className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-xs">
+                      <p className="mb-1.5 flex items-center gap-1.5 font-medium text-warn">
                         <TriangleAlertIcon className="size-3.5" />
                         Email client compatibility ({compatWarnings.length})
                       </p>
-                      <ul className="space-y-0.5 text-amber-800 dark:text-amber-300">
+                      <ul className="space-y-0.5 text-muted-foreground">
                         {compatWarnings.map((w, i) => (
                           <li key={`${w.line}-${w.property}-${i}`}>
                             <span className="font-mono">L{w.line}</span> · <strong>{w.property}</strong> — not

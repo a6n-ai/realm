@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BanknoteIcon, CoinsIcon, type LucideIcon } from "lucide-react";
+import { BanknoteIcon, CoinsIcon, ScrollTextIcon, type LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type SubTab = { label: string; href: string; icon: LucideIcon };
 
 const SUBTABS: SubTab[] = [
+  { label: "Ledger", href: "/dashboard/settings/wallet/ledger", icon: ScrollTextIcon },
   { label: "Payouts", href: "/dashboard/settings/wallet/payouts", icon: BanknoteIcon },
   { label: "Coin rate", href: "/dashboard/settings/wallet/coin-rate", icon: CoinsIcon },
 ];

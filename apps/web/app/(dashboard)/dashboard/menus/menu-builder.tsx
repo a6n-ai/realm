@@ -99,14 +99,14 @@ export function MenuBuilder({
           <div className="flex items-center gap-2 text-sm">
             {week.status === "draft" ? (
               <>
-                <CheckCircle2 className="size-4 text-green-600" />
+                <CheckCircle2 className="size-4 text-ok" />
                 <span className="font-medium">Draft saved automatically</span>
                 <span className="text-muted-foreground">— every dish you add or remove is saved.</span>
               </>
             ) : (
               <>
-                <CheckCircle2 className="size-4 text-green-600" />
-                <span className="font-medium text-green-700">Released</span>
+                <CheckCircle2 className="size-4 text-ok" />
+                <span className="font-medium text-ok">Released</span>
                 <span className="text-muted-foreground">— live on the website.</span>
               </>
             )}
