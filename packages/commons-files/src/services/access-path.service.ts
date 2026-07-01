@@ -1,5 +1,5 @@
 import type { Database } from "@tiffin/commons-drizzle";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { filesAccessPath } from "../schema/files";
 
 export type RoleValue = "admin" | "member" | "user";

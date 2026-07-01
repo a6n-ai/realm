@@ -73,4 +73,19 @@ describe.skipIf(!url)("access services (integration)", () => {
 
     expect(await svc.validate("nope", "docs/y.pdf")).toEqual({ ok: false, reason: "not_found" });
   });
+
+  it("SecuredAccessService path_mismatch: key minted for one path rejects different path", async () => {
+    let t = 1000;
+    const svc = new SecuredAccessService(db, () => t);
+    const { accessKey } = await svc.mint("docs/x.pdf", { ttlSeconds: 10 });
+    expect(await svc.validate(accessKey, "other/y.pdf")).toEqual({ ok: false, reason: "path_mismatch" });
+  });
+
+  it("AccessPathService false-prefix boundary: path 'doc' does not match 'docs/...'", async () => {
+    const svc = new AccessPathService(db);
+    await client`insert into files_access_path (public_id, resource_type, access_name, path, allow_sub_path_access)
+      values ('fap_3', 'secured', null, 'doc', true)`;
+    expect(await svc.canRead("user", "docs/x.pdf", "secured")).toBe(false);
+    expect(await svc.canRead("user", "doc/x.pdf", "secured")).toBe(true);
+  });
 });
