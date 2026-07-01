@@ -1,7 +1,7 @@
 {
   "name": "tiffin-grab",
   "private": true,
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.34.4",
   "scripts": {
     "dev": "turbo run dev",
     "dev:fresh": "lsof -ti :3000 | xargs kill -9 2>/dev/null; rm -rf apps/web/.next && turbo run dev",
@@ -20,10 +20,5 @@
     "turbo": "^2.9.18",
     "typescript": "^5",
     "vitest": "^4.1.9"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "@react-email/editor@1.5.10": "patches/@react-email__editor@1.5.10.patch"
-    }
   }
 }
