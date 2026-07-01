@@ -37,7 +37,9 @@ describe.skipIf(!url)("FileSystemService (integration)", () => {
   });
 
   afterAll(async () => {
-    await client`drop table if exists files_file_system`;
+    // Do NOT drop: files_file_system is real migrated schema shared with the app.
+    // Leave it empty (truncate runs per test); dropping it would break the app DB.
+    await client`truncate table files_file_system restart identity cascade`;
     await client.end();
   });
 

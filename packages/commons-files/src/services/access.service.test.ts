@@ -37,8 +37,10 @@ describe.skipIf(!url)("access services (integration)", () => {
   });
 
   afterAll(async () => {
-    await client`drop table if exists files_access_path`;
-    await client`drop table if exists files_secured_access_key`;
+    // Do NOT drop: these are real migrated tables shared with the app. Leave them
+    // empty (truncate runs per test); dropping would break the app DB schema.
+    await client`truncate table files_access_path restart identity`;
+    await client`truncate table files_secured_access_key restart identity`;
     await client.end();
   });
 
@@ -46,16 +48,16 @@ describe.skipIf(!url)("access services (integration)", () => {
     const svc = new AccessPathService(db);
     expect(await svc.canRead("user", "any/thing", "static")).toBe(true);
     expect(await svc.canRead("user", "docs/x.pdf", "secured")).toBe(false);
-    await client`insert into files_access_path (public_id, resource_type, access_name, path, allow_sub_path_access)
-      values ('fap_1', 'secured', 'member', 'docs', true)`;
+    await client`insert into files_access_path (public_id, created_at, updated_at, resource_type, access_name, path, allow_sub_path_access)
+      values ('fap_1', 0, 0, 'secured', 'member', 'docs', true)`;
     expect(await svc.canRead("member", "docs/x.pdf", "secured")).toBe(true);
     expect(await svc.canRead("user", "docs/x.pdf", "secured")).toBe(false);
   });
 
   it("write needs write_access true", async () => {
     const svc = new AccessPathService(db);
-    await client`insert into files_access_path (public_id, resource_type, access_name, write_access, path)
-      values ('fap_2', 'static', 'admin', true, 'uploads')`;
+    await client`insert into files_access_path (public_id, created_at, updated_at, resource_type, access_name, write_access, path)
+      values ('fap_2', 0, 0, 'static', 'admin', true, 'uploads')`;
     expect(await svc.canWrite("admin", "uploads/a.png", "static")).toBe(true);
     expect(await svc.canWrite("member", "uploads/a.png", "static")).toBe(false);
   });
@@ -83,8 +85,8 @@ describe.skipIf(!url)("access services (integration)", () => {
 
   it("AccessPathService false-prefix boundary: path 'doc' does not match 'docs/...'", async () => {
     const svc = new AccessPathService(db);
-    await client`insert into files_access_path (public_id, resource_type, access_name, path, allow_sub_path_access)
-      values ('fap_3', 'secured', null, 'doc', true)`;
+    await client`insert into files_access_path (public_id, created_at, updated_at, resource_type, access_name, path, allow_sub_path_access)
+      values ('fap_3', 0, 0, 'secured', null, 'doc', true)`;
     expect(await svc.canRead("user", "docs/x.pdf", "secured")).toBe(false);
     expect(await svc.canRead("user", "doc/x.pdf", "secured")).toBe(true);
   });
