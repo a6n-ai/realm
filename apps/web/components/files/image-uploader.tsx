@@ -35,7 +35,7 @@ export function ImageUploader({
   const [error, setError] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropName, setCropName] = useState("image");
-  const pending = useRef<DiceOptions | null>(null);
+  const pending = useRef<{ file: File; options: DiceOptions } | null>(null);
 
   async function upload(file: File, options: DiceOptions) {
     setError(null);
@@ -84,7 +84,7 @@ export function ImageUploader({
       options.onError(file, e);
       return;
     }
-    pending.current = options;
+    pending.current = { file, options };
     setCropName(file.name.replace(/\.[^.]+$/, "") || "image");
     setCropSrc(URL.createObjectURL(file));
   }
@@ -96,14 +96,16 @@ export function ImageUploader({
   }
 
   async function onCropApply(file: File) {
-    const options = pending.current;
+    const p = pending.current;
     closeCropper();
-    if (options) await upload(file, options);
+    if (p) await upload(file, p.options);
   }
 
   function onCropCancel() {
     // Clear diceui's pending file state so the dropzone resets.
-    pending.current?.onError(new File([], cropName), new Error("cancelled"));
+    if (pending.current) {
+      pending.current.options.onError(pending.current.file, new Error("cancelled"));
+    }
     closeCropper();
   }
 
