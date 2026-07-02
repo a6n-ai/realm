@@ -1,6 +1,6 @@
 import type { Dirent } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import type {
   GetResult,
   HeadResult,
@@ -46,8 +46,14 @@ export class LocalStorageProvider implements StorageProvider {
   constructor(private readonly baseDir: string) {}
 
   // Keys are posix-style ("a/b/c"); resolve against baseDir with OS separators.
+  // Containment check blocks ".."-style traversal outside baseDir.
   private fullPath(key: string): string {
-    return join(this.baseDir, ...key.split("/"));
+    const root = resolve(this.baseDir);
+    const full = resolve(root, ...key.split("/"));
+    if (full !== root && !full.startsWith(root + sep)) {
+      throw new Error(`local storage: path escapes base directory: ${key}`);
+    }
+    return full;
   }
 
   async put(key: string, body: Uint8Array | string, _opts?: PutOptions): Promise<PutResult> {

@@ -53,4 +53,17 @@ describe("LocalStorageProvider (StorageProvider contract)", () => {
   it("delete on a missing key is a no-op", async () => {
     await expect(s.delete("gone")).resolves.toBeUndefined();
   });
+
+  it("blocks reads that escape the base directory via ..", async () => {
+    await expect(s.get("../escape.txt")).rejects.toThrow(/escape/i);
+  });
+
+  it("blocks writes that escape the base directory via ..", async () => {
+    await expect(s.put("../../evil.txt", enc("x"))).rejects.toThrow();
+  });
+
+  it("still allows a normal nested key", async () => {
+    await s.put("a/b/c.txt", enc("ok"));
+    expect(dec((await s.get("a/b/c.txt")).body)).toBe("ok");
+  });
 });
