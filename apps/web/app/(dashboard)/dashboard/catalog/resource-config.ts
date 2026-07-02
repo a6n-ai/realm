@@ -1,6 +1,7 @@
 import { z } from "zod";
+import type { FileDetail } from "@tiffin/commons-files/model";
 
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image";
 
 export interface FieldDef {
   key: string;
@@ -41,6 +42,13 @@ export function slug(name: string): string {
 const key = z.string().trim().regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and hyphens only");
 const name = z.string().trim().min(1, "Name is required");
 const active = z.boolean().optional();
+
+// Stored image is the full FileDetail JSON; url is what the UI needs. Extra keys pass through.
+const fileDetail = z
+  .object({ url: z.string().min(1) })
+  .passthrough()
+  .nullable()
+  .optional();
 
 // Form number inputs serialize blanks as "" (see emptyForm/rowToForm). z.coerce.number()
 // turns "" into 0 *before* .optional()/.nullable() are consulted, so without these wrappers
@@ -111,7 +119,7 @@ const dishesSchema = z.object({
   description: z.string().trim().optional().nullable(),
   diet: z.enum(["veg", "nonveg"]),
   slots: z.array(z.string()).default([]),
-  imageUrl: z.string().trim().optional().nullable(),
+  image: fileDetail,
   active,
 });
 
@@ -123,7 +131,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
       { key: "slots", label: "Slots", type: "multiselect", optionsSource: "mealSlots" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
-      { key: "imageUrl", label: "Image URL", type: "text", optional: true, tableHidden: true },
+      { key: "image", label: "Image", type: "image", optional: true, tableHidden: true },
     ],
   },
   plans: {
@@ -203,6 +211,7 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
     const v = row[f.key];
     if (ARRAY_TYPES.has(f.type)) out[f.key] = Array.isArray(v) ? v : [];
     else if (f.type === "boolean") out[f.key] = Boolean(v);
+    else if (f.type === "image") out[f.key] = v ?? null;
     else out[f.key] = v == null ? "" : String(v);
   }
   return out;
@@ -210,6 +219,8 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
 
 export function emptyForm(def: ResourceDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of def.fields) out[f.key] = ARRAY_TYPES.has(f.type) ? [] : f.type === "boolean" ? false : "";
+  for (const f of def.fields) {
+    out[f.key] = ARRAY_TYPES.has(f.type) ? [] : f.type === "boolean" ? false : f.type === "image" ? null : "";
+  }
   return out;
 }
