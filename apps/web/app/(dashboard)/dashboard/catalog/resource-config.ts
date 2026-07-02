@@ -130,7 +130,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
       { key: "slots", label: "Slots", type: "multiselect", optionsSource: "mealSlots" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
-      { key: "image", label: "Image", type: "image", optional: true, tableHidden: true },
+      { key: "image", label: "Image", type: "image", optional: true },
     ],
   },
   plans: {

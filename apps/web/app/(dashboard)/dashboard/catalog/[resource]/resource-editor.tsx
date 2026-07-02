@@ -325,6 +325,12 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
     const text = labels.join(", ");
     return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
   }
+  if (f.type === "image") {
+    const url = (value as { url?: string }).url;
+    if (!url) return <span className="text-muted-foreground/50">—</span>;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url} alt="" className="size-9 rounded-md border object-cover" />;
+  }
   if (f.type === "boolean") {
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
   }
