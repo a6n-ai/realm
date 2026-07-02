@@ -32,12 +32,14 @@ export function ImageCropperDialog({
   const [optimize, setOptimize] = useState(true);
   const [area, setArea] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onCropComplete = useCallback((_area: Area, px: Area) => setArea(px), []);
 
   async function apply() {
     if (!area) return;
     setBusy(true);
+    setError(null);
     try {
       const file = await exportImage(src, {
         cropPixels: area,
@@ -49,6 +51,8 @@ export function ImageCropperDialog({
         fileName,
       });
       onApply(file);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not process image");
     } finally {
       setBusy(false);
     }
@@ -103,6 +107,8 @@ export function ImageCropperDialog({
             <Switch checked={optimize} onCheckedChange={setOptimize} /> Optimize for web (WebP)
           </label>
         </div>
+
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
