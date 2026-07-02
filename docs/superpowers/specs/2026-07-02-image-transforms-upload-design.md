@@ -30,9 +30,34 @@ but apply it in a browser canvas and bake the output; we add a real circular cro
 - Cropper library: **`react-easy-crop`** (crop + pan + zoom + `rotation` +
   `cropShape="round"`).
 
-## §1 — Flow
+## §0 — Reusable component structure (`apps/web/components/files/`)
 
-`ImageUploadField` currently uploads the raw selected file. New flow:
+Group the upload UI under a new `apps/web/components/files/` folder — one reusable
+component with two modes via an `edit` prop. Stays in the app (can use the existing
+shadcn primitives via the `@/` alias); no new package.
+
+- `apps/web/components/files/image-uploader.tsx` — **`ImageUploader`**, the reusable
+  uploader. Props: `value: FileDetail | null`, `onChange(v: FileDetail | null)`,
+  `edit?: boolean` (default `true`), `prefix?: string`, `disabled?: boolean`,
+  `shape?: "square" | "round"` (preview shape). `edit={true}` → opens the
+  crop/rotate/flip/optimize dialog before upload; `edit={false}` → simple direct
+  upload (no dialog). NOT RHF-specific — plain value/onChange, usable anywhere.
+  Keeps using the existing diceui `FileUpload` dropzone (`@/components/ui/file-upload`)
+  for the drop surface; upload transport unchanged (`POST /api/files/upload`).
+- `apps/web/components/files/image-cropper-dialog.tsx` — the cropper (§2), built on
+  the app's shadcn `Dialog`/`Button`/`Slider` + `react-easy-crop`.
+- `apps/web/components/files/index.ts` — barrel exporting `ImageUploader`.
+- `apps/web/lib/images/export-image.ts` — canvas export (§3).
+
+Migration: the existing `apps/web/components/ds/image-upload-field.tsx` logic MOVES
+into `ImageUploader` (its `edit={false}` path == today's behavior). `resource-editor.tsx`
+imports `ImageUploader` from `@/components/files` (with `edit` — default on). Delete
+`ds/image-upload-field.tsx` and its `ds/index.ts` export once nothing references it.
+diceui `file-upload.tsx` + hooks stay (still used by the dropzone).
+
+## §1 — Flow (edit mode)
+
+`ImageUploader` with `edit={true}`: instead of uploading the raw selected file,
 1. File selected (diceui `onUpload`) → do NOT upload yet; stash the `File` + the
    diceui `options` (`onSuccess`/`onError`) and open `ImageCropperDialog` with an
    object URL of the file.
@@ -57,7 +82,9 @@ route's allowed MIME set and ≤5 MB.
   (square) with the round toggle switching `cropShape` between `"rect"`/`"round"`.
 - Controls (shadcn primitives): zoom slider, rotation slider + two 90° buttons,
   flip-H / flip-V toggle buttons, a round toggle, an **"Optimize for web" toggle
-  (default ON)**, Cancel / Apply.
+  (default ON)**, Cancel / Apply. `components/ui/slider.tsx` does not exist yet — add
+  the shadcn `slider` component (`pnpm dlx shadcn@latest add slider`) for the zoom +
+  rotation sliders (or use native `<input type="range">` if preferred).
 - Flip preview: apply a CSS `transform: scaleX/scaleY(-1)` to the cropper media via
   react-easy-crop's `style`/`mediaProps` (or a wrapping transform) so the preview
   matches what export will bake. Export applies the same flips authoritatively.
