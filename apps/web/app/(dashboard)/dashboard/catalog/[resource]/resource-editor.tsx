@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ds";
-import { ImageUploadField } from "@/components/ds/image-upload-field";
+import { ImageUploader } from "@/components/files";
 import type { FileDetail } from "@tiffin/commons-files/model";
 import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -110,10 +110,10 @@ function FieldControl({
             <FormControl><Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} /></FormControl>
           ) : f.type === "image" ? (
             <FormControl>
-              <ImageUploadField
+              <ImageUploader
                 value={(field.value as FileDetail | null) ?? null}
                 onChange={field.onChange}
-                prefix={`catalog/dishes`}
+                prefix="catalog/dishes"
               />
             </FormControl>
           ) : f.type === "date" ? (
