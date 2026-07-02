@@ -20,4 +20,16 @@ describe("sanitizeFilename", () => {
   it("falls back to 'file' for an empty result", () => {
     expect(sanitizeFilename("***")).toBe("file");
   });
+  it("rejects pure-dot traversal segment '..'", () => {
+    expect(sanitizeFilename("..")).not.toBe("..");
+    expect(sanitizeFilename("..")).toBe("file");
+  });
+  it("rejects pure-dot segment '.'", () => {
+    expect(sanitizeFilename(".")).not.toBe(".");
+    expect(sanitizeFilename(".")).toBe("file");
+  });
+  it("never yields a '..' segment for a traversal path", () => {
+    const result = sanitizeFilename("../../etc/passwd");
+    expect(result.split("/")).not.toContain("..");
+  });
 });

@@ -15,5 +15,6 @@ export function sanitizeFilename(name: string): string {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-{2,}/g, "-")
     .replace(/^-+|-+$/g, "");
-  return cleaned || "file";
+  if (!cleaned || cleaned === "." || cleaned === "..") return "file";
+  return cleaned;
 }
