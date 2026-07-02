@@ -16,3 +16,4 @@ export * from "./order-status-badge";
 export * from "./sortable-header";
 export * from "./skeletons";
 export * from "./row-actions";
+export { ImageUploadField } from "./image-upload-field";
