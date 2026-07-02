@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { FileDetail } from "@tiffin/commons-files/model";
 
 export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image";
 
