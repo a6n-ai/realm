@@ -42,7 +42,7 @@ export async function createDish(input: { name: string; diet: "veg" | "nonveg" }
   await requireAdmin();
   const name = input.name.trim();
   if (!name) throw new Error("Dish name is required");
-  const row = await dishesService.create({ name, description: null, diet: input.diet, slots: [], imageUrl: null });
+  const row = await dishesService.create({ name, description: null, diet: input.diet, slots: [], image: null });
   revalidate();
   revalidatePath("/dashboard/catalog/dishes");
   return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };

@@ -1,4 +1,5 @@
 import { updatableColumns } from "@tiffin/commons-drizzle";
+import type { FileDetail } from "@tiffin/commons-files/model";
 import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
@@ -12,7 +13,7 @@ export const dishes = pgTable("dishes", {
   description: text("description"),
   diet: dishDiet("diet").notNull(),
   slots: text("slots").array().notNull().default([]),
-  imageUrl: text("image_url"),
+  image: jsonb("image").$type<FileDetail>(),
   active: boolean("active").notNull().default(true),
 });
 
