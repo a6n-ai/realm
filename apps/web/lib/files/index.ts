@@ -47,7 +47,7 @@ let cached: FileSystemService | undefined;
 export function filesService(): FileSystemService {
   if (!cached) {
     cached = new FileSystemService(makeStorage(), db, {
-      publicBaseUrl: process.env.FILES_PUBLIC_BASE_URL,
+      publicBaseUrl: process.env.FILES_PUBLIC_BASE_URL ?? "/api/files",
     });
   }
   return cached;
