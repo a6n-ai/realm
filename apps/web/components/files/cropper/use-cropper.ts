@@ -41,9 +41,15 @@ function resizeFromGeometry(crop: Rect, handle: Handle, dx: number, dy: number, 
 
 function applyAspectToExisting(crop: Rect, aspect: number | null, bounds: Size): Rect {
   if (aspect == null) return clampBox(crop, bounds);
-  // keep top-left, force the aspect on width, clamp
-  const w = crop.w;
-  const h = w / aspect;
+  // Fit an aspect-ratio box within bounds preserving the ratio (mirror fitBox),
+  // anchored near the current top-left. Deriving h then blindly clamping each axis
+  // would break the ratio when h exceeds bounds (e.g. 9:16 preset on a wide image).
+  let w = Math.min(crop.w, bounds.w);
+  let h = w / aspect;
+  if (h > bounds.h) {
+    h = bounds.h;
+    w = h * aspect;
+  }
   return clampBox({ x: crop.x, y: crop.y, w, h }, bounds);
 }
 
