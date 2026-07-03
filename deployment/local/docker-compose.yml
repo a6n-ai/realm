@@ -8,6 +8,7 @@ include:
   - redis/docker-compose.yml
   - caddy/docker-compose.yml
   - pgbouncer/docker-compose.yml
+  - ../prod/rabbitmq/docker-compose.yml
 
 services:
   web:
@@ -26,4 +27,18 @@ services:
       redis:
         condition: service_healthy
       pgbouncer:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployment/prod/Dockerfile
+      target: build
+    restart: unless-stopped
+    env_file: .env.local
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
+    command: ["pnpm", "--filter", "web", "exec", "tsx", "workers/notify-consumer.ts"]
+    depends_on:
+      rabbitmq:
         condition: service_healthy

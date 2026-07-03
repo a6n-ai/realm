@@ -26,18 +26,14 @@ services:
       pgbouncer:
         condition: service_healthy
 
-  # worker — notification consumer (outbox/queue drained via EventBridge). Entrypoint not
-  # built yet; uncomment when apps/worker (or packages/notify-worker) lands.
-  # worker:
-  #   build:
-  #     context: ../..
-  #     dockerfile: deployment/prod/Dockerfile
-  #     target: runner
-  #   restart: unless-stopped
-  #   env_file: .env.production
-  #   command: ["node", "apps/worker/server.js"]
-  #   depends_on:
-  #     redis: { condition: service_healthy }
+  worker:
+    build:
+      context: ../..
+      dockerfile: deployment/prod/Dockerfile
+      target: build
+    restart: unless-stopped
+    env_file: .env.production
+    command: ["pnpm", "--filter", "web", "exec", "tsx", "workers/notify-consumer.ts"]
 
   # One-shot migration runner. Reuses the `build` target (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.
