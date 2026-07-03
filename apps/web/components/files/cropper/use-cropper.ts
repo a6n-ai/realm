@@ -128,36 +128,34 @@ export function useCropper(opts: { src: string; aspect: number | null; round: bo
 
   const rotate = useCallback(
     (dir: 1 | -1) => {
-      setOrientation((o) => {
-        const next: Orientation = { ...o, rot: ((((o.rot + dir * 90) % 360) + 360) % 360) as Orientation["rot"] };
-        rebuild(next);
-        return next;
-      });
+      const rot = (((orientation.rot + dir * 90) % 360) + 360) % 360 as Orientation["rot"];
+      const next: Orientation = { ...orientation, rot };
+      setOrientation(next);
+      rebuild(next);
     },
-    [rebuild],
+    [orientation, rebuild],
   );
 
   const flip = useCallback(
     (axis: "h" | "v") => {
-      setOrientation((o) => {
-        const next: Orientation = axis === "h" ? { ...o, flipH: !o.flipH } : { ...o, flipV: !o.flipV };
-        rebuild(next);
-        return next;
-      });
+      const next: Orientation = axis === "h" ? { ...orientation, flipH: !orientation.flipH } : { ...orientation, flipV: !orientation.flipV };
+      setOrientation(next);
+      rebuild(next);
     },
-    [rebuild],
+    [orientation, rebuild],
   );
 
   const setZoom = useCallback((z: number) => {
     const vp = viewportRef.current;
     if (!vp) return;
+    const zoom = Math.max(0.05, z);
     setView((v) => {
       // zoom about viewport center
       const cx = vp.clientWidth / 2;
       const cy = vp.clientHeight / 2;
       const imgX = (cx - v.panX) / v.zoom;
       const imgY = (cy - v.panY) / v.zoom;
-      return { zoom: z, panX: cx - imgX * z, panY: cy - imgY * z };
+      return { zoom, panX: cx - imgX * zoom, panY: cy - imgY * zoom };
     });
   }, []);
 
