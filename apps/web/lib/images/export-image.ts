@@ -105,3 +105,21 @@ export async function exportImage(src: string, opts: ExportOptions): Promise<Fil
   if (!jpeg) throw new Error("image export failed");
   return new File([jpeg], `${fileName}.jpg`, { type: "image/jpeg" });
 }
+
+function encodeCanvas(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, quality));
+}
+
+/** Encode a finished (already cropped/rotated) canvas to an optimized WebP File (JPEG fallback). */
+export async function encodeCanvasToFile(
+  canvas: HTMLCanvasElement,
+  opts: { optimize?: boolean; fileName?: string } = {},
+): Promise<File> {
+  const quality = opts.optimize === false ? 0.95 : 0.82;
+  const name = opts.fileName ?? "image";
+  const webp = await encodeCanvas(canvas, "image/webp", quality);
+  if (webp) return new File([webp], `${name}.webp`, { type: "image/webp" });
+  const jpeg = await encodeCanvas(canvas, "image/jpeg", quality);
+  if (!jpeg) throw new Error("image export failed");
+  return new File([jpeg], `${name}.jpg`, { type: "image/jpeg" });
+}
