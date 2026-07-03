@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { notifications, notificationOutbox, users } from "@/db/schema";
 import { renderEmailForEvent, renderInAppForEvent } from "./template-service";
 import { broadcast } from "./broadcast";
+import { publishPush } from "./rabbit";
 
 type OutboxRow = typeof notificationOutbox.$inferSelect;
 type Channel = (typeof notificationOutbox.channel.enumValues)[number];
@@ -32,9 +33,18 @@ const inApp: ChannelHandler = async (row) => {
     .insert(notifications)
     .values({ userId: row.recipientId, event: row.event, title: rendered.title, body: rendered.body, href })
     .returning({ publicId: notifications.publicId });
-  await broadcast({ userId: row.recipientId, publicId: n.publicId, event: row.event, title: rendered.title, body: rendered.body, href });
+
+  // Feed row is committed above. Publish-after-commit: hand the realtime push to
+  // RabbitMQ; the worker calls broadcast(). If the broker is unavailable, fall
+  // back to the inline push so the live ping still fires (no regression).
+  const input = { userId: row.recipientId, publicId: n.publicId, event: row.event, title: rendered.title, body: rendered.body, href };
+  if (!(await publishPush(input))) await broadcast(input);
+
   return { providerMessageId: n.publicId };
 };
+
+/** Test-only handle onto the inApp handler. */
+export const __inAppForTest = inApp;
 
 function buildEmailHandler(): ChannelHandler {
   const provider = new SesEmailProvider({
