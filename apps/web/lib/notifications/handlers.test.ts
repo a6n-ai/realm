@@ -30,6 +30,7 @@ describe("inApp push routing", () => {
   it("falls back to inline broadcast when publish returns false", async () => {
     vi.mocked(publishPush).mockResolvedValue(false);
     await __inAppForTest(row);
+    expect(publishPush).toHaveBeenCalledOnce();
     expect(broadcast).toHaveBeenCalledOnce();
   });
 });

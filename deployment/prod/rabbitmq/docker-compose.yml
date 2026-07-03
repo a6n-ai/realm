@@ -3,7 +3,7 @@
 # include this file in the prod umbrella. Kept here so `local` can include it.
 services:
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13-management
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}

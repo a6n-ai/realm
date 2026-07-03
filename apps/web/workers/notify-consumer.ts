@@ -10,6 +10,8 @@ export async function handleMessage(raw: Buffer): Promise<void> {
 export async function startConsumer(): Promise<void> {
   const url = process.env.RABBITMQ_URL;
   if (!url) throw new Error("RABBITMQ_URL is not set");
+  // On a dropped broker connection amqplib emits 'error' → the process exits and
+  // compose `restart: unless-stopped` restarts the worker (crude but sufficient reconnect).
   const conn = await amqplib.connect(url);
   const ch = await conn.createChannel();
   await assertNotifyTopology(ch);
@@ -18,7 +20,10 @@ export async function startConsumer(): Promise<void> {
     if (!msg) return;
     handleMessage(msg.content)
       .then(() => ch.ack(msg))
-      .catch(() => ch.nack(msg, false, false)); // no requeue → dead-letters to notify.dlq
+      .catch((err) => {
+        console.error("[notify-consumer] nack→dlq", err);
+        ch.nack(msg, false, false); // no requeue → dead-letters to notify.dlq
+      });
   });
   console.log(`[notify-consumer] consuming ${NOTIFY_QUEUE}`);
 }

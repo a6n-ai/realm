@@ -55,7 +55,7 @@ export async function publishPush(payload: BroadcastInput): Promise<boolean> {
       );
     });
   } catch {
-    chanPromise = null;
+    chanPromise = null; // also covers a sync throw from a broken channel → reconnect next call
     return false;
   }
 }
