@@ -1,14 +1,26 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import Cropper, { type Area } from "react-easy-crop";
-import { FlipHorizontalIcon, FlipVerticalIcon, Loader2Icon, RotateCwIcon } from "lucide-react";
+import { useState } from "react";
+import { FlipHorizontalIcon, FlipVerticalIcon, Loader2Icon, RotateCcwIcon, RotateCwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { exportImage } from "@/lib/images/export-image";
+import { encodeCanvasToFile } from "@/lib/images/export-image";
+import { ImageCropper } from "./cropper/image-cropper";
+import { useCropper } from "./cropper/use-cropper";
+
+type Preset = { label: string; aspect: number | null; round: boolean };
+const PRESETS: Preset[] = [
+  { label: "Free", aspect: null, round: false },
+  { label: "1:1", aspect: 1, round: false },
+  { label: "16:9", aspect: 16 / 9, round: false },
+  { label: "4:3", aspect: 4 / 3, round: false },
+  { label: "3:2", aspect: 3 / 2, round: false },
+  { label: "9:16", aspect: 9 / 16, round: false },
+  { label: "Circle", aspect: 1, round: true },
+];
 
 export function ImageCropperDialog({
   open,
@@ -23,33 +35,30 @@ export function ImageCropperDialog({
   onCancel: () => void;
   onApply: (file: File) => void;
 }) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [presetIdx, setPresetIdx] = useState(1); // default 1:1
   const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [flipH, setFlipH] = useState(false);
-  const [flipV, setFlipV] = useState(false);
-  const [round, setRound] = useState(false);
   const [optimize, setOptimize] = useState(true);
-  const [area, setArea] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onCropComplete = useCallback((_area: Area, px: Area) => setArea(px), []);
+  const preset = PRESETS[presetIdx] ?? PRESETS[0]!;
+  const api = useCropper({ src, aspect: preset.aspect, round: preset.round, optimize });
+
+  function pickPreset(i: number) {
+    setPresetIdx(i);
+  }
+  function changeZoom(z: number) {
+    setZoom(z);
+    api.setZoom(z);
+  }
 
   async function apply() {
-    if (!area) return;
     setBusy(true);
     setError(null);
     try {
-      const file = await exportImage(src, {
-        cropPixels: area,
-        rotation,
-        flipH,
-        flipV,
-        round,
-        optimize,
-        fileName,
-      });
+      const canvas = api.exportCanvas();
+      if (!canvas) throw new Error("Could not process image");
+      const file = await encodeCanvasToFile(canvas, { optimize, fileName });
       onApply(file);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not process image");
@@ -65,47 +74,37 @@ export function ImageCropperDialog({
           <DialogTitle>Edit image</DialogTitle>
         </DialogHeader>
 
-        <div className="bg-muted relative h-64 w-full overflow-hidden rounded-md">
-          <Cropper
-            image={src}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
-            aspect={1}
-            cropShape={round ? "round" : "rect"}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={onCropComplete}
-          />
-        </div>
+        <ImageCropper api={api} />
 
         <div className="grid gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((p, i) => (
+              <Button key={p.label} type="button" size="sm" variant={i === presetIdx ? "default" : "outline"} onClick={() => pickPreset(i)}>
+                {p.label}
+              </Button>
+            ))}
+          </div>
           <div className="grid gap-1.5">
             <Label className="text-xs">Zoom</Label>
-            <Slider min={1} max={3} step={0.01} value={[zoom]} onValueChange={(v) => setZoom(v[0] ?? 1)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label className="text-xs">Rotation</Label>
-            <Slider min={0} max={360} step={1} value={[rotation]} onValueChange={(v) => setRotation(v[0] ?? 0)} />
+            <Slider min={1} max={4} step={0.01} value={[zoom]} onValueChange={(v) => changeZoom(v[0] ?? 1)} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setRotation((r) => (r + 90) % 360)}>
-              <RotateCwIcon className="size-4" /> 90°
+            <Button type="button" variant="outline" size="sm" onClick={() => api.rotate(-1)}>
+              <RotateCcwIcon className="size-4" />
             </Button>
-            <Button type="button" variant={flipH ? "default" : "outline"} size="sm" onClick={() => setFlipH((v) => !v)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => api.rotate(1)}>
+              <RotateCwIcon className="size-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => api.flip("h")}>
               <FlipHorizontalIcon className="size-4" /> Flip H
             </Button>
-            <Button type="button" variant={flipV ? "default" : "outline"} size="sm" onClick={() => setFlipV((v) => !v)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => api.flip("v")}>
               <FlipVerticalIcon className="size-4" /> Flip V
             </Button>
             <label className="ml-auto flex items-center gap-2 text-sm">
-              <Switch checked={round} onCheckedChange={setRound} /> Circle
+              <Switch checked={optimize} onCheckedChange={setOptimize} /> Optimize
             </label>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch checked={optimize} onCheckedChange={setOptimize} /> Optimize for web (WebP)
-          </label>
         </div>
 
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -114,7 +113,7 @@ export function ImageCropperDialog({
           <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button type="button" onClick={apply} disabled={busy || !area}>
+          <Button type="button" onClick={apply} disabled={busy || !api.ready}>
             {busy ? <Loader2Icon className="size-4 animate-spin" /> : null} Apply
           </Button>
         </div>
