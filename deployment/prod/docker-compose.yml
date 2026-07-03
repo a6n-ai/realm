@@ -1,0 +1,56 @@
+# Production launch stack. `docker compose up -d` runs web + redis + caddy.
+# Migrations run via the `migrate` profile (see deploy.sh), not on up.
+#
+# redis + caddy service defs are reused from their per-service subfolders.
+include:
+  - redis/docker-compose.yml
+  - caddy/docker-compose.yml
+  - pgbouncer/docker-compose.yml
+
+services:
+  web:
+    build:
+      context: ../.. # repo root
+      dockerfile: deployment/prod/Dockerfile
+      target: runner
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      # Redis is a compose service, not localhost — override the seam default.
+      REDIS_URL: redis://redis:6379
+    expose:
+      - "3000" # internal only; Caddy is the sole public ingress
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+
+  # worker — notification consumer (PG LISTEN + safety-net poll). Entrypoint not
+  # built yet; uncomment when apps/worker (or packages/notify-worker) lands.
+  # worker:
+  #   build:
+  #     context: ../..
+  #     dockerfile: deployment/prod/Dockerfile
+  #     target: runner
+  #   restart: unless-stopped
+  #   env_file: .env.production
+  #   command: ["node", "apps/worker/server.js"]
+  #   depends_on:
+  #     redis: { condition: service_healthy }
+
+  # One-shot migration runner. Reuses the `build` target (has drizzle-kit + source).
+  # Never starts on `up` (tools profile); invoked by deploy.sh before up.
+  migrate:
+    build:
+      context: ../.. # repo root
+      dockerfile: deployment/prod/Dockerfile
+      target: build
+    env_file: .env.production
+    environment:
+      # Migrations bypass the pooler — drizzle-kit DDL + advisory lock need a
+      # real session on RDS.
+      DATABASE_URL: ${DIRECT_DATABASE_URL}
+    command: ["pnpm", "--filter", "web", "exec", "drizzle-kit", "migrate"]
+    profiles:
+      - tools

@@ -1,0 +1,27 @@
+# Transaction-mode connection pooler in front of RDS. Pulled into the umbrella
+# via include:. Caps real RDS backends at DEFAULT_POOL_SIZE regardless of client
+# count — protects the t4g.micro ~112 connection ceiling.
+services:
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${PGBOUNCER_DB_HOST}
+      DB_PORT: ${PGBOUNCER_DB_PORT:-5432}
+      DB_USER: ${PGBOUNCER_DB_USER}
+      DB_PASSWORD: ${PGBOUNCER_DB_PASSWORD}
+      DB_NAME: ${PGBOUNCER_DB_NAME}
+      POOL_MODE: transaction
+      AUTH_TYPE: scram-sha-256
+      DEFAULT_POOL_SIZE: "15"
+      MAX_CLIENT_CONN: "100"
+      SERVER_TLS_SSLMODE: require
+      # PgBouncer must not try to prepare/execute across pooled backends.
+      MAX_PREPARED_STATEMENTS: "0"
+    expose:
+      - "6432" # compose-network only; never published
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "6432", "-U", "${PGBOUNCER_DB_USER}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

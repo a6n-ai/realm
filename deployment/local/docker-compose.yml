@@ -1,0 +1,29 @@
+# Full local stack: caddy + web + redis, DB points at RDS.
+#     cp .env.local.example .env.local   # fill in RDS DATABASE_URL + secrets
+#     docker compose -f deployment/local/docker-compose.yml up --build
+# Then open http://localhost
+#
+# redis + caddy service defs are reused verbatim from their standalone folders.
+include:
+  - redis/docker-compose.yml
+  - caddy/docker-compose.yml
+  - pgbouncer/docker-compose.yml
+
+services:
+  web:
+    build:
+      context: ../.. # repo root
+      dockerfile: deployment/prod/Dockerfile # single shared image; prod owns it
+      target: runner
+    restart: unless-stopped
+    env_file: .env.local
+    environment:
+      # web reaches redis over the compose network, not the host-published port.
+      REDIS_URL: redis://redis:6379
+    expose:
+      - "3000" # internal only; Caddy is the ingress
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
