@@ -50,3 +50,16 @@ next-env.d.ts
 
 # graphify knowledge-graph artifacts
 graphify-out/
+
+# AI tooling / agent context (keep local, never commit)
+.claude/
+.agents/
+.superpowers/
+.planning/
+.idea/
+.mcp.json
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+PROJECT.md
+docs/
