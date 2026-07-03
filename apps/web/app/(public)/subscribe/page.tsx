@@ -3,6 +3,9 @@ import { toClientCatalog } from "@/lib/catalog/types";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { Wizard } from "@/components/wizard/wizard";
 
+// Reads live catalog + meal slots — render per request, don't prerender at build.
+export const dynamic = "force-dynamic";
+
 export default async function SubscribePage() {
   const [catalog, slots] = await Promise.all([loadCatalogSnapshot(), mealSlotsService.enabledSlots()]);
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));

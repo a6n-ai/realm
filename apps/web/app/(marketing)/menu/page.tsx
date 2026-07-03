@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Menu — Tiffin Grab", description: 
 
 // Catalog is cached (loadCatalogSnapshot) and admin edits revalidate this path,
 // so the page can be static with a 10m ISR safety net instead of force-dynamic.
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
 const TIERS = [
   { key: "budget", label: "Budget" },

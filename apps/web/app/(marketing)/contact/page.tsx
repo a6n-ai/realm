@@ -6,6 +6,10 @@ import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = { title: "Contact — Tiffin Grab", description: "Get in touch — tell us about your tiffin needs and where you're located." };
 
+// Reads live app settings (timezone) for the form — render per request, don't
+// prerender at build (keeps the container build DB-free).
+export const dynamic = "force-dynamic";
+
 export default async function ContactPage() {
   const { timezone } = await getAppSettings();
   const defaultCountry = tzToDefaultCountry(timezone);

@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/table";
 import { Card } from "./card";
 import { FilterBar } from "./filter-bar";
+import { PageShell } from "./page-shell";
 
 // Composable loading-skeleton primitives. Each mirrors the geometry of its real
 // DS counterpart (PageHeader / StatCard / FilterBar / Table) so a loading.tsx
@@ -117,5 +118,79 @@ export function SkeletonCardGrid({ count, className = "sm:grid-cols-3" }: { coun
         <Skeleton key={i} className="h-40 w-full" />
       ))}
     </div>
+  );
+}
+
+// Whole-page loading skeleton. One component drives every dashboard `loading.tsx`:
+// pass the props that describe THAT page's shape (variant + counts) so the skeleton
+// mirrors the page's real components. A new page's loading.tsx is a one-liner —
+// tune, don't hand-roll.
+export function PageSkeleton({
+  variant = "table",
+  section = true,
+  action = true,
+  subtitle = true,
+  stats,
+  filters = 0,
+  columns = 6,
+  rows = 8,
+  fields = 4,
+  cards = 6,
+}: {
+  /** shape of the primary content block */
+  variant?: "table" | "form" | "cards" | "list";
+  /** wrap body in a SectionCard-style card (false = bare, e.g. detail pages) */
+  section?: boolean;
+  /** header has a trailing action button */
+  action?: boolean;
+  /** header has a subtitle line */
+  subtitle?: boolean;
+  /** render N stat cards above the body */
+  stats?: number;
+  /** filter-bar pills above a table/list (0 = no filter bar) */
+  filters?: number;
+  /** table columns */
+  columns?: number;
+  /** table/list rows */
+  rows?: number;
+  /** form fields */
+  fields?: number;
+  /** card-grid count */
+  cards?: number;
+}) {
+  const body =
+    variant === "form" ? (
+      <SkeletonFormCard fields={fields} />
+    ) : variant === "cards" ? (
+      <SkeletonCardGrid count={cards} />
+    ) : variant === "list" ? (
+      <SkeletonListRows rows={rows} />
+    ) : (
+      <SkeletonTable columns={columns} rows={rows} />
+    );
+
+  const filtered =
+    filters > 0 ? (
+      <div className="space-y-4">
+        <SkeletonFilterBar pills={filters} />
+        {body}
+      </div>
+    ) : (
+      body
+    );
+
+  return (
+    <PageShell>
+      <SkeletonPageHeader action={action} subtitle={subtitle} />
+      {stats ? <SkeletonStatCards count={stats} /> : null}
+      {section ? (
+        <Card variant="glow" className="p-5">
+          <Skeleton className="h-5 w-40" />
+          <div className="mt-4">{filtered}</div>
+        </Card>
+      ) : (
+        filtered
+      )}
+    </PageShell>
   );
 }

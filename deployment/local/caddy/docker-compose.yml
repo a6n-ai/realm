@@ -1,0 +1,12 @@
+# Local Caddy (HTTP :80 → web:3000). Not run standalone — it needs the `web`
+# service. Pulled into the umbrella stack via `include:`.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - web

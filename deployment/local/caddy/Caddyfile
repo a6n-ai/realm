@@ -1,0 +1,18 @@
+# Local Caddy — HTTP only (no TLS, no ACME). Mirrors the prod Caddyfile's proxy +
+# SSE behaviour so the proxy path is rehearsed against the real config language.
+{
+	auto_https off
+}
+
+# Plain HTTP on :80 → web. `http://localhost` in the browser.
+:80 {
+	encode zstd gzip
+
+	# SSE — stream events immediately, no response buffering (matches prod).
+	@sse path /api/notifications/stream
+	reverse_proxy @sse web:3000 {
+		flush_interval -1
+	}
+
+	reverse_proxy web:3000
+}

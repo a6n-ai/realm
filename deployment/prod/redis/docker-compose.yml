@@ -1,0 +1,22 @@
+# Prod Redis (cache L2). Pulled into the umbrella via `include:`. Runnable alone
+# for cache-only debugging on the box:
+#     docker compose -f deployment/prod/redis/docker-compose.yml up -d
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Pure cache — evictable, no disk persistence. 128mb cap + LRU keeps it inside
+    # a t3.micro alongside the app.
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    ports:
+      - "127.0.0.1:6379:6379" # host-side debugging only; web reaches it via the compose network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

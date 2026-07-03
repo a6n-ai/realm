@@ -1,9 +1,15 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 
+const monorepoRoot = path.join(import.meta.dirname, "..", "..");
+
 const nextConfig: NextConfig = {
+  // Docker: emit .next/standalone (self-contained server.js + traced node_modules).
+  // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
+  output: "standalone",
+  outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@tiffin/commons", "@tiffin/commons-drizzle", "@tiffin/commons-next"],
-  turbopack: { root: path.join(import.meta.dirname, "..", "..") },
+  turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
 };

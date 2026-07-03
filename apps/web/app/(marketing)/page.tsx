@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 // ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
 const VALUES = [
   { title: "You customize everything", body: "Nutrition baseline, meal size, schedule, quantity, and duration — your plan, your way." },

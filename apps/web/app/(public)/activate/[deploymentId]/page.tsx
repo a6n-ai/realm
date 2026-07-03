@@ -5,6 +5,9 @@ import { orders } from "@/db/schema";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+// Looks up an order by deploymentId — render per request, never prerender.
+export const dynamic = "force-dynamic";
+
 export default async function ActivatePage({ params }: { params: Promise<{ deploymentId: string }> }) {
   const { deploymentId } = await params;
   const [sub] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId)).limit(1);

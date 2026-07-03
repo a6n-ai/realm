@@ -1,0 +1,20 @@
+# Prod Caddy (auto-TLS, sole public ingress). Pulled into the umbrella via
+# `include:`. Needs the `web` service — not run standalone.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: ../.env.production # provides $DOMAIN, $ACME_EMAIL to the Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # persists issued certs across restarts
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

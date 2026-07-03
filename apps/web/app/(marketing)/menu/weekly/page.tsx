@@ -4,7 +4,7 @@ import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { menuService } from "@/lib/services/menu.service";
 
 export const metadata: Metadata = { title: "This week's menu — Tiffin Grab", description: "Our weekly tiffin menu across the GTA." };
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
 export default async function WeeklyMenuPage() {
   const pub = await menuService.getPublishedWeek("tiffin");

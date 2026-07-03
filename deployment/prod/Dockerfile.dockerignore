@@ -1,0 +1,21 @@
+# Installed fresh in the image — never copy host artifacts in.
+**/node_modules
+**/.next
+**/.turbo
+.turbo
+.git
+.github
+
+# Runtime / local-only
+.files-storage
+**/.env
+**/.env.*
+.vscode
+.idea
+
+# Not needed for the build
+docs
+.planning
+*.png
+*.md
+!README.md

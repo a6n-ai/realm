@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Pricing — Tiffin Grab", descriptio
 
 // Catalog is cached (loadCatalogSnapshot) and admin edits revalidate this path,
 // so the page can be static with a 10m ISR safety net instead of force-dynamic.
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
   const { plans, frequencies, durations } = await loadCatalogSnapshot();
