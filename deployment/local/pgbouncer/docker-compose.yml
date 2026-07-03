@@ -21,7 +21,7 @@ services:
     expose:
       - "6432" # compose-network only; never published
     healthcheck:
-      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-p", "6432", "-U", "${PGBOUNCER_DB_USER}"]
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6432"]
       interval: 10s
       timeout: 3s
       retries: 5

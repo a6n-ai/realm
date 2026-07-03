@@ -26,7 +26,7 @@ services:
       pgbouncer:
         condition: service_healthy
 
-  # worker — notification consumer (PG LISTEN + safety-net poll). Entrypoint not
+  # worker — notification consumer (outbox/queue drained via EventBridge). Entrypoint not
   # built yet; uncomment when apps/worker (or packages/notify-worker) lands.
   # worker:
   #   build:
