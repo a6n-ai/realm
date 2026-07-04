@@ -14,7 +14,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";

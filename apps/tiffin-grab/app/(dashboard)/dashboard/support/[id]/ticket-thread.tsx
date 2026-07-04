@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";

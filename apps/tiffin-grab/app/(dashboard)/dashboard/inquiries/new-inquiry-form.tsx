@@ -19,7 +19,7 @@ import {
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
 import { matchZone } from "@/lib/catalog/postal";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import {

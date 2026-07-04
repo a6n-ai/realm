@@ -1,7 +1,7 @@
 import { FilterBar } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 const COLUMNS = [
   { key: "event", label: "Event" },

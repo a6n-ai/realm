@@ -14,7 +14,7 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@realm/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 // Shared label tables + typed controls for the discounts sub-pages. Kept out of
 // the server schema so no drizzle code is pulled into the client bundle (the enum

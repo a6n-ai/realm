@@ -9,7 +9,7 @@ import { eventLabel } from "@/components/notifications/template-status";
 import { EmptyState, SkeletonStatCards } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 // Single source of truth for the ledger table's columns. The real header and
 // the skeleton twin both render from this, so the loading state can't drift.

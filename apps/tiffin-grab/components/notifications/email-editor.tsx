@@ -14,7 +14,7 @@ import {
   QuoteIcon,
   type LucideProps,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export interface EmailEditorFieldHandle {
   exportEmail: () => Promise<{ html: string; text: string; body: string }>;

@@ -4,7 +4,7 @@ import { UserPlusIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import dynamic from "next/dynamic";
 import { Input } from "@realm/ui/input";

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { CalendarCheckIcon, ChevronDownIcon, LockIcon } from "lucide-react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { Skeleton } from "@realm/ui/skeleton";
 import {
   Sheet,

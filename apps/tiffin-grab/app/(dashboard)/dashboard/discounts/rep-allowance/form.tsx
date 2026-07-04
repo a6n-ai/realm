@@ -8,7 +8,7 @@ import { SectionCard } from "@/components/ds";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleValue } from "@realm/commons";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { ACCOUNT_NAV } from "./nav.config";
 
 // Left sub-nav for the account settings shell. Driven entirely by ACCOUNT_NAV so

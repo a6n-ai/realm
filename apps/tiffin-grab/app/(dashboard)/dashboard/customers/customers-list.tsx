@@ -10,7 +10,7 @@ import {
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import type { SortState } from "@/lib/list/sort";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { CustomerSortColumn } from "./page";

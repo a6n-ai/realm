@@ -8,7 +8,7 @@ import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Switch } from "@realm/ui/switch";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";
 import { saveMealTypes, saveSlot, deleteSlot } from "./actions";

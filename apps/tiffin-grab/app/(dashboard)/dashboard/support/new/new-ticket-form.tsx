@@ -11,7 +11,7 @@ import {
 } from "@realm/ui/select";
 import { Textarea } from "@realm/ui/textarea";
 import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { createTicket } from "../actions";
 
 export type TicketCategoryValue = "order" | "billing" | "catering" | "general";

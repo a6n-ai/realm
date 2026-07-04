@@ -15,7 +15,7 @@ import {
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
 import { TicketControls, ReplyBox, TicketControlsSkeleton } from "./ticket-controls";
 

@@ -12,7 +12,7 @@ import {
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";

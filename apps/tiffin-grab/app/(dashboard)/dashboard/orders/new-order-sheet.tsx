@@ -3,7 +3,7 @@
 import { PackageIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";

@@ -17,7 +17,7 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@realm/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
 
 const ALLERGEN_OPTIONS = [

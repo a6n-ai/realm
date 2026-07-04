@@ -24,7 +24,7 @@ import { Switch } from "@realm/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,
 } from "../resource-config";

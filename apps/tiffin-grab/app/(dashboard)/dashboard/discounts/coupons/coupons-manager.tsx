@@ -20,7 +20,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@realm/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import {
   BUSINESS_TZ_LABEL,
   CREATABLE_KINDS,

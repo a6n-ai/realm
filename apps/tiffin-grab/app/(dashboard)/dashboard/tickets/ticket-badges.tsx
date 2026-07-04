@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export const CATEGORY_LABEL: Record<string, string> = {
   order: "Order",

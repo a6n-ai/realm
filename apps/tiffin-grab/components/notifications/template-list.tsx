@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { PencilIcon } from "lucide-react";
 import { FilterBar, RowActionButton, RowActions, SearchInput } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { eventLabel } from "./template-status";
 
 export interface TemplateChannel {

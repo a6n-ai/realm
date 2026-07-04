@@ -5,7 +5,7 @@ import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import type { FileDetail } from "@realm/commons-files/model";
 import { Button } from "@realm/ui/button";
 import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@realm/ui/file-upload";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { ImageCropperDialog } from "./image-cropper-dialog";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { MapPinIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { findInquiryMatches } from "./match-actions";
 
 type Match = { publicId: string; sourceKey: string; sourceLabel: string; stage: string; createdAt: number };

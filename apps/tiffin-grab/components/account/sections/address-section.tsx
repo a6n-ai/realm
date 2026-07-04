@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Button } from "@realm/ui/button";

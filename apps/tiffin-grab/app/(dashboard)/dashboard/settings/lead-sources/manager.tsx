@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@realm/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { saveSource, saveSubsource, setSourceActive, setSubsourceActive } from "./actions";
 
 type Sub = { publicId: string; key: string; label: string; active: boolean };

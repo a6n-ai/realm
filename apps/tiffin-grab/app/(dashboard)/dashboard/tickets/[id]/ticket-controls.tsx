@@ -9,7 +9,7 @@ import {
 } from "@realm/ui/select";
 import { Textarea } from "@realm/ui/textarea";
 import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 

@@ -6,7 +6,7 @@ import { Button } from "@realm/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
 import { ScrollArea } from "@realm/ui/scroll-area";
 import { Separator } from "@realm/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import { useNotifications } from "./use-notifications";
 
 function timeAgo(ms: number): string {

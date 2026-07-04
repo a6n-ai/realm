@@ -25,7 +25,7 @@ import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import {
   Sidebar,
   SidebarContent,

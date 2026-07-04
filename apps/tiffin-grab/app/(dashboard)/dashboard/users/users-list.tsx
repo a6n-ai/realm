@@ -2,7 +2,7 @@ import type { RoleValue } from "@realm/commons";
 import { Skeleton } from "@realm/ui/skeleton";
 import { SortableHeader } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 import type { SortState } from "@/lib/list/sort";
 import { UserRow } from "./user-row";
 

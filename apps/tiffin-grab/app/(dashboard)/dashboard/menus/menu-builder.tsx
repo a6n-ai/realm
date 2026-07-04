@@ -13,7 +13,7 @@ import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/li
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 const CREATE_VALUE = "__create__";
 

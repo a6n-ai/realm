@@ -3,7 +3,7 @@ import { HistoryIcon } from "lucide-react";
 import { EmptyState } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 // Single source of truth for the table's columns. The real header and the
 // skeleton below both render from this, so the loading twin can never drift.
