@@ -14,8 +14,7 @@ import { Breadcrumbs } from "@realm/design-system";
 import { labelForSegment } from "@/components/ds/route-labels";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { Separator } from "@realm/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@realm/ui/sidebar";
+import { CrmShell } from "@realm/crm-core";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
@@ -54,27 +53,26 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar
-        user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
-        hasPin={hasPin}
-        repCoupon={repCoupon}
-      />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumbs resolveLabel={labelForSegment} />
-          <div className="ml-auto flex items-center gap-1">
-            <GlobalSearch role={role} />
-            <NotificationBell />
-            <LockButton hasPin={hasPin} />
-            <ModeToggle />
-          </div>
-        </header>
-        <div className="flex-1 p-6">{children}</div>
-      </SidebarInset>
-      {hasPin && <IdleLock />}
-    </SidebarProvider>
+    <CrmShell
+      sidebar={
+        <AppSidebar
+          user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
+          hasPin={hasPin}
+          repCoupon={repCoupon}
+        />
+      }
+      breadcrumbs={<Breadcrumbs resolveLabel={labelForSegment} />}
+      actions={
+        <>
+          <GlobalSearch role={role} />
+          <NotificationBell />
+          <LockButton hasPin={hasPin} />
+          <ModeToggle />
+        </>
+      }
+      footer={hasPin ? <IdleLock /> : null}
+    >
+      {children}
+    </CrmShell>
   );
 }

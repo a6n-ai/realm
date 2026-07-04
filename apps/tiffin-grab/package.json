@@ -31,6 +31,7 @@
     "@realm/commons-files": "workspace:*",
     "@realm/commons-next": "workspace:*",
     "@realm/commons-notify": "workspace:*",
+    "@realm/crm-core": "workspace:*",
     "@realm/design-system": "workspace:*",
     "@realm/themes": "workspace:*",
     "@realm/ui": "workspace:*",
