@@ -1,0 +1,10 @@
+# Shared infra umbrella — resources used by MORE THAN ONE app. Runs on its own
+# box(es), independent of any app stack. `docker compose up -d` brings up all.
+#
+# Today: just RabbitMQ (the cross-app message bus). Add future shared resources
+# (a shared search index, a shared object cache, etc.) as new include entries.
+#
+# Redis is deliberately NOT here — it stays colocated per-app (isolated cache,
+# no network hop, no shared-eviction blast radius).
+include:
+  - rabbitmq/docker-compose.yml

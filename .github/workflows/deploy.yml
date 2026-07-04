@@ -1,0 +1,90 @@
+# Deploy on push to main: build two images → push to GHCR → box pulls + starts.
+#
+#   build job  — builds tiffin-web (runner target) + tiffin-tools (build target)
+#                from deployment/prod/Dockerfile, pushes both to ghcr.io tagged
+#                with the commit SHA and :latest. GITHUB_TOKEN authenticates.
+#   deploy job — SSHes into the app box, passes IMAGE_TAG=<sha>, runs deploy.sh
+#                which pulls those images and restarts the stack.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   EC2_HOST     app box public IP / DNS
+#   EC2_USER     ssh user (e.g. ubuntu)
+#   EC2_SSH_KEY  private key whose public half is in the box's authorized_keys
+# Optional repo variable:
+#   DEPLOY_PATH  repo checkout path on the box (default: ~/tiffin-grab)
+#
+# GHCR packages: after the first run, make ghcr.io/a6n-ai/tiffin-web and
+# tiffin-tools PUBLIC (package → Settings → Change visibility) so the box pulls
+# with no creds. To keep them private, see the "private GHCR" note in deploy.sh.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # web first: building the runner target also builds the shared `build`
+      # stage, warming the buildx cache the tools image reuses.
+      - name: Build + push web (runner)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: runner
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/tiffin-web:${{ github.sha }}
+            ghcr.io/a6n-ai/tiffin-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build + push tools (build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: build
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/tiffin-tools:${{ github.sha }}
+            ghcr.io/a6n-ai/tiffin-tools:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH → pull + restart on the app box
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 20m
+          envs: IMAGE_TAG # forward IMAGE_TAG into the remote shell → deploy.sh
+          script: |
+            set -euo pipefail
+            cd "${{ vars.DEPLOY_PATH || '~/tiffin-grab' }}/deployment/prod"
+            ./deploy.sh

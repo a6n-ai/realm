@@ -1,0 +1,30 @@
+# Shared RabbitMQ — dedicated micro, serves every app.
+#
+# This is the PRODUCTION broker (real creds, persistent). The dev/local broker
+# lives at deployment/prod/rabbitmq (guest/guest, throwaway) — do not confuse.
+#
+# Security group: allow :5672 ONLY from your app boxes' SG. The management UI
+# (:15672) is bound to localhost — reach it via SSH tunnel, never publish it.
+#
+# Runnable alone on the shared box:
+#     docker compose -f rabbitmq/docker-compose.yml --env-file ../.env.shared up -d
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env.shared}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?set RABBITMQ_PASS in .env.shared}
+    ports:
+      - "${RABBITMQ_BIND_IP:-0.0.0.0}:5672:5672"   # amqp — SG-gated
+      - "127.0.0.1:15672:15672"                    # mgmt UI — localhost only
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq            # persist queues across restart
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rabbitmq_data:

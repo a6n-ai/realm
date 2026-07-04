@@ -1,19 +1,39 @@
 # Production launch stack. `docker compose up -d` runs web + redis + caddy.
+# Images are BUILT IN CI and pushed to GHCR; the box only pulls them (deploy.sh).
 # Migrations run via the `migrate` profile (see deploy.sh), not on up.
 #
+# Two images from deployment/prod/Dockerfile:
+#   tiffin-web   = runner target (slim Next.js standalone) → web
+#   tiffin-tools = build  target (source + drizzle-kit + tsx) → worker, migrate
+# Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
+#
 # redis + caddy service defs are reused from their per-service subfolders.
+# Redis stays colocated per-app (isolated cache); RabbitMQ is the only shared
+# box — the worker reaches it via RABBITMQ_URL in .env.production.
 include:
   - redis/docker-compose.yml
   - caddy/docker-compose.yml
   - pgbouncer/docker-compose.yml
 
+# Ships each container's stdout (pino JSON) to CloudWatch via the Docker awslogs
+# driver — no CloudWatch agent. Requires the EC2 instance role to allow
+# logs:CreateLogGroup/CreateLogStream/PutLogEvents. Every log line carries a
+# `name` field, so one shared group is queryable per-service in Logs Insights;
+# split into per-service groups later if retention/IAM needs diverge.
+x-awslogs: &awslogs
+  driver: awslogs
+  options:
+    # resolved by the compose CLI (not env_file:) — default keeps it working
+    # regardless of how compose is invoked; override via shell/.env if needed.
+    awslogs-region: ${AWS_REGION:-ca-central-1}
+    awslogs-group: /tiffin/prod
+    awslogs-create-group: "true"
+
 services:
   web:
-    build:
-      context: ../.. # repo root
-      dockerfile: deployment/prod/Dockerfile
-      target: runner
+    image: ${WEB_IMAGE:-ghcr.io/a6n-ai/tiffin-web}:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    logging: *awslogs
     env_file: .env.production
     environment:
       # Redis is a compose service, not localhost — override the seam default.
@@ -27,21 +47,17 @@ services:
         condition: service_healthy
 
   worker:
-    build:
-      context: ../..
-      dockerfile: deployment/prod/Dockerfile
-      target: build
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-tools}:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    logging: *awslogs
     env_file: .env.production
     command: ["pnpm", "--filter", "web", "exec", "tsx", "workers/notify-consumer.ts"]
 
-  # One-shot migration runner. Reuses the `build` target (has drizzle-kit + source).
+  # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.
   migrate:
-    build:
-      context: ../.. # repo root
-      dockerfile: deployment/prod/Dockerfile
-      target: build
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
     env_file: .env.production
     environment:
       # Migrations bypass the pooler — drizzle-kit DDL + advisory lock need a
