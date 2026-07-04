@@ -38,7 +38,7 @@ services:
     env_file: .env.local
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
-    command: ["pnpm", "--filter", "web", "exec", "tsx", "workers/notify-consumer.ts"]
+    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-consumer.ts"]
     depends_on:
       rabbitmq:
         condition: service_healthy

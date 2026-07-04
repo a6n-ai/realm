@@ -41,8 +41,8 @@ yarn-error.log*
 .vercel
 
 # uploads (keep dir, ignore contents)
-apps/web/public/uploads/*
-!apps/web/public/uploads/.gitkeep
+apps/tiffin-grab/public/uploads/*
+!apps/tiffin-grab/public/uploads/.gitkeep
 
 # typescript
 *.tsbuildinfo

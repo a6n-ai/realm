@@ -9,7 +9,7 @@ import { __inAppForTest } from "./handlers";
 
 // Seeded system user (id + locale "en") and "order_created" (has a seeded
 // in_app template) — the handler returns early with no seeded in_app
-// template for the event, so this must match apps/web/db/seed-notification-templates.tsx.
+// template for the event, so this must match apps/tiffin-grab/db/seed-notification-templates.tsx.
 const row = {
   recipientId: 391960512490898445n,
   event: "order_created",

@@ -11,7 +11,7 @@ type Row = typeof notificationTemplate.$inferInsert;
 // English defaults. Variables must match EVENT_ENTITY in
 // lib/notifications/event-entities.ts. Without these rows the matching channel
 // does not send (DB template is the sole source of truth). Rich emails are
-// authored as react-email components in apps/web/emails and rendered to HTML
+// authored as react-email components in apps/tiffin-grab/emails and rendered to HTML
 // here; {{order.*}} tokens stay literal through render(), interpolated at send.
 async function buildSeed(): Promise<Row[]> {
   const orderCreatedHtml = await render(<OrderCreatedEmail />);

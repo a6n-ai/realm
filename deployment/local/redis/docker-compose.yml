@@ -1,7 +1,7 @@
 # Standalone local Redis (cache L2). Run alone for cache-only dev while the app
-# runs on the host via `pnpm --filter web dev`:
+# runs on the host via `pnpm --filter tiffin-grab dev`:
 #     docker compose -f deployment/local/redis/docker-compose.yml up
-# Then set REDIS_URL=redis://127.0.0.1:6379 in apps/web/.env.local.
+# Then set REDIS_URL=redis://127.0.0.1:6379 in apps/tiffin-grab/.env.local.
 #
 # This same definition is pulled into the umbrella stack via `include:`, where the
 # app reaches it as redis://redis:6379 over the compose network.

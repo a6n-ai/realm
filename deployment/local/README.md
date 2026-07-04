@@ -11,8 +11,8 @@ Run the cache in a container, the app on the host with `pnpm dev`:
 
 ```sh
 docker compose -f deployment/local/redis/docker-compose.yml up
-# apps/web/.env.local:  REDIS_URL=redis://127.0.0.1:6379
-pnpm --filter web dev
+# apps/tiffin-grab/.env.local:  REDIS_URL=redis://127.0.0.1:6379
+pnpm --filter tiffin-grab dev
 ```
 
 ### Full stack (caddy + web + redis)

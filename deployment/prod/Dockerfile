@@ -25,7 +25,7 @@ ENV DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
     REDIS_URL="redis://127.0.0.1:6379" \
     BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime" \
     BETTER_AUTH_URL="http://localhost:3000"
-RUN pnpm --filter web build
+RUN pnpm --filter tiffin-grab build
 
 # --- runner: standalone output only, no node_modules install ---
 FROM base AS runner
@@ -33,12 +33,12 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
-# outputFileTracingRoot = monorepo root, so standalone nests the app under apps/web
-COPY --from=build --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=build --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+# outputFileTracingRoot = monorepo root, so standalone nests the app under apps/tiffin-grab
+COPY --from=build --chown=nextjs:nodejs /app/apps/tiffin-grab/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/apps/tiffin-grab/.next/static ./apps/tiffin-grab/.next/static
+COPY --from=build --chown=nextjs:nodejs /app/apps/tiffin-grab/public ./apps/tiffin-grab/public
 
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "apps/tiffin-grab/server.js"]

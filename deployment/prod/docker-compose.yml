@@ -3,8 +3,8 @@
 # Migrations run via the `migrate` profile (see deploy.sh), not on up.
 #
 # Two images from deployment/prod/Dockerfile:
-#   tiffin-web   = runner target (slim Next.js standalone) → web
-#   tiffin-tools = build  target (source + drizzle-kit + tsx) → worker, migrate
+#   tiffin-grab-web   = runner target (slim Next.js standalone) → web
+#   tiffin-grab-tools = build  target (source + drizzle-kit + tsx) → worker, migrate
 # Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
 #
 # redis + caddy service defs are reused from their per-service subfolders.
@@ -31,7 +31,7 @@ x-awslogs: &awslogs
 
 services:
   web:
-    image: ${WEB_IMAGE:-ghcr.io/a6n-ai/tiffin-web}:${IMAGE_TAG:-latest}
+    image: ${WEB_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-web}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     logging: *awslogs
     env_file: .env.production
@@ -47,22 +47,22 @@ services:
         condition: service_healthy
 
   worker:
-    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-tools}:${IMAGE_TAG:-latest}
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     logging: *awslogs
     env_file: .env.production
-    command: ["pnpm", "--filter", "web", "exec", "tsx", "workers/notify-consumer.ts"]
+    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-consumer.ts"]
 
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.
   migrate:
-    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-tools}:${IMAGE_TAG:-latest}
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
     logging: *awslogs
     env_file: .env.production
     environment:
       # Migrations bypass the pooler — drizzle-kit DDL + advisory lock need a
       # real session on RDS.
       DATABASE_URL: ${DIRECT_DATABASE_URL}
-    command: ["pnpm", "--filter", "web", "exec", "drizzle-kit", "migrate"]
+    command: ["pnpm", "--filter", "tiffin-grab", "exec", "drizzle-kit", "migrate"]
     profiles:
       - tools
