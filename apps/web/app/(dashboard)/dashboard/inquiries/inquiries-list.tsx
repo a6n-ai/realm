@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   FilterBar, FilterPill, SearchInput, StageBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -15,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
@@ -27,6 +29,22 @@ const STAGE_PILLS = [
   { key: "converted", label: "Converted" },
   { key: "lost", label: "Lost" },
   { key: "overdue", label: "Overdue" },
+] as const;
+
+type InquirySortColumn = "name" | "owner" | "stage" | "source" | "lastTouch" | "created";
+
+// Single source of truth for the table's columns. The real header, and the
+// skeleton twin below, both render from this — change a column here and both
+// update, so the loading skeleton can never drift from the component.
+const COLUMNS = [
+  { key: "name", label: "Name", sortable: true },
+  { key: "owner", label: "Owner", sortable: true },
+  { key: "stage", label: "Stage", sortable: true },
+  { key: "source", label: "Source", sortable: true },
+  { key: "lastTouch", label: "Last touch", sortable: true, align: "right" },
+  { key: "nextAction", label: "Next action", align: "right" },
+  { key: "created", label: "Created", sortable: true, align: "right" },
+  { key: "chevron", label: "", width: "w-8" },
 ] as const;
 
 const ALL_OWNERS = "__all__";
@@ -129,14 +147,22 @@ export function InquiriesList({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader column="name" label="Name" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="owner" label="Owner" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="stage" label="Stage" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="source" label="Source" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="lastTouch" label="Last touch" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <TableHead className="text-right">Next action</TableHead>
-              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <TableHead className="w-8" />
+              {COLUMNS.map((c) =>
+                "sortable" in c && c.sortable ? (
+                  <SortableHeader
+                    key={c.key}
+                    column={c.key as InquirySortColumn}
+                    label={c.label}
+                    currentSort={sort.column}
+                    currentDir={sort.dir}
+                    className={"align" in c ? "text-right" : undefined}
+                  />
+                ) : (
+                  <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                    {c.label}
+                  </TableHead>
+                ),
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -187,3 +213,52 @@ export function InquiriesList({
     </div>
   );
 }
+
+// Exact loading twin: same COLUMNS + same FilterBar/Table markup (search, stage
+// pills, owner dropdown), grey cells instead of data. Rendered as the page's
+// <Suspense fallback>, so it always matches InquiriesList by construction.
+InquiriesList.Skeleton = function InquiriesListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <FilterBar
+        search={<Skeleton className="h-9 w-full" />}
+        filters={
+          <>
+            {STAGE_PILLS.map((p) => (
+              <Skeleton key={p.key} className="h-8 w-16 rounded-full" />
+            ))}
+            <Skeleton className="h-8 w-40" />
+          </>
+        }
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {COLUMNS.map((c) => (
+              <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 8 }).map((_, r) => (
+            <TableRow key={r}>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
+                  <Skeleton
+                    className={cn(
+                      "h-4",
+                      c.key === "chevron" ? "w-4" : "w-full max-w-32",
+                      "align" in c && "ml-auto",
+                    )}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};

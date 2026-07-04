@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { and, eq, ne } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
@@ -8,7 +9,23 @@ import { listConfig } from "@/lib/services/inquiry-user-config.service";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { LeadAssignmentForm } from "./form";
 
-export default async function LeadAssignmentPage() {
+export default function LeadAssignmentPage() {
+  return (
+    <div className="grid gap-6">
+      <PageHeader icon={UsersIcon} title="Lead assignment" />
+      <SectionCard
+        title="Strategy & pools"
+        subtitle="Routing strategy, per-source overrides, and pool membership."
+      >
+        <Suspense fallback={<LeadAssignmentForm.Skeleton />}>
+          <LeadAssignmentData />
+        </Suspense>
+      </SectionCard>
+    </div>
+  );
+}
+
+async function LeadAssignmentData() {
   await requireAdmin();
   const [cfg, sources, staff, config] = await Promise.all([
     getLeadAssignment(),
@@ -39,14 +56,6 @@ export default async function LeadAssignmentPage() {
   }
 
   return (
-    <div className="grid gap-6">
-      <PageHeader icon={UsersIcon} title="Lead assignment" />
-      <SectionCard
-        title="Strategy & pools"
-        subtitle="Routing strategy, per-source overrides, and pool membership."
-      >
-        <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
-      </SectionCard>
-    </div>
+    <LeadAssignmentForm cfg={cfg} sources={sources} staff={staffOptions} membership={membership} />
   );
 }

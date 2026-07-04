@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { DietarySection } from "@/components/account/sections/dietary-section";
+import { DietarySectionSkeleton } from "./dietary-section-skeleton";
 import { requireSectionAccess } from "../current-user";
 
 function splitAllergens(value: string | null | undefined): string[] {
@@ -9,7 +11,15 @@ function splitAllergens(value: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-export default async function AccountDietaryPage() {
+export default function AccountDietaryPage() {
+  return (
+    <Suspense fallback={<DietarySectionSkeleton />}>
+      <DietaryData />
+    </Suspense>
+  );
+}
+
+async function DietaryData() {
   const { user } = await requireSectionAccess("dietary");
   return (
     <DietarySection

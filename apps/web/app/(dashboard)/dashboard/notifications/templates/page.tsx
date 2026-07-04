@@ -1,13 +1,15 @@
+import { Suspense } from "react";
 import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
-import { SectionCard, StatCard } from "@/components/ds";
+import { SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
 import { TemplateList, type TemplateStatus } from "@/components/notifications/template-list";
+import { TemplateListSkeleton } from "./template-list-skeleton";
 
 const CHANNEL_ORDER = ["email", "in_app", "sms", "whatsapp"];
 
-export default async function NotificationTemplatesPage() {
+async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configured: number }> {
   await requireAdmin();
   const all = await listTemplates();
 
@@ -36,18 +38,37 @@ export default async function NotificationTemplatesPage() {
     });
 
   const configured = items.filter((i) => i.channels.length > 0).length;
+  return { items, configured };
+}
 
+export default function NotificationTemplatesPage() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard icon={LayersIcon} label="Events" value={items.length} hint="notification-producing events" />
-        <StatCard icon={CheckCircleIcon} label="Configured" value={configured} hint="at least one channel" />
-        <StatCard icon={CircleSlashIcon} label="Not configured" value={items.length - configured} hint="no template — won't send" />
-      </div>
+      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
+        <TemplateStatsData />
+      </Suspense>
 
       <SectionCard title="Templates" subtitle="A channel with no template does not send. Select an event to edit.">
-        <TemplateList items={items} />
+        <Suspense fallback={<TemplateListSkeleton />}>
+          <TemplateListData />
+        </Suspense>
       </SectionCard>
     </div>
   );
+}
+
+async function TemplateStatsData() {
+  const { items, configured } = await loadTemplateItems();
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <StatCard icon={LayersIcon} label="Events" value={items.length} hint="notification-producing events" />
+      <StatCard icon={CheckCircleIcon} label="Configured" value={configured} hint="at least one channel" />
+      <StatCard icon={CircleSlashIcon} label="Not configured" value={items.length - configured} hint="no template — won't send" />
+    </div>
+  );
+}
+
+async function TemplateListData() {
+  const { items } = await loadTemplateItems();
+  return <TemplateList items={items} />;
 }

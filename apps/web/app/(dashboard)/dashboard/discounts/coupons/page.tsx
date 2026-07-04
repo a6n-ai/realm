@@ -1,10 +1,19 @@
+import { Suspense } from "react";
 import { desc, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { CouponsManager } from "./coupons-manager";
 
-export default async function CouponsPage() {
+export default function CouponsPage() {
+  return (
+    <Suspense fallback={<CouponsManager.Skeleton />}>
+      <CouponsData />
+    </Suspense>
+  );
+}
+
+async function CouponsData() {
   await requireAdmin();
 
   // Project to public_id + display fields only — no bigint ids reach the client.

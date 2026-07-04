@@ -6,10 +6,29 @@ import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";
 import { saveMealTypes, saveSlot, deleteSlot } from "./actions";
+
+const PLAN_FIELDS = {
+  titlePrefix: { label: "Title prefix", width: "w-52" },
+  accent: { label: "Accent colour", width: "w-16" },
+} as const;
+
+const SLOT_FIELDS = [
+  { name: "key", label: "Key", width: "w-32", kind: "input" },
+  { name: "label", label: "Label", width: "w-40", kind: "input" },
+  { name: "sortOrder", label: "Order", width: "w-20", kind: "input" },
+  { name: "enabled", label: "Enabled", width: "w-11", kind: "switch" },
+] as const;
+
+const SF = Object.fromEntries(SLOT_FIELDS.map((f) => [f.name, f])) as Record<
+  (typeof SLOT_FIELDS)[number]["name"],
+  (typeof SLOT_FIELDS)[number]
+>;
 
 type SlotData = {
   id: string;
@@ -118,20 +137,23 @@ export function MealTypesForm({
 
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Title prefix</Label>
+                <Label className="text-xs text-muted-foreground">{PLAN_FIELDS.titlePrefix.label}</Label>
                 <Input
                   value={cfg[t].titlePrefix}
                   onChange={(e) => update(t, { titlePrefix: e.target.value })}
-                  className="h-10 w-52"
+                  className={cn("h-10", PLAN_FIELDS.titlePrefix.width)}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Accent colour</Label>
+                <Label className="text-xs text-muted-foreground">{PLAN_FIELDS.accent.label}</Label>
                 <input
                   type="color"
                   value={cfg[t].accent}
                   onChange={(e) => update(t, { accent: e.target.value })}
-                  className="h-10 w-16 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+                  className={cn(
+                    "h-10 cursor-pointer rounded-lg border border-input bg-transparent p-1",
+                    PLAN_FIELDS.accent.width,
+                  )}
                 />
               </div>
             </div>
@@ -151,36 +173,36 @@ export function MealTypesForm({
 
               <div className="mt-1 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border/60 bg-background/60 p-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Key</Label>
+                  <Label className="text-xs text-muted-foreground">{SF.key.label}</Label>
                   <Input
                     placeholder="e.g. lunch"
                     value={drafts[t].key}
                     onChange={(e) =>
                       patchDraft(t, { key: e.target.value.replace(/[^a-z0-9_]/g, "") })
                     }
-                    className="h-10 w-32"
+                    className={cn("h-10", SF.key.width)}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Label</Label>
+                  <Label className="text-xs text-muted-foreground">{SF.label.label}</Label>
                   <Input
                     placeholder="e.g. Lunch"
                     value={drafts[t].label}
                     onChange={(e) => patchDraft(t, { label: e.target.value })}
-                    className="h-10 w-40"
+                    className={cn("h-10", SF.label.width)}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Order</Label>
+                  <Label className="text-xs text-muted-foreground">{SF.sortOrder.label}</Label>
                   <Input
                     type="number"
                     value={drafts[t].sortOrder}
                     onChange={(e) => patchDraft(t, { sortOrder: Number(e.target.value) })}
-                    className="h-10 w-20 tabular-nums"
+                    className={cn("h-10 tabular-nums", SF.sortOrder.width)}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Enabled</Label>
+                  <Label className="text-xs text-muted-foreground">{SF.enabled.label}</Label>
                   <div className="flex h-10 items-center">
                     <Switch
                       checked={drafts[t].enabled}
@@ -282,36 +304,36 @@ function SlotRow({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg bg-background/80 p-2">
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">Key</Label>
+        <Label className="text-xs text-muted-foreground">{SF.key.label}</Label>
         <Input
           placeholder="key"
           value={local.key}
           onChange={(e) =>
             patch({ key: e.target.value.replace(/[^a-z0-9_]/g, "") })
           }
-          className="h-10 w-32"
+          className={cn("h-10", SF.key.width)}
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">Label</Label>
+        <Label className="text-xs text-muted-foreground">{SF.label.label}</Label>
         <Input
           placeholder="Label"
           value={local.label}
           onChange={(e) => patch({ label: e.target.value })}
-          className="h-10 w-40"
+          className={cn("h-10", SF.label.width)}
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">Order</Label>
+        <Label className="text-xs text-muted-foreground">{SF.sortOrder.label}</Label>
         <Input
           type="number"
           value={local.sortOrder}
           onChange={(e) => patch({ sortOrder: Number(e.target.value) })}
-          className="h-10 w-20 tabular-nums"
+          className={cn("h-10 tabular-nums", SF.sortOrder.width)}
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">Enabled</Label>
+        <Label className="text-xs text-muted-foreground">{SF.enabled.label}</Label>
         <div className="flex h-10 items-center">
           <Switch
             checked={local.enabled}
@@ -349,3 +371,78 @@ function SlotRow({
     </div>
   );
 }
+
+function SlotFieldsSkeleton() {
+  return (
+    <>
+      {SLOT_FIELDS.map((f) => (
+        <div key={f.name} className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">{f.label}</Label>
+          {f.kind === "switch" ? (
+            <div className="flex h-10 items-center">
+              <Skeleton className="h-6 w-11 rounded-full" />
+            </div>
+          ) : (
+            <Skeleton className={cn("h-10", f.width)} />
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
+MealTypesForm.Skeleton = function MealTypesFormSkeleton() {
+  return (
+    <div className="space-y-5">
+      {PLAN_TYPES.map((t) => (
+        <div key={t} className="rounded-xl border bg-muted/30 p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-3 shrink-0 rounded-full" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-end">
+            {Object.entries(PLAN_FIELDS).map(([name, f]) => (
+              <div key={name} className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                <Skeleton className={cn("h-10", f.width)} />
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Meal slots
+            </p>
+
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-end gap-3 rounded-lg bg-background/80 p-2"
+              >
+                <SlotFieldsSkeleton />
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-10 w-20" />
+                    <Skeleton className="h-10 w-10" />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="mt-1 flex flex-wrap items-end gap-3 rounded-lg border border-dashed border-border/60 bg-background/60 p-3">
+              <SlotFieldsSkeleton />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-10 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex items-center gap-3 pt-1">
+        <Skeleton className="h-10 w-40" />
+      </div>
+    </div>
+  );
+};

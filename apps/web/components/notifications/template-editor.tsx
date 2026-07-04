@@ -12,9 +12,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EmailEditorField, type EmailEditorFieldHandle } from "./email-editor";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
+
+// Shared top-level layout shell — the real render and TemplateEditor.Skeleton
+// both key off this so the loading state stays structurally in sync.
+const editorShell = {
+  root: "space-y-4",
+  toolbar: "flex flex-wrap items-center gap-4",
+  grid: "grid gap-6 lg:grid-cols-2",
+  editorCol: "min-w-0 space-y-4",
+  previewCol: "lg:sticky lg:top-4 h-fit space-y-2",
+} as const;
 
 type Channel = "email" | "in_app";
 type Locale = "en" | "fr";
@@ -220,8 +231,8 @@ export function TemplateEditor({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4">
+    <div className={editorShell.root}>
+      <div className={editorShell.toolbar}>
         <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
           <TabsList>
             <TabsTrigger value="email">Email</TabsTrigger>
@@ -239,9 +250,9 @@ export function TemplateEditor({
         </label>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={editorShell.grid}>
         {/* Editor column */}
-        <div className="min-w-0 space-y-4">
+        <div className={editorShell.editorCol}>
           <Input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
@@ -380,7 +391,7 @@ export function TemplateEditor({
         </div>
 
         {/* Live preview column */}
-        <div className="lg:sticky lg:top-4 h-fit space-y-2">
+        <div className={editorShell.previewCol}>
           <p className="text-xs font-medium text-muted-foreground">
             Live preview {channel === "email" ? "— email" : "— in-app"}
           </p>
@@ -398,6 +409,30 @@ export function TemplateEditor({
     </div>
   );
 }
+
+TemplateEditor.Skeleton = function TemplateEditorSkeleton() {
+  return (
+    <div className={editorShell.root}>
+      <div className={editorShell.toolbar}>
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="ml-auto h-6 w-20" />
+      </div>
+      <div className={editorShell.grid}>
+        <div className={editorShell.editorCol}>
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-[600px] w-full rounded-lg" />
+          <Skeleton className="h-9 w-24" />
+        </div>
+        <div className={editorShell.previewCol}>
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-[600px] w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /** Mirrors renderInApp: interpolated title + plaintext body, no markdown/email chrome. */
 function InAppPreview({ title, body }: { title: string; body: string }) {

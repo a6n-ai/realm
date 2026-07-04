@@ -10,6 +10,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { createTicket } from "../actions";
 
 export type TicketCategoryValue = "order" | "billing" | "catering" | "general";
@@ -20,6 +22,13 @@ const CATEGORY_LABEL: Record<TicketCategoryValue, string> = {
   catering: "Catering",
   general: "Something else",
 };
+
+const FIELDS = [
+  { key: "subject", label: "Subject", control: "h-9" },
+  { key: "category", label: "What's this about?", control: "h-9" },
+  { key: "order", label: "Related order", control: "h-9" },
+  { key: "body", label: "Message", control: "h-28" },
+] as const;
 
 const NO_ORDER = "__none__";
 
@@ -67,7 +76,7 @@ export function NewTicketForm({
   return (
     <div className="grid max-w-xl gap-5">
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-subject">Subject</Label>
+        <Label htmlFor="ticket-subject">{FIELDS[0].label}</Label>
         <Input
           id="ticket-subject"
           autoFocus
@@ -78,7 +87,7 @@ export function NewTicketForm({
       </div>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-category">What's this about?</Label>
+        <Label htmlFor="ticket-category">{FIELDS[1].label}</Label>
         <Select value={category} onValueChange={(v) => setCategory(v as TicketCategoryValue)}>
           <SelectTrigger id="ticket-category" className="w-full">
             <SelectValue />
@@ -94,7 +103,7 @@ export function NewTicketForm({
       {orders.length > 0 && (
         <div className="grid gap-1.5">
           <Label htmlFor="ticket-order">
-            Related order <span className="text-muted-foreground font-normal">optional</span>
+            {FIELDS[2].label} <span className="text-muted-foreground font-normal">optional</span>
           </Label>
           <Select value={orderId} onValueChange={setOrderId}>
             <SelectTrigger id="ticket-order" className="w-full">
@@ -111,7 +120,7 @@ export function NewTicketForm({
       )}
 
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-body">Message</Label>
+        <Label htmlFor="ticket-body">{FIELDS[3].label}</Label>
         <Textarea
           id="ticket-body"
           rows={5}
@@ -135,3 +144,20 @@ export function NewTicketForm({
     </div>
   );
 }
+
+NewTicketForm.Skeleton = function NewTicketFormSkeleton() {
+  return (
+    <div className="grid max-w-xl gap-5">
+      {FIELDS.map((f) => (
+        <div key={f.key} className="grid gap-1.5">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className={cn("w-full", f.control)} />
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </div>
+  );
+};

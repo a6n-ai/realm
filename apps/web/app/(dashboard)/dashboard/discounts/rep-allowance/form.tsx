@@ -7,11 +7,25 @@ import type { DiscountPolicy } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
 
 type RepOption = { publicId: string; name: string | null; email: string | null };
+
+// Single source of truth for the two section headers, consumed by both the real
+// sections and the .Skeleton twin so the loading state can't drift from them.
+const GLOBAL_SECTION = {
+  title: "Rep daily allowance",
+  subtitle:
+    "The daily discount each sales rep may grant. The lower of the two ceilings applies to any single rep discount.",
+} as const;
+const PER_REP_SECTION = {
+  title: "Per-rep overrides",
+  subtitle:
+    "Override the default ceilings for an individual rep, or disable their allowance. Blank fields fall back to the global default.",
+} as const;
 
 export function RepAllowanceForm({ reps, policy }: { reps: RepOption[]; policy: DiscountPolicy }) {
   return (
@@ -21,6 +35,66 @@ export function RepAllowanceForm({ reps, policy }: { reps: RepOption[]; policy: 
     </div>
   );
 }
+
+// Exact loading twin: same SectionCard wrappers/titles + same field layout as the
+// real sections, grey blocks where inputs go. Rendered as the page's <Suspense
+// fallback>, so it stays in sync with RepAllowanceForm by construction.
+RepAllowanceForm.Skeleton = function RepAllowanceFormSkeleton() {
+  const field = (className?: string) => (
+    <div className={cn("grid gap-1.5", className)}>
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-9 w-full" />
+    </div>
+  );
+  return (
+    <div className="grid gap-6">
+      <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle}>
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
+            <div className="grid gap-0.5">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-64" />
+            </div>
+            <Skeleton className="h-5 w-9 rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
+            {field()}
+            {field()}
+          </div>
+          <div className="grid gap-1.5 sm:max-w-[13rem]">
+            {field()}
+            <Skeleton className="h-3 w-full" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
+      </SectionCard>
+      <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
+        <div className="grid gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                {field("w-32")}
+                {field("w-32")}
+                {field("w-32")}
+                <Skeleton className="h-8 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+};
 
 function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   const router = useRouter();
@@ -69,10 +143,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
   };
 
   return (
-    <SectionCard
-      title="Rep daily allowance"
-      subtitle="The daily discount each sales rep may grant. The lower of the two ceilings applies to any single rep discount."
-    >
+    <SectionCard title={GLOBAL_SECTION.title} subtitle={GLOBAL_SECTION.subtitle}>
       <div className="grid gap-4">
         <ToggleRow
           id="rep-enabled"
@@ -124,10 +195,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
 
 function PerRepSection({ reps, policy }: { reps: RepOption[]; policy: DiscountPolicy }) {
   return (
-    <SectionCard
-      title="Per-rep overrides"
-      subtitle="Override the default ceilings for an individual rep, or disable their allowance. Blank fields fall back to the global default."
-    >
+    <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
       {reps.length === 0 ? (
         <p className="text-muted-foreground text-sm">No sales reps (members) yet.</p>
       ) : (

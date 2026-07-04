@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
 import type { PgTable } from "drizzle-orm/pg-core";
@@ -21,8 +22,22 @@ const TABLES: Record<string, PgTable> = {
 };
 
 export default async function CatalogResourcePage({ params }: { params: Promise<{ resource: string }> }) {
-  await requireAdmin();
   const { resource } = await params;
+  const def: ResourceDef | undefined = RESOURCES[resource];
+  return (
+    <PageShell>
+      <PageHeader icon={UtensilsCrossedIcon} title={def?.label ?? "Catalog"} />
+      <SectionCard title="Entries">
+        <Suspense fallback={<ResourceEditor.Skeleton resource={resource} />}>
+          <CatalogData resource={resource} />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+async function CatalogData({ resource }: { resource: string }) {
+  await requireAdmin();
   const def: ResourceDef | undefined = RESOURCES[resource];
   const table = TABLES[resource];
   if (!def || !table) notFound();
@@ -48,12 +63,5 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
     return dto;
   });
 
-  return (
-    <PageShell>
-      <PageHeader icon={UtensilsCrossedIcon} title={def.label} />
-      <SectionCard title="Entries">
-        <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} />
-      </SectionCard>
-    </PageShell>
-  );
+  return <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} />;
 }

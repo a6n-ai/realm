@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { asc } from "drizzle-orm";
 import { Webhook } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -6,7 +7,18 @@ import { leadSources, leadSubsources } from "@/db/schema";
 import { PageHeader } from "@/components/ds";
 import { LeadSourcesManager } from "./manager";
 
-export default async function LeadSourcesSettingsPage() {
+export default function LeadSourcesSettingsPage() {
+  return (
+    <div className="grid gap-6">
+      <PageHeader icon={Webhook} title="Lead sources" />
+      <Suspense fallback={<LeadSourcesManager.Skeleton />}>
+        <LeadSourcesData />
+      </Suspense>
+    </div>
+  );
+}
+
+async function LeadSourcesData() {
   await requireAdmin();
 
   const [srcRows, subRows] = await Promise.all([
@@ -44,10 +56,5 @@ export default async function LeadSourcesSettingsPage() {
       .map((ss) => ({ publicId: ss.publicId, key: ss.key, label: ss.label, active: ss.active })),
   }));
 
-  return (
-    <div className="grid gap-6">
-      <PageHeader icon={Webhook} title="Lead sources" />
-      <LeadSourcesManager sources={sources} />
-    </div>
-  );
+  return <LeadSourcesManager sources={sources} />;
 }

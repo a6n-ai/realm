@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
@@ -22,6 +24,20 @@ const STATUS_PILLS = [
   { key: "waitlisted", label: "Waitlisted" },
   { key: "paused", label: "Paused" },
   { key: "cancelled", label: "Cancelled" },
+] as const;
+
+// Single source of truth for the table's columns. The real header, and the
+// skeleton below, both render from this — change a column here and both update,
+// so the loading skeleton can never drift from the component.
+const COLUMNS = [
+  { key: "name", label: "Name", sortable: true },
+  { key: "deployment", label: "Deployment", sortable: true },
+  { key: "city", label: "City" },
+  { key: "status", label: "Status", sortable: true },
+  { key: "start", label: "Start", sortable: true, align: "right" },
+  { key: "total", label: "Total", sortable: true, align: "right" },
+  { key: "created", label: "Created", sortable: true, align: "right" },
+  { key: "chevron", label: "", width: "w-8" },
 ] as const;
 
 const fmt = (n: number) =>
@@ -101,14 +117,22 @@ export function OrdersList({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader column="name" label="Name" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="deployment" label="Deployment" currentSort={sort.column} currentDir={sort.dir} />
-              <TableHead>City</TableHead>
-              <SortableHeader column="status" label="Status" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="start" label="Start" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <SortableHeader column="total" label="Total" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <SortableHeader column="created" label="Created" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <TableHead className="w-8" />
+              {COLUMNS.map((c) =>
+                "sortable" in c && c.sortable ? (
+                  <SortableHeader
+                    key={c.key}
+                    column={c.key as OrderSortColumn}
+                    label={c.label}
+                    currentSort={sort.column}
+                    currentDir={sort.dir}
+                    className={"align" in c ? "text-right" : undefined}
+                  />
+                ) : (
+                  <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                    {c.label}
+                  </TableHead>
+                ),
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -141,3 +165,47 @@ export function OrdersList({
     </div>
   );
 }
+
+// Exact loading twin: same COLUMNS + same FilterBar/Table markup, grey cells
+// instead of data. Rendered as the page's <Suspense fallback>, so it always
+// matches OrdersList by construction.
+OrdersList.Skeleton = function OrdersListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <FilterBar
+        search={<Skeleton className="h-9 w-full" />}
+        filters={STATUS_PILLS.map((p) => (
+          <Skeleton key={p.key} className="h-8 w-16 rounded-full" />
+        ))}
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {COLUMNS.map((c) => (
+              <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 8 }).map((_, r) => (
+            <TableRow key={r}>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
+                  <Skeleton
+                    className={cn(
+                      "h-4",
+                      c.key === "chevron" ? "w-4" : "w-full max-w-32",
+                      "align" in c && "ml-auto",
+                    )}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};

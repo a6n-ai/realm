@@ -1,9 +1,18 @@
+import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { eventPayout } from "@/db/schema";
 import { PayoutGrid } from "../payout-grid";
 
-export default async function PayoutsPage() {
+export default function PayoutsPage() {
+  return (
+    <Suspense fallback={<PayoutGrid.Skeleton />}>
+      <PayoutsData />
+    </Suspense>
+  );
+}
+
+async function PayoutsData() {
   await requireAdmin();
 
   const payouts = await db

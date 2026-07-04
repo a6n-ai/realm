@@ -5,9 +5,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NumberField, ToggleRow } from "../discounts/controls";
 import type { appEvent } from "@/db/schema";
 import { savePayoutRow } from "./actions";
+
+const CARD_TITLE = "Event payouts";
+const CARD_SUBTITLE =
+  "Configure how many coins customers earn for each business event. Disabled events award no coins.";
 
 type AppEvent = (typeof appEvent.enumValues)[number];
 
@@ -31,10 +37,7 @@ function eventLabel(e: AppEvent): string {
 
 export function PayoutGrid({ payouts }: { payouts: PayoutRow[] }) {
   return (
-    <SectionCard
-      title="Event payouts"
-      subtitle="Configure how many coins customers earn for each business event. Disabled events award no coins."
-    >
+    <SectionCard title={CARD_TITLE} subtitle={CARD_SUBTITLE}>
       {payouts.length === 0 ? (
         <p className="text-muted-foreground text-sm">No payout rows — run db:seed:wallet to seed them.</p>
       ) : (
@@ -45,6 +48,33 @@ export function PayoutGrid({ payouts }: { payouts: PayoutRow[] }) {
         </div>
       )}
     </SectionCard>
+  );
+}
+
+// Single source of truth for a payout row's layout: the real row and the skeleton
+// twin both render through this shell, so the loading state can't drift from it.
+function PayoutRowShell({
+  label,
+  toggle,
+  field,
+  action,
+}: {
+  label: React.ReactNode;
+  toggle: React.ReactNode;
+  field: React.ReactNode;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {label}
+        {toggle}
+      </div>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        {field}
+        {action}
+      </div>
+    </div>
   );
 }
 
@@ -72,9 +102,9 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
   };
 
   return (
-    <div className="rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm font-medium">{eventLabel(row.eventType)}</span>
+    <PayoutRowShell
+      label={<span className="text-sm font-medium">{eventLabel(row.eventType)}</span>}
+      toggle={
         <ToggleRow
           id={`payout-${row.eventType}-enabled`}
           label="Enabled"
@@ -82,8 +112,8 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
           onChange={setEnabled}
           inline
         />
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
+      }
+      field={
         <NumberField
           id={`payout-${row.eventType}-coins`}
           label="Coins"
@@ -93,10 +123,43 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
           onChange={setCoins}
           className="w-36"
         />
+      }
+      action={
         <Button onClick={save} disabled={pending} size="sm" variant="outline">
           Save
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }
+
+// Exact loading twin: same SectionCard copy + same PayoutRowShell layout, grey
+// blocks where each control's label/input/switch/button go. Rendered as the
+// page's <Suspense fallback> so it always mirrors PayoutGrid by construction.
+PayoutGrid.Skeleton = function PayoutGridSkeleton() {
+  return (
+    <SectionCard title={CARD_TITLE} subtitle={CARD_SUBTITLE}>
+      <div className="grid gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <PayoutRowShell
+            key={i}
+            label={<Skeleton className="h-4 w-32" />}
+            toggle={
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Enabled</Label>
+                <Skeleton className="h-5 w-9 rounded-full" />
+              </div>
+            }
+            field={
+              <div className="grid w-36 gap-1.5">
+                <Label>Coins</Label>
+                <Skeleton className="h-9 w-full" />
+              </div>
+            }
+            action={<Skeleton className="h-8 w-16" />}
+          />
+        ))}
+      </div>
+    </SectionCard>
+  );
+};

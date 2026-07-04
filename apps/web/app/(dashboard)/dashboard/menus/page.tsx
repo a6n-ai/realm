@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { asc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@tiffin/commons";
 import { CalendarIcon } from "lucide-react";
@@ -12,7 +13,35 @@ import { MenuBuilder } from "./menu-builder";
 import { MenuHistoryCard } from "./menu-history-card";
 import type { PlanType } from "@/lib/menu/meal-types";
 
-export default async function MenusPage({ searchParams }: { searchParams: Promise<{ type?: string; week?: string }> }) {
+type SearchParams = Promise<{ type?: string; week?: string }>;
+
+export default function MenusPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <PageShell>
+      <PageHeader icon={CalendarIcon} title="Weekly Menus" />
+      <Suspense
+        fallback={
+          <>
+            <SectionCard title="Menu builder">
+              <MenuBuilder.Skeleton />
+            </SectionCard>
+            <SectionCard title="Past menus">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <MenuHistoryCard.Skeleton key={i} />
+                ))}
+              </div>
+            </SectionCard>
+          </>
+        }
+      >
+        <MenusData searchParams={searchParams} />
+      </Suspense>
+    </PageShell>
+  );
+}
+
+async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
@@ -52,8 +81,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
   const upcomingId = futureStarts.length ? weeks.find((w) => w.weekStart === futureStarts[0])?.publicId : undefined;
 
   return (
-    <PageShell>
-      <PageHeader icon={CalendarIcon} title="Weekly Menus" />
+    <>
       <SectionCard title="Menu builder">
         {activeDishes.length === 0 && (
           <p className="mb-3 text-sm text-muted-foreground">
@@ -80,6 +108,6 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
           </div>
         )}
       </SectionCard>
-    </PageShell>
+    </>
   );
 }

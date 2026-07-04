@@ -8,6 +8,7 @@ import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -143,6 +144,20 @@ function YesNo({ value }: { value: boolean }) {
   return value ? <Badge variant="outline">Yes</Badge> : <span className="text-muted-foreground">No</span>;
 }
 
+// Single source of truth for the table's columns. The real header and the
+// .Skeleton twin both render from this, so the loading skeleton can never
+// drift from the component.
+const COLUMNS = [
+  { key: "code", label: "Code" },
+  { key: "kind", label: "Kind" },
+  { key: "value", label: "Value", align: "right" },
+  { key: "autoApply", label: "Auto-apply" },
+  { key: "window", label: "Window" },
+  { key: "stackable", label: "Stackable" },
+  { key: "status", label: "Status" },
+  { key: "actions", label: "", width: "w-px" },
+] as const;
+
 export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
@@ -215,14 +230,11 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Kind</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead>Auto-apply</TableHead>
-              <TableHead>Window</TableHead>
-              <TableHead>Stackable</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-px" />
+              {COLUMNS.map((c) => (
+                <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                  {c.label}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -474,3 +486,45 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
     </SectionCard>
   );
 }
+
+// Exact loading twin: same SectionCard + same COLUMNS/Table markup, grey cells
+// instead of data. Rendered as the page's <Suspense fallback>, so it always
+// matches CouponsManager by construction.
+CouponsManager.Skeleton = function CouponsManagerSkeleton() {
+  return (
+    <SectionCard
+      title="Coupons"
+      subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
+      action={<Skeleton className="h-8 w-28" />}
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {COLUMNS.map((c) => (
+              <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 8 }).map((_, r) => (
+            <TableRow key={r}>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
+                  <Skeleton
+                    className={cn(
+                      "h-4",
+                      c.key === "actions" ? "w-16" : "w-full max-w-32",
+                      "align" in c && "ml-auto",
+                    )}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </SectionCard>
+  );
+};

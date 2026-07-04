@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { CalendarCheckIcon, ChevronDownIcon, LockIcon } from "lucide-react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -44,6 +45,11 @@ type Props = {
   timezone: string;
 };
 
+// Single source of truth for the card-grid layout. The real grid and the
+// skeleton twin both render from this, so the loading state can never drift.
+const GRID_CLASS = "grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3";
+const CARD_CLASS = "overflow-hidden rounded-xl border bg-card shadow-sm";
+
 export function MealsGrid({
   orderId,
   menuWeekId,
@@ -54,7 +60,7 @@ export function MealsGrid({
   timezone,
 }: Props) {
   return (
-    <div className="grid grid-cols-1 gap-3 pb-6 md:grid-cols-2 xl:grid-cols-3">
+    <div className={GRID_CLASS}>
       {weekDates.map((weekDate) => (
         <DeliveryCard
           key={weekDate.dateIso}
@@ -70,6 +76,34 @@ export function MealsGrid({
     </div>
   );
 }
+
+// Exact loading twin: same GRID_CLASS wrapper and the same DeliveryCard shape
+// (header with day/lock lines + divided slot sections), grey blocks instead of
+// data. Rendered as the page's <Suspense fallback>.
+MealsGrid.Skeleton = function MealsGridSkeleton() {
+  return (
+    <div className={GRID_CLASS}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <article key={i} className={CARD_CLASS}>
+          <div className="flex items-start justify-between border-b px-4 py-3">
+            <div className="space-y-0.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          </div>
+          <div className="divide-y">
+            {Array.from({ length: 2 }).map((_, s) => (
+              <div key={s} className="space-y-2 px-4 py-3">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-11 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+};
 
 function DeliveryCard({
   weekDate,
@@ -92,10 +126,7 @@ function DeliveryCard({
 
   return (
     <article
-      className={cn(
-        "overflow-hidden rounded-xl border bg-card shadow-sm",
-        locked && "opacity-70",
-      )}
+      className={cn(CARD_CLASS, locked && "opacity-70")}
     >
       {/* Card header */}
       <div className="flex items-start justify-between border-b px-4 py-3">

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { UtensilsCrossedIcon } from "lucide-react";
@@ -11,7 +12,18 @@ import { MealsGrid } from "./meals-grid";
 
 export type { GridCell } from "@/lib/menu/meals-grid";
 
-export default async function MealsPage() {
+export default function MealsPage() {
+  return (
+    <PageShell>
+      <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
+      <Suspense fallback={<MealsGrid.Skeleton />}>
+        <MealsData />
+      </Suspense>
+    </PageShell>
+  );
+}
+
+async function MealsData() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -45,14 +57,11 @@ export default async function MealsPage() {
 
   if (!activeOrder) {
     return (
-      <PageShell>
-        <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-        <EmptyState
-          icon={UtensilsCrossedIcon}
-          message="You don't have an active order yet."
-          action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
-        />
-      </PageShell>
+      <EmptyState
+        icon={UtensilsCrossedIcon}
+        message="You don't have an active order yet."
+        action={<a href="/subscribe" className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Subscribe now</a>}
+      />
     );
   }
 
@@ -64,30 +73,22 @@ export default async function MealsPage() {
       result.empty === "no-week"
         ? "The menu for the coming week hasn't been published yet. Check back soon."
         : "No deliveries are scheduled for the coming week on your order.";
-    return (
-      <PageShell>
-        <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-        <EmptyState icon={UtensilsCrossedIcon} message={message} />
-      </PageShell>
-    );
+    return <EmptyState icon={UtensilsCrossedIcon} message={message} />;
   }
 
   const { releasedWeek, weekDatesView, grid, enabledSlots, persons } = result;
 
   return (
-    <PageShell>
-      <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-      <SectionCard title={`Coming week — meals for ${releasedWeek.weekStart}`}>
-        <MealsGrid
-          orderId={activeOrder.publicId}
-          menuWeekId={releasedWeek.publicId}
-          grid={grid}
-          persons={persons}
-          weekDates={weekDatesView}
-          enabledSlots={enabledSlots}
-          timezone={settings.timezone}
-        />
-      </SectionCard>
-    </PageShell>
+    <SectionCard title={`Coming week — meals for ${releasedWeek.weekStart}`}>
+      <MealsGrid
+        orderId={activeOrder.publicId}
+        menuWeekId={releasedWeek.publicId}
+        grid={grid}
+        persons={persons}
+        weekDates={weekDatesView}
+        enabledSlots={enabledSlots}
+        timezone={settings.timezone}
+      />
+    </SectionCard>
   );
 }

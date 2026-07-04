@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
@@ -8,8 +9,50 @@ import { availableVariables, type AppEvent } from "@/lib/notifications/event-ent
 import { TemplateEditor } from "@/components/notifications/template-editor";
 import { eventLabel } from "@/components/notifications/template-status";
 import { SectionCard } from "@/components/ds";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default async function Page({ params }: { params: Promise<{ event: string }> }) {
+export default function Page({ params }: { params: Promise<{ event: string }> }) {
+  return (
+    <div className="space-y-6">
+      <Link
+        href="/dashboard/notifications/templates"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeftIcon className="size-4" /> All templates
+      </Link>
+      <Suspense
+        fallback={
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+        }
+      >
+        <TemplateHeader params={params} />
+      </Suspense>
+      <SectionCard title="Template content">
+        <Suspense fallback={<TemplateEditor.Skeleton />}>
+          <TemplateData params={params} />
+        </Suspense>
+      </SectionCard>
+    </div>
+  );
+}
+
+async function TemplateHeader({ params }: { params: Promise<{ event: string }> }) {
+  await requireAdmin();
+  const { event } = await params;
+  if (!appEvent.enumValues.includes(event as AppEvent) || event === "manual_adjustment") notFound();
+
+  return (
+    <div className="space-y-1">
+      <h1 className="text-2xl font-semibold text-balance">{eventLabel(event)}</h1>
+      <p className="text-sm text-muted-foreground">Email + in-app templates for this event, per locale.</p>
+    </div>
+  );
+}
+
+async function TemplateData({ params }: { params: Promise<{ event: string }> }) {
   await requireAdmin();
   const { event } = await params;
   if (!appEvent.enumValues.includes(event as AppEvent) || event === "manual_adjustment") notFound();
@@ -27,21 +70,5 @@ export default async function Page({ params }: { params: Promise<{ event: string
       enabled: t.enabled,
     }));
 
-  return (
-    <div className="space-y-6">
-      <Link
-        href="/dashboard/notifications/templates"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeftIcon className="size-4" /> All templates
-      </Link>
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-balance">{eventLabel(event)}</h1>
-        <p className="text-sm text-muted-foreground">Email + in-app templates for this event, per locale.</p>
-      </div>
-      <SectionCard title="Template content">
-        <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />
-      </SectionCard>
-    </div>
-  );
+  return <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />;
 }

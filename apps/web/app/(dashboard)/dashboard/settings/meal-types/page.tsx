@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { asc } from "drizzle-orm";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -7,7 +8,23 @@ import { mealSlots } from "@/db/schema";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm } from "../meal-types-form";
 
-export default async function MealTypesPage() {
+export default function MealTypesPage() {
+  return (
+    <div className="grid gap-6">
+      <PageHeader icon={UtensilsCrossedIcon} title="Meal types" />
+      <SectionCard
+        title="Plan configuration"
+        subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
+      >
+        <Suspense fallback={<MealTypesForm.Skeleton />}>
+          <MealTypesData />
+        </Suspense>
+      </SectionCard>
+    </div>
+  );
+}
+
+async function MealTypesData() {
   await requireAdmin();
 
   const [mealTypes, allSlots] = await Promise.all([
@@ -25,15 +42,5 @@ export default async function MealTypesPage() {
       .orderBy(asc(mealSlots.sortOrder)),
   ]);
 
-  return (
-    <div className="grid gap-6">
-      <PageHeader icon={UtensilsCrossedIcon} title="Meal types" />
-      <SectionCard
-        title="Plan configuration"
-        subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
-      >
-        <MealTypesForm initial={mealTypes} slots={allSlots} />
-      </SectionCard>
-    </div>
-  );
+  return <MealTypesForm initial={mealTypes} slots={allSlots} />;
 }

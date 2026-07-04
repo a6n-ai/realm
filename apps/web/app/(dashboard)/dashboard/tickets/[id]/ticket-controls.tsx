@@ -8,6 +8,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
@@ -28,6 +30,16 @@ const PRIORITIES: { value: TicketPriority; label: string }[] = [
 
 const UNASSIGNED = "__unassigned__";
 
+// Single source of truth for the control fields (label + trigger width). Both
+// the real controls below and the skeleton twin render from this, so the
+// loading state can't drift from the component.
+const FIELDS = [
+  { key: "status", label: "Status", width: "w-48" },
+  { key: "owner", label: "Owner", width: "w-44" },
+  { key: "priority", label: "Priority", width: "w-36" },
+] as const;
+const [F_STATUS, F_OWNER, F_PRIORITY] = FIELDS;
+
 export function TicketControls({
   ticketId,
   status,
@@ -47,7 +59,7 @@ export function TicketControls({
   return (
     <div className="flex flex-wrap items-end gap-4">
       <div className="space-y-1">
-        <label className="text-muted-foreground text-xs font-medium">Status</label>
+        <label className="text-muted-foreground text-xs font-medium">{F_STATUS.label}</label>
         <Select
           defaultValue={status}
           disabled={pending}
@@ -70,7 +82,7 @@ export function TicketControls({
             })
           }
         >
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={F_STATUS.width}><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
           </SelectContent>
@@ -78,7 +90,7 @@ export function TicketControls({
       </div>
 
       <div className="space-y-1">
-        <label className="text-muted-foreground text-xs font-medium">Owner</label>
+        <label className="text-muted-foreground text-xs font-medium">{F_OWNER.label}</label>
         <Select
           value={ownerId ?? UNASSIGNED}
           disabled={pending}
@@ -91,7 +103,7 @@ export function TicketControls({
             });
           }}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className={F_OWNER.width}>
             <SelectValue placeholder="Unassigned" />
           </SelectTrigger>
           <SelectContent>
@@ -102,7 +114,7 @@ export function TicketControls({
       </div>
 
       <div className="space-y-1">
-        <label className="text-muted-foreground text-xs font-medium">Priority</label>
+        <label className="text-muted-foreground text-xs font-medium">{F_PRIORITY.label}</label>
         <Select
           defaultValue={priority}
           disabled={pending}
@@ -114,7 +126,7 @@ export function TicketControls({
             })
           }
         >
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className={F_PRIORITY.width}><SelectValue /></SelectTrigger>
           <SelectContent>
             {PRIORITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
@@ -123,6 +135,21 @@ export function TicketControls({
     </div>
   );
 }
+
+// Exact loading twin: same field layout + FIELDS source of truth as the real
+// controls, grey blocks instead of live selects.
+TicketControls.Skeleton = function TicketControlsSkeleton() {
+  return (
+    <div className="flex flex-wrap items-end gap-4">
+      {FIELDS.map((f) => (
+        <div key={f.key} className="space-y-1">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className={cn("h-9", f.width)} />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export function ReplyBox({ ticketId }: { ticketId: string }) {
   const router = useRouter();
@@ -152,3 +179,13 @@ export function ReplyBox({ ticketId }: { ticketId: string }) {
     </div>
   );
 }
+
+// Exact loading twin: same space-y-2 wrapper, grey textarea + grey button.
+ReplyBox.Skeleton = function ReplyBoxSkeleton() {
+  return (
+    <div className="space-y-2">
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-9 w-24" />
+    </div>
+  );
+};

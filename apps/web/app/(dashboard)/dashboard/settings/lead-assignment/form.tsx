@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { LeadAssignmentConfig, Strategy } from "@/lib/services/assignment";
 import { saveMembership, saveStrategy } from "./actions";
 
@@ -141,6 +142,45 @@ export function LeadAssignmentForm({
   );
 }
 
+// Exact loading twin: reuses the same grid/section layout as LeadAssignmentForm
+// (strategy block + per-source rows + pool cards) with grey blocks in place of
+// controls, so it always matches the real form by construction.
+LeadAssignmentForm.Skeleton = function LeadAssignmentFormSkeleton() {
+  return (
+    <div className="grid gap-8">
+      <div className="grid max-w-xl gap-4">
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-3 w-64" />
+        </div>
+
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-48" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto] items-center gap-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-9 w-48" />
+            </div>
+          ))}
+        </div>
+
+        <Skeleton className="h-9 w-28" />
+      </div>
+
+      <div className="grid gap-6">
+        <div className="grid gap-2">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-full max-w-lg" />
+        </div>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <PoolEditor.Skeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 function PoolEditor({
   label,
   sourceKey,
@@ -240,3 +280,26 @@ function PoolEditor({
     </div>
   );
 }
+
+// Loading twin for a single pool card: same border card + header + member-row
+// grid (1fr_auto_auto) markup as PoolEditor, with grey blocks.
+PoolEditor.Skeleton = function PoolEditorSkeleton() {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-28" />
+      </div>
+      <div className="grid gap-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="size-9" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="mt-3 h-8 w-28" />
+    </div>
+  );
+};

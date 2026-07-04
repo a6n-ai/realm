@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -297,3 +298,50 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
     </div>
   );
 }
+
+LeadSourcesManager.Skeleton = function LeadSourcesManagerSkeleton() {
+  return (
+    <div className="grid gap-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-8 w-28" />
+      </div>
+
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-card rounded-xl border p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-16 rounded-md" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-1.5">
+            {Array.from({ length: 2 }).map((_, j) => (
+              <div
+                key={j}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+              >
+                <span className="flex items-center gap-2">
+                  <CornerDownRightIcon className="text-muted-foreground size-3.5 shrink-0" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-5 w-14 rounded-md" />
+                </span>
+                <span className="flex items-center gap-1">
+                  <Skeleton className="size-8" />
+                  <Skeleton className="size-8" />
+                </span>
+              </div>
+            ))}
+            <Skeleton className="mt-0.5 h-8 w-32 justify-self-start" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};

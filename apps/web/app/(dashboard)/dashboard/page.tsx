@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { desc, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,6 +16,7 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { Role } from "@tiffin/commons";
+import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
@@ -22,6 +24,8 @@ import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   PageShell,
@@ -33,6 +37,8 @@ import {
   EmptyState,
   OrderStatusBadge,
   ORDER_STATUS_LABEL,
+  PageSkeleton,
+  SkeletonStatCards,
 } from "@/components/ds";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
@@ -52,7 +58,18 @@ async function loadStats() {
   return { userCount, subsTotal, subsActive, subsWaitlisted, revenue };
 }
 
-export default async function DashboardOverviewPage() {
+// The page shell returns synchronously (no top-level await), so `loading.tsx`
+// never fires — instead the role gate and each data region stream into their own
+// <Suspense> with a skeleton that mirrors the resolved component.
+export default function DashboardOverviewPage() {
+  return (
+    <Suspense fallback={<PageSkeleton variant="table" stats={4} columns={5} action={false} />}>
+      <DashboardData />
+    </Suspense>
+  );
+}
+
+async function DashboardData() {
   // Staff-only: the overview exposes business-wide stats and customer PII.
   // Customers landing here are sent to their account page.
   const session = await getSession();
@@ -60,22 +77,34 @@ export default async function DashboardOverviewPage() {
   if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) {
     return <CustomerDashboard userId={session.user.id} />;
   }
+  return <StaffOverview />;
+}
 
-  const [stats, recent] = await Promise.all([
-    loadStats(),
-    db
-      .select({
-        deploymentId: orders.deploymentId,
-        status: orders.status,
-        fullName: orders.fullName,
-        city: orders.city,
-        total: orders.total,
-        createdAt: orders.createdAt,
-      })
-      .from(orders)
-      .orderBy(desc(orders.createdAt))
-      .limit(5),
-  ]);
+function StaffOverview() {
+  return (
+    <PageShell>
+      <PageHeader
+        icon={LayoutDashboardIcon}
+        title="Overview"
+        subtitle="Operational snapshot across orders and members."
+      />
+
+      <Suspense fallback={<SkeletonStatCards count={4} />}>
+        <OverviewStats />
+      </Suspense>
+
+      <SectionCard title="Recent orders" subtitle="The latest plans deployed through checkout.">
+        <Suspense fallback={<RecentOrders.Skeleton />}>
+          <RecentOrders />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+async function OverviewStats() {
+  await requireStaff();
+  const stats = await loadStats();
 
   const cards = [
     { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
@@ -85,52 +114,99 @@ export default async function DashboardOverviewPage() {
   ];
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={LayoutDashboardIcon}
-        title="Overview"
-        subtitle="Operational snapshot across orders and members."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
-        ))}
-      </div>
-
-      <SectionCard title="Recent orders" subtitle="The latest plans deployed through checkout.">
-        {recent.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No orders yet.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Deployment</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recent.map((r) => (
-                <TableRow key={r.deploymentId}>
-                  <TableCell className="font-mono text-xs">{r.deploymentId}</TableCell>
-                  <TableCell>{r.fullName}</TableCell>
-                  <TableCell>{r.city}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.status === "active" ? "default" : "secondary"}>{r.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{fmt(Number(r.total))}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </SectionCard>
-    </PageShell>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((c) => (
+        <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
+      ))}
+    </div>
   );
 }
+
+// Single source of truth for the recent-orders table columns. The real header and
+// the .Skeleton twin both render from this, so the loading state can't drift.
+const RECENT_ORDER_COLUMNS = [
+  { key: "deployment", label: "Deployment" },
+  { key: "customer", label: "Customer" },
+  { key: "city", label: "City" },
+  { key: "status", label: "Status" },
+  { key: "total", label: "Total", align: "right" },
+] as const;
+
+async function RecentOrders() {
+  await requireStaff();
+  const recent = await db
+    .select({
+      deploymentId: orders.deploymentId,
+      status: orders.status,
+      fullName: orders.fullName,
+      city: orders.city,
+      total: orders.total,
+      createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .orderBy(desc(orders.createdAt))
+    .limit(5);
+
+  if (recent.length === 0) {
+    return <p className="text-muted-foreground text-sm">No orders yet.</p>;
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {RECENT_ORDER_COLUMNS.map((c) => (
+            <TableHead key={c.key} className={"align" in c ? "text-right" : undefined}>
+              {c.label}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {recent.map((r) => (
+          <TableRow key={r.deploymentId}>
+            <TableCell className="font-mono text-xs">{r.deploymentId}</TableCell>
+            <TableCell>{r.fullName}</TableCell>
+            <TableCell>{r.city}</TableCell>
+            <TableCell>
+              <Badge variant={r.status === "active" ? "default" : "secondary"}>{r.status}</Badge>
+            </TableCell>
+            <TableCell className="text-right">{fmt(Number(r.total))}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// Exact loading twin: same RECENT_ORDER_COLUMNS + Table markup, grey cells instead
+// of data. Used as the page's <Suspense fallback> so it can't drift from the table.
+RecentOrders.Skeleton = function RecentOrdersSkeleton() {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {RECENT_ORDER_COLUMNS.map((c) => (
+            <TableHead key={c.key} className={"align" in c ? "text-right" : undefined}>
+              {c.label}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 8 }).map((_, r) => (
+          <TableRow key={r}>
+            {RECENT_ORDER_COLUMNS.map((c) => (
+              <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
+                <Skeleton className={cn("h-4 w-full max-w-32", "align" in c && "ml-auto")} />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+};
 
 const CUSTOMER_LINKS = [
   {

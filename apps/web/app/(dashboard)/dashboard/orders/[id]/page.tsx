@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
 import { NotFoundError } from "@tiffin/commons";
@@ -6,7 +7,15 @@ import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { formatEpoch } from "@/lib/format/datetime";
-import { PageShell, PageHeader, SectionCard, ListRow, OrderStatusBadge } from "@/components/ds";
+import {
+  PageShell,
+  PageHeader,
+  SectionCard,
+  ListRow,
+  OrderStatusBadge,
+  SkeletonCardGrid,
+} from "@/components/ds";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
 
@@ -24,7 +33,17 @@ function describe(a: { type: string; note: string | null; fromStatus: string | n
   }
 }
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PageShell>
+      <Suspense fallback={<OrderDetail.Skeleton />}>
+        <OrderDetail params={params} />
+      </Suspense>
+    </PageShell>
+  );
+}
+
+async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
   const { id } = await params;
 
@@ -50,7 +69,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   );
 
   return (
-    <PageShell>
+    <>
       <PageHeader icon={PackageIcon} title={order.fullName} />
 
       <SectionCard title="Summary">
@@ -104,6 +123,46 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
       </SectionCard>
-    </PageShell>
+    </>
   );
 }
+
+// Exact loading twin: reuses OrderDetail's own PageHeader/SectionCard/ListRow
+// layout with grey blocks where data goes, so the fallback stays in sync with
+// the real render by construction.
+OrderDetail.Skeleton = function OrderDetailSkeleton() {
+  return (
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-9 rounded-lg" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+      </div>
+
+      <SectionCard title="Summary">
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 w-full max-w-md" />
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Lifecycle">
+        <Skeleton className="h-9 w-48" />
+      </SectionCard>
+
+      <SectionCard title="Coming week meals">
+        <SkeletonCardGrid count={6} />
+      </SectionCard>
+
+      <SectionCard title="Activity">
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <ListRow key={i} title={<Skeleton className="h-4 w-40" />} meta={<Skeleton className="h-3 w-24" />} />
+          ))}
+        </div>
+      </SectionCard>
+    </>
+  );
+};

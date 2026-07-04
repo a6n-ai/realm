@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
@@ -7,11 +8,27 @@ import { NewTicketForm, type TicketCategoryValue } from "./new-ticket-form";
 
 const CATEGORIES: TicketCategoryValue[] = ["order", "billing", "catering", "general"];
 
-export default async function NewTicketPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ orderId?: string }>;
-}) {
+type SearchParams = Promise<{ orderId?: string }>;
+
+export default function NewTicketPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <PageShell>
+      <PageHeader
+        icon={LifeBuoyIcon}
+        title="New ticket"
+        subtitle="Tell us what's going on and we'll take a look."
+      />
+
+      <SectionCard title="Details">
+        <Suspense fallback={<NewTicketForm.Skeleton />}>
+          <TicketFormData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+async function TicketFormData({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
@@ -27,21 +44,11 @@ export default async function NewTicketPage({
   const preselected = orderId && orderOptions.some((o) => o.value === orderId) ? orderId : undefined;
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={LifeBuoyIcon}
-        title="New ticket"
-        subtitle="Tell us what's going on and we'll take a look."
-      />
-
-      <SectionCard title="Details">
-        <NewTicketForm
-          categories={CATEGORIES}
-          orders={orderOptions}
-          defaultOrderId={preselected}
-          defaultCategory={preselected ? "order" : "general"}
-        />
-      </SectionCard>
-    </PageShell>
+    <NewTicketForm
+      categories={CATEGORIES}
+      orders={orderOptions}
+      defaultOrderId={preselected}
+      defaultCategory={preselected ? "order" : "general"}
+    />
   );
 }

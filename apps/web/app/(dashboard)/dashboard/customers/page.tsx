@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { UsersIcon, PlusIcon } from "lucide-react";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { tzToDefaultCountry } from "@tiffin/commons";
@@ -9,6 +10,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { CustomersList } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
@@ -21,11 +23,34 @@ const SORT_COL = {
 
 type CustomerSortColumn = keyof typeof SORT_COL;
 
-export default async function CustomersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
+
+// The page shell returns synchronously (no top-level await), so `loading.tsx`
+// never fires — instead each async child below streams into its own <Suspense>
+// with a skeleton that mirrors that component. Header title paints instantly;
+// the action button and the table fill in as their data resolves.
+export default function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <PageShell>
+      <PageHeader
+        icon={UsersIcon}
+        title="Customers"
+        actions={
+          <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+            <NewCustomerAction />
+          </Suspense>
+        }
+      />
+      <SectionCard title="All customers">
+        <Suspense fallback={<CustomersList.Skeleton />}>
+          <CustomersData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
   const sort: SortState<CustomerSortColumn> = parseSort(
@@ -37,21 +62,28 @@ export default async function CustomersPage({
   const col = SORT_COL[sort.column];
   const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
 
-  const [rows, { timezone }, sourceRows, subRows, catalog, slots] = await Promise.all([
-    db
-      .select({
-        publicId: users.publicId,
-        email: users.email,
-        phone: users.phone,
-        orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
-        latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
-      })
-      .from(users)
-      .leftJoin(orders, eq(orders.userId, users.id))
-      .where(eq(users.role, "user"))
-      .groupBy(users.id, users.publicId, users.email, users.phone)
-      .orderBy(orderBy)
-      .limit(500),
+  const rows = await db
+    .select({
+      publicId: users.publicId,
+      email: users.email,
+      phone: users.phone,
+      orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
+      latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+    })
+    .from(users)
+    .leftJoin(orders, eq(orders.userId, users.id))
+    .where(eq(users.role, "user"))
+    .groupBy(users.id, users.publicId, users.email, users.phone)
+    .orderBy(orderBy)
+    .limit(500);
+
+  return <CustomersList rows={rows} sort={sort} />;
+}
+
+async function NewCustomerAction() {
+  await requireStaff();
+
+  const [{ timezone }, sourceRows, subRows, catalog, slots] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -88,7 +120,7 @@ export default async function CustomersPage({
   };
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
 
-  const newCustomerTrigger = (
+  return (
     <NewCustomerSheet
       defaultCountry={defaultCountry}
       sources={sources}
@@ -101,20 +133,6 @@ export default async function CustomersPage({
         </Button>
       }
     />
-  );
-
-  return (
-    <PageShell>
-      <PageHeader
-        icon={UsersIcon}
-        title="Customers"
-        subtitle={`${rows.length} total`}
-        actions={newCustomerTrigger}
-      />
-      <SectionCard title="All customers" subtitle={rows.length === 0 ? "Nothing yet" : undefined}>
-        <CustomersList rows={rows} sort={sort} />
-      </SectionCard>
-    </PageShell>
   );
 }
 

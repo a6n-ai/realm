@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
@@ -12,8 +13,17 @@ import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/li
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
+import { cn } from "@/lib/utils";
 
 const CREATE_VALUE = "__create__";
+
+// Single source of truth for the config bar's labelled controls. The real bar
+// and MenuBuilder.Skeleton both read labels + control widths from here, so the
+// loading skeleton can never drift from the component.
+const CONFIG_FIELDS = [
+  { key: "plan", label: "Plan type", control: "w-40" },
+  { key: "week", label: "Week start (Monday)", control: "w-56" },
+] as const;
 
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
@@ -74,7 +84,7 @@ export function MenuBuilder({
 
       <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Plan type</label>
+          <label className="block text-sm font-medium">{CONFIG_FIELDS[0].label}</label>
           <Select value={planType} onValueChange={(t) => router.push(`/dashboard/menus?type=${t}`)}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -84,7 +94,7 @@ export function MenuBuilder({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Week start (Monday)</label>
+          <label className="block text-sm font-medium">{CONFIG_FIELDS[1].label}</label>
           <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
         </div>
         {!week && (
@@ -273,3 +283,21 @@ export function MenuBuilder({
     </div>
   );
 }
+
+// Exact loading twin of the initial (no-week) config bar: same wrapper markup and
+// the same CONFIG_FIELDS labels, with grey controls in place of the live inputs.
+MenuBuilder.Skeleton = function MenuBuilderSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">
+        {CONFIG_FIELDS.map((f) => (
+          <div key={f.key} className="space-y-1.5">
+            <label className="block text-sm font-medium">{f.label}</label>
+            <Skeleton className={cn("h-9", f.control)} />
+          </div>
+        ))}
+        <Skeleton className="h-9 w-28" />
+      </div>
+    </div>
+  );
+};

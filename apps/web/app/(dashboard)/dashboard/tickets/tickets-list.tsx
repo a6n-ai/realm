@@ -10,9 +10,11 @@ import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
@@ -26,6 +28,20 @@ const STATUS_PILLS = [
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
   { key: "overdue", label: "Overdue" },
+] as const;
+
+// Single source of truth for the table's columns. The real header, and the
+// skeleton twin below, both render from this — change a column here and both
+// update, so the loading skeleton can never drift from the component.
+const COLUMNS = [
+  { key: "subject", label: "Subject", sortable: true },
+  { key: "customer", label: "Customer", sortable: true },
+  { key: "category", label: "Category", sortable: true },
+  { key: "status", label: "Status", sortable: true },
+  { key: "owner", label: "Owner", sortable: true },
+  { key: "priority", label: "Priority", sortable: true },
+  { key: "lastMessage", label: "Last activity", sortable: true, align: "right" },
+  { key: "chevron", label: "", width: "w-8" },
 ] as const;
 
 const ALL_OWNERS = "__all__";
@@ -119,14 +135,22 @@ export function TicketsList({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader column="subject" label="Subject" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="customer" label="Customer" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="category" label="Category" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="status" label="Status" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="owner" label="Owner" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="priority" label="Priority" currentSort={sort.column} currentDir={sort.dir} />
-              <SortableHeader column="lastMessage" label="Last activity" currentSort={sort.column} currentDir={sort.dir} className="text-right" />
-              <TableHead className="w-8" />
+              {COLUMNS.map((c) =>
+                "sortable" in c && c.sortable ? (
+                  <SortableHeader
+                    key={c.key}
+                    column={c.key as QueueSortColumn}
+                    label={c.label}
+                    currentSort={sort.column}
+                    currentDir={sort.dir}
+                    className={"align" in c ? "text-right" : undefined}
+                  />
+                ) : (
+                  <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                    {c.label}
+                  </TableHead>
+                ),
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -170,3 +194,52 @@ export function TicketsList({
     </div>
   );
 }
+
+// Exact loading twin: same COLUMNS + same FilterBar/Table markup (search, pills
+// and owner dropdown), grey cells instead of data. Rendered as the page's
+// <Suspense fallback>, so it always matches TicketsList by construction.
+TicketsList.Skeleton = function TicketsListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <FilterBar
+        search={<Skeleton className="h-9 w-full" />}
+        filters={
+          <>
+            {STATUS_PILLS.map((p) => (
+              <Skeleton key={p.key} className="h-8 w-16 rounded-full" />
+            ))}
+            <Skeleton className="h-8 w-40" />
+          </>
+        }
+      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {COLUMNS.map((c) => (
+              <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 8 }).map((_, r) => (
+            <TableRow key={r}>
+              {COLUMNS.map((c) => (
+                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
+                  <Skeleton
+                    className={cn(
+                      "h-4",
+                      c.key === "chevron" ? "w-4" : "w-full max-w-32",
+                      "align" in c && "ml-auto",
+                    )}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};

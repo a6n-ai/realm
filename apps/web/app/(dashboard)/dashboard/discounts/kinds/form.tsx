@@ -6,8 +6,14 @@ import { toast } from "sonner";
 import type { CouponKind, DiscountPolicy } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ALL_KINDS, KIND_LABELS, Multiselect } from "../controls";
 import { saveDiscountPolicy } from "../actions";
+
+const CARD = {
+  title: "Enabled coupon kinds",
+  subtitle: "Which coupon kinds may be created and honored across the platform.",
+} as const;
 
 export function KindsForm({ policy }: { policy: DiscountPolicy }) {
   const router = useRouter();
@@ -31,10 +37,7 @@ export function KindsForm({ policy }: { policy: DiscountPolicy }) {
   };
 
   return (
-    <SectionCard
-      title="Enabled coupon kinds"
-      subtitle="Which coupon kinds may be created and honored across the platform."
-    >
+    <SectionCard title={CARD.title} subtitle={CARD.subtitle}>
       <div className="grid max-w-md gap-3">
         <Multiselect
           options={ALL_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] }))}
@@ -51,3 +54,17 @@ export function KindsForm({ policy }: { policy: DiscountPolicy }) {
     </SectionCard>
   );
 }
+
+// Exact loading twin: same SectionCard (real title/subtitle) + same grid layout,
+// grey blocks where the multiselect and save button go. Rendered as the page's
+// <Suspense fallback>, so it stays in sync with KindsForm by construction.
+KindsForm.Skeleton = function KindsFormSkeleton() {
+  return (
+    <SectionCard title={CARD.title} subtitle={CARD.subtitle}>
+      <div className="grid max-w-md gap-3">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-24" />
+      </div>
+    </SectionCard>
+  );
+};

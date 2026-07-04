@@ -19,6 +19,7 @@ import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -34,6 +35,12 @@ type Options = Record<string, { value: string; label: string }[]>;
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
+
+// Single source of truth for the table's visible columns: every field except
+// hidden ones and the slug key (shown as subtext under the first column). Both
+// the real header/rows and the .Skeleton twin render from this, so the loading
+// skeleton can never drift from the component.
+const visibleCols = (def: ResourceDef) => def.fields.filter((f) => !f.tableHidden && f.key !== "key");
 
 /** Resolve a stored option value to its human label (dynamic source wins, then static map). */
 function labelFor(f: FieldDef, value: string, options: Options): string {
@@ -353,8 +360,7 @@ export function ResourceEditor({
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  // Columns: every visible field except the slug key (shown as subtext under the first column).
-  const cols = def.fields.filter((f) => !f.tableHidden && f.key !== "key");
+  const cols = visibleCols(def);
   const retired = rows.filter((r) => r.active === false).length;
   const activeCount = rows.length - retired;
 
@@ -466,3 +472,49 @@ export function ResourceEditor({
     </div>
   );
 }
+
+// Exact loading twin: same visibleCols source of truth + same header/table
+// markup as ResourceEditor, grey cells instead of data. Rendered as the page's
+// <Suspense fallback>, so it always matches the real table by construction.
+ResourceEditor.Skeleton = function ResourceEditorSkeleton({ resource }: { resource: string }) {
+  const def = RESOURCES[resource];
+  const cols = def ? visibleCols(def) : [];
+  const rest = cols.slice(1);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="rounded-xl border">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>{cols[0]?.label ?? "Name"}</TableHead>
+              {rest.map((f) => (
+                <TableHead key={f.key} className={isNumberType(f) ? "text-right" : undefined}>{f.label}</TableHead>
+              ))}
+              <TableHead>Status</TableHead>
+              <TableHead className="w-px text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 8 }).map((_, r) => (
+              <TableRow key={r} className="hover:bg-transparent">
+                <TableCell className="font-medium"><Skeleton className="h-4 w-full max-w-32" /></TableCell>
+                {rest.map((f) => (
+                  <TableCell key={f.key} className={isNumberType(f) ? "text-right" : undefined}>
+                    <Skeleton className={cn("h-4 w-full max-w-24", isNumberType(f) && "ml-auto")} />
+                  </TableCell>
+                ))}
+                <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};

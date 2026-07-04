@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { count, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
 import { tzToDefaultCountry } from "@tiffin/commons";
@@ -8,28 +9,48 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@/components/ui/button";
-import { PageShell, PageHeader, SectionCard, StatCard } from "@/components/ds";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  PageShell,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  SkeletonStatCards,
+} from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList } from "./inquiries-list";
 
-export default async function InquiriesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
-  await requireStaff();
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
-  const sort = parseSort(
-    await searchParams,
-    ["name", "owner", "stage", "source", "lastTouch", "created"],
-    { column: "created", dir: "desc" },
+export default function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <PageShell>
+      <PageHeader
+        icon={ClipboardListIcon}
+        title="Inquiries"
+        actions={
+          <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+            <NewInquiryAction />
+          </Suspense>
+        }
+      />
+
+      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
+        <InquiryStats />
+      </Suspense>
+
+      <SectionCard title="All inquiries">
+        <Suspense fallback={<InquiriesList.Skeleton />}>
+          <InquiriesData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
   );
+}
 
-  const [{ timezone }, stageCounts, [{ total }], rows, sourceRows, subRows, zones] = await Promise.all([
+async function loadSheetData() {
+  const [{ timezone }, sourceRows, subRows, zones] = await Promise.all([
     getAppSettings(),
-    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
-    db.select({ total: count() }).from(inquiries),
-    inquiriesService.listForPipeline(sort),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
       .from(leadSources),
@@ -64,6 +85,41 @@ export default async function InquiriesPage({
         .map((sub) => ({ key: sub.key, label: sub.label })),
     }));
 
+  return { defaultCountry, sources, zones };
+}
+
+function newInquiryTrigger() {
+  return (
+    <Button>
+      <PlusIcon className="size-4" />
+      New inquiry
+    </Button>
+  );
+}
+
+async function NewInquiryAction() {
+  await requireStaff();
+
+  const { defaultCountry, sources, zones } = await loadSheetData();
+
+  return (
+    <AddInquirySheet
+      defaultCountry={defaultCountry}
+      sources={sources}
+      zones={zones}
+      trigger={newInquiryTrigger()}
+    />
+  );
+}
+
+async function InquiryStats() {
+  await requireStaff();
+
+  const [stageCounts, [{ total }]] = await Promise.all([
+    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
+    db.select({ total: count() }).from(inquiries),
+  ]);
+
   const countOf = (...stages: string[]) =>
     stageCounts.filter((r) => stages.includes(r.stage)).reduce((sum, r) => sum + r.n, 0);
 
@@ -72,57 +128,47 @@ export default async function InquiriesPage({
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={ClipboardListIcon}
-        title="Inquiries"
-        subtitle={`${total} total · ${open} open`}
-        actions={
-          <AddInquirySheet
-            defaultCountry={defaultCountry}
-            sources={sources}
-            zones={zones}
-            trigger={
-              <Button>
-                <PlusIcon className="size-4" />
-                New inquiry
-              </Button>
-            }
-          />
-        }
+    <div className="grid gap-4 sm:grid-cols-3">
+      <StatCard icon={InboxIcon} label="Total" value={total} hint="all inquiries" />
+      <StatCard icon={UsersIcon} label="Open" value={open} hint="new · contacted · follow-up" />
+      <StatCard
+        icon={TrendingUpIcon}
+        label="Converted"
+        value={converted}
+        hint={`${conversionRate}% conversion`}
       />
+    </div>
+  );
+}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard icon={InboxIcon} label="Total" value={total} hint="all inquiries" />
-        <StatCard icon={UsersIcon} label="Open" value={open} hint="new · contacted · follow-up" />
-        <StatCard
-          icon={TrendingUpIcon}
-          label="Converted"
-          value={converted}
-          hint={`${conversionRate}% conversion`}
-        />
-      </div>
+async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
+  await requireStaff();
 
-      <SectionCard title="All inquiries" subtitle={total === 0 ? "Nothing yet" : undefined}>
-        <InquiriesList
-          rows={rows}
-          stageCounts={stageCounts}
-          sort={sort}
-          emptyCta={
-            <AddInquirySheet
-              defaultCountry={defaultCountry}
-              sources={sources}
-              zones={zones}
-              trigger={
-                <Button>
-                  <PlusIcon className="size-4" />
-                  New inquiry
-                </Button>
-              }
-            />
-          }
+  const sort = parseSort(
+    await searchParams,
+    ["name", "owner", "stage", "source", "lastTouch", "created"],
+    { column: "created", dir: "desc" },
+  );
+
+  const [stageCounts, rows, sheet] = await Promise.all([
+    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
+    inquiriesService.listForPipeline(sort),
+    loadSheetData(),
+  ]);
+
+  return (
+    <InquiriesList
+      rows={rows}
+      stageCounts={stageCounts}
+      sort={sort}
+      emptyCta={
+        <AddInquirySheet
+          defaultCountry={sheet.defaultCountry}
+          sources={sheet.sources}
+          zones={sheet.zones}
+          trigger={newInquiryTrigger()}
         />
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }

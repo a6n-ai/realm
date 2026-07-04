@@ -5,7 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SectionCard } from "@/components/ds";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -45,6 +47,18 @@ const addressFormSchema = z.object({
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
+
+// Single source of truth for the form grid + per-field column spans. The real
+// form and the .Skeleton twin both render from these so the loading state can
+// never drift from the resolved layout.
+const ADDRESS_GRID = "grid gap-3 sm:grid-cols-2";
+const ADDRESS_FIELDS: { name: keyof AddressFormValues; className?: string }[] = [
+  { name: "addressLine", className: "sm:col-span-2" },
+  { name: "addressUnit" },
+  { name: "city" },
+  { name: "postalCode" },
+  { name: "province" },
+];
 
 export function AddressSection({
   addressLine = "",
@@ -96,7 +110,7 @@ export function AddressSection({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="grid gap-3 sm:grid-cols-2"
+            className={ADDRESS_GRID}
           >
             <FormField
               control={form.control}
@@ -213,3 +227,23 @@ export function AddressSection({
     </section>
   );
 }
+
+AddressSection.Skeleton = function AddressSectionSkeleton({ titleAs }: { titleAs?: "h2" | "h3" }) {
+  return (
+    <section id="address" className="scroll-mt-24">
+      <SectionCard variant="flat" titleAs={titleAs} title="Delivery address">
+        <div className={ADDRESS_GRID}>
+          {ADDRESS_FIELDS.map((f) => (
+            <div key={f.name} className={cn("grid gap-1.5", f.className)}>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          ))}
+          <div className="sm:col-span-2">
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
+      </SectionCard>
+    </section>
+  );
+};

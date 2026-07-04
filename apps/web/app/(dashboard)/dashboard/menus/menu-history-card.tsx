@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 
@@ -114,3 +115,33 @@ export function MenuHistoryCard({
     </div>
   );
 }
+
+// Exact loading twin: same card wrapper, header row, day-nav row, body block and
+// edit-button footer as MenuHistoryCard, with grey blocks where content goes.
+MenuHistoryCard.Skeleton = function MenuHistoryCardSkeleton() {
+  return (
+    <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+        <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <Skeleton className="size-10 rounded-md" />
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="size-10 rounded-md" />
+      </div>
+
+      <div className="mt-3 min-h-24 space-y-2 rounded-lg bg-muted/40 p-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-36" />
+      </div>
+
+      <Skeleton className="mt-3 h-8 w-24" />
+    </div>
+  );
+};
