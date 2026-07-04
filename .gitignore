@@ -59,7 +59,5 @@ graphify-out/
 .idea/
 .mcp.json
 skills-lock.json
-AGENTS.md
-CLAUDE.md
 docs/*
 !docs/realm/
