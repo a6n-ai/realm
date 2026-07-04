@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@realm/ui/badge";
 import type { MealSizeView } from "@/lib/catalog/types";
 
 export function StepCard({ n, title, body }: { n: number; title: string; body: string }) {

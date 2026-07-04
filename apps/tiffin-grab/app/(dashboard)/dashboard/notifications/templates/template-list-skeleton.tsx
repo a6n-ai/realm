@@ -1,6 +1,6 @@
 import { FilterBar } from "@/components/ds";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const COLUMNS = [

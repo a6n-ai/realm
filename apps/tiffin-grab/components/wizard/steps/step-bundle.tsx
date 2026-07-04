@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@realm/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
+import { Badge } from "@realm/ui/badge";
 
 type DietTab = "all" | "veg" | "nonveg";
 

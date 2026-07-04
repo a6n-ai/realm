@@ -6,12 +6,12 @@ import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/ui/phone-input";
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
+import { PhoneInput } from "@realm/ui/phone-input";
 import { accountFormSchema, type AccountFormValues } from "./schema";
 import { updateMyContact } from "@/app/(dashboard)/dashboard/account/actions";
 

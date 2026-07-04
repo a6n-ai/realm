@@ -1,6 +1,6 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
-import { Card } from "@/components/ui/card";
+import { Card } from "@realm/ui/card";
 
 export function StepBaseline({ catalog, selections, set }: {
   catalog: ClientCatalogSnapshot;

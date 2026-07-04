@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@realm/ui/card";
 import { cn } from "@/lib/utils";
 
 export type CardVariant = "glow" | "lift" | "flat";

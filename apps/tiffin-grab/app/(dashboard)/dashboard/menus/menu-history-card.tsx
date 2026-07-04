@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 

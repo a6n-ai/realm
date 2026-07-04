@@ -7,16 +7,16 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, ChevronsUpDown, X } from "lucide-react";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@realm/ui/button";
+import { Badge } from "@realm/ui/badge";
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
+} from "@realm/ui/form";
+import { Textarea } from "@realm/ui/textarea";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+} from "@realm/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
 import { cn } from "@/lib/utils";
 import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
 

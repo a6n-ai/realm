@@ -3,14 +3,14 @@
 import { Loader2Icon, SendIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@realm/ui/select";
+import { Textarea } from "@realm/ui/textarea";
+import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { createTicket } from "../actions";
 

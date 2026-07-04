@@ -8,11 +8,11 @@ import { lintEmailHtml } from "@/lib/notifications/email-compat";
 import { formatCode } from "@/lib/notifications/format";
 import { compileReactEmail, REACT_SOURCE_MARKER } from "@/lib/notifications/react-template";
 import "@uiw/react-md-editor/markdown-editor.css";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Switch } from "@realm/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
+import { Skeleton } from "@realm/ui/skeleton";
 import { EmailEditorField, type EmailEditorFieldHandle } from "./email-editor";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });

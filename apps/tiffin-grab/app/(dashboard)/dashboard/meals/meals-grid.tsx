@@ -4,14 +4,14 @@ import { useState, useTransition } from "react";
 import { CalendarCheckIcon, ChevronDownIcon, LockIcon } from "lucide-react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@realm/ui/sheet";
 import { pickDish, applyDishToWeek } from "./actions";
 import type { GridCell } from "@/lib/menu/meals-grid";
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HistoryIcon, PercentIcon, SlidersHorizontalIcon, TicketPercentIcon, type LucideIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
 
 type SubTab = { label: string; href: string; icon: LucideIcon };
 

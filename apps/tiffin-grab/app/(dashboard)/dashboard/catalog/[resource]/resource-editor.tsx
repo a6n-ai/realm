@@ -7,23 +7,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+} from "@realm/ui/dialog";
 import { EmptyState } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
 import type { FileDetail } from "@realm/commons-files/model";
 import { MealCard } from "@/components/marketing/cards";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Switch } from "@realm/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+} from "@realm/ui/table";
 import { cn } from "@/lib/utils";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,

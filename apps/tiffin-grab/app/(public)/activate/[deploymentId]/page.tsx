@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@realm/ui/card";
+import { Separator } from "@realm/ui/separator";
 
 // Looks up an order by deploymentId — render per request, never prerender.
 export const dynamic = "force-dynamic";

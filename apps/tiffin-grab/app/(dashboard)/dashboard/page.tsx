@@ -23,10 +23,10 @@ import { orders, users } from "@/db/schema";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import {
   PageShell,
   PageHeader,

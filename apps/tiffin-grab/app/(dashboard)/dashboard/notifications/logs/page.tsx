@@ -3,8 +3,8 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox, users } from "@/db/schema";
 import { eventLabel } from "@/components/notifications/template-status";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const COLUMNS = [

@@ -7,15 +7,15 @@ import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@realm/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@realm/ui/select";
 import { updateMyAddress } from "@/app/(dashboard)/dashboard/account/actions";
 
 // Radix Select forbids an empty-string item value, so a sentinel maps back to ""

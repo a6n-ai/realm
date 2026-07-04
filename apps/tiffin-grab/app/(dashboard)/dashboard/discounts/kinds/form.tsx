@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { CouponKind, DiscountPolicy } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import { ALL_KINDS, KIND_LABELS, Multiselect } from "../controls";
 import { saveDiscountPolicy } from "../actions";
 

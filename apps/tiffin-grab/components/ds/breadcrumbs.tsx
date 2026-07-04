@@ -9,7 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+} from "@realm/ui/breadcrumb";
 import { labelForSegment } from "./route-labels";
 
 export type Crumb = { label: string; href?: string };

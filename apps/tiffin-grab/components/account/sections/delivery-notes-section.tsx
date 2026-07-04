@@ -6,11 +6,11 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
+} from "@realm/ui/form";
+import { Textarea } from "@realm/ui/textarea";
 import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
 
 const deliveryNotesSchema = z.object({

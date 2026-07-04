@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { PinOtp } from "@/components/pin-otp";
 import { verifyPinAction } from "./actions";
 

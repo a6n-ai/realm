@@ -1,7 +1,7 @@
 "use client";
 
 import { SearchIcon, XIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@realm/ui/input";
 
 export function SearchInput({
   value, onChange, placeholder = "Search…",

@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Label } from "@realm/ui/label";
+import { Input } from "@realm/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Skeleton } from "@realm/ui/skeleton";
 import { saveAppSettings } from "./actions";
 
 const ZONES = ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg", "America/Halifax", "Asia/Kolkata", "UTC"];

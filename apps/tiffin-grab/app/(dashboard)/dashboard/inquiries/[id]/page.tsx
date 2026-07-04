@@ -19,8 +19,8 @@ import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.se
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, ListRow, SkeletonListRows } from "@/components/ds";
 import { ActivityComposer, MarkLostDialog, StageControl } from "./inquiry-controls";
 import { ConvertSheet } from "./convert-sheet";

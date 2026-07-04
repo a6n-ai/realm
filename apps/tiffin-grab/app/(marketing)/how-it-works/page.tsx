@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { Section } from "@/components/marketing/section";
 import { StepCard } from "@/components/marketing/cards";
 

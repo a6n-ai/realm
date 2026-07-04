@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@realm/ui/switch";
+import { Label } from "@realm/ui/label";
 import { SectionCard } from "@/components/ds";
 import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
 

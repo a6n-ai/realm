@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 
 export function pageRange(page: number, pageCount: number): number[] {
   if (pageCount <= 3) return Array.from({ length: pageCount }, (_, i) => i + 1);

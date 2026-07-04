@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 
 const LINKS = [
   { href: "/how-it-works", label: "How it works" },

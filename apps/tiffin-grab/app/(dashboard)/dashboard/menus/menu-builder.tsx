@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, Star, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@realm/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";

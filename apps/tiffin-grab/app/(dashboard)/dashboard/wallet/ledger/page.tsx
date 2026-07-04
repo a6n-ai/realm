@@ -7,8 +7,8 @@ import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { eventLabel } from "@/components/notifications/template-status";
 import { EmptyState, SkeletonStatCards } from "@/components/ds";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 // Single source of truth for the ledger table's columns. The real header and

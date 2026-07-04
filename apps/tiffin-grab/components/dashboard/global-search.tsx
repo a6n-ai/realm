@@ -11,7 +11,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "@realm/ui/command";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 

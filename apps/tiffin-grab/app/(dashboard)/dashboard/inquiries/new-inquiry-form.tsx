@@ -12,16 +12,16 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@realm/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@realm/ui/collapsible";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
 import { matchZone } from "@/lib/catalog/postal";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import {
   Sheet,
   SheetClose,
@@ -30,9 +30,9 @@ import {
   SheetFooter,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+} from "@realm/ui/sheet";
+import { Textarea } from "@realm/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
 
@@ -58,7 +58,7 @@ function Req() {
  * card stays a pure presentational tile.
  */
 // Heavy (~265 flag SVGs); sheet-gated, so lazy-load behind a plain skeleton.
-const PhoneInput = dynamic(() => import("@/components/ui/phone-input").then((m) => m.PhoneInput), {
+const PhoneInput = dynamic(() => import("@realm/ui/phone-input").then((m) => m.PhoneInput), {
   ssr: false,
   loading: () => <Input disabled placeholder="Phone" />,
 });

@@ -1,8 +1,8 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { EnabledSlot, WizardSelections } from "../selections";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
+import { Label } from "@realm/ui/label";
+import { Button } from "@realm/ui/button";
 
 export function StepSchedule({ catalog, selections, set, enabledSlots }: {
   catalog: ClientCatalogSnapshot;

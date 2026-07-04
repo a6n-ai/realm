@@ -6,20 +6,20 @@ import { toast } from "sonner";
 import { PencilIcon, PlusIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@realm/ui/button";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@realm/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+} from "@realm/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+} from "@realm/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   BUSINESS_TZ_LABEL,

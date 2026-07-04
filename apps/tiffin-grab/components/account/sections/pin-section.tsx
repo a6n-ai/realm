@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import { PinSection as PinForm } from "@/components/account/leaves/pin-section";
 
 export function PinSection({ hasPin, titleAs }: { hasPin: boolean; titleAs?: "h2" | "h3" }) {

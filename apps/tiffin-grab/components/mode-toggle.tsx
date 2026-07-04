@@ -2,14 +2,14 @@
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "@realm/themes";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@realm/ui/dropdown-menu";
 
 export function ModeToggle() {
   const { setTheme } = useTheme();

@@ -3,8 +3,8 @@
 import { Loader2Icon, SendIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@realm/ui/button";
+import { Textarea } from "@realm/ui/textarea";
 import { replyTicket } from "../actions";
 
 export function ReplyForm({ ticketId, closed }: { ticketId: string; closed: boolean }) {

@@ -12,8 +12,8 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/services/tickets.service";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";

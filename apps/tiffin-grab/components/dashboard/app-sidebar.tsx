@@ -38,7 +38,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@realm/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,8 +47,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@realm/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };

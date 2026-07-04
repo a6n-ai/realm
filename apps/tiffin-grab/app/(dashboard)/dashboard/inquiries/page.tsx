@@ -8,8 +8,8 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { parseSort } from "@/lib/list/sort";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   PageShell,
   PageHeader,

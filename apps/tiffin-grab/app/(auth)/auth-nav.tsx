@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, HomeIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 
 // Shared top nav for every (auth) screen: step back or jump to the marketing home.
 export function AuthNav() {

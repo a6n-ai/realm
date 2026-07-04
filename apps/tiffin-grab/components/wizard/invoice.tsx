@@ -1,5 +1,5 @@
 import type { PricingResult } from "@/lib/pricing";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@realm/ui/separator";
 
 export function Invoice({ result }: { result: PricingResult | null }) {
   if (!result) return <p className="text-sm text-muted-foreground">Select a meal to see pricing.</p>;

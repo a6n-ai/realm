@@ -5,15 +5,15 @@ import { ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { tzOffsetMinutes } from "@realm/commons";
 import type { CouponKind } from "@/db/schema/coupons";
 import type { planType } from "@/db/schema/catalog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
+import { Switch } from "@realm/ui/switch";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+} from "@realm/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
 import { cn } from "@/lib/utils";
 
 // Shared label tables + typed controls for the discounts sub-pages. Kept out of

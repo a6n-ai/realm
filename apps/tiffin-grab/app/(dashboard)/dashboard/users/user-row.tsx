@@ -2,9 +2,9 @@
 
 import { Role, type RoleValue } from "@realm/commons";
 import { useTransition } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { TableCell, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Switch } from "@realm/ui/switch";
+import { TableCell, TableRow } from "@realm/ui/table";
 import { setUserFlag, setUserRole } from "./actions";
 
 type FlagState = { id: string; key: string; label: string; enabled: boolean };

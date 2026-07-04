@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { PageShell, PageHeader, SectionCard, ListRow, OrderStatusBadge, EmptyState, SkeletonListRows } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 
 // Single source of truth for the section cards. The real view and the loading
 // twin below both render from this, so the skeleton can never drift from the page.

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilIcon } from "lucide-react";
 import { FilterBar, RowActionButton, RowActions, SearchInput } from "@/components/ds";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { cn } from "@/lib/utils";
 import { eventLabel } from "./template-status";
 

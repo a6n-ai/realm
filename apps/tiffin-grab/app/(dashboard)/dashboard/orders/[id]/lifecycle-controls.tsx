@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { activate, cancel, pause, resume } from "./actions";
 
 export function LifecycleControls({ orderId, status }: { orderId: string; status: string }) {

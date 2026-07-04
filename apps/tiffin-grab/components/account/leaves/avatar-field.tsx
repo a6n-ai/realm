@@ -12,15 +12,15 @@ type CropperType = (typeof import("react-easy-crop"))["default"];
 const Cropper = dynamic(() => import("react-easy-crop"), {
   ssr: false,
 }) as ComponentType<React.JSX.LibraryManagedAttributes<CropperType, CropperProps>>;
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@realm/ui/avatar";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@realm/ui/dialog";
+import { Button } from "@realm/ui/button";
 import { getCroppedBlob } from "@/lib/images/crop";
 import { updateMyAvatar, removeMyAvatar } from "@/app/(dashboard)/dashboard/account/avatar-actions";
 

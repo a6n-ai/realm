@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { BellIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@realm/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
+import { ScrollArea } from "@realm/ui/scroll-area";
+import { Separator } from "@realm/ui/separator";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "./use-notifications";
 

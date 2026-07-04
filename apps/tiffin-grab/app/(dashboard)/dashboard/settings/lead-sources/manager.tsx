@@ -10,12 +10,12 @@ import {
   RotateCcwIcon,
   XIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Badge } from "@realm/ui/badge";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
+import { Switch } from "@realm/ui/switch";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@realm/ui/dialog";
 import { cn } from "@/lib/utils";
 import { saveSource, saveSubsource, setSourceActive, setSubsourceActive } from "./actions";
 

@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 
 export function DeliveryNotesSkeleton() {
   return (

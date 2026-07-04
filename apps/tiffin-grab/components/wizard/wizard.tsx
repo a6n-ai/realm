@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { initialSelections, WIZARD_STORAGE_KEY, type EnabledSlot, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";

@@ -3,19 +3,19 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   FilterBar, FilterPill, SearchInput, StageBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "@realm/ui/table";
+import { Badge } from "@realm/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@realm/ui/select";
 import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { HistoryIcon } from "lucide-react";
 import { EmptyState } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { cn } from "@/lib/utils";
 
 // Single source of truth for the table's columns. The real header and the

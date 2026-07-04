@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { ReplyForm } from "./reply-form";
 

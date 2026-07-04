@@ -1,7 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { toast } from "sonner";
 
 export function ResendVerification({ email }: { email: string }) {

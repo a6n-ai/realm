@@ -3,9 +3,9 @@ import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@realm/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
+import { Label } from "@realm/ui/label";
+import { Input } from "@realm/ui/input";
 import { Invoice } from "../invoice";
 
 export function StepDuration({ catalog, selections, set, result }: {

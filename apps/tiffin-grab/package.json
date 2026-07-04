@@ -32,6 +32,7 @@
     "@realm/commons-next": "workspace:*",
     "@realm/commons-notify": "workspace:*",
     "@realm/themes": "workspace:*",
+    "@realm/ui": "workspace:*",
     "@uiw/react-md-editor": "^4.0.7",
     "amqplib": "^2.0.1",
     "bcryptjs": "^3.0.3",

@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import { AvatarField } from "@/components/account/leaves/avatar-field";
 import { ProfileForm } from "@/components/account/leaves/profile-form";
 

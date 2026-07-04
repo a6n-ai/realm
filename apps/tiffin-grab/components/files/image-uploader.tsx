@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import type { FileDetail } from "@realm/commons-files/model";
-import { Button } from "@/components/ui/button";
-import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@/components/ui/file-upload";
+import { Button } from "@realm/ui/button";
+import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@realm/ui/file-upload";
 import { cn } from "@/lib/utils";
 import { ImageCropperDialog } from "./image-cropper-dialog";
 

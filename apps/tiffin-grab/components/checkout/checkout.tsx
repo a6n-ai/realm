@@ -7,9 +7,9 @@ import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subs
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
 
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };

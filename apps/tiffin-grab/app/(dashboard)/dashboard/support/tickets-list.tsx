@@ -2,9 +2,9 @@ import Link from "next/link";
 import { MessageCircleIcon, PlusIcon } from "lucide-react";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerTicketRow, TicketStatus } from "@/lib/services/tickets.service";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import { SectionCard, ListRow, EmptyState } from "@/components/ds";
 
 const STATUS_LABEL: Record<TicketStatus, string> = {

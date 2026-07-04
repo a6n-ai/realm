@@ -8,12 +8,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { signIn } from "@/lib/auth/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@realm/ui/button";
+import { Card, CardContent } from "@realm/ui/card";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
 
 const schema = z.object({
   identifier: z.string().min(1, "Phone or email is required"),

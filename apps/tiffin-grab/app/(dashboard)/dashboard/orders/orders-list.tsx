@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
-} from "@/components/ui/table";
+} from "@realm/ui/table";
 import { cn } from "@/lib/utils";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState, useClearUrlKeys } from "@/lib/list/use-url-state";

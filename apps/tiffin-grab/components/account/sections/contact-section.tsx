@@ -1,7 +1,7 @@
 import type { Country as CountryCode } from "react-phone-number-input";
 import { SectionCard } from "@/components/ds";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@realm/ui/badge";
+import { Skeleton } from "@realm/ui/skeleton";
 import { AccountForm } from "@/components/account/leaves/account-form";
 import { ResendVerification } from "@/components/account/leaves/resend-verification";
 

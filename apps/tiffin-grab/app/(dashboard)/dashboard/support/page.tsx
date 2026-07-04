@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { PageShell, PageHeader } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 

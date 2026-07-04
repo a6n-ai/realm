@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { ChevronRightIcon, UsersIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@realm/ui/button";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   FilterBar, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
-} from "@/components/ui/table";
+} from "@realm/ui/table";
 import { cn } from "@/lib/utils";
 import type { SortState } from "@/lib/list/sort";
 import { useUrlState } from "@/lib/list/use-url-state";

@@ -9,7 +9,7 @@ import { availableVariables, type AppEvent } from "@/lib/notifications/event-ent
 import { TemplateEditor, TemplateEditorSkeleton } from "@/components/notifications/template-editor";
 import { eventLabel } from "@/components/notifications/template-status";
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 
 export default function Page({ params }: { params: Promise<{ event: string }> }) {
   return (

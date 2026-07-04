@@ -3,11 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
+import { Skeleton } from "@realm/ui/skeleton";
+import { Switch } from "@realm/ui/switch";
 import { cn } from "@/lib/utils";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import { Hero } from "@/components/marketing/hero";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";

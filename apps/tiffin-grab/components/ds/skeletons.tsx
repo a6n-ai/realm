@@ -1,7 +1,7 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
-} from "@/components/ui/table";
+} from "@realm/ui/table";
 import { Card } from "./card";
 import { FilterBar } from "./filter-bar";
 import { PageShell } from "./page-shell";

@@ -1,7 +1,7 @@
 "use client";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react";
-import { TableHead } from "@/components/ui/table";
+import { TableHead } from "@realm/ui/table";
 
 export function SortableHeader({ column, label, currentSort, currentDir, className }: {
   column: string; label: string; currentSort: string; currentDir: "asc" | "desc"; className?: string;

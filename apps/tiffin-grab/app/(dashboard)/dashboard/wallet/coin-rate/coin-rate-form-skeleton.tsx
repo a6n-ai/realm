@@ -1,6 +1,6 @@
 import { SectionCard } from "@/components/ds";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@realm/ui/label";
+import { Skeleton } from "@realm/ui/skeleton";
 
 // Loading twin for CoinRateForm (colocated because the form lives one dir up and
 // is shared out of this route). Mirrors the same SectionCard + field layout with

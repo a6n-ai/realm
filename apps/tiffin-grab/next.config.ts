@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
-  transpilePackages: ["@realm/commons", "@realm/commons-drizzle", "@realm/commons-next", "@realm/themes"],
+  transpilePackages: ["@realm/commons", "@realm/commons-drizzle", "@realm/commons-next", "@realm/themes", "@realm/ui"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },

@@ -13,8 +13,8 @@ import { LockButton } from "@/components/dashboard/lock-button";
 import { Breadcrumbs } from "@/components/ds/breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@realm/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@realm/ui/sidebar";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use

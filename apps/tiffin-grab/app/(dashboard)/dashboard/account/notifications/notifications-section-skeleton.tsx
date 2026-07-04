@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import { SectionCard } from "@/components/ds";
 
 // Colocated loading twin for the shared <NotificationsSection>. It lives here

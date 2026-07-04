@@ -8,11 +8,11 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { passwordSchema } from "@realm/commons";
 import { authClient } from "@/lib/auth/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@realm/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
 
 const changePasswordSchema = z
   .object({

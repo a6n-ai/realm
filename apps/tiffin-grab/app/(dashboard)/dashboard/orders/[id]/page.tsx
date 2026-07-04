@@ -15,7 +15,7 @@ import {
   OrderStatusBadge,
   SkeletonCardGrid,
 } from "@/components/ds";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
 
