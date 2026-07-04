@@ -1,4 +1,4 @@
-import { BaseRepository, UpdatableRepository } from "@realm/commons-drizzle";
+import { BaseRepository, UpdatableRepository } from "@realm/database";
 import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from "@realm/commons";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";

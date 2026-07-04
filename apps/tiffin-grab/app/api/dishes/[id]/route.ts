@@ -1,4 +1,4 @@
-import { createResourceRoute } from "@realm/commons-next";
+import { createResourceRoute } from "@realm/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishesService } from "@/lib/services/dishes.service";
 

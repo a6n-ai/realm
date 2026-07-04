@@ -1,5 +1,5 @@
-import { updatableColumns } from "@realm/commons-drizzle";
-import type { FileDetail } from "@realm/commons-files/model";
+import { updatableColumns } from "@realm/database";
+import type { FileDetail } from "@realm/storage/model";
 import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);

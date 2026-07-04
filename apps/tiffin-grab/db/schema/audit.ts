@@ -1,4 +1,4 @@
-import { baseColumns } from "@realm/commons-drizzle";
+import { baseColumns } from "@realm/database";
 import { jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const auditOperation = pgEnum("audit_operation", [

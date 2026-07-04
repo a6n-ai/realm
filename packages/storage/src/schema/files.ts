@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/commons-drizzle";
+import { updatableColumns } from "@realm/database";
 import { type AnyPgColumn, bigint, boolean, index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const fileResourceType = pgEnum("file_resource_type", ["static", "secured"]);

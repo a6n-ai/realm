@@ -1,4 +1,4 @@
-import { BaseService, UpdatableService, stripManaged } from "@realm/commons-drizzle";
+import { BaseService, UpdatableService, stripManaged } from "@realm/database";
 import { createLogger } from "@realm/commons/logger";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";

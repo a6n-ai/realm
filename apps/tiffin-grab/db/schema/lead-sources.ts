@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/commons-drizzle";
+import { updatableColumns } from "@realm/database";
 import { bigint, boolean, index, pgTable, text } from "drizzle-orm/pg-core";
 
 export const leadSources = pgTable("lead_sources", {

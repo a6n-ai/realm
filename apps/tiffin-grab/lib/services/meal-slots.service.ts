@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mealSlots } from "@/db/schema";

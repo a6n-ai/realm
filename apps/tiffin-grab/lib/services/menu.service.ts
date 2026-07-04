@@ -1,6 +1,6 @@
 import { ValidationError } from "@realm/commons";
 import { cutoffMsFor, LruTier, TieredCache } from "@realm/commons";
-import { BaseRepository, UpdatableRepository } from "@realm/commons-drizzle";
+import { BaseRepository, UpdatableRepository } from "@realm/database";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";

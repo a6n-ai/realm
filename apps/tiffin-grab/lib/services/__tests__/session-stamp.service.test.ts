@@ -6,8 +6,8 @@ const updated: Record<string, unknown>[] = [];
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
-vi.mock("@realm/commons-drizzle", async (orig) => {
-  const actual = await orig<typeof import("@realm/commons-drizzle")>();
+vi.mock("@realm/database", async (orig) => {
+  const actual = await orig<typeof import("@realm/database")>();
   class FakeBase {
     repo = { tableName: "widgets", findByPublicId: async () => null };
     async create(v: Record<string, unknown>) { created.push(v); return { publicId: "wid_1", ...v }; }

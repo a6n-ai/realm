@@ -14,7 +14,7 @@ import {
 } from "@realm/ui/dialog";
 import { EmptyState } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
-import type { FileDetail } from "@realm/commons-files/model";
+import type { FileDetail } from "@realm/storage/model";
 import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";

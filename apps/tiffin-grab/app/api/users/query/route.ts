@@ -1,4 +1,4 @@
-import { createQueryRoute } from "@realm/commons-next";
+import { createQueryRoute } from "@realm/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 

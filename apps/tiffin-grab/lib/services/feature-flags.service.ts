@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
 import { featureFlags } from "@/db/schema";
 import { SessionUpdatableService } from "./session-service";

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import type { FileDetail } from "@realm/commons-files/model";
+import type { FileDetail } from "@realm/storage/model";
 import { Button } from "@realm/ui/button";
 import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@realm/ui/file-upload";
 import { cn } from "@realm/ui/cn";

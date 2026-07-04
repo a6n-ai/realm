@@ -4,4 +4,4 @@ export {
   fileSystem,
   filesAccessPath,
   filesSecuredAccessKey,
-} from "@realm/commons-files/schema";
+} from "@realm/storage/schema";

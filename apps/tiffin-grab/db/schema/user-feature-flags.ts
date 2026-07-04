@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/commons-drizzle";
+import { updatableColumns } from "@realm/database";
 import { bigint, boolean, pgTable, unique } from "drizzle-orm/pg-core";
 import { featureFlags } from "./feature-flags";
 import { users } from "./auth";

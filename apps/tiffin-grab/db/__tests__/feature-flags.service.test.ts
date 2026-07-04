@@ -1,4 +1,4 @@
-import { UpdatableRepository, UpdatableService } from "@realm/commons-drizzle";
+import { UpdatableRepository, UpdatableService } from "@realm/database";
 import { ValidationError } from "@realm/commons";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";

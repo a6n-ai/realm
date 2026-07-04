@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";
 import { featureFlags } from "../schema";

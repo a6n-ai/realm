@@ -1,4 +1,4 @@
-import { createCollectionRoute } from "@realm/commons-next";
+import { createCollectionRoute } from "@realm/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { planService } from "@/lib/services/catalog.service";
 

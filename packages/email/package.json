@@ -1,5 +1,5 @@
 {
-  "name": "@realm/commons-notify",
+  "name": "@realm/email",
   "version": "0.0.0",
   "private": true,
   "type": "module",

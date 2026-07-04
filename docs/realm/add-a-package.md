@@ -66,8 +66,8 @@ second client proves it shared.
 
 Before creating `@realm/<name>`, check it doesn't already exist under a
 different name:
-- HTTP route factories / service base → **already** `@realm/commons-next` +
-  `@realm/commons-drizzle`. Don't make `packages/api`.
+- HTTP route factories / service base → **already** `@realm/routes` +
+  `@realm/database`. Don't make `packages/api`.
 - Generic utils / shared types → **already** `@realm/commons`. Don't make
   `packages/utils` or `packages/types`.
 - Currency, dates, pagination, errors, enums → **already** in `@realm/commons`.

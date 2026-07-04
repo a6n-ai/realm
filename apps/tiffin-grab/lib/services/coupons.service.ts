@@ -1,5 +1,5 @@
 import { ValidationError } from "@realm/commons";
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";

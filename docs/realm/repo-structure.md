@@ -40,13 +40,13 @@ realm/  (repo root)
 | Package | Scope/name | Purpose | Client-consumed? |
 |---|---|---|---|
 | `commons` | `@realm/commons` | core utils, DTOs, errors, enums, money, logger | yes |
-| `commons-drizzle` | `@realm/commons-drizzle` | Drizzle service/repo base | yes |
-| `commons-next` | `@realm/commons-next` | Next route factories, Text | yes |
-| `commons-files` | `@realm/commons-files` | file storage subsystem | server-only |
-| `commons-notify` | `@realm/commons-notify` | SES email / render | server-only |
+| `commons-drizzle` | `@realm/database` | Drizzle service/repo base | yes |
+| `commons-next` | `@realm/routes` | Next route factories, Text | yes |
+| `commons-files` | `@realm/storage` | file storage subsystem | server-only |
+| `commons-notify` | `@realm/email` | SES email / render | server-only |
 | `ui` | `@realm/ui` | primitives + `cn` (+ subpaths `./button`, `./cn`, …) | yes |
 | `design-system` | `@realm/design-system` | ds compositions over ui | yes |
-| `crm-core` | `@realm/crm-core` | `<CrmShell>` scaffold | yes |
+| `crm-core` | `@realm/crm` | `<CrmShell>` scaffold | yes |
 | `themes` | `@realm/themes` | provider + tokens + no-flash script | yes |
 | `auth` | `@realm/auth` | guard factory + bcrypt | server-only |
 | `eslint-config` | `@realm/eslint-config` | shared lint presets | build-time |

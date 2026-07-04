@@ -5,7 +5,7 @@ import {
   S3StorageProvider,
   SecuredAccessService,
   type StorageProvider,
-} from "@realm/commons-files";
+} from "@realm/storage";
 import { db } from "@/db/client";
 
 // Storage env. If FILES_S3_BUCKET is set, use S3 (AWS S3, Cloudflare R2, MinIO,

@@ -85,13 +85,13 @@ Layered, acyclic, bottom-up. Full taxonomy in
 | Package | Purpose |
 |---|---|
 | `@realm/commons` | Framework-agnostic core: DTOs, Condition DSL, errors, enums, money, logger |
-| `@realm/commons-drizzle` | Drizzle repo + service base (managed-field stamping, actor hook) |
-| `@realm/commons-next` | Next route factories, list-param parse, response + error mapper, `Text` |
-| `@realm/commons-files` | S3/local/memory file storage (server-only) |
-| `@realm/commons-notify` | SES email, react-email render (server-only) |
+| `@realm/database` | Drizzle repo + service base (managed-field stamping, actor hook) |
+| `@realm/routes` | Next route factories, list-param parse, response + error mapper, `Text` |
+| `@realm/storage` | S3/local/memory file storage (server-only) |
+| `@realm/email` | SES email, react-email render (server-only) |
 | `@realm/ui` | shadcn/radix primitives + `cn` |
 | `@realm/design-system` | `ds/*` compositions over `@realm/ui` |
-| `@realm/crm-core` | Slot-based `<CrmShell>` dashboard scaffold |
+| `@realm/crm` | Slot-based `<CrmShell>` dashboard scaffold |
 | `@realm/themes` | ThemeProvider/useTheme + no-flash script + tokens |
 | `@realm/auth` | `createRoleGuards(getSession)` + bcrypt (server-only) |
 | `@realm/eslint-config` | Shared Next ESLint presets (`tooling/`) |
@@ -104,7 +104,7 @@ Layered, acyclic, bottom-up. Full taxonomy in
 
 Every table carries `id`, `created_at`, and audit `created_by`; updatable tables add
 `updated_at` (auto-stamped) and `updated_by`. Two composable column sets mirror the
-immutable vs updatable base DTOs in `@realm/commons-drizzle`.
+immutable vs updatable base DTOs in `@realm/database`.
 
 ---
 

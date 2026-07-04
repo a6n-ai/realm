@@ -1,4 +1,4 @@
-import { baseColumns, updatableColumns } from "@realm/commons-drizzle";
+import { baseColumns, updatableColumns } from "@realm/database";
 import { bigint, index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";

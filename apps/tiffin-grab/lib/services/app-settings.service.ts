@@ -1,5 +1,5 @@
 import { LruTier, TieredCache } from "@realm/commons";
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
 import { appSettings } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";

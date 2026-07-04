@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/commons-drizzle";
+import { UpdatableRepository } from "@realm/database";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@realm/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";

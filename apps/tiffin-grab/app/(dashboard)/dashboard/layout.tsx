@@ -14,7 +14,7 @@ import { Breadcrumbs } from "@realm/design-system";
 import { labelForSegment } from "@/components/ds/route-labels";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { CrmShell } from "@realm/crm-core";
+import { CrmShell } from "@realm/crm";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use

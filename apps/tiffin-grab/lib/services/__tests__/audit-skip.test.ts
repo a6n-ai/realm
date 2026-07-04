@@ -13,8 +13,8 @@ vi.mock("@/db/client", () => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/services/audit-config", () => ({ AUDIT_UPDATE_SKIP: new Set(["sessions"]) }));
-vi.mock("@realm/commons-drizzle", async (orig) => {
-  const actual = await orig<typeof import("@realm/commons-drizzle")>();
+vi.mock("@realm/database", async (orig) => {
+  const actual = await orig<typeof import("@realm/database")>();
   class FakeBase {
     repo: any;
     constructor(repo?: any) { this.repo = repo ?? { tableName: "x" }; }

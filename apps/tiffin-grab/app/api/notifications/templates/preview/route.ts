@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/guards";
-import { renderEmailTemplate } from "@realm/commons-notify";
+import { renderEmailTemplate } from "@realm/email";
 import { sampleVars } from "@/lib/services/notification-template.service";
 
 /** Render a template (with sample data) to email HTML for the editor iframe. */

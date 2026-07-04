@@ -1,4 +1,4 @@
-import { UpdatableRepository, type Database } from "@realm/commons-drizzle";
+import { UpdatableRepository, type Database } from "@realm/database";
 import { and, eq, isNull } from "drizzle-orm";
 import { type FileDetail, normalizePath, parseName } from "../model/file-detail";
 import { fileSystem } from "../schema/files";

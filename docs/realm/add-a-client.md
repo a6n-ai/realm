@@ -25,11 +25,11 @@ Copy `apps/tiffin-grab` as the template, or start minimal. The app's
   },
   "dependencies": {
     "@realm/commons": "workspace:*",
-    "@realm/commons-drizzle": "workspace:*",
-    "@realm/commons-next": "workspace:*",
+    "@realm/database": "workspace:*",
+    "@realm/routes": "workspace:*",
     "@realm/ui": "workspace:*",
     "@realm/design-system": "workspace:*",
-    "@realm/crm-core": "workspace:*",
+    "@realm/crm": "workspace:*",
     "@realm/themes": "workspace:*",
     "@realm/auth": "workspace:*"
     // add commons-files / commons-notify only if the client uploads files / sends email
@@ -48,8 +48,8 @@ package (they ship raw source):
 
 ```ts
 transpilePackages: [
-  "@realm/commons", "@realm/commons-drizzle", "@realm/commons-next",
-  "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm-core",
+  "@realm/commons", "@realm/database", "@realm/routes",
+  "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm",
 ],
 // server-only (commons-files, commons-notify, auth) are NOT listed
 ```
@@ -77,7 +77,7 @@ Compose the app's pieces into `<CrmShell>` slots (see
 (session, services) stays in the app layout:
 
 ```tsx
-import { CrmShell } from "@realm/crm-core";
+import { CrmShell } from "@realm/crm";
 
 <CrmShell
   sidebar={<AppSidebar … />}

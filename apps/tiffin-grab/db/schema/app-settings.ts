@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/commons-drizzle";
+import { updatableColumns } from "@realm/database";
 import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import type { DiscountPolicy } from "./coupons";
 

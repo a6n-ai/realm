@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { SesEmailProvider } from "@realm/commons-notify";
+import { SesEmailProvider } from "@realm/email";
 import { AppError } from "@realm/commons";
 import { db } from "@/db/client";
 import { notifications, notificationOutbox, users } from "@/db/schema";
