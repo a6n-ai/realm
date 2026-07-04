@@ -62,4 +62,5 @@ skills-lock.json
 AGENTS.md
 CLAUDE.md
 PROJECT.md
-docs/
+docs/*
+!docs/realm/
