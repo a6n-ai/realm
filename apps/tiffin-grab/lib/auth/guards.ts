@@ -1,21 +1,16 @@
-import { AuthError, ForbiddenError, Role, type RoleValue } from "@realm/commons";
+import { Role } from "@realm/commons";
+import { createRoleGuards } from "@realm/auth";
 import { getSession } from "./session";
 
-async function requireSession() {
-  const session = await getSession();
-  if (!session?.user) throw new AuthError();
-  return session.user as { role: RoleValue };
+const { requireRole } = createRoleGuards(getSession);
+
+export { requireRole };
+
+// App-specific role groupings: what "admin"/"staff" mean for this client.
+export function requireAdmin(): Promise<void> {
+  return requireRole(Role.ADMIN);
 }
 
-export async function requireRole(...roles: RoleValue[]): Promise<void> {
-  const user = await requireSession();
-  if (!roles.includes(user.role)) throw new ForbiddenError();
-}
-
-export async function requireAdmin(): Promise<void> {
-  await requireRole(Role.ADMIN);
-}
-
-export async function requireStaff(): Promise<void> {
-  await requireRole(Role.ADMIN, Role.MEMBER);
+export function requireStaff(): Promise<void> {
+  return requireRole(Role.ADMIN, Role.MEMBER);
 }

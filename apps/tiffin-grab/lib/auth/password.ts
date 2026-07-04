@@ -1,15 +1,8 @@
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "@realm/auth";
 
-const ROUNDS = 10;
+export { hashPassword, verifyPassword };
 
-export function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, ROUNDS);
-}
-
-export function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
-}
-
+// Better Auth password adapter, wired to the shared bcrypt hashing.
 export const betterAuthPassword = {
   hash: (password: string) => hashPassword(password),
   verify: ({ hash, password }: { hash: string; password: string }) => verifyPassword(password, hash),
