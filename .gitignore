@@ -61,6 +61,5 @@ graphify-out/
 skills-lock.json
 AGENTS.md
 CLAUDE.md
-PROJECT.md
 docs/*
 !docs/realm/
