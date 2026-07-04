@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
+import { formatMoney as fmt } from "@realm/commons";
 import {
   FilterBar, FilterPill, SearchInput, OrderStatusBadge, EmptyState, SortableHeader,
 } from "@/components/ds";
@@ -40,8 +41,6 @@ const COLUMNS = [
   { key: "chevron", label: "", width: "w-8" },
 ] as const;
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
 export function OrdersList({
   rows,

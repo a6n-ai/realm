@@ -15,7 +15,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Role } from "@realm/commons";
+import { Role, formatMoney as fmt } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -41,7 +41,6 @@ import {
   SkeletonStatCards,
 } from "@/components/ds";
 
-const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
 async function loadStats() {
   const [userCount, subsTotal, subsActive, subsWaitlisted, revenue] = await Promise.all([

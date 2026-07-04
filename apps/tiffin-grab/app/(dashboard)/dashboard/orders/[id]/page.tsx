@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError, formatMoney as fmt } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -19,7 +19,6 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
 
-const fmt = (n: number) => new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
 function describe(a: { type: string; note: string | null; fromStatus: string | null; toStatus: string | null }) {
   switch (a.type) {
