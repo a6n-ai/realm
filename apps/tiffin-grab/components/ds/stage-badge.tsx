@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 const STAGE_LABEL: Record<string, string> = {
   new: "New", contacted: "Contacted", follow_up: "Follow-up", converted: "Converted", lost: "Lost",

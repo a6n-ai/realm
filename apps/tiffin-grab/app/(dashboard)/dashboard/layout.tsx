@@ -10,7 +10,8 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
-import { Breadcrumbs } from "@/components/ds/breadcrumbs";
+import { Breadcrumbs } from "@realm/design-system";
+import { labelForSegment } from "@/components/ds/route-labels";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Separator } from "@realm/ui/separator";
@@ -63,7 +64,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumbs />
+          <Breadcrumbs resolveLabel={labelForSegment} />
           <div className="ml-auto flex items-center gap-1">
             <GlobalSearch role={role} />
             <NotificationBell />

@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@realm/ui/card";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export type CardVariant = "glow" | "lift" | "flat";
 

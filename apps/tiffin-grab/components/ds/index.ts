@@ -1,18 +1,5 @@
-export * from "./card";
-export * from "./page-shell";
-export * from "./page-header";
-export * from "./breadcrumbs";
-export * from "./stat-card";
-export * from "./section-card";
-export * from "./list-row";
-export * from "./empty-state";
+// Barrel shim: generic design-system re-exported from the package, plus the
+// two app-local business badges (they hardcode this app's status/stage enums).
+export * from "@realm/design-system";
 export * from "./stage-badge";
-export * from "./filter-pill";
-export * from "./search-input";
-export * from "./filter-bar";
-export * from "./tabs";
-export * from "./pagination";
 export * from "./order-status-badge";
-export * from "./sortable-header";
-export * from "./skeletons";
-export * from "./row-actions";

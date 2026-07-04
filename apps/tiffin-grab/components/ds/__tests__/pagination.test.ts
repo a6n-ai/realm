@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageRange } from "../pagination";
+import { pageRange } from "@realm/design-system";
 
 describe("pageRange", () => {
   it("returns all pages when few", () => {

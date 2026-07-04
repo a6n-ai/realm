@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardVariantClass } from "../card";
+import { cardVariantClass } from "@realm/design-system";
 
 describe("cardVariantClass", () => {
   it("defaults to glow", () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { SkeletonStatCards, SkeletonTable, SkeletonFilterBar, SkeletonCardGrid } from "../skeletons";
+import { SkeletonStatCards, SkeletonTable, SkeletonFilterBar, SkeletonCardGrid } from "@realm/design-system";
 
 afterEach(cleanup);
 

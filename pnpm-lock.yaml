@@ -58,6 +58,9 @@ importers:
       '@realm/commons-notify':
         specifier: workspace:*
         version: link:../../packages/commons-notify
+      '@realm/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       '@realm/themes':
         specifier: workspace:*
         version: link:../../packages/themes
@@ -337,6 +340,28 @@ importers:
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  packages/design-system:
+    dependencies:
+      '@realm/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.17
+      next:
+        specifier: 16.2.9
+        version: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      typescript:
+        specifier: ^5
+        version: 5.9.3
 
   packages/themes:
     devDependencies:

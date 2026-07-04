@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export function ListRow({
   avatar, title, meta, trailing, href,

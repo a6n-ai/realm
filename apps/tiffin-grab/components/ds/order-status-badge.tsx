@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "Pending", active: "Active", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled",

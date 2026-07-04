@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 export function FilterPill({
   label, active, count, onClick,

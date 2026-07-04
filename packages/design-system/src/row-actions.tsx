@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@realm/ui/cn";
 
 const BTN = cn(
   "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground",
