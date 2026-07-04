@@ -2,6 +2,9 @@ import { render } from "react-email";
 import { db } from "./client";
 import { notificationTemplate } from "./schema";
 import { OrderCreatedEmail } from "../emails/order-created";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-notification-templates");
 
 type Row = typeof notificationTemplate.$inferInsert;
 
@@ -73,9 +76,9 @@ async function main() {
       set: { subject: t.subject, body: t.body ?? null, html: t.html ?? null, text: t.text ?? null },
     });
   }
-  console.log(`Seeded ${seed.length} notification templates`);
+  log.info(`Seeded ${seed.length} notification templates`);
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => { console.error(e); process.exit(1); });
+  .catch((e) => { log.error({ err: e }, "seed failed"); process.exit(1); });

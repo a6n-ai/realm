@@ -1,5 +1,8 @@
 import { db } from "./client";
 import { appEvent, coinRate, eventPayout } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-wallet");
 
 async function main() {
   for (const ev of appEvent.enumValues) {
@@ -7,9 +10,9 @@ async function main() {
       .onConflictDoNothing({ target: eventPayout.eventType });
   }
   await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" });
-  console.log("wallet seeded");
+  log.info("wallet seeded");
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => { console.error(e); process.exit(1); });
+  .catch((e) => { log.error({ err: e }, "seed failed"); process.exit(1); });

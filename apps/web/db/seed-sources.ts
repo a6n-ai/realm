@@ -1,6 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "./client";
 import { leadSources, leadSubsources } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-sources");
 
 const SOURCES = [
   { key: "manual", label: "Manual", isInbound: false },
@@ -29,9 +32,9 @@ export async function seedLeadSources() {
       if (!subExists) await db.insert(leadSubsources).values({ ...sub, sourceId });
     }
   }
-  console.log("Seeded lead sources + sub-sources");
+  log.info("Seeded lead sources + sub-sources");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seedLeadSources().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+  seedLeadSources().then(() => process.exit(0)).catch((e) => { log.error({ err: e }, "seed failed"); process.exit(1); });
 }

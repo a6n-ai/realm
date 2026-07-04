@@ -1,4 +1,5 @@
 import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
+import { createLogger } from "@tiffin/commons/logger";
 import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -15,6 +16,8 @@ import { provisionCustomerByPhone } from "./customers.service";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
 import { walletService } from "./wallet.service";
+
+const log = createLogger("orders.service");
 
 // A transaction handle (or the base db) — payments + their ledger credit are
 // written inside the same tx as the order they settle.
@@ -300,7 +303,7 @@ export async function createOrder(
       await walletService.award(txResult.awardUserId, "order_activated", { type: "order", id: txResult.publicId });
     }
   } catch (e) {
-    console.error("[wallet] award on activation failed", e);
+    log.error({ err: e }, "wallet award on activation failed");
   }
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
@@ -448,7 +451,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       try {
         await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
       } catch (e) {
-        console.error("[wallet] award on activation failed", e);
+        log.error({ err: e }, "wallet award on activation failed");
       }
     }
   }

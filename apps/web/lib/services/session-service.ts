@@ -1,10 +1,13 @@
 import { BaseService, UpdatableService, stripManaged } from "@tiffin/commons-drizzle";
+import { createLogger } from "@tiffin/commons/logger";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { auditLog, users } from "@/db/schema";
 import { AUDIT_UPDATE_SKIP } from "./audit-config";
+
+const log = createLogger("session-service");
 
 // session.user.id is the acting user's public_id (usr_…); audit columns are
 // bigint. Resolve the public_id → users internal bigint once per call so the
@@ -70,7 +73,7 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
       createdBy: entry.createdBy,
     });
   } catch (err) {
-    console.error("audit log write failed", err);
+    log.error({ err }, "audit log write failed");
   }
 }
 

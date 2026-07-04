@@ -1,6 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "./client";
 import { dishes, mealSlots, menuItems, menuWeeks } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-menu");
 
 const SLOTS = [
   { planType: "tiffin" as const, key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
@@ -31,7 +34,7 @@ async function main() {
   for (const s of SLOTS) {
     await db.insert(mealSlots).values(s).onConflictDoNothing({ target: [mealSlots.planType, mealSlots.key] });
   }
-  console.log(`Seeded ${SLOTS.length} meal slots`);
+  log.info(`Seeded ${SLOTS.length} meal slots`);
 
   const dishIds: bigint[] = [];
   for (const d of DISHES) {
@@ -43,7 +46,7 @@ async function main() {
       dishIds.push(inserted.id);
     }
   }
-  console.log(`Seeded ${DISHES.length} dishes`);
+  log.info(`Seeded ${DISHES.length} dishes`);
 
   const weekStart = nextMonday(new Date());
   const weekStartStr = weekStart.toISOString().slice(0, 10);
@@ -57,7 +60,7 @@ async function main() {
     .limit(1);
 
   if (existingWeek.length > 0) {
-    console.log(`Menu week ${weekStartStr} already exists — skipping week + items`);
+    log.info(`Menu week ${weekStartStr} already exists — skipping week + items`);
     return;
   }
 
@@ -66,7 +69,7 @@ async function main() {
     .values({ planType: "tiffin", weekStart: weekStartStr, status: "released", orderCutoff: orderCutoff.getTime() })
     .returning({ id: menuWeeks.id });
 
-  console.log(`Seeded menu week ${weekStartStr} (released)`);
+  log.info(`Seeded menu week ${weekStartStr} (released)`);
 
   for (const day of DAYS) {
     for (let i = 0; i < dishIds.length; i++) {
@@ -83,9 +86,9 @@ async function main() {
         .onConflictDoNothing();
     }
   }
-  console.log(`Seeded menu items for mon–fri lunch (${dishIds.length} dishes × ${DAYS.length} days)`);
+  log.info(`Seeded menu items for mon–fri lunch (${dishIds.length} dishes × ${DAYS.length} days)`);
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => { console.error(e); process.exit(1); });
+  .catch((e) => { log.error({ err: e }, "seed failed"); process.exit(1); });

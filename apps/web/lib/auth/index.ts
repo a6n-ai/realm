@@ -5,10 +5,13 @@ import { phoneNumber } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { Role } from "@tiffin/commons";
+import { createLogger } from "@tiffin/commons/logger";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { recordAudit } from "@/lib/services/session-service";
+
+const log = createLogger("auth");
 
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
@@ -31,12 +34,13 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      console.info(`[auth] password reset for ${user.email ?? user.id}: ${url}`);
+      // debug: dev-only delivery stand-in — keeps the reset URL out of prod (CloudWatch) logs
+      log.debug(`password reset for ${user.email ?? user.id}: ${url}`);
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      console.info(`[auth] verify email for ${user.email ?? user.id}: ${url}`);
+      log.debug(`verify email for ${user.email ?? user.id}: ${url}`);
     },
   },
   user: {
@@ -51,13 +55,13 @@ export const auth = betterAuth({
   plugins: [
     phoneNumber({
       sendOTP: async ({ phoneNumber: phone, code }) => {
-        console.info(`[auth] phone OTP for ${phone}: ${code}`);
+        log.debug(`phone OTP for ${phone}: ${code}`);
       },
       // The plugin's /request-password-reset dispatches its OTP through THIS callback,
       // not sendOTP. Without it the phone password-reset code is generated but never
       // sent, so the reset can never complete. Stubbed (logged) until SMS exists.
       sendPasswordResetOTP: async ({ phoneNumber: phone, code }) => {
-        console.info(`[auth] phone password-reset OTP for ${phone}: ${code}`);
+        log.debug(`phone password-reset OTP for ${phone}: ${code}`);
       },
       // Map the plugin's phoneNumber/phoneNumberVerified model fields onto the
       // existing `phone` and `phoneVerified` columns in the users table.
@@ -95,7 +99,7 @@ export const auth = betterAuth({
               createdBy: null,
             });
           } catch (e) {
-            console.error("[audit] logout hook failed", e);
+            log.error({ err: e }, "audit logout hook failed");
           }
         },
       },
@@ -125,7 +129,7 @@ export const auth = betterAuth({
             createdBy: null,
           });
         } catch (e) {
-          console.error("[audit] login hook failed", e);
+          log.error({ err: e }, "audit login hook failed");
         }
         return;
       }
@@ -143,7 +147,7 @@ export const auth = betterAuth({
             createdBy: null,
           });
         } catch (e) {
-          console.error("[audit] login_failed hook failed", e);
+          log.error({ err: e }, "audit login_failed hook failed");
         }
       }
     }),

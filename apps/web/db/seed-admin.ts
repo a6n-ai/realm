@@ -2,6 +2,9 @@ import { eq } from "drizzle-orm";
 import { hashPassword } from "../lib/auth/password";
 import { db } from "./client";
 import { account, users } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-admin");
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@tiffingrab.ca";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
@@ -11,7 +14,7 @@ const MEMBER_PASSWORD = process.env.SEED_MEMBER_PASSWORD ?? "Member123!";
 async function seedStaff(email: string, password: string, name: string, role: "admin" | "member") {
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (existing) {
-    console.log(`${role} already exists: ${email}`);
+    log.info(`${role} already exists: ${email}`);
     return;
   }
   const passwordHash = await hashPassword(password);
@@ -26,19 +29,19 @@ async function seedStaff(email: string, password: string, name: string, role: "a
       password: passwordHash,
     });
   });
-  console.log(`Seeded ${role}: ${email} / ${password}`);
+  log.info(`Seeded ${role}: ${email} / ${password}`);
 }
 
 async function seedSystemUser() {
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-  if (existing) { console.log("system user already exists"); return; }
+  if (existing) { log.info("system user already exists"); return; }
   await db.insert(users).values({
     name: "System",
     email: "system@tiffingrab.internal",
     role: "admin",
     isSystem: true,
   });
-  console.log("Seeded system user (no login)");
+  log.info("Seeded system user (no login)");
 }
 
 async function main() {
@@ -49,6 +52,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  log.error({ err: e }, "seed failed");
   process.exit(1);
 });

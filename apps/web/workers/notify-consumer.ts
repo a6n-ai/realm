@@ -1,6 +1,9 @@
 import amqplib from "amqplib";
+import { createLogger } from "@tiffin/commons/logger";
 import { broadcast, type BroadcastInput } from "../lib/notifications/broadcast";
 import { assertNotifyTopology, NOTIFY_QUEUE } from "../lib/notifications/rabbit";
+
+const log = createLogger("notify-consumer");
 
 export async function handleMessage(raw: Buffer): Promise<void> {
   const m = JSON.parse(raw.toString()) as Omit<BroadcastInput, "userId"> & { userId: string };
@@ -21,17 +24,17 @@ export async function startConsumer(): Promise<void> {
     handleMessage(msg.content)
       .then(() => ch.ack(msg))
       .catch((err) => {
-        console.error("[notify-consumer] nack→dlq", err);
+        log.error({ err }, "nack→dlq");
         ch.nack(msg, false, false); // no requeue → dead-letters to notify.dlq
       });
   });
-  console.log(`[notify-consumer] consuming ${NOTIFY_QUEUE}`);
+  log.info({ queue: NOTIFY_QUEUE }, "consuming");
 }
 
 // Entry point when run directly (tsx workers/notify-consumer.ts).
 if (process.argv[1]?.endsWith("notify-consumer.ts")) {
   startConsumer().catch((err) => {
-    console.error("[notify-consumer] fatal", err);
+    log.error({ err }, "fatal");
     process.exit(1);
   });
 }

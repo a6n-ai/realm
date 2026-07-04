@@ -1,5 +1,8 @@
 import { db } from "./client";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("seed-catalog");
 
 const PLANS = [
   { key: "veg", name: "Pure Vegetarian Plan", description: "Seasonal vegetables, paneer, daal, rotis, raitas.", planType: "tiffin" as const, offeredSlots: ["lunch"], allowedStartDays: ["mon", "tue", "wed", "thu", "fri"] },
@@ -74,8 +77,8 @@ async function main() {
   for (const z of ZONES) await db.insert(deliveryZones).values(z).onConflictDoNothing({ target: deliveryZones.name });
   await db.delete(pricingTiers);
   for (const t of PRICING_TIERS) await db.insert(pricingTiers).values(t);
-  console.log(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
+  log.info(`Seeded catalog: ${PLANS.length} plans, ${MEAL_SIZES.length} meal sizes, ${FREQUENCIES.length} frequencies, ${DURATIONS.length} durations, ${ZONES.length} zones, ${PRICING_TIERS.length} pricing tiers`);
   process.exit(0);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => { log.error({ err: e }, "seed failed"); process.exit(1); });

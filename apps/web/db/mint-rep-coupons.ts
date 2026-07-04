@@ -1,4 +1,7 @@
 import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("mint-rep-coupons");
 
 // Manual / external-scheduler trigger for the rep daily-coupon mint. Runs the
 // SAME logic as the protected cron route (no HTTP, no CRON_SECRET) so it can be
@@ -11,6 +14,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  log.error({ err: e }, "mint failed");
   process.exit(1);
 });

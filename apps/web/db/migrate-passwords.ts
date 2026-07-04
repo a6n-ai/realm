@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { db } from "./client";
 import { account } from "./schema";
+import { createLogger } from "@tiffin/commons/logger";
+
+const log = createLogger("migrate-passwords");
 
 export type CredUser = { id: bigint; passwordHash: string | null };
 
@@ -25,9 +28,9 @@ export async function run() {
   const credUsers: CredUser[] = rows.map((r) => ({ id: r.id, passwordHash: r.password_hash }));
   const values = toAccountRows(credUsers);
   if (values.length) await db.insert(account).values(values);
-  console.info(`[migrate-passwords] inserted ${values.length} credential accounts`);
+  log.info(`[migrate-passwords] inserted ${values.length} credential accounts`);
 }
 
 if (process.argv[1]?.endsWith("migrate-passwords.ts")) {
-  run().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+  run().then(() => process.exit(0)).catch((e) => { log.error({ err: e }, "migration failed"); process.exit(1); });
 }
