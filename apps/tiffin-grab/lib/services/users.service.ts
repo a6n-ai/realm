@@ -1,5 +1,5 @@
-import { UpdatableRepository } from "@tiffin/commons-drizzle";
-import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@tiffin/commons";
+import { UpdatableRepository } from "@realm/commons-drizzle";
+import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@realm/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";

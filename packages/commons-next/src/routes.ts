@@ -1,4 +1,4 @@
-import type { BaseService, UpdatableService } from "@tiffin/commons-drizzle";
+import type { BaseService, UpdatableService } from "@realm/commons-drizzle";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { parseListParams, type Query } from "./query";
 import { toResponse } from "./error-mapper";

@@ -1,5 +1,5 @@
-import type { Condition, Page, PageRequest } from "@tiffin/commons";
-import { NotFoundError } from "@tiffin/commons";
+import type { Condition, Page, PageRequest } from "@realm/commons";
+import { NotFoundError } from "@realm/commons";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { stripManaged } from "./managed-fields";
 import type { BaseRepository, UpdatableRepository } from "./repository";

@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { emailSchema, passwordSchema, phoneSchema } from "@tiffin/commons";
+import { emailSchema, passwordSchema, phoneSchema } from "@realm/commons";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";

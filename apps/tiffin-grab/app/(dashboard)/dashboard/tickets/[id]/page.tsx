@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
 import { inArray } from "drizzle-orm";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError } from "@realm/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";

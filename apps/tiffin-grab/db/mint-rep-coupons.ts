@@ -1,5 +1,5 @@
 import { mintRepCoupons } from "@/lib/services/mint-rep-coupons";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("mint-rep-coupons");
 

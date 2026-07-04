@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";

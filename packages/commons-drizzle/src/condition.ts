@@ -1,5 +1,5 @@
-import type { Condition } from "@tiffin/commons";
-import { ValidationError } from "@tiffin/commons";
+import type { Condition } from "@realm/commons";
+import { ValidationError } from "@realm/commons";
 import {
   and as dAnd,
   between as dBetween,

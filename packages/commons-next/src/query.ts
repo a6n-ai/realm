@@ -1,4 +1,4 @@
-import type { Condition, PageRequest } from "@tiffin/commons";
+import type { Condition, PageRequest } from "@realm/commons";
 
 export interface Query {
   page?: number;

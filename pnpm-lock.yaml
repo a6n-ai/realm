@@ -43,19 +43,19 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.4)
-      '@tiffin/commons':
+      '@realm/commons':
         specifier: workspace:*
         version: link:../../packages/commons
-      '@tiffin/commons-drizzle':
+      '@realm/commons-drizzle':
         specifier: workspace:*
         version: link:../../packages/commons-drizzle
-      '@tiffin/commons-files':
+      '@realm/commons-files':
         specifier: workspace:*
         version: link:../../packages/commons-files
-      '@tiffin/commons-next':
+      '@realm/commons-next':
         specifier: workspace:*
         version: link:../../packages/commons-next
-      '@tiffin/commons-notify':
+      '@realm/commons-notify':
         specifier: workspace:*
         version: link:../../packages/commons-notify
       '@uiw/react-md-editor':
@@ -225,7 +225,7 @@ importers:
 
   packages/commons-drizzle:
     dependencies:
-      '@tiffin/commons':
+      '@realm/commons':
         specifier: workspace:*
         version: link:../commons
       nanoid:
@@ -253,10 +253,10 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1077.0
         version: 3.1077.0
-      '@tiffin/commons':
+      '@realm/commons':
         specifier: workspace:*
         version: link:../commons
-      '@tiffin/commons-drizzle':
+      '@realm/commons-drizzle':
         specifier: workspace:*
         version: link:../commons-drizzle
       nanoid:
@@ -281,10 +281,10 @@ importers:
       '@chenglou/pretext':
         specifier: 0.0.8
         version: 0.0.8
-      '@tiffin/commons':
+      '@realm/commons':
         specifier: workspace:*
         version: link:../commons
-      '@tiffin/commons-drizzle':
+      '@realm/commons-drizzle':
         specifier: workspace:*
         version: link:../commons-drizzle
     devDependencies:
@@ -309,7 +309,7 @@ importers:
       '@react-email/components':
         specifier: ^1.0.12
         version: 1.0.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@tiffin/commons':
+      '@realm/commons':
         specifier: workspace:*
         version: link:../commons
       zod:

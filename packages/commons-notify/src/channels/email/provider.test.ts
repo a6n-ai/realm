@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { AbstractEmailProvider, type EmailProviderConfig } from "./provider";
 import type { PreparedEmail, SendResult } from "./types";
 

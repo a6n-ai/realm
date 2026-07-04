@@ -1,4 +1,4 @@
-import { updatableColumns } from "@tiffin/commons-drizzle";
+import { updatableColumns } from "@realm/commons-drizzle";
 import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { dishes, planType } from "./catalog";
 import { orders } from "./orders";

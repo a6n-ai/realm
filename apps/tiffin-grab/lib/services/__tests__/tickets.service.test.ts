@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ticketMessages, tickets, users } from "@/db/schema";
-import { ForbiddenError } from "@tiffin/commons";
+import { ForbiddenError } from "@realm/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));

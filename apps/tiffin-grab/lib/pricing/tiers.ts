@@ -1,4 +1,4 @@
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 
 export interface PricingTier {
   minQty: number;

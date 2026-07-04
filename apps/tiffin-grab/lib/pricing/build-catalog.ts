@@ -1,4 +1,4 @@
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 

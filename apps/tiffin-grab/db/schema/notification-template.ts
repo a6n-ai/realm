@@ -1,4 +1,4 @@
-import { updatableColumns } from "@tiffin/commons-drizzle";
+import { updatableColumns } from "@realm/commons-drizzle";
 import { boolean, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { appEvent } from "./wallet";
 import { notificationChannel } from "./notifications";

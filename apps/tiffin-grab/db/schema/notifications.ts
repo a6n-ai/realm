@@ -1,4 +1,4 @@
-import { baseColumns, updatableColumns } from "@tiffin/commons-drizzle";
+import { baseColumns, updatableColumns } from "@realm/commons-drizzle";
 import {
   bigint,
   boolean,

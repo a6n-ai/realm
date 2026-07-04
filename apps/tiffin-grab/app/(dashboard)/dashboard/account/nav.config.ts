@@ -1,4 +1,4 @@
-import { Role, type RoleValue } from "@tiffin/commons";
+import { Role, type RoleValue } from "@realm/commons";
 
 // SINGLE SOURCE OF TRUTH for the account sub-nav and per-section role gating.
 // A role omits the groups/sections it lacks; it never reorders them. The

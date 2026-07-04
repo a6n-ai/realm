@@ -1,4 +1,4 @@
-import type { Database } from "@tiffin/commons-drizzle";
+import type { Database } from "@realm/commons-drizzle";
 import { eq } from "drizzle-orm";
 import { filesAccessPath } from "../schema/files";
 

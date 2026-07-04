@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
-import { ValidationError, nextWeekday, zonedDateIso } from "@tiffin/commons";
+import { ValidationError, nextWeekday, zonedDateIso } from "@realm/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 

@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@tiffin/commons-drizzle";
+import { UpdatableRepository } from "@realm/commons-drizzle";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";

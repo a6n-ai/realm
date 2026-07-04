@@ -3,7 +3,7 @@ import { db } from "./client";
 import { DEFAULT_MEAL_TYPES } from "@/lib/menu/meal-types";
 import { appSettings, featureFlags } from "./schema";
 import { seedLeadSources } from "./seed-sources";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed");
 

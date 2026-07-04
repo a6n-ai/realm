@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, walletLedger } from "@/db/schema";
 

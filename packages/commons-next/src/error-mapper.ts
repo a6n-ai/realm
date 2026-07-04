@@ -1,5 +1,5 @@
-import { AppError } from "@tiffin/commons";
-import { createLogger } from "@tiffin/commons/logger";
+import { AppError } from "@realm/commons";
+import { createLogger } from "@realm/commons/logger";
 import { json } from "./response";
 
 const log = createLogger("error-mapper");

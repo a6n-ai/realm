@@ -1,5 +1,5 @@
-import type { Condition, Page, PageRequest } from "@tiffin/commons";
-import { DEFAULT_PAGE } from "@tiffin/commons";
+import type { Condition, Page, PageRequest } from "@realm/commons";
+import { DEFAULT_PAGE } from "@realm/commons";
 import { asc, desc, eq, getTableName, sql } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { resolveColumn, toDrizzleWhere } from "./condition";

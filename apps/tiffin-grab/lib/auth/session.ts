@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
-import { Role, type RoleValue } from "@tiffin/commons";
+import { Role, type RoleValue } from "@realm/commons";
 import { auth } from "./index";
 
 function isDynamicServerError(e: unknown): boolean {

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
-import type { FileDetail } from "@tiffin/commons-files/model";
+import type { FileDetail } from "@realm/commons-files/model";
 import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";

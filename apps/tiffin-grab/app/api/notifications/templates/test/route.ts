@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
-import { SesEmailProvider } from "@tiffin/commons-notify";
+import { SesEmailProvider } from "@realm/commons-notify";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";

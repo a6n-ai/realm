@@ -1,4 +1,4 @@
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
 import { notificationTemplate } from "@/db/schema";
 import { EVENT_ENTITY, validateTemplateVars, type AppEvent } from "@/lib/notifications/event-entities";

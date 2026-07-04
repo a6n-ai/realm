@@ -1,5 +1,5 @@
-import { UpdatableRepository, UpdatableService } from "@tiffin/commons-drizzle";
-import { ValidationError } from "@tiffin/commons";
+import { UpdatableRepository, UpdatableService } from "@realm/commons-drizzle";
+import { ValidationError } from "@realm/commons";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";
 import { featureFlags } from "../schema";

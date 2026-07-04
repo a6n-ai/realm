@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 
 // The settings actions go through requireAdmin() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is the

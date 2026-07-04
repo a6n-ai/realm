@@ -5,7 +5,7 @@ import { setMealTypes } from "@/lib/services/app-settings.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { menuService } from "@/lib/services/menu.service";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 
 const SLOT_KEY_RE = /^[a-z0-9_]+$/;

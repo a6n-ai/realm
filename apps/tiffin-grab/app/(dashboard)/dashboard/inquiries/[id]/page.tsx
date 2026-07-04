@@ -10,7 +10,7 @@ import {
   CheckCircleIcon,
 } from "lucide-react";
 import { eq } from "drizzle-orm";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError } from "@realm/commons";
 import { db } from "@/db/client";
 import { leadSources } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";

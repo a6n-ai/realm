@@ -1,6 +1,6 @@
 "use server";
 
-import type { RoleValue } from "@tiffin/commons";
+import type { RoleValue } from "@realm/commons";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";

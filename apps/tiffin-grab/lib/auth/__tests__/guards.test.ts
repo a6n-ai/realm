@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { AuthError, ForbiddenError } from "@tiffin/commons";
+import { AuthError, ForbiddenError } from "@realm/commons";
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 

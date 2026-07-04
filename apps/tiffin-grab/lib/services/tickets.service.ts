@@ -1,5 +1,5 @@
-import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from "@tiffin/commons";
+import { BaseRepository, UpdatableRepository } from "@realm/commons-drizzle";
+import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from "@realm/commons";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";

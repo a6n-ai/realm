@@ -1,4 +1,4 @@
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 
 export function validateOrderSlots(
   planType: "tiffin" | "healthy",

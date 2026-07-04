@@ -1,4 +1,4 @@
-import type { RoleValue } from "@tiffin/commons";
+import type { RoleValue } from "@realm/commons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SortableHeader } from "@/components/ds";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

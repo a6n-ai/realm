@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { emailSchema } from "@tiffin/commons";
+import { emailSchema } from "@realm/commons";
 
 /** A single email participant. `name` is optional display name. */
 export const emailAddressSchema = z.object({

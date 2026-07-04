@@ -3,7 +3,7 @@ import {
   SendEmailCommand,
   type SendEmailCommandOutput,
 } from "@aws-sdk/client-sesv2";
-import { AppError } from "@tiffin/commons";
+import { AppError } from "@realm/commons";
 import {
   AbstractEmailProvider,
   type EmailProviderConfig,

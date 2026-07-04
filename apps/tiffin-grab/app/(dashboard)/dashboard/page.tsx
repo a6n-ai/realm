@@ -15,7 +15,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Role } from "@tiffin/commons";
+import { Role } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";

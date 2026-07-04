@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
-import { AuthError, ForbiddenError, NotFoundError } from "@tiffin/commons";
+import { AuthError, ForbiddenError, NotFoundError } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";

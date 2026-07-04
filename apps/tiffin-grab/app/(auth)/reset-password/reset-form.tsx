@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { passwordSchema } from "@tiffin/commons";
+import { passwordSchema } from "@realm/commons";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

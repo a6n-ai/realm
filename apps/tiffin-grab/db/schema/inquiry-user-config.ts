@@ -1,4 +1,4 @@
-import { updatableColumns } from "@tiffin/commons-drizzle";
+import { updatableColumns } from "@realm/commons-drizzle";
 import { bigint, integer, index, pgTable, unique } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { leadSources } from "./lead-sources";

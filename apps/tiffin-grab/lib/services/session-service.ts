@@ -1,5 +1,5 @@
-import { BaseService, UpdatableService, stripManaged } from "@tiffin/commons-drizzle";
-import { createLogger } from "@tiffin/commons/logger";
+import { BaseService, UpdatableService, stripManaged } from "@realm/commons-drizzle";
+import { createLogger } from "@realm/commons/logger";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";

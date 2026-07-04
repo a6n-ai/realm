@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { setAppSettings } from "@/lib/services/app-settings.service";
 

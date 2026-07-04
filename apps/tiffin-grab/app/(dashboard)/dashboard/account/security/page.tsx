@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Role } from "@tiffin/commons";
+import { Role } from "@realm/commons";
 import { PasswordSection } from "@/components/account/sections/password-section";
 import { PinSection } from "@/components/account/sections/pin-section";
 import { requireAccountUser } from "../current-user";

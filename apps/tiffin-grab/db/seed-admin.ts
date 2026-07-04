@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { hashPassword } from "../lib/auth/password";
 import { db } from "./client";
 import { account, users } from "./schema";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed-admin");
 

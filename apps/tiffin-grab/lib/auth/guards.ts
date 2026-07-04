@@ -1,4 +1,4 @@
-import { AuthError, ForbiddenError, Role, type RoleValue } from "@tiffin/commons";
+import { AuthError, ForbiddenError, Role, type RoleValue } from "@realm/commons";
 import { getSession } from "./session";
 
 async function requireSession() {

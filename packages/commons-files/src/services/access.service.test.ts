@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { Database } from "@tiffin/commons-drizzle";
+import type { Database } from "@realm/commons-drizzle";
 import { AccessPathService } from "./access-path.service";
 import { SecuredAccessService } from "./secured-access.service";
 

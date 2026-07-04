@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { UserIcon } from "lucide-react";
-import type { RoleValue } from "@tiffin/commons";
+import type { RoleValue } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { PageShell, PageHeader } from "@/components/ds";
 import { AccountNav } from "./account-nav";

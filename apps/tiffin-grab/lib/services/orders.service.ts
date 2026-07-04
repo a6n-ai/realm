@@ -1,6 +1,6 @@
-import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
-import { createLogger } from "@tiffin/commons/logger";
-import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
+import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
+import { createLogger } from "@realm/commons/logger";
+import { BaseRepository, UpdatableRepository } from "@realm/commons-drizzle";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";

@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { MemoryStorageProvider } from "../storage/memory-provider";
-import type { Database } from "@tiffin/commons-drizzle";
+import type { Database } from "@realm/commons-drizzle";
 import { FileSystemService } from "./file-system.service";
 
 const url = process.env.DATABASE_URL;

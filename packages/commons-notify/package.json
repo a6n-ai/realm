@@ -1,5 +1,5 @@
 {
-  "name": "@tiffin/commons-notify",
+  "name": "@realm/commons-notify",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.700.0",
     "@react-email/components": "^1.0.12",
-    "@tiffin/commons": "workspace:*",
+    "@realm/commons": "workspace:*",
     "zod": "^4.4.3"
   },
   "peerDependencies": {

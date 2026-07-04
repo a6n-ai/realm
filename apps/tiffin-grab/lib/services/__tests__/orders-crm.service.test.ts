@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { nextWeekday } = await import("@tiffin/commons");
+const { nextWeekday } = await import("@realm/commons");
 const { createOrder } = await import("../orders.service");
 const { listOrders, readOrder } = await import("../orders.service");
 

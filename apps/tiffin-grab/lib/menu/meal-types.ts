@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 
 export const PLAN_TYPES = ["tiffin", "healthy"] as const;
 export type PlanType = (typeof PLAN_TYPES)[number];

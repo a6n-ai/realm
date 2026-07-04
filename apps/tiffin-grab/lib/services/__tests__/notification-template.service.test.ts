@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ValidationError } from "@tiffin/commons";
+import { ValidationError } from "@realm/commons";
 import { sampleVars, assertValidVars, upsertTemplate } from "@/lib/services/notification-template.service";
 
 describe("notification-template.service", () => {

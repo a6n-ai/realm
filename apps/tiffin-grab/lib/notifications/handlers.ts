@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { SesEmailProvider } from "@tiffin/commons-notify";
-import { AppError } from "@tiffin/commons";
+import { SesEmailProvider } from "@realm/commons-notify";
+import { AppError } from "@realm/commons";
 import { db } from "@/db/client";
 import { notifications, notificationOutbox, users } from "@/db/schema";
 import { renderEmailForEvent, renderInAppForEvent } from "./template-service";

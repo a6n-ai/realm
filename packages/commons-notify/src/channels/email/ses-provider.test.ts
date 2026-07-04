@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SendEmailCommand, SendEmailCommandOutput } from "@aws-sdk/client-sesv2";
-import { AppError } from "@tiffin/commons";
+import { AppError } from "@realm/commons";
 import { SesEmailProvider, type SesSendClient } from "./ses-provider";
 
 const defaultFrom = { email: "noreply@tiffingrab.ca", name: "Tiffin Grab" };

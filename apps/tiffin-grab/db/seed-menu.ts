@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "./client";
 import { dishes, mealSlots, menuItems, menuWeeks } from "./schema";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed-menu");
 

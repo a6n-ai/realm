@@ -12,8 +12,8 @@ vi.mock("@/db/client", () => ({
   },
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@tiffin/commons-drizzle", async (orig) => {
-  const actual = await orig<typeof import("@tiffin/commons-drizzle")>();
+vi.mock("@realm/commons-drizzle", async (orig) => {
+  const actual = await orig<typeof import("@realm/commons-drizzle")>();
   class FakeBase {
     repo = { tableName: "secrets" };
     async read(id: string) { return { publicId: id, secret: "x" }; }

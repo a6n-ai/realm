@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { NotFoundError, zonedDateIso } from "@tiffin/commons";
+import { NotFoundError, zonedDateIso } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";

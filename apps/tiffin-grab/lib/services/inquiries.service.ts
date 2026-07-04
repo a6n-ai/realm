@@ -1,5 +1,5 @@
-import { BaseRepository, UpdatableRepository } from "@tiffin/commons-drizzle";
-import { ValidationError, phoneSchema, emailSchema } from "@tiffin/commons";
+import { BaseRepository, UpdatableRepository } from "@realm/commons-drizzle";
+import { ValidationError, phoneSchema, emailSchema } from "@realm/commons";
 import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";

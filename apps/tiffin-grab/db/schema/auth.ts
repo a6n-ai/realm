@@ -1,4 +1,4 @@
-import { makePublicId, updatableColumns } from "@tiffin/commons-drizzle";
+import { makePublicId, updatableColumns } from "@realm/commons-drizzle";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 

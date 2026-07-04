@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UsersIcon } from "lucide-react";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
 import { formatEpoch } from "@/lib/format/datetime";

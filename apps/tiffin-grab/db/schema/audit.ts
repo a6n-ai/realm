@@ -1,4 +1,4 @@
-import { baseColumns } from "@tiffin/commons-drizzle";
+import { baseColumns } from "@realm/commons-drizzle";
 import { jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const auditOperation = pgEnum("audit_operation", [

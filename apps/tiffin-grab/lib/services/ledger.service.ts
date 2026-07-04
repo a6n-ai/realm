@@ -1,4 +1,4 @@
-import { BaseRepository } from "@tiffin/commons-drizzle";
+import { BaseRepository } from "@realm/commons-drizzle";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries } from "@/db/schema";

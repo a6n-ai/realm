@@ -1,4 +1,4 @@
-import type { Database } from "@tiffin/commons-drizzle";
+import type { Database } from "@realm/commons-drizzle";
 import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 import { filesSecuredAccessKey } from "../schema/files";

@@ -1,5 +1,5 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { NotFoundError } from "@tiffin/commons";
+import { NotFoundError } from "@realm/commons";
 import { buildPosterColumns } from "@/lib/menu/poster";
 import type { PlanType } from "@/lib/menu/meal-types";
 import { menuService } from "@/lib/services/menu.service";

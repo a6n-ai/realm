@@ -4,4 +4,4 @@ export {
   fileSystem,
   filesAccessPath,
   filesSecuredAccessKey,
-} from "@tiffin/commons-files/schema";
+} from "@realm/commons-files/schema";

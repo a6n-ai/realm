@@ -1,6 +1,6 @@
 import { db } from "./client";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "./schema";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed-catalog");
 

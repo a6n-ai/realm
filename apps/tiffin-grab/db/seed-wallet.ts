@@ -1,6 +1,6 @@
 import { db } from "./client";
 import { appEvent, coinRate, eventPayout } from "./schema";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed-wallet");
 

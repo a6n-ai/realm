@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { passwordSchema } from "@tiffin/commons";
+import { passwordSchema } from "@realm/commons";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import {

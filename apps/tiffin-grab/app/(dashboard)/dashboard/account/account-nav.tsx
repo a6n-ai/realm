@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { RoleValue } from "@tiffin/commons";
+import type { RoleValue } from "@realm/commons";
 import { cn } from "@/lib/utils";
 import { ACCOUNT_NAV } from "./nav.config";
 

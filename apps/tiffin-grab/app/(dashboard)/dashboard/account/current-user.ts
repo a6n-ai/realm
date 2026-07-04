@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { NotFoundError, type RoleValue } from "@tiffin/commons";
+import { NotFoundError, type RoleValue } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 import { isSectionAllowed } from "./nav.config";

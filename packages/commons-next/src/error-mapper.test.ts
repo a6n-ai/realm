@@ -1,4 +1,4 @@
-import { NotFoundError, ValidationError } from "@tiffin/commons";
+import { NotFoundError, ValidationError } from "@realm/commons";
 import { describe, expect, it } from "vitest";
 import { toResponse } from "./error-mapper";
 

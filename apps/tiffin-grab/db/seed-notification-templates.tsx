@@ -2,7 +2,7 @@ import { render } from "react-email";
 import { db } from "./client";
 import { notificationTemplate } from "./schema";
 import { OrderCreatedEmail } from "../emails/order-created";
-import { createLogger } from "@tiffin/commons/logger";
+import { createLogger } from "@realm/commons/logger";
 
 const log = createLogger("seed-notification-templates");
 
