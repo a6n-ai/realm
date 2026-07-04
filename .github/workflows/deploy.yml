@@ -11,7 +11,7 @@
 #   EC2_USER     ssh user (e.g. ubuntu)
 #   EC2_SSH_KEY  private key whose public half is in the box's authorized_keys
 # Optional repo variable:
-#   DEPLOY_PATH  repo checkout path on the box (default: ~/tiffin-grab)
+#   DEPLOY_PATH  repo checkout path on the box (default: ~/realm)
 #
 # GHCR packages: after the first run, make ghcr.io/a6n-ai/tiffin-grab-web and
 # tiffin-grab-tools PUBLIC (package → Settings → Change visibility) so the box pulls
@@ -86,5 +86,5 @@ jobs:
           envs: IMAGE_TAG # forward IMAGE_TAG into the remote shell → deploy.sh
           script: |
             set -euo pipefail
-            cd "${{ vars.DEPLOY_PATH || '~/tiffin-grab' }}/deployment/prod"
+            cd "${{ vars.DEPLOY_PATH || '~/realm' }}/deployment/prod"
             ./deploy.sh
