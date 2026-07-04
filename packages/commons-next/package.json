@@ -6,7 +6,7 @@
   "exports": { ".": "./src/index.ts" },
   "types": "./src/index.ts",
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
-  "dependencies": { "@tiffin/commons": "workspace:*", "@tiffin/commons-drizzle": "workspace:*" },
+  "dependencies": { "@tiffin/commons": "workspace:*", "@tiffin/commons-drizzle": "workspace:*", "@chenglou/pretext": "0.0.8" },
   "peerDependencies": { "next": "16.2.9" },
   "devDependencies": { "drizzle-orm": "^0.45.2", "next": "16.2.9", "typescript": "^5", "vitest": "^4.1.9" }
 }
