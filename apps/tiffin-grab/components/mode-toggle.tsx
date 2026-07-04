@@ -1,7 +1,7 @@
 "use client";
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@realm/themes";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

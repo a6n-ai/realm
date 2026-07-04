@@ -1,8 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-
-export const THEME_STORAGE_KEY = "theme";
+import { THEME_STORAGE_KEY } from "./storage-key";
 
 type Theme = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
