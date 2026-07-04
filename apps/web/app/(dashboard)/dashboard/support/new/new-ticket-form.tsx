@@ -145,7 +145,7 @@ export function NewTicketForm({
   );
 }
 
-NewTicketForm.Skeleton = function NewTicketFormSkeleton() {
+export function NewTicketFormSkeleton() {
   return (
     <div className="grid max-w-xl gap-5">
       {FIELDS.map((f) => (

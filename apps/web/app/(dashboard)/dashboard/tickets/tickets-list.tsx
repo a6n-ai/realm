@@ -198,7 +198,7 @@ export function TicketsList({
 // Exact loading twin: same COLUMNS + same FilterBar/Table markup (search, pills
 // and owner dropdown), grey cells instead of data. Rendered as the page's
 // <Suspense fallback>, so it always matches TicketsList by construction.
-TicketsList.Skeleton = function TicketsListSkeleton() {
+export function TicketsListSkeleton() {
   return (
     <div className="space-y-4">
       <FilterBar

@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
-import { TicketControls, ReplyBox } from "./ticket-controls";
+import { TicketControls, ReplyBox, TicketControlsSkeleton } from "./ticket-controls";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",
@@ -158,7 +158,7 @@ function DetailsFallback() {
         <Skeleton className="h-6 w-16 rounded-full" />
         <Skeleton className="h-6 w-20 rounded-full" />
       </div>
-      <TicketControls.Skeleton />
+      <TicketControlsSkeleton />
     </div>
   );
 }

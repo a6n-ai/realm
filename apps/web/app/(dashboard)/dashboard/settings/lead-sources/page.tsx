@@ -5,13 +5,13 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
 import { PageHeader } from "@/components/ds";
-import { LeadSourcesManager } from "./manager";
+import { LeadSourcesManager, LeadSourcesManagerSkeleton } from "./manager";
 
 export default function LeadSourcesSettingsPage() {
   return (
     <div className="grid gap-6">
       <PageHeader icon={Webhook} title="Lead sources" />
-      <Suspense fallback={<LeadSourcesManager.Skeleton />}>
+      <Suspense fallback={<LeadSourcesManagerSkeleton />}>
         <LeadSourcesData />
       </Suspense>
     </div>

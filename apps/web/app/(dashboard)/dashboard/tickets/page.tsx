@@ -13,7 +13,7 @@ import {
   StatCard,
   SkeletonStatCards,
 } from "@/components/ds";
-import { TicketsList } from "./tickets-list";
+import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 
 const SORT_COLUMNS = [
   "subject",
@@ -40,7 +40,7 @@ export default function TicketsPage({
       </Suspense>
 
       <SectionCard title="All tickets">
-        <Suspense fallback={<TicketsList.Skeleton />}>
+        <Suspense fallback={<TicketsListSkeleton />}>
           <TicketsData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

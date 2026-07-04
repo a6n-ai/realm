@@ -476,7 +476,7 @@ export function ResourceEditor({
 // Exact loading twin: same visibleCols source of truth + same header/table
 // markup as ResourceEditor, grey cells instead of data. Rendered as the page's
 // <Suspense fallback>, so it always matches the real table by construction.
-ResourceEditor.Skeleton = function ResourceEditorSkeleton({ resource }: { resource: string }) {
+export function ResourceEditorSkeleton({ resource }: { resource: string }) {
   const def = RESOURCES[resource];
   const cols = def ? visibleCols(def) : [];
   const rest = cols.slice(1);

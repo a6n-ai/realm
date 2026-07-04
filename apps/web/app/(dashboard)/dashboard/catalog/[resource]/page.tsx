@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type ResourceDef } from "../resource-config";
-import { ResourceEditor } from "./resource-editor";
+import { ResourceEditor, ResourceEditorSkeleton } from "./resource-editor";
 
 const TABLES: Record<string, PgTable> = {
   dishes,
@@ -28,7 +28,7 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title={def?.label ?? "Catalog"} />
       <SectionCard title="Entries">
-        <Suspense fallback={<ResourceEditor.Skeleton resource={resource} />}>
+        <Suspense fallback={<ResourceEditorSkeleton resource={resource} />}>
           <CatalogData resource={resource} />
         </Suspense>
       </SectionCard>

@@ -123,7 +123,7 @@ export function CustomersList({
 // Exact loading twin: same COLUMNS + same FilterBar/Table markup, grey cells
 // instead of data. Rendered as the page's <Suspense fallback>, so it always
 // matches CustomersList by construction.
-CustomersList.Skeleton = function CustomersListSkeleton() {
+export function CustomersListSkeleton() {
   return (
     <div className="space-y-4">
       <FilterBar search={<Skeleton className="h-9 w-full" />} filters={null} />

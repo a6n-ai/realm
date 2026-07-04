@@ -12,7 +12,7 @@ import { parseSort } from "@/lib/list/sort";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { OrdersList } from "./orders-list";
+import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NewOrderSheet } from "./new-order-sheet";
 
 export default function OrdersPage({
@@ -32,7 +32,7 @@ export default function OrdersPage({
         }
       />
       <SectionCard title="All orders">
-        <Suspense fallback={<OrdersList.Skeleton />}>
+        <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

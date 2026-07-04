@@ -228,7 +228,7 @@ export function AddressSection({
   );
 }
 
-AddressSection.Skeleton = function AddressSectionSkeleton({ titleAs }: { titleAs?: "h2" | "h3" }) {
+export function AddressSectionSkeleton({ titleAs }: { titleAs?: "h2" | "h3" }) {
   return (
     <section id="address" className="scroll-mt-24">
       <SectionCard variant="flat" titleAs={titleAs} title="Delivery address">

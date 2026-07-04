@@ -217,7 +217,7 @@ export function InquiriesList({
 // Exact loading twin: same COLUMNS + same FilterBar/Table markup (search, stage
 // pills, owner dropdown), grey cells instead of data. Rendered as the page's
 // <Suspense fallback>, so it always matches InquiriesList by construction.
-InquiriesList.Skeleton = function InquiriesListSkeleton() {
+export function InquiriesListSkeleton() {
   return (
     <div className="space-y-4">
       <FilterBar

@@ -10,7 +10,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { Button } from "@/components/ui/button";
 import { PageShell, PageHeader } from "@/components/ds";
-import { TicketsList } from "./tickets-list";
+import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 
 export default function SupportPage() {
   return (
@@ -29,7 +29,7 @@ export default function SupportPage() {
         }
       />
 
-      <Suspense fallback={<TicketsList.Skeleton />}>
+      <Suspense fallback={<TicketsListSkeleton />}>
         <TicketsData />
       </Suspense>
     </PageShell>

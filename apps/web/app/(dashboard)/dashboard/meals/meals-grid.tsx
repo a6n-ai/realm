@@ -80,7 +80,7 @@ export function MealsGrid({
 // Exact loading twin: same GRID_CLASS wrapper and the same DeliveryCard shape
 // (header with day/lock lines + divided slot sections), grey blocks instead of
 // data. Rendered as the page's <Suspense fallback>.
-MealsGrid.Skeleton = function MealsGridSkeleton() {
+export function MealsGridSkeleton() {
   return (
     <div className={GRID_CLASS}>
       {Array.from({ length: 6 }).map((_, i) => (

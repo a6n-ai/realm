@@ -61,7 +61,7 @@ export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutof
   );
 }
 
-SettingsForm.Skeleton = function SettingsFormSkeleton() {
+export function SettingsFormSkeleton() {
   return (
     <div className="grid max-w-md gap-4">
       {FIELDS.map((f) => (

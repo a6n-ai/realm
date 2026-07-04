@@ -3,11 +3,11 @@ import { desc, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { CouponsManager } from "./coupons-manager";
+import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
 
 export default function CouponsPage() {
   return (
-    <Suspense fallback={<CouponsManager.Skeleton />}>
+    <Suspense fallback={<CouponsManagerSkeleton />}>
       <CouponsData />
     </Suspense>
   );

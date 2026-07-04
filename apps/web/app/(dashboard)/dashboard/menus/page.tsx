@@ -9,8 +9,8 @@ import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { MenuBuilder } from "./menu-builder";
-import { MenuHistoryCard } from "./menu-history-card";
+import { MenuBuilder, MenuBuilderSkeleton } from "./menu-builder";
+import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
 import type { PlanType } from "@/lib/menu/meal-types";
 
 type SearchParams = Promise<{ type?: string; week?: string }>;
@@ -23,12 +23,12 @@ export default function MenusPage({ searchParams }: { searchParams: SearchParams
         fallback={
           <>
             <SectionCard title="Menu builder">
-              <MenuBuilder.Skeleton />
+              <MenuBuilderSkeleton />
             </SectionCard>
             <SectionCard title="Past menus">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <MenuHistoryCard.Skeleton key={i} />
+                  <MenuHistoryCardSkeleton key={i} />
                 ))}
               </div>
             </SectionCard>

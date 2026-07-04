@@ -58,7 +58,7 @@ export function KindsForm({ policy }: { policy: DiscountPolicy }) {
 // Exact loading twin: same SectionCard (real title/subtitle) + same grid layout,
 // grey blocks where the multiselect and save button go. Rendered as the page's
 // <Suspense fallback>, so it stays in sync with KindsForm by construction.
-KindsForm.Skeleton = function KindsFormSkeleton() {
+export function KindsFormSkeleton() {
   return (
     <SectionCard title={CARD.title} subtitle={CARD.subtitle}>
       <div className="grid max-w-md gap-3">

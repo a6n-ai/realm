@@ -490,7 +490,7 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
 // Exact loading twin: same SectionCard + same COLUMNS/Table markup, grey cells
 // instead of data. Rendered as the page's <Suspense fallback>, so it always
 // matches CouponsManager by construction.
-CouponsManager.Skeleton = function CouponsManagerSkeleton() {
+export function CouponsManagerSkeleton() {
   return (
     <SectionCard
       title="Coupons"

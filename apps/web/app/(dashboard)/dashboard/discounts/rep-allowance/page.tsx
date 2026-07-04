@@ -4,11 +4,11 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
-import { RepAllowanceForm } from "./form";
+import { RepAllowanceForm, RepAllowanceFormSkeleton } from "./form";
 
 export default function RepAllowancePage() {
   return (
-    <Suspense fallback={<RepAllowanceForm.Skeleton />}>
+    <Suspense fallback={<RepAllowanceFormSkeleton />}>
       <RepAllowanceData />
     </Suspense>
   );

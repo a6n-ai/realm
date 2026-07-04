@@ -169,7 +169,7 @@ export function OrdersList({
 // Exact loading twin: same COLUMNS + same FilterBar/Table markup, grey cells
 // instead of data. Rendered as the page's <Suspense fallback>, so it always
 // matches OrdersList by construction.
-OrdersList.Skeleton = function OrdersListSkeleton() {
+export function OrdersListSkeleton() {
   return (
     <div className="space-y-4">
       <FilterBar

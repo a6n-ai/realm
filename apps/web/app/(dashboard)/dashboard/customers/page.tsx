@@ -12,7 +12,7 @@ import { parseSort, type SortState } from "@/lib/list/sort";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { CustomersList } from "./customers-list";
+import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 
 const SORT_COL = {
@@ -42,7 +42,7 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
         }
       />
       <SectionCard title="All customers">
-        <Suspense fallback={<CustomersList.Skeleton />}>
+        <Suspense fallback={<CustomersListSkeleton />}>
           <CustomersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

@@ -136,7 +136,7 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
 // Exact loading twin: same SectionCard copy + same PayoutRowShell layout, grey
 // blocks where each control's label/input/switch/button go. Rendered as the
 // page's <Suspense fallback> so it always mirrors PayoutGrid by construction.
-PayoutGrid.Skeleton = function PayoutGridSkeleton() {
+export function PayoutGridSkeleton() {
   return (
     <SectionCard title={CARD_TITLE} subtitle={CARD_SUBTITLE}>
       <div className="grid gap-3">

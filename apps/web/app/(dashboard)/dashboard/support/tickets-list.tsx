@@ -66,7 +66,7 @@ export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[
   );
 }
 
-TicketsList.Skeleton = function TicketsListSkeleton() {
+export function TicketsListSkeleton() {
   return (
     <SectionCard title="My tickets">
       <div className="space-y-2">

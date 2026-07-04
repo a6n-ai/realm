@@ -138,7 +138,7 @@ export function TicketControls({
 
 // Exact loading twin: same field layout + FIELDS source of truth as the real
 // controls, grey blocks instead of live selects.
-TicketControls.Skeleton = function TicketControlsSkeleton() {
+export function TicketControlsSkeleton() {
   return (
     <div className="flex flex-wrap items-end gap-4">
       {FIELDS.map((f) => (

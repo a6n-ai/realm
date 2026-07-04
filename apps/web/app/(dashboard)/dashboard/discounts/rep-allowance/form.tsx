@@ -39,7 +39,7 @@ export function RepAllowanceForm({ reps, policy }: { reps: RepOption[]; policy: 
 // Exact loading twin: same SectionCard wrappers/titles + same field layout as the
 // real sections, grey blocks where inputs go. Rendered as the page's <Suspense
 // fallback>, so it stays in sync with RepAllowanceForm by construction.
-RepAllowanceForm.Skeleton = function RepAllowanceFormSkeleton() {
+export function RepAllowanceFormSkeleton() {
   const field = (className?: string) => (
     <div className={cn("grid gap-1.5", className)}>
       <Skeleton className="h-4 w-24" />

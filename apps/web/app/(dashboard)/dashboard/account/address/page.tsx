@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { AddressSection } from "@/components/account/sections/address-section";
+import { AddressSection, AddressSectionSkeleton } from "@/components/account/sections/address-section";
 import { requireSectionAccess } from "../current-user";
 
 export default function AccountAddressPage() {
   return (
-    <Suspense fallback={<AddressSection.Skeleton />}>
+    <Suspense fallback={<AddressSectionSkeleton />}>
       <AddressData />
     </Suspense>
   );

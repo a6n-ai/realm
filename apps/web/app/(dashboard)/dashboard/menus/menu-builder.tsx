@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 const CREATE_VALUE = "__create__";
 
 // Single source of truth for the config bar's labelled controls. The real bar
-// and MenuBuilder.Skeleton both read labels + control widths from here, so the
+// and MenuBuilderSkeleton both read labels + control widths from here, so the
 // loading skeleton can never drift from the component.
 const CONFIG_FIELDS = [
   { key: "plan", label: "Plan type", control: "w-40" },
@@ -286,7 +286,7 @@ export function MenuBuilder({
 
 // Exact loading twin of the initial (no-week) config bar: same wrapper markup and
 // the same CONFIG_FIELDS labels, with grey controls in place of the live inputs.
-MenuBuilder.Skeleton = function MenuBuilderSkeleton() {
+export function MenuBuilderSkeleton() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">

@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
-import { TemplateEditor } from "@/components/notifications/template-editor";
+import { TemplateEditor, TemplateEditorSkeleton } from "@/components/notifications/template-editor";
 import { eventLabel } from "@/components/notifications/template-status";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +31,7 @@ export default function Page({ params }: { params: Promise<{ event: string }> })
         <TemplateHeader params={params} />
       </Suspense>
       <SectionCard title="Template content">
-        <Suspense fallback={<TemplateEditor.Skeleton />}>
+        <Suspense fallback={<TemplateEditorSkeleton />}>
           <TemplateData params={params} />
         </Suspense>
       </SectionCard>

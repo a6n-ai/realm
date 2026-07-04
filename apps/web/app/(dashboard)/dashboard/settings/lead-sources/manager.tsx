@@ -299,7 +299,7 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
   );
 }
 
-LeadSourcesManager.Skeleton = function LeadSourcesManagerSkeleton() {
+export function LeadSourcesManagerSkeleton() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">

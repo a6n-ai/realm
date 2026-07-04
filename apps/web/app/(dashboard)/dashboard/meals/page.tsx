@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { EmptyState, PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
-import { MealsGrid } from "./meals-grid";
+import { MealsGrid, MealsGridSkeleton } from "./meals-grid";
 
 export type { GridCell } from "@/lib/menu/meals-grid";
 
@@ -16,7 +16,7 @@ export default function MealsPage() {
   return (
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title="My Meals" />
-      <Suspense fallback={<MealsGrid.Skeleton />}>
+      <Suspense fallback={<MealsGridSkeleton />}>
         <MealsData />
       </Suspense>
     </PageShell>

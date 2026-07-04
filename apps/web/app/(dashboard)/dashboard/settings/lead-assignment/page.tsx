@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
 import { listConfig } from "@/lib/services/inquiry-user-config.service";
 import { PageHeader, SectionCard } from "@/components/ds";
-import { LeadAssignmentForm } from "./form";
+import { LeadAssignmentForm, LeadAssignmentFormSkeleton } from "./form";
 
 export default function LeadAssignmentPage() {
   return (
@@ -17,7 +17,7 @@ export default function LeadAssignmentPage() {
         title="Strategy & pools"
         subtitle="Routing strategy, per-source overrides, and pool membership."
       >
-        <Suspense fallback={<LeadAssignmentForm.Skeleton />}>
+        <Suspense fallback={<LeadAssignmentFormSkeleton />}>
           <LeadAssignmentData />
         </Suspense>
       </SectionCard>

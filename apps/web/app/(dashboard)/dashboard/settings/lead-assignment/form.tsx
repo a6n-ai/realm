@@ -145,7 +145,7 @@ export function LeadAssignmentForm({
 // Exact loading twin: reuses the same grid/section layout as LeadAssignmentForm
 // (strategy block + per-source rows + pool cards) with grey blocks in place of
 // controls, so it always matches the real form by construction.
-LeadAssignmentForm.Skeleton = function LeadAssignmentFormSkeleton() {
+export function LeadAssignmentFormSkeleton() {
   return (
     <div className="grid gap-8">
       <div className="grid max-w-xl gap-4">

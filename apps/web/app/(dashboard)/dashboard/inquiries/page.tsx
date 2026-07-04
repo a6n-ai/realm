@@ -18,7 +18,7 @@ import {
   SkeletonStatCards,
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
-import { InquiriesList } from "./inquiries-list";
+import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
@@ -40,7 +40,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
       </Suspense>
 
       <SectionCard title="All inquiries">
-        <Suspense fallback={<InquiriesList.Skeleton />}>
+        <Suspense fallback={<InquiriesListSkeleton />}>
           <InquiriesData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

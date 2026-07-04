@@ -17,7 +17,7 @@ import { EmailEditorField, type EmailEditorFieldHandle } from "./email-editor";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 
-// Shared top-level layout shell — the real render and TemplateEditor.Skeleton
+// Shared top-level layout shell — the real render and TemplateEditorSkeleton
 // both key off this so the loading state stays structurally in sync.
 const editorShell = {
   root: "space-y-4",
@@ -410,7 +410,7 @@ export function TemplateEditor({
   );
 }
 
-TemplateEditor.Skeleton = function TemplateEditorSkeleton() {
+export function TemplateEditorSkeleton() {
   return (
     <div className={editorShell.root}>
       <div className={editorShell.toolbar}>

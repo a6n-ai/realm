@@ -4,7 +4,7 @@ import { LifeBuoyIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { NewTicketForm, type TicketCategoryValue } from "./new-ticket-form";
+import { NewTicketForm, type TicketCategoryValue, NewTicketFormSkeleton } from "./new-ticket-form";
 
 const CATEGORIES: TicketCategoryValue[] = ["order", "billing", "catering", "general"];
 
@@ -20,7 +20,7 @@ export default function NewTicketPage({ searchParams }: { searchParams: SearchPa
       />
 
       <SectionCard title="Details">
-        <Suspense fallback={<NewTicketForm.Skeleton />}>
+        <Suspense fallback={<NewTicketFormSkeleton />}>
           <TicketFormData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

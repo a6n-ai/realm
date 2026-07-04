@@ -6,7 +6,7 @@ import { getMealTypes } from "@/lib/services/app-settings.service";
 import { db } from "@/db/client";
 import { mealSlots } from "@/db/schema";
 import { PageHeader, SectionCard } from "@/components/ds";
-import { MealTypesForm } from "../meal-types-form";
+import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
 
 export default function MealTypesPage() {
   return (
@@ -16,7 +16,7 @@ export default function MealTypesPage() {
         title="Plan configuration"
         subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
       >
-        <Suspense fallback={<MealTypesForm.Skeleton />}>
+        <Suspense fallback={<MealTypesFormSkeleton />}>
           <MealTypesData />
         </Suspense>
       </SectionCard>

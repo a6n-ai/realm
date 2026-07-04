@@ -391,7 +391,7 @@ function SlotFieldsSkeleton() {
   );
 }
 
-MealTypesForm.Skeleton = function MealTypesFormSkeleton() {
+export function MealTypesFormSkeleton() {
   return (
     <div className="space-y-5">
       {PLAN_TYPES.map((t) => (

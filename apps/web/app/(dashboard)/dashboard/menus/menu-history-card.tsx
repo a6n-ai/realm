@@ -118,7 +118,7 @@ export function MenuHistoryCard({
 
 // Exact loading twin: same card wrapper, header row, day-nav row, body block and
 // edit-button footer as MenuHistoryCard, with grey blocks where content goes.
-MenuHistoryCard.Skeleton = function MenuHistoryCardSkeleton() {
+export function MenuHistoryCardSkeleton() {
   return (
     <div className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
