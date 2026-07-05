@@ -29,6 +29,7 @@ const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> = React.forwa
     countrySelectComponent={CountrySelect}
     inputComponent={InputComponent}
     smartCaret={false}
+    limitMaxLength
     onChange={(value) => onChange?.(value || ("" as RPNInput.Value))}
     {...props}
   />
