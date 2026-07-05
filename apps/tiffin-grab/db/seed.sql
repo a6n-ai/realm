@@ -1,6 +1,9 @@
--- Master seed: lead sources + catalog. Mirrors db/seed-sources.ts & db/seed-catalog.ts.
+-- Full database seed: lead sources, catalog, feature flags, app settings, wallet, menu.
+-- Data only — no admin/staff users (password hashing, created via app) and no
+-- notification templates (authored via UI).
 -- id -> next_id() (DB). public_id/created_at/updated_at have NO db default -> supplied here.
--- Idempotent: ON CONFLICT (<unique>) DO NOTHING. pricing_tiers has no unique key -> wipe+insert.
+-- Idempotent: ON CONFLICT (<unique>) DO NOTHING; tables without a unique key use NOT EXISTS
+-- guards. pricing_tiers has no unique key -> wipe+insert.
 -- Epoch-ms helper repeated inline: (extract(epoch from now())*1000)::bigint
 
 begin;
@@ -83,6 +86,84 @@ insert into pricing_tiers (public_id, created_at, updated_at, min_qty, max_qty, 
   ('ptr_2',  (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 12, 19,   10.00),
   ('ptr_3',  (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 20, null, 0.00);
 
+-- ============ FEATURE FLAGS ============
+insert into feature_flags (public_id, created_at, updated_at, key, label, description, default_enabled) values
+  ('flg_subscription_wizard', (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'subscription_wizard', 'Subscription Wizard', 'Access the plan builder', true),
+  ('flg_admin_console',       (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'admin_console',       'Admin Console',       'User & flag administration', false)
+on conflict (key) do nothing;
+
+-- ============ APP SETTINGS ============ (no unique key -> insert one row only if none exists)
+insert into app_settings (public_id, created_at, updated_at, timezone, cutoff_hour, meal_types)
+select 'aps_default', (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
+       'America/Toronto', 18,
+       '{"tiffin":{"accent":"#F0820A","titlePrefix":"Tiffin Menu"},"healthy":{"accent":"#1FAE54","titlePrefix":"Healthy Menu"}}'::jsonb
+where not exists (select 1 from app_settings);
+
+-- ============ WALLET: EVENT PAYOUTS ============ (one row per app_event enum value)
+insert into event_payout (public_id, created_at, updated_at, event_type, enabled, coins)
+select 'evp_' || ev::text, (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, ev, false, 0
+from unnest(enum_range(null::app_event)) as ev
+on conflict (event_type) do nothing;
+
+-- ============ WALLET: COIN RATE ============ (no unique key -> guard with NOT EXISTS per currency)
+insert into coin_rate (public_id, created_at, currency, value_per_coin)
+select 'cnr_cad_default', (extract(epoch from now())*1000)::bigint, 'CAD', 0.1000
+where not exists (select 1 from coin_rate where currency = 'CAD');
+
+-- ============ MENU: MEAL SLOTS ============
+insert into meal_slots (public_id, created_at, updated_at, plan_type, key, label, enabled, sort_order) values
+  ('slt_tiffin_lunch',       (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'tiffin',  'lunch',     'Lunch',     true, 1),
+  ('slt_healthy_breakfast',  (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'healthy', 'breakfast', 'Breakfast', true, 0),
+  ('slt_healthy_lunch',      (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'healthy', 'lunch',     'Lunch',     true, 1),
+  ('slt_healthy_dinner',     (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'healthy', 'dinner',    'Dinner',    true, 2)
+on conflict (plan_type, key) do nothing;
+
+-- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
+insert into dishes (public_id, created_at, updated_at, name, description, diet, slots)
+select v.public_id, (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
+       v.name, v.description, v.diet::dish_diet, v.slots::text[]
+from (values
+  ('dsh_dal_tadka',             'Dal Tadka',                 'Yellow lentils tempered with cumin and garlic',   'veg',    array['lunch']),
+  ('dsh_paneer_butter_masala',  'Paneer Butter Masala',      'Paneer in a rich tomato-cream sauce',              'veg',    array['lunch']),
+  ('dsh_aloo_gobi',             'Aloo Gobi',                 'Potato and cauliflower dry sabzi',                 'veg',    array['lunch']),
+  ('dsh_chicken_curry',         'Chicken Curry',             'Tender chicken in a spiced onion-tomato gravy',    'nonveg', array['lunch']),
+  ('dsh_egg_bhurji',            'Egg Bhurji',                'Spiced scrambled eggs with onion and peppers',     'nonveg', array['lunch'])
+) as v(public_id, name, description, diet, slots)
+where not exists (select 1 from dishes d where d.name = v.name);
+
+-- ============ MENU: WEEK + ITEMS ============ (next Monday UTC; guard week+items on week_start existing)
+with next_monday as (
+  select d + (case when dow = 0 then 1 else 8 - dow end) as week_start
+  from (select d, extract(dow from d)::int as dow from (select (now() at time zone 'utc')::date as d) t0) t1
+),
+new_week as (
+  insert into menu_weeks (public_id, created_at, updated_at, plan_type, week_start, status, order_cutoff)
+  select 'mnw_' || to_char(nm.week_start, 'yyyymmdd'),
+         (extract(epoch from now())*1000)::bigint,
+         (extract(epoch from now())*1000)::bigint,
+         'tiffin', nm.week_start, 'released',
+         (extract(epoch from ((nm.week_start - interval '1 day') at time zone 'utc')) * 1000)::bigint
+  from next_monday nm
+  where not exists (
+    select 1 from menu_weeks mw where mw.plan_type = 'tiffin' and mw.week_start = nm.week_start
+  )
+  returning id
+)
+insert into menu_items (public_id, created_at, updated_at, menu_week_id, day_of_week, slot, dish_id, is_default, position)
+select 'mni_' || substr(md5(random()::text || day.d || dsh.rn::text), 1, 10),
+       (extract(epoch from now())*1000)::bigint,
+       (extract(epoch from now())*1000)::bigint,
+       nw.id, day.d::day_of_week, 'lunch', dsh.id, (dsh.rn = 1), dsh.rn - 1
+from new_week nw
+cross join (values ('mon'), ('tue'), ('wed'), ('thu'), ('fri')) as day(d)
+cross join (
+  select d.id, row_number() over (order by want.ord) as rn
+  from (values
+    ('Dal Tadka', 1), ('Paneer Butter Masala', 2), ('Aloo Gobi', 3), ('Chicken Curry', 4), ('Egg Bhurji', 5)
+  ) as want(name, ord)
+  join dishes d on d.name = want.name
+) as dsh;
+
 commit;
 
 -- Verify:
@@ -93,4 +174,12 @@ commit;
 -- select 'delivery_frequencies', count(*) from delivery_frequencies union all
 -- select 'duration_packages', count(*) from duration_packages union all
 -- select 'delivery_zones', count(*) from delivery_zones union all
--- select 'pricing_tiers', count(*) from pricing_tiers;
+-- select 'pricing_tiers', count(*) from pricing_tiers union all
+-- select 'feature_flags', count(*) from feature_flags union all
+-- select 'app_settings', count(*) from app_settings union all
+-- select 'event_payout', count(*) from event_payout union all
+-- select 'coin_rate', count(*) from coin_rate union all
+-- select 'meal_slots', count(*) from meal_slots union all
+-- select 'dishes', count(*) from dishes union all
+-- select 'menu_weeks', count(*) from menu_weeks union all
+-- select 'menu_items', count(*) from menu_items;
