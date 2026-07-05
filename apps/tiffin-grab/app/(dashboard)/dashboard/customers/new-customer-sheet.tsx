@@ -17,6 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@realm/ui/sheet";
+import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { NoSources } from "../_leads/no-sources";
@@ -80,7 +81,8 @@ export function NewCustomerSheet({
   const [error, setError] = useState<string | null>(null);
 
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
-  const contactReady = fullName.trim().length > 0 && phone.trim().length >= 6;
+  const phoneValid = isValidPhone(phone);
+  const contactReady = fullName.trim().length > 0 && phoneValid;
 
   function reset() {
     setStep(1);
@@ -232,6 +234,9 @@ export function NewCustomerSheet({
                 <div className="grid gap-1.5">
                   <Label>Phone <Req /></Label>
                   <PhoneInput value={phone} onChange={(v) => setPhone(v ?? "")} defaultCountry={defaultCountry} />
+                  {phone.length > 0 && !phoneValid && (
+                    <p className="text-destructive text-sm">Enter a valid phone number</p>
+                  )}
                 </div>
                 <div className="grid gap-1.5">
                   <Label>Email <span className="text-muted-foreground font-normal">optional</span></Label>
