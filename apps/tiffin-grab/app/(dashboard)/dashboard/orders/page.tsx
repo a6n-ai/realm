@@ -1,8 +1,9 @@
 import { Suspense } from "react";
+import { eq } from "drizzle-orm";
 import { PackageIcon, PlusIcon } from "lucide-react";
 import { tzToDefaultCountry } from "@realm/commons";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources } from "@/db/schema";
+import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listOrders } from "@/lib/services/orders.service";
@@ -61,7 +62,7 @@ async function OrdersData({
 async function NewOrderAction() {
   await requireStaff();
 
-  const [{ timezone }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ timezone }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -76,6 +77,15 @@ async function NewOrderAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     mealSlotsService.enabledSlots(),
+    db
+      .select({
+        name: deliveryZones.name,
+        postalPrefixes: deliveryZones.postalPrefixes,
+        slotWindow: deliveryZones.slotWindow,
+        active: deliveryZones.active,
+      })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.active, true)),
   ]);
 
   const defaultCountry = tzToDefaultCountry(timezone);
@@ -104,6 +114,7 @@ async function NewOrderAction() {
       sources={sources}
       catalog={orderCatalog}
       enabledSlots={enabledSlots}
+      zones={zones}
       trigger={
         <Button>
           <PlusIcon className="size-4" />

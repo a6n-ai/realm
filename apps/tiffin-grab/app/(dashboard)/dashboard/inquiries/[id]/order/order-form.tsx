@@ -14,8 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@realm/ui/switch";
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
+import type { ZoneLike } from "@/lib/catalog/postal";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
+import { PostalCombobox } from "../../../_leads/postal-combobox";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -35,6 +37,7 @@ export function OrderForm({
   enabledSlots,
   prefill,
   onCreate,
+  zones,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
@@ -42,6 +45,7 @@ export function OrderForm({
   enabledSlots: EnabledSlot[];
   prefill?: Partial<OrderFormInput>;
   onCreate?: (order: CreateOrderInput) => Promise<void>;
+  zones?: ZoneLike[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
@@ -337,7 +341,11 @@ export function OrderForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Postal code <span className="text-destructive">*</span></FormLabel>
-                <FormControl><Input {...field} /></FormControl>
+                {zones && zones.length > 0 ? (
+                  <PostalCombobox value={field.value} onChange={field.onChange} zones={zones} />
+                ) : (
+                  <FormControl><Input {...field} /></FormControl>
+                )}
                 <FormMessage />
               </FormItem>
             )}
