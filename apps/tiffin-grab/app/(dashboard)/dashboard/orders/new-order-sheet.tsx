@@ -10,12 +10,12 @@ import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger,
-} from "@realm/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@realm/ui/dialog";
 import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -108,16 +108,16 @@ export function NewOrderSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep(1); }}>
-      <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep(1); }}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
           <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
             <PackageIcon className="size-[18px]" />
           </span>
           <div className="grid gap-0.5">
-            <SheetTitle className="text-pretty">New order</SheetTitle>
-            <SheetDescription>Find or add the customer, then build the order.</SheetDescription>
+            <DialogTitle className="text-pretty">New order</DialogTitle>
+            <DialogDescription>Find or add the customer, then build the order.</DialogDescription>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export function NewOrderSheet({
             )}
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

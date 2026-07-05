@@ -21,14 +21,14 @@ import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetTitle,
-  SheetTrigger,
-} from "@realm/ui/sheet";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  DialogTrigger,
+} from "@realm/ui/dialog";
 import { Textarea } from "@realm/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
@@ -54,7 +54,7 @@ function Req() {
 }
 
 /**
- * Add-inquiry flow surfaced as a slide-over Sheet. The trigger is rendered by
+ * Add-inquiry flow surfaced as a centered Dialog. The trigger is rendered by
  * the caller (the "Add inquiry" insight card) and passed in as children so the
  * card stays a pure presentational tile.
  */
@@ -135,17 +135,17 @@ export function AddInquirySheet({
   const submitting = form.formState.isSubmitting;
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent className="flex flex-col gap-0 p-0 sm:max-w-lg">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         {/* Warm header band: saffron tile anchors the action, sets the tone. */}
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
           <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
             <PlusIcon className="size-[18px]" />
           </span>
           <div className="grid gap-0.5">
-            <SheetTitle className="text-pretty">New inquiry</SheetTitle>
-            <SheetDescription>Capture a lead. It lands in the pipeline as "New".</SheetDescription>
+            <DialogTitle className="text-pretty">New inquiry</DialogTitle>
+            <DialogDescription>Capture a lead. It lands in the pipeline as "New".</DialogDescription>
           </div>
         </div>
 
@@ -352,21 +352,21 @@ export function AddInquirySheet({
               )}
             </div>
 
-            <SheetFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover">
-              <SheetClose asChild>
+            <DialogFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover">
+              <DialogClose asChild>
                 <Button type="button" variant="outline" disabled={submitting}>
                   Cancel
                 </Button>
-              </SheetClose>
+              </DialogClose>
               <Button type="submit" disabled={submitting || !!existingCustomer} className="active:scale-[0.98]">
                 {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
                 {submitting ? "Adding…" : "Add inquiry"}
               </Button>
-            </SheetFooter>
+            </DialogFooter>
           </form>
         </Form>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

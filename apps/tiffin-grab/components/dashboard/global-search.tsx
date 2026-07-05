@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SearchIcon } from "lucide-react";
 import {
   Command,
-  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -15,20 +13,28 @@ import {
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 
-const EMPTY: SearchResults = { orders: [], customers: [], inquiries: [] };
+const EMPTY: SearchResults = { orders: [], customers: [], inquiries: [], tickets: [] };
+
+const GROUPS = [
+  { key: "orders", heading: "Orders" },
+  { key: "customers", heading: "Customers" },
+  { key: "inquiries", heading: "Inquiries" },
+  { key: "tickets", heading: "Tickets" },
+] as const;
 
 export function GlobalSearch({ role }: { role: string }) {
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>(EMPTY);
 
-  // ⌘K / Ctrl-K toggles the palette.
+  // ⌘K / Ctrl-K focuses the search (no modal — the palette is inline now).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((v) => !v);
+        inputRef.current?.focus();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -51,6 +57,7 @@ export function GlobalSearch({ role }: { role: string }) {
     (href: string) => {
       setOpen(false);
       setQuery("");
+      inputRef.current?.blur();
       router.push(href);
     },
     [router],
@@ -60,36 +67,34 @@ export function GlobalSearch({ role }: { role: string }) {
     .filter((i) => i.roles.includes(role))
     .filter((i) => !query || i.title.toLowerCase().includes(query.toLowerCase()));
 
-  const hasResults =
-    navItems.length > 0 ||
-    results.orders.length > 0 ||
-    results.customers.length > 0 ||
-    results.inquiries.length > 0;
+  const hasEntity = GROUPS.some((g) => results[g.key].length > 0);
+  const showDropdown = open && query.trim().length >= 2;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="bg-muted/50 text-muted-foreground hover:bg-muted flex h-8 items-center gap-2 rounded-lg border px-2.5 text-sm transition-colors sm:w-56"
-      >
-        <SearchIcon className="size-4 shrink-0" />
-        <span className="hidden sm:inline">Search…</span>
-        <kbd className="bg-background text-muted-foreground ml-auto hidden rounded border px-1.5 font-mono text-[10px] sm:inline">
-          ⌘K
-        </kbd>
-      </button>
-
-      <CommandDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Search"
-        description="Search pages, orders, customers, and inquiries"
-      >
-        <Command shouldFilter={false}>
-          <CommandInput value={query} onValueChange={setQuery} placeholder="Search pages, orders, customers…" />
-          <CommandList>
-            {!hasResults && <CommandEmpty>No results found.</CommandEmpty>}
+    <div className="relative w-full max-w-md">
+      <Command shouldFilter={false} className="overflow-visible bg-transparent">
+        <CommandInput
+          ref={inputRef}
+          value={query}
+          onValueChange={setQuery}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              inputRef.current?.blur();
+            }
+          }}
+          placeholder="Search pages, orders, customers, tickets, or paste an id…"
+        />
+        {showDropdown && (
+          <CommandList
+            // Keep input focused when clicking a result, so onBlur doesn't close
+            // the list before onSelect fires (the standard combobox mousedown trick).
+            onMouseDown={(e) => e.preventDefault()}
+            className="bg-popover text-popover-foreground absolute top-full z-50 mt-1 max-h-[60vh] w-full overflow-y-auto rounded-lg border p-1 shadow-md"
+          >
+            {navItems.length === 0 && !hasEntity && <CommandEmpty>No results found.</CommandEmpty>}
             {navItems.length > 0 && (
               <CommandGroup heading="Navigation">
                 {navItems.map((i) => (
@@ -100,39 +105,21 @@ export function GlobalSearch({ role }: { role: string }) {
                 ))}
               </CommandGroup>
             )}
-            {results.orders.length > 0 && (
-              <CommandGroup heading="Orders">
-                {results.orders.map((h) => (
-                  <CommandItem key={h.id} value={`order:${h.id}`} onSelect={() => go(h.href)}>
-                    <span className="truncate">{h.label}</span>
-                    {h.sub && <span className="text-muted-foreground ml-auto truncate text-xs">{h.sub}</span>}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {results.customers.length > 0 && (
-              <CommandGroup heading="Customers">
-                {results.customers.map((h) => (
-                  <CommandItem key={h.id} value={`customer:${h.id}`} onSelect={() => go(h.href)}>
-                    <span className="truncate">{h.label}</span>
-                    {h.sub && <span className="text-muted-foreground ml-auto truncate text-xs">{h.sub}</span>}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {results.inquiries.length > 0 && (
-              <CommandGroup heading="Inquiries">
-                {results.inquiries.map((h) => (
-                  <CommandItem key={h.id} value={`inquiry:${h.id}`} onSelect={() => go(h.href)}>
-                    <span className="truncate">{h.label}</span>
-                    {h.sub && <span className="text-muted-foreground ml-auto truncate text-xs">{h.sub}</span>}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+            {GROUPS.map((g) =>
+              results[g.key].length > 0 ? (
+                <CommandGroup key={g.key} heading={g.heading}>
+                  {results[g.key].map((h) => (
+                    <CommandItem key={h.id} value={`${g.key}:${h.id}`} onSelect={() => go(h.href)}>
+                      <span className="truncate">{h.label}</span>
+                      {h.sub && <span className="text-muted-foreground ml-auto truncate text-xs">{h.sub}</span>}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : null,
             )}
           </CommandList>
-        </Command>
-      </CommandDialog>
-    </>
+        )}
+      </Command>
+    </div>
   );
 }

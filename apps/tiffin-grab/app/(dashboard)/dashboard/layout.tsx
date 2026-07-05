@@ -61,9 +61,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         />
       }
       breadcrumbs={<AppBreadcrumbs />}
+      center={<GlobalSearch role={role} />}
       actions={
         <>
-          <GlobalSearch role={role} />
           <NotificationBell />
           <LockButton hasPin={hasPin} />
           <ModeToggle />

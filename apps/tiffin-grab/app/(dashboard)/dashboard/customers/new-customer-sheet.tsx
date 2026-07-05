@@ -11,12 +11,12 @@ import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-  SheetTrigger,
-} from "@realm/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@realm/ui/dialog";
 import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -166,22 +166,22 @@ export function NewCustomerSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
           <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
             <UserPlusIcon className="size-[18px]" />
           </span>
           <div className="grid gap-0.5">
-            <SheetTitle className="text-pretty">
+            <DialogTitle className="text-pretty">
               {step === 1 ? "New customer" : "Add an order"}
-            </SheetTitle>
-            <SheetDescription>
+            </DialogTitle>
+            <DialogDescription>
               {step === 1
                 ? "Source it, match the lead, then save the customer."
                 : `Build the first order for ${fullName || "this customer"}.`}
-            </SheetDescription>
+            </DialogDescription>
           </div>
         </div>
 
@@ -323,7 +323,7 @@ export function NewCustomerSheet({
             </section>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

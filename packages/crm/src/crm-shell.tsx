@@ -10,12 +10,14 @@ import { Separator } from "@realm/ui/separator";
 export function CrmShell({
   sidebar,
   breadcrumbs,
+  center,
   actions,
   footer,
   children,
 }: {
   sidebar: ReactNode;
   breadcrumbs?: ReactNode;
+  center?: ReactNode;
   actions?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
@@ -28,7 +30,8 @@ export function CrmShell({
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           {breadcrumbs}
-          {actions && <div className="ml-auto flex items-center gap-1">{actions}</div>}
+          {center && <div className="flex flex-1 justify-center px-4">{center}</div>}
+          {actions && <div className={`flex items-center gap-1${center ? "" : " ml-auto"}`}>{actions}</div>}
         </header>
         <div className="flex-1 p-6">{children}</div>
       </SidebarInset>
