@@ -4,6 +4,7 @@ import { ThemeProvider, themeInitScript } from "@realm/themes";
 import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@realm/ui/sonner";
 import { TooltipProvider } from "@realm/ui/tooltip";
+import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,6 +40,7 @@ export default function RootLayout({
         <ThemeProvider>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
+          <StaleDeployReloader />
         </ThemeProvider>
       </body>
     </html>
