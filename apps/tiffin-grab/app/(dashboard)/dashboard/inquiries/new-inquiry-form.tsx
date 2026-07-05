@@ -35,6 +35,7 @@ import { Textarea } from "@realm/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
+import { NoSources } from "../_leads/no-sources";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Zone = { name: string; postalPrefixes: string[]; slotWindow: string; active: boolean };
@@ -149,6 +150,9 @@ export function AddInquirySheet({
           </div>
         </div>
 
+        {sources.length === 0 ? (
+          <NoSources noun="inquiry" />
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
@@ -364,6 +368,7 @@ export function AddInquirySheet({
             </SheetFooter>
           </form>
         </Form>
+        )}
       </SheetContent>
     </Sheet>
   );

@@ -19,6 +19,7 @@ import {
 } from "@realm/ui/sheet";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
+import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { createOrderFlow } from "../orders/actions";
@@ -168,6 +169,9 @@ export function NewCustomerSheet({
 
         {step === 1 ? (
           <>
+            {sources.length === 0 ? (
+              <NoSources noun="customer" />
+            ) : (
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
               {/* Source */}
               <section className="grid gap-4">
@@ -238,6 +242,7 @@ export function NewCustomerSheet({
 
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
             </div>
+            )}
 
             <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4">
               <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly}>

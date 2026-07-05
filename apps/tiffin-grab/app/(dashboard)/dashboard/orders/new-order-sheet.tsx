@@ -17,6 +17,7 @@ import {
 } from "@realm/ui/sheet";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import { InquiryMatch } from "../_leads/inquiry-match";
+import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
 import { createOrderFlow } from "./actions";
@@ -100,6 +101,9 @@ export function NewOrderSheet({
           </div>
         </div>
 
+        {sources.length === 0 ? (
+          <NoSources noun="order" />
+        ) : (
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
           {/* Source */}
           <section className="grid gap-4">
@@ -194,6 +198,7 @@ export function NewOrderSheet({
             )}
           </section>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );
