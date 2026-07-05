@@ -176,7 +176,10 @@ export function NewCustomerSheet({
             ) : (
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
               {/* Source */}
-              <section className="grid gap-4">
+              <section
+                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "40ms" }}
+              >
                 <SectionLabel>Source</SectionLabel>
                 <div className="grid gap-1.5">
                   <Label>Where did they come from? <Req /></Label>
@@ -225,7 +228,10 @@ export function NewCustomerSheet({
               </section>
 
               {/* Contact */}
-              <section className="grid gap-4">
+              <section
+                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                style={{ animationDelay: "120ms" }}
+              >
                 <SectionLabel>Contact</SectionLabel>
                 <div className="grid gap-1.5">
                   <Label>Full name <Req /></Label>
@@ -249,18 +255,23 @@ export function NewCustomerSheet({
             </div>
             )}
 
-            <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4">
-              <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly}>
-                Save
-              </Button>
-              <Button disabled={!contactReady || saving} onClick={onSaveAndOrder}>
-                Save &amp; add order →
-              </Button>
-            </div>
+            {sources.length > 0 && (
+              <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4">
+                <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly}>
+                  Save
+                </Button>
+                <Button disabled={!contactReady || saving} onClick={onSaveAndOrder}>
+                  Save &amp; add order →
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
-            <section className="grid gap-4">
+            <section
+              className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+              style={{ animationDelay: "200ms" }}
+            >
               <SectionLabel>Order</SectionLabel>
               <OrderForm
                 inquiryId=""
