@@ -21,6 +21,9 @@ import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
+import { CustomerSearch } from "../_leads/customer-search";
+import { StepHeader } from "../_leads/step-header";
+import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
@@ -113,6 +116,12 @@ export function NewCustomerSheet({
     }
   }
 
+  function pickCustomer(c: CustomerHit) {
+    setFullName(c.fullName ?? "");
+    setPhone(c.phone ?? "");
+    setEmail(c.email ?? "");
+  }
+
   const source = { sourceKey, subSourceKey: subSourceKey || undefined };
   const contact = { fullName, phone, email: email.trim() || undefined };
 
@@ -172,12 +181,15 @@ export function NewCustomerSheet({
           </div>
         </div>
 
+        {sources.length > 0 && <StepHeader step={step} steps={["Customer", "Order"]} />}
+
         {step === 1 ? (
           <>
             {sources.length === 0 ? (
               <NoSources noun="customer" />
             ) : (
             <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+              <CustomerSearch onPick={pickCustomer} />
               {/* Source */}
               <section
                 className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
@@ -270,7 +282,14 @@ export function NewCustomerSheet({
             )}
           </>
         ) : (
-          <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
+            >
+              ← <span className="font-medium">{fullName}</span>
+            </button>
             <section
               className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
               style={{ animationDelay: "200ms" }}
