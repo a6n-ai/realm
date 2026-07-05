@@ -77,6 +77,7 @@ function CountrySelect({ disabled, value, onChange, options }: CountrySelectProp
                   .map((option) => (
                     <CommandItem
                       key={option.value}
+                      value={`${option.label} +${RPNInput.getCountryCallingCode(option.value)}`}
                       className="gap-2"
                       onSelect={() => onChange(option.value)}
                     >
@@ -109,3 +110,4 @@ function FlagComponent({ country, countryName }: RPNInput.FlagProps) {
 }
 
 export { PhoneInput };
+export { isValidPhoneNumber as isValidPhone } from "react-phone-number-input";
