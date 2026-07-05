@@ -4,7 +4,6 @@ import {
   ChevronDownIcon,
   HelpCircleIcon,
   Loader2Icon,
-  MapPinIcon,
   PlusIcon,
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +17,6 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
-import { matchZone } from "@/lib/catalog/postal";
 import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
@@ -36,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
 import { NoSources } from "../_leads/no-sources";
+import { PostalCombobox } from "../_leads/postal-combobox";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Zone = { name: string; postalPrefixes: string[]; slotWindow: string; active: boolean };
@@ -94,9 +93,7 @@ export function AddInquirySheet({
   });
 
   const sourceKey = form.watch("sourceKey");
-  const postal = form.watch("postalCode");
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
-  const zone = postal ? matchZone(postal, zones) : null;
 
   // Live count of filled optional-interest fields, surfaced on the collapsible header.
   const interest = form.watch([
@@ -315,23 +312,16 @@ export function AddInquirySheet({
                         <FormLabel>Quoted price</FormLabel>
                         <Input className="nums" type="number" min={0} step="0.01" placeholder="0.00" {...form.register("quotedPrice")} />
                       </FormItem>
-                      <FormItem className="grid gap-1.5 sm:col-span-2">
-                        <FormLabel>Postal code</FormLabel>
-                        <Input className="uppercase" placeholder="e.g. M5V 2T6" {...form.register("postalCode")} />
-                        {postal ? (
-                          zone ? (
-                            <span className="text-ok flex items-center gap-1.5 text-sm font-medium">
-                              <MapPinIcon className="size-3.5" />
-                              Zone {zone.name} · {zone.slotWindow}
-                            </span>
-                          ) : (
-                            <span className="text-warn flex items-center gap-1.5 text-sm font-medium">
-                              <MapPinIcon className="size-3.5" />
-                              Out of delivery area — waitlist
-                            </span>
-                          )
-                        ) : null}
-                      </FormItem>
+                      <FormField
+                        control={form.control}
+                        name="postalCode"
+                        render={({ field }) => (
+                          <FormItem className="grid gap-1.5 sm:col-span-2">
+                            <FormLabel>Postal code</FormLabel>
+                            <PostalCombobox value={field.value ?? ""} onChange={field.onChange} zones={zones} />
+                          </FormItem>
+                        )}
+                      />
                       <FormItem className="grid gap-1.5 sm:col-span-2">
                         <FormLabel>Preferred start</FormLabel>
                         <Input type="date" {...form.register("preferredStart")} />
