@@ -2,7 +2,10 @@ import { makePublicId, updatableColumns } from "@realm/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
-const uuidText = sql`gen_random_uuid()::text`;
+// better-auth (generateId:false) reads these ids as opaque strings and never
+// sets them — the DB default fills them. Keep the column text but derive from
+// next_id() so every table shares one id scheme instead of stray uuids.
+const nextIdText = sql`(next_id())::text`;
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
@@ -46,7 +49,7 @@ export const users = pgTable(
 export const session = pgTable(
   "session",
   {
-    id: text("id").primaryKey().default(uuidText),
+    id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ses")),
     token: text("token").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -65,7 +68,7 @@ export const session = pgTable(
 export const account = pgTable(
   "account",
   {
-    id: text("id").primaryKey().default(uuidText),
+    id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("act")),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
@@ -89,7 +92,7 @@ export const account = pgTable(
 export const verification = pgTable(
   "verification",
   {
-    id: text("id").primaryKey().default(uuidText),
+    id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ver")),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),

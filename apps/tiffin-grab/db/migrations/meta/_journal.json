@@ -113,6 +113,20 @@
       "when": 1782966097249,
       "tag": "0015_fast_marrow",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1783300000000,
+      "tag": "0016_widen_next_id_seq",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783300000001,
+      "tag": "0017_auth_ids_next_id",
+      "breakpoints": true
     }
   ]
 }
