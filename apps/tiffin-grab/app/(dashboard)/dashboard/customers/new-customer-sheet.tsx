@@ -62,20 +62,26 @@ const PhoneInput = dynamic(() => import("@realm/ui/phone-input").then((m) => m.P
 
 export function NewCustomerSheet({
   trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
   defaultCountry,
   sources,
   catalog,
   enabledSlots,
   zones,
 }: {
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
   zones: ZoneLike[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -167,8 +173,8 @@ export function NewCustomerSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
           <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
             <UserPlusIcon className="size-[18px]" />
@@ -280,7 +286,7 @@ export function NewCustomerSheet({
             )}
 
             {sources.length > 0 && (
-              <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4">
+              <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly}>
                   Save
                 </Button>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlusIcon } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -12,6 +13,14 @@ import {
 } from "@realm/ui/command";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
+import { useQuickAdd, type QuickAddKind } from "@/components/dashboard/quick-add-provider";
+
+// Nav pages that have a global add-popup. Staff-only.
+const ADD_KIND: Record<string, QuickAddKind> = {
+  "/dashboard/orders": "order",
+  "/dashboard/inquiries": "inquiry",
+  "/dashboard/customers": "customer",
+};
 
 const EMPTY: SearchResults = { orders: [], customers: [], inquiries: [], tickets: [] };
 
@@ -24,6 +33,8 @@ const GROUPS = [
 
 export function GlobalSearch({ role }: { role: string }) {
   const router = useRouter();
+  const quickAdd = useQuickAdd();
+  const isStaff = role === "admin" || role === "member";
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -63,6 +74,16 @@ export function GlobalSearch({ role }: { role: string }) {
     [router],
   );
 
+  const openAdd = useCallback(
+    (kind: QuickAddKind) => {
+      setOpen(false);
+      setQuery("");
+      inputRef.current?.blur();
+      quickAdd?.(kind);
+    },
+    [quickAdd],
+  );
+
   const navItems = SECTIONS.flatMap((s) => s.items)
     .filter((i) => i.roles.includes(role))
     .filter((i) => !query || i.title.toLowerCase().includes(query.toLowerCase()));
@@ -97,12 +118,30 @@ export function GlobalSearch({ role }: { role: string }) {
             {navItems.length === 0 && !hasEntity && <CommandEmpty>No results found.</CommandEmpty>}
             {navItems.length > 0 && (
               <CommandGroup heading="Navigation">
-                {navItems.map((i) => (
-                  <CommandItem key={i.href} value={`nav:${i.title}`} onSelect={() => go(i.href)}>
-                    <i.icon />
-                    {i.title}
-                  </CommandItem>
-                ))}
+                {navItems.map((i) => {
+                  const addKind = isStaff && quickAdd ? ADD_KIND[i.href] : undefined;
+                  return (
+                    <CommandItem key={i.href} value={`nav:${i.title}`} onSelect={() => go(i.href)}>
+                      <i.icon />
+                      {i.title}
+                      {addKind && (
+                        <button
+                          type="button"
+                          aria-label={`Add ${i.title}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            openAdd(addKind);
+                          }}
+                          className="text-muted-foreground hover:bg-primary/12 hover:text-primary ml-auto flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors"
+                        >
+                          <PlusIcon className="size-3.5" />
+                          Add
+                        </button>
+                      )}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             )}
             {GROUPS.map((g) =>

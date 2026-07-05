@@ -14,6 +14,7 @@ import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CrmShell } from "@realm/crm";
+import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
@@ -52,6 +53,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
+    <QuickAddProvider>
     <CrmShell
       sidebar={
         <AppSidebar
@@ -73,5 +75,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     >
       {children}
     </CrmShell>
+    </QuickAddProvider>
   );
 }

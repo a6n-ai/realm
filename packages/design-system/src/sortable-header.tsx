@@ -36,7 +36,7 @@ export function SortableHeader({ column, label, currentSort, currentDir, align, 
         // Right-aligned numeric headers push the sort control to the cell edge so
         // the label sits flush over its column.
         className={cn(
-          "inline-flex items-center gap-1 hover:text-foreground text-muted-foreground data-[active=true]:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded-sm",
+          "inline-flex items-center gap-1 min-h-11 sm:min-h-0 hover:text-foreground text-muted-foreground data-[active=true]:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded-sm",
           align === "right" && "flex-row-reverse",
         )}
         data-active={active}

@@ -4,7 +4,7 @@ import type { RoleValue } from "@realm/commons";
 import { UsersIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
-import { UserRow } from "./user-row";
+import { UserRow, UserRowCard } from "./user-row";
 
 type FlagState = { id: string; key: string; label: string; enabled: boolean };
 
@@ -44,6 +44,7 @@ export function UsersList({
       emptyMessage="No users yet."
       emptySearchMessage="No users match your search."
       renderRow={(r) => <UserRow {...r} />}
+      mobileCard={(r) => <UserRowCard {...r} />}
     />
   );
 }

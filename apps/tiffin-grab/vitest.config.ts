@@ -2,7 +2,13 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
+  resolve: {
+    alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
+    // pnpm installs two physical `next` copies (differing peer sets), so the app
+    // and @realm/* packages import different `next/navigation` modules — a
+    // `vi.mock("next/navigation")` would only patch one. Dedupe to a single copy.
+    dedupe: ["next"],
+  },
   test: {
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],

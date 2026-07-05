@@ -28,11 +28,12 @@ export function CrmShell({
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          {breadcrumbs}
-          {center && <div className="flex flex-1 justify-center px-4">{center}</div>}
-          {actions && <div className={`flex items-center gap-1${center ? "" : " ml-auto"}`}>{actions}</div>}
+          <Separator orientation="vertical" className="mr-2 hidden h-4 sm:block" />
+          <div className="hidden sm:block">{breadcrumbs}</div>
+          {center && <div className="hidden flex-1 justify-center px-4 md:flex">{center}</div>}
+          {actions && <div className={`flex items-center gap-1${center ? " ml-auto md:ml-0" : " ml-auto"}`}>{actions}</div>}
         </header>
+        {center && <div className="border-b px-4 py-2 md:hidden">{center}</div>}
         <div className="flex-1 p-6">{children}</div>
       </SidebarInset>
       {footer}

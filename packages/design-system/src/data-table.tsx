@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import {
+  Children, Fragment, isValidElement, useCallback,
+  type ReactElement, type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -31,6 +34,8 @@ export type DataTableProps<Row, K extends string> = {
   rowKey: (r: Row) => string;
   /** Returns the <TableCell>… children only — DataTable owns the wrapping <TableRow>. */
   renderRow: (r: Row) => ReactNode;
+  /** Escape hatch: render a custom mobile card body instead of the auto-derived one. */
+  mobileCard?: (r: Row) => ReactNode;
   rowClassName?: (r: Row) => string;
   sort?: SortState<K>;
   /** Leading serial-number ("#") column. On by default; pass false to hide. */
@@ -128,16 +133,99 @@ function HeaderRow<K extends string>({
   );
 }
 
+// renderRow returns a fragment of <TableCell>s aligned 1:1 with `columns`.
+// Pull the cells out and, for each, its inner content (a <td> can't live
+// outside a <table>, so we render children, not the cell element).
+function rowCells(node: ReactNode): ReactNode[] {
+  const top = isValidElement(node) && node.type === Fragment
+    ? (node as ReactElement<{ children?: ReactNode }>).props.children
+    : node;
+  return Children.toArray(top);
+}
+function cellContent(cell: ReactNode): ReactNode {
+  return isValidElement(cell)
+    ? (cell as ReactElement<{ children?: ReactNode }>).props.children
+    : cell;
+}
+
+function MobileCard<Row, K extends string>({
+  row, columns, renderRow, mobileCard, idAccessor, idHref, rowClassName,
+}: {
+  row: Row;
+  columns: readonly Column<K>[];
+  renderRow: (r: Row) => ReactNode;
+  mobileCard?: (r: Row) => ReactNode;
+  idAccessor?: (r: Row) => string;
+  idHref?: (r: Row) => string;
+  rowClassName?: (r: Row) => string;
+}) {
+  const cells = mobileCard ? [] : rowCells(renderRow(row));
+  // Auto-derivation needs one cell per column. A renderRow that returns a
+  // *component* (not an inline <>…</> of TableCells) can't be introspected —
+  // pass `mobileCard` for those. Warn loudly instead of rendering a blank card.
+  if (!mobileCard && cells.length !== columns.length && process.env.NODE_ENV !== "production") {
+    console.warn(
+      `DataTable: renderRow yielded ${cells.length} cell(s) for ${columns.length} column(s); ` +
+        `pass a mobileCard() when renderRow returns a component.`,
+    );
+  }
+  const lastIdx = columns.length - 1;
+  const trailing = !mobileCard && columns[lastIdx]?.label === "" ? cells[lastIdx] : null;
+  const fields = mobileCard
+    ? []
+    : columns
+        .map((c, i) => ({ c, cell: cells[i] }))
+        .slice(1)
+        .filter(({ c }) => c.label !== "");
+
+  return (
+    <div className={cn("bg-card relative rounded-lg border p-4", rowClassName?.(row))}>
+      {idHref && (
+        <Link
+          href={idHref(row)}
+          className="absolute inset-0 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          aria-label={idAccessor ? idAccessor(row) : undefined}
+        />
+      )}
+      {mobileCard ? (
+        mobileCard(row)
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 space-y-0.5">
+              {idAccessor && (
+                <div className="text-muted-foreground font-mono text-xs">{idAccessor(row)}</div>
+              )}
+              <div className="text-base font-medium">{cellContent(cells[0])}</div>
+            </div>
+            {trailing && <div className="text-muted-foreground shrink-0">{cellContent(trailing)}</div>}
+          </div>
+          {fields.length > 0 && (
+            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              {fields.map(({ c, cell }) => (
+                <Fragment key={c.key}>
+                  <dt className="text-muted-foreground">{c.label}</dt>
+                  <dd className="text-right font-medium">{cellContent(cell)}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * The one bordered data table for the dashboard. Header always renders from
  * `columns`; on zero rows the header stays and a single spanning row carries the
  * empty state — the card never collapses or swaps to a centered panel.
  */
 export function DataTable<Row, K extends string>({
-  columns, rows, rowKey, renderRow, rowClassName,
+  columns, rows, rowKey, renderRow, mobileCard, rowClassName,
   sort, serial = true, idAccessor, idHref, idLabel = "ID",
   search, filters, actions,
-  emptyIcon, emptyMessage, emptySearchMessage, emptyAction,
+  emptyIcon: EmptyIcon, emptyMessage, emptySearchMessage, emptyAction,
 }: DataTableProps<Row, K>) {
   const [searchValue, setSearchValue] = useSearchQuery();
   const hasId = !!idAccessor;
@@ -168,7 +256,7 @@ export function DataTable<Row, K extends string>({
         filters={filters}
         actions={actions}
       />
-      <div className="overflow-hidden rounded-lg border">
+      <div className="hidden overflow-hidden rounded-lg border md:block">
         <Table>
           <TableHeader className={HEAD_STICKY}>
             <HeaderRow columns={columns} sort={sort} serial={serial} hasId={hasId} idLabel={idLabel} />
@@ -197,7 +285,7 @@ export function DataTable<Row, K extends string>({
             ) : (
               <TableEmptyRow
                 colSpan={columns.length + leadCount}
-                icon={emptyIcon}
+                icon={EmptyIcon}
                 message={
                   searchValue
                     ? emptySearchMessage ??
@@ -217,6 +305,36 @@ export function DataTable<Row, K extends string>({
             )}
           </TableBody>
         </Table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {filtered.length ? (
+          filtered.map((r) => (
+            <MobileCard
+              key={rowKey(r)}
+              row={r}
+              columns={columns}
+              renderRow={renderRow}
+              mobileCard={mobileCard}
+              idAccessor={idAccessor}
+              idHref={idHref}
+              rowClassName={rowClassName}
+            />
+          ))
+        ) : (
+          <div className="grid place-items-center gap-3 rounded-lg border py-12 text-center">
+            <span className="bg-muted text-muted-foreground grid size-12 place-items-center rounded-xl">
+              <EmptyIcon className="size-6" />
+            </span>
+            <p className="text-muted-foreground max-w-sm px-6">
+              {searchValue ? emptySearchMessage ?? `No results match “${searchValue}”.` : emptyMessage}
+            </p>
+            {searchValue ? (
+              <Button variant="outline" size="sm" onClick={() => setSearchValue("")}>Clear filters</Button>
+            ) : (
+              emptyAction
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -265,7 +383,7 @@ function DataTableSkeleton<K extends string>({
   return (
     <div className="space-y-4">
       <FilterBar search={<Skeleton className="h-9 w-full" />} />
-      <div className="overflow-hidden rounded-lg border">
+      <div className="hidden overflow-hidden rounded-lg border md:block">
         <Table>
           <TableHeader className={HEAD_STICKY}>
             <TableRow>
@@ -306,6 +424,15 @@ function DataTableSkeleton<K extends string>({
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="bg-card space-y-3 rounded-lg border p-4">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-full max-w-56" />
+          </div>
+        ))}
       </div>
     </div>
   );

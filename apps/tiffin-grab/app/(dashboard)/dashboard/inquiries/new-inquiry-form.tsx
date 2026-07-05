@@ -66,17 +66,23 @@ const PhoneInput = dynamic(() => import("@realm/ui/phone-input").then((m) => m.P
 
 export function AddInquirySheet({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   defaultCountry,
   sources,
   zones,
 }: {
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
   sources: Src[];
   zones: Zone[];
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const form = useForm<InquiryFormInput, unknown, InquiryFormValues>({
     resolver: zodResolver(inquiryFormSchema),
     defaultValues: {
@@ -136,8 +142,8 @@ export function AddInquirySheet({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
         {/* Warm header band: saffron tile anchors the action, sets the tone. */}
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
           <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
@@ -352,7 +358,7 @@ export function AddInquirySheet({
               )}
             </div>
 
-            <DialogFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover">
+            <DialogFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
               <DialogClose asChild>
                 <Button type="button" variant="outline" disabled={submitting}>
                   Cancel
