@@ -49,8 +49,6 @@ export function OrderForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
-  const [pricing, setPricing] = useState(false);
-  const today = new Date().toLocaleDateString();
   // The acting rep's own daily coupon (server-discovered) and the clamped amount
   // they choose to apply. The amount is bounded by a server-computed ceiling — it
   // is never a free-text discount (createOrder re-validates and clamps again).
@@ -139,7 +137,6 @@ export function OrderForm({
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available ? repInfo.code : undefined;
-    setPricing(true);
     previewPrice(
       buildInput({
         planKey,
@@ -159,8 +156,8 @@ export function OrderForm({
       repCode,
       discount > 0 ? discount : undefined,
     )
-      .then((r) => { if (!cancelled) { setPreview(r); setPricing(false); } })
-      .catch(() => { if (!cancelled) { setPreview(null); setPricing(false); } });
+      .then((r) => { if (!cancelled) setPreview(r); })
+      .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo]);
@@ -194,7 +191,7 @@ export function OrderForm({
 
   return (
     <Form {...form}>
-    <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-[1fr_280px]">
+    <form onSubmit={onSubmit} className="space-y-6">
       <div className="space-y-4">
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-foreground mb-1">Plan & Schedule</legend>
@@ -416,67 +413,6 @@ export function OrderForm({
         </div>
       </div>
 
-      <aside id="invoice-doc" className="h-fit md:sticky md:top-4">
-        <div className="bg-card overflow-hidden rounded-xl border">
-          <div className="border-b px-4 py-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Invoice</h2>
-              <span className="text-muted-foreground text-xs uppercase tracking-wide">Draft</span>
-            </div>
-            <p className="text-muted-foreground mt-0.5 text-xs">Tiffin Grab</p>
-            <p className="text-muted-foreground text-xs">{today}</p>
-          </div>
-
-          <div className="grid gap-0.5 border-b px-4 py-3 text-sm">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">Bill to</p>
-            <p className="font-medium">{contact.fullName}</p>
-            <p className="text-muted-foreground">{contact.phone}</p>
-            {(addressLine || city || postalCode) && (
-              <p className="text-muted-foreground">
-                {[addressLine, city, postalCode].filter(Boolean).join(", ")}
-              </p>
-            )}
-          </div>
-
-          <div className="px-4 py-3 text-sm">
-            {preview ? (
-              <div className="space-y-1">
-                {preview.lineItems.map((l) => (
-                  <div key={l.label} className="flex justify-between">
-                    <span className="text-muted-foreground">{l.label}</span>
-                    <span className="nums">${l.amount.toFixed(2)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between border-t pt-1">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="nums">${preview.subtotal.toFixed(2)}</span>
-                </div>
-                {preview.adjustments.map((d) => (
-                  <div key={d.label} className="text-ok flex justify-between">
-                    <span>{d.label}</span>
-                    <span className="nums">-${d.amount.toFixed(2)}</span>
-                  </div>
-                ))}
-                <div className="mt-1 flex justify-between border-t pt-2 text-base font-semibold">
-                  <span>Total</span>
-                  <span className="nums">${preview.total.toFixed(2)}</span>
-                </div>
-                <p className="text-muted-foreground text-xs">{preview.tiffinCount} tiffins</p>
-              </div>
-            ) : pricing ? (
-              <p className="text-muted-foreground">Calculating…</p>
-            ) : (
-              <p className="text-muted-foreground">Select options to preview.</p>
-            )}
-          </div>
-
-          <div className="border-t px-4 py-3 print:hidden">
-            <Button type="button" variant="outline" className="w-full" disabled={!preview} onClick={() => window.print()}>
-              Print invoice
-            </Button>
-          </div>
-        </div>
-      </aside>
     </form>
     </Form>
   );
