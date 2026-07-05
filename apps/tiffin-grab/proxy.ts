@@ -16,7 +16,12 @@ export function proxy(request: NextRequest) {
     loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
-  return NextResponse.next();
+  const res = NextResponse.next();
+  // Protected pages must never sit in the browser's bfcache — otherwise after
+  // sign-out the Back button restores the rendered dashboard without re-hitting
+  // this gate. no-store makes the browser re-request → redirect to /login.
+  if (onDashboard) res.headers.set("Cache-Control", "no-store, must-revalidate");
+  return res;
 }
 
 export const config = {

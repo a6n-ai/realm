@@ -224,7 +224,7 @@ export function AppSidebar({
                   )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/login"); } } })}>
+                <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}>
                   <LogOutIcon data-icon="inline-start" />
                   Sign out
                 </DropdownMenuItem>
