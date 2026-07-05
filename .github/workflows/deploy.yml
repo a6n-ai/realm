@@ -95,5 +95,6 @@ jobs:
           envs: IMAGE_TAG # forward IMAGE_TAG into the remote shell → deploy.sh
           script: |
             set -euo pipefail
-            cd "${{ vars.DEPLOY_PATH || '~/realm' }}/deployment/prod"
+            DEPLOY_PATH="${{ vars.DEPLOY_PATH }}"
+            cd "${DEPLOY_PATH:-$HOME/realm}/deployment/prod"
             ./deploy.sh
