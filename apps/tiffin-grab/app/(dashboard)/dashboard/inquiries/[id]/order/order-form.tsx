@@ -195,12 +195,12 @@ export function OrderForm({
       <div className="space-y-4">
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-foreground mb-1">Plan & Schedule</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="planKey"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="sm:col-span-2">
                 <FormLabel>Plan <span className="text-destructive">*</span></FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
@@ -214,7 +214,7 @@ export function OrderForm({
             control={form.control}
             name="mealSizeId"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="sm:col-span-2">
                 <FormLabel>Meal size <span className="text-destructive">*</span></FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
@@ -311,13 +311,12 @@ export function OrderForm({
 
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-foreground mb-1">Delivery</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" {...form.register("email")} /></div>
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
             name="addressLine"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="sm:col-span-2">
                 <FormLabel>Address <span className="text-destructive">*</span></FormLabel>
                 <FormControl><Input {...field} /></FormControl>
                 <FormMessage />

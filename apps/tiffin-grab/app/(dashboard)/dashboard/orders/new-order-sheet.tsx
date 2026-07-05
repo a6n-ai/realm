@@ -5,6 +5,7 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
+import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
@@ -19,6 +20,9 @@ import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
+import { CustomerSearch } from "../_leads/customer-search";
+import { StepHeader } from "../_leads/step-header";
+import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
@@ -69,6 +73,7 @@ export function NewOrderSheet({
   zones: ZoneLike[];
 }) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
   const [fullName, setFullName] = useState("");
@@ -88,12 +93,18 @@ export function NewOrderSheet({
     }
   }
 
+  function pickCustomer(c: CustomerHit) {
+    setFullName(c.fullName ?? "");
+    setPhone(c.phone ?? "");
+    setEmail(c.email ?? "");
+  }
+
   const prefill: Partial<OrderFormInput> = {
     ...(email.trim() ? { email: email.trim() } : {}),
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep(1); }}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
@@ -102,111 +113,125 @@ export function NewOrderSheet({
           </span>
           <div className="grid gap-0.5">
             <SheetTitle className="text-pretty">New order</SheetTitle>
-            <SheetDescription>Source it, match the lead, then build the order.</SheetDescription>
+            <SheetDescription>Find or add the customer, then build the order.</SheetDescription>
           </div>
         </div>
 
         {sources.length === 0 ? (
           <NoSources noun="order" />
         ) : (
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
-          {/* Source */}
-          <section className="grid gap-4">
-            <SectionLabel>Source</SectionLabel>
-            <div className="grid gap-1.5">
-              <Label>Where did they come from? <Req /></Label>
-              <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
-                {sources.map((s) => {
-                  const active = sourceKey === s.key;
-                  return (
-                    <button
-                      key={s.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => {
-                        setSourceKey(s.key);
-                        setSubSourceKey("");
-                        // Drop any matched inquiry — it belonged to the old source.
-                        // InquiryMatch re-locks if the new source has its own open match.
-                        setPickedId(null);
-                      }}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",
-                        active
-                          ? "border-primary/30 bg-primary/12 text-primary"
-                          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+          <>
+            <StepHeader step={step} steps={["Customer", "Order"]} />
+
+            {step === 1 ? (
+              <>
+                <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+                  <CustomerSearch onPick={pickCustomer} />
+
+                  {/* Source */}
+                  <section className="grid gap-4">
+                    <SectionLabel>Source</SectionLabel>
+                    <div className="grid gap-1.5">
+                      <Label>Where did they come from? <Req /></Label>
+                      <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
+                        {sources.map((s) => {
+                          const active = sourceKey === s.key;
+                          return (
+                            <button
+                              key={s.key}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => {
+                                setSourceKey(s.key);
+                                setSubSourceKey("");
+                                // Drop any matched inquiry — it belonged to the old source.
+                                setPickedId(null);
+                              }}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",
+                                active
+                                  ? "border-primary/30 bg-primary/12 text-primary"
+                                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                              )}
+                            >
+                              {s.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {subs.length > 0 && (
+                      <div className="grid gap-1.5">
+                        <Label>Sub-source <span className="text-muted-foreground font-normal">optional</span></Label>
+                        <Select value={subSourceKey} onValueChange={setSubSourceKey}>
+                          <SelectTrigger><SelectValue placeholder="Select sub-source" /></SelectTrigger>
+                          <SelectContent>
+                            {subs.map((sub) => (
+                              <SelectItem key={sub.key} value={sub.key}>{sub.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Contact */}
+                  <section className="grid gap-4">
+                    <SectionLabel>Contact</SectionLabel>
+                    <div className="grid gap-1.5">
+                      <Label>Full name <Req /></Label>
+                      <Input placeholder="e.g. Priya Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Phone <Req /></Label>
+                      <PhoneInput value={phone} onChange={(v) => setPhone(v ?? "")} defaultCountry={defaultCountry} />
+                      {phone.length > 0 && !phoneValid && (
+                        <p className="text-destructive text-sm">Enter a valid phone number</p>
                       )}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {subs.length > 0 && (
-              <div className="grid gap-1.5">
-                <Label>Sub-source <span className="text-muted-foreground font-normal">optional</span></Label>
-                <Select value={subSourceKey} onValueChange={setSubSourceKey}>
-                  <SelectTrigger><SelectValue placeholder="Select sub-source" /></SelectTrigger>
-                  <SelectContent>
-                    {subs.map((sub) => (
-                      <SelectItem key={sub.key} value={sub.key}>{sub.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </section>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Email <span className="text-muted-foreground font-normal">optional</span></Label>
+                      <Input type="email" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </div>
+                    <InquiryMatch phone={phone} sourceKey={sourceKey} pickedId={pickedId} onPick={onPick} />
+                  </section>
+                </div>
 
-          {/* Contact */}
-          <section className="grid gap-4">
-            <SectionLabel>Contact</SectionLabel>
-            <div className="grid gap-1.5">
-              <Label>Full name <Req /></Label>
-              <Input placeholder="e.g. Priya Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Phone <Req /></Label>
-              <PhoneInput value={phone} onChange={(v) => setPhone(v ?? "")} defaultCountry={defaultCountry} />
-              {phone.length > 0 && !phoneValid && (
-                <p className="text-destructive text-sm">Enter a valid phone number</p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Email <span className="text-muted-foreground font-normal">optional</span></Label>
-              <Input type="email" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <InquiryMatch phone={phone} sourceKey={sourceKey} pickedId={pickedId} onPick={onPick} />
-          </section>
-
-          {/* Order */}
-          <section className="grid gap-4">
-            <SectionLabel>Order</SectionLabel>
-            {contactReady ? (
-              <OrderForm
-                inquiryId=""
-                contact={{ fullName, phone, email }}
-                catalog={catalog}
-                enabledSlots={enabledSlots}
-                zones={zones}
-                prefill={prefill}
-                onCreate={(order: CreateOrderInput) =>
-                  createOrderFlow({
-                    source: { sourceKey, subSourceKey: subSourceKey || undefined },
-                    contact: { fullName, phone, email: email.trim() || undefined },
-                    pickedInquiryId: pickedId ?? undefined,
-                    order,
-                  })
-                }
-              />
+                <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4">
+                  <Button disabled={!contactReady} onClick={() => setStep(2)} className="active:scale-[0.98]">
+                    Continue to order →
+                  </Button>
+                </div>
+              </>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                Enter a name and phone number to build the order.
-              </p>
+              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
+                >
+                  ← <span className="font-medium">{fullName}</span>
+                </button>
+                <OrderForm
+                  inquiryId=""
+                  contact={{ fullName, phone, email }}
+                  catalog={catalog}
+                  enabledSlots={enabledSlots}
+                  zones={zones}
+                  prefill={prefill}
+                  onCreate={(order: CreateOrderInput) =>
+                    createOrderFlow({
+                      source: { sourceKey, subSourceKey: subSourceKey || undefined },
+                      contact: { fullName, phone, email: email.trim() || undefined },
+                      pickedInquiryId: pickedId ?? undefined,
+                      order,
+                    })
+                  }
+                />
+              </div>
             )}
-          </section>
-        </div>
+          </>
         )}
       </SheetContent>
     </Sheet>

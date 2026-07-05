@@ -1,4 +1,4 @@
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
 import { db } from "@/db/client";
 import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
@@ -90,6 +90,20 @@ export async function findExistingByContact(phone: string, email?: string | null
     .where(and(eq(users.role, "user"), or(...conds)))
     .limit(1);
   return row ? { publicId: row.publicId, fullName: row.name ?? "Customer" } : null;
+}
+
+// Staff typeahead: find customers by a name or phone fragment. Light rows for a
+// picker — publicId + contact only. Empty for <2 chars so a keystroke never scans.
+export async function searchCustomers(query: string) {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const like = `%${q}%`;
+  return db
+    .select({ publicId: users.publicId, fullName: users.name, phone: users.phone, email: users.email })
+    .from(users)
+    .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like))))
+    .orderBy(users.name)
+    .limit(8);
 }
 
 // Serializable order row for the customer's own dashboard. Carries plan + meal
