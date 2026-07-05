@@ -11,6 +11,9 @@ services:
       DB_USER: ${PGBOUNCER_DB_USER}
       DB_PASSWORD: ${PGBOUNCER_DB_PASSWORD}
       DB_NAME: ${PGBOUNCER_DB_NAME}
+      # Listen on 6432 (default is 5432); DATABASE_URL, expose, and the
+      # healthcheck all target 6432.
+      LISTEN_PORT: "6432"
       POOL_MODE: transaction
       AUTH_TYPE: scram-sha-256
       DEFAULT_POOL_SIZE: "15"
