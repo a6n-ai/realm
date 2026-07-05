@@ -20,10 +20,10 @@ describe("AuthForm", () => {
     expect(screen.queryByRole("button", { name: /unlock with your pin/i })).toBeNull();
   });
 
-  it("defaults to PIN mode with a password fallback when canUsePin is true", () => {
+  it("opens in PIN mode with a password fallback when canUsePin is true", () => {
     render(<AuthForm canUsePin={true} />);
     expect(screen.getByTestId("pin-otp")).toBeDefined();
-    expect(screen.getByRole("button", { name: /unlock/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /^unlock$/i })).toBeDefined();
     expect(screen.getByText(/sign in with password instead/i)).toBeDefined();
   });
 });

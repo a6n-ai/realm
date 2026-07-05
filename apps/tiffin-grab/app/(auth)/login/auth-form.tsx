@@ -24,6 +24,8 @@ import { verifyPinAction } from "./actions";
 type Mode = "password" | "pin";
 
 export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
+  // A locked session (PIN available) opens straight in PIN mode; the panel still
+  // offers "Sign in with password instead" to switch. Otherwise, password.
   const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : "password");
 
   return (
