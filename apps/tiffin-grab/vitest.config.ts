@@ -6,8 +6,8 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
-    // Reseed admin/member after the run — the live-DB suites delete them in
-    // teardown, which otherwise leaves the dev DB unable to log in.
+    // Pre-run wallet-FK cleanup (setup) + post-run reseed of the LOCAL dev DB
+    // only (teardown) — guarded by isLocalDb() so it never seeds prod on main/CI.
     globalSetup: ["./vitest.teardown.ts"],
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin",
