@@ -20,7 +20,7 @@ export function IdleLock({ thresholdMs = IDLE_MS }: { thresholdMs?: number }) {
         try {
           await lockSession();
         } finally {
-          router.push("/lock");
+          router.push("/login");
         }
       }, thresholdMs);
     };

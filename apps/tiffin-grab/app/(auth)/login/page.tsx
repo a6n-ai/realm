@@ -1,23 +1,16 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { LockIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { LoginForm } from "./login-form";
+import { isLocked } from "@/lib/auth/lock";
+import { AuthForm } from "./auth-form";
 
 export default async function LoginPage() {
   const session = await getSession();
+  // A lock cookie is only ever set for a user who has a PIN (LockButton guards
+  // it), so a locked session ⇒ PIN is available. No extra DB read needed.
+  const canUsePin = Boolean(session?.user) && (await isLocked());
   return (
     <Suspense>
-      {session?.user ? (
-        <Link
-          href="/lock"
-          className="bg-card text-card-foreground hover:bg-accent mb-4 flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-medium shadow-sm"
-        >
-          <LockIcon className="size-4" />
-          Unlock with your PIN instead
-        </Link>
-      ) : null}
-      <LoginForm />
+      <AuthForm canUsePin={canUsePin} />
     </Suspense>
   );
 }

@@ -215,7 +215,7 @@ export function AppSidebar({
                     <DropdownMenuItem
                       onClick={async () => {
                         await lockSession();
-                        router.push("/lock");
+                        router.push("/login");
                       }}
                     >
                       <LockIcon data-icon="inline-start" />

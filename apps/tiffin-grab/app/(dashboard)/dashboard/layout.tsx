@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     throw err;
   }
   const hasPin = Boolean(user.pinHash);
-  if (hasPin && (await isLocked())) redirect("/lock");
+  if (hasPin && (await isLocked())) redirect("/login");
 
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
