@@ -23,6 +23,11 @@ const TEST_PHONE_2 = "+16475550020";
 const TEST_PHONE_3 = "+16475550021";
 
 async function cleanup() {
+  // Unconditional wallet clear first: a row leaked by a failed test (before the
+  // scoped ids resolve) FK-blocks every later suite's `delete users`. Only the
+  // two wallet suites produce these tables, so a blanket delete is safe.
+  await db.delete(walletLedger);
+  await db.delete(eventPayout);
   // Delete wallet ledger entries for our test users first (FK order)
   const testUsers = await db
     .select({ id: users.id })
@@ -73,12 +78,13 @@ async function cleanup() {
 }
 
 beforeAll(async () => {
-  // Ensure the payout config is enabled with a known coin amount
+  // Clean FIRST — cleanup() blanket-deletes eventPayout, so seeding before it
+  // would wipe the config the award path needs. Seed the payout afterwards.
+  await cleanup();
   await db
     .insert(eventPayout)
     .values({ eventType: "order_activated", enabled: true, coins: 75 })
     .onConflictDoUpdate({ target: eventPayout.eventType, set: { enabled: true, coins: 75 } });
-  await cleanup();
 });
 
 afterAll(cleanup);

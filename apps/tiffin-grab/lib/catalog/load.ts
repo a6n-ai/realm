@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { LruTier, TieredCache } from "@realm/commons";
 import { db } from "@/db/client";
+import { sharedCache } from "@/lib/cache";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import type { CatalogSnapshot } from "./types";
@@ -9,7 +9,7 @@ import type { CatalogSnapshot } from "./types";
 // the subscribe hot path. Cache it; catalog admin mutations call
 // invalidateCatalogSnapshot(). 60s TTL bounds cross-instance staleness until a
 // Redis tier broadcasts eviction.
-const catalogCache = new TieredCache({ name: "catalog", tiers: [new LruTier()], defaultTtlMs: 60_000 });
+const catalogCache = sharedCache("catalog");
 
 export function invalidateCatalogSnapshot(): Promise<void> {
   return catalogCache.evictAll();

@@ -1,5 +1,5 @@
-import { LruTier, TieredCache } from "@realm/commons";
 import { UpdatableRepository } from "@realm/database";
+import { sharedCache } from "@/lib/cache";
 import { db } from "@/db/client";
 import { appSettings } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
@@ -20,11 +20,7 @@ const DISCOUNT_POLICY_DEFAULT: DiscountPolicy = {
 // inbound inquiry's owner resolution) and written only by admins. Cache it; the
 // concrete service below evicts on every write. 60s TTL bounds cross-instance
 // staleness until a Redis tier broadcasts eviction.
-const settingsCache = new TieredCache({
-  name: "app-settings",
-  tiers: [new LruTier()],
-  defaultTtlMs: 60_000,
-});
+const settingsCache = sharedCache("app-settings");
 
 // Concrete service owns the cache eviction — NOT the drizzle base. Override each
 // write to bust after super, mirroring the Java service's post-write evict.

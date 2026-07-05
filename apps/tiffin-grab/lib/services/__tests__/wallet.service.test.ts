@@ -87,6 +87,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Unconditional: this file is the only wallet_ledger producer besides
+  // wallet-activation, so nuke all rows even if a test failed before the
+  // scoped ids were set — a leaked row FK-blocks every later suite's
+  // `delete users` (wallet_ledger_user_id_users_id_fk).
+  await db.delete(walletLedger);
+  await db.delete(eventPayout);
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId));
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId2));
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId3));

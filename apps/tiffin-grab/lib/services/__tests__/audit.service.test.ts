@@ -3,6 +3,18 @@ import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
+// recordAudit logs failures through pino (createLogger → stdout via fd 1), which
+// no console/stdout spy can catch. Mock the logger so its `.error` is assertable.
+const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
+vi.mock("@realm/commons/logger", () => {
+  const stub = {
+    error: logError,
+    info: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {},
+    child: () => stub,
+  };
+  return { createLogger: () => stub, loggerOptions: {} };
+});
+
 const { db } = await import("@/db/client");
 const { auditLog, inquiries, inquiryActivities } = await import("@/db/schema");
 const { inquiriesService } = await import("../inquiries.service");
@@ -37,12 +49,11 @@ describe("audit logging via the intermediate layer (integration)", () => {
   });
 
   it("recordAudit is best-effort: a failing insert does not throw", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    // entity violates NOT NULL → insert fails → must be swallowed.
+    logError.mockClear();
+    // entity violates NOT NULL → insert fails → must be swallowed + logged.
     await expect(
       recordAudit({ entity: null as unknown as string, entityPublicId: "x", operation: "create", changes: null, createdBy: null }),
     ).resolves.toBeUndefined();
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    expect(logError).toHaveBeenCalled();
   });
 });

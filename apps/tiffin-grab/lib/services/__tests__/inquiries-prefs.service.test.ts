@@ -27,7 +27,9 @@ async function ensureZone(): Promise<bigint> {
     .insert(deliveryZones)
     .values({
       name: TEST_ZONE,
-      postalPrefixes: ["M4C"],
+      // K1A (Ottawa) — no seed zone claims a K prefix, so this zone is the sole
+      // match. M4C collided with the Toronto ("M4") and East York ("M4C") seeds.
+      postalPrefixes: ["K1A"],
       slotWindow: "10:00 AM – 1:00 PM",
       active: true,
     })
@@ -48,7 +50,7 @@ describe("inquiriesService zone resolution + intake prefs", () => {
       fullName: "Lead Z",
       phone: "+16475553000",
       sourceKey: "manual",
-      postalCode: "M4C 1A1",
+      postalCode: "K1A 0A6",
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.zoneId).toBe(zoneId);

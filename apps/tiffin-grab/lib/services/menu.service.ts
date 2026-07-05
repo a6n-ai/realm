@@ -1,5 +1,5 @@
-import { ValidationError } from "@realm/commons";
-import { cutoffMsFor, LruTier, TieredCache } from "@realm/commons";
+import { cutoffMsFor, ValidationError } from "@realm/commons";
+import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@realm/database";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -13,7 +13,7 @@ import { SessionBaseService, SessionUpdatableService } from "./session-service";
 const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, menuWeeks, menuWeeks.publicId, menuWeeks.id));
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
 
-const publishedCache = new TieredCache({ name: "published-week", tiers: [new LruTier()], defaultTtlMs: 60_000 });
+const publishedCache = sharedCache("published-week");
 
 export const menuService = {
   async upsertWeek(input: { planType: PlanType; weekStart: string }) {

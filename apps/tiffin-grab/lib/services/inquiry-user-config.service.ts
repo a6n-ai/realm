@@ -1,5 +1,5 @@
-import { LruTier, TieredCache } from "@realm/commons";
 import { db } from "@/db/client";
+import { sharedCache } from "@/lib/cache";
 import { inquiryUserConfig, leadSources, users } from "@/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import type { PoolMember } from "./assignment";
@@ -7,7 +7,7 @@ import type { PoolMember } from "./assignment";
 // Per-source staff pool, read on every inbound inquiry's owner resolution and
 // written only by admins via setMembership. Cache per pool key; setMembership
 // evicts the pool it replaces. 60s TTL bounds cross-instance staleness.
-const poolCache = new TieredCache({ name: "lead-pool", tiers: [new LruTier()], defaultTtlMs: 60_000 });
+const poolCache = sharedCache("lead-pool");
 const poolKey = (sourceId: bigint | null) => (sourceId == null ? "default" : String(sourceId));
 
 export async function poolForSource(sourceId: bigint | null): Promise<PoolMember[]> {

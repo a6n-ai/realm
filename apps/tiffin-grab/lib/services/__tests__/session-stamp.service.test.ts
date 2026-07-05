@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const created: Record<string, unknown>[] = [];
 const updated: Record<string, unknown>[] = [];
 
-vi.mock("@/db/client", () => ({ db: {} }));
+// recordAudit does a best-effort `db.insert(auditLog).values(...)`; give the
+// mock a no-op matching that chain so the audit path succeeds silently instead
+// of logging a caught "db.insert is not a function" on every run.
+vi.mock("@/db/client", () => ({ db: { insert: () => ({ values: async () => {} }) } }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
 vi.mock("@realm/database", async (orig) => {
