@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { signIn } from "@/lib/auth/client";
+import { clearLockSession } from "@/lib/auth/lock-actions";
 import { Button } from "@realm/ui/button";
 import { Card, CardContent } from "@realm/ui/card";
 import {
@@ -45,6 +46,8 @@ export function LoginForm() {
       setError("Invalid phone/email or password");
       return;
     }
+    // A full sign-in clears any prior lock so we don't bounce to /lock.
+    await clearLockSession();
     router.push(params.get("callbackUrl") ?? "/dashboard");
     router.refresh();
   }
