@@ -2,6 +2,16 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
+// Next.js loads .env.local; standalone tsx scripts (seeds) don't. Fill it in
+// when missing. No-op under Next (already set) and in prod (file absent).
+if (!process.env.DATABASE_URL) {
+  try {
+    process.loadEnvFile(".env.local");
+  } catch {
+    /* file absent — real env is expected to provide DATABASE_URL */
+  }
+}
+
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 

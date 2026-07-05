@@ -10,8 +10,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
-import { Breadcrumbs } from "@realm/design-system";
-import { labelForSegment } from "@/components/ds/route-labels";
+import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CrmShell } from "@realm/crm";
@@ -61,7 +60,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           repCoupon={repCoupon}
         />
       }
-      breadcrumbs={<Breadcrumbs resolveLabel={labelForSegment} />}
+      breadcrumbs={<AppBreadcrumbs />}
       actions={
         <>
           <GlobalSearch role={role} />

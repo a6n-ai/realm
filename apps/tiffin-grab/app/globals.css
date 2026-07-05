@@ -3,6 +3,12 @@
 @import "shadcn/tailwind.css";
 @import "react-phone-number-input/style.css";
 
+/* Tailwind v4 ignores node_modules; @realm/* ship raw source symlinked there, so
+   scan their source explicitly or their classes (rounded-*, sidebar, nav) vanish. */
+@source "../../../packages/ui/src";
+@source "../../../packages/design-system/src";
+@source "../../../packages/crm/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
