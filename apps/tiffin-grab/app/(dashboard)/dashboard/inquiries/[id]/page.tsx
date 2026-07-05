@@ -12,13 +12,14 @@ import {
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@realm/commons";
 import { db } from "@/db/client";
-import { leadSources } from "@/db/schema";
+import { deliveryZones, leadSources } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import type { ZoneLike } from "@/lib/catalog/postal";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, ListRow, SkeletonListRows } from "@/components/ds";
@@ -81,11 +82,20 @@ async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
   const converted = inq.stage === "converted";
   const lost = inq.stage === "lost";
 
-  const [catalog, slots, existing, [source]] = await Promise.all([
+  const [catalog, slots, existing, [source], zones] = await Promise.all([
     loadCatalogSnapshot(),
     mealSlotsService.enabledSlots(),
     findExistingByContact(inq.phone, inq.email),
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
+    db
+      .select({
+        name: deliveryZones.name,
+        postalPrefixes: deliveryZones.postalPrefixes,
+        slotWindow: deliveryZones.slotWindow,
+        active: deliveryZones.active,
+      })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.active, true)),
   ]);
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {
@@ -115,6 +125,7 @@ async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
               contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
               catalog={convertCatalog}
               enabledSlots={enabledSlots}
+              zones={zones}
               prefill={prefill}
               existing={existing}
             />

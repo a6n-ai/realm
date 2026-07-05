@@ -19,6 +19,7 @@ import {
 } from "@realm/ui/sheet";
 import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
+import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
@@ -61,12 +62,14 @@ export function NewCustomerSheet({
   sources,
   catalog,
   enabledSlots,
+  zones,
 }: {
   trigger: React.ReactNode;
   defaultCountry: CountryCode;
   sources: Src[];
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
+  zones: ZoneLike[];
 }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -278,6 +281,7 @@ export function NewCustomerSheet({
                 contact={{ fullName, phone, email }}
                 catalog={catalog}
                 enabledSlots={enabledSlots}
+                zones={zones}
                 prefill={prefill}
                 onCreate={(order: CreateOrderInput) =>
                   createOrderFlow({

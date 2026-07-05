@@ -49,6 +49,8 @@ export function OrderForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PricingResult | null>(null);
+  const [pricing, setPricing] = useState(false);
+  const today = new Date().toLocaleDateString();
   // The acting rep's own daily coupon (server-discovered) and the clamped amount
   // they choose to apply. The amount is bounded by a server-computed ceiling — it
   // is never a free-text discount (createOrder re-validates and clamps again).
@@ -137,6 +139,7 @@ export function OrderForm({
     if (!mealSizeId || !planKey) return;
     let cancelled = false;
     const repCode = repInfo?.available ? repInfo.code : undefined;
+    setPricing(true);
     previewPrice(
       buildInput({
         planKey,
@@ -156,8 +159,8 @@ export function OrderForm({
       repCode,
       discount > 0 ? discount : undefined,
     )
-      .then((r) => { if (!cancelled) setPreview(r); })
-      .catch(() => { if (!cancelled) setPreview(null); });
+      .then((r) => { if (!cancelled) { setPreview(r); setPricing(false); } })
+      .catch(() => { if (!cancelled) { setPreview(null); setPricing(false); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo]);
@@ -421,6 +424,7 @@ export function OrderForm({
               <span className="text-muted-foreground text-xs uppercase tracking-wide">Draft</span>
             </div>
             <p className="text-muted-foreground mt-0.5 text-xs">Tiffin Grab</p>
+            <p className="text-muted-foreground text-xs">{today}</p>
           </div>
 
           <div className="grid gap-0.5 border-b px-4 py-3 text-sm">
@@ -459,6 +463,8 @@ export function OrderForm({
                 </div>
                 <p className="text-muted-foreground text-xs">{preview.tiffinCount} tiffins</p>
               </div>
+            ) : pricing ? (
+              <p className="text-muted-foreground">Calculating…</p>
             ) : (
               <p className="text-muted-foreground">Select options to preview.</p>
             )}

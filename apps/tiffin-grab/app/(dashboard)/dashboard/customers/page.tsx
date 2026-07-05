@@ -4,7 +4,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { tzToDefaultCountry } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
@@ -83,7 +83,7 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewCustomerAction() {
   await requireStaff();
 
-  const [{ timezone }, sourceRows, subRows, catalog, slots] = await Promise.all([
+  const [{ timezone }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -98,6 +98,15 @@ async function NewCustomerAction() {
       .from(leadSubsources),
     loadCatalogSnapshot(),
     mealSlotsService.enabledSlots(),
+    db
+      .select({
+        name: deliveryZones.name,
+        postalPrefixes: deliveryZones.postalPrefixes,
+        slotWindow: deliveryZones.slotWindow,
+        active: deliveryZones.active,
+      })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.active, true)),
   ]);
 
   const defaultCountry = tzToDefaultCountry(timezone);
@@ -126,6 +135,7 @@ async function NewCustomerAction() {
       sources={sources}
       catalog={orderCatalog}
       enabledSlots={enabledSlots}
+      zones={zones}
       trigger={
         <Button>
           <PlusIcon className="size-4" />

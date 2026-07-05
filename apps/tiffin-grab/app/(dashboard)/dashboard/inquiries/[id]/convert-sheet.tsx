@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@realm/ui/sheet";
+import type { ZoneLike } from "@/lib/catalog/postal";
 import type { OrderFormInput } from "./order-schema";
 import { OrderForm } from "./order/order-form";
 
@@ -27,6 +28,7 @@ export function ConvertSheet({
   contact,
   catalog,
   enabledSlots,
+  zones,
   prefill,
   existing,
 }: {
@@ -34,6 +36,7 @@ export function ConvertSheet({
   contact: { fullName: string; phone: string; email: string };
   catalog: Catalog;
   enabledSlots: EnabledSlot[];
+  zones: ZoneLike[];
   prefill?: Partial<OrderFormInput>;
   existing: { publicId: string; fullName: string } | null;
 }) {
@@ -66,6 +69,7 @@ export function ConvertSheet({
             contact={contact}
             catalog={catalog}
             enabledSlots={enabledSlots}
+            zones={zones}
             prefill={prefill}
           />
         </div>
