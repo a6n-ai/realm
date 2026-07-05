@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { json } from "./response";
+import { json, problem } from "./response";
+
+describe("problem()", () => {
+  it("emits RFC 9457 problem+json with status-phrase title", async () => {
+    const res = problem(403, "no access");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(await res.json()).toEqual({ type: "about:blank", title: "Forbidden", status: 403, detail: "no access" });
+  });
+
+  it("falls back to a generic title for unmapped statuses", async () => {
+    expect((await problem(418, "teapot").json()).title).toBe("Error");
+  });
+});
 
 describe("json()", () => {
   it("drops bigint properties and does not throw", async () => {

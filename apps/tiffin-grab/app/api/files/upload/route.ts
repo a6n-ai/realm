@@ -1,19 +1,20 @@
 import { nanoid } from "nanoid";
+import { handler, problem } from "@realm/routes";
 import { requireStaff } from "@/lib/auth/guards";
 import { filesService } from "@/lib/files";
 import { sanitizeFilename, validateUpload } from "./validate";
 
-export async function POST(request: Request): Promise<Response> {
+export const POST = handler(async (request: Request): Promise<Response> => {
   await requireStaff();
 
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return Response.json({ error: "No file provided" }, { status: 400 });
+    return problem(400, "No file provided");
   }
 
   const err = validateUpload({ type: file.type, size: file.size });
-  if (err) return Response.json({ error: err }, { status: 400 });
+  if (err) return problem(400, err);
 
   const prefix = sanitizeFilename(String(form.get("prefix") ?? "uploads")) || "uploads";
   const key = `${prefix}/${nanoid()}/${sanitizeFilename(file.name)}`;
@@ -21,4 +22,4 @@ export async function POST(request: Request): Promise<Response> {
 
   const detail = await filesService().create(key, bytes, { contentType: file.type });
   return Response.json(detail, { status: 200 });
-}
+});

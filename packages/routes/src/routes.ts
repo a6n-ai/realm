@@ -15,6 +15,21 @@ const runGuard = async (opts: RouteOptions | undefined, req: Request) => {
   if (opts?.guard) await opts.guard(req);
 };
 
+// Wrap a hand-written route handler so thrown AppErrors (e.g. from auth guards)
+// surface as problem+json instead of an unhandled 500 — the same try/catch the
+// route factories apply. Preserves Next's (req, ctx) arguments.
+export function handler<A extends unknown[]>(
+  fn: (...args: A) => Promise<Response>,
+): (...args: A) => Promise<Response> {
+  return async (...args: A) => {
+    try {
+      return await fn(...args);
+    } catch (e) {
+      return toResponse(e);
+    }
+  };
+}
+
 export function createCollectionRoute(service: AnyBase, opts?: RouteOptions) {
   return {
     async GET(req: Request) {

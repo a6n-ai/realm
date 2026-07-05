@@ -1,11 +1,11 @@
 import { AppError } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
-import { json } from "./response";
+import { problem } from "./response";
 
 const log = createLogger("error-mapper");
 
 export function toResponse(err: unknown): Response {
-  if (err instanceof AppError) return json({ error: err.message }, err.status);
+  if (err instanceof AppError) return problem(err.status, err.message);
   log.error({ err }, "unhandled error");
-  return json({ error: "Internal Server Error" }, 500);
+  return problem(500, "Internal Server Error");
 }

@@ -6,6 +6,7 @@ import type { FileDetail } from "@realm/storage/model";
 import { Button } from "@realm/ui/button";
 import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@realm/ui/file-upload";
 import { cn } from "@realm/ui/cn";
+import { apiFetch } from "@/lib/http/api-fetch";
 import { ImageCropperDialog } from "./image-cropper-dialog";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -56,12 +57,9 @@ export function ImageUploader({
       const body = new FormData();
       body.set("file", file);
       if (prefix) body.set("prefix", prefix);
-      const res = await fetch("/api/files/upload", { method: "POST", body });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? "Upload failed");
-      }
-      onChange((await res.json()) as FileDetail);
+      // apiFetch toasts the problem+json detail on failure and throws; the catch
+      // below still mirrors it into the field's inline error + onError callback.
+      onChange(await apiFetch<FileDetail>("/api/files/upload", { method: "POST", body }));
       options.onSuccess(file);
     } catch (e) {
       const err = e instanceof Error ? e : new Error("Upload failed");

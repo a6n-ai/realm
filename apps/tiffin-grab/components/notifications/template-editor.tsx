@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { BellIcon, TriangleAlertIcon } from "lucide-react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/http/api-fetch";
 import { lintEmailHtml } from "@/lib/notifications/email-compat";
 import { formatCode } from "@/lib/notifications/format";
 import { compileReactEmail, REACT_SOURCE_MARKER } from "@/lib/notifications/react-template";
@@ -171,13 +172,18 @@ export function TemplateEditor({
     } else {
       payload = { ...payload, body };
     }
-    const res = await fetch("/api/notifications/templates", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setBusy(false);
-    toast[res.ok ? "success" : "error"](res.ok ? "Template saved" : "Save failed");
+    try {
+      await apiFetch("/api/notifications/templates", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast.success("Template saved");
+    } catch {
+      // apiFetch already toasted the failure detail.
+    } finally {
+      setBusy(false);
+    }
   }
 
   // Prettify the raw HTML / React source in place. Client-side, so a syntax
@@ -219,15 +225,18 @@ export function TemplateEditor({
       text = out.text;
     }
     setBusy(true);
-    const res = await fetch("/api/notifications/templates/test", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event, subject, html, text, to: testEmail.trim() || undefined }),
-    });
-    setBusy(false);
-    toast[res.ok ? "success" : "error"](
-      res.ok ? `Test sent${testEmail.trim() ? ` to ${testEmail.trim()}` : ""}` : "Test failed",
-    );
+    try {
+      await apiFetch("/api/notifications/templates/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event, subject, html, text, to: testEmail.trim() || undefined }),
+      });
+      toast.success(`Test sent${testEmail.trim() ? ` to ${testEmail.trim()}` : ""}`);
+    } catch {
+      // apiFetch already toasted the failure detail.
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

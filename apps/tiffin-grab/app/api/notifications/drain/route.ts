@@ -1,3 +1,4 @@
+import { handler, problem } from "@realm/routes";
 import { drainPending } from "@/lib/notifications/drain";
 
 /**
@@ -6,11 +7,11 @@ import { drainPending } from "@/lib/notifications/drain";
  * can't be invoked publicly. All delivery logic lives in the app where `@/db`
  * works — the Lambda is just a thin trigger.
  */
-export async function POST(req: Request): Promise<Response> {
+export const POST = handler(async (req: Request): Promise<Response> => {
   const secret = process.env.DRAIN_SECRET;
   if (!secret || req.headers.get("x-drain-secret") !== secret) {
-    return new Response("forbidden", { status: 403 });
+    return problem(403, "Forbidden");
   }
   const processed = await drainPending();
   return Response.json({ processed });
-}
+});

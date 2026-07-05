@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/http/api-fetch";
 import { subscribeNotifications, type RealtimeNotification } from "./realtime";
 
 export interface FeedItem {
@@ -34,7 +35,9 @@ export function useNotifications() {
     if (unread === 0) return;
     setUnread(0);
     setItems((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt: Date.now() })));
-    await fetch("/api/notifications", { method: "POST", body: JSON.stringify({}) });
+    // ponytail: user action → surface failures via toast (apiFetch). The focus
+    // poll in `refresh` stays silent on purpose so it can't spam toasts.
+    await apiFetch("/api/notifications", { method: "POST", body: JSON.stringify({}) });
   }, [unread]);
 
   // Initial load + refresh when the tab regains focus.
