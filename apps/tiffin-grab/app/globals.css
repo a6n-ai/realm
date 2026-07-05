@@ -242,3 +242,9 @@
   height: 0;
   pointer-events: none;
 }
+
+@media print {
+  body * { visibility: hidden; }
+  #invoice-doc, #invoice-doc * { visibility: visible; }
+  #invoice-doc { position: absolute; inset: 0; margin: 1rem; }
+}

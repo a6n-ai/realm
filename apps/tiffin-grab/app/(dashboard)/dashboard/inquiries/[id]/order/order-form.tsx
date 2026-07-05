@@ -413,21 +413,63 @@ export function OrderForm({
         </div>
       </div>
 
-      <aside className="h-fit rounded-lg border p-4 text-sm">
-        <h2 className="mb-2 font-medium">Invoice</h2>
-        {preview ? (
-          <div className="space-y-1">
-            {preview.lineItems.map((l) => (
-              <div key={l.label} className="flex justify-between"><span className="text-muted-foreground">{l.label}</span><span className="nums">${l.amount.toFixed(2)}</span></div>
-            ))}
-            {preview.adjustments.map((d) => (
-              <div key={d.label} className="flex justify-between text-ok"><span>{d.label}</span><span className="nums">-${d.amount.toFixed(2)}</span></div>
-            ))}
-            <div className="mt-2 flex justify-between border-t pt-2 font-medium"><span>Total ({preview.tiffinCount} tiffins)</span><span className="nums">${preview.total.toFixed(2)}</span></div>
+      <aside id="invoice-doc" className="h-fit md:sticky md:top-4">
+        <div className="bg-card overflow-hidden rounded-xl border">
+          <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Invoice</h2>
+              <span className="text-muted-foreground text-xs uppercase tracking-wide">Draft</span>
+            </div>
+            <p className="text-muted-foreground mt-0.5 text-xs">Tiffin Grab</p>
           </div>
-        ) : (
-          <p className="text-muted-foreground">Select options to preview.</p>
-        )}
+
+          <div className="grid gap-0.5 border-b px-4 py-3 text-sm">
+            <p className="text-muted-foreground text-xs uppercase tracking-wide">Bill to</p>
+            <p className="font-medium">{contact.fullName}</p>
+            <p className="text-muted-foreground">{contact.phone}</p>
+            {(addressLine || city || postalCode) && (
+              <p className="text-muted-foreground">
+                {[addressLine, city, postalCode].filter(Boolean).join(", ")}
+              </p>
+            )}
+          </div>
+
+          <div className="px-4 py-3 text-sm">
+            {preview ? (
+              <div className="space-y-1">
+                {preview.lineItems.map((l) => (
+                  <div key={l.label} className="flex justify-between">
+                    <span className="text-muted-foreground">{l.label}</span>
+                    <span className="nums">${l.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="nums">${preview.subtotal.toFixed(2)}</span>
+                </div>
+                {preview.adjustments.map((d) => (
+                  <div key={d.label} className="text-ok flex justify-between">
+                    <span>{d.label}</span>
+                    <span className="nums">-${d.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="mt-1 flex justify-between border-t pt-2 text-base font-semibold">
+                  <span>Total</span>
+                  <span className="nums">${preview.total.toFixed(2)}</span>
+                </div>
+                <p className="text-muted-foreground text-xs">{preview.tiffinCount} tiffins</p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Select options to preview.</p>
+            )}
+          </div>
+
+          <div className="border-t px-4 py-3 print:hidden">
+            <Button type="button" variant="outline" className="w-full" disabled={!preview} onClick={() => window.print()}>
+              Print invoice
+            </Button>
+          </div>
+        </div>
       </aside>
     </form>
     </Form>
