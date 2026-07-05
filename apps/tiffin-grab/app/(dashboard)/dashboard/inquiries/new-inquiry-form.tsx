@@ -35,6 +35,7 @@ import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from
 import { createInquiry } from "./actions";
 import { NoSources } from "../_leads/no-sources";
 import { PostalCombobox } from "../_leads/postal-combobox";
+import { useExistingCustomer } from "../_leads/use-existing-customer";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };
 type Zone = { name: string; postalPrefixes: string[]; slotWindow: string; active: boolean };
@@ -94,6 +95,7 @@ export function AddInquirySheet({
 
   const sourceKey = form.watch("sourceKey");
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
+  const existingCustomer = useExistingCustomer(form.watch("phone") ?? "", form.watch("email") ?? "");
 
   // Live count of filled optional-interest fields, surfaced on the collapsible header.
   const interest = form.watch([
@@ -340,6 +342,11 @@ export function AddInquirySheet({
                 <Textarea rows={3} placeholder="Anything worth remembering from the conversation…" {...form.register("notes")} />
               </section>
 
+              {existingCustomer && (
+                <p className="text-destructive text-sm" role="alert">
+                  {existingCustomer.fullName} is already a customer with this contact.
+                </p>
+              )}
               {form.formState.errors.root && (
                 <p className="text-destructive text-sm" role="alert">{form.formState.errors.root.message}</p>
               )}
@@ -351,7 +358,7 @@ export function AddInquirySheet({
                   Cancel
                 </Button>
               </SheetClose>
-              <Button type="submit" disabled={submitting} className="active:scale-[0.98]">
+              <Button type="submit" disabled={submitting || !!existingCustomer} className="active:scale-[0.98]">
                 {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
                 {submitting ? "Adding…" : "Add inquiry"}
               </Button>

@@ -23,6 +23,7 @@ import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
 import { CustomerSearch } from "../_leads/customer-search";
 import { StepHeader } from "../_leads/step-header";
+import { useExistingCustomer } from "../_leads/use-existing-customer";
 import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
@@ -82,13 +83,15 @@ export function NewCustomerSheet({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
   const [inquiryId, setInquiryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
   const phoneValid = isValidPhone(phone);
-  const contactReady = fullName.trim().length > 0 && phoneValid;
+  const existingCustomer = useExistingCustomer(phone, email, pickedCustomerId);
+  const contactReady = fullName.trim().length > 0 && phoneValid && !existingCustomer;
 
   function reset() {
     setStep(1);
@@ -120,6 +123,7 @@ export function NewCustomerSheet({
     setFullName(c.fullName ?? "");
     setPhone(c.phone ?? "");
     setEmail(c.email ?? "");
+    setPickedCustomerId(c.publicId);
   }
 
   const source = { sourceKey, subSourceKey: subSourceKey || undefined };
@@ -264,6 +268,11 @@ export function NewCustomerSheet({
                   <Input type="email" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <InquiryMatch phone={phone} sourceKey={sourceKey} pickedId={pickedId} onPick={onPick} />
+                {existingCustomer && (
+                  <p className="text-destructive text-sm">
+                    {existingCustomer.fullName} is already a customer with this contact. Use the search above to select them.
+                  </p>
+                )}
               </section>
 
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
