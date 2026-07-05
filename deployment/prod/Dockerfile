@@ -18,14 +18,15 @@ COPY patches ./patches
 RUN pnpm fetch
 COPY . .
 RUN pnpm install --frozen-lockfile --offline
-# Build-only placeholders. next build imports route modules (which throw at load if
-# these are unset); all clients connect lazily, so no real service is touched here.
-# Runtime values come from .env.production via compose env_file.
-ENV DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
+# Build-only placeholders, inlined on the build command so they never persist as
+# image ENV (silences Docker's SecretsUsedInArgOrEnv). next build imports route
+# modules that throw at load if these are unset; all clients connect lazily, so no
+# real service is touched. Runtime values come from .env.production (compose env_file).
+RUN DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
     REDIS_URL="redis://127.0.0.1:6379" \
     BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime" \
-    BETTER_AUTH_URL="http://localhost:3000"
-RUN pnpm --filter tiffin-grab build
+    BETTER_AUTH_URL="http://localhost:3000" \
+    pnpm --filter tiffin-grab build
 
 # --- runner: standalone output only, no node_modules install ---
 FROM base AS runner

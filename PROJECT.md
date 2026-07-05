@@ -86,10 +86,10 @@ Layered, acyclic, bottom-up. Full taxonomy in
 |---|---|
 | `@realm/commons` | Framework-agnostic core: DTOs, Condition DSL, errors, enums, money, logger |
 | `@realm/database` | Drizzle repo + service base (managed-field stamping, actor hook) |
-| `@realm/routes` | Next route factories, list-param parse, response + error mapper, `Text` |
+| `@realm/routes` | Next route factories, list-param parse, response + error mapper |
 | `@realm/storage` | S3/local/memory file storage (server-only) |
 | `@realm/email` | SES email, react-email render (server-only) |
-| `@realm/ui` | shadcn/radix primitives + `cn` |
+| `@realm/ui` | shadcn/radix primitives + `cn` + `Text` |
 | `@realm/design-system` | `ds/*` compositions over `@realm/ui` |
 | `@realm/crm` | Slot-based `<CrmShell>` dashboard scaffold |
 | `@realm/themes` | ThemeProvider/useTheme + no-flash script + tokens |
@@ -98,7 +98,7 @@ Layered, acyclic, bottom-up. Full taxonomy in
 
 **Client-consumed** packages ship raw `.ts`/`.tsx` (no build step) and must be listed in
 `apps/<client>/next.config.ts` `transpilePackages`. **Server-only** packages
-(`commons-files`, `commons-notify`, `auth`) are not transpiled.
+(`@realm/storage`, `@realm/email`, `@realm/auth`) are not transpiled.
 
 ### Entity convention
 
@@ -115,9 +115,9 @@ realm/
 ├─ apps/
 │  └─ tiffin-grab/             # first client app (Next.js 16)
 ├─ packages/                   # shared platform code — scope @realm/*
-│  ├─ commons/  commons-drizzle/  commons-next/
-│  ├─ commons-files/  commons-notify/
-│  ├─ ui/  design-system/  crm-core/  themes/  auth/
+│  ├─ commons/  database/  routes/
+│  ├─ storage/  email/
+│  ├─ ui/  design-system/  crm/  themes/  auth/
 ├─ tooling/
 │  └─ eslint-config/           # @realm/eslint-config
 ├─ docs/realm/                 # platform docs (structure, add-a-*, workflow)

@@ -13,18 +13,18 @@ realm/  (repo root)
 │   │                         errors, enums(Role), pagination, util/* (dates,
 │   │                         zoned-time, code, pin, contact, password schema,
 │   │                         money), LRU cache, pino logger (./logger subpath)
-│   ├── commons-drizzle/      Drizzle repo + service base (BaseService,
+│   ├── database/             Drizzle repo + service base (BaseService,
 │   │                         BaseRepository, managed-field stamping, actor hook)
-│   ├── commons-next/         Next route factories (createCollectionRoute/…),
-│   │                         list-param parse, response + error-mapper, Text
-│   ├── commons-files/        S3/local/memory storage, file-detail, secured
+│   ├── routes/               Next route factories (createCollectionRoute/…),
+│   │                         list-param parse, response + error-mapper
+│   ├── storage/              S3/local/memory storage, file-detail, secured
 │   │                         access, files schema  (server-only)
-│   ├── commons-notify/       SES email, react-email render, interpolate
+│   ├── email/                SES email, react-email render, interpolate
 │   │                         (server-only)
-│   ├── ui/                   33 shadcn/radix primitives + cn + support hooks
+│   ├── ui/                   33 shadcn/radix primitives + cn + Text + support hooks
 │   ├── design-system/        generic ds/* compositions over @realm/ui
 │   │                         (page-shell, stat-card, filter-bar, breadcrumbs…)
-│   ├── crm-core/             slot-based <CrmShell> dashboard scaffold
+│   ├── crm/                  slot-based <CrmShell> dashboard scaffold
 │   ├── themes/               ThemeProvider/useTheme + no-flash script + tokens
 │   └── auth/                 createRoleGuards(getSession) + bcrypt hashing
 │                             (server-only)
@@ -40,20 +40,20 @@ realm/  (repo root)
 | Package | Scope/name | Purpose | Client-consumed? |
 |---|---|---|---|
 | `commons` | `@realm/commons` | core utils, DTOs, errors, enums, money, logger | yes |
-| `commons-drizzle` | `@realm/database` | Drizzle service/repo base | yes |
-| `commons-next` | `@realm/routes` | Next route factories, Text | yes |
-| `commons-files` | `@realm/storage` | file storage subsystem | server-only |
-| `commons-notify` | `@realm/email` | SES email / render | server-only |
-| `ui` | `@realm/ui` | primitives + `cn` (+ subpaths `./button`, `./cn`, …) | yes |
+| `database` | `@realm/database` | Drizzle service/repo base | yes |
+| `routes` | `@realm/routes` | Next route factories | yes |
+| `storage` | `@realm/storage` | file storage subsystem | server-only |
+| `email` | `@realm/email` | SES email / render | server-only |
+| `ui` | `@realm/ui` | primitives + `cn` + `Text` (+ subpaths `./button`, `./cn`, …) | yes |
 | `design-system` | `@realm/design-system` | ds compositions over ui | yes |
-| `crm-core` | `@realm/crm` | `<CrmShell>` scaffold | yes |
+| `crm` | `@realm/crm` | `<CrmShell>` scaffold | yes |
 | `themes` | `@realm/themes` | provider + tokens + no-flash script | yes |
 | `auth` | `@realm/auth` | guard factory + bcrypt | server-only |
 | `eslint-config` | `@realm/eslint-config` | shared lint presets | build-time |
 
 **Client-consumed** packages must be listed in `apps/<client>/next.config.ts`
 `transpilePackages` (they ship raw `.ts`/`.tsx` source — no build step).
-**Server-only** packages (`commons-files`, `commons-notify`, `auth`) are NOT
+**Server-only** packages (`@realm/storage`, `@realm/email`, `@realm/auth`) are NOT
 transpiled — they run only in server code and Next resolves them directly.
 
 ## Dependency layering (acyclic, bottom-up)
@@ -62,17 +62,17 @@ transpiled — they run only in server code and Next resolves them directly.
 commons, themes              (floor — no workspace deps beyond commons)
   ← ui                       (imports themes; peer react/next)
   ← design-system            (imports ui; peer next)
-  ← crm-core                 (imports ui + design-system)
+  ← crm                      (imports ui + design-system)
   ← apps/tiffin-grab         (imports everything; NOTHING imports the app)
 
-commons-next   → commons + commons-drizzle
+routes         → commons + database
 auth           → commons
 ```
 
 Rules that keep it acyclic:
-- `themes`/`ui` never import `design-system`/`crm-core`.
+- `themes`/`ui` never import `design-system`/`crm`.
 - `design-system` composes `ui`; `ui` never imports `design-system`.
-- **`crm-core` never imports the app.** The dashboard shell is slot-based:
+- **`crm` never imports the app.** The dashboard shell is slot-based:
   `<CrmShell>` takes rendered `sidebar`/`breadcrumbs`/`actions`/`footer` slots,
   so all app services and nav config stay in `apps/tiffin-grab`.
 - App-specific things injected as props, never baked into a package:
