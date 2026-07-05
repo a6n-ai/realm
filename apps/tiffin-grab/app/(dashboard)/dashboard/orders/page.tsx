@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { eq } from "drizzle-orm";
-import { PackageIcon, PlusIcon } from "lucide-react";
-import { tzToDefaultCountry } from "@realm/commons";
+import { eq, sql } from "drizzle-orm";
+import { PackageIcon, PlusIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
+import { tzToDefaultCountry, formatMoney } from "@realm/commons";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
+import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listOrders } from "@/lib/services/orders.service";
@@ -12,7 +12,7 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NewOrderSheet } from "./new-order-sheet";
 
@@ -32,12 +32,43 @@ export default function OrdersPage({
           </Suspense>
         }
       />
+      <Suspense fallback={<SkeletonStatCards count={4} />}>
+        <OrdersStats />
+      </Suspense>
       <SectionCard title="All orders">
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
+  );
+}
+
+async function OrdersStats() {
+  await requireStaff();
+
+  const [s] = await db
+    .select({
+      total: sql<number>`count(*)`.mapWith(Number),
+      active: sql<number>`count(*) filter (where ${orders.status} = 'active')`.mapWith(Number),
+      pending: sql<number>`count(*) filter (where ${orders.status} = 'pending')`.mapWith(Number),
+      revenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.status} <> 'cancelled'), 0)`.mapWith(Number),
+    })
+    .from(orders);
+
+  const stats = [
+    { label: "Total orders", value: s.total, icon: PackageIcon },
+    { label: "Active", value: s.active, icon: ActivityIcon },
+    { label: "Pending", value: s.pending, icon: ClockIcon },
+    { label: "Revenue", value: formatMoney(s.revenue), icon: WalletIcon, hint: "excl. cancelled" },
+  ];
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map((st) => (
+        <StatCard key={st.label} {...st} />
+      ))}
+    </div>
   );
 }
 

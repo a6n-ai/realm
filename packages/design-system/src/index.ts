@@ -12,5 +12,6 @@ export * from "./filter-bar";
 export * from "./tabs";
 export * from "./pagination";
 export * from "./sortable-header";
+export * from "./data-table";
 export * from "./skeletons";
 export * from "./row-actions";

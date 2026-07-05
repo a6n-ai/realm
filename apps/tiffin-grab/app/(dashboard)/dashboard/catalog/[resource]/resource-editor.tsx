@@ -12,21 +12,19 @@ import { Button } from "@realm/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@realm/ui/dialog";
-import { EmptyState } from "@/components/ds";
+import { DataTable, type Column } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
 import type { FileDetail } from "@realm/storage/model";
 import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { Skeleton } from "@realm/ui/skeleton";
 import { Switch } from "@realm/ui/switch";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@realm/ui/table";
+import { TableCell } from "@realm/ui/table";
 import { cn } from "@realm/ui/cn";
+import type { SortState } from "@/lib/list/sort";
 import {
-  RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type ResourceDef,
+  RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,
 } from "../resource-config";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
@@ -41,6 +39,49 @@ const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect
 // the real header/rows and the .Skeleton twin render from this, so the loading
 // skeleton can never drift from the component.
 const visibleCols = (def: ResourceDef) => def.fields.filter((f) => !f.tableHidden && f.key !== "key");
+
+// Which field types carry a meaningful server sort. Arrays (csv/multiselect) and
+// images are excluded; the first visible column is always sortable regardless.
+const SORTABLE_FIELD_TYPES = new Set<FieldType>(["text", "number", "select", "date", "boolean"]);
+
+// The column keys that are sortable: the visible fields whose type carries a
+// meaningful sort, plus the synthetic "status". page.tsx applies the identical
+// rule server-side to whitelist + orderBy — kept in lockstep by SORTABLE_FIELD_TYPES.
+function sortableColumns(def: ResourceDef): string[] {
+  const cols = visibleCols(def);
+  return [
+    ...cols.filter((f, i) => i === 0 || SORTABLE_FIELD_TYPES.has(f.type)).map((f) => f.key),
+    "status",
+  ];
+}
+
+// DataTable column descriptors — the live header and the .Skeleton twin both
+// render from this array, so they can never drift.
+function tableColumns(def: ResourceDef): Column<string>[] {
+  const sortable = new Set(sortableColumns(def));
+  return [
+    ...visibleCols(def).map((f, i) => ({
+      key: f.key,
+      label: f.label,
+      sortable: sortable.has(f.key),
+      // First column carries the name (+ slug) and is always left-aligned to
+      // match renderRow; only the trailing numeric columns right-align.
+      ...(i > 0 && isNumberType(f) ? { align: "right" as const } : {}),
+    })),
+    { key: "status", label: "Status", sortable: true },
+    { key: "actions", label: "Actions", align: "right" as const, width: "w-px" },
+  ];
+}
+
+// Client-side search keys: the text-ish visible columns plus the slug on keyed
+// resources. Numeric/image columns are skipped — substring search over them is noise.
+function searchKeys(def: ResourceDef): (keyof Row)[] {
+  const keys = visibleCols(def)
+    .filter((f) => f.type === "text" || f.type === "select" || isArrayType(f))
+    .map((f) => f.key);
+  if (def.keyed) keys.push("key");
+  return keys as (keyof Row)[];
+}
 
 /** Resolve a stored option value to its human label (dynamic source wins, then static map). */
 function labelFor(f: FieldDef, value: string, options: Options): string {
@@ -342,17 +383,18 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
   }
   if (isNumberType(f)) {
-    return <span className="nums">{formatNumber(f, Number(value))}</span>;
+    return <span className="tabular-nums">{formatNumber(f, Number(value))}</span>;
   }
   return <span>{String(value)}</span>;
 }
 
 export function ResourceEditor({
-  resource, rows, dynamicOptions,
+  resource, rows, dynamicOptions, sort,
 }: {
   resource: string;
   rows: Row[];
   dynamicOptions: Options;
+  sort: SortState<string>;
 }) {
   const def = RESOURCES[resource];
   const router = useRouter();
@@ -361,6 +403,8 @@ export function ResourceEditor({
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const cols = visibleCols(def);
+  const first = cols[0];
+  const rest = cols.slice(1);
   const retired = rows.filter((r) => r.active === false).length;
   const activeCount = rows.length - retired;
 
@@ -373,91 +417,83 @@ export function ResourceEditor({
       .finally(() => setBusyId(null));
   };
 
+  const openNew = () => setEditing({ id: "__new__", row: null });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          <span className="nums text-foreground font-medium">{activeCount}</span> active
-          {retired ? <> · <span className="nums">{retired}</span> retired</> : null}
-        </p>
-        <Button onClick={() => setEditing({ id: "__new__", row: null })} className="active:scale-[0.96]">
-          <PlusIcon className="size-4" /> Add {def.singular}
-        </Button>
-      </div>
-
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={InboxIcon}
-          message={`No ${def.label.toLowerCase()} yet.`}
-          action={
-            <Button variant="outline" size="sm" onClick={() => setEditing({ id: "__new__", row: null })}>
-              <PlusIcon className="size-4" /> Add {def.singular}
-            </Button>
-          }
-        />
-      ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{cols[0]?.label ?? "Name"}</TableHead>
-                {cols.slice(1).map((f) => (
-                  <TableHead key={f.key} className={isNumberType(f) ? "text-right" : undefined}>{f.label}</TableHead>
-                ))}
-                <TableHead>Status</TableHead>
-                <TableHead className="w-px text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => {
-                const isRetired = row.active === false;
-                const busy = busyId === row.publicId;
-                const first = cols[0];
-                const rest = cols.slice(1);
-                return (
-                  <TableRow
-                    key={row.publicId}
-                    className={cn("transition-colors", isRetired && "opacity-55", busy && "pointer-events-none opacity-60")}
-                  >
-                    <TableCell className="font-medium">
-                      <span className="text-balance">{String(row[first.key] ?? row.publicId)}</span>
-                      {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
-                    </TableCell>
-                    {rest.map((f) => (
-                      <TableCell key={f.key} className={isNumberType(f) ? "text-right" : undefined}>
-                        <Cell f={f} value={row[f.key]} options={dynamicOptions} />
-                      </TableCell>
-                    ))}
-                    <TableCell>
-                      {isRetired
-                        ? <Badge variant="outline" className="text-muted-foreground font-normal">Retired</Badge>
-                        : <span className="text-ok inline-flex items-center gap-1.5 text-xs font-medium"><span className="bg-ok size-1.5 rounded-full" />Active</span>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
-                          <PencilIcon className="size-3.5" /> Edit
-                        </Button>
-                        {isRetired ? (
-                          <Button size="sm" variant="ghost" onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
-                            <RotateCcwIcon className="size-3.5" /> Restore
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
-                            <ArchiveIcon className="size-3.5" /> Retire
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={tableColumns(def)}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        sort={sort}
+        search={{ placeholder: `Search ${def.label.toLowerCase()}…`, keys: searchKeys(def) }}
+        rowClassName={(r) =>
+          cn(
+            "transition-colors",
+            r.active === false && "opacity-55",
+            busyId === r.publicId && "pointer-events-none opacity-60",
+          )
+        }
+        filters={
+          <p className="text-muted-foreground text-sm">
+            <span className="text-foreground font-medium tabular-nums">{activeCount}</span> active
+            {retired ? <> · <span className="tabular-nums">{retired}</span> retired</> : null}
+          </p>
+        }
+        actions={
+          <Button onClick={openNew} className="active:scale-[0.96]">
+            <PlusIcon className="size-4" /> Add {def.singular}
+          </Button>
+        }
+        emptyIcon={InboxIcon}
+        emptyMessage={`No ${def.label.toLowerCase()} yet.`}
+        emptySearchMessage={`No ${def.label.toLowerCase()} match your search.`}
+        emptyAction={
+          <Button variant="outline" size="sm" onClick={openNew}>
+            <PlusIcon className="size-4" /> Add {def.singular}
+          </Button>
+        }
+        renderRow={(row) => {
+          const isRetired = row.active === false;
+          const busy = busyId === row.publicId;
+          return (
+            <>
+              <TableCell className="font-medium">
+                <span className="text-balance">{String(row[first.key] ?? row.publicId)}</span>
+                {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
+              </TableCell>
+              {rest.map((f) => (
+                <TableCell key={f.key} className={isNumberType(f) ? "text-right tabular-nums" : undefined}>
+                  <Cell f={f} value={row[f.key]} options={dynamicOptions} />
+                </TableCell>
+              ))}
+              <TableCell>
+                {isRetired
+                  ? <Badge variant="outline" className="text-muted-foreground font-normal">Retired</Badge>
+                  : <span className="text-ok inline-flex items-center gap-1.5 text-xs font-medium"><span className="bg-ok size-1.5 rounded-full" />Active</span>}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing({ id: row.publicId, row })} disabled={busy}>
+                    <PencilIcon className="size-3.5" /> Edit
+                  </Button>
+                  {isRetired ? (
+                    <Button size="sm" variant="ghost" onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                      <RotateCcwIcon className="size-3.5" /> Restore
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                      <ArchiveIcon className="size-3.5" /> Retire
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </>
+          );
+        }}
+      />
 
       {editing ? (
         <EditorDialog
@@ -473,48 +509,9 @@ export function ResourceEditor({
   );
 }
 
-// Exact loading twin: same visibleCols source of truth + same header/table
-// markup as ResourceEditor, grey cells instead of data. Rendered as the page's
-// <Suspense fallback>, so it always matches the real table by construction.
+// Loading twin is now owned by DataTable — same tableColumns() source of truth,
+// zero drift. Rendered as the page's <Suspense fallback>.
 export function ResourceEditorSkeleton({ resource }: { resource: string }) {
   const def = RESOURCES[resource];
-  const cols = def ? visibleCols(def) : [];
-  const rest = cols.slice(1);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>{cols[0]?.label ?? "Name"}</TableHead>
-              {rest.map((f) => (
-                <TableHead key={f.key} className={isNumberType(f) ? "text-right" : undefined}>{f.label}</TableHead>
-              ))}
-              <TableHead>Status</TableHead>
-              <TableHead className="w-px text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 8 }).map((_, r) => (
-              <TableRow key={r} className="hover:bg-transparent">
-                <TableCell className="font-medium"><Skeleton className="h-4 w-full max-w-32" /></TableCell>
-                {rest.map((f) => (
-                  <TableCell key={f.key} className={isNumberType(f) ? "text-right" : undefined}>
-                    <Skeleton className={cn("h-4 w-full max-w-24", isNumberType(f) && "ml-auto")} />
-                  </TableCell>
-                ))}
-                <TableCell><Skeleton className="h-4 w-14" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-};
+  return <DataTable.Skeleton columns={def ? tableColumns(def) : []} />;
+}

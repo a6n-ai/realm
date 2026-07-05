@@ -1,41 +1,35 @@
 import { Suspense } from "react";
-import { desc, eq, sql } from "drizzle-orm";
-import Link from "next/link";
-import { ScrollTextIcon } from "lucide-react";
+import { asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { eventLabel } from "@/components/notifications/template-status";
-import { EmptyState, SkeletonStatCards } from "@/components/ds";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
+import { parseSort, type SortState } from "@/lib/list/sort";
+import { SkeletonStatCards } from "@/components/ds";
+import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 
-// Single source of truth for the ledger table's columns. The real header and
-// the skeleton twin both render from this, so the loading state can't drift.
-const COLUMNS = [
-  { key: "time", label: "Time" },
-  { key: "user", label: "User" },
-  { key: "event", label: "Event" },
-  { key: "source", label: "Source" },
-  { key: "coins", label: "Coins", align: "right" },
-  { key: "order", label: "Order" },
-  { key: "memo", label: "Memo" },
-] as const;
+const SORT_COL = {
+  time: walletLedger.createdAt,
+  user: users.email,
+  event: walletLedger.eventType,
+  source: walletLedger.sourceType,
+  coins: walletLedger.coins,
+  order: orders.publicId,
+  memo: walletLedger.memo,
+} as const;
 
-function fmt(ms: number): string {
-  return new Date(ms).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" });
-}
+type WalletSortColumn = keyof typeof SORT_COL;
 
-export default function WalletLedgerPage() {
+type SearchParams = Promise<{ q?: string; sort?: string; dir?: string }>;
+
+export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={5} />}>
         <WalletStatsData />
       </Suspense>
 
-      <Suspense fallback={<WalletLedgerData.Skeleton />}>
-        <WalletLedgerData />
+      <Suspense fallback={<LedgerTableSkeleton />}>
+        <WalletLedgerData searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -76,8 +70,30 @@ async function WalletStatsData() {
   );
 }
 
-async function WalletLedgerData() {
+async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
+
+  const sp = await searchParams;
+
+  const sort: SortState<WalletSortColumn> = parseSort(
+    sp,
+    ["time", "user", "event", "source", "coins", "order", "memo"],
+    { column: "time", dir: "desc" },
+  );
+
+  const q = sp.q?.trim();
+  const where: SQL | undefined = q
+    ? or(
+        ilike(walletLedger.memo, `%${q}%`),
+        ilike(users.email, `%${q}%`),
+        sql`${walletLedger.eventType}::text ilike ${`%${q}%`}`,
+        sql`${walletLedger.sourceType}::text ilike ${`%${q}%`}`,
+        ilike(orders.publicId, `%${q}%`),
+      )
+    : undefined;
+
+  const col = SORT_COL[sort.column];
+  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
 
   const rows = await db
     .select({
@@ -94,85 +110,11 @@ async function WalletLedgerData() {
     .from(walletLedger)
     .leftJoin(users, eq(users.id, walletLedger.userId))
     .leftJoin(orders, eq(orders.id, walletLedger.orderId))
-    .orderBy(desc(walletLedger.createdAt))
+    .where(where)
+    .orderBy(orderBy)
     .limit(100);
 
-  if (rows.length === 0) {
-    return <EmptyState icon={ScrollTextIcon} message="No wallet activity yet. Earns and redemptions will appear here." />;
-  }
-
-  return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((c) => (
-              <TableHead key={c.key} className={cn("align" in c && "text-right")}>
-                {c.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => {
-            const credit = r.direction === "credit";
-            return (
-              <TableRow key={r.publicId}>
-                <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
-                <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
-                <TableCell>{r.eventType ? eventLabel(r.eventType) : "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{r.sourceType}</TableCell>
-                <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
-                  {credit ? "+" : "−"}
-                  {r.coins}
-                </TableCell>
-                <TableCell>
-                  {r.orderPublicId ? (
-                    <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">
-                      {r.orderPublicId}
-                    </Link>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
+  return <LedgerTable rows={rows} sort={sort} />;
 }
 
-// Exact loading twin: same COLUMNS + same bordered Table markup, grey cells
-// instead of data. Rendered as the page's <Suspense fallback>, so it always
-// matches WalletLedgerData by construction.
-WalletLedgerData.Skeleton = function WalletLedgerSkeleton() {
-  return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((c) => (
-              <TableHead key={c.key} className={cn("align" in c && "text-right")}>
-                {c.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 8 }).map((_, r) => (
-            <TableRow key={r}>
-              {COLUMNS.map((c) => (
-                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
-                  <Skeleton className={cn("h-4 w-full max-w-32", "align" in c && "ml-auto")} />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-};
+export type { WalletSortColumn };

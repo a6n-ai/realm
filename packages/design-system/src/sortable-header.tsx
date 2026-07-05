@@ -2,9 +2,14 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react";
 import { TableHead } from "@realm/ui/table";
+import { cn } from "@realm/ui/cn";
 
-export function SortableHeader({ column, label, currentSort, currentDir, className }: {
-  column: string; label: string; currentSort: string; currentDir: "asc" | "desc"; className?: string;
+const alignClass = (align?: "right" | "center") =>
+  align === "right" ? "text-right" : align === "center" ? "text-center" : undefined;
+
+export function SortableHeader({ column, label, currentSort, currentDir, align, className }: {
+  column: string; label: string; currentSort: string; currentDir: "asc" | "desc";
+  align?: "right" | "center"; className?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -21,8 +26,21 @@ export function SortableHeader({ column, label, currentSort, currentDir, classNa
 
   const Icon = active ? (currentDir === "asc" ? ChevronUpIcon : ChevronDownIcon) : ChevronsUpDownIcon;
   return (
-    <TableHead className={className}>
-      <button type="button" onClick={onClick} className="inline-flex items-center gap-1 hover:text-foreground text-muted-foreground data-[active=true]:text-foreground" data-active={active}>
+    <TableHead
+      className={cn(alignClass(align), className)}
+      aria-sort={active ? (currentDir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        // Right-aligned numeric headers push the sort control to the cell edge so
+        // the label sits flush over its column.
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-foreground text-muted-foreground data-[active=true]:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded-sm",
+          align === "right" && "flex-row-reverse",
+        )}
+        data-active={active}
+      >
         {label}
         <Icon className="size-3.5" />
       </button>

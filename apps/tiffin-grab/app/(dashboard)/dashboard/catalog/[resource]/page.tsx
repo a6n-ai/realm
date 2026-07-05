@@ -1,13 +1,15 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
+import { asc, desc, getTableColumns, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type ResourceDef } from "../resource-config";
+import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
 import { ResourceEditor, ResourceEditorSkeleton } from "./resource-editor";
 
 const TABLES: Record<string, PgTable> = {
@@ -21,7 +23,30 @@ const TABLES: Record<string, PgTable> = {
   addons,
 };
 
-export default async function CatalogResourcePage({ params }: { params: Promise<{ resource: string }> }) {
+// Synthetic column exposed to sorting that isn't a plain field: maps to `active`.
+const STATUS_SORT_KEY = "status";
+
+// Which field types carry a meaningful server sort. Mirrors SORTABLE_FIELD_TYPES
+// in resource-editor.tsx so the header's sortable flags and the server's
+// whitelist/orderBy stay in lockstep (the client module can't be imported here).
+const SORTABLE_FIELD_TYPES = new Set<FieldType>(["text", "number", "select", "date", "boolean"]);
+
+function sortableColumns(def: ResourceDef): string[] {
+  const cols = def.fields.filter((f) => !f.tableHidden && f.key !== "key");
+  return [
+    ...cols.filter((f, i) => i === 0 || SORTABLE_FIELD_TYPES.has(f.type)).map((f) => f.key),
+    STATUS_SORT_KEY,
+  ];
+}
+
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
+
+export default async function CatalogResourcePage({
+  params, searchParams,
+}: {
+  params: Promise<{ resource: string }>;
+  searchParams: SearchParams;
+}) {
   const { resource } = await params;
   const def: ResourceDef | undefined = RESOURCES[resource];
   return (
@@ -29,14 +54,14 @@ export default async function CatalogResourcePage({ params }: { params: Promise<
       <PageHeader icon={UtensilsCrossedIcon} title={def?.label ?? "Catalog"} />
       <SectionCard title="Entries">
         <Suspense fallback={<ResourceEditorSkeleton resource={resource} />}>
-          <CatalogData resource={resource} />
+          <CatalogData resource={resource} searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
   );
 }
 
-async function CatalogData({ resource }: { resource: string }) {
+async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
   await requireAdmin();
   const def: ResourceDef | undefined = RESOURCES[resource];
   const table = TABLES[resource];
@@ -53,7 +78,14 @@ async function CatalogData({ resource }: { resource: string }) {
     }
   }
 
-  const raw = (await db.select().from(table)) as Record<string, unknown>[];
+  const allowed = sortableColumns(def);
+  const sort = parseSort(await searchParams, allowed, { column: allowed[0], dir: "asc" });
+
+  const columns = getTableColumns(table) as Record<string, DrizzleColumn>;
+  const sortCol = columns[sort.column === STATUS_SORT_KEY ? "active" : sort.column];
+  const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
+
+  const raw = (await db.select().from(table).orderBy(orderBy)) as Record<string, unknown>[];
   const rows = raw.map((r) => {
     const dto: Record<string, unknown> & { publicId: string } = {
       publicId: r.publicId as string,
@@ -63,5 +95,5 @@ async function CatalogData({ resource }: { resource: string }) {
     return dto;
   });
 
-  return <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} />;
+  return <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} sort={sort} />;
 }

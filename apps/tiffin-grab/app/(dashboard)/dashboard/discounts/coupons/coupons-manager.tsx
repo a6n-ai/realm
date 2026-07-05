@@ -3,9 +3,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PencilIcon, PlusIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, XIcon } from "lucide-react";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
-import { SectionCard } from "@/components/ds";
+import { DataTable, SectionCard, type Column } from "@/components/ds";
+import type { SortState } from "@/lib/list/sort";
+import type { CouponSortColumn } from "./page";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -14,13 +16,10 @@ import { Label } from "@realm/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@realm/ui/table";
+import { TableCell } from "@realm/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@realm/ui/dialog";
-import { cn } from "@realm/ui/cn";
 import {
   BUSINESS_TZ_LABEL,
   CREATABLE_KINDS,
@@ -144,21 +143,28 @@ function YesNo({ value }: { value: boolean }) {
   return value ? <Badge variant="outline">Yes</Badge> : <span className="text-muted-foreground">No</span>;
 }
 
-// Single source of truth for the table's columns. The real header and the
-// .Skeleton twin both render from this, so the loading skeleton can never
-// drift from the component.
-const COLUMNS = [
-  { key: "code", label: "Code" },
-  { key: "kind", label: "Kind" },
+// Single source of truth for the table's columns. DataTable renders the header
+// and DataTable.Skeleton renders the loading twin from this same array, so the
+// two can never drift. "value" is computed across kinds and "actions" is a pure
+// action cell — neither is server-sortable.
+const COLUMNS: readonly Column<CouponSortColumn | "value" | "actions">[] = [
+  { key: "code", label: "Code", sortable: true },
+  { key: "kind", label: "Kind", sortable: true },
   { key: "value", label: "Value", align: "right" },
-  { key: "autoApply", label: "Auto-apply" },
-  { key: "window", label: "Window" },
-  { key: "stackable", label: "Stackable" },
-  { key: "status", label: "Status" },
+  { key: "autoApply", label: "Auto-apply", sortable: true },
+  { key: "window", label: "Window", sortable: true },
+  { key: "stackable", label: "Stackable", sortable: true },
+  { key: "status", label: "Status", sortable: true },
   { key: "actions", label: "", width: "w-px" },
-] as const;
+];
 
-export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
+export function CouponsManager({
+  coupons,
+  sort,
+}: {
+  coupons: CouponRow[];
+  sort: SortState<CouponSortColumn>;
+}) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [draft, setDraft] = React.useState<Draft | null>(null);
@@ -224,76 +230,76 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
         </Button>
       }
     >
-      {coupons.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No coupons yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {COLUMNS.map((c) => (
-                <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
-                  {c.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {coupons.map((c) => (
-              <TableRow key={c.publicId} className={cn(!c.active && "opacity-60")}>
-                <TableCell>
-                  <div className="grid gap-0.5">
-                    <span className="font-mono text-sm font-medium">{c.code}</span>
-                    <span className="text-muted-foreground text-xs">{c.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{KIND_LABELS[c.kind]}</Badge>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{couponValue(c)}</TableCell>
-                <TableCell>
-                  <YesNo value={c.autoApply} />
-                </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
-                  {formatWindow(c.startsAt, c.expiresAt)}
-                </TableCell>
-                <TableCell>
-                  <YesNo value={c.stackable} />
-                </TableCell>
-                <TableCell>
-                  {c.active ? (
-                    <Badge variant="outline">Active</Badge>
-                  ) : (
-                    <Badge variant="destructive">Disabled</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => open(toDraft(c))}
-                      className="transition-transform active:scale-[0.96]"
-                    >
-                      <PencilIcon className="size-3.5" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={pending}
-                      onClick={() => toggleActive(c)}
-                      className="text-muted-foreground transition-[color,transform] active:scale-[0.96]"
-                    >
-                      {c.active ? <XIcon className="size-3.5" /> : <RotateCcwIcon className="size-3.5" />}
-                      {c.active ? "Disable" : "Enable"}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <DataTable
+        columns={COLUMNS}
+        rows={coupons}
+        rowKey={(c) => c.publicId}
+        sort={sort}
+        search={{ placeholder: "Search by code or name…", keys: ["code", "name"] }}
+        rowClassName={(c) => (c.active ? "" : "opacity-60")}
+        emptyIcon={TicketPercentIcon}
+        emptyMessage="No coupons yet."
+        emptySearchMessage="No coupons match your search."
+        emptyAction={
+          <Button size="sm" onClick={() => open(emptyDraft())}>
+            <PlusIcon className="size-4" />
+            New coupon
+          </Button>
+        }
+        renderRow={(c) => (
+          <>
+            <TableCell>
+              <div className="grid gap-0.5">
+                <span className="font-mono text-sm font-medium">{c.code}</span>
+                <span className="text-muted-foreground text-xs">{c.name}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge variant="secondary">{KIND_LABELS[c.kind]}</Badge>
+            </TableCell>
+            <TableCell className="text-right tabular-nums">{couponValue(c)}</TableCell>
+            <TableCell>
+              <YesNo value={c.autoApply} />
+            </TableCell>
+            <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
+              {formatWindow(c.startsAt, c.expiresAt)}
+            </TableCell>
+            <TableCell>
+              <YesNo value={c.stackable} />
+            </TableCell>
+            <TableCell>
+              {c.active ? (
+                <Badge variant="outline">Active</Badge>
+              ) : (
+                <Badge variant="destructive">Disabled</Badge>
+              )}
+            </TableCell>
+            <TableCell>
+              <div className="flex justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => open(toDraft(c))}
+                  className="transition-transform active:scale-[0.96]"
+                >
+                  <PencilIcon className="size-3.5" />
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => toggleActive(c)}
+                  className="text-muted-foreground transition-[color,transform] active:scale-[0.96]"
+                >
+                  {c.active ? <XIcon className="size-3.5" /> : <RotateCcwIcon className="size-3.5" />}
+                  {c.active ? "Disable" : "Enable"}
+                </Button>
+              </div>
+            </TableCell>
+          </>
+        )}
+      />
 
       <Dialog open={draft !== null} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
@@ -487,9 +493,8 @@ export function CouponsManager({ coupons }: { coupons: CouponRow[] }) {
   );
 }
 
-// Exact loading twin: same SectionCard + same COLUMNS/Table markup, grey cells
-// instead of data. Rendered as the page's <Suspense fallback>, so it always
-// matches CouponsManager by construction.
+// Loading twin: same SectionCard + the DataTable skeleton fed the SAME COLUMNS,
+// so header/columns can never drift from the live table.
 export function CouponsManagerSkeleton() {
   return (
     <SectionCard
@@ -497,34 +502,7 @@ export function CouponsManagerSkeleton() {
       subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
       action={<Skeleton className="h-8 w-28" />}
     >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((c) => (
-              <TableHead key={c.key} className={cn("align" in c && "text-right", "width" in c && c.width)}>
-                {c.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 8 }).map((_, r) => (
-            <TableRow key={r}>
-              {COLUMNS.map((c) => (
-                <TableCell key={c.key} className={"align" in c ? "text-right" : undefined}>
-                  <Skeleton
-                    className={cn(
-                      "h-4",
-                      c.key === "actions" ? "w-16" : "w-full max-w-32",
-                      "align" in c && "ml-auto",
-                    )}
-                  />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <DataTable.Skeleton columns={COLUMNS} />
     </SectionCard>
   );
-};
+}

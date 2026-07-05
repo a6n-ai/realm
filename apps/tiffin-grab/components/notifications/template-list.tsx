@@ -1,11 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { PencilIcon } from "lucide-react";
-import { FilterBar, RowActionButton, RowActions, SearchInput } from "@/components/ds";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { cn } from "@realm/ui/cn";
+import { useMemo } from "react";
+import { LayersIcon, PencilIcon } from "lucide-react";
+import {
+  DataTable,
+  FilterPill,
+  RowActionButton,
+  RowActions,
+  type Column,
+} from "@/components/ds";
+import { TableCell } from "@realm/ui/table";
+import { useUrlState } from "@/lib/list/use-url-state";
+import type { SortState } from "@/lib/list/sort";
 import { eventLabel } from "./template-status";
 
 export interface TemplateChannel {
@@ -18,15 +24,35 @@ export interface TemplateStatus {
   updatedAt: number | null;
 }
 
+export type TemplateSortColumn = "event" | "channels" | "updated";
+
 /** Display names per channel. Unknown/future channels fall back to a humanized label. */
 const CHANNEL_LABEL: Record<string, string> = { email: "Email", in_app: "In-app", sms: "SMS", whatsapp: "WhatsApp" };
 const label = (c: string) => CHANNEL_LABEL[c] ?? c.replace(/_/g, " ").replace(/^./, (m) => m.toUpperCase());
 
-type Filter = "all" | "configured" | "missing";
-const FILTERS: { key: Filter; label: string }[] = [
+type StatusFilter = "all" | "configured" | "missing";
+const STATUS_PILLS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "configured", label: "Configured" },
   { key: "missing", label: "Not configured" },
+];
+
+// The label is precomputed so DataTable's client-side search can match the
+// human-readable event name, not just the raw enum key.
+type Row = {
+  event: string;
+  label: string;
+  channels: TemplateChannel[];
+  updatedAt: number | null;
+};
+
+// Single source of truth for the header — DataTable and DataTable.Skeleton both
+// render from this array, so the loading twin can never drift.
+export const TEMPLATE_COLUMNS: readonly Column<TemplateSortColumn | "actions">[] = [
+  { key: "event", label: "Event", sortable: true },
+  { key: "channels", label: "Channels", sortable: true },
+  { key: "updated", label: "Updated", sortable: true, align: "right" },
+  { key: "actions", label: "Actions", align: "right", width: "w-16" },
 ];
 
 function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
@@ -50,81 +76,76 @@ function fmt(ms: number | null): string {
   return ms ? new Date(ms).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "—";
 }
 
-export function TemplateList({ items }: { items: TemplateStatus[] }) {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+export function TemplateList({
+  items,
+  sort,
+}: {
+  items: TemplateStatus[];
+  sort: SortState<TemplateSortColumn>;
+}) {
+  const [status, setStatus] = useUrlState("status", "all");
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((i) => {
-      if (q && !eventLabel(i.event).toLowerCase().includes(q) && !i.event.includes(q)) return false;
-      if (filter === "configured") return i.channels.length > 0;
-      if (filter === "missing") return i.channels.length === 0;
-      return true;
-    });
-  }, [items, query, filter]);
+  const rows = useMemo<Row[]>(
+    () => items.map((i) => ({ ...i, label: eventLabel(i.event) })),
+    [items],
+  );
+
+  // Status counts are search-independent, so they recompute only when rows change.
+  const counts = useMemo(() => {
+    let configured = 0;
+    for (const r of rows) if (r.channels.length > 0) configured++;
+    return { all: rows.length, configured, missing: rows.length - configured };
+  }, [rows]);
+
+  const statusRows = useMemo(
+    () =>
+      rows.filter((r) =>
+        status === "configured"
+          ? r.channels.length > 0
+          : status === "missing"
+            ? r.channels.length === 0
+            : true,
+      ),
+    [rows, status],
+  );
 
   return (
-    <div className="space-y-4">
-      <FilterBar
-        search={<SearchInput value={query} onChange={setQuery} placeholder="Search events…" />}
-        filters={
-          <div className="bg-muted/50 inline-flex items-center rounded-lg border p-0.5">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFilter(f.key)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  filter === f.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        }
-      />
-
-      <div className="overflow-hidden rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Event</TableHead>
-              <TableHead>Channels</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-sm text-muted-foreground">
-                  No events match your filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((i) => {
-                const href = `/dashboard/notifications/templates/${i.event}`;
-                return (
-                  <TableRow key={i.event} onClick={() => router.push(href)} className="group/row cursor-pointer">
-                    <TableCell className="font-medium">{eventLabel(i.event)}</TableCell>
-                    <TableCell><ChannelsCell channels={i.channels} /></TableCell>
-                    <TableCell className="tabular-nums text-muted-foreground">{fmt(i.updatedAt)}</TableCell>
-                    <TableCell>
-                      <RowActions>
-                        <RowActionButton icon={PencilIcon} label="Edit templates" href={href} />
-                      </RowActions>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <DataTable
+      columns={TEMPLATE_COLUMNS}
+      rows={statusRows}
+      rowKey={(r) => r.event}
+      sort={sort}
+      search={{ placeholder: "Search events…", keys: ["label", "event"] }}
+      rowClassName={() => "group cursor-pointer"}
+      filters={STATUS_PILLS.map((p) => (
+        <FilterPill
+          key={p.key}
+          label={p.label}
+          active={status === p.key}
+          count={counts[p.key]}
+          onClick={() => setStatus(p.key)}
+        />
+      ))}
+      emptyIcon={LayersIcon}
+      emptyMessage="No events."
+      emptySearchMessage="No events match your search."
+      renderRow={(r) => {
+        const href = `/dashboard/notifications/templates/${r.event}`;
+        return (
+          <>
+            <TableCell className="font-medium">{r.label}</TableCell>
+            <TableCell>
+              <ChannelsCell channels={r.channels} />
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(r.updatedAt)}</TableCell>
+            <TableCell>
+              <RowActions>
+                <RowActionButton icon={PencilIcon} label="Edit templates" href={href} />
+              </RowActions>
+            </TableCell>
+          </>
+        );
+      }}
+    />
   );
 }

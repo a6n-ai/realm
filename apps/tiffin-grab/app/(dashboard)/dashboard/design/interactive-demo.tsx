@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { UsersIcon } from "lucide-react";
+import { TableCell } from "@realm/ui/table";
 import {
+  DataTable,
   FilterBar,
   FilterPill,
   Pagination,
@@ -11,7 +14,22 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  type Column,
 } from "@/components/ds";
+
+type DemoRow = { id: string; name: string; role: string; orders: number };
+
+const DEMO_COLUMNS: readonly Column<"name" | "role" | "orders">[] = [
+  { key: "name", label: "Name", sortable: true },
+  { key: "role", label: "Role" },
+  { key: "orders", label: "Orders", sortable: true, align: "right" },
+];
+
+const DEMO_ROWS: DemoRow[] = [
+  { id: "1", name: "Aditi Rao", role: "Customer", orders: 12 },
+  { id: "2", name: "Ben Carter", role: "Customer", orders: 3 },
+  { id: "3", name: "Chen Wei", role: "Lead", orders: 0 },
+];
 
 const FILTERS = [
   { label: "All", count: 24 },
@@ -39,6 +57,25 @@ export function InteractiveDemo() {
               onClick={() => setActiveFilter(f.label)}
             />
           ))}
+        />
+      </SectionCard>
+
+      <SectionCard title="Data table" subtitle="DataTable — bordered card, URL search, sortable headers, in-table empty state">
+        <DataTable
+          columns={DEMO_COLUMNS}
+          rows={DEMO_ROWS}
+          rowKey={(r) => r.id}
+          sort={{ column: "orders", dir: "desc" }}
+          search={{ placeholder: "Search people…", keys: ["name", "role"] }}
+          emptyIcon={UsersIcon}
+          emptyMessage="No people yet."
+          renderRow={(r) => (
+            <>
+              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell>{r.role}</TableCell>
+              <TableCell className="text-right tabular-nums">{r.orders}</TableCell>
+            </>
+          )}
         />
       </SectionCard>
 

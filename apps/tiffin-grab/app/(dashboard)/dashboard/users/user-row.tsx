@@ -4,31 +4,21 @@ import { Role, type RoleValue } from "@realm/commons";
 import { useTransition } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { Switch } from "@realm/ui/switch";
-import { TableCell, TableRow } from "@realm/ui/table";
+import { TableCell } from "@realm/ui/table";
 import { setUserFlag, setUserRole } from "./actions";
+import type { UserListRow } from "./users-list";
 
-type FlagState = { id: string; key: string; label: string; enabled: boolean };
-
-export function UserRow({
-  user,
-  flags,
-}: {
-  user: {
-    id: string;
-    email: string | null;
-    phone: string | null;
-    role: RoleValue;
-  };
-  flags: FlagState[];
-}) {
+// Returns only the <TableCell> children — DataTable supplies the wrapping
+// <TableRow>. Interactive role/flag controls stay client-side here.
+export function UserRow({ id, email, phone, role, flags }: UserListRow) {
   const [pending, start] = useTransition();
   return (
-    <TableRow>
-      <TableCell>{user.email ?? user.phone ?? "—"}</TableCell>
+    <>
+      <TableCell>{email ?? phone ?? "—"}</TableCell>
       <TableCell>
         <Select
-          defaultValue={user.role}
-          onValueChange={(v) => start(() => setUserRole(user.id, v as RoleValue))}
+          defaultValue={role}
+          onValueChange={(v) => start(() => setUserRole(id, v as RoleValue))}
           disabled={pending}
         >
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
@@ -45,7 +35,7 @@ export function UserRow({
             <label key={f.id} className="flex items-center gap-2 text-sm">
               <Switch
                 checked={f.enabled}
-                onCheckedChange={(c) => start(() => setUserFlag(user.id, f.id, c))}
+                onCheckedChange={(c) => start(() => setUserFlag(id, f.id, c))}
                 disabled={pending}
               />
               {f.label}
@@ -53,6 +43,6 @@ export function UserRow({
           ))}
         </div>
       </TableCell>
-    </TableRow>
+    </>
   );
 }

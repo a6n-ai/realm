@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { UsersIcon, PlusIcon } from "lucide-react";
+import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { tzToDefaultCountry } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
@@ -11,11 +11,12 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 
 const SORT_COL = {
+  name: users.name,
   email: users.email,
   phone: users.phone,
   orders: sql`count(${orders.id})`,
@@ -41,6 +42,9 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
           </Suspense>
         }
       />
+      <Suspense fallback={<SkeletonStatCards count={4} />}>
+        <CustomersStats />
+      </Suspense>
       <SectionCard title="All customers">
         <Suspense fallback={<CustomersListSkeleton />}>
           <CustomersData searchParams={searchParams} />
@@ -50,12 +54,49 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
   );
 }
 
+async function CustomersStats() {
+  await requireStaff();
+
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const oc = db
+    .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })
+    .from(orders)
+    .groupBy(orders.userId)
+    .as("oc");
+
+  const [s] = await db
+    .select({
+      total: sql<number>`count(*)`.mapWith(Number),
+      withOrders: sql<number>`count(*) filter (where ${oc.c} > 0)`.mapWith(Number),
+      repeat: sql<number>`count(*) filter (where ${oc.c} >= 2)`.mapWith(Number),
+      newThisWeek: sql<number>`count(*) filter (where ${users.createdAt} >= ${weekAgo})`.mapWith(Number),
+    })
+    .from(users)
+    .leftJoin(oc, eq(oc.userId, users.id))
+    .where(eq(users.role, "user"));
+
+  const stats = [
+    { label: "Total customers", value: s.total, icon: UsersIcon },
+    { label: "With orders", value: s.withOrders, icon: ShoppingBagIcon },
+    { label: "Repeat buyers", value: s.repeat, icon: RepeatIcon, hint: "2+ orders" },
+    { label: "New this week", value: s.newThisWeek, icon: UserPlusIcon },
+  ];
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map((st) => (
+        <StatCard key={st.label} {...st} />
+      ))}
+    </div>
+  );
+}
+
 async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
   const sort: SortState<CustomerSortColumn> = parseSort(
     await searchParams,
-    ["email", "phone", "orders"],
+    ["name", "email", "phone", "orders"],
     { column: "orders", dir: "desc" },
   );
 
@@ -65,6 +106,7 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   const rows = await db
     .select({
       publicId: users.publicId,
+      name: users.name,
       email: users.email,
       phone: users.phone,
       orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
@@ -73,7 +115,7 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
     .from(users)
     .leftJoin(orders, eq(orders.userId, users.id))
     .where(eq(users.role, "user"))
-    .groupBy(users.id, users.publicId, users.email, users.phone)
+    .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
     .orderBy(orderBy)
     .limit(500);
 

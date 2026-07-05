@@ -3,9 +3,16 @@ import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
+import { parseSort, type SortState } from "@/lib/list/sort";
 import { SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
-import { TemplateList, type TemplateStatus } from "@/components/notifications/template-list";
+import {
+  TemplateList,
+  type TemplateSortColumn,
+  type TemplateStatus,
+} from "@/components/notifications/template-list";
 import { TemplateListSkeleton } from "./template-list-skeleton";
+
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
 const CHANNEL_ORDER = ["email", "in_app", "sms", "whatsapp"];
 
@@ -41,7 +48,7 @@ async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configure
   return { items, configured };
 }
 
-export default function NotificationTemplatesPage() {
+export default function NotificationTemplatesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
@@ -50,7 +57,7 @@ export default function NotificationTemplatesPage() {
 
       <SectionCard title="Templates" subtitle="A channel with no template does not send. Select an event to edit.">
         <Suspense fallback={<TemplateListSkeleton />}>
-          <TemplateListData />
+          <TemplateListData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </div>
@@ -68,7 +75,28 @@ async function TemplateStatsData() {
   );
 }
 
-async function TemplateListData() {
+async function TemplateListData({ searchParams }: { searchParams: SearchParams }) {
+  const sort: SortState<TemplateSortColumn> = parseSort(
+    await searchParams,
+    ["event", "channels", "updated"],
+    { column: "event", dir: "asc" },
+  );
+
   const { items } = await loadTemplateItems();
-  return <TemplateList items={items} />;
+
+  // Data is aggregated in-memory from the event enum (no Drizzle query to
+  // orderBy), so the sort is applied to the array here, server-side, before the
+  // client list renders it.
+  const dir = sort.dir === "asc" ? 1 : -1;
+  const sorted = [...items].sort((a, b) => {
+    const d =
+      sort.column === "event"
+        ? a.event.localeCompare(b.event)
+        : sort.column === "channels"
+          ? a.channels.length - b.channels.length
+          : (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
+    return d * dir;
+  });
+
+  return <TemplateList items={sorted} sort={sort} />;
 }

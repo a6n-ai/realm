@@ -1,26 +1,49 @@
 import { Suspense } from "react";
-import { desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { parseSort, type SortState } from "@/lib/list/sort";
 import { DiscountLogs } from "./discount-logs";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
 
-export default function DiscountLogsPage() {
+const SORT_COL = {
+  time: couponRedemptions.createdAt,
+  coupon: coupons.code,
+  user: customer.email,
+  amount: couponRedemptions.amountApplied,
+  order: orders.publicId,
+  redeemedBy: redeemer.email,
+} as const;
+
+type DiscountLogSortColumn = keyof typeof SORT_COL;
+
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
+
+export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <Suspense fallback={<DiscountLogs.Skeleton />}>
-        <DiscountLogsData />
+        <DiscountLogsData searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function DiscountLogsData() {
+async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
+
+  const sort: SortState<DiscountLogSortColumn> = parseSort(
+    await searchParams,
+    ["time", "coupon", "user", "amount", "order", "redeemedBy"],
+    { column: "time", dir: "desc" },
+  );
+
+  const col = SORT_COL[sort.column];
+  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
 
   const [[agg], rows] = await Promise.all([
     db
@@ -46,7 +69,7 @@ async function DiscountLogsData() {
     .leftJoin(customer, eq(customer.id, couponRedemptions.userId))
     .leftJoin(redeemer, eq(redeemer.id, couponRedemptions.redeemedBy))
     .leftJoin(orders, eq(orders.id, couponRedemptions.orderId))
-    .orderBy(desc(couponRedemptions.createdAt))
+    .orderBy(orderBy)
     .limit(100),
   ]);
 
@@ -57,5 +80,7 @@ async function DiscountLogsData() {
     { label: "Customers", value: agg.customers.toLocaleString() },
   ];
 
-  return <DiscountLogs stats={stats} rows={rows} />;
+  return <DiscountLogs stats={stats} rows={rows} sort={sort} />;
 }
+
+export type { DiscountLogSortColumn };
