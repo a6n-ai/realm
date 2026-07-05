@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { LockIcon } from "lucide-react";
+import { toast } from "sonner";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { Button } from "@realm/ui/button";
 
@@ -18,7 +19,8 @@ export function LockButton({ hasPin }: { hasPin: boolean }) {
       title={hasPin ? "Lock session" : "Set up PIN lock"}
       onClick={async () => {
         if (!hasPin) {
-          router.push("/dashboard/account");
+          toast.info("Set a PIN to start using the lock feature.");
+          router.push("/dashboard/account/security");
           return;
         }
         await lockSession();
