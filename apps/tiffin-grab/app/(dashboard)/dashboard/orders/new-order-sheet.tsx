@@ -2,7 +2,8 @@
 
 import { PackageIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Button } from "@realm/ui/button";
@@ -80,6 +81,14 @@ export function NewOrderSheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
+  // FAB deep-link: /dashboard/orders?new=1 opens the sheet; the param is cleared on close.
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (params.get("new") === "1") setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
   const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -114,7 +123,16 @@ export function NewOrderSheet({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep(1); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) {
+          setStep(1);
+          if (params.get("new") === "1") router.replace(pathname, { scroll: false });
+        }
+      }}
+    >
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
         <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">

@@ -15,3 +15,7 @@ export * from "./sortable-header";
 export * from "./data-table";
 export * from "./skeletons";
 export * from "./row-actions";
+export { StatGrid } from "./stat-grid";
+export { BottomNav, type BottomNavItem, type BottomNavFab } from "./bottom-nav";
+export { FilterChips } from "./filter-chips";
+export { FilterSheet } from "./filter-sheet";

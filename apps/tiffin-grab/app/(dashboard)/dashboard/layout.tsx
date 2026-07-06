@@ -15,6 +15,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CrmShell } from "@realm/crm";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
+import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
@@ -72,6 +73,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </>
       }
       footer={hasPin ? <IdleLock /> : null}
+      bottomNav={<AppBottomNav role={role} />}
     >
       {children}
     </CrmShell>

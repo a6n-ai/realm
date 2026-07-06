@@ -13,6 +13,7 @@ export function CrmShell({
   center,
   actions,
   footer,
+  bottomNav,
   children,
 }: {
   sidebar: ReactNode;
@@ -20,6 +21,7 @@ export function CrmShell({
   center?: ReactNode;
   actions?: ReactNode;
   footer?: ReactNode;
+  bottomNav?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -34,8 +36,9 @@ export function CrmShell({
           {actions && <div className={`flex items-center gap-1${center ? " ml-auto md:ml-0" : " ml-auto"}`}>{actions}</div>}
         </header>
         {center && <div className="border-b px-4 py-2 md:hidden">{center}</div>}
-        <div className="flex-1 p-6">{children}</div>
+        <div className="flex-1 p-6 pb-24 md:pb-6">{children}</div>
       </SidebarInset>
+      {bottomNav}
       {footer}
     </SidebarProvider>
   );

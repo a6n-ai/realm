@@ -11,7 +11,7 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 
@@ -83,11 +83,11 @@ async function CustomersStats() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatGrid cols={4}>
       {stats.map((st) => (
         <StatCard key={st.label} {...st} />
       ))}
-    </div>
+    </StatGrid>
   );
 }
 

@@ -31,6 +31,7 @@ import {
   PageShell,
   PageHeader,
   StatCard,
+  StatGrid,
   SectionCard,
   Card,
   ListRow,
@@ -113,11 +114,11 @@ async function OverviewStats() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatGrid cols={4}>
       {cards.map((c) => (
         <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
       ))}
-    </div>
+    </StatGrid>
   );
 }
 
@@ -313,11 +314,11 @@ async function CustomerDashboard({ userId }: { userId: string }) {
         subtitle="Your subscription, spend, and order history at a glance."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <StatGrid cols={3}>
         {cards.map((c) => (
           <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
         ))}
-      </div>
+      </StatGrid>
 
       <SectionCard
         title="Current subscription"
@@ -364,6 +365,7 @@ async function CustomerDashboard({ userId }: { userId: string }) {
       <SectionCard
         title="Past orders"
         subtitle={`Every plan you've ordered, newest first. Dates in delivery time (${zoneAbbrev(tz)}).`}
+        bleed
       >
         {data.orders.length === 0 ? (
           <EmptyState icon={ReceiptIcon} message="No orders yet." />

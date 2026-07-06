@@ -12,7 +12,7 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NewOrderSheet } from "./new-order-sheet";
 
@@ -64,11 +64,11 @@ async function OrdersStats() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatGrid cols={4}>
       {stats.map((st) => (
         <StatCard key={st.label} {...st} />
       ))}
-    </div>
+    </StatGrid>
   );
 }
 

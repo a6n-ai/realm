@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
-import { DataTable, FilterPill, StageBadge, type Column } from "@/components/ds";
+import { DataTable, FilterChips, FilterPill, FilterSheet, StageBadge, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
 import {
@@ -60,6 +60,22 @@ export function InquiriesList({
     new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
   ).sort();
 
+  const renderOwnerSelect = (triggerClassName: string) => (
+    <Select value={owner} onValueChange={setOwner}>
+      <SelectTrigger className={triggerClassName}>
+        <SelectValue placeholder="All owners" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
+        {owners.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   const countOf = (stage: string) => {
     if (stage === "all") return rows.length;
     if (stage === "overdue") return rows.filter((r) => r.overdue).length;
@@ -88,28 +104,23 @@ export function InquiriesList({
       rowClassName={() => "group cursor-pointer"}
       filters={
         <>
-          {STAGE_PILLS.map((p) => (
-            <FilterPill
-              key={p.key}
-              label={p.label}
-              active={activeStage === p.key}
-              count={countOf(p.key)}
-              onClick={() => setActiveStage(p.key)}
-            />
-          ))}
-          <Select value={owner} onValueChange={setOwner}>
-            <SelectTrigger className="h-8 w-40">
-              <SelectValue placeholder="All owners" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
-              {owners.map((o) => (
-                <SelectItem key={o} value={o}>
-                  {o}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterChips>
+            {STAGE_PILLS.map((p) => (
+              <FilterPill
+                key={p.key}
+                label={p.label}
+                active={activeStage === p.key}
+                count={countOf(p.key)}
+                onClick={() => setActiveStage(p.key)}
+              />
+            ))}
+          </FilterChips>
+          <div className="hidden md:flex">{renderOwnerSelect("h-8 w-40")}</div>
+          <div className="md:hidden">
+            <FilterSheet activeCount={owner === ALL_OWNERS ? 0 : 1}>
+              {renderOwnerSelect("w-full")}
+            </FilterSheet>
+          </div>
         </>
       }
       emptyIcon={ClipboardListIcon}

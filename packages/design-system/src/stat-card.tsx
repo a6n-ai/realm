@@ -12,12 +12,12 @@ export function StatCard({
   delta?: { dir: "up" | "down"; text: string };
 }) {
   return (
-    <Card className="p-4">
+    <Card className="p-3 sm:p-4">
       <div className="text-muted-foreground flex items-center justify-between text-sm">
         <span>{label}</span>
-        {Icon && <Icon className="size-4" />}
+        {Icon && <Icon className="hidden size-4 sm:block" />}
       </div>
-      <div className="nums mt-2 text-2xl font-semibold">{value}</div>
+      <div className="nums mt-2 text-xl font-semibold sm:text-2xl">{value}</div>
       {hint && <div className="text-muted-foreground mt-1 text-xs">{hint}</div>}
       {delta && <div className={cn("mt-1 text-xs", delta.dir === "up" ? "text-ok" : "text-bad")}>{delta.text}</div>}
     </Card>

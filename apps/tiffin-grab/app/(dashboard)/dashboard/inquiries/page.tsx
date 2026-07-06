@@ -15,6 +15,7 @@ import {
   PageHeader,
   SectionCard,
   StatCard,
+  StatGrid,
   SkeletonStatCards,
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
@@ -128,7 +129,7 @@ async function InquiryStats() {
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <StatGrid cols={3}>
       <StatCard icon={InboxIcon} label="Total" value={total} hint="all inquiries" />
       <StatCard icon={UsersIcon} label="Open" value={open} hint="new · contacted · follow-up" />
       <StatCard
@@ -137,7 +138,7 @@ async function InquiryStats() {
         value={converted}
         hint={`${conversionRate}% conversion`}
       />
-    </div>
+    </StatGrid>
   );
 }
 

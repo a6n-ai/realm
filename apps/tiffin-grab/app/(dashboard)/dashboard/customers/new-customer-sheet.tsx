@@ -2,7 +2,8 @@
 
 import { UserPlusIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
@@ -82,6 +83,14 @@ export function NewCustomerSheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
+  // FAB deep-link: /dashboard/customers?new=1 opens the sheet; the param is cleared on close.
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (params.get("new") === "1") setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
   const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -114,7 +123,10 @@ export function NewCustomerSheet({
 
   function onOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) reset();
+    if (!next) {
+      reset();
+      if (params.get("new") === "1") router.replace(pathname, { scroll: false });
+    }
   }
 
   function onPick(id: string | null, lockedSourceKey?: string) {

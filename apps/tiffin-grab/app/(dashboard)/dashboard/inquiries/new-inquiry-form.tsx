@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@realm/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@realm/ui/collapsible";
@@ -83,6 +83,17 @@ export function AddInquirySheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
+  // FAB deep-link: /dashboard/inquiries?new=1 opens the sheet; the param is cleared on close.
+  const params = useSearchParams();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (params.get("new") === "1") setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next && params.get("new") === "1") router.replace(pathname, { scroll: false });
+  };
   const form = useForm<InquiryFormInput, unknown, InquiryFormValues>({
     resolver: zodResolver(inquiryFormSchema),
     defaultValues: {
@@ -131,7 +142,7 @@ export function AddInquirySheet({
         notes: values.notes || undefined,
       });
       form.reset();
-      setOpen(false);
+      handleOpenChange(false);
       router.refresh();
     } catch (e) {
       form.setError("root", { message: e instanceof Error ? e.message : "Failed to create inquiry" });
@@ -141,7 +152,7 @@ export function AddInquirySheet({
   const submitting = form.formState.isSubmitting;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
         {/* Warm header band: saffron tile anchors the action, sets the tone. */}

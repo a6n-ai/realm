@@ -26,7 +26,7 @@ export function SkeletonPageHeader({ action = false, subtitle = false }: { actio
   );
 }
 
-export function SkeletonStatCards({ count, className = "sm:grid-cols-2 lg:grid-cols-4" }: { count: number; className?: string }) {
+export function SkeletonStatCards({ count, className = "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4" }: { count: number; className?: string }) {
   return (
     <div className={`grid gap-4 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
