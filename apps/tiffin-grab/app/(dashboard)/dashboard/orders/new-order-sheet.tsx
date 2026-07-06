@@ -83,9 +83,10 @@ export function NewOrderSheet({
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
 
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
+  // Advisory only — we still save any number they give; deliverability is the PIN's job.
   const phoneValid = isValidPhone(phone);
   const existingCustomer = useExistingCustomer(phone, email, pickedCustomerId);
-  const contactReady = fullName.trim().length > 0 && phoneValid && !existingCustomer;
+  const contactReady = fullName.trim().length > 0 && phone.trim().length > 0 && !existingCustomer;
 
   function onPick(id: string | null, lockedSourceKey?: string) {
     setPickedId(id);
@@ -196,7 +197,7 @@ export function NewOrderSheet({
                       <Label>Phone <Req /></Label>
                       <PhoneInput value={phone} onChange={(v) => setPhone(v ?? "")} defaultCountry={defaultCountry} />
                       {phone.length > 0 && !phoneValid && (
-                        <p className="text-destructive text-sm">Enter a valid phone number</p>
+                        <p className="text-muted-foreground text-sm">This number looks incomplete — we'll still save it.</p>
                       )}
                     </div>
                     <div className="grid gap-1.5">

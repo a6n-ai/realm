@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { isValidPhone } from "@realm/ui/phone-input";
 
 export const inquiryFormSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required"),
-  phone: z.string().min(1, "Phone is required").refine(isValidPhone, "Enter a valid phone number"),
+  // Lead capture takes whatever number they give — deliverability is judged by
+  // postal/zone later, not by phone shape. Only require that something is entered.
+  phone: z.string().min(1, "Phone is required"),
   email: z.string().optional(),
   sourceKey: z.string().min(1),
   subSourceKey: z.string().optional(),
