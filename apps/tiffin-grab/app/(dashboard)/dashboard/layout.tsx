@@ -33,6 +33,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     if (err instanceof NotFoundError) redirect("/login");
     throw err;
   }
+  // First-login gate: an account still on its issued default password must set
+  // its own before it can reach anything under /dashboard (customers and staff
+  // alike). /set-password sits outside this layout so it can't trap the user.
+  if (!user.passwordSet) redirect("/set-password");
+
   const hasPin = Boolean(user.pinHash);
   if (hasPin && (await isLocked())) redirect("/login");
 

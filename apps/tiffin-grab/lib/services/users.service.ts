@@ -3,7 +3,7 @@ import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema }
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
@@ -11,6 +11,10 @@ import { pickUserWritable } from "./users-writable";
 // the internal pin_attempts counter from audit noise. The real values are still
 // written to the users table — only the audit `changes` is redacted.
 const REDACT_FIELDS = new Set(["pinHash", "password"]);
+
+// A transaction handle (the callback arg of db.transaction), for helpers that
+// must write inside a caller's tx.
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export function redactUserChanges(
   changes: Record<string, { from: unknown; to: unknown }> | null,
@@ -228,6 +232,57 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (!acct?.password || !(await verifyPassword(currentPassword, acct.password))) {
       throw new ValidationError("Password is incorrect");
     }
+  }
+
+  // Write (create-or-update) the credential-provider password for an internal
+  // user id. The account table carries no unique on (user_id, provider_id), so we
+  // check-then-write rather than upsert. Callers own the passwordSet flag.
+  private async writeCredentialPassword(tx: DbTx, userInternalId: bigint, hash: string) {
+    const [acct] = await tx
+      .select({ id: account.id })
+      .from(account)
+      .where(and(eq(account.userId, userInternalId), eq(account.providerId, "credential")))
+      .limit(1);
+    if (acct) {
+      await tx.update(account).set({ password: hash }).where(eq(account.id, acct.id));
+    } else {
+      await tx.insert(account).values({
+        accountId: String(userInternalId),
+        providerId: "credential",
+        userId: userInternalId,
+        password: hash,
+      });
+    }
+  }
+
+  // First-login flow: the signed-in user sets their own password, replacing the
+  // issued default. No current-password prompt (they authenticated with the
+  // temp one already) and no other sessions to revoke on first login, so this
+  // writes the credential directly rather than routing through better-auth.
+  async setOwnPassword(userId: string, newPassword: string): Promise<void> {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
+    if (!u) throw new ValidationError("User not found");
+    const hash = await hashPassword(newPassword);
+    await db.transaction(async (tx) => {
+      await this.writeCredentialPassword(tx, u.id, hash);
+      await tx.update(users).set({ passwordSet: true }).where(eq(users.id, u.id));
+    });
+  }
+
+  // Admin resets a staff member back to the shared default password. Flips
+  // passwordSet false so the staff member is forced to /set-password on their
+  // next login. Returns the temp password for the admin to share out-of-band
+  // (no email/SMS wired yet). Staff-only — never a customer row.
+  async resetToDefaultPassword(userId: string): Promise<{ tempPassword: string }> {
+    await this.assertStaff(userId);
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
+    if (!u) throw new ValidationError("User not found");
+    const hash = await hashPassword(DEFAULT_TEMP_PASSWORD);
+    await db.transaction(async (tx) => {
+      await this.writeCredentialPassword(tx, u.id, hash);
+      await tx.update(users).set({ passwordSet: false }).where(eq(users.id, u.id));
+    });
+    return { tempPassword: DEFAULT_TEMP_PASSWORD };
   }
 
   private async assertFree(userId: string, field: "phone" | "email", value: string) {

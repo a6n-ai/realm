@@ -25,6 +25,10 @@ export const users = pgTable(
     role: userRole("role").notNull().default("user"),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
+    // false = account still on an issued default/temp password and must set its
+    // own on first login. Defaults true so existing rows are untouched; only the
+    // paths that issue a default password flip it false.
+    passwordSet: boolean("password_set").notNull().default(true),
     isSystem: boolean("is_system").notNull().default(false),
     addressLine: text("address_line"),
     addressUnit: text("address_unit"),

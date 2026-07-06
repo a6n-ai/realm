@@ -2,15 +2,8 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
 import { db } from "@/db/client";
 import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
-import { hashPassword } from "@/lib/auth/password";
+import { hashPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
 import { ledgerService } from "./ledger.service";
-
-// ponytail: SECURITY DEBT — every provisioned customer gets this same shared password,
-// and /activate prints it on screen. Deferred 2026-07-01 (no email/SES wired yet). When
-// notifications ship, replace with: provision with no usable password + a set-password
-// token emailed via the existing notification system (app_event + template). See the
-// account-activation spec (Spec A) in docs/superpowers/specs/.
-const TEMP_PASSWORD = "Tiffin123";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -30,7 +23,9 @@ export async function provisionCustomerByPhone(
   }
   const inserted = await tx
     .insert(users)
-    .values({ phone: contact.phone, email: contact.email, name: contact.fullName, role: "user", createdBy })
+    // passwordSet:false — customer holds the default password and is forced to
+    // set their own on first login (the /dashboard gate → /set-password).
+    .values({ phone: contact.phone, email: contact.email, name: contact.fullName, role: "user", createdBy, passwordSet: false })
     .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
     .returning({ id: users.id });
   if (inserted[0]?.id) {
@@ -38,7 +33,7 @@ export async function provisionCustomerByPhone(
       accountId: String(inserted[0].id),
       providerId: "credential",
       userId: inserted[0].id,
-      password: await hashPassword(TEMP_PASSWORD),
+      password: await hashPassword(DEFAULT_TEMP_PASSWORD),
     });
     return inserted[0].id;
   }

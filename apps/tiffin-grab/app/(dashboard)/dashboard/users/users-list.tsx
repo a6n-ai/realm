@@ -19,10 +19,11 @@ export type UserListRow = {
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<"email" | "role" | "flags">[] = [
+const COLUMNS: readonly Column<"email" | "role" | "flags" | "actions">[] = [
   { key: "email", label: "Contact", sortable: true },
   { key: "role", label: "Role", sortable: true },
   { key: "flags", label: "Feature flags" },
+  { key: "actions", label: "" },
 ];
 
 export function UsersList({

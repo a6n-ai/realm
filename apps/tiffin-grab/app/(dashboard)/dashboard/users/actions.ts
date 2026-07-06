@@ -17,3 +17,13 @@ export async function setUserFlag(userId: string, flagId: string, enabled: boole
   await userFeatureFlagsService.setFlag(userId, flagId, enabled);
   revalidatePath("/dashboard/users");
 }
+
+// Reset a staff member to the shared default password; they are forced to set
+// their own on next login. Returns the temp password for the admin to share
+// out-of-band (no email/SMS wired yet).
+export async function resetStaffPassword(userId: string): Promise<{ tempPassword: string }> {
+  await requireAdmin();
+  const { tempPassword } = await usersService.resetToDefaultPassword(userId);
+  revalidatePath("/dashboard/users");
+  return { tempPassword };
+}

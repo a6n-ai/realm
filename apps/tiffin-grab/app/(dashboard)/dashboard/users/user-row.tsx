@@ -2,10 +2,12 @@
 
 import { Role, type RoleValue } from "@realm/commons";
 import { useTransition } from "react";
+import { toast } from "sonner";
+import { Button } from "@realm/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { Switch } from "@realm/ui/switch";
 import { TableCell } from "@realm/ui/table";
-import { setUserFlag, setUserRole } from "./actions";
+import { resetStaffPassword, setUserFlag, setUserRole } from "./actions";
 import type { UserListRow } from "./users-list";
 
 // Interactive controls extracted so both the desktop table row (cells) and the
@@ -46,6 +48,36 @@ function FlagToggles({ id, flags }: { id: string; flags: FlagState[] }) {
   );
 }
 
+// Admin-only: reset a staff member to the shared default password. They are
+// forced to set their own on next login; the temp password is shown once here
+// for the admin to relay (no email/SMS wired yet). Staff rows only.
+function ResetPasswordButton({ id, role }: { id: string; role: RoleValue }) {
+  const [pending, start] = useTransition();
+  if (role === Role.USER) return null;
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          try {
+            const { tempPassword } = await resetStaffPassword(id);
+            toast.success(`Temporary password: ${tempPassword}`, {
+              description: "Share it with the user — they'll set their own on next login.",
+              duration: 12000,
+            });
+          } catch {
+            toast.error("Could not reset password.");
+          }
+        })
+      }
+    >
+      Reset password
+    </Button>
+  );
+}
+
 type FlagState = { id: string; key: string; label: string; enabled: boolean };
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
@@ -56,6 +88,7 @@ export function UserRow({ id, email, phone, role, flags }: UserListRow) {
       <TableCell>{email ?? phone ?? "—"}</TableCell>
       <TableCell><RoleSelect id={id} role={role} /></TableCell>
       <TableCell><FlagToggles id={id} flags={flags} /></TableCell>
+      <TableCell><ResetPasswordButton id={id} role={role} /></TableCell>
     </>
   );
 }
@@ -74,6 +107,12 @@ export function UserRowCard({ id, email, phone, role, flags }: UserListRow) {
         <div className="space-y-1.5">
           <span className="text-muted-foreground text-sm">Feature flags</span>
           <FlagToggles id={id} flags={flags} />
+        </div>
+      )}
+      {role !== Role.USER && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground text-sm">Password</span>
+          <ResetPasswordButton id={id} role={role} />
         </div>
       )}
     </div>
