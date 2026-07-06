@@ -48,6 +48,8 @@ export type DataTableProps<Row, K extends string> = {
   idLabel?: string;
   search?: {
     placeholder?: string;
+    /** Shorter placeholder shown at mobile widths (<sm) where the full one truncates. */
+    shortPlaceholder?: string;
     /** Client-side filter keys. Omit for server-search tables (pass debounceMs). */
     keys?: (keyof Row)[];
     debounceMs?: number;
@@ -250,6 +252,7 @@ export function DataTable<Row, K extends string>({
             value={searchValue}
             onChange={setSearchValue}
             placeholder={search?.placeholder}
+            shortPlaceholder={search?.shortPlaceholder}
             debounceMs={search?.debounceMs}
           />
         }

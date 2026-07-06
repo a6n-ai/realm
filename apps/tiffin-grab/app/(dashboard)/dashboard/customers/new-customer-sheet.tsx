@@ -1,9 +1,7 @@
 "use client";
 
-import { UserPlusIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
@@ -11,13 +9,7 @@ import dynamic from "next/dynamic";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@realm/ui/dialog";
+import { ResponsiveDialog } from "@realm/design-system";
 import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -83,14 +75,6 @@ export function NewCustomerSheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
-  // FAB deep-link: /dashboard/customers?new=1 opens the sheet; the param is cleared on close.
-  const params = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  useEffect(() => {
-    if (params.get("new") === "1") setOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
   const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -123,10 +107,7 @@ export function NewCustomerSheet({
 
   function onOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) {
-      reset();
-      if (params.get("new") === "1") router.replace(pathname, { scroll: false });
-    }
+    if (!next) reset();
   }
 
   function onPick(id: string | null, lockedSourceKey?: string) {
@@ -184,34 +165,38 @@ export function NewCustomerSheet({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
-        <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
-          <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
-            <UserPlusIcon className="size-[18px]" />
-          </span>
-          <div className="grid gap-0.5">
-            <DialogTitle className="text-pretty">
-              {step === 1 ? "New customer" : "Add an order"}
-            </DialogTitle>
-            <DialogDescription>
-              {step === 1
-                ? "Source it, match the lead, then save the customer."
-                : `Build the first order for ${fullName || "this customer"}.`}
-            </DialogDescription>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      trigger={trigger}
+      title={step === 1 ? "New customer" : "Add an order"}
+      description={
+        step === 1
+          ? "Source it, match the lead, then save the customer."
+          : `Build the first order for ${fullName || "this customer"}.`
+      }
+      contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      footer={
+        sources.length > 0 && step === 1 ? (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly} className="min-h-11 sm:min-h-9">
+              Save
+            </Button>
+            <Button disabled={!contactReady || saving} onClick={onSaveAndOrder} className="min-h-11 sm:min-h-9">
+              Save &amp; add order →
+            </Button>
           </div>
-        </div>
+        ) : undefined
+      }
+    >
+      {sources.length > 0 && <StepHeader step={step} steps={["Customer", "Order"]} />}
 
-        {sources.length > 0 && <StepHeader step={step} steps={["Customer", "Order"]} />}
-
-        {step === 1 ? (
-          <>
-            {sources.length === 0 ? (
-              <NoSources noun="customer" />
-            ) : (
-            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
-              <CustomerSearch onPick={pickCustomer} />
+      {step === 1 ? (
+        sources.length === 0 ? (
+          <NoSources noun="customer" />
+        ) : (
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+            <CustomerSearch onPick={pickCustomer} />
               {/* Source */}
               <section
                 className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
@@ -294,22 +279,10 @@ export function NewCustomerSheet({
               </section>
 
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
-            </div>
-            )}
-
-            {sources.length > 0 && (
-              <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly}>
-                  Save
-                </Button>
-                <Button disabled={!contactReady || saving} onClick={onSaveAndOrder}>
-                  Save &amp; add order →
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          </div>
+        )
+      ) : (
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
             <button
               type="button"
               onClick={() => setStep(1)}
@@ -339,9 +312,8 @@ export function NewCustomerSheet({
                 }
               />
             </section>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </ResponsiveDialog>
   );
 }

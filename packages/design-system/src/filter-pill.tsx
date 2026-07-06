@@ -14,13 +14,13 @@ export function FilterPill({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border min-h-11 px-4 sm:min-h-0 sm:px-3 sm:py-1 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
-        active ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground hover:bg-accent",
+        "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors sm:min-h-8 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
+        active ? "bg-primary text-primary-foreground border-transparent" : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       {label}
       {count !== undefined && (
-        <span className={cn("nums rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+        <span className={cn("nums rounded-full px-1.5 text-xs", active ? "bg-primary-foreground/25" : "bg-muted")}>{count}</span>
       )}
     </button>
   );

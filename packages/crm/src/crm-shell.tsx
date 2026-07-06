@@ -29,14 +29,14 @@ export function CrmShell({
       {sidebar}
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1 hidden md:flex" />
           <Separator orientation="vertical" className="mr-2 hidden h-4 sm:block" />
           <div className="hidden sm:block">{breadcrumbs}</div>
           {center && <div className="hidden flex-1 justify-center px-4 md:flex">{center}</div>}
           {actions && <div className={`flex items-center gap-1${center ? " ml-auto md:ml-0" : " ml-auto"}`}>{actions}</div>}
         </header>
         {center && <div className="border-b px-4 py-2 md:hidden">{center}</div>}
-        <div className="flex-1 p-6 pb-24 md:pb-6">{children}</div>
+        <div className="flex-1 p-6 pb-28 md:pb-6">{children}</div>
       </SidebarInset>
       {bottomNav}
       {footer}

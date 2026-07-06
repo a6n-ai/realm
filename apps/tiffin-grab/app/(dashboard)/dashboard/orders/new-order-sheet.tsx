@@ -1,22 +1,14 @@
 "use client";
 
-import { PackageIcon } from "lucide-react";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@realm/ui/dialog";
+import { ResponsiveDialog } from "@realm/design-system";
 import { isValidPhone } from "@realm/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
@@ -81,14 +73,6 @@ export function NewOrderSheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  // FAB deep-link: /dashboard/orders?new=1 opens the sheet; the param is cleared on close.
-  const params = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  useEffect(() => {
-    if (params.get("new") === "1") setOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
   const [step, setStep] = useState<1 | 2>(1);
   const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "manual");
   const [subSourceKey, setSubSourceKey] = useState("");
@@ -123,38 +107,35 @@ export function NewOrderSheet({
   };
 
   return (
-    <Dialog
+    <ResponsiveDialog
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (!o) {
-          setStep(1);
-          if (params.get("new") === "1") router.replace(pathname, { scroll: false });
-        }
+        if (!o) setStep(1);
       }}
-    >
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
-        <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
-          <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
-            <PackageIcon className="size-[18px]" />
-          </span>
-          <div className="grid gap-0.5">
-            <DialogTitle className="text-pretty">New order</DialogTitle>
-            <DialogDescription>Find or add the customer, then build the order.</DialogDescription>
+      trigger={trigger}
+      title="New order"
+      description="Find or add the customer, then build the order."
+      contentClassName="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      footer={
+        sources.length > 0 && step === 1 ? (
+          <div className="flex items-center justify-end gap-2">
+            <Button disabled={!contactReady} onClick={() => setStep(2)} className="min-h-11 active:scale-[0.98] sm:min-h-9">
+              Continue to order →
+            </Button>
           </div>
-        </div>
+        ) : undefined
+      }
+    >
+      {sources.length === 0 ? (
+        <NoSources noun="order" />
+      ) : (
+        <>
+          <StepHeader step={step} steps={["Customer", "Order"]} />
 
-        {sources.length === 0 ? (
-          <NoSources noun="order" />
-        ) : (
-          <>
-            <StepHeader step={step} steps={["Customer", "Order"]} />
-
-            {step === 1 ? (
-              <>
-                <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
-                  <CustomerSearch onPick={pickCustomer} />
+          {step === 1 ? (
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+              <CustomerSearch onPick={pickCustomer} />
 
                   {/* Source */}
                   <section className="grid gap-4">
@@ -229,44 +210,36 @@ export function NewOrderSheet({
                       </p>
                     )}
                   </section>
-                </div>
-
-                <div className="border-border/70 flex items-center justify-end gap-2 border-t px-5 py-4 max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-                  <Button disabled={!contactReady} onClick={() => setStep(2)} className="active:scale-[0.98]">
-                    Continue to order →
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
-                >
-                  ← <span className="font-medium">{fullName}</span>
-                </button>
-                <OrderForm
-                  inquiryId=""
-                  contact={{ fullName, phone, email }}
-                  catalog={catalog}
-                  enabledSlots={enabledSlots}
-                  zones={zones}
-                  prefill={prefill}
-                  onCreate={(order: CreateOrderInput) =>
-                    createOrderFlow({
-                      source: { sourceKey, subSourceKey: subSourceKey || undefined },
-                      contact: { fullName, phone, email: email.trim() || undefined },
-                      pickedInquiryId: pickedId ?? undefined,
-                      order,
-                    })
-                  }
-                />
-              </div>
-            )}
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
+              >
+                ← <span className="font-medium">{fullName}</span>
+              </button>
+              <OrderForm
+                inquiryId=""
+                contact={{ fullName, phone, email }}
+                catalog={catalog}
+                enabledSlots={enabledSlots}
+                zones={zones}
+                prefill={prefill}
+                onCreate={(order: CreateOrderInput) =>
+                  createOrderFlow({
+                    source: { sourceKey, subSourceKey: subSourceKey || undefined },
+                    contact: { fullName, phone, email: email.trim() || undefined },
+                    pickedInquiryId: pickedId ?? undefined,
+                    order,
+                  })
+                }
+              />
+            </div>
+          )}
+        </>
+      )}
+    </ResponsiveDialog>
   );
 }

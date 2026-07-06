@@ -9,10 +9,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@realm/ui/dialog";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ResponsiveDialog, type Column } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
 import type { FileDetail } from "@realm/storage/model";
 import { MealCard } from "@/components/marketing/cards";
@@ -315,47 +312,49 @@ function EditorDialog({
   const watched = form.watch();
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-border/70 border-b px-5 py-4">
-          <DialogTitle className="text-pretty">{isNew ? `New ${def.singular}` : `Edit ${def.singular}`}</DialogTitle>
-          <DialogDescription>Typed fields, validated before saving.</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-            <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
-              {def.fields.map((f) => (
-                <div key={f.key} className={isArrayType(f) ? "sm:col-span-2" : undefined}>
-                  <FieldControl f={f} form={form} options={options} isNew={isNew} />
-                  {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
-                      onClick={() => setKeyManual(true)}
-                    >
-                      <PencilIcon className="size-3" /> Edit key
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-              {form.formState.errors.root ? (
-                <p className="text-destructive text-sm sm:col-span-2" role="alert">
-                  {form.formState.errors.root.message as string}
-                </p>
-              ) : null}
-              <WebsitePreview resource={resource} values={watched} />
-            </div>
-            <div className="border-border/70 bg-muted/40 flex justify-end gap-2 rounded-b-xl border-t px-5 py-4">
-              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting} className="active:scale-[0.96]">
-                {submitting ? <Loader2Icon className="size-4 animate-spin" /> : null}
-                {submitting ? "Saving…" : "Save"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={isNew ? `New ${def.singular}` : `Edit ${def.singular}`}
+      description="Typed fields, validated before saving."
+      contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="min-h-11 sm:min-h-9">Cancel</Button>
+          <Button type="submit" form="resource-editor-form" disabled={submitting} className="min-h-11 sm:min-h-9 active:scale-[0.96]">
+            {submitting ? <Loader2Icon className="size-4 animate-spin" /> : null}
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      }
+    >
+      <Form {...form}>
+        <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
+            {def.fields.map((f) => (
+              <div key={f.key} className={isArrayType(f) ? "sm:col-span-2" : undefined}>
+                <FieldControl f={f} form={form} options={options} isNew={isNew} />
+                {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs transition-colors"
+                    onClick={() => setKeyManual(true)}
+                  >
+                    <PencilIcon className="size-3" /> Edit key
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            {form.formState.errors.root ? (
+              <p className="text-destructive text-sm sm:col-span-2" role="alert">
+                {form.formState.errors.root.message as string}
+              </p>
+            ) : null}
+            <WebsitePreview resource={resource} values={watched} />
+          </div>
+        </form>
+      </Form>
+    </ResponsiveDialog>
   );
 }
 

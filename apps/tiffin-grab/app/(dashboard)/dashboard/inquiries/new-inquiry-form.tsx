@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@realm/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@realm/ui/collapsible";
@@ -20,15 +20,7 @@ import { Input } from "@realm/ui/input";
 import { cn } from "@realm/ui/cn";
 import dynamic from "next/dynamic";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  DialogTrigger,
-} from "@realm/ui/dialog";
+import { ResponsiveDialog } from "@realm/design-system";
 import { Textarea } from "@realm/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
@@ -83,17 +75,7 @@ export function AddInquirySheet({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  // FAB deep-link: /dashboard/inquiries?new=1 opens the sheet; the param is cleared on close.
-  const params = useSearchParams();
-  const pathname = usePathname();
-  useEffect(() => {
-    if (params.get("new") === "1") setOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
-  const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-    if (!next && params.get("new") === "1") router.replace(pathname, { scroll: false });
-  };
+  const handleOpenChange = (next: boolean) => setOpen(next);
   const form = useForm<InquiryFormInput, unknown, InquiryFormValues>({
     resolver: zodResolver(inquiryFormSchema),
     defaultValues: {
@@ -152,26 +134,44 @@ export function AddInquirySheet({
   const submitting = form.formState.isSubmitting;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0">
-        {/* Warm header band: saffron tile anchors the action, sets the tone. */}
-        <div className="border-border/70 flex items-start gap-3 border-b px-5 py-4">
-          <span className="bg-primary/12 text-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
-            <PlusIcon className="size-[18px]" />
-          </span>
-          <div className="grid gap-0.5">
-            <DialogTitle className="text-pretty">New inquiry</DialogTitle>
-            <DialogDescription>Capture a lead. It lands in the pipeline as "New".</DialogDescription>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+      title="New inquiry"
+      description={'Capture a lead. It lands in the pipeline as "New".'}
+      contentClassName="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      footer={
+        sources.length === 0 ? undefined : (
+          <div className="flex flex-row justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => handleOpenChange(false)}
+              className="min-h-11 sm:min-h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="new-inquiry-form"
+              disabled={submitting || !!existingCustomer}
+              className="min-h-11 active:scale-[0.98] sm:min-h-9"
+            >
+              {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
+              {submitting ? "Adding…" : "Add inquiry"}
+            </Button>
           </div>
-        </div>
-
-        {sources.length === 0 ? (
-          <NoSources noun="inquiry" />
-        ) : (
+        )
+      }
+    >
+      {sources.length === 0 ? (
+        <NoSources noun="inquiry" />
+      ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          <form id="new-inquiry-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
               {/* Contact */}
               <section
                 className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
@@ -368,22 +368,9 @@ export function AddInquirySheet({
                 <p className="text-destructive text-sm" role="alert">{form.formState.errors.root.message}</p>
               )}
             </div>
-
-            <DialogFooter className="border-border/70 flex-row justify-end gap-2 border-t bg-popover max-sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={submitting}>
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={submitting || !!existingCustomer} className="active:scale-[0.98]">
-                {submitting ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon className="size-4" />}
-                {submitting ? "Adding…" : "Add inquiry"}
-              </Button>
-            </DialogFooter>
           </form>
         </Form>
-        )}
-      </DialogContent>
-    </Dialog>
+      )}
+    </ResponsiveDialog>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRightIcon, LifeBuoyIcon } from "lucide-react";
-import { DataTable, FilterPill, type Column } from "@/components/ds";
+import { DataTable, FilterPill, FilterSheet, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
 import {
@@ -58,6 +58,22 @@ export function TicketsList({
     new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
   ).sort();
 
+  const renderOwnerSelect = (triggerClassName: string) => (
+    <Select value={owner} onValueChange={setOwner}>
+      <SelectTrigger className={triggerClassName}>
+        <SelectValue placeholder="All owners" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
+        {owners.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   const countOf = (status: string) => {
     if (status === "all") return rows.length;
     if (status === "overdue") return rows.filter((r) => r.overdue).length;
@@ -80,35 +96,44 @@ export function TicketsList({
       sort={sort}
       idAccessor={(r) => r.publicId}
       idHref={(r) => `/dashboard/tickets/${r.publicId}`}
-      search={{ placeholder: "Search by subject, customer or ID…", keys: ["subject", "customerName"] }}
+      search={{ placeholder: "Search by subject, customer or ID…", shortPlaceholder: "Search…", keys: ["subject", "customerName"] }}
       rowClassName={() => "group cursor-pointer"}
       emptyIcon={LifeBuoyIcon}
       emptyMessage="No tickets yet."
       emptySearchMessage="No tickets match your search."
       filters={
         <>
-          {STATUS_PILLS.map((p) => (
-            <FilterPill
-              key={p.key}
-              label={p.label}
-              active={activeStatus === p.key}
-              count={countOf(p.key)}
-              onClick={() => setActiveStatus(p.key)}
-            />
-          ))}
-          <Select value={owner} onValueChange={setOwner}>
-            <SelectTrigger className="h-8 w-40">
-              <SelectValue placeholder="All owners" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
-              {owners.map((o) => (
-                <SelectItem key={o} value={o}>
-                  {o}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            {STATUS_PILLS.map((p) => (
+              <FilterPill
+                key={p.key}
+                label={p.label}
+                active={activeStatus === p.key}
+                count={countOf(p.key)}
+                onClick={() => setActiveStatus(p.key)}
+              />
+            ))}
+            {renderOwnerSelect("h-8 w-40")}
+          </div>
+          <div className="md:hidden">
+            <FilterSheet
+              iconOnly
+              activeCount={(activeStatus === "all" ? 0 : 1) + (owner === ALL_OWNERS ? 0 : 1)}
+            >
+              <div className="flex flex-wrap gap-2">
+                {STATUS_PILLS.map((p) => (
+                  <FilterPill
+                    key={p.key}
+                    label={p.label}
+                    active={activeStatus === p.key}
+                    count={countOf(p.key)}
+                    onClick={() => setActiveStatus(p.key)}
+                  />
+                ))}
+              </div>
+              {renderOwnerSelect("w-full")}
+            </FilterSheet>
+          </div>
         </>
       }
       renderRow={(r) => (

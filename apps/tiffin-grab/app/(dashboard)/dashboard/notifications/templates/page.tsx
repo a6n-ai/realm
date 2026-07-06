@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { SectionCard, StatCard, SkeletonStatCards } from "@/components/ds";
+import { SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import {
   TemplateList,
   type TemplateSortColumn,
@@ -51,7 +51,7 @@ async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configure
 export default function NotificationTemplatesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
+      <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
         <TemplateStatsData />
       </Suspense>
 
@@ -67,11 +67,11 @@ export default function NotificationTemplatesPage({ searchParams }: { searchPara
 async function TemplateStatsData() {
   const { items, configured } = await loadTemplateItems();
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <StatGrid cols={3}>
       <StatCard icon={LayersIcon} label="Events" value={items.length} hint="notification-producing events" />
       <StatCard icon={CheckCircleIcon} label="Configured" value={configured} hint="at least one channel" />
       <StatCard icon={CircleSlashIcon} label="Not configured" value={items.length - configured} hint="no template — won't send" />
-    </div>
+    </StatGrid>
   );
 }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@realm/commons";
-import { DataTable, FilterPill, OrderStatusBadge, type Column } from "@/components/ds";
+import { DataTable, FilterPill, FilterSheet, OrderStatusBadge, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState } from "@/lib/list/use-url-state";
@@ -68,17 +68,38 @@ export function OrdersList({
       sort={sort}
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
-      search={{ placeholder: "Search by name, city or ID…", keys: ["fullName", "deploymentId", "city"] }}
+      search={{ placeholder: "Search by name, city or ID…", shortPlaceholder: "Search…", keys: ["fullName", "deploymentId", "city"] }}
       rowClassName={() => "group cursor-pointer"}
-      filters={STATUS_PILLS.map((p) => (
-        <FilterPill
-          key={p.key}
-          label={p.label}
-          active={status === p.key}
-          count={countOf(p.key)}
-          onClick={() => setStatus(p.key)}
-        />
-      ))}
+      filters={
+        <>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            {STATUS_PILLS.map((p) => (
+              <FilterPill
+                key={p.key}
+                label={p.label}
+                active={status === p.key}
+                count={countOf(p.key)}
+                onClick={() => setStatus(p.key)}
+              />
+            ))}
+          </div>
+          <div className="md:hidden">
+            <FilterSheet iconOnly activeCount={status === "all" ? 0 : 1}>
+              <div className="flex flex-wrap gap-2">
+                {STATUS_PILLS.map((p) => (
+                  <FilterPill
+                    key={p.key}
+                    label={p.label}
+                    active={status === p.key}
+                    count={countOf(p.key)}
+                    onClick={() => setStatus(p.key)}
+                  />
+                ))}
+              </div>
+            </FilterSheet>
+          </div>
+        </>
+      }
       emptyIcon={PackageIcon}
       emptyMessage="No orders yet."
       emptySearchMessage="No orders match your search."

@@ -11,6 +11,7 @@ import {
   PageHeader,
   SectionCard,
   StatCard,
+  StatGrid,
   SkeletonStatCards,
 } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
@@ -35,7 +36,7 @@ export default function TicketsPage({
     <PageShell>
       <PageHeader icon={LifeBuoyIcon} title="Tickets" />
 
-      <Suspense fallback={<SkeletonStatCards count={3} className="sm:grid-cols-3" />}>
+      <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>
         <TicketStats searchParams={searchParams} />
       </Suspense>
 
@@ -73,11 +74,11 @@ async function TicketStats({
   const overdue = rows.filter((r) => r.overdue).length;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <StatGrid cols={3}>
       <StatCard icon={InboxIcon} label="Open" value={open} hint="open · in-progress · waiting" />
       <StatCard icon={AlertCircleIcon} label="Overdue" value={overdue} hint="waiting on staff > 24h" />
       <StatCard icon={CheckCircleIcon} label="Resolved" value={resolved} hint="resolved · closed" />
-    </div>
+    </StatGrid>
   );
 }
 

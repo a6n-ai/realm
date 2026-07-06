@@ -1,43 +1,35 @@
 "use client";
 
-import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { MonitorIcon, MoonIcon, SunIcon, type LucideIcon } from "lucide-react";
 import { useTheme } from "@realm/themes";
-import { Button } from "@realm/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@realm/ui/dropdown-menu";
+import { cn } from "@realm/ui/cn";
+
+const OPTIONS: { value: "light" | "system" | "dark"; label: string; icon: LucideIcon }[] = [
+  { value: "light", label: "Light", icon: SunIcon },
+  { value: "system", label: "System", icon: MonitorIcon },
+  { value: "dark", label: "Dark", icon: MoonIcon },
+];
 
 export function ModeToggle() {
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <SunIcon className="dark:hidden" data-icon="inline-start" />
-          <MoonIcon className="hidden dark:block" data-icon="inline-start" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => setTheme("light")}>
-            <SunIcon data-icon="inline-start" />
-            Light
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme("dark")}>
-            <MoonIcon data-icon="inline-start" />
-            Dark
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme("system")}>
-            <MonitorIcon data-icon="inline-start" />
-            System
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div role="group" aria-label="Theme" className="inline-flex items-center gap-0.5 rounded-full border p-0.5">
+      {OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => setTheme(o.value)}
+          aria-pressed={theme === o.value}
+          title={o.label}
+          className={cn(
+            "grid size-7 place-items-center rounded-full transition-colors",
+            theme === o.value ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <o.icon className="size-4" />
+          <span className="sr-only">{o.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }

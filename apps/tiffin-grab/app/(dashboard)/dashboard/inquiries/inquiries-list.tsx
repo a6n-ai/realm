@@ -100,24 +100,40 @@ export function InquiriesList({
       sort={sort}
       idAccessor={(r) => r.publicId}
       idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
-      search={{ placeholder: "Search by name, phone, source or ID…", keys: ["fullName", "phone", "source"] }}
+      search={{ placeholder: "Search by name, phone, source or ID…", shortPlaceholder: "Search…", keys: ["fullName", "phone", "source"] }}
       rowClassName={() => "group cursor-pointer"}
       filters={
         <>
-          <FilterChips>
-            {STAGE_PILLS.map((p) => (
-              <FilterPill
-                key={p.key}
-                label={p.label}
-                active={activeStage === p.key}
-                count={countOf(p.key)}
-                onClick={() => setActiveStage(p.key)}
-              />
-            ))}
-          </FilterChips>
-          <div className="hidden md:flex">{renderOwnerSelect("h-8 w-40")}</div>
+          <div className="hidden items-center gap-2 md:flex">
+            <FilterChips>
+              {STAGE_PILLS.map((p) => (
+                <FilterPill
+                  key={p.key}
+                  label={p.label}
+                  active={activeStage === p.key}
+                  count={countOf(p.key)}
+                  onClick={() => setActiveStage(p.key)}
+                />
+              ))}
+            </FilterChips>
+            {renderOwnerSelect("h-8 w-40")}
+          </div>
           <div className="md:hidden">
-            <FilterSheet activeCount={owner === ALL_OWNERS ? 0 : 1}>
+            <FilterSheet
+              iconOnly
+              activeCount={(activeStage === "all" ? 0 : 1) + (owner === ALL_OWNERS ? 0 : 1)}
+            >
+              <div className="flex flex-wrap gap-2">
+                {STAGE_PILLS.map((p) => (
+                  <FilterPill
+                    key={p.key}
+                    label={p.label}
+                    active={activeStage === p.key}
+                    count={countOf(p.key)}
+                    onClick={() => setActiveStage(p.key)}
+                  />
+                ))}
+              </div>
               {renderOwnerSelect("w-full")}
             </FilterSheet>
           </div>
