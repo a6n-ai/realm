@@ -42,7 +42,7 @@ export async function setStage(
 
 export async function logActivity(
   inquiryId: string,
-  input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number },
+  input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
 ) {
   await requireStaff();
   await inquiriesService.logActivity(inquiryId, input);

@@ -23,7 +23,9 @@ export type PipelineSortColumn =
   | "created";
 
 type Stage = (typeof inquiries.stage.enumValues)[number];
-type ActivityType = "call" | "whatsapp" | "email" | "note";
+type ActivityType =
+  | "call" | "whatsapp" | "email" | "note"
+  | "quote_sent" | "sample_sent" | "payment_link_sent" | "visit" | "callback";
 type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 
 export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
@@ -177,7 +179,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async logActivity(
     publicId: string,
-    input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number },
+    input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
   ) {
     const inq = await this.read(publicId);
     await inquiryActivitiesService.create({
@@ -186,7 +188,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       note: input.note ?? null,
       outcome: input.outcome ?? null,
       nextFollowUpAt: input.nextFollowUpAt ?? null,
+      // Minor units; currency is the app's (app.currency), resolved at display time.
+      amount: input.amount ?? null,
     });
+    // Sending a quote is the signal the lead has entered the "quoted" stage.
+    // Only auto-advance from an earlier stage; never move a later/terminal one back.
+    if (input.type === "quote_sent" && (inq.stage === "new" || inq.stage === "contacted")) {
+      await this.changeStage(publicId, "quoted");
+    }
   }
 
   async markLost(publicId: string, reason: LostReason, note?: string) {

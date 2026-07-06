@@ -65,4 +65,24 @@ describe("inquiriesService.logActivity + markLost", () => {
     await inquiriesService.update(inq.publicId, { stage: "converted" });
     await expect(inquiriesService.markLost(inq.publicId, "other")).rejects.toThrow(ValidationError);
   });
+
+  it("persists amount on quote_sent and advances stage to quoted", async () => {
+    const inq = await makeInquiry();
+    await inquiriesService.logActivity(inq.publicId, {
+      type: "quote_sent",
+      amount: 450000,
+      note: "quoted veg weekly",
+    });
+    const after = await inquiriesService.read(inq.publicId);
+    expect(after.stage).toBe("quoted");
+    const acts = await inquiriesService.listActivities(inq.publicId);
+    const quote = acts.find((a) => a.type === "quote_sent");
+    expect(quote?.amount).toBe(450000);
+  });
+
+  it("does not advance stage for a plain call", async () => {
+    const inq = await makeInquiry();
+    await inquiriesService.logActivity(inq.publicId, { type: "call", outcome: "no answer" });
+    expect((await inquiriesService.read(inq.publicId)).stage).toBe("new");
+  });
 });
