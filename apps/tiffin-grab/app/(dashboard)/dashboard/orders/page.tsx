@@ -12,7 +12,7 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NewOrderSheet } from "./new-order-sheet";
 
@@ -63,13 +63,7 @@ async function OrdersStats() {
     { label: "Revenue", value: formatMoney(s.revenue), icon: WalletIcon, hint: "excl. cancelled" },
   ];
 
-  return (
-    <StatGrid cols={4}>
-      {stats.map((st) => (
-        <StatCard key={st.label} {...st} />
-      ))}
-    </StatGrid>
-  );
+  return <StatGrid cols={4} items={stats} />;
 }
 
 async function OrdersData({

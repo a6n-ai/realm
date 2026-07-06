@@ -8,10 +8,11 @@ afterEach(cleanup);
 const skeletons = (c: HTMLElement) => c.querySelectorAll('[data-slot="skeleton"]');
 
 describe("skeleton primitives", () => {
-  it("SkeletonStatCards renders one card per count", () => {
+  it("SkeletonStatCards renders a mobile bar twin + desktop card grid", () => {
     const { container } = render(<SkeletonStatCards count={4} />);
-    // each card = 2 skeletons (label + value)
-    expect(skeletons(container).length).toBe(8);
+    // mobile StatBar (4 segments × 2) + desktop card grid (4 cards × 2) = 16
+    expect(skeletons(container).length).toBe(16);
+    expect(container.querySelector(".md\\:hidden")).not.toBeNull();
   });
 
   it("SkeletonTable renders columns × (rows + header)", () => {

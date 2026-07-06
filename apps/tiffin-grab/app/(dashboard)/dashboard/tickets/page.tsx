@@ -10,7 +10,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatCard,
   StatGrid,
   SkeletonStatCards,
 } from "@/components/ds";
@@ -74,11 +73,14 @@ async function TicketStats({
   const overdue = rows.filter((r) => r.overdue).length;
 
   return (
-    <StatGrid cols={3}>
-      <StatCard icon={InboxIcon} label="Open" value={open} hint="open · in-progress · waiting" />
-      <StatCard icon={AlertCircleIcon} label="Overdue" value={overdue} hint="waiting on staff > 24h" />
-      <StatCard icon={CheckCircleIcon} label="Resolved" value={resolved} hint="resolved · closed" />
-    </StatGrid>
+    <StatGrid
+      cols={3}
+      items={[
+        { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting" },
+        { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h" },
+        { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed" },
+      ]}
+    />
   );
 }
 

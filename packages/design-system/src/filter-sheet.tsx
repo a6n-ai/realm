@@ -10,7 +10,7 @@ export function FilterSheet({ activeCount = 0, iconOnly, children }: { activeCou
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="min-h-11 gap-2 sm:min-h-0">
+        <Button variant="outline" size="sm" className="h-11 gap-2 sm:h-9">
           <SlidersHorizontalIcon className="size-4" />
           {iconOnly ? <span className="hidden sm:inline">Filters</span> : "Filters"}
           {activeCount > 0 && (

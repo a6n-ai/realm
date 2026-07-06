@@ -26,16 +26,28 @@ export function SkeletonPageHeader({ action = false, subtitle = false }: { actio
   );
 }
 
-export function SkeletonStatCards({ count, className = "grid-cols-2 sm:grid-cols-2 lg:grid-cols-4" }: { count: number; className?: string }) {
+export function SkeletonStatCards({ count, className = "md:grid-cols-2 lg:grid-cols-4" }: { count: number; className?: string }) {
   return (
-    <div className={`grid gap-4 ${className}`}>
-      {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} className="p-4">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="mt-2 h-7 w-16" />
-        </Card>
-      ))}
-    </div>
+    <>
+      {/* Mobile: the StatBar twin — one bar, N grey segments. */}
+      <div className="bg-card flex divide-x overflow-hidden rounded-lg border md:hidden">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="flex min-w-[5rem] flex-1 flex-col items-center gap-1 px-3 py-2.5">
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-2.5 w-10" />
+          </div>
+        ))}
+      </div>
+      {/* Desktop: the StatCard grid twin. */}
+      <div className={`hidden gap-4 md:grid ${className}`}>
+        {Array.from({ length: count }).map((_, i) => (
+          <Card key={i} className="p-4">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="mt-2 h-7 w-16" />
+          </Card>
+        ))}
+      </div>
+    </>
   );
 }
 

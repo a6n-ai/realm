@@ -16,6 +16,8 @@ export * from "./data-table";
 export * from "./skeletons";
 export * from "./row-actions";
 export { StatGrid } from "./stat-grid";
+export { StatBar, type StatItem } from "./stat-bar";
+export { useSortNav } from "./use-sort-nav";
 export { BottomNav, type BottomNavItem } from "./bottom-nav";
 export { FilterChips } from "./filter-chips";
 export { FilterSheet } from "./filter-sheet";

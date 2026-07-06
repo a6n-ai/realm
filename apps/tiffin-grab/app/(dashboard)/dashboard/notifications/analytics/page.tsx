@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { and, eq, isNull, like, not, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
+import { StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 
 const intCount = sql<number>`cast(count(*) as int)`;
@@ -11,8 +12,8 @@ async function count(where?: SQL): Promise<number> {
   return row?.n ?? 0;
 }
 
-// Single source of truth for the stat cards. The real grid and its skeleton
-// twin both render from this, so the loading state can't drift from the cards.
+// Single source of truth for the stat cards, in display order. StatsData maps
+// these labels onto the queried values to build the StatGrid `items` array.
 const STAT_CARDS = [
   { key: "total", label: "Total queued" },
   { key: "sent", label: "Delivered" },
@@ -22,32 +23,6 @@ const STAT_CARDS = [
 ] as const;
 
 type StatKey = (typeof STAT_CARDS)[number]["key"];
-
-function StatCards({ values }: { values: Record<StatKey, number> }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {STAT_CARDS.map((s) => (
-        <div key={s.key} className="rounded-lg border p-4">
-          <div className="text-2xl font-semibold tabular-nums">{values[s.key]}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-StatCards.Skeleton = function StatCardsSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {STAT_CARDS.map((s) => (
-        <div key={s.key} className="rounded-lg border p-4">
-          <Skeleton className="h-8 w-12" />
-          <Skeleton className="mt-2 h-3 w-full max-w-24" />
-        </div>
-      ))}
-    </div>
-  );
-};
 
 function ChannelList({ rows }: { rows: { channel: string; n: number }[] }) {
   if (rows.length === 0) {
@@ -82,7 +57,7 @@ ChannelList.Skeleton = function ChannelListSkeleton() {
 export default function NotificationAnalyticsPage() {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<StatCards.Skeleton />}>
+      <Suspense fallback={<SkeletonStatCards count={5} />}>
         <StatsData />
       </Suspense>
 
@@ -107,7 +82,10 @@ async function StatsData() {
     count(not(sql`${notificationOutbox.status} in ('sent','failed')`)),
   ]);
 
-  return <StatCards values={{ total, sent, skipped, failed, inFlight }} />;
+  const values: Record<StatKey, number> = { total, sent, skipped, failed, inFlight };
+  const items = STAT_CARDS.map((s) => ({ label: s.label, value: values[s.key] }));
+
+  return <StatGrid cols={5} items={items} />;
 }
 
 async function ByChannelData() {

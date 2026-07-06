@@ -1,8 +1,8 @@
 "use client";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react";
 import { TableHead } from "@realm/ui/table";
 import { cn } from "@realm/ui/cn";
+import { useSortNav } from "./use-sort-nav";
 
 const alignClass = (align?: "right" | "center") =>
   align === "right" ? "text-right" : align === "center" ? "text-center" : undefined;
@@ -11,18 +11,11 @@ export function SortableHeader({ column, label, currentSort, currentDir, align, 
   column: string; label: string; currentSort: string; currentDir: "asc" | "desc";
   align?: "right" | "center"; className?: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const sortNav = useSortNav();
   const active = currentSort === column;
   const nextDir = active && currentDir === "asc" ? "desc" : "asc";
 
-  const onClick = () => {
-    const sp = new URLSearchParams(params.toString());
-    sp.set("sort", column);
-    sp.set("dir", nextDir);
-    router.push(`${pathname}?${sp.toString()}`, { scroll: false });
-  };
+  const onClick = () => sortNav(column, nextDir);
 
   const Icon = active ? (currentDir === "asc" ? ChevronUpIcon : ChevronDownIcon) : ChevronsUpDownIcon;
   return (

@@ -30,7 +30,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   PageShell,
   PageHeader,
-  StatCard,
   StatGrid,
   SectionCard,
   Card,
@@ -113,13 +112,7 @@ async function OverviewStats() {
     { label: "Revenue", value: fmt(stats.revenue), hint: "active plans", icon: DollarSignIcon },
   ];
 
-  return (
-    <StatGrid cols={4}>
-      {cards.map((c) => (
-        <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
-      ))}
-    </StatGrid>
-  );
+  return <StatGrid cols={4} items={cards} />;
 }
 
 // Single source of truth for the recent-orders table columns. The real header and
@@ -314,11 +307,7 @@ async function CustomerDashboard({ userId }: { userId: string }) {
         subtitle="Your subscription, spend, and order history at a glance."
       />
 
-      <StatGrid cols={3}>
-        {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} icon={c.icon} hint={c.hint} />
-        ))}
-      </StatGrid>
+      <StatGrid cols={3} items={cards} />
 
       <SectionCard
         title="Current subscription"

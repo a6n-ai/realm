@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from "@realm/ui/command";
+import { useIsMobile } from "@realm/ui/use-mobile";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 import { useQuickAdd, type QuickAddKind } from "@/components/dashboard/quick-add-provider";
@@ -34,6 +35,7 @@ const GROUPS = [
 export function GlobalSearch({ role }: { role: string }) {
   const router = useRouter();
   const quickAdd = useQuickAdd();
+  const isMobile = useIsMobile();
   const isStaff = role === "admin" || role === "member";
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -106,7 +108,7 @@ export function GlobalSearch({ role }: { role: string }) {
               inputRef.current?.blur();
             }
           }}
-          placeholder="Search pages, orders, customers, tickets, or paste an id…"
+          placeholder={isMobile ? "Search…" : "Search pages, orders, customers, tickets, or paste an id…"}
         />
         {showDropdown && (
           <CommandList

@@ -6,9 +6,12 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@realm/ui/dropdown-menu";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableCell,
 } from "@realm/ui/table";
@@ -16,6 +19,7 @@ import { cn } from "@realm/ui/cn";
 import { FilterBar } from "./filter-bar";
 import { SearchInput } from "./search-input";
 import { SortableHeader } from "./sortable-header";
+import { useSortNav } from "./use-sort-nav";
 
 export type SortDir = "asc" | "desc";
 export type SortState<K extends string = string> = { column: K; dir: SortDir };
@@ -223,6 +227,44 @@ function MobileCard<Row, K extends string>({
  * `columns`; on zero rows the header stays and a single spanning row carries the
  * empty state — the card never collapses or swaps to a centered panel.
  */
+// Mobile card lists have no clickable headers, so sorting moves into this
+// dropdown (md:hidden) next to search/Filters. Reuses the same URL sort-nav as
+// the desktop SortableHeader, so both stay in lockstep.
+function MobileSort<K extends string>({ columns, sort }: { columns: readonly Column<K>[]; sort: SortState<K> }) {
+  const sortNav = useSortNav();
+  const sortable = columns.filter((c) => c.sortable);
+  if (sortable.length === 0) return null;
+  return (
+    <div className="md:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="h-11 gap-1.5 sm:h-9">
+            <ArrowUpDownIcon className="size-4" />
+            Sort
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {sortable.map((c) => {
+            const active = sort.column === c.key;
+            const nextDir: "asc" | "desc" = active && sort.dir === "asc" ? "desc" : "asc";
+            return (
+              <DropdownMenuItem key={c.key} onClick={() => sortNav(c.key, nextDir)}>
+                <span className={cn(active && "font-medium")}>{c.label}</span>
+                {active &&
+                  (sort.dir === "asc" ? (
+                    <ArrowUpIcon className="ml-auto size-3.5" />
+                  ) : (
+                    <ArrowDownIcon className="ml-auto size-3.5" />
+                  ))}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 export function DataTable<Row, K extends string>({
   columns, rows, rowKey, renderRow, mobileCard, rowClassName,
   sort, serial = true, idAccessor, idHref, idLabel = "ID",
@@ -257,6 +299,7 @@ export function DataTable<Row, K extends string>({
           />
         }
         filters={filters}
+        sort={sort ? <MobileSort columns={columns} sort={sort} /> : undefined}
         actions={actions}
       />
       <div className="hidden overflow-hidden rounded-lg border md:block">

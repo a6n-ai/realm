@@ -14,7 +14,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  StatCard,
   StatGrid,
   SkeletonStatCards,
 } from "@/components/ds";
@@ -129,16 +128,19 @@ async function InquiryStats() {
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
 
   return (
-    <StatGrid cols={3}>
-      <StatCard icon={InboxIcon} label="Total" value={total} hint="all inquiries" />
-      <StatCard icon={UsersIcon} label="Open" value={open} hint="new · contacted · follow-up" />
-      <StatCard
-        icon={TrendingUpIcon}
-        label="Converted"
-        value={converted}
-        hint={`${conversionRate}% conversion`}
-      />
-    </StatGrid>
+    <StatGrid
+      cols={3}
+      items={[
+        { icon: InboxIcon, label: "Total", value: total, hint: "all inquiries" },
+        { icon: UsersIcon, label: "Open", value: open, hint: "new · contacted · follow-up" },
+        {
+          icon: TrendingUpIcon,
+          label: "Converted",
+          value: converted,
+          hint: `${conversionRate}% conversion`,
+        },
+      ]}
+    />
   );
 }
 

@@ -47,7 +47,7 @@ export function SearchInput({
   return (
     <div className="relative">
       <SearchIcon className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-      <Input value={draft} onChange={(e) => emit(e.target.value)} placeholder={ph} className="pl-8 pr-8" />
+      <Input value={draft} onChange={(e) => emit(e.target.value)} placeholder={ph} className="h-11 pl-8 pr-8 sm:h-9" />
       {draft && (
         <button type="button" onClick={clear} className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2 p-2 sm:p-0 -m-2 sm:m-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none" aria-label="Clear search">
           <XIcon className="size-4" />
