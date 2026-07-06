@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 import {
   Command,
@@ -37,9 +37,13 @@ export function GlobalSearch({ role }: { role: string }) {
   const quickAdd = useQuickAdd();
   const isMobile = useIsMobile();
   const isStaff = role === "admin" || role === "member";
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  // The nav search is also the list-filter: seed from the current ?q= so a
+  // deep-linked/bookmarked filter shows in the box.
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [results, setResults] = useState<SearchResults>(EMPTY);
 
   // ⌘K / Ctrl-K focuses the search (no modal — the palette is inline now).
@@ -65,6 +69,31 @@ export function GlobalSearch({ role }: { role: string }) {
     }, 200);
     return () => clearTimeout(t);
   }, [query]);
+
+  // The nav search doubles as the current page's list filter: mirror the query
+  // into ?q= (debounced) so the DataTable on this route narrows live. Dashboard
+  // routes only; harmless where no list reads q.
+  useEffect(() => {
+    if (!pathname.startsWith("/dashboard")) return;
+    const t = setTimeout(() => {
+      const current = searchParams.get("q") ?? "";
+      if (query === current) return;
+      const sp = new URLSearchParams(searchParams.toString());
+      if (query) sp.set("q", query);
+      else sp.delete("q");
+      const qs = sp.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query, pathname, searchParams, router]);
+
+  // The shell keeps this component mounted across navigations, so reset the box
+  // to the destination route's own ?q= when the path changes — a filter from one
+  // list must not bleed into the next.
+  useEffect(() => {
+    setQuery(searchParams.get("q") ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const go = useCallback(
     (href: string) => {

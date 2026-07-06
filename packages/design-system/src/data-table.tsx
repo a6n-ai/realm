@@ -17,7 +17,6 @@ import {
 } from "@realm/ui/table";
 import { cn } from "@realm/ui/cn";
 import { FilterBar } from "./filter-bar";
-import { SearchInput } from "./search-input";
 import { SortableHeader } from "./sortable-header";
 import { useSortNav } from "./use-sort-nav";
 
@@ -289,15 +288,6 @@ export function DataTable<Row, K extends string>({
   return (
     <div className="space-y-4">
       <FilterBar
-        search={
-          <SearchInput
-            value={searchValue}
-            onChange={setSearchValue}
-            placeholder={search?.placeholder}
-            shortPlaceholder={search?.shortPlaceholder}
-            debounceMs={search?.debounceMs}
-          />
-        }
         filters={filters}
         sort={sort ? <MobileSort columns={columns} sort={sort} /> : undefined}
         actions={actions}
@@ -428,7 +418,6 @@ function DataTableSkeleton<K extends string>({
 }) {
   return (
     <div className="space-y-4">
-      <FilterBar search={<Skeleton className="h-9 w-full" />} />
       <div className="hidden overflow-hidden rounded-lg border md:block">
         <Table>
           <TableHeader className={HEAD_STICKY}>
