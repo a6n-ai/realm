@@ -210,6 +210,7 @@ export function InquiryDetailClient({
         zones={zones}
         prefill={prefill}
         unmatched={unmatched}
+        currency={currency}
         existing={existing}
       />
     </div>
