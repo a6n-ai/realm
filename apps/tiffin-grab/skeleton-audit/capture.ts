@@ -21,7 +21,13 @@ const skeletonSig = `() => {
   }).join("|");
 }`;
 
-for (const route of ROUTES) {
+// Dashboard routes are auth-gated; without a session they redirect to /login.
+// AUDIT_PUBLIC_ONLY captures just the ungated routes (auth/marketing/public).
+const routes = process.env.AUDIT_PUBLIC_ONLY
+  ? ROUTES.filter((r) => !r.path.startsWith("/dashboard"))
+  : ROUTES;
+
+for (const route of routes) {
   for (const vp of VIEWPORTS) {
     test(`${route.label} @ ${vp.name}`, async ({ page, context }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
