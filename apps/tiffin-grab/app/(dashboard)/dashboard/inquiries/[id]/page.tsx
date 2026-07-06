@@ -16,6 +16,7 @@ import { deliveryZones, leadSources } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
@@ -23,7 +24,8 @@ import type { ZoneLike } from "@/lib/catalog/postal";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, ListRow, SkeletonListRows } from "@/components/ds";
-import { ActivityComposer, MarkLostDialog, StageControl } from "./inquiry-controls";
+import { MarkLostDialog, StageControl } from "./inquiry-controls";
+import { ActivityComposer } from "./activity-composer";
 import { ConvertSheet } from "./convert-sheet";
 import type { OrderFormInput } from "./order-schema";
 
@@ -170,14 +172,17 @@ async function InquiryActivity({ params }: { params: Promise<{ id: string }> }) 
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const activities = await inquiriesService.listActivities(id);
+  const [activities, { currency }] = await Promise.all([
+    inquiriesService.listActivities(id),
+    getAppSettings(),
+  ]);
   const converted = inq.stage === "converted";
   const lost = inq.stage === "lost";
   const now = Date.now();
 
   return (
     <div className="space-y-3">
-      <ActivityComposer inquiryId={inq.publicId} />
+      <ActivityComposer inquiryId={inq.publicId} currency={currency} />
       <div className="space-y-2">
         {activities.map((a, i) => {
           const Icon = ICON[a.type] ?? StickyNoteIcon;
