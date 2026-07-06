@@ -23,6 +23,28 @@ const ADD_KIND: Record<string, QuickAddKind> = {
   "/dashboard/customers": "customer",
 };
 
+// List routes where the nav search doubles as that page's table filter — the
+// noun it narrows. Exact pathname → label; catalog editors derive the noun from
+// their /[resource] segment. Anything not here keeps the generic placeholder.
+const LIST_SEARCH: Record<string, string> = {
+  "/dashboard/customers": "customers",
+  "/dashboard/orders": "orders",
+  "/dashboard/users": "users",
+  "/dashboard/tickets": "tickets",
+  "/dashboard/inquiries": "inquiries",
+  "/dashboard/wallet/ledger": "the ledger",
+  "/dashboard/notifications/logs": "notifications",
+  "/dashboard/notifications/templates": "events",
+  "/dashboard/discounts/coupons": "coupons",
+  "/dashboard/discounts/logs": "discount logs",
+};
+
+function searchLabel(pathname: string): string | null {
+  const catalog = pathname.match(/^\/dashboard\/catalog\/([^/]+)$/);
+  if (catalog) return catalog[1].replace(/-/g, " ");
+  return LIST_SEARCH[pathname] ?? null;
+}
+
 const EMPTY: SearchResults = { orders: [], customers: [], inquiries: [], tickets: [] };
 
 const GROUPS = [
@@ -122,6 +144,15 @@ export function GlobalSearch({ role }: { role: string }) {
   const hasEntity = GROUPS.some((g) => results[g.key].length > 0);
   const showDropdown = open && query.trim().length >= 2;
 
+  // On a list route the search filters that table — name it. Off-list keeps the
+  // global hint. Mobile stays terse where the full string would truncate.
+  const listNoun = searchLabel(pathname);
+  const placeholder = isMobile
+    ? "Search…"
+    : listNoun
+      ? `Search ${listNoun}…`
+      : "Search pages, orders, customers, tickets, or paste an id…";
+
   return (
     <div className="relative w-full max-w-md">
       <Command shouldFilter={false} className="overflow-visible bg-transparent">
@@ -137,7 +168,7 @@ export function GlobalSearch({ role }: { role: string }) {
               inputRef.current?.blur();
             }
           }}
-          placeholder={isMobile ? "Search…" : "Search pages, orders, customers, tickets, or paste an id…"}
+          placeholder={placeholder}
         />
         {showDropdown && (
           <CommandList
