@@ -9,7 +9,7 @@ export * from "./tickets";
 export * from "./lead-sources";
 export * from "./inquiry-user-config";
 export * from "./menu";
-export * from "./app-settings";
+export * from "./app";
 export * from "./audit";
 export * from "./wallet";
 export * from "./notifications";

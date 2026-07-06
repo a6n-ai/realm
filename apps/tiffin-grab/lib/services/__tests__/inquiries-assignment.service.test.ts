@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { appSettings, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
+import { app, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
 import type { LeadAssignmentConfig } from "../assignment";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -62,7 +62,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
       await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
       await db.delete(users).where(inArray(users.id, seededUserIds));
     }
-    await db.delete(appSettings);
+    await db.delete(app);
   });
 
   it("round_robin assigns two consecutive inbound creates to two different source-pool members", async () => {

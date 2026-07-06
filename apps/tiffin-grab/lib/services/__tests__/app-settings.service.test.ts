@@ -4,13 +4,13 @@ import { eq } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { appSettings, auditLog } = await import("@/db/schema");
+const { app, auditLog } = await import("@/db/schema");
 const { getAppSettings, setAppSettings, getMealTypes, setMealTypes } = await import("../app-settings.service");
 const { DEFAULT_MEAL_TYPES } = await import("@/lib/menu/meal-types");
 
 async function reset() {
   await db.delete(auditLog);
-  await db.delete(appSettings);
+  await db.delete(app);
 }
 
 describe("meal types", () => {
@@ -45,9 +45,9 @@ describe("app-settings service (integration)", () => {
     await setAppSettings({ timezone: "America/Toronto", cutoffHour: 19 });
     s = await getAppSettings();
     expect(s.cutoffHour).toBe(19);
-    const rows = await db.select().from(appSettings);
+    const rows = await db.select().from(app);
     expect(rows).toHaveLength(1); // still a singleton
-    const audits = await db.select().from(auditLog).where(eq(auditLog.entity, "app_settings"));
+    const audits = await db.select().from(auditLog).where(eq(auditLog.entity, "app"));
     expect(audits.some((r) => r.operation === "create")).toBe(true);
     expect(audits.some((r) => r.operation === "update")).toBe(true);
   });

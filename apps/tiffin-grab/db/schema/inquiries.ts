@@ -6,9 +6,10 @@ import { orders } from "./orders";
 import { leadSources, leadSubsources } from "./lead-sources";
 import { deliveryZones } from "./catalog";
 
-export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "follow_up", "converted", "lost"]);
+export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "quoted", "follow_up", "converted", "lost"]);
 export const inquiryActivityType = pgEnum("inquiry_activity_type", [
   "created", "note", "stage_change", "converted", "call", "whatsapp", "email",
+  "quote_sent", "sample_sent", "payment_link_sent", "visit", "callback",
 ]);
 export const inquiryLostReason = pgEnum("inquiry_lost_reason", [
   "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other",
@@ -50,6 +51,7 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   type: inquiryActivityType("type").notNull(),
   note: text("note"),
   outcome: text("outcome"),
+  amount: integer("amount"),   // minor units; currency resolved via app_id -> app.currency
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   fromStage: inquiryStage("from_stage"),
   toStage: inquiryStage("to_stage"),

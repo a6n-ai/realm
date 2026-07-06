@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { appSettings, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { app, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
@@ -12,13 +12,13 @@ let dishPublicId: string;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(appSettings);
+  await db.delete(orders); await db.delete(dishes); await db.delete(app);
 }
 
 describe("setSelection per-day cutoff + span", () => {
   beforeEach(async () => {
     await reset();
-    await db.insert(appSettings).values({ timezone: "America/Toronto", cutoffHour: 18 });
+    await db.insert(app).values({ timezone: "America/Toronto", cutoffHour: 18 });
     const [u] = await db.insert(users).values({ phone: "+15550000001", name: "T", role: "user" }).onConflictDoNothing().returning();
     const userId = u?.id ?? (await db.select().from(users).where(eq(users.phone, "+15550000001")).limit(1))[0].id;
     const [plan] = await db.select().from(plans).where(eq(plans.key, "veg")).limit(1);

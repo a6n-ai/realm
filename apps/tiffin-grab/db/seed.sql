@@ -8,6 +8,18 @@
 
 begin;
 
+-- ============ APP (tenant singleton) ============
+-- Must be first: every other row resolves app_id via current_app_id(), which
+-- reads this row. Sets id and app_id to the same value (self-reference) since no
+-- app exists yet for the default to resolve.
+insert into app (id, public_id, app_id, created_at, updated_at, timezone, cutoff_hour, currency, meal_types)
+select v.id, 'aps_default', v.id,
+       (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
+       'Asia/Kolkata', 18, 'INR',
+       '{"tiffin":{"accent":"#F0820A","titlePrefix":"Tiffin Menu"},"healthy":{"accent":"#1FAE54","titlePrefix":"Healthy Menu"}}'::jsonb
+from (select next_id() as id) v
+where not exists (select 1 from app);
+
 -- ============ LEAD SOURCES ============
 insert into lead_sources (public_id, created_at, updated_at, key, label, is_inbound) values
   ('lsr_manual',    (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'manual',    'Manual',    false),
@@ -92,12 +104,7 @@ insert into feature_flags (public_id, created_at, updated_at, key, label, descri
   ('flg_admin_console',       (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint, 'admin_console',       'Admin Console',       'User & flag administration', false)
 on conflict (key) do nothing;
 
--- ============ APP SETTINGS ============ (no unique key -> insert one row only if none exists)
-insert into app_settings (public_id, created_at, updated_at, timezone, cutoff_hour, meal_types)
-select 'aps_default', (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
-       'America/Toronto', 18,
-       '{"tiffin":{"accent":"#F0820A","titlePrefix":"Tiffin Menu"},"healthy":{"accent":"#1FAE54","titlePrefix":"Healthy Menu"}}'::jsonb
-where not exists (select 1 from app_settings);
+-- ============ APP SETTINGS ============ seeded at the top (tenant singleton).
 
 -- ============ WALLET: EVENT PAYOUTS ============ (one row per app_event enum value)
 insert into event_payout (public_id, created_at, updated_at, event_type, enabled, coins)
@@ -164,6 +171,21 @@ cross join (
   join dishes d on d.name = want.name
 ) as dsh;
 
+-- ============ ADMIN USER ============
+-- Seeded admin with a temporary password ("changeme123"). password_set=false
+-- forces a password reset on first login. Change it after logging in.
+with admin as (
+  insert into users (public_id, created_at, updated_at, name, email, email_verified, role, password_set)
+  select 'usr_admin_seed', (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
+         'Admin', 'hrithikraj1997@gmail.com', true, 'admin', false
+  where not exists (select 1 from users where email = 'hrithikraj1997@gmail.com')
+  returning id
+)
+insert into account (id, public_id, account_id, provider_id, user_id, password)
+select (next_id())::text, 'act_admin_seed', a.id::text, 'credential', a.id,
+       '$2b$10$Gsig1JM7UdYxUpD1IVKUiuWaUUdSXGpMIL3K4qsh2B57BWwK0P/ni'
+from admin a;
+
 commit;
 
 -- Verify:
@@ -176,7 +198,7 @@ commit;
 -- select 'delivery_zones', count(*) from delivery_zones union all
 -- select 'pricing_tiers', count(*) from pricing_tiers union all
 -- select 'feature_flags', count(*) from feature_flags union all
--- select 'app_settings', count(*) from app_settings union all
+-- select 'app', count(*) from app union all
 -- select 'event_payout', count(*) from event_payout union all
 -- select 'coin_rate', count(*) from coin_rate union all
 -- select 'meal_slots', count(*) from meal_slots union all

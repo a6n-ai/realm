@@ -134,6 +134,13 @@
       "when": 1783363290855,
       "tag": "0018_add_password_set",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783363290856,
+      "tag": "0019_app_scope_and_journey",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ type Coupon = typeof coupons.$inferSelect;
 const fakeCoupon = (over: Partial<Coupon>): Coupon => ({
   id: 1n,
   publicId: "cpn_test",
+  appId: 1n,
   createdAt: 0,
   createdBy: null,
   updatedAt: 0,
