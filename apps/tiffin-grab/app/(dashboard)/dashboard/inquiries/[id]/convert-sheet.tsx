@@ -31,6 +31,9 @@ export function ConvertSheet({
   zones,
   prefill,
   existing,
+  open,
+  onOpenChange,
+  hideTrigger,
 }: {
   inquiryId: string;
   contact: { fullName: string; phone: string; email: string };
@@ -38,13 +41,21 @@ export function ConvertSheet({
   enabledSlots: EnabledSlot[];
   zones: ZoneLike[];
   prefill?: Partial<OrderFormInput>;
+  // Accepted for the page's context wiring; rendered as the "From the inquiry"
+  // context header in the convert-sheet restyle task.
+  unmatched?: string[];
   existing: { publicId: string; fullName: string } | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button>Create order</Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {hideTrigger ? null : (
+        <SheetTrigger asChild>
+          <Button>Create order</Button>
+        </SheetTrigger>
+      )}
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>Order for {contact.fullName}</SheetTitle>

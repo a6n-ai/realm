@@ -1,76 +1,33 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import {
-  ClipboardListIcon,
-  PhoneIcon,
-  MessageCircleIcon,
-  MailIcon,
-  StickyNoteIcon,
-  ArrowRightIcon,
-  CheckCircleIcon,
-} from "lucide-react";
+import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@realm/commons";
 import { db } from "@/db/client";
-import { deliveryZones, leadSources } from "@/db/schema";
-import { formatEpoch } from "@/lib/format/datetime";
+import { deliveryZones, leadSources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
-import type { ZoneLike } from "@/lib/catalog/postal";
-import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, ListRow, SkeletonListRows } from "@/components/ds";
-import { MarkLostDialog, StageControl } from "./inquiry-controls";
-import { ActivityComposer } from "./activity-composer";
-import { ConvertSheet } from "./convert-sheet";
-import type { OrderFormInput } from "./order-schema";
-
-const ICON: Record<string, typeof PhoneIcon> = {
-  call: PhoneIcon,
-  whatsapp: MessageCircleIcon,
-  email: MailIcon,
-  note: StickyNoteIcon,
-  stage_change: ArrowRightIcon,
-  created: ArrowRightIcon,
-  converted: CheckCircleIcon,
-};
-
-function describe(a: { type: string; note: string | null; outcome: string | null; fromStage: string | null; toStage: string | null }) {
-  switch (a.type) {
-    case "created": return "Inquiry created";
-    case "converted": return "Converted to an order";
-    case "stage_change": return `Stage: ${a.fromStage} → ${a.toStage}`;
-    case "call": case "whatsapp": case "email":
-      return `${a.type[0].toUpperCase()}${a.type.slice(1)}${a.outcome ? ` — ${a.outcome}` : ""}`;
-    default: return a.note ?? "";
-  }
-}
+import { PageShell, PageHeader, StageBadge } from "@/components/ds";
+import { interestToPrefill } from "../_leads/interest-prefill";
+import { InquiryDetailClient } from "./detail-client";
+import type { TimelineActivity } from "./inquiry-timeline";
 
 export default function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
-      <PageHeader icon={ClipboardListIcon} title="Inquiry" />
-
-      <SectionCard title="Details">
-        <Suspense fallback={<InquiryDetails.Skeleton />}>
-          <InquiryDetails params={params} />
-        </Suspense>
-      </SectionCard>
-
-      <SectionCard title="Activity">
-        <Suspense fallback={<InquiryActivity.Skeleton />}>
-          <InquiryActivity params={params} />
-        </Suspense>
-      </SectionCard>
+      <Suspense fallback={<InquiryDetail.Skeleton />}>
+        <InquiryDetail params={params} />
+      </Suspense>
     </PageShell>
   );
 }
 
-async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
+async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
   const { id } = await params;
 
@@ -81,10 +38,8 @@ async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const converted = inq.stage === "converted";
-  const lost = inq.stage === "lost";
 
-  const [catalog, slots, existing, [source], zones] = await Promise.all([
+  const [catalog, slots, existing, [source], zones, activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     mealSlotsService.enabledSlots(),
     findExistingByContact(inq.phone, inq.email),
@@ -98,7 +53,10 @@ async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
       })
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true)),
+    inquiriesService.listActivities(id),
+    getAppSettings(),
   ]);
+
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
@@ -106,123 +64,100 @@ async function InquiryDetails({ params }: { params: Promise<{ id: string }> }) {
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name })),
     durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
   };
-  const prefill: Partial<OrderFormInput> = {
-    ...(inq.planInterest ? { planKey: inq.planInterest } : {}),
-    ...(inq.mealSizeInterest ? { mealSizeId: inq.mealSizeInterest } : {}),
-    ...(inq.personsInterest != null ? { persons: inq.personsInterest } : {}),
-    ...(inq.preferredStart ? { startDate: inq.preferredStart } : {}),
-    ...(inq.postalCode ? { postalCode: inq.postalCode } : {}),
-  };
+
+  // Lossless mapping of the lead's stated interest → order-form prefill, with the
+  // free-text it couldn't match surfaced separately for the convert context header.
+  const { prefill, unmatched } = interestToPrefill(
+    {
+      planInterest: inq.planInterest,
+      mealSizeInterest: inq.mealSizeInterest,
+      personsInterest: inq.personsInterest,
+      preferredStart: inq.preferredStart,
+      postalCode: inq.postalCode,
+      quotedPrice: inq.quotedPrice,
+    },
+    { plans: convertCatalog.plans, mealSizes: convertCatalog.mealSizes },
+  );
+
+  let convertedOrderHref: string | undefined;
+  if (inq.convertedOrderId != null) {
+    const [ord] = await db
+      .select({ publicId: orders.publicId })
+      .from(orders)
+      .where(eq(orders.id, inq.convertedOrderId))
+      .limit(1);
+    if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
+  }
+
+  const timeline: TimelineActivity[] = activities.map((a) => ({
+    publicId: a.publicId,
+    type: a.type,
+    note: a.note,
+    outcome: a.outcome,
+    amount: a.amount,
+    nextFollowUpAt: a.nextFollowUpAt,
+    fromStage: a.fromStage,
+    toStage: a.toStage,
+    createdAt: a.createdAt,
+  }));
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <StageControl inquiryId={inq.publicId} stage={inq.stage as InquiryStage} />
-        {converted ? (
-          <span className="text-muted-foreground text-sm">Converted</span>
-        ) : (
-          <>
-            <ConvertSheet
-              inquiryId={inq.publicId}
-              contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
-              catalog={convertCatalog}
-              enabledSlots={enabledSlots}
-              zones={zones}
-              prefill={prefill}
-              existing={existing}
-            />
-            {lost ? null : <MarkLostDialog inquiryId={inq.publicId} />}
-          </>
-        )}
-        <Badge variant="secondary" className="ml-auto capitalize">{source?.label}</Badge>
-      </div>
-      <p className="text-muted-foreground text-sm">{inq.phone}{inq.email ? ` · ${inq.email}` : ""}</p>
-      {inq.notes ? (
-        <p className="text-sm">
-          <span className="text-muted-foreground">Initial notes: </span>{inq.notes}
-        </p>
-      ) : null}
+    <div className="space-y-4">
+      <PageHeader
+        icon={ClipboardListIcon}
+        title={inq.fullName}
+        subtitle={inq.phone}
+        actions={<StageBadge stage={inq.stage} />}
+      />
+      <InquiryDetailClient
+        inquiryId={inq.publicId}
+        stage={inq.stage as InquiryStage}
+        currency={currency}
+        convertedOrderHref={convertedOrderHref}
+        contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
+        sourceLabel={source?.label ?? ""}
+        notes={inq.notes}
+        interest={{
+          planInterest: inq.planInterest,
+          mealSizeInterest: inq.mealSizeInterest,
+          personsInterest: inq.personsInterest,
+          preferredStart: inq.preferredStart,
+          postalCode: inq.postalCode,
+          quotedPrice: inq.quotedPrice,
+        }}
+        activities={timeline}
+        catalog={convertCatalog}
+        enabledSlots={enabledSlots}
+        zones={zones}
+        prefill={prefill}
+        unmatched={unmatched}
+        existing={existing}
+      />
     </div>
   );
 }
 
-InquiryDetails.Skeleton = function InquiryDetailsSkeleton() {
+InquiryDetail.Skeleton = function InquiryDetailSkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Skeleton className="h-9 w-44" />
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-9 w-24" />
+        <Skeleton className="size-9 rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
         <Skeleton className="ml-auto h-6 w-20 rounded-full" />
       </div>
-      <Skeleton className="h-4 w-64" />
-      <Skeleton className="h-4 w-80" />
-    </div>
-  );
-};
 
-async function InquiryActivity({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
-  const { id } = await params;
+      <Skeleton className="h-24 w-full rounded-xl" />
 
-  let inq;
-  try {
-    inq = await inquiriesService.read(id);
-  } catch (e) {
-    if (e instanceof NotFoundError) notFound();
-    throw e;
-  }
-  const [activities, { currency }] = await Promise.all([
-    inquiriesService.listActivities(id),
-    getAppSettings(),
-  ]);
-  const converted = inq.stage === "converted";
-  const lost = inq.stage === "lost";
-  const now = Date.now();
-
-  return (
-    <div className="space-y-3">
-      <ActivityComposer inquiryId={inq.publicId} currency={currency} />
-      <div className="space-y-2">
-        {activities.map((a, i) => {
-          const Icon = ICON[a.type] ?? StickyNoteIcon;
-          const overdue =
-            a.nextFollowUpAt != null && a.nextFollowUpAt < now && i === 0 && !converted && !lost;
-          return (
-            <ListRow
-              key={a.publicId}
-              avatar={<Icon className="size-4" />}
-              title={describe(a)}
-              meta={
-                <>
-                  <div>{formatEpoch(a.createdAt, { mode: "datetime" })}</div>
-                  {a.nextFollowUpAt != null ? (
-                    <div>↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date" })}</div>
-                  ) : null}
-                </>
-              }
-              trailing={overdue ? <Badge variant="destructive">Overdue</Badge> : undefined}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-InquiryActivity.Skeleton = function InquiryActivitySkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-9 w-36" />
-          <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-9 w-40" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-56 w-full rounded-xl" />
       </div>
-      <SkeletonListRows rows={6} />
     </div>
   );
 };
