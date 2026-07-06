@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "audit:skeletons": "playwright test skeleton-audit/capture.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -20,12 +21,12 @@
     "@react-pdf/renderer": "^4.5.1",
     "@realm/auth": "workspace:*",
     "@realm/commons": "workspace:*",
-    "@realm/database": "workspace:*",
-    "@realm/storage": "workspace:*",
-    "@realm/routes": "workspace:*",
-    "@realm/email": "workspace:*",
     "@realm/crm": "workspace:*",
+    "@realm/database": "workspace:*",
     "@realm/design-system": "workspace:*",
+    "@realm/email": "workspace:*",
+    "@realm/routes": "workspace:*",
+    "@realm/storage": "workspace:*",
     "@realm/themes": "workspace:*",
     "@realm/ui": "workspace:*",
     "@uiw/react-md-editor": "^4.0.7",
@@ -61,6 +62,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@realm/eslint-config": "workspace:*",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -68,7 +71,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@realm/eslint-config": "workspace:*",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "jsdom": "^29.1.1",

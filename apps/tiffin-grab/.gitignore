@@ -1,3 +1,6 @@
 
 # local dev file storage (LocalStorageProvider)
 .files-storage/
+
+# skeleton-audit capture output (dev-only harness, not in CI)
+skeleton-audit/out/
