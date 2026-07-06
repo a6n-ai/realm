@@ -21,7 +21,7 @@ import { HelpCircleIcon } from "lucide-react";
 import { logActivity, markLost, setStage } from "../actions";
 import type { ActivityType, InquiryStage, LostReason } from "@/lib/services/inquiries.service";
 
-const STAGES: InquiryStage[] = ["new", "contacted", "follow_up", "converted", "lost"];
+const STAGES: InquiryStage[] = ["new", "contacted", "quoted", "follow_up", "converted", "lost"];
 
 const ACTIVITY_TYPES: { value: ActivityType; label: string }[] = [
   { value: "call", label: "Call" },
@@ -65,7 +65,7 @@ export function StageControl({ inquiryId, stage }: { inquiryId: string; stage: I
       </Select>
       <Tooltip>
         <TooltipTrigger asChild><button type="button" aria-label="What is a stage?"><HelpCircleIcon className="text-muted-foreground size-4" /></button></TooltipTrigger>
-        <TooltipContent>Where this lead sits in the pipeline: new → contacted → follow-up → converted / lost.</TooltipContent>
+        <TooltipContent>Where this lead sits in the pipeline: new → contacted → quoted → follow-up → converted / lost.</TooltipContent>
       </Tooltip>
     </div>
   );

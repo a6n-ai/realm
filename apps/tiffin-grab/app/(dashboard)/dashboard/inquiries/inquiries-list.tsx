@@ -18,6 +18,7 @@ const STAGE_PILLS = [
   { key: "all", label: "All" },
   { key: "new", label: "New" },
   { key: "contacted", label: "Contacted" },
+  { key: "quoted", label: "Quoted" },
   { key: "follow_up", label: "Follow-up" },
   { key: "converted", label: "Converted" },
   { key: "lost", label: "Lost" },
