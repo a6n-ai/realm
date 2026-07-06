@@ -427,7 +427,7 @@ export function ResourceEditor({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
-        search={{ placeholder: `Search ${def.label.toLowerCase()}…`, keys: searchKeys(def) }}
+        search={{ placeholder: `Search ${def.label.toLowerCase()}…`, shortPlaceholder: "Search…", keys: searchKeys(def) }}
         rowClassName={(r) =>
           cn(
             "transition-colors",

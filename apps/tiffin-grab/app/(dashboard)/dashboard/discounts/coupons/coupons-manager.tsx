@@ -221,6 +221,7 @@ export function CouponsManager({
 
   return (
     <SectionCard
+      bleed
       title="Coupons"
       subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
       action={
@@ -235,7 +236,7 @@ export function CouponsManager({
         rows={coupons}
         rowKey={(c) => c.publicId}
         sort={sort}
-        search={{ placeholder: "Search by code or name…", keys: ["code", "name"] }}
+        search={{ placeholder: "Search by code or name…", shortPlaceholder: "Search…", keys: ["code", "name"] }}
         rowClassName={(c) => (c.active ? "" : "opacity-60")}
         emptyIcon={TicketPercentIcon}
         emptyMessage="No coupons yet."
@@ -498,6 +499,7 @@ export function CouponsManager({
 export function CouponsManagerSkeleton() {
   return (
     <SectionCard
+      bleed
       title="Coupons"
       subtitle="Codes customers enter at checkout. Rep daily coupons are minted automatically and not shown here."
       action={<Skeleton className="h-8 w-28" />}

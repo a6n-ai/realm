@@ -43,7 +43,7 @@ export function CustomersList({
       sort={sort}
       idAccessor={(r) => r.publicId}
       idHref={(r) => `/dashboard/customers/${r.publicId}`}
-      search={{ placeholder: "Search by name, email, phone or ID…", keys: ["name", "email", "phone"] }}
+      search={{ placeholder: "Search by name, email, phone or ID…", shortPlaceholder: "Search…", keys: ["name", "email", "phone"] }}
       rowClassName={() => "group cursor-pointer"}
       emptyIcon={UsersIcon}
       emptyMessage="No customers yet."

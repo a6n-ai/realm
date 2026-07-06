@@ -50,7 +50,7 @@ export function LedgerTable({
       rows={rows}
       rowKey={(r) => r.publicId}
       sort={sort}
-      search={{ placeholder: "Search ledger…", debounceMs: 300 }}
+      search={{ placeholder: "Search ledger…", shortPlaceholder: "Search…", debounceMs: 300 }}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No wallet activity yet. Earns and redemptions will appear here."
       renderRow={(r) => {

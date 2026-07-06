@@ -39,7 +39,7 @@ export function UsersList({
       rowKey={(r) => r.id}
       sort={sort}
       idAccessor={(r) => r.id}
-      search={{ placeholder: "Search by contact, role or ID…", keys: ["email", "phone", "role"] }}
+      search={{ placeholder: "Search by contact, role or ID…", shortPlaceholder: "Search…", keys: ["email", "phone", "role"] }}
       emptyIcon={UsersIcon}
       emptyMessage="No users yet."
       emptySearchMessage="No users match your search."

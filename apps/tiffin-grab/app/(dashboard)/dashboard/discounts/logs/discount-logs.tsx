@@ -69,6 +69,7 @@ export function DiscountLogs({
         sort={sort}
         search={{
           placeholder: "Search by coupon, user or order…",
+          shortPlaceholder: "Search…",
           keys: ["code", "email", "redeemedByEmail", "orderPublicId"],
         }}
         emptyIcon={HistoryIcon}

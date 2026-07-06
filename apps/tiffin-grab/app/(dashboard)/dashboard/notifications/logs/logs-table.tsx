@@ -49,7 +49,7 @@ export function LogsTable({ rows, sort }: { rows: Row[]; sort: SortState<LogSort
       rows={rows}
       rowKey={(r) => r.publicId}
       sort={sort}
-      search={{ placeholder: "Search notifications…", debounceMs: 300 }}
+      search={{ placeholder: "Search notifications…", shortPlaceholder: "Search…", debounceMs: 300 }}
       emptyIcon={BellIcon}
       emptyMessage="No notifications have been queued yet."
       emptySearchMessage="No notifications match your search."

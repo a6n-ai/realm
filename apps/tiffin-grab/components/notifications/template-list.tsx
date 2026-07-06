@@ -5,6 +5,7 @@ import { LayersIcon, PencilIcon } from "lucide-react";
 import {
   DataTable,
   FilterPill,
+  FilterSheet,
   RowActionButton,
   RowActions,
   type Column,
@@ -115,17 +116,38 @@ export function TemplateList({
       rows={statusRows}
       rowKey={(r) => r.event}
       sort={sort}
-      search={{ placeholder: "Search events…", keys: ["label", "event"] }}
+      search={{ placeholder: "Search events…", shortPlaceholder: "Search…", keys: ["label", "event"] }}
       rowClassName={() => "group cursor-pointer"}
-      filters={STATUS_PILLS.map((p) => (
-        <FilterPill
-          key={p.key}
-          label={p.label}
-          active={status === p.key}
-          count={counts[p.key]}
-          onClick={() => setStatus(p.key)}
-        />
-      ))}
+      filters={
+        <>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            {STATUS_PILLS.map((p) => (
+              <FilterPill
+                key={p.key}
+                label={p.label}
+                active={status === p.key}
+                count={counts[p.key]}
+                onClick={() => setStatus(p.key)}
+              />
+            ))}
+          </div>
+          <div className="md:hidden">
+            <FilterSheet iconOnly activeCount={status === "all" ? 0 : 1}>
+              <div className="flex flex-wrap gap-2">
+                {STATUS_PILLS.map((p) => (
+                  <FilterPill
+                    key={p.key}
+                    label={p.label}
+                    active={status === p.key}
+                    count={counts[p.key]}
+                    onClick={() => setStatus(p.key)}
+                  />
+                ))}
+              </div>
+            </FilterSheet>
+          </div>
+        </>
+      }
       emptyIcon={LayersIcon}
       emptyMessage="No events."
       emptySearchMessage="No events match your search."
