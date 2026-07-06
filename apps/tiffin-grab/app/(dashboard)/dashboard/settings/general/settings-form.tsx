@@ -10,16 +10,19 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { saveAppSettings } from "./actions";
 
 const ZONES = ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg", "America/Halifax", "Asia/Kolkata", "UTC"];
+const CURRENCIES = ["INR", "USD", "AED", "GBP", "EUR"];
 
 const FIELDS = [
   { key: "timezone", label: "App timezone", hint: "Used for all delivery cutoffs and time display." },
   { key: "cutoffHour", label: "Selection cutoff hour (0–23)", hint: "Orders for a day lock at this hour the day before, in the app timezone." },
+  { key: "currency", label: "Currency", hint: "Currency all amounts are captured and displayed in." },
 ] as const;
 
-export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutoffHour: number }) {
+export function SettingsForm({ timezone, cutoffHour, currency }: { timezone: string; cutoffHour: number; currency: string }) {
   const router = useRouter();
   const [tz, setTz] = useState(timezone);
   const [hour, setHour] = useState(String(cutoffHour));
+  const [ccy, setCcy] = useState(currency);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -32,7 +35,7 @@ export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutof
     start(async () => {
       setError(null);
       try {
-        await saveAppSettings({ timezone: tz, cutoffHour: parsed });
+        await saveAppSettings({ timezone: tz, cutoffHour: parsed, currency: ccy });
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
@@ -55,6 +58,14 @@ export function SettingsForm({ timezone, cutoffHour }: { timezone: string; cutof
         <Label>{FIELDS[1].label}</Label>
         <Input type="number" min={0} max={23} step={1} required value={hour} onChange={(e) => setHour(e.target.value)} />
         <p className="text-muted-foreground mt-1 text-xs">{FIELDS[1].hint}</p>
+      </div>
+      <div>
+        <Label>{FIELDS[2].label}</Label>
+        <Select value={ccy} onValueChange={setCcy}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">{FIELDS[2].hint}</p>
       </div>
       <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
     </div>

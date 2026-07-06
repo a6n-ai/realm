@@ -21,5 +21,5 @@ export default function GeneralSettingsPage() {
 async function SettingsData() {
   await requireAdmin();
   const settings = await getAppSettings();
-  return <SettingsForm timezone={settings.timezone} cutoffHour={settings.cutoffHour} />;
+  return <SettingsForm timezone={settings.timezone} cutoffHour={settings.cutoffHour} currency={settings.currency} />;
 }
