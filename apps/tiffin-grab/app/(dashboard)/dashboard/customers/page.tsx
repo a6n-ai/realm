@@ -14,6 +14,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
+import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
 const SORT_COL = {
   name: users.name,
@@ -33,6 +34,7 @@ type SearchParams = Promise<{ sort?: string; dir?: string }>;
 export default function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
+      <MarkSectionRead section="customers" />
       <PageHeader
         icon={UsersIcon}
         title="Customers"

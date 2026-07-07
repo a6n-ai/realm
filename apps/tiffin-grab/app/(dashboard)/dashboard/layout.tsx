@@ -6,6 +6,7 @@ import { isLocked } from "@/lib/auth/lock";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { usersService } from "@/lib/services/users.service";
+import { newActivity } from "@/lib/services/section-seen.service";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { GlobalSearch } from "@/components/dashboard/global-search";
 import { IdleLock } from "@/components/dashboard/idle-lock";
@@ -43,6 +44,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
+  // Customers have none of the tickets/inquiries/customers nav items, so skip
+  // the activity probe for them entirely.
+  const activity = role === "user" ? null : await newActivity();
 
   // Sales reps (role member) get today's daily-coupon card in the sidebar, but
   // only when the allowance is on and this rep is not disabled. publicId is the
@@ -66,6 +70,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           user={{ email, role, name: user.name ?? null, image: user.image ?? null }}
           hasPin={hasPin}
           repCoupon={repCoupon}
+          activity={activity}
         />
       }
       breadcrumbs={<AppBreadcrumbs />}

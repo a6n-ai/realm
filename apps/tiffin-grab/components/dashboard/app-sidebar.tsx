@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
+import { markAllReadAction } from "@/lib/services/section-seen.actions";
+import type { Section } from "@/lib/services/section-seen.service";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@realm/ui/cn";
@@ -52,6 +54,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };
+
+const SECTION_BY_HREF: Record<string, Section> = {
+  "/dashboard/tickets": "tickets",
+  "/dashboard/inquiries": "inquiries",
+  "/dashboard/customers": "customers",
+};
 
 // Grouped navigation. A section renders only when the current user's role
 // matches at least one of its items. Exported so the command palette reuses it.
@@ -118,10 +126,12 @@ export function AppSidebar({
   user,
   hasPin,
   repCoupon,
+  activity,
 }: {
   user: { email: string; role: string; name: string | null; image: string | null };
   hasPin: boolean;
   repCoupon?: RepCouponView | null;
+  activity?: Record<Section, boolean> | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -162,6 +172,15 @@ export function AppSidebar({
                       <Link href={item.href}>
                         <item.icon className="transition-transform duration-200 group-hover/nav:scale-110" />
                         <span>{item.title}</span>
+                        {(() => {
+                          const section = SECTION_BY_HREF[item.href];
+                          return section && activity?.[section] ? (
+                            <span
+                              aria-label="New activity"
+                              className="bg-primary ml-auto size-2 shrink-0 rounded-full"
+                            />
+                          ) : null;
+                        })()}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -170,6 +189,22 @@ export function AppSidebar({
             </SidebarGroup>
           );
         })}
+
+        {activity && Object.values(activity).some(Boolean) && (
+          <SidebarGroup>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => { void markAllReadAction(); router.refresh(); }}
+                  tooltip="Mark all read"
+                >
+                  <CheckIcon />
+                  <span>Mark all read</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {repCoupon && <RepCouponCard coupon={repCoupon} />}

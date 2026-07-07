@@ -14,6 +14,7 @@ import {
   SkeletonStatCards,
 } from "@/components/ds";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
+import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
 const SORT_COLUMNS = [
   "subject",
@@ -33,6 +34,7 @@ export default function TicketsPage({
 }) {
   return (
     <PageShell>
+      <MarkSectionRead section="tickets" />
       <PageHeader icon={LifeBuoyIcon} title="Tickets" />
 
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>

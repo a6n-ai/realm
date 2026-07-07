@@ -19,12 +19,14 @@ import {
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
+import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
 export default function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
+      <MarkSectionRead section="inquiries" />
       <PageHeader
         icon={ClipboardListIcon}
         title="Inquiries"
