@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRightIcon, ClipboardListIcon } from "lucide-react";
+import { ClipboardListIcon } from "lucide-react";
 import { DataTable, FilterChips, FilterPill, FilterSheet, StageBadge, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
@@ -30,7 +30,7 @@ type InquirySortColumn = "name" | "owner" | "stage" | "source" | "lastTouch" | "
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<InquirySortColumn | "nextAction" | "chevron">[] = [
+const COLUMNS: readonly Column<InquirySortColumn | "nextAction">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "owner", label: "Owner", sortable: true },
   { key: "stage", label: "Stage", sortable: true },
@@ -38,7 +38,6 @@ const COLUMNS: readonly Column<InquirySortColumn | "nextAction" | "chevron">[] =
   { key: "lastTouch", label: "Last touch", sortable: true, align: "right" },
   { key: "nextAction", label: "Next action", align: "right" },
   { key: "created", label: "Created", sortable: true, align: "right" },
-  { key: "chevron", label: "", width: "w-8" },
 ];
 
 const ALL_OWNERS = "__all__";
@@ -179,9 +178,6 @@ export function InquiriesList({
           </TableCell>
           <TableCell className="text-right tabular-nums">
             {formatEpoch(r.createdAt, { mode: "date" })}
-          </TableCell>
-          <TableCell>
-            <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
           </TableCell>
         </>
       )}

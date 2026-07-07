@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { ChevronRightIcon, PackageIcon } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@realm/commons";
 import { DataTable, FilterPill, FilterSheet, OrderStatusBadge, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
@@ -23,7 +23,7 @@ const STATUS_PILLS = [
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<OrderSortColumn | "city" | "chevron">[] = [
+const COLUMNS: readonly Column<OrderSortColumn | "city">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "deployment", label: "Deployment", sortable: true },
   { key: "city", label: "City" },
@@ -31,7 +31,6 @@ const COLUMNS: readonly Column<OrderSortColumn | "city" | "chevron">[] = [
   { key: "start", label: "Start", sortable: true, align: "right" },
   { key: "total", label: "Total", sortable: true, align: "right" },
   { key: "created", label: "Created", sortable: true, align: "right" },
-  { key: "chevron", label: "", width: "w-8" },
 ];
 
 export function OrdersList({
@@ -119,9 +118,6 @@ export function OrdersList({
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date" })}
-          </TableCell>
-          <TableCell>
-            <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
           </TableCell>
         </>
       )}

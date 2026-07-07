@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRightIcon, UsersIcon } from "lucide-react";
+import { UsersIcon } from "lucide-react";
 import { DataTable, OrderStatusBadge, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import type { SortState } from "@/lib/list/sort";
@@ -19,13 +19,12 @@ type Row = {
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. (The leading "#" and ID columns are added by DataTable.)
-const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "chevron">[] = [
+const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Email", sortable: true },
   { key: "phone", label: "Phone", sortable: true },
   { key: "orders", label: "Orders", sortable: true, align: "right" },
   { key: "latestStatus", label: "Latest status" },
-  { key: "chevron", label: "", width: "w-8" },
 ];
 
 export function CustomersList({
@@ -60,9 +59,6 @@ export function CustomersList({
           <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
           <TableCell>
             {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
-          </TableCell>
-          <TableCell>
-            <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
           </TableCell>
         </>
       )}

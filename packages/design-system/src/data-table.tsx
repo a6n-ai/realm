@@ -271,6 +271,7 @@ export function DataTable<Row, K extends string>({
   emptyIcon: EmptyIcon, emptyMessage, emptySearchMessage, emptyAction,
 }: DataTableProps<Row, K>) {
   const [searchValue, setSearchValue] = useSearchQuery();
+  const router = useRouter();
   const hasId = !!idAccessor;
   const leadCount = (serial ? 1 : 0) + (hasId ? 1 : 0);
 
@@ -300,7 +301,25 @@ export function DataTable<Row, K extends string>({
           <TableBody>
             {filtered.length ? (
               filtered.map((r, i) => (
-                <TableRow key={rowKey(r)} className={rowClassName?.(r)}>
+                <TableRow
+                  key={rowKey(r)}
+                  className={cn(idHref && "cursor-pointer", rowClassName?.(r))}
+                  onClick={
+                    idHref
+                      ? (e) => {
+                          // Whole row opens the detail — but don't hijack clicks on
+                          // interactive controls (links, buttons, menus, inputs) inside it.
+                          if (
+                            (e.target as HTMLElement).closest(
+                              'a,button,input,select,label,[role="button"],[role="menuitem"]',
+                            )
+                          )
+                            return;
+                          router.push(idHref(r));
+                        }
+                      : undefined
+                  }
+                >
                   {serial && (
                     <TableCell className="text-muted-foreground text-right tabular-nums">{i + 1}</TableCell>
                   )}
