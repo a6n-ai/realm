@@ -129,10 +129,11 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
     throw e;
   }
   const messages = await messagesP;
+  const closed = ticket.status === "resolved" || ticket.status === "closed";
 
   return (
     <div className="space-y-4">
-      <ReplyBox ticketId={ticket.publicId} />
+      <ReplyBox ticketId={ticket.publicId} closed={closed} />
       <div className="space-y-2">
         {messages.map((m) => (
           <div
@@ -149,6 +150,16 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
               </span>
             </div>
             <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>
+            {m.attachments?.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {m.attachments.map((a, i) => (
+                  <a key={i} href={a.url} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.url} alt={a.name} className="size-24 rounded-md border object-cover" />
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

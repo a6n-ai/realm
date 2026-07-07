@@ -1,15 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
-import { Textarea } from "@realm/ui/textarea";
 import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@realm/ui/cn";
+import { MessageComposer } from "@/components/tickets/message-composer";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
@@ -169,32 +169,13 @@ export function TicketControlsSkeleton() {
   );
 };
 
-export function ReplyBox({ ticketId }: { ticketId: string }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [body, setBody] = useState("");
-
-  function submit() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    start(async () => {
-      await replyTicket(ticketId, trimmed);
-      setBody("");
-      router.refresh();
-    });
-  }
-
+export function ReplyBox({ ticketId, closed }: { ticketId: string; closed: boolean }) {
   return (
-    <div className="space-y-2">
-      <Textarea
-        placeholder="Reply to the customer…"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <Button disabled={pending || !body.trim()} onClick={submit} className="w-fit">
-        Send reply
-      </Button>
-    </div>
+    <MessageComposer
+      action={replyTicket.bind(null, ticketId)}
+      closed={closed}
+      placeholder="Reply to the customer…"
+    />
   );
 }
 

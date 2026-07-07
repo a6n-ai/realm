@@ -3,7 +3,9 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import type { TicketStatus } from "@/lib/services/tickets.service";
-import { ReplyForm } from "./reply-form";
+import type { Attachment } from "@/db/schema";
+import { MessageComposer } from "@/components/tickets/message-composer";
+import { replyTicket } from "../actions";
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
   open: "Open",
@@ -53,6 +55,7 @@ type ThreadMessage = {
   authorType: string;
   body: string;
   createdAt: number;
+  attachments?: Attachment[] | null;
 };
 
 export function TicketThread({
@@ -91,6 +94,16 @@ export function TicketThread({
             <div key={m.publicId} className={bubbleWrap(mine)}>
               <div className={bubbleBody(mine)}>
                 <p className="whitespace-pre-wrap text-pretty">{m.body}</p>
+                {m.attachments?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {m.attachments.map((a, i) => (
+                      <a key={i} href={a.url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.url} alt={a.name} className="size-24 rounded-md border object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <span className="text-muted-foreground text-xs">
                 {mine ? "You" : "Support"} · {formatEpoch(m.createdAt, { timeZone: timezone, mode: "datetime", locale: "en-CA" })}
@@ -100,7 +113,7 @@ export function TicketThread({
         })}
       </div>
 
-      <ReplyForm ticketId={ticket.publicId} closed={closed} />
+      <MessageComposer action={replyTicket.bind(null, ticket.publicId)} closed={closed} />
     </div>
   );
 }
