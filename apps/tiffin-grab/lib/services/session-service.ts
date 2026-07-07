@@ -55,12 +55,22 @@ export function diffChanges(
 // caller's operation.
 // jsonb columns go through JSON.stringify, which throws on bigint values
 // (resolved FK ids like sourceId/currentOwner). Coerce bigints to strings so an
-// audit blob carrying ids never fails the write.
+// audit blob carrying ids never fails the write. Recurse: update diffs nest the
+// ids inside { from, to }, so a top-level-only pass would still throw.
+function coerceBigints(v: unknown): unknown {
+  if (typeof v === "bigint") return v.toString();
+  if (Array.isArray(v)) return v.map(coerceBigints);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v)) out[k] = coerceBigints(val);
+    return out;
+  }
+  return v;
+}
+
 function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown> | null {
   if (value == null) return value;
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value)) out[k] = typeof v === "bigint" ? v.toString() : v;
-  return out;
+  return coerceBigints(value) as Record<string, unknown>;
 }
 
 export async function recordAudit(entry: AuditEntry): Promise<void> {
