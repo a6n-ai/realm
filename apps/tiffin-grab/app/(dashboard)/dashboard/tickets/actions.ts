@@ -7,6 +7,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/services/tickets.service";
+import { uploadAttachments } from "@/lib/services/ticket-attachments";
 
 export async function setStatus(
   ticketId: string,
@@ -33,9 +34,11 @@ export async function setPriority(ticketId: string, priority: TicketPriority) {
   revalidatePath(`/dashboard/tickets/${ticketId}`);
 }
 
-export async function replyTicket(ticketId: string, body: string) {
+export async function replyTicket(ticketId: string, form: FormData): Promise<void> {
   await requireStaff();
-  await ticketsService.reply(ticketId, body);
+  const body = String(form.get("body") ?? "");
+  const attachments = await uploadAttachments(ticketId, form.getAll("attachment"));
+  await ticketsService.reply(ticketId, body, attachments);
   revalidatePath(`/dashboard/tickets/${ticketId}`);
   revalidatePath("/dashboard/tickets");
 }

@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { ticketsService, type TicketCategory } from "@/lib/services/tickets.service";
+import { uploadAttachments } from "@/lib/services/ticket-attachments";
 
 // Resolve the signed-in customer's public_id → internal bigint. Used only to
 // scope the linked order lookup to orders the customer actually owns.
@@ -50,8 +51,10 @@ export async function createTicket(input: {
   redirect(`/dashboard/support/${ticket.publicId}`);
 }
 
-export async function replyTicket(publicId: string, body: string): Promise<void> {
-  await ticketsService.reply(publicId, body);
-  revalidatePath(`/dashboard/support/${publicId}`);
+export async function replyTicket(ticketId: string, form: FormData): Promise<void> {
+  const body = String(form.get("body") ?? "");
+  const attachments = await uploadAttachments(ticketId, form.getAll("attachment"));
+  await ticketsService.reply(ticketId, body, attachments);
+  revalidatePath(`/dashboard/support/${ticketId}`);
   revalidatePath("/dashboard/support");
 }
