@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { fileSystem } from "@/db/schema";
 import { filesSecuredAccess, filesService } from "@/lib/files";
@@ -10,12 +10,14 @@ export async function GET(
   const { key } = await params;
   const path = key.join("/");
 
-  const [row] = await db
-    .select({ resourceType: fileSystem.resourceType })
+  // path is not unique; fail-secure by probing specifically for a secured
+  // row so a colliding static row can never bypass the token gate.
+  const [securedRow] = await db
+    .select({ id: fileSystem.id })
     .from(fileSystem)
-    .where(eq(fileSystem.path, path))
+    .where(and(eq(fileSystem.path, path), eq(fileSystem.resourceType, "secured")))
     .limit(1);
-  const secured = row?.resourceType === "secured";
+  const secured = Boolean(securedRow);
 
   if (secured) {
     const ak = new URL(request.url).searchParams.get("ak");
