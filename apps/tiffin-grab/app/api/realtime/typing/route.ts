@@ -8,6 +8,6 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await authorizeChannel(channel);
   if (!auth) return new Response("Forbidden", { status: 403 });
 
-  memoryBus.publish(channel, { type: "typing", userId: auth.userId, role: auth.role, typing: Boolean(typing) });
+  memoryBus.publish(auth.channel, { type: "typing", userId: auth.userId, role: auth.role, typing: Boolean(typing) });
   return new Response(null, { status: 204 });
 }

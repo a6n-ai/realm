@@ -64,6 +64,13 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     return actor;
   }
 
+  // Cheap access gate for callers (e.g. realtime authz) that only need to know
+  // whether the caller may read this ticket, not its contents.
+  async assertReadable(publicId: string): Promise<void> {
+    const ticket = await this.read(publicId);
+    await this.assertAccess(ticket);
+  }
+
   private async assertStaff(): Promise<Actor> {
     const actor = await this.actor();
     if (!actor.isStaff) throw new ForbiddenError();

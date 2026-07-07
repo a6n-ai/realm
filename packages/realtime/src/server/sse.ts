@@ -12,9 +12,28 @@ export function sseResponse(opts: { channel: Channel; userId: string; role: Real
   let unsubscribe: (() => void) | null = null;
   let ping: ReturnType<typeof setInterval> | null = null;
 
+  let closed = false;
+
+  // Unclean disconnects (laptop sleep, proxy idle-kill, abrupt TCP RST) don't
+  // always fire cancel() — the ping interval keeps firing into a dead
+  // controller. Route all teardown through one idempotent cleanup so a guarded
+  // enqueue failure and an explicit cancel() converge on the same cleanup path.
+  let cleanup = () => {};
+
   const stream = new ReadableStream({
     start(controller) {
-      const send = (event: RealtimeEvent) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const safeEnqueue = (chunk: Uint8Array) => {
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          // Controller is already closed underneath us — tear down this
+          // connection's resources instead of letting the caller (bus
+          // callback or bare setInterval) throw uncaught.
+          cleanup();
+        }
+      };
+
+      const send = (event: RealtimeEvent) => safeEnqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 
       // Snapshot: who is already here (so a late joiner sees current presence).
       for (const u of presenceStore.online(channel)) {
@@ -28,14 +47,20 @@ export function sseResponse(opts: { channel: Channel; userId: string; role: Real
         memoryBus.publish(channel, { type: "presence", userId, role, online: true });
       }
 
-      ping = setInterval(() => controller.enqueue(encoder.encode(": ping\n\n")), 15_000);
+      ping = setInterval(() => safeEnqueue(encoder.encode(": ping\n\n")), 15_000);
+
+      cleanup = () => {
+        if (closed) return;
+        closed = true;
+        if (ping) clearInterval(ping);
+        unsubscribe?.();
+        if (presenceStore.leave(channel, userId)) {
+          memoryBus.publish(channel, { type: "presence", userId, role, online: false });
+        }
+      };
     },
     cancel() {
-      if (ping) clearInterval(ping);
-      unsubscribe?.();
-      if (presenceStore.leave(channel, userId)) {
-        memoryBus.publish(channel, { type: "presence", userId, role, online: false });
-      }
+      cleanup();
     },
   });
 

@@ -8,7 +8,7 @@ import { ticketsService } from "@/lib/services/tickets.service";
 // (staff, or the customer who raised it). Returns null when unauthorized.
 export async function authorizeChannel(
   channel: string,
-): Promise<{ userId: string; role: RealtimeRole } | null> {
+): Promise<{ channel: string; userId: string; role: RealtimeRole } | null> {
   const session = await getSession();
   const userId = session?.user?.id;
   if (!userId) return null;
@@ -16,16 +16,18 @@ export async function authorizeChannel(
   const role = session.user.role as RoleValue;
   const realtimeRole: RealtimeRole = role === Role.ADMIN || role === Role.MEMBER ? "staff" : "customer";
 
-  const [kind, publicId] = channel.split(":");
+  const parts = channel.split(":");
+  if (parts.length !== 2) return null;
+  const [kind, publicId] = parts;
   if (kind !== "ticket" || !publicId) return null;
 
   try {
-    // read() + the service's own access assertion; listMessages throws for a
-    // customer who doesn't own the ticket. Reuse it as the read gate.
-    await ticketsService.listMessages(publicId);
+    await ticketsService.assertReadable(publicId);
   } catch {
     return null;
   }
 
-  return { userId, role: realtimeRole };
+  // Canonical channel, not the raw request string — callers must subscribe/
+  // publish on this so the authorized channel is always the used channel.
+  return { channel: `${kind}:${publicId}`, userId, role: realtimeRole };
 }
