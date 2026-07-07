@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { markReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 
-// Fire-and-forget: mark this section seen once on mount. The dot clears on the
-// next layout render (navigation or the global "Mark all read"). No refresh here
-// on purpose — refreshing the layout on every list visit is wasteful.
+// Mark this section seen on mount, then refresh so the sidebar dot clears
+// immediately on this visit (opening a section IS how you clear its dot). The
+// ref guards against a double-fire if the soft refresh remounts this node.
 export function MarkSectionRead({ section }: { section: Section }) {
+  const router = useRouter();
+  const done = useRef(false);
   useEffect(() => {
-    void markReadAction(section);
-  }, [section]);
+    if (done.current) return;
+    done.current = true;
+    void markReadAction(section).then(() => router.refresh());
+  }, [section, router]);
   return null;
 }
