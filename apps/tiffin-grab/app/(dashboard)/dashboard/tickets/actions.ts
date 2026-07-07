@@ -37,7 +37,11 @@ export async function setPriority(ticketId: string, priority: TicketPriority) {
 export async function replyTicket(ticketId: string, form: FormData): Promise<void> {
   await requireStaff();
   const body = String(form.get("body") ?? "");
-  const attachments = await uploadAttachments(ticketId, form.getAll("attachment"));
+  const attachments = await uploadAttachments(
+    ticketId,
+    form.getAll("attachment"),
+    form.getAll("attachment_thumb"),
+  );
   await ticketsService.reply(ticketId, body, attachments);
   revalidatePath(`/dashboard/tickets/${ticketId}`);
   revalidatePath("/dashboard/tickets");

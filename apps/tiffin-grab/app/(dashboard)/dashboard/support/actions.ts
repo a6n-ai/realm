@@ -53,7 +53,11 @@ export async function createTicket(input: {
 
 export async function replyTicket(ticketId: string, form: FormData): Promise<void> {
   const body = String(form.get("body") ?? "");
-  const attachments = await uploadAttachments(ticketId, form.getAll("attachment"));
+  const attachments = await uploadAttachments(
+    ticketId,
+    form.getAll("attachment"),
+    form.getAll("attachment_thumb"),
+  );
   await ticketsService.reply(ticketId, body, attachments);
   revalidatePath(`/dashboard/support/${ticketId}`);
   revalidatePath("/dashboard/support");

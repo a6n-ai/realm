@@ -27,10 +27,9 @@ export const tickets = pgTable("tickets", {
   index("tickets_created_idx").on(t.createdAt),
 ]);
 
-// A message may carry image attachments uploaded with the reply. Stored as urls
-// (files are content-addressed by path; avatars set the bare-url precedent) to
-// avoid a join to the secured files table.
-export type Attachment = { url: string; name: string };
+// A message may carry image attachments uploaded with the reply.
+// path = secured original (token-gated read); thumbUrl = static thumbnail (public, inline).
+export type Attachment = { path: string; thumbUrl: string; name: string };
 
 export const ticketMessages = pgTable("ticket_messages", {
   ...baseColumns("tms"),

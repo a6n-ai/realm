@@ -104,9 +104,13 @@ describe("ticketsService", () => {
     const customer = await seedUser("Cust Img", "user");
     actAs(customer, "user");
     const ticket = await ticketsService.create({ subject: "Photo", category: "order", body: "See photo." });
-    await ticketsService.reply(ticket.publicId, "", [{ url: "https://x/a.png", name: "a.png" }]);
+    await ticketsService.reply(ticket.publicId, "", [
+      { path: "tickets/x/orig-a.png", thumbUrl: "https://x/thumb-a.png", name: "a.png" },
+    ]);
     const messages = await ticketsService.listMessages(ticket.publicId);
-    expect(messages.at(-1)?.attachments).toEqual([{ url: "https://x/a.png", name: "a.png" }]);
+    expect(messages.at(-1)?.attachments).toEqual([
+      { path: "tickets/x/orig-a.png", thumbUrl: "https://x/thumb-a.png", name: "a.png" },
+    ]);
   });
 
   it("changeStatus to resolved writes a system message and sets closedAt", async () => {

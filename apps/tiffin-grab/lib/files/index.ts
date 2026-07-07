@@ -53,6 +53,20 @@ export function filesService(): FileSystemService {
   return cached;
 }
 
+// Secured twin of filesService: rows are resourceType "secured", so reads go
+// through a minted SecuredAccessService token (see the /api/files route), not a
+// public URL. Used for ticket attachment originals.
+let securedCached: FileSystemService | undefined;
+export function securedFilesService(): FileSystemService {
+  if (!securedCached) {
+    securedCached = new FileSystemService(makeStorage(), db, {
+      resourceType: "secured",
+      signedUrlTtlSeconds: 3600,
+    });
+  }
+  return securedCached;
+}
+
 // These need only db — safe to construct eagerly (no S3 env required).
 export const filesAccess = new AccessPathService(db);
 export const filesSecuredAccess = new SecuredAccessService(db);
