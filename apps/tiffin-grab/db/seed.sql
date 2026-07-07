@@ -177,8 +177,8 @@ cross join (
 with admin as (
   insert into users (public_id, created_at, updated_at, name, email, email_verified, role, password_set)
   select 'usr_admin_seed', (extract(epoch from now())*1000)::bigint, (extract(epoch from now())*1000)::bigint,
-         'Admin', 'hrithikraj1997@gmail.com', true, 'admin', false
-  where not exists (select 1 from users where email = 'hrithikraj1997@gmail.com')
+         'Admin', 'info@tiffingrab.ca', true, 'admin', false
+  where not exists (select 1 from users where email = 'info@tiffingrab.ca')
   returning id
 )
 insert into account (id, public_id, account_id, provider_id, user_id, password)

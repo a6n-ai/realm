@@ -1,1 +1,0 @@
-ALTER TABLE "coupons" ADD COLUMN "auto_apply" boolean DEFAULT false NOT NULL;

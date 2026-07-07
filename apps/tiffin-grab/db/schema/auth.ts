@@ -55,6 +55,7 @@ export const session = pgTable(
   {
     id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ses")),
+    appId: bigint("app_id", { mode: "bigint" }).notNull().default(sql`current_app_id()`),
     token: text("token").notNull().unique(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
@@ -74,6 +75,7 @@ export const account = pgTable(
   {
     id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("act")),
+    appId: bigint("app_id", { mode: "bigint" }).notNull().default(sql`current_app_id()`),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
     userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -98,6 +100,7 @@ export const verification = pgTable(
   {
     id: text("id").primaryKey().default(nextIdText),
     publicId: text("public_id").notNull().unique().$defaultFn(makePublicId("ver")),
+    appId: bigint("app_id", { mode: "bigint" }).notNull().default(sql`current_app_id()`),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
