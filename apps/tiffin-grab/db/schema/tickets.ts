@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@realm/database";
-import { bigint, index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, index, jsonb, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 
@@ -26,12 +26,18 @@ export const tickets = pgTable("tickets", {
   index("tickets_status_idx").on(t.status),
 ]);
 
+// A message may carry image attachments uploaded with the reply. Stored as urls
+// (files are content-addressed by path; avatars set the bare-url precedent) to
+// avoid a join to the secured files table.
+export type Attachment = { url: string; name: string };
+
 export const ticketMessages = pgTable("ticket_messages", {
   ...baseColumns("tms"),
   ticketId: bigint("ticket_id", { mode: "bigint" }).notNull().references(() => tickets.id, { onDelete: "cascade" }),
   authorId: bigint("author_id", { mode: "bigint" }).notNull().references(() => users.id),
   authorType: ticketMessageAuthor("author_type").notNull(),
   body: text("body").notNull(),
+  attachments: jsonb("attachments").$type<Attachment[]>(),
 }, (t) => [
   // Thread reads + the latest-message correlated subquery both key on
   // (ticket_id, created_at) — same shape as inquiry_activities.
