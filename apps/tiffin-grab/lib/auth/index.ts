@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { phoneNumber } from "better-auth/plugins";
+import { phoneNumber, username, anonymous } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { Role } from "@realm/commons";
@@ -74,6 +74,15 @@ export const auth = betterAuth({
         },
       },
     }),
+    // Sign in with a username (lowercased/unique). Complements email + phone —
+    // the login form picks the endpoint from the identifier's shape.
+    username({ minUsernameLength: 3, maxUsernameLength: 30 }),
+    // Guest sessions with no PII; linked to a real account on first real sign-in.
+    anonymous({
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        log.debug(`linked anonymous ${anonymousUser.user.id} -> ${newUser.user.id}`);
+      },
+    }),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.
@@ -112,9 +121,11 @@ export const auth = betterAuth({
   // Doc ref: https://www.better-auth.com/docs/concepts/hooks
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== "/sign-in/email" && ctx.path !== "/sign-in/phone-number") return;
+      const SIGN_IN_PATHS = ["/sign-in/email", "/sign-in/phone-number", "/sign-in/username"];
+      if (!SIGN_IN_PATHS.includes(ctx.path)) return;
 
-      const method = ctx.path === "/sign-in/phone-number" ? "phone" : "email";
+      const method =
+        ctx.path === "/sign-in/phone-number" ? "phone" : ctx.path === "/sign-in/username" ? "username" : "email";
       const newSession = ctx.context.newSession;
 
       if (newSession) {
@@ -137,8 +148,8 @@ export const auth = betterAuth({
       if (ctx.context.returned instanceof APIError) {
         // Login failed — log the attempted identifier (never the password).
         try {
-          const body = ctx.body as { email?: string; phoneNumber?: string } | undefined;
-          const identifier = body?.email ?? body?.phoneNumber ?? "unknown";
+          const body = ctx.body as { email?: string; phoneNumber?: string; username?: string } | undefined;
+          const identifier = body?.email ?? body?.phoneNumber ?? body?.username ?? "unknown";
           await recordAudit({
             entity: "auth",
             entityPublicId: identifier,

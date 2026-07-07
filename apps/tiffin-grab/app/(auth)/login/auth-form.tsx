@@ -56,7 +56,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
 }
 
 const passwordSchema = z.object({
-  identifier: z.string().min(1, "Phone or email is required"),
+  identifier: z.string().min(1, "Phone, email, or username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -74,15 +74,21 @@ function PasswordPanel({ canUsePin, onUsePin }: { canUsePin: boolean; onUsePin: 
     setError(null);
     try {
       const { identifier, password } = values;
-      const result = /@/.test(identifier)
+      // One field, three sign-in methods: '@' → email, phone-shaped → phone,
+      // otherwise treat it as a username.
+      const isEmail = /@/.test(identifier);
+      const isPhone = /^\+?[\d\s()-]{6,}$/.test(identifier);
+      const result = isEmail
         ? await signIn.email({ email: identifier, password })
-        : await signIn.phoneNumber({ phoneNumber: identifier, password });
+        : isPhone
+          ? await signIn.phoneNumber({ phoneNumber: identifier, password })
+          : await signIn.username({ username: identifier, password });
       if (result?.error) {
-        setError("Invalid phone/email or password");
+        setError("Invalid credentials");
         return;
       }
     } catch {
-      setError("Invalid phone/email or password");
+      setError("Invalid credentials");
       return;
     }
     // A full sign-in clears any prior lock so we don't bounce to a PIN prompt.
@@ -110,9 +116,9 @@ function PasswordPanel({ canUsePin, onUsePin }: { canUsePin: boolean; onUsePin: 
             name="identifier"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone or email</FormLabel>
+                <FormLabel>Phone, email, or username</FormLabel>
                 <FormControl>
-                  <Input autoComplete="username" placeholder="you@example.com or +1…" {...field} />
+                  <Input autoComplete="username" placeholder="you@example.com, +1…, or username" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

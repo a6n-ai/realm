@@ -29,6 +29,12 @@ export const users = pgTable(
     // own on first login. Defaults true so existing rows are untouched; only the
     // paths that issue a default password flip it false.
     passwordSet: boolean("password_set").notNull().default(true),
+    // better-auth username plugin: `username` is the normalized (lowercased) unique
+    // handle; `displayUsername` preserves the original casing.
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    // better-auth anonymous plugin: guest sessions with no PII, linkable later.
+    isAnonymous: boolean("is_anonymous").notNull().default(false),
     isSystem: boolean("is_system").notNull().default(false),
     addressLine: text("address_line"),
     addressUnit: text("address_unit"),
