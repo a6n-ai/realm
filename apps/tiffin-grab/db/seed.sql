@@ -202,7 +202,10 @@ VALUES ('flg_subscription_wizard', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'subscription_wizard', 'Subscription Wizard',
         'Access the plan builder', TRUE),
        ('flg_admin_console', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'admin_console', 'Admin Console', 'User & flag administration', FALSE)
+        'admin_console', 'Admin Console', 'User & flag administration', FALSE),
+       ('flg_reassign_records', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'reassign_records', 'Reassign records',
+        'Reassign orders, inquiries, and tickets to other staff', FALSE)
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ APP SETTINGS ============ seeded at the top (tenant singleton).

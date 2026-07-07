@@ -29,6 +29,13 @@
       "when": 1783448278500,
       "tag": "0003_goofy_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783451104292,
+      "tag": "0004_oval_blue_blade",
+      "breakpoints": true
     }
   ]
 }

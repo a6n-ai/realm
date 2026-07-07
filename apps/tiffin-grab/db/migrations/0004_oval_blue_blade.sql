@@ -1,0 +1,1 @@
+CREATE INDEX "orders_current_owner_idx" ON "orders" USING btree ("current_owner");

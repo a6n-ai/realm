@@ -40,6 +40,8 @@ export const orders = pgTable("orders", {
 }, (t) => [
   // Customer 360 + lists filter user_id and sort created_at desc.
   index("orders_user_created_idx").on(t.userId, t.createdAt),
+  // Reassignment: staff "my queue" views filter by current_owner.
+  index("orders_current_owner_idx").on(t.currentOwner),
 ]);
 
 export const payments = pgTable("payments", {
