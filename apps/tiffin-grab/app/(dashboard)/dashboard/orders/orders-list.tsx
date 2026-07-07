@@ -10,6 +10,8 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import type { SortState } from "@/lib/list/sort";
+import { ReassignControl } from "@/components/reassign/reassign-control";
+import { reassignOrderAction } from "./actions";
 
 const STATUS_PILLS = [
   { key: "all", label: "All" },
@@ -23,11 +25,12 @@ const STATUS_PILLS = [
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<OrderSortColumn | "city">[] = [
+const COLUMNS: readonly Column<OrderSortColumn | "city" | "owner">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "deployment", label: "Deployment", sortable: true },
   { key: "city", label: "City" },
   { key: "status", label: "Status", sortable: true },
+  { key: "owner", label: "Owner", sortable: false },
   { key: "start", label: "Start", sortable: true, align: "right" },
   { key: "total", label: "Total", sortable: true, align: "right" },
   { key: "created", label: "Created", sortable: true, align: "right" },
@@ -36,9 +39,13 @@ const COLUMNS: readonly Column<OrderSortColumn | "city">[] = [
 export function OrdersList({
   rows,
   sort,
+  canReassign,
+  staff,
 }: {
   rows: OrderListRow[];
   sort: SortState<OrderSortColumn>;
+  canReassign: boolean;
+  staff: { publicId: string; name: string }[];
 }) {
   // Status is a client-side FilterPill filter (URL "status"). DataTable owns the
   // "q" search param; we pre-filter by status here and let DataTable search the
@@ -113,6 +120,18 @@ export function OrdersList({
           <TableCell>{o.city}</TableCell>
           <TableCell>
             <OrderStatusBadge status={o.status} />
+          </TableCell>
+          <TableCell>
+            {canReassign ? (
+              <ReassignControl
+                currentOwnerId={o.ownerId}
+                currentOwnerName={o.ownerName}
+                staff={staff}
+                action={reassignOrderAction.bind(null, o.publicId)}
+              />
+            ) : (
+              (o.ownerName ?? "—")
+            )}
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>

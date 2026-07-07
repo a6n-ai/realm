@@ -5,6 +5,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 
@@ -138,14 +139,28 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   async assign(publicId: string, ownerId: string): Promise<void> {
     const actor = await this.assertStaff();
     const ticket = await this.read(publicId);
-    const [owner] = await db
-      .select({ id: users.id, name: users.name })
-      .from(users)
-      .where(eq(users.publicId, ownerId))
-      .limit(1);
-    if (!owner) throw new ValidationError("Unknown owner");
+    // The flag only gates REASSIGNMENT of an already-owned ticket; first-time
+    // assignment of an unowned ticket stays open to any staff member.
+    if (ticket.currentOwner) await assertReassignAllowed();
+    const owner = await resolveAssignableOwner(ownerId);
+
+    let previousOwnerName: string | null = null;
+    if (ticket.currentOwner) {
+      const [previousOwner] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, ticket.currentOwner))
+        .limit(1);
+      previousOwnerName = previousOwner?.name ?? null;
+    }
+
     await this.update(publicId, { currentOwner: owner.id });
-    await this.message(ticket.id, actor.id, "system", `Assigned to ${owner.name ?? "staff"}`);
+    const message = ticket.currentOwner
+      ? previousOwnerName
+        ? `Reassigned from ${previousOwnerName} to ${owner.name ?? "staff"}`
+        : `Reassigned to ${owner.name ?? "staff"}`
+      : `Assigned to ${owner.name ?? "staff"}`;
+    await this.message(ticket.id, actor.id, "system", message);
   }
 
   async setPriority(publicId: string, priority: TicketPriority): Promise<void> {
@@ -207,6 +222,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
         customerName: customer.name,
         category: tickets.category,
         status: tickets.status,
+        ownerId: owner.publicId,
         ownerName: owner.name,
         priority: tickets.priority,
         createdAt: tickets.createdAt,

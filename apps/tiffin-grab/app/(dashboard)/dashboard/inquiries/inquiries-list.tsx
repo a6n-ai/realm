@@ -13,6 +13,7 @@ import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
+import { ReassignControl } from "@/components/reassign/reassign-control";
 
 const STAGE_PILLS = [
   { key: "all", label: "All" },
@@ -47,11 +48,17 @@ export function InquiriesList({
   stageCounts,
   sort,
   emptyCta,
+  canReassign,
+  staff,
+  reassignAction,
 }: {
   rows: PipelineRow[];
   stageCounts: { stage: string; n: number }[];
   sort: SortState<InquirySortColumn>;
   emptyCta?: ReactNode;
+  canReassign?: boolean;
+  staff?: { publicId: string; name: string }[];
+  reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
 }) {
   const [activeStage, setActiveStage] = useUrlState("stage", "all");
   const [owner, setOwner] = useUrlState("owner", ALL_OWNERS);
@@ -154,7 +161,18 @@ export function InquiriesList({
             </Link>
             <div className="text-muted-foreground text-xs">{r.phone}</div>
           </TableCell>
-          <TableCell>{r.ownerName ?? "—"}</TableCell>
+          <TableCell>
+            {canReassign && staff && reassignAction ? (
+              <ReassignControl
+                currentOwnerId={r.ownerId}
+                currentOwnerName={r.ownerName}
+                staff={staff}
+                action={(ownerId) => reassignAction(r.publicId, ownerId)}
+              />
+            ) : (
+              (r.ownerName ?? "—")
+            )}
+          </TableCell>
           <TableCell>
             <StageBadge stage={r.stage} />
           </TableCell>

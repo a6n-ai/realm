@@ -7,6 +7,8 @@ import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/sche
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
+import { canReassign } from "@/lib/services/reassign";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -19,6 +21,7 @@ import {
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
+import { reassignInquiry } from "./actions";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
@@ -155,17 +158,22 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     { column: "created", dir: "desc" },
   );
 
-  const [stageCounts, rows, sheet] = await Promise.all([
+  const [stageCounts, rows, sheet, canReassignRecords] = await Promise.all([
     db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
     inquiriesService.listForPipeline(sort),
     loadSheetData(),
+    canReassign(),
   ]);
+  const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
     <InquiriesList
       rows={rows}
       stageCounts={stageCounts}
       sort={sort}
+      canReassign={canReassignRecords}
+      staff={staff}
+      reassignAction={reassignInquiry}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}

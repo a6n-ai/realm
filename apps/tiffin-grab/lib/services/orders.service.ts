@@ -16,6 +16,7 @@ import { provisionCustomerByPhone } from "./customers.service";
 import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
 import { walletService } from "./wallet.service";
+import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 
 const log = createLogger("orders.service");
 
@@ -319,6 +320,8 @@ export type OrderListRow = {
   startDate: string;
   total: string;
   createdAt: number;
+  ownerId: string | null;
+  ownerName: string | null;
 };
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
@@ -361,13 +364,16 @@ export async function listOrders(
       startDate: orders.startDate,
       total: orders.total,
       createdAt: orders.createdAt,
+      ownerId: users.publicId,
+      ownerName: users.name,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(users, eq(orders.currentOwner, users.id))
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
     .limit(500);
-  return rows satisfies OrderListRow[];
+  return rows.map((r) => ({ ...r, ownerId: r.ownerId ?? null, ownerName: r.ownerName ?? null })) satisfies OrderListRow[];
 }
 
 export type OrderDetail = typeof orders.$inferSelect & {
@@ -489,6 +495,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       { type: "resumed", toStatus: "active" },
     );
   }
+
+  async reassign(publicId: string, ownerId: string): Promise<void> {
+    await assertReassignAllowed();
+    const owner = await resolveAssignableOwner(ownerId);
+    await this.update(publicId, { currentOwner: owner.id });
+  }
 }
 
 const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
@@ -498,3 +510,5 @@ export const cancelOrder = (publicId: string): Promise<void> => ordersService.ca
 export const pauseOrder = (publicId: string, window: { from: string; until: string }): Promise<void> =>
   ordersService.pause(publicId, window);
 export const resumeOrder = (publicId: string): Promise<void> => ordersService.resume(publicId);
+export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
+  ordersService.reassign(publicId, ownerId);

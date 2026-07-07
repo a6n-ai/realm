@@ -11,6 +11,7 @@ import { createOrder, type CreateOrderInput } from "./orders.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";
 import { poolForSource } from "./inquiry-user-config.service";
+import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@/lib/list/sort";
 
 export type PipelineSortColumn =
@@ -248,6 +249,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return result;
   }
 
+  async reassign(publicId: string, ownerId: string): Promise<void> {
+    await assertReassignAllowed();
+    const owner = await resolveAssignableOwner(ownerId);
+    await this.update(publicId, { currentOwner: owner.id });
+    // ponytail: inquiry_activity_type enum has no "reassigned" value and this is a
+    // shared-schema file other agents are touching in parallel — skip the timeline
+    // entry rather than widen the enum here.
+  }
+
   async listForPipeline(
     sort: SortState<PipelineSortColumn> = { column: "created", dir: "desc" },
   ) {
@@ -278,6 +288,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         phone: inquiries.phone,
         source: leadSources.label,
         stage: inquiries.stage,
+        ownerId: users.publicId,
         ownerName: users.name,
         createdAt: inquiries.createdAt,
         lastTouchAt: agg.lastTouchAt,

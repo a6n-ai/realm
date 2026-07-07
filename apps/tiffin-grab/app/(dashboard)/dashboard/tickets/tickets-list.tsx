@@ -12,6 +12,8 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
+import { ReassignControl } from "@/components/reassign/reassign-control";
+import { assignOwner } from "./actions";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "./ticket-badges";
 
 const STATUS_PILLS = [
@@ -44,10 +46,14 @@ export function TicketsList({
   rows,
   statusCounts,
   sort,
+  staff,
+  canReassign,
 }: {
   rows: QueueRow[];
   statusCounts: { status: string; n: number }[];
   sort: SortState<QueueSortColumn>;
+  staff: { publicId: string; name: string }[];
+  canReassign: boolean;
 }) {
   // Status + owner are client-side filters layered on top of DataTable's own
   // "q" search (which filters the rows we hand it via search.keys).
@@ -151,7 +157,18 @@ export function TicketsList({
               {r.overdue ? <Badge variant="destructive">Overdue</Badge> : null}
             </span>
           </TableCell>
-          <TableCell>{r.ownerName ?? "—"}</TableCell>
+          <TableCell>
+            {canReassign ? (
+              <ReassignControl
+                currentOwnerId={r.ownerId}
+                currentOwnerName={r.ownerName}
+                staff={staff}
+                action={(ownerId) => assignOwner(r.publicId, ownerId)}
+              />
+            ) : (
+              (r.ownerName ?? "—")
+            )}
+          </TableCell>
           <TableCell>
             <PriorityBadge priority={r.priority} />
           </TableCell>

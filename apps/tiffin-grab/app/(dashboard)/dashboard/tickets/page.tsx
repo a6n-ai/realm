@@ -5,6 +5,8 @@ import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { ticketsService } from "@/lib/services/tickets.service";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { canReassign } from "@/lib/services/reassign";
 import { parseSort } from "@/lib/list/sort";
 import {
   PageShell,
@@ -98,10 +100,20 @@ async function TicketsData({
     dir: "desc",
   });
 
-  const [statusCounts, rows] = await Promise.all([
+  const [statusCounts, rows, allowReassign] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
     ticketsService.listForQueue(sort),
+    canReassign(),
   ]);
+  const staff = allowReassign ? await listAssignableStaff() : [];
 
-  return <TicketsList rows={rows} statusCounts={statusCounts} sort={sort} />;
+  return (
+    <TicketsList
+      rows={rows}
+      statusCounts={statusCounts}
+      sort={sort}
+      staff={staff}
+      canReassign={allowReassign}
+    />
+  );
 }

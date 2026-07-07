@@ -27,9 +27,13 @@ export function ReassignControl({
       disabled={pending}
       onValueChange={(v) =>
         start(async () => {
-          await action(v);
-          router.refresh();
-          toast("Owner updated");
+          try {
+            await action(v);
+            router.refresh();
+            toast("Owner updated");
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Failed to update owner");
+          }
         })
       }
     >

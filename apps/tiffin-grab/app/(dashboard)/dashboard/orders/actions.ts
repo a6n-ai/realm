@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import type { CreateOrderInput } from "@/lib/services/orders.service";
+import { reassignOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 
 type Source = { sourceKey: string; subSourceKey?: string };
 type Contact = { fullName: string; phone: string; email?: string };
@@ -36,4 +36,10 @@ export async function createOrderFlow(input: {
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard/inquiries");
   redirect(`/activate/${deploymentId}`);
+}
+
+export async function reassignOrderAction(orderId: string, ownerId: string): Promise<void> {
+  await requireStaff();
+  await reassignOrder(orderId, ownerId);
+  revalidatePath("/dashboard/orders");
 }

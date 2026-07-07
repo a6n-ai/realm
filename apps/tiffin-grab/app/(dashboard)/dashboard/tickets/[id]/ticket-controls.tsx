@@ -97,9 +97,13 @@ export function TicketControls({
           onValueChange={(v) => {
             if (v === UNASSIGNED) return;
             start(async () => {
-              await assignOwner(ticketId, v);
-              router.refresh();
-              toast("Owner updated");
+              try {
+                await assignOwner(ticketId, v);
+                router.refresh();
+                toast("Owner updated");
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Failed to update owner");
+              }
             });
           }}
         >

@@ -62,3 +62,10 @@ export async function addNote(inquiryId: string, note: string) {
   await inquiriesService.addNote(inquiryId, note);
   revalidatePath(`/dashboard/inquiries/${inquiryId}`);
 }
+
+export async function reassignInquiry(inquiryId: string, ownerId: string) {
+  await requireStaff();
+  await inquiriesService.reassign(inquiryId, ownerId);
+  revalidatePath("/dashboard/inquiries");
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+}

@@ -7,6 +7,8 @@ import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema"
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listOrders } from "@/lib/services/orders.service";
+import { canReassign } from "@/lib/services/reassign";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort } from "@/lib/list/sort";
@@ -79,9 +81,13 @@ async function OrdersData({
     { column: "created", dir: "desc" },
   );
 
-  const rows = await listOrders({ sort });
+  const [rows, reassignAllowed] = await Promise.all([
+    listOrders({ sort }),
+    canReassign(),
+  ]);
+  const staff = reassignAllowed ? await listAssignableStaff() : [];
 
-  return <OrdersList rows={rows} sort={sort} />;
+  return <OrdersList rows={rows} sort={sort} canReassign={reassignAllowed} staff={staff} />;
 }
 
 async function NewOrderAction() {
