@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { users, account } = await import("@/db/schema");
-const { verifyPassword } = await import("@/lib/auth/password");
+const { verifyPassword, DEFAULT_TEMP_PASSWORD } = await import("@/lib/auth/password");
 const { createCustomer } = await import("../customers.service");
 const { usersService } = await import("../users.service");
 
@@ -45,7 +45,8 @@ describe("first-login password flow (integration)", () => {
     const row = await rowByPublicId(publicId);
     expect(row.passwordSet).toBe(false);
     const hash = await credentialPassword(row.id);
-    expect(hash).toBeTruthy(); // a unique random temp is set; the holder claims via set/forgot-password
+    expect(hash).toBeTruthy();
+    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
   });
 
   it("setOwnPassword replaces the credential and clears the must-set flag", async () => {
@@ -66,12 +67,11 @@ describe("first-login password flow (integration)", () => {
     expect(await credentialPassword(staff.id)).toBeNull();
 
     const { tempPassword } = await usersService.resetToDefaultPassword(staff.publicId);
-    expect(tempPassword).toHaveLength(24); // unique random temp, not a shared constant
+    expect(tempPassword).toBe(DEFAULT_TEMP_PASSWORD);
     const row = await rowByPublicId(staff.publicId);
     expect(row.passwordSet).toBe(false);
     const hash = await credentialPassword(row.id);
-    // the returned temp is what was actually written to the credential
-    expect(await verifyPassword(tempPassword, hash!)).toBe(true);
+    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
   });
 
   it("refuses to reset a customer (non-staff) password", async () => {

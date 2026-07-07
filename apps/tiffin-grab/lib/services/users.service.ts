@@ -3,7 +3,7 @@ import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema }
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
-import { hashPassword, verifyPassword, generateTempPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
@@ -309,13 +309,12 @@ class UsersService extends SessionUpdatableService<typeof users> {
     await this.assertStaff(userId);
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u) throw new ValidationError("User not found");
-    const tempPassword = generateTempPassword();
-    const hash = await hashPassword(tempPassword);
+    const hash = await hashPassword(DEFAULT_TEMP_PASSWORD);
     await db.transaction(async (tx) => {
       await this.writeCredentialPassword(tx, u.id, hash);
       await tx.update(users).set({ passwordSet: false }).where(eq(users.id, u.id));
     });
-    return { tempPassword };
+    return { tempPassword: DEFAULT_TEMP_PASSWORD };
   }
 
   private async assertFree(userId: string, field: "phone" | "email", value: string) {
