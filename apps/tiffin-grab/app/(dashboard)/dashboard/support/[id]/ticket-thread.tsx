@@ -3,7 +3,6 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import type { TicketStatus } from "@/lib/services/tickets.service";
-import type { Attachment } from "@/db/schema";
 import { MessageComposer } from "@/components/tickets/message-composer";
 import { replyTicket } from "../actions";
 
@@ -55,7 +54,7 @@ type ThreadMessage = {
   authorType: string;
   body: string;
   createdAt: number;
-  attachments?: Attachment[] | null;
+  attachments?: { thumbUrl: string; name: string; href: string }[] | null;
 };
 
 export function TicketThread({
@@ -97,9 +96,9 @@ export function TicketThread({
                 {m.attachments?.length ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {m.attachments.map((a, i) => (
-                      <a key={i} href={a.url} target="_blank" rel="noreferrer">
+                      <a key={i} href={a.href} target="_blank" rel="noreferrer">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={a.url} alt={a.name} className="size-24 rounded-md border object-cover" />
+                        <img src={a.thumbUrl} alt={a.name} className="size-24 rounded-md border object-cover" />
                       </a>
                     ))}
                   </div>

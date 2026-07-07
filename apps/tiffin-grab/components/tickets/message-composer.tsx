@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2Icon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Textarea } from "@realm/ui/textarea";
+import { makeThumbnail } from "@/lib/images/thumbnail";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -52,11 +53,15 @@ export function MessageComposer({
     const trimmed = body.trim();
     if (!trimmed && files.length === 0) return setError("Type a message or attach an image.");
     setError(null);
-    const form = new FormData();
-    form.set("body", trimmed);
-    for (const f of files) form.append("attachment", f);
     start(async () => {
       try {
+        const form = new FormData();
+        form.set("body", trimmed);
+        for (const f of files) {
+          const thumb = await makeThumbnail(f);
+          form.append("attachment", f);
+          form.append("attachment_thumb", thumb, thumb.name);
+        }
         await action(form);
         setBody("");
         setFiles([]);

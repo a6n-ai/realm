@@ -5,6 +5,7 @@ import { AuthError, ForbiddenError, NotFoundError } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
+import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketThread } from "./ticket-thread";
 
@@ -30,9 +31,9 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
   // read + listMessages both run the service trust boundary (a customer can only
   // see their own ticket). Anything other than a real, owned ticket → not-found.
   let ticket;
-  let messages;
+  let rawMessages;
   try {
-    [ticket, messages] = await Promise.all([
+    [ticket, rawMessages] = await Promise.all([
       ticketsService.read(id),
       ticketsService.listMessages(id),
     ]);
@@ -42,6 +43,18 @@ async function TicketThreadData({ params }: { params: Promise<{ id: string }> })
   }
 
   const { timezone } = await getAppSettings();
+
+  // Mint a token-gated href per attachment at render time (short-lived, viewer already passed the ticket's trust boundary above).
+  const messages = await Promise.all(
+    rawMessages.map(async (m) => ({
+      ...m,
+      attachments: m.attachments
+        ? await Promise.all(
+            m.attachments.map(async (a) => ({ thumbUrl: a.thumbUrl, name: a.name, href: await attachmentHref(a) })),
+          )
+        : null,
+    })),
+  );
 
   return <TicketThread ticket={ticket} messages={messages} timezone={timezone} />;
 }

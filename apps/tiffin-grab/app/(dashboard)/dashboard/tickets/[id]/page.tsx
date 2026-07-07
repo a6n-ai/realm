@@ -12,6 +12,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/services/tickets.service";
+import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
@@ -131,11 +132,23 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   const messages = await messagesP;
   const closed = ticket.status === "resolved" || ticket.status === "closed";
 
+  // Mint a token-gated href per attachment at render time (staff already passed requireStaff above).
+  const withHref = await Promise.all(
+    messages.map(async (m) => ({
+      ...m,
+      attachments: m.attachments
+        ? await Promise.all(
+            m.attachments.map(async (a) => ({ thumbUrl: a.thumbUrl, name: a.name, href: await attachmentHref(a) })),
+          )
+        : null,
+    })),
+  );
+
   return (
     <div className="space-y-4">
       <ReplyBox ticketId={ticket.publicId} closed={closed} />
       <div className="space-y-2">
-        {messages.map((m) => (
+        {withHref.map((m) => (
           <div
             key={m.publicId}
             className={cn(
@@ -153,9 +166,9 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
             {m.attachments?.length ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {m.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noreferrer">
+                  <a key={i} href={a.href} target="_blank" rel="noreferrer">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.url} alt={a.name} className="size-24 rounded-md border object-cover" />
+                    <img src={a.thumbUrl} alt={a.name} className="size-24 rounded-md border object-cover" />
                   </a>
                 ))}
               </div>
