@@ -25,7 +25,8 @@ async function seenMap(userId: bigint): Promise<Record<Section, number>> {
 
 async function existsAfter(section: Section, since: number): Promise<boolean> {
   // ponytail: one EXISTS probe per section per sidebar render. created_at is
-  // indexed on all three tables; if this ever shows up hot, cache per request.
+  // indexed on all three tables, so this is an index scan, not a seq scan;
+  // if this ever shows up hot, cache per request.
   const probe = sql<number>`1`;
   if (section === "tickets") {
     const [r] = await db.select({ x: probe }).from(tickets).where(gt(tickets.createdAt, since)).limit(1);

@@ -24,6 +24,7 @@ export const tickets = pgTable("tickets", {
   index("tickets_raised_by_idx").on(t.raisedBy),
   index("tickets_owner_idx").on(t.currentOwner),
   index("tickets_status_idx").on(t.status),
+  index("tickets_created_idx").on(t.createdAt),
 ]);
 
 // A message may carry image attachments uploaded with the reply. Stored as urls

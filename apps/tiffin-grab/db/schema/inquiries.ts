@@ -43,6 +43,7 @@ export const inquiries = pgTable("inquiries", {
   uniqueIndex("inquiries_open_phone_source_uq")
     .on(sql`lower(${t.phone})`, t.sourceId)
     .where(sql`${t.stage} not in ('converted', 'lost')`),
+  index("inquiries_created_idx").on(t.createdAt),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
