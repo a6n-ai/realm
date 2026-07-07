@@ -3,7 +3,7 @@ import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { ticketMessages, tickets, users } from "@/db/schema";
+import { ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
@@ -69,8 +69,20 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     return actor;
   }
 
-  private message(ticketId: bigint, authorId: bigint, authorType: TicketMessageAuthor, body: string) {
-    return ticketMessagesService.create({ ticketId, authorId, authorType, body });
+  private message(
+    ticketId: bigint,
+    authorId: bigint,
+    authorType: TicketMessageAuthor,
+    body: string,
+    attachments?: Attachment[],
+  ) {
+    return ticketMessagesService.create({
+      ticketId,
+      authorId,
+      authorType,
+      body,
+      ...(attachments && attachments.length ? { attachments } : {}),
+    });
   }
 
   async create(input: CreateTicketInput): Promise<typeof tickets.$inferSelect> {
@@ -90,19 +102,24 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     return ticket;
   }
 
-  async reply(publicId: string, body: string): Promise<void> {
-    const trimmed = (body ?? "").trim();
-    if (!trimmed) throw new ValidationError("Message is required");
+  async reply(publicId: string, body: string, attachments: Attachment[] = []): Promise<void> {
     const ticket = await this.read(publicId);
     const actor = await this.assertAccess(ticket);
-    const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
-    await this.message(ticket.id, actor.id, authorType, trimmed);
 
-    // A customer reply on a resolved ticket reopens it (the issue is not done);
-    // a staff reply on an in-progress ticket hands the ball back to the customer.
-    if (!actor.isStaff && ticket.status === "resolved") {
-      await this.update(publicId, { status: "open", closedAt: null });
-    } else if (actor.isStaff && ticket.status === "in_progress") {
+    // Resolved/closed tickets are locked for everyone (customer and staff).
+    // Staff must reopen (changeStatus → open) before the thread resumes.
+    if (ticket.status === "resolved" || ticket.status === "closed") {
+      throw new ForbiddenError("This ticket is closed. Ask staff to reopen it to continue.");
+    }
+
+    const trimmed = (body ?? "").trim();
+    if (!trimmed && attachments.length === 0) throw new ValidationError("Message is required");
+
+    const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
+    await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
+
+    // A staff reply on an in-progress ticket hands the ball back to the customer.
+    if (actor.isStaff && ticket.status === "in_progress") {
       await this.update(publicId, { status: "waiting_on_customer" });
     }
   }

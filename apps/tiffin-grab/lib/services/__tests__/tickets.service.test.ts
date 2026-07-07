@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ticketMessages, tickets, users } from "@/db/schema";
-import { ForbiddenError } from "@realm/commons";
+import { ForbiddenError, ValidationError } from "@realm/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
@@ -50,26 +50,63 @@ describe("ticketsService", () => {
     expect(messages[0].body).toBe("It never arrived.");
   });
 
-  it("a customer reply on a resolved ticket reopens it and clears closedAt", async () => {
-    const customer = await seedUser("Cust Reopen", "user");
-    const staff = await seedUser("Staff Reopen", "admin");
+  it("rejects a customer reply on a resolved ticket (no silent reopen)", async () => {
+    const customer = await seedUser("Cust Locked", "user");
+    const staff = await seedUser("Staff Locked", "admin");
 
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Billing issue", category: "billing", body: "Charged twice." });
+    const ticket = await ticketsService.create({ subject: "Billing", category: "billing", body: "Charged twice." });
 
     actAs(staff, "admin");
     await ticketsService.changeStatus(ticket.publicId, "resolved");
 
-    const [resolved] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
-    expect(resolved.status).toBe("resolved");
-    expect(resolved.closedAt).not.toBeNull();
+    actAs(customer, "user");
+    await expect(ticketsService.reply(ticket.publicId, "Still wrong")).rejects.toThrow(ForbiddenError);
+
+    const [row] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
+    expect(row.status).toBe("resolved");
+  });
+
+  it("rejects a staff reply on a closed ticket", async () => {
+    const customer = await seedUser("Cust Closed", "user");
+    const staff = await seedUser("Staff Closed", "member");
 
     actAs(customer, "user");
-    await ticketsService.reply(ticket.publicId, "Still wrong, please fix.");
+    const ticket = await ticketsService.create({ subject: "Closed", category: "general", body: "Done?" });
+
+    actAs(staff, "member");
+    await ticketsService.changeStatus(ticket.publicId, "closed");
+    await expect(ticketsService.reply(ticket.publicId, "One more thing")).rejects.toThrow(ForbiddenError);
+  });
+
+  it("staff reopen (changeStatus to open) clears closedAt and lets replies resume", async () => {
+    const customer = await seedUser("Cust Resume", "user");
+    const staff = await seedUser("Staff Resume", "admin");
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Resume", category: "order", body: "Where?" });
+
+    actAs(staff, "admin");
+    await ticketsService.changeStatus(ticket.publicId, "resolved");
+    await ticketsService.changeStatus(ticket.publicId, "open");
 
     const [reopened] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
     expect(reopened.status).toBe("open");
     expect(reopened.closedAt).toBeNull();
+
+    actAs(customer, "user");
+    await ticketsService.reply(ticket.publicId, "Thanks, still waiting");
+    const messages = await ticketsService.listMessages(ticket.publicId);
+    expect(messages.at(-1)?.body).toBe("Thanks, still waiting");
+  });
+
+  it("allows an image-only reply (empty body with an attachment)", async () => {
+    const customer = await seedUser("Cust Img", "user");
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Photo", category: "order", body: "See photo." });
+    await ticketsService.reply(ticket.publicId, "", [{ url: "https://x/a.png", name: "a.png" }]);
+    const messages = await ticketsService.listMessages(ticket.publicId);
+    expect(messages.at(-1)?.attachments).toEqual([{ url: "https://x/a.png", name: "a.png" }]);
   });
 
   it("changeStatus to resolved writes a system message and sets closedAt", async () => {
