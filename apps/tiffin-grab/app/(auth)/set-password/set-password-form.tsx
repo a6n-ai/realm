@@ -45,9 +45,10 @@ export function SetPasswordForm() {
       setSubmitError(r.error);
       return;
     }
-    // Fresh server render re-runs the /dashboard gate, which now passes.
-    router.push("/dashboard");
+    // Bust the cached /dashboard RSC first (it was cached as a redirect BACK here
+    // while password_set was false), THEN navigate so the gate re-runs and passes.
     router.refresh();
+    router.push("/dashboard");
   }
 
   return (

@@ -120,7 +120,7 @@ export function InquiryDetailClient({
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
-        <Card className="lg:col-start-1 lg:row-start-1">
+        <Card className="min-w-0 lg:col-start-1 lg:row-start-1">
           <h2 className="mb-3 text-base font-semibold">Log activity</h2>
           <ActivityComposer
             key={composerKey}
@@ -130,7 +130,7 @@ export function InquiryDetailClient({
           />
         </Card>
 
-        <aside className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        <aside className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <Card>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold">From the inquiry</h2>
@@ -193,7 +193,7 @@ export function InquiryDetailClient({
           </Card>
         </aside>
 
-        <Card className="lg:col-start-1 lg:row-start-2">
+        <Card className="min-w-0 lg:col-start-1 lg:row-start-2">
           <h2 className="mb-4 text-base font-semibold">Activity</h2>
           <InquiryTimeline activities={activities} currency={currency} terminal={terminal} />
         </Card>
