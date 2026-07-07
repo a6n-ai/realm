@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
 import { inArray } from "drizzle-orm";
@@ -25,6 +25,12 @@ const AUTHOR_LABEL: Record<string, string> = {
   system: "System",
 };
 
+// The three Suspense blocks below each need the same auth + ticket. cache()
+// dedupes them per request so one row-click does one requireStaff + one read
+// instead of three of each (the fan-out that intermittently saturated the pool).
+const ensureStaff = cache(() => requireStaff());
+const loadTicket = cache((id: string) => ticketsService.read(id));
+
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
@@ -48,12 +54,12 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
 }
 
 async function HeaderData({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  await ensureStaff();
   const { id } = await params;
 
   let ticket;
   try {
-    ticket = await ticketsService.read(id);
+    ticket = await loadTicket(id);
   } catch (e) {
     if (e instanceof NotFoundError) notFound();
     throw e;
@@ -63,12 +69,12 @@ async function HeaderData({ params }: { params: Promise<{ id: string }> }) {
 }
 
 async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  await ensureStaff();
   const { id } = await params;
 
   let ticket;
   try {
-    ticket = await ticketsService.read(id);
+    ticket = await loadTicket(id);
   } catch (e) {
     if (e instanceof NotFoundError) notFound();
     throw e;
@@ -109,10 +115,10 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
 }
 
 async function ConversationData({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  await ensureStaff();
   const { id } = await params;
 
-  const ticketP = ticketsService.read(id);
+  const ticketP = loadTicket(id);
   const messagesP = ticketsService.listMessages(id);
   let ticket;
   try {
