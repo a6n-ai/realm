@@ -19,6 +19,7 @@ import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@realm/ui/cn";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
 import { TicketControls, ReplyBox, TicketControlsSkeleton } from "./ticket-controls";
+import { PresenceDot } from "@/components/tickets/ticket-live";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",
@@ -131,6 +132,7 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   }
   const messages = await messagesP;
   const closed = ticket.status === "resolved" || ticket.status === "closed";
+  const channel = `ticket:${ticket.publicId}`;
 
   // Mint a token-gated href per attachment at render time (staff already passed requireStaff above).
   const withHref = await Promise.all(
@@ -146,7 +148,10 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="space-y-4">
-      <ReplyBox ticketId={ticket.publicId} closed={closed} />
+      <div className="flex justify-end">
+        <PresenceDot channel={channel} peerRole="customer" label="Customer" />
+      </div>
+      <ReplyBox ticketId={ticket.publicId} closed={closed} channel={channel} peerRole="customer" />
       <div className="space-y-2">
         {withHref.map((m) => (
           <div
@@ -196,6 +201,9 @@ function DetailsFallback() {
 function ConversationFallback() {
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Skeleton className="h-4 w-24" />
+      </div>
       <ReplyBox.Skeleton />
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (

@@ -4,6 +4,7 @@ import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { MessageComposer } from "@/components/tickets/message-composer";
+import { PresenceDot } from "@/components/tickets/ticket-live";
 import { replyTicket } from "../actions";
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
@@ -68,6 +69,7 @@ export function TicketThread({
 }) {
   const status = ticket.status as TicketStatus;
   const closed = status === "resolved" || status === "closed";
+  const channel = `ticket:${ticket.publicId}`;
 
   return (
     <div className="space-y-4">
@@ -77,6 +79,7 @@ export function TicketThread({
         <span className="text-muted-foreground text-xs">
           Opened {formatEpoch(ticket.createdAt, { timeZone: timezone, mode: "datetime", locale: "en-CA" })}
         </span>
+        <PresenceDot channel={channel} peerRole="staff" label="Support" />
       </div>
 
       <div className="space-y-3">
@@ -112,7 +115,12 @@ export function TicketThread({
         })}
       </div>
 
-      <MessageComposer action={replyTicket.bind(null, ticket.publicId)} closed={closed} />
+      <MessageComposer
+        action={replyTicket.bind(null, ticket.publicId)}
+        closed={closed}
+        channel={channel}
+        peerRole="staff"
+      />
     </div>
   );
 }
@@ -128,6 +136,7 @@ TicketThread.Skeleton = function TicketThreadSkeleton() {
         <Skeleton className="h-5 w-16 rounded-full" />
         <Skeleton className="h-5 w-20 rounded-full" />
         <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-20" />
       </div>
 
       <div className="space-y-3">

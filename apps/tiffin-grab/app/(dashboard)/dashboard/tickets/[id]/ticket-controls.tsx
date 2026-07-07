@@ -9,6 +9,7 @@ import {
 } from "@realm/ui/select";
 import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@realm/ui/cn";
+import type { RealtimeRole } from "@realm/realtime";
 import { MessageComposer } from "@/components/tickets/message-composer";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
@@ -173,12 +174,24 @@ export function TicketControlsSkeleton() {
   );
 };
 
-export function ReplyBox({ ticketId, closed }: { ticketId: string; closed: boolean }) {
+export function ReplyBox({
+  ticketId,
+  closed,
+  channel,
+  peerRole,
+}: {
+  ticketId: string;
+  closed: boolean;
+  channel?: string;
+  peerRole?: RealtimeRole;
+}) {
   return (
     <MessageComposer
       action={replyTicket.bind(null, ticketId)}
       closed={closed}
       placeholder="Reply to the customer…"
+      channel={channel}
+      peerRole={peerRole}
     />
   );
 }

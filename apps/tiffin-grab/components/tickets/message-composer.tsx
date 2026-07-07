@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Loader2Icon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Textarea } from "@realm/ui/textarea";
+import type { RealtimeRole } from "@realm/realtime";
+import { useTyping } from "@realm/realtime/client";
 import { makeThumbnail } from "@/lib/images/thumbnail";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -15,10 +17,14 @@ export function MessageComposer({
   action,
   closed,
   placeholder = "Write a reply…",
+  channel,
+  peerRole,
 }: {
   action: (form: FormData) => Promise<void>;
   closed: boolean;
   placeholder?: string;
+  channel?: string;
+  peerRole?: RealtimeRole;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -26,6 +32,9 @@ export function MessageComposer({
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Hooks can't be conditional — call unconditionally with a possibly-empty
+  // channel; useChannel no-ops on empty. Gate the UI/side-effects on `channel`.
+  const { peerTyping, notifyTyping } = useTyping(channel ?? "", peerRole ?? "staff");
 
   if (closed) {
     return (
@@ -74,11 +83,15 @@ export function MessageComposer({
 
   return (
     <div className="space-y-2">
+      {channel && peerTyping && <p className="text-muted-foreground text-xs">Typing…</p>}
       <Textarea
         rows={3}
         placeholder={placeholder}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          if (channel) notifyTyping();
+        }}
       />
 
       {files.length > 0 && (
