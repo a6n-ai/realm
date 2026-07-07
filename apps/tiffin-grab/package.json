@@ -25,6 +25,7 @@
     "@realm/database": "workspace:*",
     "@realm/design-system": "workspace:*",
     "@realm/email": "workspace:*",
+    "@realm/realtime": "workspace:*",
     "@realm/routes": "workspace:*",
     "@realm/storage": "workspace:*",
     "@realm/themes": "workspace:*",
