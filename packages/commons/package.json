@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./logger": "./src/logger.ts",
-    "./model/condition": "./src/model/condition.ts"
+    "./model/condition": "./src/model/condition.ts",
+    "./util/pagination": "./src/util/pagination.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
