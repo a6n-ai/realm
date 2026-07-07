@@ -23,7 +23,11 @@ export function ResponsiveDialog({
             <DrawerTitle>{title}</DrawerTitle>
             {description && <DrawerDescription>{description}</DrawerDescription>}
           </DrawerHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4">{children}</div>
+          {/* Render children directly (like the desktop Dialog): every form here
+              owns its own scrollable body. Wrapping in a second overflow-y-auto
+              container double-nested the scroll on mobile and pushed the top
+              fields (name/phone) off-screen, making the form unfillable. */}
+          {children}
           {footer && <div className="sticky bottom-0 border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>}
         </DrawerContent>
       </Drawer>
