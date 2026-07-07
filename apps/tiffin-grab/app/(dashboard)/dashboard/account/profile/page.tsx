@@ -12,5 +12,11 @@ export default function AccountProfilePage() {
 
 async function ProfileData() {
   const { user } = await requireAccountUser();
-  return <ProfileSection image={user.image ?? null} name={user.name ?? null} />;
+  return (
+    <ProfileSection
+      image={user.image ?? null}
+      name={user.name ?? null}
+      username={user.displayUsername ?? user.username ?? null}
+    />
+  );
 }

@@ -38,10 +38,10 @@ export async function updateMyPreferences(input: {
   revalidatePath("/dashboard/account");
 }
 
-export async function updateMyName(name: string) {
+export async function updateMyProfile(input: { name?: string; username?: string }) {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
-  await usersService.updateProfile(session.user.id, { name });
+  await usersService.updateProfile(session.user.id, input);
   revalidatePath("/dashboard/account");
   return { ok: true };
 }

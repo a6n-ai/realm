@@ -11,27 +11,30 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
-import { updateMyName } from "@/app/(dashboard)/dashboard/account/actions";
+import { updateMyProfile } from "@/app/(dashboard)/dashboard/account/actions";
 
 const profileFormSchema = z.object({
   name: z.string().max(120, "Name is too long"),
+  username: z
+    .string()
+    .refine((v) => v === "" || /^[a-zA-Z0-9_.]{3,30}$/.test(v), "3–30 characters: letters, numbers, _ or ."),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-export function ProfileForm({ name }: { name: string }) {
+export function ProfileForm({ name, username }: { name: string; username: string }) {
   const router = useRouter();
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: { name },
+    defaultValues: { name, username },
   });
 
   const { isDirty, isSubmitting } = form.formState;
 
   async function onSubmit(values: ProfileFormValues) {
     try {
-      await updateMyName(values.name);
-      toast.success("Name updated.");
+      await updateMyProfile({ name: values.name, username: values.username });
+      toast.success("Profile updated.");
       form.reset(values);
       router.refresh();
     } catch (e) {
@@ -55,6 +58,21 @@ export function ProfileForm({ name }: { name: string }) {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Username <span className="text-muted-foreground font-normal">optional</span>
+              </FormLabel>
+              <FormControl>
+                <Input autoComplete="username" placeholder="e.g. priya.sharma" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         {form.formState.errors.root && (
           <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
         )}
@@ -69,7 +87,7 @@ export function ProfileForm({ name }: { name: string }) {
               Saving...
             </>
           ) : (
-            "Save name"
+            "Save profile"
           )}
         </Button>
       </form>

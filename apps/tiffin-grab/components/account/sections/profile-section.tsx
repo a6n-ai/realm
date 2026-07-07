@@ -6,18 +6,20 @@ import { ProfileForm } from "@/components/account/leaves/profile-form";
 export function ProfileSection({
   image,
   name,
+  username,
   titleAs,
 }: {
   image: string | null;
   name: string | null;
+  username: string | null;
   titleAs?: "h2" | "h3";
 }) {
   return (
     <section id="profile" className="scroll-mt-24">
-      <SectionCard variant="flat" titleAs={titleAs} title="Profile" subtitle="Your photo and display name.">
+      <SectionCard variant="flat" titleAs={titleAs} title="Profile" subtitle="Your photo, display name, and username.">
         <div className="flex flex-col gap-4">
           <AvatarField image={image} name={name} />
-          <ProfileForm name={name ?? ""} />
+          <ProfileForm name={name ?? ""} username={username ?? ""} />
         </div>
       </SectionCard>
     </section>
@@ -37,6 +39,10 @@ ProfileSection.Skeleton = function ProfileSectionSkeleton({ titleAs }: { titleAs
             </div>
           </div>
           <div className="grid max-w-md gap-3">
+            <div className="grid gap-1.5">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-9 w-full" />
+            </div>
             <div className="grid gap-1.5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-9 w-full" />

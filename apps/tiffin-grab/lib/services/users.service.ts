@@ -12,6 +12,16 @@ import { pickUserWritable } from "./users-writable";
 // written to the users table — only the audit `changes` is redacted.
 const REDACT_FIELDS = new Set(["pinHash", "password"]);
 
+// True when a unique-violation (23505) hit the username unique constraint.
+function isUsernameConflict(e: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+  const err = e as PgErr;
+  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("users_username_unique"),
+  );
+}
+
 // A transaction handle (the callback arg of db.transaction), for helpers that
 // must write inside a caller's tx.
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -79,15 +89,37 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return super.update(userId, patch);
   }
 
-  async updateProfile(userId: string, input: { name?: string | null; image?: string | null }) {
-    const patch: { name?: string | null; image?: string | null } = {};
+  async updateProfile(
+    userId: string,
+    input: { name?: string | null; image?: string | null; username?: string | null },
+  ) {
+    const patch: { name?: string | null; image?: string | null; username?: string | null; displayUsername?: string | null } = {};
     if (input.name !== undefined) {
       const name = (input.name ?? "").trim();
       if (name.length > 120) throw new ValidationError("Name is too long");
       patch.name = name === "" ? null : name;
     }
     if (input.image !== undefined) patch.image = input.image;
-    return super.update(userId, patch);
+    if (input.username !== undefined) {
+      const raw = (input.username ?? "").trim();
+      if (raw === "") {
+        patch.username = null;
+        patch.displayUsername = null;
+      } else {
+        // Same shape the better-auth username plugin enforces: 3–30 of [a-z0-9_.].
+        if (!/^[a-zA-Z0-9_.]{3,30}$/.test(raw)) {
+          throw new ValidationError("Username must be 3–30 characters: letters, numbers, _ or .");
+        }
+        patch.username = raw.toLowerCase(); // normalized (unique key)
+        patch.displayUsername = raw; // original casing
+      }
+    }
+    try {
+      return await super.update(userId, patch);
+    } catch (e) {
+      if (isUsernameConflict(e)) throw new ValidationError("That username is already taken");
+      throw e;
+    }
   }
 
   async updateAddress(
