@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
 import { db } from "@/db/client";
 import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
-import { hashPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
+import { hashPassword, generateTempPassword } from "@/lib/auth/password";
 import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -33,7 +33,7 @@ export async function provisionCustomerByPhone(
       accountId: String(inserted[0].id),
       providerId: "credential",
       userId: inserted[0].id,
-      password: await hashPassword(DEFAULT_TEMP_PASSWORD),
+      password: await hashPassword(generateTempPassword()),
     });
     return inserted[0].id;
   }

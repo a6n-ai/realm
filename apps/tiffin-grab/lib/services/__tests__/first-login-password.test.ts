@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { users, account } = await import("@/db/schema");
-const { verifyPassword, DEFAULT_TEMP_PASSWORD } = await import("@/lib/auth/password");
+const { verifyPassword } = await import("@/lib/auth/password");
 const { createCustomer } = await import("../customers.service");
 const { usersService } = await import("../users.service");
 
@@ -37,7 +37,7 @@ describe("first-login password flow (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("provisions a customer needing a password set, holding the default", async () => {
+  it("provisions a customer needing a password set, with a credential hash", async () => {
     const { publicId } = await createCustomer(
       { fullName: "New Cust", phone: "+16475550101" },
       { actorId: null },
@@ -45,8 +45,7 @@ describe("first-login password flow (integration)", () => {
     const row = await rowByPublicId(publicId);
     expect(row.passwordSet).toBe(false);
     const hash = await credentialPassword(row.id);
-    expect(hash).toBeTruthy();
-    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
+    expect(hash).toBeTruthy(); // a unique random temp is set; the holder claims via set/forgot-password
   });
 
   it("setOwnPassword replaces the credential and clears the must-set flag", async () => {
@@ -59,7 +58,6 @@ describe("first-login password flow (integration)", () => {
     expect(row.passwordSet).toBe(true);
     const hash = await credentialPassword(row.id);
     expect(await verifyPassword("my-real-pass9", hash!)).toBe(true);
-    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(false);
   });
 
   it("admin reset re-arms a staff member's default password and must-set flag", async () => {
@@ -68,11 +66,12 @@ describe("first-login password flow (integration)", () => {
     expect(await credentialPassword(staff.id)).toBeNull();
 
     const { tempPassword } = await usersService.resetToDefaultPassword(staff.publicId);
-    expect(tempPassword).toBe(DEFAULT_TEMP_PASSWORD);
+    expect(tempPassword).toHaveLength(24); // unique random temp, not a shared constant
     const row = await rowByPublicId(staff.publicId);
     expect(row.passwordSet).toBe(false);
     const hash = await credentialPassword(row.id);
-    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
+    // the returned temp is what was actually written to the credential
+    expect(await verifyPassword(tempPassword, hash!)).toBe(true);
   });
 
   it("refuses to reset a customer (non-staff) password", async () => {
