@@ -132,6 +132,24 @@ export function TicketControls({
           </SelectContent>
         </Select>
       </div>
+
+      {(status === "resolved" || status === "closed") && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          className="active:scale-[0.98]"
+          onClick={() =>
+            start(async () => {
+              await setStatus(ticketId, "open");
+              router.refresh();
+              toast("Ticket reopened");
+            })
+          }
+        >
+          Reopen ticket
+        </Button>
+      )}
     </div>
   );
 }
