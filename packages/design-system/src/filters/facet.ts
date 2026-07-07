@@ -1,4 +1,4 @@
-export type Option = { value: string; label: string; count?: number };
+export type Option = { value: string; label: string; count?: number; parent?: string };
 
 export type FacetDef =
   | { kind: "pills"; field: string; label: string; options: Option[] }
