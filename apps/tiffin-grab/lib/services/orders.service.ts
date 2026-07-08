@@ -1,7 +1,9 @@
 import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
-import { BaseRepository, UpdatableRepository } from "@realm/database";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import type { Condition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
@@ -374,6 +376,69 @@ export async function listOrders(
     .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
     .limit(500);
   return rows.map((r) => ({ ...r, ownerId: r.ownerId ?? null, ownerName: r.ownerName ?? null })) satisfies OrderListRow[];
+}
+
+// Server-side unified filters (Condition) + offset pagination + unpaginated
+// total — mirrors inquiriesService.listForPipeline. All filterable facets
+// (status/fullName/deploymentId/createdAt) live on the base `orders` table, so
+// a plain columnResolver suffices (no FK subqueries). The rows query joins
+// plans (inner, non-nullable FK — safe) and users (left, nullable
+// currentOwner — display-only), but the count runs on the base `orders` table
+// alone with the identical `where` so the nullable owner join can't inflate it.
+export async function listOrdersPage(
+  condition: Condition | undefined,
+  page: PageRequest,
+  sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
+): Promise<Page<OrderListRow>> {
+  const where = conditionToSql(
+    condition,
+    columnResolver({
+      status: orders.status,
+      fullName: orders.fullName,
+      deploymentId: orders.deploymentId,
+      createdAt: orders.createdAt,
+    }),
+  );
+
+  const SORT_COL = {
+    name: orders.fullName,
+    deployment: orders.deploymentId,
+    status: orders.status,
+    start: orders.startDate,
+    total: orders.total,
+    created: orders.createdAt,
+  } as const;
+  const col = SORT_COL[sort.column] ?? orders.createdAt;
+
+  const rows = await db
+    .select({
+      publicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      fullName: orders.fullName,
+      city: orders.city,
+      planKey: plans.key,
+      status: orders.status,
+      startDate: orders.startDate,
+      total: orders.total,
+      createdAt: orders.createdAt,
+      ownerId: users.publicId,
+      ownerName: users.name,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(users, eq(orders.currentOwner, users.id))
+    .where(where)
+    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+    .limit(page.size)
+    .offset(page.page * page.size);
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(where);
+
+  const items = rows.map((r) => ({ ...r, ownerId: r.ownerId ?? null, ownerName: r.ownerName ?? null }));
+  return { items, page: page.page, size: page.size, total: count };
 }
 
 export type OrderDetail = typeof orders.$inferSelect & {

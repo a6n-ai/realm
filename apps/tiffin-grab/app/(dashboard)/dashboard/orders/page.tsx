@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listOrders } from "@/lib/services/orders.service";
+import { listOrdersPage } from "@/lib/services/orders.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -14,14 +14,24 @@ import { mealSlotsService } from "@/lib/services/meal-slots.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
-import { OrdersList, OrdersListSkeleton } from "./orders-list";
+import {
+  PageShell,
+  PageHeader,
+  SectionCard,
+  StatGrid,
+  SkeletonStatCards,
+  parseFilterState,
+  type FacetDef,
+} from "@/components/ds";
+import { OrdersList, OrdersListSkeleton, ORDER_STATUS_PILLS } from "./orders-list";
 import { NewOrderSheet } from "./new-order-sheet";
+
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function OrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
+  searchParams: SearchParams;
 }) {
   return (
     <PageShell>
@@ -68,26 +78,47 @@ async function OrdersStats() {
   return <StatGrid cols={4} items={stats} />;
 }
 
-async function OrdersData({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
+async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
+  const sp = await searchParams;
   const sort = parseSort(
-    await searchParams,
-    ["name", "deployment", "status", "start", "total", "created"],
+    sp,
+    ["name", "status", "start", "total", "created"],
     { column: "created", dir: "desc" },
   );
 
-  const [rows, reassignAllowed] = await Promise.all([
-    listOrders({ sort }),
+  const spec: FacetDef[] = [
+    {
+      kind: "pills",
+      field: "status",
+      label: "Status",
+      options: ORDER_STATUS_PILLS.map((p) => ({ value: p.value, label: p.label })),
+    },
+    { kind: "dateRange", field: "createdAt", label: "Created" },
+    { kind: "search", fields: ["fullName", "deploymentId"] },
+  ];
+
+  const { condition, page } = parseFilterState(spec, sp);
+
+  const [result, reassignAllowed] = await Promise.all([
+    listOrdersPage(condition, page, sort),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];
 
-  return <OrdersList rows={rows} sort={sort} canReassign={reassignAllowed} staff={staff} />;
+  return (
+    <OrdersList
+      spec={spec}
+      rows={result.items}
+      total={result.total}
+      page={page.page}
+      size={page.size}
+      sort={sort}
+      canReassign={reassignAllowed}
+      staff={staff}
+    />
+  );
 }
 
 async function NewOrderAction() {

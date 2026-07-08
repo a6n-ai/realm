@@ -1,33 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@realm/commons";
-import { DataTable, FilterPill, FilterSheet, OrderStatusBadge, type Column } from "@/components/ds";
+import { DataTable, FacetFilters, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useUrlState } from "@/lib/list/use-url-state";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
 
-const STATUS_PILLS = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "active", label: "Active" },
-  { key: "waitlisted", label: "Waitlisted" },
-  { key: "paused", label: "Paused" },
-  { key: "cancelled", label: "Cancelled" },
+// Single source of truth for the Status facet — also the pill/badge label map.
+// "all" is a client-only pseudo-bucket, never a valid `orders.status` value, so
+// it's excluded from the server-filter facet options (see page.tsx).
+export const ORDER_STATUS_PILLS = [
+  { value: "pending", label: "Pending" },
+  { value: "active", label: "Active" },
+  { value: "waitlisted", label: "Waitlisted" },
+  { value: "paused", label: "Paused" },
+  { value: "cancelled", label: "Cancelled" },
 ] as const;
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
-// two can never drift.
-const COLUMNS: readonly Column<OrderSortColumn | "city" | "owner">[] = [
+// two can never drift. "deployment" isn't a server sort key (see
+// OrderSortColumn), so it's a plain non-sortable column here.
+const COLUMNS: readonly Column<OrderSortColumn | "deployment" | "city" | "owner">[] = [
   { key: "name", label: "Name", sortable: true },
-  { key: "deployment", label: "Deployment", sortable: true },
+  { key: "deployment", label: "Deployment", sortable: false },
   { key: "city", label: "City" },
   { key: "status", label: "Status", sortable: true },
   { key: "owner", label: "Owner", sortable: false },
@@ -37,75 +38,35 @@ const COLUMNS: readonly Column<OrderSortColumn | "city" | "owner">[] = [
 ];
 
 export function OrdersList({
+  spec,
   rows,
+  total,
+  page,
+  size,
   sort,
   canReassign,
   staff,
 }: {
+  spec: FacetDef[];
   rows: OrderListRow[];
+  total: number;
+  page: number;
+  size: number;
   sort: SortState<OrderSortColumn>;
   canReassign: boolean;
   staff: { publicId: string; name: string }[];
 }) {
-  // Status is a client-side FilterPill filter (URL "status"). DataTable owns the
-  // "q" search param; we pre-filter by status here and let DataTable search the
-  // result set.
-  const [status, setStatus] = useUrlState("status", "all");
-
-  // One pass over rows for all pill counts; search-independent so it only
-  // recomputes when rows change, not on every keystroke.
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const r of rows) c[r.status] = (c[r.status] ?? 0) + 1;
-    return c;
-  }, [rows]);
-  const countOf = (s: string) => (s === "all" ? rows.length : counts[s] ?? 0);
-
-  const statusRows = useMemo(
-    () => (status === "all" ? rows : rows.filter((r) => r.status === status)),
-    [rows, status],
-  );
-
   return (
+    <div className="space-y-4">
     <DataTable
       columns={COLUMNS}
-      rows={statusRows}
+      rows={rows}
       rowKey={(o) => o.publicId}
       sort={sort}
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
-      search={{ placeholder: "Search by name, city or ID…", shortPlaceholder: "Search…", keys: ["fullName", "deploymentId", "city"] }}
       rowClassName={() => "group cursor-pointer"}
-      filters={
-        <>
-          <div className="hidden flex-wrap items-center gap-2 md:flex">
-            {STATUS_PILLS.map((p) => (
-              <FilterPill
-                key={p.key}
-                label={p.label}
-                active={status === p.key}
-                count={countOf(p.key)}
-                onClick={() => setStatus(p.key)}
-              />
-            ))}
-          </div>
-          <div className="md:hidden">
-            <FilterSheet iconOnly activeCount={status === "all" ? 0 : 1}>
-              <div className="flex flex-wrap gap-2">
-                {STATUS_PILLS.map((p) => (
-                  <FilterPill
-                    key={p.key}
-                    label={p.label}
-                    active={status === p.key}
-                    count={countOf(p.key)}
-                    onClick={() => setStatus(p.key)}
-                  />
-                ))}
-              </div>
-            </FilterSheet>
-          </div>
-        </>
-      }
+      filters={<FacetFilters spec={spec} />}
       emptyIcon={PackageIcon}
       emptyMessage="No orders yet."
       emptySearchMessage="No orders match your search."
@@ -141,6 +102,8 @@ export function OrdersList({
         </>
       )}
     />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
