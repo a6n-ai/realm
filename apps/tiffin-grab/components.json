@@ -23,6 +23,7 @@
   "menuAccent": "subtle",
   "registries": {
     "@cult-ui": "https://cult-ui.com/r/{name}.json",
-    "@diceui": "https://diceui.com/r/{name}.json"
+    "@diceui": "https://diceui.com/r/{name}.json",
+    "@reui": "https://reui.io/r/{name}.json"
   }
 }

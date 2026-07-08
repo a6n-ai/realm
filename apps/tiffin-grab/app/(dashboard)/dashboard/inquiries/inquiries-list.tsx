@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
 import {
-  DataTable, FacetFilters, ListPagination, StageBadge, type Column, type FacetDef,
+  DataTable, ListPagination, StageBadge, type Column, type FacetDef,
 } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
 import type { SortState } from "@/lib/list/sort";
@@ -61,7 +62,7 @@ export function InquiriesList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<FacetFilters spec={spec} />}
+        filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={ClipboardListIcon}
         emptyMessage="No inquiries yet."
         emptySearchMessage="No inquiries match your search."
