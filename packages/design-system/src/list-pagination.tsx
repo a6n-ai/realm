@@ -19,6 +19,9 @@ export function ListPagination({
   const pathname = usePathname();
   const params = useSearchParams();
   const pageCount = Math.max(1, Math.ceil(total / size));
+  // parseFilterState can't clamp the upper bound (it doesn't know `total`); do it
+  // here so an out-of-range ?page= shows a sane range instead of "951–50 of 50".
+  const safePage = Math.min(Math.max(0, page), pageCount - 1);
 
   const push = (next: Record<string, string>) => {
     const sp = new URLSearchParams(params.toString());
@@ -26,8 +29,8 @@ export function ListPagination({
     router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
   };
 
-  const start = total === 0 ? 0 : page * size + 1;
-  const end = Math.min(total, (page + 1) * size);
+  const start = total === 0 ? 0 : safePage * size + 1;
+  const end = Math.min(total, (safePage + 1) * size);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
@@ -54,7 +57,7 @@ export function ListPagination({
       </div>
       {/* Pagination is 1-indexed; URL page is 0-indexed */}
       <Pagination
-        page={page + 1}
+        page={safePage + 1}
         pageCount={pageCount}
         onPage={(p) => push({ page: String(p - 1) })}
       />

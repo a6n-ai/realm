@@ -1,15 +1,16 @@
 import { db } from "@/db/client";
-import { users, leadSources, leadSubsources } from "@/db/schema";
+import { leadSources, leadSubsources } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { Option } from "@/components/ds";
+import { listAssignableStaff } from "@/lib/services/assignable-staff";
 
 // Owner facet: readable public ids in the URL, resolved to internal ids by the
-// service's subquery resolver. Non-staff never own inquiries, so an owner they
-// can't match is harmless — but keep the list to real assignable staff would be
-// a future refinement (see facet-options concern in the task report).
+// service's subquery resolver. Scoped to assignable staff (the only users who
+// can own an inquiry) via the shared predicate — avoids pulling every customer
+// into the dropdown and an unbounded scan on the page's hot path.
 export async function loadOwnerOptions(): Promise<Option[]> {
-  const rows = await db.select({ value: users.publicId, label: users.name }).from(users);
-  return rows.map((r) => ({ value: r.value, label: r.label ?? r.value }));
+  const staff = await listAssignableStaff();
+  return staff.map((s) => ({ value: s.publicId, label: s.name }));
 }
 
 export async function loadSourceOptions(): Promise<{ sources: Option[]; subsources: Option[] }> {
