@@ -1,8 +1,12 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
+import type { Condition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { conditionToSql, columnResolver } from "@realm/database";
 import { db } from "@/db/client";
 import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
 import { hashPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
+import type { SortState } from "@/lib/list/sort";
 import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -99,6 +103,75 @@ export async function searchCustomers(query: string) {
     .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.phone, like))))
     .orderBy(users.name)
     .limit(8);
+}
+
+export type CustomerRow = {
+  publicId: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  orderCount: number;
+  latestStatus: string | null;
+};
+
+export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
+
+// Server-side unified filters (Condition) + offset pagination + unpaginated
+// total — mirrors ordersService.listOrdersPage / inquiriesService.listForPipeline.
+// Filterable facets (name/phone/createdAt) all live on the base `users` table, so
+// a plain columnResolver suffices. The rows query left-joins + groups by orders
+// (nullable, aggregated into orderCount/latestStatus only — never filtered), so
+// the count runs on the base `users` table alone with the identical `where`;
+// grouping by users.id means the leftJoin fan-out can't inflate a plain count
+// either way, but skipping the join keeps the count query cheap.
+export async function listCustomersPage(
+  condition: Condition | undefined,
+  page: PageRequest,
+  sort: SortState<CustomerSortColumn> = { column: "orders", dir: "desc" },
+): Promise<Page<CustomerRow>> {
+  const where = and(
+    eq(users.role, "user"),
+    conditionToSql(
+      condition,
+      columnResolver({
+        name: users.name,
+        phone: users.phone,
+        createdAt: users.createdAt,
+      }),
+    ),
+  );
+
+  const SORT_COL = {
+    name: users.name,
+    email: users.email,
+    phone: users.phone,
+    orders: sql`count(${orders.id})`,
+  } as const;
+  const col = SORT_COL[sort.column] ?? users.name;
+
+  const rows = await db
+    .select({
+      publicId: users.publicId,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
+      latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+    })
+    .from(users)
+    .leftJoin(orders, eq(orders.userId, users.id))
+    .where(where)
+    .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
+    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+    .limit(page.size)
+    .offset(page.page * page.size);
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(users)
+    .where(where);
+
+  return { items: rows, page: page.page, size: page.size, total: count };
 }
 
 // Serializable order row for the customer's own dashboard. Carries plan + meal

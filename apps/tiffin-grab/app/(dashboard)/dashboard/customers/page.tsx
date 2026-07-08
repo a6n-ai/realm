@@ -1,31 +1,31 @@
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { tzToDefaultCountry } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
-import { parseSort, type SortState } from "@/lib/list/sort";
+import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
+import {
+  PageShell,
+  PageHeader,
+  SectionCard,
+  StatGrid,
+  SkeletonStatCards,
+  parseFilterState,
+  type FacetDef,
+} from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
-const SORT_COL = {
-  name: users.name,
-  email: users.email,
-  phone: users.phone,
-  orders: sql`count(${orders.id})`,
-} as const;
-
-type CustomerSortColumn = keyof typeof SORT_COL;
-
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 // The page shell returns synchronously (no top-level await), so `loading.tsx`
 // never fires — instead each async child below streams into its own <Suspense>
@@ -90,32 +90,19 @@ async function CustomersStats() {
 async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
-  const sort: SortState<CustomerSortColumn> = parseSort(
-    await searchParams,
-    ["name", "email", "phone", "orders"],
-    { column: "orders", dir: "desc" },
-  );
+  const sp = await searchParams;
+  const sort = parseSort(sp, ["name", "email", "phone", "orders"], { column: "orders", dir: "desc" });
 
-  const col = SORT_COL[sort.column];
-  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+  const spec: FacetDef[] = [
+    { kind: "dateRange", field: "createdAt", label: "Joined" },
+    { kind: "search", fields: ["name", "phone"] },
+  ];
 
-  const rows = await db
-    .select({
-      publicId: users.publicId,
-      name: users.name,
-      email: users.email,
-      phone: users.phone,
-      orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
-      latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
-    })
-    .from(users)
-    .leftJoin(orders, eq(orders.userId, users.id))
-    .where(eq(users.role, "user"))
-    .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
-    .orderBy(orderBy)
-    .limit(500);
+  const { condition, page } = parseFilterState(spec, sp);
 
-  return <CustomersList rows={rows} sort={sort} />;
+  const result = await listCustomersPage(condition, page, sort);
+
+  return <CustomersList spec={spec} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
 }
 
 async function NewCustomerAction() {
