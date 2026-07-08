@@ -67,19 +67,23 @@ WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);
 
 -- ============ PLANS ============
 INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type, offered_slots,
-                   allowed_start_days)
+                   allowed_start_days, category_counts)
 VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'veg',
-        'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin', ARRAY ['lunch'],
-        ARRAY ['mon','tue','wed','thu','fri']),
+        'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin',
+        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
+        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
        ('pln_halal_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'halal_nonveg', 'Halal Non-Veg Plan', 'Poultry, mutton, egg masalas, daals, chapatis.', 'tiffin',
-        ARRAY ['lunch'], ARRAY ['mon','tue','wed','thu','fri']),
+        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
+        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
        ('pln_mixed', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'mixed',
-        'Veg & Non-Veg Mixed Plan', 'Alternating vegetarian and non-vegetarian days.', 'tiffin', ARRAY ['lunch'],
-        ARRAY ['mon','tue','wed','thu','fri']),
+        'Veg & Non-Veg Mixed Plan', 'Alternating vegetarian and non-vegetarian days.', 'tiffin',
+        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
+        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
        ('pln_healthy', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'healthy', 'Healthy Plan', 'Breakfast, lunch, and dinner — pick the slots you want.', 'healthy',
-        ARRAY ['breakfast','lunch','dinner'], ARRAY ['mon','tue','wed','thu','fri'])
+        ARRAY ['protein','grain','veg','salad'], ARRAY ['mon','tue','wed','thu','fri'],
+        '{"protein":1,"grain":1,"veg":2,"salad":1}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ MEAL SIZES ============
@@ -227,16 +231,27 @@ INSERT INTO coin_rate (public_id, created_at, currency, value_per_coin)
 SELECT 'cnr_cad_default', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'CAD', 0.1000
 WHERE NOT EXISTS (SELECT 1 FROM coin_rate WHERE currency = 'CAD');
 
--- ============ MENU: MEAL SLOTS ============
-INSERT INTO meal_slots (public_id, created_at, updated_at, plan_type, key, label, enabled, sort_order)
-VALUES ('slt_tiffin_lunch', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'lunch', 'Lunch', TRUE, 1),
-       ('slt_healthy_breakfast', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'breakfast', 'Breakfast', TRUE, 0),
-       ('slt_healthy_lunch', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'lunch', 'Lunch', TRUE, 1),
-       ('slt_healthy_dinner', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'dinner', 'Dinner', TRUE, 2)
+-- ============ MENU: DISH CATEGORIES ============
+INSERT INTO dish_categories (public_id, created_at, updated_at, plan_type, key, label, enabled, selectable,
+                             sort_order)
+VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'tiffin', 'sabzi', 'Sabzi', TRUE, TRUE, 1),
+       ('slt_tiffin_rice', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'tiffin', 'rice', 'Rice', TRUE, FALSE, 2),
+       ('slt_tiffin_roti', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'tiffin', 'roti', 'Roti', TRUE, FALSE, 3),
+       ('slt_tiffin_raita', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'tiffin', 'raita', 'Raita', TRUE, FALSE, 4),
+       ('slt_tiffin_salad', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'tiffin', 'salad', 'Salad', TRUE, FALSE, 5),
+       ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'healthy', 'protein', 'Protein', TRUE, FALSE, 1),
+       ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'healthy', 'grain', 'Grain', TRUE, FALSE, 2),
+       ('slt_healthy_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'healthy', 'veg', 'Veg', TRUE, TRUE, 3),
+       ('slt_healthy_salad', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'healthy', 'salad', 'Salad', TRUE, FALSE, 4)
 ON CONFLICT (plan_type, key) DO NOTHING;
 
 -- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
@@ -337,7 +352,7 @@ COMMIT;
 -- select 'app', count(*) from app union all
 -- select 'event_payout', count(*) from event_payout union all
 -- select 'coin_rate', count(*) from coin_rate union all
--- select 'meal_slots', count(*) from meal_slots union all
+-- select 'dish_categories', count(*) from dish_categories union all
 -- select 'dishes', count(*) from dishes union all
 -- select 'menu_weeks', count(*) from menu_weeks union all
 -- select 'menu_items', count(*) from menu_items;
