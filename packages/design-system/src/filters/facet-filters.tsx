@@ -141,10 +141,20 @@ function SingleSelectFacet({
           {selected && <span className="font-medium">: {selected.label}</span>}
           {selected ? (
             <X
-              className="size-3.5"
+              role="button"
+              tabIndex={0}
+              aria-label={`Clear ${label} filter`}
+              className="size-3.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange(null);
+                }
               }}
             />
           ) : (
@@ -196,10 +206,20 @@ function MultiSelectFacet({
           {values.length > 0 && <span className="font-medium">: {values.length}</span>}
           {values.length > 0 ? (
             <X
-              className="size-3.5"
+              role="button"
+              tabIndex={0}
+              aria-label={`Clear ${label} filter`}
+              className="size-3.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange([]);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange([]);
+                }
               }}
             />
           ) : (
