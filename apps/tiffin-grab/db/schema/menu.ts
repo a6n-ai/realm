@@ -3,17 +3,18 @@ import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } fr
 import { dishes, planType } from "./catalog";
 import { orders } from "./orders";
 
-export const mealSlots = pgTable(
-  "meal_slots",
+export const dishCategories = pgTable(
+  "dish_categories",
   {
     ...updatableColumns("slt"),
     planType: planType("plan_type").notNull().default("tiffin"),
     key: text("key").notNull(),
     label: text("label").notNull(),
     enabled: boolean("enabled").notNull().default(false),
+    selectable: boolean("selectable").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [uniqueIndex("meal_slots_type_key_unique").on(t.planType, t.key)],
+  (t) => [uniqueIndex("dish_categories_type_key_unique").on(t.planType, t.key)],
 );
 
 export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);
@@ -38,6 +39,7 @@ export const menuItems = pgTable(
     ...updatableColumns("mni"),
     menuWeekId: bigint("menu_week_id", { mode: "bigint" }).notNull().references(() => menuWeeks.id, { onDelete: "cascade" }),
     dayOfWeek: dayOfWeek("day_of_week").notNull(),
+    // slot column now holds a category key (sabzi/rice/…), not a meal-time
     slot: text("slot").notNull(),
     dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
     isDefault: boolean("is_default").notNull().default(false),
@@ -53,9 +55,20 @@ export const mealSelections = pgTable(
     orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id, { onDelete: "cascade" }),
     menuWeekId: bigint("menu_week_id", { mode: "bigint" }).notNull().references(() => menuWeeks.id),
     dayOfWeek: dayOfWeek("day_of_week").notNull(),
+    // slot column now holds a category key (sabzi/rice/…), not a meal-time
     slot: text("slot").notNull(),
     personIndex: integer("person_index").notNull(),
+    pickIndex: integer("pick_index").notNull().default(1),
     dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
   },
-  (t) => [uniqueIndex("meal_selections_unique").on(t.orderId, t.menuWeekId, t.dayOfWeek, t.slot, t.personIndex)],
+  (t) => [
+    uniqueIndex("meal_selections_unique").on(
+      t.orderId,
+      t.menuWeekId,
+      t.dayOfWeek,
+      t.slot,
+      t.personIndex,
+      t.pickIndex,
+    ),
+  ],
 );
