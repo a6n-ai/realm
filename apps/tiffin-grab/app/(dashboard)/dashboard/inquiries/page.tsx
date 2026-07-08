@@ -10,6 +10,7 @@ import { inquiriesService } from "@/lib/services/inquiries.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
+import { loadOwnerOptions, loadSourceOptions } from "@/lib/list/facet-options";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import {
@@ -18,13 +19,27 @@ import {
   SectionCard,
   StatGrid,
   SkeletonStatCards,
+  parseFilterState,
+  type FacetDef,
 } from "@/components/ds";
 import { AddInquirySheet } from "./new-inquiry-form";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+// Single source of truth for the Stage facet. Real DB stages only — the pipeline
+// pseudo-buckets ("all"/"overdue") were client-only toggles and never valid
+// `inquiries.stage` values, so they can't be server-filter facet options.
+const STAGE_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "quoted", label: "Quoted" },
+  { value: "follow_up", label: "Follow-up" },
+  { value: "converted", label: "Converted" },
+  { value: "lost", label: "Lost" },
+];
 
 export default function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -152,24 +167,44 @@ async function InquiryStats() {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
 
+  const sp = await searchParams;
   const sort = parseSort(
-    await searchParams,
+    sp,
     ["name", "owner", "stage", "source", "lastTouch", "created"],
     { column: "created", dir: "desc" },
   );
 
-  const [stageCounts, rows, sheet, canReassignRecords] = await Promise.all([
-    db.select({ stage: inquiries.stage, n: count() }).from(inquiries).groupBy(inquiries.stage),
-    inquiriesService.listForPipeline(sort),
+  const [owners, { sources, subsources }, sheet, canReassignRecords] = await Promise.all([
+    loadOwnerOptions(),
+    loadSourceOptions(),
     loadSheetData(),
     canReassign(),
   ]);
+
+  // Facet spec is server-authored so parseFilterState (server) and FacetFilters
+  // (client) read the same shape. Search is the "search" facet — rendered by the
+  // nav-bar search, not FacetFilters — and its OR(fullName, phone) is folded into
+  // the condition here.
+  const spec: FacetDef[] = [
+    { kind: "pills", field: "stage", label: "Stage", options: STAGE_OPTIONS },
+    { kind: "select", field: "owner", label: "Owner", options: owners },
+    { kind: "multi", field: "source", label: "Source", options: sources },
+    { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
+    { kind: "dateRange", field: "createdAt", label: "Created" },
+    { kind: "search", fields: ["fullName", "phone"] },
+  ];
+
+  const { condition, page } = parseFilterState(spec, sp);
+  const result = await inquiriesService.listForPipeline(condition, page, sort);
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
     <InquiriesList
-      rows={rows}
-      stageCounts={stageCounts}
+      spec={spec}
+      rows={result.items}
+      total={result.total}
+      page={page.page}
+      size={page.size}
       sort={sort}
       canReassign={canReassignRecords}
       staff={staff}

@@ -3,28 +3,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
-import { DataTable, FilterChips, FilterPill, FilterSheet, StageBadge, type Column } from "@/components/ds";
+import {
+  DataTable, FacetFilters, ListPagination, StageBadge, type Column, type FacetDef,
+} from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
-import { useUrlState } from "@/lib/list/use-url-state";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ReassignControl } from "@/components/reassign/reassign-control";
-
-const STAGE_PILLS = [
-  { key: "all", label: "All" },
-  { key: "new", label: "New" },
-  { key: "contacted", label: "Contacted" },
-  { key: "quoted", label: "Quoted" },
-  { key: "follow_up", label: "Follow-up" },
-  { key: "converted", label: "Converted" },
-  { key: "lost", label: "Lost" },
-  { key: "overdue", label: "Overdue" },
-] as const;
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "lastTouch" | "created";
 
@@ -41,116 +28,45 @@ const COLUMNS: readonly Column<InquirySortColumn | "nextAction">[] = [
   { key: "created", label: "Created", sortable: true, align: "right" },
 ];
 
-const ALL_OWNERS = "__all__";
-
 export function InquiriesList({
+  spec,
   rows,
-  stageCounts,
+  total,
+  page,
+  size,
   sort,
   emptyCta,
   canReassign,
   staff,
   reassignAction,
 }: {
+  spec: FacetDef[];
   rows: PipelineRow[];
-  stageCounts: { stage: string; n: number }[];
+  total: number;
+  page: number;
+  size: number;
   sort: SortState<InquirySortColumn>;
   emptyCta?: ReactNode;
   canReassign?: boolean;
   staff?: { publicId: string; name: string }[];
   reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
 }) {
-  const [activeStage, setActiveStage] = useUrlState("stage", "all");
-  const [owner, setOwner] = useUrlState("owner", ALL_OWNERS);
-
-  const owners = Array.from(
-    new Set(rows.map((r) => r.ownerName).filter((n): n is string => !!n)),
-  ).sort();
-
-  const renderOwnerSelect = (triggerClassName: string) => (
-    <Select value={owner} onValueChange={setOwner}>
-      <SelectTrigger className={triggerClassName}>
-        <SelectValue placeholder="All owners" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL_OWNERS}>All owners</SelectItem>
-        {owners.map((o) => (
-          <SelectItem key={o} value={o}>
-            {o}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  const countOf = (stage: string) => {
-    if (stage === "all") return rows.length;
-    if (stage === "overdue") return rows.filter((r) => r.overdue).length;
-    return stageCounts.find((r) => r.stage === stage)?.n ?? 0;
-  };
-
-  // Stage + owner are still caller-owned URL filters; DataTable owns the "q"
-  // search (keys below). Pre-filter here, then hand the result to DataTable.
-  const scoped = rows.filter((r) => {
-    const matchStage =
-      activeStage === "all" ||
-      (activeStage === "overdue" ? r.overdue : r.stage === activeStage);
-    const matchOwner = owner === ALL_OWNERS || r.ownerName === owner;
-    return matchStage && matchOwner;
-  });
-
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={scoped}
-      rowKey={(r) => r.publicId}
-      sort={sort}
-      idAccessor={(r) => r.publicId}
-      idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
-      search={{ placeholder: "Search by name, phone, source or ID…", shortPlaceholder: "Search…", keys: ["fullName", "phone", "source"] }}
-      rowClassName={() => "group cursor-pointer"}
-      filters={
-        <>
-          <div className="hidden items-center gap-2 md:flex">
-            <FilterChips>
-              {STAGE_PILLS.map((p) => (
-                <FilterPill
-                  key={p.key}
-                  label={p.label}
-                  active={activeStage === p.key}
-                  count={countOf(p.key)}
-                  onClick={() => setActiveStage(p.key)}
-                />
-              ))}
-            </FilterChips>
-            {renderOwnerSelect("h-8 w-40")}
-          </div>
-          <div className="md:hidden">
-            <FilterSheet
-              iconOnly
-              activeCount={(activeStage === "all" ? 0 : 1) + (owner === ALL_OWNERS ? 0 : 1)}
-            >
-              <div className="flex flex-wrap gap-2">
-                {STAGE_PILLS.map((p) => (
-                  <FilterPill
-                    key={p.key}
-                    label={p.label}
-                    active={activeStage === p.key}
-                    count={countOf(p.key)}
-                    onClick={() => setActiveStage(p.key)}
-                  />
-                ))}
-              </div>
-              {renderOwnerSelect("w-full")}
-            </FilterSheet>
-          </div>
-        </>
-      }
-      emptyIcon={ClipboardListIcon}
-      emptyMessage="No inquiries yet."
-      emptySearchMessage="No inquiries match your search."
-      emptyAction={emptyCta}
-      renderRow={(r) => (
+    <div className="space-y-4">
+      <DataTable
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        sort={sort}
+        idAccessor={(r) => r.publicId}
+        idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
+        rowClassName={() => "group cursor-pointer"}
+        filters={<FacetFilters spec={spec} />}
+        emptyIcon={ClipboardListIcon}
+        emptyMessage="No inquiries yet."
+        emptySearchMessage="No inquiries match your search."
+        emptyAction={emptyCta}
+        renderRow={(r) => (
         <>
           <TableCell className="font-medium">
             <Link
@@ -199,7 +115,9 @@ export function InquiriesList({
           </TableCell>
         </>
       )}
-    />
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 

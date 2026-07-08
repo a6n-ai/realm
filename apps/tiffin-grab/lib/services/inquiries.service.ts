@@ -1,6 +1,8 @@
-import { BaseRepository, UpdatableRepository } from "@realm/database";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
 import { ValidationError, phoneSchema, emailSchema } from "@realm/commons";
-import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
+import type { Condition, FilterCondition } from "@realm/commons/model/condition";
+import type { PageRequest } from "@realm/commons/util/pagination";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -33,6 +35,42 @@ export function computeOverdue(stage: string, nextFollowUpAt: number | null, now
   if (nextFollowUpAt == null) return false;
   if (stage === "converted" || stage === "lost") return false;
   return nextFollowUpAt < now;
+}
+
+// Field → base-table column. Every filterable facet lives on the base `inquiries`
+// row; the leadSources/users joins in `list` are display-only. The FK facets
+// (owner/source/subsource) carry readable public ids / keys in the URL, resolved
+// to internal ids via a scalar subquery so no internal id ever leaks into a link.
+function inquiriesResolver() {
+  const base = columnResolver({
+    stage: inquiries.stage,
+    createdAt: inquiries.createdAt,
+    fullName: inquiries.fullName,
+    phone: inquiries.phone,
+  });
+  const valuesOf = (f: FilterCondition) =>
+    f.operator === "in" ? (f.value as string[]) : [f.value as string];
+  return (f: FilterCondition) => {
+    if (f.field === "owner") {
+      return inArray(
+        inquiries.currentOwner,
+        db.select({ id: users.id }).from(users).where(inArray(users.publicId, valuesOf(f))),
+      );
+    }
+    if (f.field === "source") {
+      return inArray(
+        inquiries.sourceId,
+        db.select({ id: leadSources.id }).from(leadSources).where(inArray(leadSources.key, valuesOf(f))),
+      );
+    }
+    if (f.field === "subsource") {
+      return inArray(
+        inquiries.subSourceId,
+        db.select({ id: leadSubsources.id }).from(leadSubsources).where(inArray(leadSubsources.key, valuesOf(f))),
+      );
+    }
+    return base(f);
+  };
 }
 
 // True when a Postgres unique-violation (23505) hit the open-lead partial index.
@@ -258,9 +296,20 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     // entry rather than widen the enum here.
   }
 
+  // The pipeline list: server-side unified filters (Condition) + offset
+  // pagination + unpaginated total. Named `listForPipeline` (not `list`) on
+  // purpose — the framework reserves `BaseService.list` for the generic
+  // raw-row paged API that @realm/routes exposes, and a projected/joined shape
+  // can't override it. Tasks 7/8 copy this method, not the base `list`.
+  // No explicit return annotation: PipelineRow is inferred from it (below), so
+  // annotating `Promise<Page<PipelineRow>>` would be a circular type reference.
   async listForPipeline(
+    condition: Condition | undefined,
+    page: PageRequest,
     sort: SortState<PipelineSortColumn> = { column: "created", dir: "desc" },
   ) {
+    const where = conditionToSql(condition, inquiriesResolver());
+
     const agg = db
       .select({
         inquiryId: inquiryActivities.inquiryId,
@@ -270,6 +319,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .groupBy(inquiryActivities.inquiryId)
       .as("agg");
 
+    // Same sortable set as listForPipeline; nextAction/source-key facets are not
+    // sort keys. Unknown columns fall back to createdAt.
     const SORT_COL = {
       name: inquiries.fullName,
       stage: inquiries.stage,
@@ -278,7 +329,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       owner: users.name,
       lastTouch: agg.lastTouchAt,
     } as const;
-    // nextAction sorts by the correlated subquery alias; fall back to created when unsupported.
     const col = SORT_COL[sort.column as keyof typeof SORT_COL] ?? inquiries.createdAt;
 
     const rows = await db
@@ -292,9 +342,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         ownerName: users.name,
         createdAt: inquiries.createdAt,
         lastTouchAt: agg.lastTouchAt,
-        // The LATEST activity's nextFollowUpAt (null when the most recent touch
-        // scheduled none) — a newer touch with no follow-up clears overdue. This
-        // matches the detail-page timeline (latest-row) overdue semantics.
         nextFollowUpAt: sql<number | null>`(
           select a.next_follow_up_at from inquiry_activities a
           where a.inquiry_id = ${inquiries.id}
@@ -305,11 +352,21 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
       .leftJoin(users, eq(inquiries.currentOwner, users.id))
       .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
+      .where(where)
       .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-      .limit(500);
+      .limit(page.size)
+      .offset(page.page * page.size);
+
+    // Count on the base table with the identical predicate — all facets are base
+    // columns (owner/source/subsource resolve via subquery), so no join is needed.
+    const [{ count }] = await db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(inquiries)
+      .where(where);
 
     const now = Date.now();
-    return rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+    const items = rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+    return { items, page: page.page, size: page.size, total: count };
   }
 
   async listActivities(publicId: string) {
@@ -397,5 +454,5 @@ export const inquiriesService = new InquiriesService(repo);
 const inquiryActivitiesService = new SessionBaseService(
   new BaseRepository(db, inquiryActivities, inquiryActivities.publicId, inquiryActivities.id),
 );
-export type PipelineRow = Awaited<ReturnType<InquiriesService["listForPipeline"]>>[number];
+export type PipelineRow = Awaited<ReturnType<InquiriesService["listForPipeline"]>>["items"][number];
 export type { Stage as InquiryStage, ActivityType, LostReason };
