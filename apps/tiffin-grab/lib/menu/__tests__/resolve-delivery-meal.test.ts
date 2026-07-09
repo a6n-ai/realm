@@ -70,4 +70,23 @@ describe("resolveDeliveryMeal", () => {
     expect(rice.quantity).toBe(1);
     expect(rice.picks.length).toBe(1); // the single default dish
   });
+
+  it("falls back to the lowest-position item (deterministic) when no item is marked isDefault", async () => {
+    // tue has no explicit isDefault in the sabzi category and no explicit picks —
+    // both dishes are isDefault=false with distinct positions.
+    const [sabziLow] = await db.insert(dishes).values({ name: "Aloo Gobi", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala", diet: "veg", slots: ["lunch"] }).returning();
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziLow.id, isDefault: false, position: 1 });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziHigh.id, isDefault: false, position: 2 });
+
+    const meal = await resolveDeliveryMeal(order, week, "tue", 1);
+
+    const sabzi = meal.find((m) => m.category === "sabzi")!;
+    expect(sabzi.selectable).toBe(true);
+    // No isDefault and no explicit picks for either pickIndex: both picks resolve to the
+    // lowest-position item, deterministically (not an arbitrary/nondeterministic row).
+    expect(sabzi.picks[0].dishPublicId).toBe(sabziLow.publicId);
+    expect(sabzi.picks[0].name).toBe("Aloo Gobi");
+    expect(sabzi.picks[1].dishPublicId).toBe(sabziLow.publicId);
+  });
 });

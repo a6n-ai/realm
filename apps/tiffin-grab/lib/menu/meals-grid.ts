@@ -128,7 +128,9 @@ export async function buildMealsGrid(
         );
       if (slotDishes.length === 0) continue;
       const count = categoryCounts[cat.key] ?? 1;
-      const defaultItem = slotItems.find((i) => i.isDefault);
+      // Same resolution as resolveDeliveryMeal: isDefault else lowest-position item (slotItems is
+      // already position-ordered via menuService.weekWithItems), never an empty cell.
+      const defaultItem = slotItems.find((i) => i.isDefault) ?? slotItems[0];
       const defaultDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
 
       for (let p = 1; p <= order.persons; p++) {
