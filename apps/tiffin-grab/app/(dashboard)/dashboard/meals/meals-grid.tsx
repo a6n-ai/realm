@@ -103,7 +103,7 @@ export function MealsGridSkeleton() {
       ))}
     </div>
   );
-};
+}
 
 function DeliveryCard({
   weekDate,

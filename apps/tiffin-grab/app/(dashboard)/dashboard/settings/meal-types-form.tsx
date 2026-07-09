@@ -236,7 +236,7 @@ export function MealTypesForm({
                     onClick={() => handleAddSlot(t)}
                   >
                     <PlusIcon className="size-3.5" />
-                    Add slot
+                    Add category
                   </Button>
                 </div>
               </div>
@@ -469,4 +469,4 @@ export function MealTypesFormSkeleton() {
       </div>
     </div>
   );
-};
+}
