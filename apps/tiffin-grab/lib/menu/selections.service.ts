@@ -17,7 +17,10 @@ type Week = typeof menuWeeks.$inferSelect;
 
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 
-function dietsForPlanKey(planKey: string): ("veg" | "nonveg")[] {
+// Single source of truth for "which diets does this plan key admit" — shared by setSelection
+// (input validation), buildMealsGrid (dish-option filtering), and resolveDeliveryMeal
+// (per-category diet filtering) so the three can never disagree.
+export function dietsForPlanKey(planKey: string): ("veg" | "nonveg")[] {
   if (planKey === "veg") return ["veg"];
   if (planKey === "halal_nonveg") return ["nonveg"];
   return ["veg", "nonveg"];

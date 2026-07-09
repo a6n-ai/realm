@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { orderDeliveryDays } from "./delivery-days";
 import { comingWeekStartIso, subscriptionDeliveryDates, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
-import { selectionsService } from "./selections.service";
+import { dietsForPlanKey } from "./selections.service";
+import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 
@@ -88,15 +89,15 @@ export async function buildMealsGrid(
     .where(eq(plans.id, order.planId))
     .limit(1);
   const planKey = planRow?.key ?? "mixed";
-  const allowedDiets: ("veg" | "nonveg")[] =
-    planKey === "veg" ? ["veg"] : planKey === "halal_nonveg" ? ["nonveg"] : ["veg", "nonveg"];
-  const categoryCounts = planRow?.counts ?? {};
+  const allowedDiets = dietsForPlanKey(planKey);
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
-  const [categories, picks, dishRows] = await Promise.all([
+  const [categories, weekResolved, dishRows] = await Promise.all([
     dishCategoriesService.forPlanType((planRow?.planType ?? "tiffin") as "tiffin" | "healthy"),
-    selectionsService.effectiveSelections(order.id, releasedWeek.id),
+    // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
+    // including stale-pick re-validation and diet filtering — buildMealsGrid must not re-derive it.
+    resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
     allDishBigintIds.length > 0
       ? db
           .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, diet: dishes.diet })
@@ -107,7 +108,6 @@ export async function buildMealsGrid(
   ]);
 
   const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet }]));
-  const dishPublicIdByBigintId = new Map(dishRows.map((d) => [d.bigintId, d.id]));
 
   const weekDatesView: WeekDateView[] = weekDates.map((d) => {
     const lockMs = cutoffMsFor(d.dateIso, cutoffHour, timezone);
@@ -119,6 +119,12 @@ export async function buildMealsGrid(
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
     for (const cat of categories) {
       const slot = cat.key;
+      // Representative resolution (person 1): diet filtering and category_counts are
+      // person-independent, so whether this (day, category) renders at all doesn't vary by
+      // person — only the resolved pick per pickIndex does.
+      const repResolved = weekResolved.get(resolvedMealsWeekKey(day, 1))?.find((r) => r.category === slot);
+      if (!repResolved) continue; // omitted: diet-filtered-empty or count=0 for this plan
+
       const slotItems = dayItems.filter((i) => i.slot === slot);
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
@@ -126,42 +132,29 @@ export async function buildMealsGrid(
           (d): d is { id: string; name: string; diet: "veg" | "nonveg" } =>
             !!d && allowedDiets.includes(d.diet),
         );
-      if (slotDishes.length === 0) continue;
-      const count = categoryCounts[cat.key] ?? 1;
-      // Same resolution as resolveDeliveryMeal: isDefault else lowest-position item (slotItems is
-      // already position-ordered via menuService.weekWithItems), never an empty cell.
-      const defaultItem = slotItems.find((i) => i.isDefault) ?? slotItems[0];
-      const defaultDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
 
       for (let p = 1; p <= order.persons; p++) {
+        const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);
         if (!cat.selectable) {
           // Fixed category: a single read-only cell — no picker, quantity is the plan's count.
-          // `dishes` carries just the resolved default (not the full slot menu) so the UI
-          // can render its name without offering a picker.
-          const defaultDish = defaultItem ? dishMap.get(defaultItem.dishId) : undefined;
+          // `dishes` carries just the resolved dish (not the full slot menu) so the UI can
+          // render its name without offering a picker.
+          const pick = resolved?.picks[0];
+          const pickDish = pick ? dishMap.get(pick.dishId) : undefined;
           grid.push({
-            day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: count,
-            selectedDishId: defaultDishId, isDefaulted: defaultDishId !== null,
-            dishes: defaultDish ? [defaultDish] : [], locked,
+            day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: repResolved.quantity,
+            selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
+            dishes: pickDish ? [pickDish] : [], locked,
           });
           continue;
         }
-        // Selectable category: one picker cell per pickIndex, each resolving pick → isDefault fallback.
-        for (let pickIndex = 1; pickIndex <= count; pickIndex++) {
-          const pick = picks.find(
-            (sel) => sel.dayOfWeek === day && sel.slot === slot && sel.personIndex === p && sel.pickIndex === pickIndex,
-          );
-          let selectedDishId: string | null = null;
-          let isDefaulted = false;
-          if (pick) {
-            selectedDishId = dishPublicIdByBigintId.get(pick.dishId) ?? null;
-          } else {
-            selectedDishId = defaultDishId;
-            isDefaulted = selectedDishId !== null;
-          }
+        // Selectable category: one picker cell per pickIndex, resolved pick → isDefault fallback.
+        for (let pickIndex = 1; pickIndex <= repResolved.quantity; pickIndex++) {
+          const pick = resolved?.picks[pickIndex - 1];
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
-            selectedDishId, isDefaulted, dishes: slotDishes, locked,
+            selectedDishId: pick?.dishPublicId ?? null, isDefaulted: pick?.isDefaulted ?? false,
+            dishes: slotDishes, locked,
           });
         }
       }
