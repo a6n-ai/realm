@@ -1,7 +1,7 @@
-// NOTE (2026-07-01): the isDefault fallback for "what a subscriber receives when they
-// don't pick" lives only in buildMealsGrid (meals-grid.ts). No separate fulfillment read
-// exists yet. Any future kitchen/ops read MUST resolve the same way (explicit pick →
-// else the day/slot isDefault item) or subscribers get a different meal than the grid shows.
+// Resolving "what a subscriber actually receives" lives in ONE place:
+// resolveCategoriesForDay (resolve-delivery-meal.ts). buildMealsGrid consumes it, and any
+// future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
+// the subscriber sees one meal while the kitchen packs another.
 import { ValidationError } from "@realm/commons";
 import { cutoffMsFor } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
@@ -104,11 +104,5 @@ export const selectionsService = {
       }
     }
     return { applied, skipped };
-  },
-
-  async effectiveSelections(orderId: bigint, menuWeekId: bigint) {
-    const picks = await db.select().from(mealSelections)
-      .where(and(eq(mealSelections.orderId, orderId), eq(mealSelections.menuWeekId, menuWeekId)));
-    return picks;
   },
 };
