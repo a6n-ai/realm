@@ -23,7 +23,8 @@ import {
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
-import { OrdersList, OrdersListSkeleton, ORDER_STATUS_PILLS } from "./orders-list";
+import { OrdersList, OrdersListSkeleton } from "./orders-list";
+import { ORDER_STATUS_PILLS } from "./status-pills";
 import { NewOrderSheet } from "./new-order-sheet";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

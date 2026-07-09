@@ -12,16 +12,9 @@ import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { reassignOrderAction } from "./actions";
 
-// Single source of truth for the Status facet — also the pill/badge label map.
-// "all" is a client-only pseudo-bucket, never a valid `orders.status` value, so
-// it's excluded from the server-filter facet options (see page.tsx).
-export const ORDER_STATUS_PILLS = [
-  { value: "pending", label: "Pending" },
-  { value: "active", label: "Active" },
-  { value: "waitlisted", label: "Waitlisted" },
-  { value: "paused", label: "Paused" },
-  { value: "cancelled", label: "Cancelled" },
-] as const;
+// ORDER_STATUS_PILLS lives in ./status-pills (a non-client module) because the
+// server page maps over it; re-exporting it here would hand the RSC graph a
+// client reference instead of the array.
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the

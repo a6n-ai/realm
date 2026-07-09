@@ -14,6 +14,7 @@ import { TableCell } from "@realm/ui/table";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import { eventLabel } from "./template-status";
+import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
 export interface TemplateChannel {
   channel: string;
@@ -25,7 +26,9 @@ export interface TemplateStatus {
   updatedAt: number | null;
 }
 
-export type TemplateSortColumn = "event" | "channels" | "updated";
+// Columns + sort-key type live in ./template-columns so the server-rendered
+// skeleton can import them without crossing this module's "use client" boundary.
+export type { TemplateSortColumn } from "./template-columns";
 
 /** Display names per channel. Unknown/future channels fall back to a humanized label. */
 const CHANNEL_LABEL: Record<string, string> = { email: "Email", in_app: "In-app", sms: "SMS", whatsapp: "WhatsApp" };
@@ -49,12 +52,6 @@ type Row = {
 
 // Single source of truth for the header — DataTable and DataTable.Skeleton both
 // render from this array, so the loading twin can never drift.
-export const TEMPLATE_COLUMNS: readonly Column<TemplateSortColumn | "actions">[] = [
-  { key: "event", label: "Event", sortable: true },
-  { key: "channels", label: "Channels", sortable: true },
-  { key: "updated", label: "Updated", sortable: true, align: "right" },
-  { key: "actions", label: "Actions", align: "right", width: "w-16" },
-];
 
 function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
   if (channels.length === 0) return <span className="text-xs text-muted-foreground">Not configured</span>;
