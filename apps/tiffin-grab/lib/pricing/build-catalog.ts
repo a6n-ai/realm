@@ -10,7 +10,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError(`Persons must be an integer ${MIN_PERSONS}–${MAX_PERSONS}`);
   }
   if (!Array.isArray(selections.mealSlots) || selections.mealSlots.length === 0) {
-    throw new ValidationError("At least one meal slot is required");
+    throw new ValidationError("At least one category is required");
   }
 
   const mealSize = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);

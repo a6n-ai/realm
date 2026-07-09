@@ -6,7 +6,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
-import { initialSelections, WIZARD_STORAGE_KEY, type EnabledSlot, type WizardSelections } from "./selections";
+import { initialSelections, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -14,7 +14,7 @@ import { StepDuration } from "./steps/step-duration";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start & duration"] as const;
 
-export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapshot; enabledSlots: EnabledSlot[] }) {
+export function Wizard({ catalog }: { catalog: ClientCatalogSnapshot }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [selections, setSelections] = useState<WizardSelections>(initialSelections);
@@ -58,7 +58,7 @@ export function Wizard({ catalog, enabledSlots }: { catalog: ClientCatalogSnapsh
 
       {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} />}
       {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} />}
-      {step === 2 && <StepSchedule catalog={catalog} selections={selections} set={set} enabledSlots={enabledSlots} />}
+      {step === 2 && <StepSchedule catalog={catalog} selections={selections} set={set} />}
       {step === 3 && <StepDuration catalog={catalog} selections={selections} set={set} result={result} />}
 
       <div className="flex justify-between">

@@ -1,29 +1,14 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { EnabledSlot, WizardSelections } from "../selections";
+import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
 import { Label } from "@realm/ui/label";
 import { Button } from "@realm/ui/button";
 
-export function StepSchedule({ catalog, selections, set, enabledSlots }: {
+export function StepSchedule({ catalog, selections, set }: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
-  enabledSlots: EnabledSlot[];
 }) {
-  const toggleSlot = (key: string, checked: boolean) => {
-    const next = checked
-      ? [...selections.mealSlots, key]
-      : selections.mealSlots.filter((k) => k !== key);
-    // Keep at least one slot selected; ignore an unchecking that would empty it.
-    if (next.length === 0) return;
-    set({ mealSlots: next });
-  };
-
-  const plan = catalog.plans.find((p) => p.key === selections.planKey);
-  const offered = new Set(plan?.offeredSlots ?? []);
-  const slotsForPlan = enabledSlots.filter((s) => offered.has(s.key));
-  const isTiffin = plan?.planType === "tiffin";
-
   return (
     <div className="space-y-6">
       <div>
@@ -50,37 +35,6 @@ export function StepSchedule({ catalog, selections, set, enabledSlots }: {
           <Button type="button" variant="outline" size="icon" onClick={() => set({ persons: Math.min(5, selections.persons + 1) })}>+</Button>
         </div>
       </div>
-
-      {slotsForPlan.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Meal slots</Label>
-          {isTiffin ? (
-            <RadioGroup
-              className="grid gap-2"
-              value={selections.mealSlots[0] ?? ""}
-              onValueChange={(v) => set({ mealSlots: [v] })}
-            >
-              {slotsForPlan.map((slot) => (
-                <div key={slot.key} className="flex items-center gap-2 rounded-md border p-3">
-                  <RadioGroupItem id={`slot-${slot.key}`} value={slot.key} />
-                  <Label htmlFor={`slot-${slot.key}`}>{slot.label}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          ) : (
-            slotsForPlan.map((slot) => (
-              <label key={slot.key} className="flex items-center gap-2 rounded-md border p-3">
-                <input
-                  type="checkbox"
-                  checked={selections.mealSlots.includes(slot.key)}
-                  onChange={(e) => toggleSlot(slot.key, e.target.checked)}
-                />
-                <span>{slot.label}</span>
-              </label>
-            ))
-          )}
-        </div>
-      )}
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Weekend delivery</Label>

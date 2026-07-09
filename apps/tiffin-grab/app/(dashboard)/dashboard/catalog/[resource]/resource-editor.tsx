@@ -30,6 +30,7 @@ type Options = Record<string, { value: string; label: string }[]>;
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
+const isSpanningType = (f: FieldDef) => isArrayType(f) || f.type === "categoryCounts";
 
 // Single source of truth for the table's visible columns: every field except
 // hidden ones and the slug key (shown as subtext under the first column). Both
@@ -140,6 +141,33 @@ function FieldControl({
                   >
                     {o.label}
                   </button>
+                );
+              })}
+            </div>
+          ) : f.type === "categoryCounts" ? (
+            <div className="grid gap-2">
+              {opts.map((o) => {
+                const counts = (field.value as Record<string, number>) ?? {};
+                const n = counts[o.value] ?? 0;
+                return (
+                  <div key={o.value} className="flex items-center justify-between gap-3 rounded-md border p-2">
+                    <span className="text-sm">{o.label}</span>
+                    <Input
+                      className="nums w-20"
+                      type="number"
+                      min={0}
+                      value={n === 0 ? "" : n}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const next = { ...counts };
+                        const parsed = raw === "" ? 0 : Number(raw);
+                        if (!parsed || parsed <= 0) delete next[o.value];
+                        else next[o.value] = parsed;
+                        field.onChange(next);
+                      }}
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -332,7 +360,7 @@ function EditorDialog({
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
             {def.fields.map((f) => (
-              <div key={f.key} className={isArrayType(f) ? "sm:col-span-2" : undefined}>
+              <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
                 <FieldControl f={f} form={form} options={options} isNew={isNew} />
                 {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
                   <button
@@ -361,8 +389,14 @@ function EditorDialog({
 /* ─────────────────────────── List table ─────────────────────────── */
 
 function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Options }) {
-  if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
+  const isEmptyCategoryCounts = f.type === "categoryCounts" && value != null && typeof value === "object" && Object.keys(value).length === 0;
+  if (value == null || value === "" || (Array.isArray(value) && value.length === 0) || isEmptyCategoryCounts) {
     return <span className="text-muted-foreground/50">—</span>;
+  }
+  if (f.type === "categoryCounts") {
+    const counts = value as Record<string, number>;
+    const text = Object.entries(counts).map(([k, n]) => `${labelFor(f, k, options)} × ${n}`).join(", ");
+    return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
   }
   if (f.type === "select") {
     return <Badge variant="secondary" className="font-normal">{labelFor(f, String(value), options)}</Badge>;

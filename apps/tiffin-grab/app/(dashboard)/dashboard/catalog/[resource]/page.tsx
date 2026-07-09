@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
@@ -68,11 +69,15 @@ async function CatalogData({ resource, searchParams }: { resource: string; searc
   if (!def || !table) notFound();
 
   const needsSlots = def.fields.some((f) => f.optionsSource === "mealSlots");
+  const needsCategories = def.fields.some((f) => f.optionsSource === "categories");
   const slotRows = needsSlots ? await mealSlotsService.enabledSlots() : [];
+  const categoryRows = needsCategories ? await dishCategoriesService.enabledCategories() : [];
   const dynamicOptions: Record<string, { value: string; label: string }[]> = {};
   for (const f of def.fields) {
     if (f.optionsSource === "mealSlots") {
       dynamicOptions[f.key] = slotRows.map((s) => ({ value: s.key, label: s.label }));
+    } else if (f.optionsSource === "categories") {
+      dynamicOptions[f.key] = categoryRows.map((c) => ({ value: c.key, label: c.label }));
     } else if (f.optionsSource === "weekdays") {
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
     }

@@ -4,11 +4,6 @@ export interface WizardSelections extends PricingSelections {
   planKey: "veg" | "halal_nonveg" | "mixed" | null;
 }
 
-export interface EnabledSlot {
-  key: string;
-  label: string;
-}
-
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 
 export const initialSelections: WizardSelections = {
@@ -16,7 +11,10 @@ export const initialSelections: WizardSelections = {
   mealSizeId: "",
   frequencyKey: "5_day",
   persons: 1,
-  mealSlots: ["lunch"],
+  // Dish selection now happens per-delivery after subscribing; mealSlots is
+  // populated from the chosen plan's categories (see StepBaseline) purely to
+  // satisfy the pricing guard — the subscriber never picks it directly.
+  mealSlots: [],
   includeSaturday: false,
   includeSunday: false,
   durationWeeks: 1,
