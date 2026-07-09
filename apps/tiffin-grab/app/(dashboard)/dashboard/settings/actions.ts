@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { setMealTypes } from "@/lib/services/app-settings.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { menuService } from "@/lib/services/menu.service";
 import { ValidationError } from "@realm/commons";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
@@ -33,18 +33,19 @@ export async function saveSlot(input: {
   key: string;
   label: string;
   enabled: boolean;
+  selectable: boolean;
   sortOrder: number;
 }) {
   await requireAdmin();
   const { id, ...rest } = input;
   if (!SLOT_KEY_RE.test(rest.key)) throw new ValidationError("Slot key must be lowercase letters, numbers, or underscores");
-  if (id) await mealSlotsService.update(id, rest);
-  else await mealSlotsService.create(rest);
+  if (id) await dishCategoriesService.update(id, rest);
+  else await dishCategoriesService.create(rest);
   await bust();
 }
 
 export async function deleteSlot(id: string) {
   await requireAdmin();
-  await mealSlotsService.delete(id);
+  await dishCategoriesService.delete(id);
   await bust();
 }

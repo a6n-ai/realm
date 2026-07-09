@@ -33,8 +33,10 @@ class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
 // offeredSlots is a derived column, not an independent input: whenever the
 // editor submits categoryCounts, re-derive offeredSlots = Object.keys(counts)
 // so the two never drift. parseCategoryCounts is the single source of "is this
-// counts map valid" (positive integers, non-empty) — it throws before the row
-// ever reaches the generic schema.parse.
+// counts map valid" (keys non-empty strings, values positive integers) — it
+// throws before the row ever reaches the generic schema.parse. It does NOT
+// reject an empty map ({}); that case is caught downstream by the
+// build-catalog / orders guards, not here.
 function withDerivedOfferedSlots(values: Record<string, unknown>): Record<string, unknown> {
   if (!("categoryCounts" in values)) return values;
   const categoryCounts = parseCategoryCounts(values.categoryCounts);

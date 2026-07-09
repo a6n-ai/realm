@@ -76,7 +76,7 @@ async function MealsData() {
     return <EmptyState icon={UtensilsCrossedIcon} message={message} />;
   }
 
-  const { releasedWeek, weekDatesView, grid, enabledSlots, persons } = result;
+  const { releasedWeek, weekDatesView, grid, categories, persons } = result;
 
   return (
     <SectionCard title={`Coming week — meals for ${releasedWeek.weekStart}`}>
@@ -86,7 +86,7 @@ async function MealsData() {
         grid={grid}
         persons={persons}
         weekDates={weekDatesView}
-        enabledSlots={enabledSlots}
+        categories={categories}
         timezone={settings.timezone}
       />
     </SectionCard>

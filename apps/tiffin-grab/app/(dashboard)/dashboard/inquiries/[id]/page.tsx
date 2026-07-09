@@ -10,7 +10,7 @@ import { inquiriesService, type InquiryStage } from "@/lib/services/inquiries.se
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, StageBadge } from "@/components/ds";
 import { interestToPrefill } from "../_leads/interest-prefill";
@@ -41,7 +41,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const [catalog, slots, existing, [source], zones, activities, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
-    mealSlotsService.enabledSlots(),
+    dishCategoriesService.enabledCategories(),
     findExistingByContact(inq.phone, inq.email),
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
     db

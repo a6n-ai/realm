@@ -7,7 +7,7 @@ export interface FieldDef {
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "mealSlots" | "weekdays" | "categories";
+  optionsSource?: "weekdays" | "categories";
   optionLabels?: Record<string, string>;
   unit?: string;
   optional?: boolean;
@@ -133,7 +133,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "name", label: "Name", type: "text" },
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
-      { key: "slots", label: "Slots", type: "multiselect", optionsSource: "mealSlots" },
+      { key: "slots", label: "Categories", type: "multiselect", optionsSource: "categories" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "image", label: "Image", type: "image", optional: true },
     ],

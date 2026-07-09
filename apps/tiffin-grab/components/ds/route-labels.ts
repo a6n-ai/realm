@@ -13,7 +13,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   general: "General",
   "lead-sources": "Lead sources",
   "lead-assignment": "Lead assignment",
-  "meal-types": "Meal types & slots",
+  "meal-types": "Meal types & categories",
   discounts: "Discounts",
   coupons: "Coupons",
   "rep-allowance": "Rep allowance",

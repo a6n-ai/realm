@@ -4,7 +4,7 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { db } from "@/db/client";
-import { mealSlots } from "@/db/schema";
+import { dishCategories } from "@/db/schema";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
 
@@ -13,8 +13,8 @@ export default function MealTypesPage() {
     <div className="grid gap-6">
       <PageHeader icon={UtensilsCrossedIcon} title="Meal types" />
       <SectionCard
-        title="Plan configuration"
-        subtitle="Per-plan-type meal slots, accent colour, and menu title prefix."
+        title="Dish Categories"
+        subtitle="Per-plan-type dish categories, accent colour, and menu title prefix."
       >
         <Suspense fallback={<MealTypesFormSkeleton />}>
           <MealTypesData />
@@ -31,15 +31,16 @@ async function MealTypesData() {
     getMealTypes(),
     db
       .select({
-        id: mealSlots.publicId,
-        planType: mealSlots.planType,
-        key: mealSlots.key,
-        label: mealSlots.label,
-        enabled: mealSlots.enabled,
-        sortOrder: mealSlots.sortOrder,
+        id: dishCategories.publicId,
+        planType: dishCategories.planType,
+        key: dishCategories.key,
+        label: dishCategories.label,
+        enabled: dishCategories.enabled,
+        selectable: dishCategories.selectable,
+        sortOrder: dishCategories.sortOrder,
       })
-      .from(mealSlots)
-      .orderBy(asc(mealSlots.sortOrder)),
+      .from(dishCategories)
+      .orderBy(asc(dishCategories.sortOrder)),
   ]);
 
   return <MealTypesForm initial={mealTypes} slots={allSlots} />;

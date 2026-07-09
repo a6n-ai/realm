@@ -136,9 +136,13 @@ export async function buildMealsGrid(
       for (let p = 1; p <= order.persons; p++) {
         if (!cat.selectable) {
           // Fixed category: a single read-only cell — no picker, quantity is the plan's count.
+          // `dishes` carries just the resolved default (not the full slot menu) so the UI
+          // can render its name without offering a picker.
+          const defaultDish = defaultItem ? dishMap.get(defaultItem.dishId) : undefined;
           grid.push({
             day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: count,
-            selectedDishId: defaultDishId, isDefaulted: defaultDishId !== null, dishes: [], locked,
+            selectedDishId: defaultDishId, isDefaulted: defaultDishId !== null,
+            dishes: defaultDish ? [defaultDish] : [], locked,
           });
           continue;
         }
