@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
-import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
+import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
 import { cn } from "@realm/ui/cn";
@@ -28,10 +28,20 @@ const CONFIG_FIELDS = [
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
+type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
 
 export function MenuBuilder({
-  planType, mealType, dishes, week, items, takenWeekStarts,
-}: { planType: PlanType; mealType: MealTypeConfig & { slots: MealSlot[] }; dishes: Dish[]; week: Week | null; items: Item[]; takenWeekStarts: string[] }) {
+  planType, mealType, categories, categoryCounts, dishes, week, items, takenWeekStarts,
+}: {
+  planType: PlanType;
+  mealType: MealTypeConfig;
+  categories: Category[];
+  categoryCounts: Record<string, number>;
+  dishes: Dish[];
+  week: Week | null;
+  items: Item[];
+  takenWeekStarts: string[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +150,7 @@ export function MenuBuilder({
           <div className="space-y-4">
             {DAY_COLUMNS.map((col) => {
               const storeDay = col.days[0]; // weekend dishes stored under sat
-              const dayCount = mealType.slots.reduce((n, s) => n + cellItems(col.days, s.key).length, 0);
+              const dayCount = categories.reduce((n, c) => n + cellItems(col.days, c.key).length, 0);
               return (
                 <div key={col.label} className="rounded-xl border p-4 shadow-sm">
                   <div className="mb-3 flex items-baseline justify-between">
@@ -148,12 +158,19 @@ export function MenuBuilder({
                     <span className="text-xs text-muted-foreground tabular-nums">{dayCount} dishes</span>
                   </div>
                   <div className="space-y-3">
-                    {mealType.slots.map((slot) => {
+                    {categories.map((cat) => {
+                      const slot = cat;
                       const ci = cellItems(col.days, slot.key);
                       const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
+                      const needed = categoryCounts[cat.key];
                       return (
                         <div key={slot.key} className="space-y-1.5">
-                          {mealType.slots.length > 1 && <p className="text-xs font-medium text-muted-foreground">{slot.label}</p>}
+                          {categories.length > 1 && (
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {slot.label}
+                              {cat.selectable && needed ? ` — ${needed} needed` : ""}
+                            </p>
+                          )}
                           {ci.map((i, idx) => {
                             const d = dishById.get(i.dishId);
                             const move = (dir: -1 | 1) => {
@@ -249,7 +266,7 @@ export function MenuBuilder({
 
           <div className="lg:sticky lg:top-4">
             <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
-            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={mealType.slots} items={posterItems} accent={mealType.accent} />
+            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={categories} items={posterItems} accent={mealType.accent} />
           </div>
         </div>
       )}

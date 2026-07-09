@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes } from "@/db/schema";
+import { dishes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "./menu-builder";
 import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
@@ -46,14 +46,22 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const [mealTypes, appSettings, activeDishes, weeks, slots] = await Promise.all([
+  const [mealTypes, appSettings, activeDishes, weeks, categories, planRows] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
-    mealSlotsService.forPlanType(planType),
+    dishCategoriesService.forPlanType(planType),
+    db.select({ counts: plans.categoryCounts }).from(plans).where(and(eq(plans.planType, planType), eq(plans.active, true))),
   ]);
-  const mealType = { ...mealTypes[planType], slots: slots.map((s) => ({ key: s.key, label: s.label })) };
+  const mealType = mealTypes[planType];
+  // "N needed" hint: the plan whose category_counts sum to the most food is the
+  // one the admin should build enough variety for (biggest plan wins ties).
+  const categoryCounts = planRows.reduce<Record<string, number>>((max, r) => {
+    const total = Object.values(r.counts).reduce((n, v) => n + v, 0);
+    const maxTotal = Object.values(max).reduce((n, v) => n + v, 0);
+    return total > maxTotal ? r.counts : max;
+  }, {});
 
   let week: { id: string; weekStart: string; status: string } | null = null;
   let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean }[] = [];
@@ -88,7 +96,16 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
             No active dishes yet — add dishes in the Dishes section before building a menu.
           </p>
         )}
-        <MenuBuilder planType={planType} mealType={mealType} dishes={activeDishes} week={week} items={items} takenWeekStarts={weeks.map((w) => w.weekStart)} />
+        <MenuBuilder
+          planType={planType}
+          mealType={mealType}
+          categories={categories}
+          categoryCounts={categoryCounts}
+          dishes={activeDishes}
+          week={week}
+          items={items}
+          takenWeekStarts={weeks.map((w) => w.weekStart)}
+        />
       </SectionCard>
 
       <SectionCard title="Past menus">
