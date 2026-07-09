@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
-import { DataTable, FacetFilters, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
@@ -43,7 +44,7 @@ export function CustomersList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/customers/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<FacetFilters spec={spec} />}
+        filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={UsersIcon}
         emptyMessage="No customers yet."
         emptySearchMessage="No customers match your search."

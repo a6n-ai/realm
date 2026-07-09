@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@realm/commons";
-import { DataTable, FacetFilters, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
@@ -66,7 +67,7 @@ export function OrdersList({
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
-      filters={<FacetFilters spec={spec} />}
+      filters={<ReuiFacetFilters spec={spec} />}
       emptyIcon={PackageIcon}
       emptyMessage="No orders yet."
       emptySearchMessage="No orders match your search."
