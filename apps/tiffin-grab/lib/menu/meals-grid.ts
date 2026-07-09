@@ -1,17 +1,21 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { cutoffMsFor } from "@realm/commons";
 import { db } from "@/db/client";
-import { dishes, mealSlots, menuWeeks, plans } from "@/db/schema";
-import { orderDeliveryDays, visibleSlots } from "./delivery-days";
+import { dishes, menuWeeks, plans } from "@/db/schema";
+import { orderDeliveryDays } from "./delivery-days";
 import { comingWeekStartIso, subscriptionDeliveryDates, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { selectionsService } from "./selections.service";
 import { menuService } from "@/lib/services/menu.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 
 export type GridCell = {
   day: DayOfWeek;
   dateIso: string;
   slot: string;
   personIndex: number;
+  pickIndex: number;
+  selectable: boolean;
+  quantity: number;
   selectedDishId: string | null;
   isDefaulted: boolean;
   dishes: { id: string; name: string; diet: "veg" | "nonveg" }[];
@@ -42,7 +46,7 @@ export type MealsGridResult =
       releasedWeek: typeof menuWeeks.$inferSelect;
       weekDatesView: WeekDateView[];
       grid: GridCell[];
-      enabledSlots: { key: string; label: string; sortOrder: number }[];
+      categories: { key: string; label: string; selectable: boolean; sortOrder: number }[];
       persons: number;
     };
 
@@ -79,21 +83,19 @@ export async function buildMealsGrid(
   if (weekDates.length === 0) return { empty: "no-dates" };
 
   const [planRow] = await db
-    .select({ key: plans.key })
+    .select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts })
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1);
   const planKey = planRow?.key ?? "mixed";
   const allowedDiets: ("veg" | "nonveg")[] =
     planKey === "veg" ? ["veg"] : planKey === "halal_nonveg" ? ["nonveg"] : ["veg", "nonveg"];
+  const categoryCounts = planRow?.counts ?? {};
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
-  const [allSlotsRows, picks, dishRows] = await Promise.all([
-    db
-      .select({ key: mealSlots.key, label: mealSlots.label, sortOrder: mealSlots.sortOrder })
-      .from(mealSlots)
-      .orderBy(asc(mealSlots.sortOrder)),
+  const [categories, picks, dishRows] = await Promise.all([
+    dishCategoriesService.forPlanType((planRow?.planType ?? "tiffin") as "tiffin" | "healthy"),
     selectionsService.effectiveSelections(order.id, releasedWeek.id),
     allDishBigintIds.length > 0
       ? db
@@ -106,8 +108,6 @@ export async function buildMealsGrid(
 
   const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet }]));
   const dishPublicIdByBigintId = new Map(dishRows.map((d) => [d.bigintId, d.id]));
-  const purchasedSlotKeys = new Set(order.mealSlots);
-  const enabledSlots = allSlotsRows.filter((s) => purchasedSlotKeys.has(s.key));
 
   const weekDatesView: WeekDateView[] = weekDates.map((d) => {
     const lockMs = cutoffMsFor(d.dateIso, cutoffHour, timezone);
@@ -117,8 +117,8 @@ export async function buildMealsGrid(
   const grid: GridCell[] = [];
   for (const { dateIso, dayOfWeek: day, locked } of weekDatesView) {
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
-    const slots = visibleSlots(order.mealSlots, order.mealSlots, dayItems);
-    for (const slot of slots) {
+    for (const cat of categories) {
+      const slot = cat.key;
       const slotItems = dayItems.filter((i) => i.slot === slot);
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
@@ -127,22 +127,39 @@ export async function buildMealsGrid(
             !!d && allowedDiets.includes(d.diet),
         );
       if (slotDishes.length === 0) continue;
+      const count = categoryCounts[cat.key] ?? 1;
+      const defaultItem = slotItems.find((i) => i.isDefault);
+      const defaultDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
+
       for (let p = 1; p <= order.persons; p++) {
-        const pick = picks.find(
-          (sel) => sel.dayOfWeek === day && sel.slot === slot && sel.personIndex === p,
-        );
-        let selectedDishId: string | null = null;
-        let isDefaulted = false;
-        if (pick) {
-          selectedDishId = dishPublicIdByBigintId.get(pick.dishId) ?? null;
-        } else {
-          const defaultItem = slotItems.find((i) => i.isDefault);
-          selectedDishId = defaultItem ? (dishPublicIdByBigintId.get(defaultItem.dishId) ?? null) : null;
-          isDefaulted = selectedDishId !== null;
+        if (!cat.selectable) {
+          // Fixed category: a single read-only cell — no picker, quantity is the plan's count.
+          grid.push({
+            day, dateIso, slot, personIndex: p, pickIndex: 1, selectable: false, quantity: count,
+            selectedDishId: defaultDishId, isDefaulted: defaultDishId !== null, dishes: [], locked,
+          });
+          continue;
         }
-        grid.push({ day, dateIso, slot, personIndex: p, selectedDishId, isDefaulted, dishes: slotDishes, locked });
+        // Selectable category: one picker cell per pickIndex, each resolving pick → isDefault fallback.
+        for (let pickIndex = 1; pickIndex <= count; pickIndex++) {
+          const pick = picks.find(
+            (sel) => sel.dayOfWeek === day && sel.slot === slot && sel.personIndex === p && sel.pickIndex === pickIndex,
+          );
+          let selectedDishId: string | null = null;
+          let isDefaulted = false;
+          if (pick) {
+            selectedDishId = dishPublicIdByBigintId.get(pick.dishId) ?? null;
+          } else {
+            selectedDishId = defaultDishId;
+            isDefaulted = selectedDishId !== null;
+          }
+          grid.push({
+            day, dateIso, slot, personIndex: p, pickIndex, selectable: true, quantity: 1,
+            selectedDishId, isDefaulted, dishes: slotDishes, locked,
+          });
+        }
       }
     }
   }
-  return { empty: null, releasedWeek, weekDatesView, grid, enabledSlots, persons: order.persons };
+  return { empty: null, releasedWeek, weekDatesView, grid, categories, persons: order.persons };
 }
