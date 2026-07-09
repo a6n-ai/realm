@@ -51,6 +51,6 @@ export function UsersList({
 }
 
 // Loading twin is now owned by DataTable — same COLUMNS, zero drift.
-UsersList.Skeleton = function UsersListSkeleton() {
+export function UsersListSkeleton() {
   return <DataTable.Skeleton columns={COLUMNS} hasId />;
-};
+}

@@ -100,7 +100,7 @@ export function DiscountLogs({
 
 // Loading twin: the stat-card grid mirrors the live one; the table is owned by
 // DataTable.Skeleton off the same COLUMNS, so header/columns can't drift.
-DiscountLogs.Skeleton = function DiscountLogsSkeleton() {
+export function DiscountLogsSkeleton() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

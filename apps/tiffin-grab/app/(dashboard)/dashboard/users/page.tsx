@@ -6,7 +6,7 @@ import { featureFlags, userFeatureFlags, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { UsersList } from "./users-list";
+import { UsersList, UsersListSkeleton } from "./users-list";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
@@ -15,7 +15,7 @@ export default function UsersPage({ searchParams }: { searchParams: SearchParams
     <PageShell>
       <PageHeader icon={UsersIcon} title="Users" />
       <SectionCard title="All users">
-        <Suspense fallback={<UsersList.Skeleton />}>
+        <Suspense fallback={<UsersListSkeleton />}>
           <UsersData searchParams={searchParams} />
         </Suspense>
       </SectionCard>

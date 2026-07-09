@@ -74,6 +74,9 @@ function CommandInput({
       <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
+          // Chrome autofill injects autofill-prediction/-information attrs on the
+          // input before hydration; suppress the resulting benign attr mismatch.
+          suppressHydrationWarning
           className={cn(
             "w-full text-base md:text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
             className

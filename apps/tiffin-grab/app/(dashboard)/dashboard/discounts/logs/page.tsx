@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { DiscountLogs } from "./discount-logs";
+import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -26,7 +26,7 @@ type SearchParams = Promise<{ sort?: string; dir?: string }>;
 export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<DiscountLogs.Skeleton />}>
+      <Suspense fallback={<DiscountLogsSkeleton />}>
         <DiscountLogsData searchParams={searchParams} />
       </Suspense>
     </div>
