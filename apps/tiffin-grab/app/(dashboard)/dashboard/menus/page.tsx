@@ -52,11 +52,18 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
     dishCategoriesService.forPlanType(planType),
-    db.select({ counts: plans.categoryCounts }).from(plans).where(and(eq(plans.planType, planType), eq(plans.active, true))),
+    db
+      .select({ counts: plans.categoryCounts })
+      .from(plans)
+      .where(and(eq(plans.planType, planType), eq(plans.active, true)))
+      .orderBy(asc(plans.key)),
   ]);
   const mealType = mealTypes[planType];
   // "N needed" hint: the plan whose category_counts sum to the most food is the
   // one the admin should build enough variety for (biggest plan wins ties).
+  // Postgres gives no row-order guarantee without ORDER BY, so we order by
+  // plans.key ascending and keep first-seen-wins (`>`) in the reduce below —
+  // on a tie, the lowest key deterministically wins, so the hint never flickers.
   const categoryCounts = planRows.reduce<Record<string, number>>((max, r) => {
     const total = Object.values(r.counts).reduce((n, v) => n + v, 0);
     const maxTotal = Object.values(max).reduce((n, v) => n + v, 0);

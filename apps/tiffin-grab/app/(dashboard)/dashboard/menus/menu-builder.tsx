@@ -159,15 +159,14 @@ export function MenuBuilder({
                   </div>
                   <div className="space-y-3">
                     {categories.map((cat) => {
-                      const slot = cat;
-                      const ci = cellItems(col.days, slot.key);
+                      const ci = cellItems(col.days, cat.key);
                       const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
                       const needed = categoryCounts[cat.key];
                       return (
-                        <div key={slot.key} className="space-y-1.5">
+                        <div key={cat.key} className="space-y-1.5">
                           {categories.length > 1 && (
                             <p className="text-xs font-medium text-muted-foreground">
-                              {slot.label}
+                              {cat.label}
                               {cat.selectable && needed ? ` — ${needed} needed` : ""}
                             </p>
                           )}
@@ -178,7 +177,7 @@ export function MenuBuilder({
                               const j = idx + dir;
                               if (j < 0 || j >= ids.length) return;
                               [ids[idx], ids[j]] = [ids[j], ids[idx]];
-                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, orderedItemIds: ids }));
+                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: cat.key, orderedItemIds: ids }));
                             };
                             return (
                               <div key={i.id} className={`group flex animate-in fade-in slide-in-from-top-1 duration-200 items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
@@ -242,10 +241,10 @@ export function MenuBuilder({
                                 if (v === CREATE_VALUE) {
                                   setNewName("");
                                   setNewDiet("veg");
-                                  setCreateTarget({ storeDay, slot: slot.key, position: ci.length });
+                                  setCreateTarget({ storeDay, slot: cat.key, position: ci.length });
                                   return;
                                 }
-                                run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId: v, position: ci.length }).then(() => {}));
+                                run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: cat.key, dishId: v, position: ci.length }).then(() => {}));
                               }}
                             >
                               <SelectTrigger className="h-9 rounded-lg text-xs text-muted-foreground"><SelectValue placeholder="+ add dish" /></SelectTrigger>
