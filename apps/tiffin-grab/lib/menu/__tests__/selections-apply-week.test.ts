@@ -49,13 +49,13 @@ describe("selectionsService.applyToWeek", () => {
     vegDishPublicId = vd.publicId; vegDishBigintId = vd.id;
     // Offer the dish Mon–Thu (4 of the 5 weekday deliveries); Friday deliberately has no menu item for it.
     for (const day of ["mon", "tue", "wed", "thu"] as const) {
-      await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: day, slot: "lunch", dishId: vegDishBigintId, isDefault: false });
+      await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: day, slot: "sabzi", dishId: vegDishBigintId, isDefault: false });
     }
   });
   afterAll(reset);
 
   it("applies to every eligible delivery day and skips days missing the dish", async () => {
-    const res = await selectionsService.applyToWeek({ order, menuWeek: week, slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId });
+    const res = await selectionsService.applyToWeek({ order, menuWeek: week, slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
     expect(res.applied).toBe(4);
     expect(res.skipped.map((s) => s.dateIso)).toContain(dateInWeek(FUTURE_MONDAY, 4)); // Friday skipped
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));

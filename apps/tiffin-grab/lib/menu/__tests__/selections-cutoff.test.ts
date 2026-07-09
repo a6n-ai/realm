@@ -12,13 +12,20 @@ let dishPublicId: string;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(app);
+  await db.delete(orders); await db.delete(dishes);
 }
 
 describe("setSelection per-day cutoff + span", () => {
   beforeEach(async () => {
     await reset();
-    await db.insert(app).values({ timezone: "America/Toronto", cutoffHour: 18 });
+    // The seeded `app` singleton is FK-referenced by an admin account row, so it can't be
+    // deleted between tests — update it in place instead of delete+insert.
+    const [existingApp] = await db.select().from(app).limit(1);
+    if (existingApp) {
+      await db.update(app).set({ timezone: "America/Toronto", cutoffHour: 18 }).where(eq(app.id, existingApp.id));
+    } else {
+      await db.insert(app).values({ timezone: "America/Toronto", cutoffHour: 18 });
+    }
     const [u] = await db.insert(users).values({ phone: "+15550000001", name: "T", role: "user" }).onConflictDoNothing().returning();
     const userId = u?.id ?? (await db.select().from(users).where(eq(users.phone, "+15550000001")).limit(1))[0].id;
     const [plan] = await db.select().from(plans).where(eq(plans.key, "veg")).limit(1);
@@ -29,7 +36,7 @@ describe("setSelection per-day cutoff + span", () => {
     week = w;
     const [d] = await db.insert(dishes).values({ name: "Dal", diet: "veg", slots: ["lunch"], active: true }).returning();
     dishPublicId = d.publicId;
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "lunch", dishId: d.id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d.id, isDefault: true });
     const [o] = await db.insert(orders).values({
       userId, planId: plan.id, mealSizeId: mealSize.id, frequencyId: freq.id, persons: 1, mealSlots: ["lunch"],
       includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: "2099-01-05",
@@ -41,24 +48,24 @@ describe("setSelection per-day cutoff + span", () => {
   afterAll(reset);
 
   it("accepts a pick well before the cutoff", async () => {
-    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId });
+    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, dishPublicId });
     const [row] = await db.select().from(mealSelections).where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.dayOfWeek, "mon")));
     expect(row).toBeTruthy();
   });
 
   it("rejects a day not in the subscription delivery set (Saturday, not a delivery day)", async () => {
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", slot: "lunch", dishId: (await db.select().from(dishes).limit(1))[0].id });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", slot: "sabzi", dishId: (await db.select().from(dishes).limit(1))[0].id });
     await expect(
-      selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "sat", slot: "lunch", personIndex: 1, dishPublicId }),
+      selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "sat", slot: "sabzi", personIndex: 1, dishPublicId }),
     ).rejects.toThrow();
   });
 
   it("rejects after the cutoff has passed", async () => {
     const [past] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning(); // 2000 Mon, long past
-    await db.insert(menuItems).values({ menuWeekId: past.id, dayOfWeek: "mon", slot: "lunch", dishId: (await db.select().from(dishes).limit(1))[0].id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: past.id, dayOfWeek: "mon", slot: "sabzi", dishId: (await db.select().from(dishes).limit(1))[0].id, isDefault: true });
     const pastOrder = { ...order, startDate: "2000-01-03" };
     await expect(
-      selectionsService.setSelection({ order: pastOrder, menuWeek: past, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId }),
+      selectionsService.setSelection({ order: pastOrder, menuWeek: past, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, dishPublicId }),
     ).rejects.toThrow();
   });
 });

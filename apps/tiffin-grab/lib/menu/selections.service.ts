@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates, type DayOfWeek } from "@/lib/menu/delivery-dates";
 
@@ -30,8 +31,8 @@ function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
 }
 
 export const selectionsService = {
-  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: DayOfWeek; slot: string; personIndex: number; dishPublicId: string }) {
-    const { order, menuWeek, dayOfWeek, slot, personIndex, dishPublicId } = input;
+  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: DayOfWeek; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string }) {
+    const { order, menuWeek, dayOfWeek, slot, personIndex, pickIndex = 1, dishPublicId } = input;
     if (order.status === "cancelled") throw new ValidationError("This order is cancelled");
     if (personIndex < 1 || personIndex > order.persons) throw new ValidationError("Invalid person");
 
@@ -61,18 +62,27 @@ export const selectionsService = {
     )).limit(1);
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
-    const [plan] = await db.select({ key: plans.key }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+    const [plan] = await db.select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts }).from(plans).where(eq(plans.id, order.planId)).limit(1);
     if (!plan || !dietsForPlanKey(plan.key).includes(dishRow.diet)) throw new ValidationError("Dish does not match your plan");
 
-    await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, slot, personIndex, dishId })
+    // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
+    // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).
+    const cats = await dishCategoriesService.forPlanType(plan.planType);
+    const cat = cats.find((c) => c.key === slot);
+    if (!cat) throw new ValidationError("Unknown category");
+    if (!cat.selectable) throw new ValidationError("This item is fixed and can't be changed");
+    const max = plan.counts?.[slot] ?? 0;
+    if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
+
+    await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, slot, personIndex, pickIndex, dishId })
       .onConflictDoUpdate({
-        target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.slot, mealSelections.personIndex],
+        target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.slot, mealSelections.personIndex, mealSelections.pickIndex],
         set: { dishId },
       });
   },
 
-  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; dishPublicId: string }) {
-    const { order, menuWeek, slot, personIndex, dishPublicId } = input;
+  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string }) {
+    const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId } = input;
 
     const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
     const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
@@ -84,7 +94,7 @@ export const selectionsService = {
     const skipped: { dateIso: string; reason: string }[] = [];
     for (const d of dates) {
       try {
-        await this.setSelection({ order, menuWeek, dayOfWeek: d.dayOfWeek, slot, personIndex, dishPublicId });
+        await this.setSelection({ order, menuWeek, dayOfWeek: d.dayOfWeek, slot, personIndex, pickIndex, dishPublicId });
         applied += 1;
       } catch (e) {
         skipped.push({ dateIso: d.dateIso, reason: e instanceof Error ? e.message : "Could not apply" });

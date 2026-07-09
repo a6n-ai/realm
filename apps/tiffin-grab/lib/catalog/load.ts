@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
 import { deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { CatalogSnapshot } from "./types";
 
 // Global, user-agnostic, rarely-changing catalog data hit by many RSC pages and
@@ -27,8 +27,8 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
     db.select().from(durationPackages).where(eq(durationPackages.active, true)),
     db.select().from(deliveryZones).where(eq(deliveryZones.active, true)),
     db.select().from(pricingTiers).where(eq(pricingTiers.active, true)),
-    mealSlotsService.forPlanType("tiffin"),
-    mealSlotsService.forPlanType("healthy"),
+    dishCategoriesService.forPlanType("tiffin"),
+    dishCategoriesService.forPlanType("healthy"),
   ]);
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
 
