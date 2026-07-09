@@ -18,7 +18,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@realm/ui/cn";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
-import { TicketControls, ReplyBox, TicketControlsSkeleton } from "./ticket-controls";
+import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/tickets/ticket-live";
 
 const AUTHOR_LABEL: Record<string, string> = {
@@ -204,7 +204,7 @@ function ConversationFallback() {
       <div className="flex justify-end">
         <Skeleton className="h-4 w-24" />
       </div>
-      <ReplyBox.Skeleton />
+      <ReplyBoxSkeleton />
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-lg border p-3">

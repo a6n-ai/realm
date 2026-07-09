@@ -426,7 +426,9 @@ export function TableEmptyRow({
  * Loading twin — same bordered card + FilterBar + header-from-columns + N grey
  * rows. One source of truth so the skeleton can't drift from DataTable.
  */
-function DataTableSkeleton<K extends string>({
+// Exported by name as well as via DataTable.Skeleton: a Server Component cannot
+// dot into a "use client" module, so server-side loading twins must import this.
+export function DataTableSkeleton<K extends string>({
   columns, rows = 8, serial = true, hasId = false, idLabel = "ID",
 }: {
   columns: readonly Column<K>[];

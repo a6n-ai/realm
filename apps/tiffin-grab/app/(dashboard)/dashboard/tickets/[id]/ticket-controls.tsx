@@ -197,11 +197,13 @@ export function ReplyBox({
 }
 
 // Exact loading twin: same space-y-2 wrapper, grey textarea + grey button.
-ReplyBox.Skeleton = function ReplyBoxSkeleton() {
+// Named export, not ReplyBox.Skeleton: the server page renders this fallback and
+// cannot dot into this "use client" module.
+export function ReplyBoxSkeleton() {
   return (
     <div className="space-y-2">
       <Skeleton className="h-20 w-full" />
       <Skeleton className="h-9 w-24" />
     </div>
   );
-};
+}
