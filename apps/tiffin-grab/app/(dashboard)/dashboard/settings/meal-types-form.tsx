@@ -23,6 +23,7 @@ const SLOT_FIELDS = [
   { name: "label", label: "Label", width: "w-40", kind: "input" },
   { name: "sortOrder", label: "Order", width: "w-20", kind: "input" },
   { name: "enabled", label: "Enabled", width: "w-11", kind: "switch" },
+  { name: "selectable", label: "Selectable", width: "w-11", kind: "switch" },
 ] as const;
 
 const SF = Object.fromEntries(SLOT_FIELDS.map((f) => [f.name, f])) as Record<
@@ -36,6 +37,7 @@ type SlotData = {
   key: string;
   label: string;
   enabled: boolean;
+  selectable: boolean;
   sortOrder: number;
 };
 
@@ -43,6 +45,7 @@ type NewSlotDraft = {
   key: string;
   label: string;
   enabled: boolean;
+  selectable: boolean;
   sortOrder: number;
 };
 
@@ -50,6 +53,7 @@ const emptyDraft = (): NewSlotDraft => ({
   key: "",
   label: "",
   enabled: true,
+  selectable: false,
   sortOrder: 0,
 });
 
@@ -160,11 +164,11 @@ export function MealTypesForm({
 
             <div className="space-y-2">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Meal slots
+                Dish categories
               </p>
 
               {planSlots.length === 0 && (
-                <p className="text-muted-foreground text-sm py-1">No slots yet.</p>
+                <p className="text-muted-foreground text-sm py-1">No categories yet.</p>
               )}
 
               {planSlots.map((slot) => (
@@ -211,6 +215,15 @@ export function MealTypesForm({
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground">{SF.selectable.label}</Label>
+                  <div className="flex h-10 items-center">
+                    <Switch
+                      checked={drafts[t].selectable}
+                      onCheckedChange={(v) => patchDraft(t, { selectable: v })}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
                   {addErrors[t] && (
                     <p className="text-destructive text-xs">{addErrors[t]}</p>
                   )}
@@ -223,7 +236,7 @@ export function MealTypesForm({
                     onClick={() => handleAddSlot(t)}
                   >
                     <PlusIcon className="size-3.5" />
-                    Add slot
+                    Add category
                   </Button>
                 </div>
               </div>
@@ -265,9 +278,10 @@ function SlotRow({
       key: slot.key,
       label: slot.label,
       enabled: slot.enabled,
+      selectable: slot.selectable,
       sortOrder: slot.sortOrder,
     });
-  }, [slot.id, slot.planType, slot.key, slot.label, slot.enabled, slot.sortOrder]);
+  }, [slot.id, slot.planType, slot.key, slot.label, slot.enabled, slot.selectable, slot.sortOrder]);
 
   const patch = (p: Partial<SlotData>) =>
     setLocal((prev) => ({ ...prev, ...p }));
@@ -282,6 +296,7 @@ function SlotRow({
           key: local.key,
           label: local.label,
           enabled: local.enabled,
+          selectable: local.selectable,
           sortOrder: local.sortOrder,
         });
         onDone();
@@ -338,6 +353,15 @@ function SlotRow({
           <Switch
             checked={local.enabled}
             onCheckedChange={(v) => patch({ enabled: v })}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs text-muted-foreground">{SF.selectable.label}</Label>
+        <div className="flex h-10 items-center">
+          <Switch
+            checked={local.selectable}
+            onCheckedChange={(v) => patch({ selectable: v })}
           />
         </div>
       </div>
@@ -412,7 +436,7 @@ export function MealTypesFormSkeleton() {
 
           <div className="space-y-2">
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Meal slots
+              Dish categories
             </p>
 
             {Array.from({ length: 2 }).map((_, i) => (
@@ -445,4 +469,4 @@ export function MealTypesFormSkeleton() {
       </div>
     </div>
   );
-};
+}

@@ -17,6 +17,7 @@ const FUTURE_MONDAY = (() => {
 let order: typeof orders.$inferSelect;
 let week: typeof menuWeeks.$inferSelect;
 let vegDishPublicId: string;
+let vegDishPublicId2: string;
 let nonvegDishPublicId: string;
 let vegDishBigintId: bigint;
 
@@ -40,30 +41,51 @@ describe("selectionsService.setSelection", () => {
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
     const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
+    const [vd2] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg", slots: ["lunch"] }).returning();
     const [nd] = await db.insert(dishes).values({ name: "Chicken", diet: "nonveg", slots: ["lunch"] }).returning();
     vegDishPublicId = vd.publicId;
+    vegDishPublicId2 = vd2.publicId;
     nonvegDishPublicId = nd.publicId;
     vegDishBigintId = vd.id;
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "lunch", dishId: vegDishBigintId, isDefault: true });
+    // "sabzi" is the seeded selectable category (veg plan's category_counts has sabzi:2); "rice" is fixed.
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: vd2.id, isDefault: false });
   });
   afterAll(reset);
 
   it("saves a valid pick", async () => {
-    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId });
+    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
     const [row] = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));
     expect(row.dishId).toBe(vegDishBigintId);
   });
   it("rejects a dish not on that day/slot menu", async () => {
-    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: nonvegDishPublicId }))
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: nonvegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });
   it("rejects after cutoff (locked)", async () => {
     // Use a past week so the per-day rolling cutoff has already elapsed.
     const [pastWeek] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning();
-    await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", slot: "lunch", dishId: vegDishBigintId, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
     const pastOrder = { ...order, startDate: "2000-01-03" };
-    await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }))
+    await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects a pick on a fixed (non-selectable) category", async () => {
+    // rice is selectable=false
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "rice", dishId: vegDishBigintId, isDefault: true });
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "rice", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+  it("rejects pickIndex above the plan's category count", async () => {
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 3, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+  it("stores two distinct picks for sabzi count=2", async () => {
+    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
+    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 2, dishPublicId: vegDishPublicId2 });
+    const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));
+    expect(rows.length).toBe(2);
   });
 
   describe("paused order: pauseWindow threaded into day-membership check", () => {
@@ -102,17 +124,17 @@ describe("selectionsService.setSelection", () => {
 
       const [tw] = await db.insert(menuWeeks).values({ weekStart: tailWeekStart, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
       tailWeek = tw;
-      await db.insert(menuItems).values({ menuWeekId: tw.id, dayOfWeek: "mon", slot: "lunch", dishId: vegDishBigintId, isDefault: true });
+      await db.insert(menuItems).values({ menuWeekId: tw.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
     });
 
     it("rejects a paused-week date (week 1 Mon is inside pauseWindow)", async () => {
       await expect(
-        selectionsService.setSelection({ order: pausedOrder, menuWeek: week, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId }),
+        selectionsService.setSelection({ order: pausedOrder, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }),
       ).rejects.toBeInstanceOf(ValidationError);
     });
 
     it("accepts an extended-tail date (week 3 Mon pushed out by pause)", async () => {
-      await selectionsService.setSelection({ order: pausedOrder, menuWeek: tailWeek, dayOfWeek: "mon", slot: "lunch", personIndex: 1, dishPublicId: vegDishPublicId });
+      await selectionsService.setSelection({ order: pausedOrder, menuWeek: tailWeek, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
       const [row] = await db.select().from(mealSelections).where(eq(mealSelections.orderId, pausedOrder.id));
       expect(row.dishId).toBe(vegDishBigintId);
     });

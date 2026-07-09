@@ -8,7 +8,7 @@ import { deliveryZones, leadSources, leadSubsources, orders, users } from "@/db/
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -122,7 +122,7 @@ async function NewCustomerAction() {
       })
       .from(leadSubsources),
     loadCatalogSnapshot(),
-    mealSlotsService.enabledSlots(),
+    dishCategoriesService.enabledCategories(),
     db
       .select({
         name: deliveryZones.name,

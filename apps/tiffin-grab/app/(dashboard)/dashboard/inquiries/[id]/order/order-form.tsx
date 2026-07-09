@@ -279,30 +279,6 @@ export function OrderForm({
 
         <fieldset className="space-y-3">
           <legend className="text-sm font-medium text-foreground mb-1">Meal Options</legend>
-        {enabledSlots.length > 0 && (
-          <div className="space-y-2">
-            <Label>Meal slots</Label>
-            <div className="flex flex-wrap gap-4">
-              {enabledSlots.map((slot) => (
-                <label key={slot.key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="accent-[var(--brand)] size-4 rounded border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                    checked={mealSlots.includes(slot.key)}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...mealSlots, slot.key]
-                        : mealSlots.filter((k) => k !== slot.key);
-                      if (next.length > 0) form.setValue("mealSlots", next);
-                    }}
-                  />
-                  {slot.label}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSaturday} onCheckedChange={(c) => form.setValue("includeSaturday", c)} /> Saturday</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={includeSunday} onCheckedChange={(c) => form.setValue("includeSunday", c)} /> Sunday</label>

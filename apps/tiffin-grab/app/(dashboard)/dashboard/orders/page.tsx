@@ -10,7 +10,7 @@ import { listOrdersPage } from "@/lib/services/orders.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -138,7 +138,7 @@ async function NewOrderAction() {
       })
       .from(leadSubsources),
     loadCatalogSnapshot(),
-    mealSlotsService.enabledSlots(),
+    dishCategoriesService.enabledCategories(),
     db
       .select({
         name: deliveryZones.name,

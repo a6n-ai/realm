@@ -105,7 +105,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
             grid={grid.grid}
             persons={grid.persons}
             weekDates={grid.weekDatesView}
-            enabledSlots={grid.enabledSlots}
+            categories={grid.categories}
             timezone={settings.timezone}
           />
         ) : null}

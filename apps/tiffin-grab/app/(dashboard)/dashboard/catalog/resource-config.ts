@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "categoryCounts";
 
 export interface FieldDef {
   key: string;
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "mealSlots" | "weekdays";
+  optionsSource?: "weekdays" | "categories";
   optionLabels?: Record<string, string>;
   unit?: string;
   optional?: boolean;
@@ -61,7 +61,12 @@ const plansSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
   planType: z.enum(["tiffin", "healthy"]),
+  // offeredSlots is derived server-side (planService) as Object.keys(categoryCounts) —
+  // accepted here so the round-trip through the generic schema.parse doesn't strip it.
   offeredSlots: z.array(z.string()).default([]),
+  // Deep validation (positive integers, non-empty) runs through parseCategoryCounts
+  // in planService before this schema ever sees the value; kept loose here.
+  categoryCounts: z.record(z.string(), z.number()).default({}),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
   active,
 });
@@ -128,7 +133,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "name", label: "Name", type: "text" },
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
-      { key: "slots", label: "Slots", type: "multiselect", optionsSource: "mealSlots" },
+      { key: "slots", label: "Categories", type: "multiselect", optionsSource: "categories" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "image", label: "Image", type: "image", optional: true },
     ],
@@ -140,7 +145,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
-      { key: "offeredSlots", label: "Offered slots", type: "multiselect", optionsSource: "mealSlots" },
+      { key: "categoryCounts", label: "Categories", type: "categoryCounts", optionsSource: "categories" },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
     ],
   },
@@ -211,6 +216,7 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
     if (ARRAY_TYPES.has(f.type)) out[f.key] = Array.isArray(v) ? v : [];
     else if (f.type === "boolean") out[f.key] = Boolean(v);
     else if (f.type === "image") out[f.key] = v ?? null;
+    else if (f.type === "categoryCounts") out[f.key] = v && typeof v === "object" ? v : {};
     else out[f.key] = v == null ? "" : String(v);
   }
   return out;
@@ -219,7 +225,11 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
 export function emptyForm(def: ResourceDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of def.fields) {
-    out[f.key] = ARRAY_TYPES.has(f.type) ? [] : f.type === "boolean" ? false : f.type === "image" ? null : "";
+    if (ARRAY_TYPES.has(f.type)) out[f.key] = [];
+    else if (f.type === "boolean") out[f.key] = false;
+    else if (f.type === "image") out[f.key] = null;
+    else if (f.type === "categoryCounts") out[f.key] = {};
+    else out[f.key] = "";
   }
   return out;
 }

@@ -19,7 +19,9 @@ export interface MealSizeView {
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
 export interface CatalogSnapshot {
-  plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
+  // categoryCounts stays server-only: createOrder derives the authoritative
+  // order.mealSlots from its keys rather than trusting client-submitted slots.
+  plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[]; categoryCounts: Record<string, number> }[];
   mealSizes: MealSizeView[];
   frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];
   durations: { id: bigint; publicId: string; weeks: number; discountPct: number }[];
@@ -45,7 +47,9 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     return rest;
   };
   return {
-    plans: snapshot.plans.map(dropId),
+    // categoryCounts is server-only (createOrder derives mealSlots from it) —
+    // drop it here too so it never reaches the client bundle.
+    plans: snapshot.plans.map(({ categoryCounts: _categoryCounts, ...rest }) => dropId(rest)),
     mealSizes: snapshot.mealSizes.map(dropId),
     frequencies: snapshot.frequencies.map(dropId),
     durations: snapshot.durations.map(dropId),

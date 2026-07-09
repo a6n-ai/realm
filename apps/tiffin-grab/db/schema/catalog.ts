@@ -25,6 +25,7 @@ export const plans = pgTable("plans", {
   planType: planType("plan_type").notNull().default("tiffin"),
   offeredSlots: text("offered_slots").array().notNull().default([]),
   allowedStartDays: text("allowed_start_days").array().notNull().default(["mon", "tue", "wed", "thu", "fri"]),
+  categoryCounts: jsonb("category_counts").$type<Record<string, number>>().notNull().default({}),
   active: boolean("active").notNull().default(true),
 });
 

@@ -15,7 +15,6 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
-import { validateOrderSlots } from "./order-slots";
 import { validateStartDate } from "./start-date";
 import { walletService } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
@@ -122,7 +121,11 @@ export async function createOrder(
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
-  validateOrderSlots(plan.planType, plan.offeredSlots, input.selections.mealSlots);
+  // Dish selection happens per-delivery after subscribing, not at checkout —
+  // order.mealSlots is derived from the plan's own categories, never trusted
+  // from the client-submitted selections.
+  const mealSlots = Object.keys(plan.categoryCounts);
+  if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
   const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
@@ -252,7 +255,7 @@ export async function createOrder(
         mealSizeId: mealSize.id,
         frequencyId: frequency.id,
         persons: input.selections.persons,
-        mealSlots: input.selections.mealSlots,
+        mealSlots,
         includeSaturday: input.selections.includeSaturday,
         includeSunday: input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,

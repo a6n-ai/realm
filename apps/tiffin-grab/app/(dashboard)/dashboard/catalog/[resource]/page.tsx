@@ -6,7 +6,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
@@ -67,12 +67,12 @@ async function CatalogData({ resource, searchParams }: { resource: string; searc
   const table = TABLES[resource];
   if (!def || !table) notFound();
 
-  const needsSlots = def.fields.some((f) => f.optionsSource === "mealSlots");
-  const slotRows = needsSlots ? await mealSlotsService.enabledSlots() : [];
+  const needsCategories = def.fields.some((f) => f.optionsSource === "categories");
+  const categoryRows = needsCategories ? await dishCategoriesService.enabledCategories() : [];
   const dynamicOptions: Record<string, { value: string; label: string }[]> = {};
   for (const f of def.fields) {
-    if (f.optionsSource === "mealSlots") {
-      dynamicOptions[f.key] = slotRows.map((s) => ({ value: s.key, label: s.label }));
+    if (f.optionsSource === "categories") {
+      dynamicOptions[f.key] = categoryRows.map((c) => ({ value: c.key, label: c.label }));
     } else if (f.optionsSource === "weekdays") {
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
     }

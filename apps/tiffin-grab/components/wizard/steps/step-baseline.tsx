@@ -14,9 +14,10 @@ export function StepBaseline({ catalog, selections, set }: {
           key={p.key}
           role="button"
           onClick={() => {
-            const offered = p.offeredSlots ?? [];
-            const defaultSlots = p.planType === "tiffin" ? offered.slice(0, 1) : offered;
-            set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: defaultSlots });
+            // Dish selection happens per-delivery after subscribing, not here —
+            // mealSlots just mirrors the plan's full category set so pricing's
+            // "at least one category" guard is satisfied.
+            set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
           }}
           className={`cursor-pointer p-4 transition ${selections.planKey === p.key ? "ring-2 ring-primary" : "hover:bg-accent"}`}
         >

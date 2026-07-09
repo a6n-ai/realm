@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
-import type { MealSlot, MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
+import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
 import { cn } from "@realm/ui/cn";
@@ -28,10 +28,20 @@ const CONFIG_FIELDS = [
 type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
 type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
+type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
 
 export function MenuBuilder({
-  planType, mealType, dishes, week, items, takenWeekStarts,
-}: { planType: PlanType; mealType: MealTypeConfig & { slots: MealSlot[] }; dishes: Dish[]; week: Week | null; items: Item[]; takenWeekStarts: string[] }) {
+  planType, mealType, categories, categoryCounts, dishes, week, items, takenWeekStarts,
+}: {
+  planType: PlanType;
+  mealType: MealTypeConfig;
+  categories: Category[];
+  categoryCounts: Record<string, number>;
+  dishes: Dish[];
+  week: Week | null;
+  items: Item[];
+  takenWeekStarts: string[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +150,7 @@ export function MenuBuilder({
           <div className="space-y-4">
             {DAY_COLUMNS.map((col) => {
               const storeDay = col.days[0]; // weekend dishes stored under sat
-              const dayCount = mealType.slots.reduce((n, s) => n + cellItems(col.days, s.key).length, 0);
+              const dayCount = categories.reduce((n, c) => n + cellItems(col.days, c.key).length, 0);
               return (
                 <div key={col.label} className="rounded-xl border p-4 shadow-sm">
                   <div className="mb-3 flex items-baseline justify-between">
@@ -148,12 +158,18 @@ export function MenuBuilder({
                     <span className="text-xs text-muted-foreground tabular-nums">{dayCount} dishes</span>
                   </div>
                   <div className="space-y-3">
-                    {mealType.slots.map((slot) => {
-                      const ci = cellItems(col.days, slot.key);
+                    {categories.map((cat) => {
+                      const ci = cellItems(col.days, cat.key);
                       const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
+                      const needed = categoryCounts[cat.key];
                       return (
-                        <div key={slot.key} className="space-y-1.5">
-                          {mealType.slots.length > 1 && <p className="text-xs font-medium text-muted-foreground">{slot.label}</p>}
+                        <div key={cat.key} className="space-y-1.5">
+                          {categories.length > 1 && (
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {cat.label}
+                              {cat.selectable && needed ? ` — ${needed} needed` : ""}
+                            </p>
+                          )}
                           {ci.map((i, idx) => {
                             const d = dishById.get(i.dishId);
                             const move = (dir: -1 | 1) => {
@@ -161,7 +177,7 @@ export function MenuBuilder({
                               const j = idx + dir;
                               if (j < 0 || j >= ids.length) return;
                               [ids[idx], ids[j]] = [ids[j], ids[idx]];
-                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, orderedItemIds: ids }));
+                              run(() => reorderItems({ menuWeekId: week.id, dayOfWeek: storeDay, slot: cat.key, orderedItemIds: ids }));
                             };
                             return (
                               <div key={i.id} className={`group flex animate-in fade-in slide-in-from-top-1 duration-200 items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
@@ -225,10 +241,10 @@ export function MenuBuilder({
                                 if (v === CREATE_VALUE) {
                                   setNewName("");
                                   setNewDiet("veg");
-                                  setCreateTarget({ storeDay, slot: slot.key, position: ci.length });
+                                  setCreateTarget({ storeDay, slot: cat.key, position: ci.length });
                                   return;
                                 }
-                                run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: slot.key, dishId: v, position: ci.length }).then(() => {}));
+                                run(() => addItem({ menuWeekId: week.id, dayOfWeek: storeDay, slot: cat.key, dishId: v, position: ci.length }).then(() => {}));
                               }}
                             >
                               <SelectTrigger className="h-9 rounded-lg text-xs text-muted-foreground"><SelectValue placeholder="+ add dish" /></SelectTrigger>
@@ -249,7 +265,7 @@ export function MenuBuilder({
 
           <div className="lg:sticky lg:top-4">
             <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
-            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={mealType.slots} items={posterItems} accent={mealType.accent} />
+            <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={categories} items={posterItems} accent={mealType.accent} />
           </div>
         </div>
       )}

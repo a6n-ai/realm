@@ -14,6 +14,7 @@ export async function pickDish(input: {
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
   slot: string;
   personIndex: number;
+  pickIndex?: number;
   dishId: string;
 }) {
   const session = await getSession();
@@ -42,6 +43,7 @@ export async function pickDish(input: {
     dayOfWeek: input.dayOfWeek,
     slot: input.slot,
     personIndex: input.personIndex,
+    pickIndex: input.pickIndex ?? 1,
     dishPublicId: input.dishId,
   });
   revalidatePath("/dashboard/meals");
@@ -53,6 +55,7 @@ export async function applyDishToWeek(input: {
   menuWeekId: string;
   slot: string;
   personIndex: number;
+  pickIndex?: number;
   dishId: string;
 }) {
   const session = await getSession();
@@ -75,6 +78,7 @@ export async function applyDishToWeek(input: {
     menuWeek: week,
     slot: input.slot,
     personIndex: input.personIndex,
+    pickIndex: input.pickIndex ?? 1,
     dishPublicId: input.dishId,
   });
   revalidatePath("/dashboard/meals");

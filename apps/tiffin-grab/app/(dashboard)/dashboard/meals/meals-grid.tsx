@@ -26,7 +26,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   sun: "Sun",
 };
 
-type SlotMeta = { key: string; label: string; sortOrder: number };
+type CategoryMeta = { key: string; label: string; selectable: boolean; sortOrder: number };
 type WeekDate = {
   dateIso: string;
   dayOfWeek: DayOfWeek;
@@ -41,7 +41,7 @@ type Props = {
   grid: GridCell[];
   persons: number;
   weekDates: WeekDate[];
-  enabledSlots: SlotMeta[];
+  categories: CategoryMeta[];
   timezone: string;
 };
 
@@ -56,7 +56,7 @@ export function MealsGrid({
   grid,
   persons,
   weekDates,
-  enabledSlots,
+  categories,
   timezone,
 }: Props) {
   return (
@@ -65,7 +65,7 @@ export function MealsGrid({
         <DeliveryCard
           key={weekDate.dateIso}
           weekDate={weekDate}
-          enabledSlots={enabledSlots}
+          categories={categories}
           persons={persons}
           grid={grid}
           orderId={orderId}
@@ -103,11 +103,11 @@ export function MealsGridSkeleton() {
       ))}
     </div>
   );
-};
+}
 
 function DeliveryCard({
   weekDate,
-  enabledSlots,
+  categories,
   persons,
   grid,
   orderId,
@@ -115,7 +115,7 @@ function DeliveryCard({
   timezone,
 }: {
   weekDate: WeekDate;
-  enabledSlots: SlotMeta[];
+  categories: CategoryMeta[];
   persons: number;
   grid: GridCell[];
   orderId: string;
@@ -145,29 +145,33 @@ function DeliveryCard({
         )}
       </div>
 
-      {/* Slot sections */}
+      {/* Category sections — one group per dish category, sorted server-side by sortOrder */}
       <div className="divide-y">
-        {enabledSlots.map((slot) => {
+        {categories.map((cat) => {
           const rows = Array.from({ length: persons }, (_, i) => {
             const personIndex = i + 1;
-            const cell = grid.find(
-              (c) =>
-                c.dateIso === dateIso &&
-                c.slot === slot.key &&
-                c.personIndex === personIndex,
-            );
-            return { personIndex, cell };
+            // Selectable categories can carry more than one pick per person
+            // (e.g. sabzi:2) — a fixed category always resolves to exactly one cell.
+            const cells = grid
+              .filter(
+                (c) =>
+                  c.dateIso === dateIso &&
+                  c.slot === cat.key &&
+                  c.personIndex === personIndex,
+              )
+              .sort((a, b) => a.pickIndex - b.pickIndex);
+            return { personIndex, cells };
           });
 
-          if (!rows.some((r) => r.cell)) return null;
+          if (!rows.some((r) => r.cells.length > 0)) return null;
 
           return (
-            <div key={slot.key} className="space-y-2 px-4 py-3">
+            <div key={cat.key} className="space-y-2 px-4 py-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                {slot.label}
+                {cat.label}
               </p>
-              {rows.map(({ personIndex, cell }) => {
-                if (!cell) {
+              {rows.map(({ personIndex, cells }) => {
+                if (cells.length === 0) {
                   return (
                     <div
                       key={personIndex}
@@ -182,15 +186,42 @@ function DeliveryCard({
                     </div>
                   );
                 }
+
+                if (!cat.selectable) {
+                  // Fixed category: a single read-only "{quantity}× {default dish}" chip, no picker.
+                  const cell = cells[0];
+                  const dish = cell.dishes.find((d) => d.id === cell.selectedDishId);
+                  return (
+                    <div
+                      key={personIndex}
+                      className="flex min-h-[44px] items-center gap-2 text-sm"
+                    >
+                      {persons > 1 && (
+                        <span className="w-6 shrink-0 text-xs font-medium text-muted-foreground">
+                          P{personIndex}
+                        </span>
+                      )}
+                      <span className="flex-1 rounded-lg bg-muted/50 px-3 py-2.5">
+                        {cell.quantity}× {dish?.name ?? "—"}
+                      </span>
+                    </div>
+                  );
+                }
+
                 return (
-                  <DishRow
-                    key={`${dateIso}-${slot.key}-${personIndex}`}
-                    cell={cell}
-                    slotLabel={slot.label}
-                    orderId={orderId}
-                    menuWeekId={menuWeekId}
-                    showPersonLabel={persons > 1}
-                  />
+                  <div key={personIndex} className="space-y-1.5">
+                    {cells.map((cell) => (
+                      <DishRow
+                        key={`${dateIso}-${cat.key}-${personIndex}-${cell.pickIndex}`}
+                        cell={cell}
+                        slotLabel={cat.label}
+                        pickLabel={cells.length > 1 ? `Pick ${cell.pickIndex}` : null}
+                        orderId={orderId}
+                        menuWeekId={menuWeekId}
+                        showPersonLabel={persons > 1}
+                      />
+                    ))}
+                  </div>
                 );
               })}
             </div>
@@ -206,12 +237,14 @@ type SheetMode = "pick" | "apply";
 function DishRow({
   cell,
   slotLabel,
+  pickLabel,
   orderId,
   menuWeekId,
   showPersonLabel,
 }: {
   cell: GridCell;
   slotLabel: string;
+  pickLabel?: string | null;
   orderId: string;
   menuWeekId: string;
   showPersonLabel: boolean;
@@ -235,6 +268,7 @@ function DishRow({
           dayOfWeek: cell.day,
           slot: cell.slot,
           personIndex: cell.personIndex,
+          pickIndex: cell.pickIndex,
           dishId,
         });
       } catch (e) {
@@ -254,6 +288,7 @@ function DishRow({
           menuWeekId,
           slot: cell.slot,
           personIndex: cell.personIndex,
+          pickIndex: cell.pickIndex,
           dishId,
         });
         setTally({ applied: result.applied, skipped: result.skipped.length });
@@ -274,6 +309,9 @@ function DishRow({
             P{cell.personIndex}
           </span>
         )}
+        {pickLabel && (
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">{pickLabel}</span>
+        )}
         <span className={cn(cell.isDefaulted && "text-muted-foreground")}>
           {selectedDish?.name ?? "—"}
         </span>
@@ -293,6 +331,9 @@ function DishRow({
           <span className="w-6 shrink-0 text-xs font-medium text-muted-foreground">
             P{cell.personIndex}
           </span>
+        )}
+        {pickLabel && (
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">{pickLabel}</span>
         )}
 
         {/* Main dish button — ≥44px touch target */}

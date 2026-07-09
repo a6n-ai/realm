@@ -39,8 +39,8 @@ describe("buildPricingCatalog persons validation", () => {
     expect(() => buildPricingCatalog(snapshot, sel({ persons: 9999 }))).toThrow(ValidationError);
     expect(() => buildPricingCatalog(snapshot, sel({ persons: 2.5 }))).toThrow(ValidationError);
   });
-  it("rejects empty meal slots", () => {
-    expect(() => buildPricingCatalog(snapshot, sel({ mealSlots: [] }))).toThrow(ValidationError);
+  it("rejects empty categories", () => {
+    expect(() => buildPricingCatalog(snapshot, sel({ mealSlots: [] }))).toThrow("At least one category is required");
   });
   it("still validates meal size / frequency / duration", () => {
     expect(() => buildPricingCatalog(snapshot, sel({ mealSizeId: "nope" }))).toThrow(ValidationError);

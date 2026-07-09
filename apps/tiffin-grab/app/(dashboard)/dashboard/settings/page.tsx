@@ -34,7 +34,7 @@ const SECTIONS = [
   {
     key: "meal-types",
     label: "Meal types",
-    description: "Plan types, meal slots, and menu configuration.",
+    description: "Plan types, dish categories, and menu configuration.",
     icon: UtensilsCrossedIcon,
     href: "/dashboard/settings/meal-types",
   },

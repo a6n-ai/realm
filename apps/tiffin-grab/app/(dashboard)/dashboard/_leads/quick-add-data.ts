@@ -8,7 +8,7 @@ import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { mealSlotsService } from "@/lib/services/meal-slots.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 
 export type QuickAddSource = { key: string; label: string; subs: { key: string; label: string }[] };
@@ -44,7 +44,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true)),
     loadCatalogSnapshot(),
-    mealSlotsService.enabledSlots(),
+    dishCategoriesService.enabledCategories(),
   ]);
 
   const sources = sourceRows

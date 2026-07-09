@@ -23,8 +23,8 @@ async function seedDraftCell() {
   weekId = w.id;
   const [d1] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
   const [d2] = await db.insert(dishes).values({ name: "Dal", diet: "veg", slots: ["lunch"] }).returning();
-  const [a] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "lunch", dishId: d1.id, isDefault: false, position: 0 }).returning();
-  const [b] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "lunch", dishId: d2.id, isDefault: false, position: 1 }).returning();
+  const [a] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d1.id, isDefault: false, position: 0 }).returning();
+  const [b] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d2.id, isDefault: false, position: 1 }).returning();
   itemA = a; itemB = b;
 }
 
