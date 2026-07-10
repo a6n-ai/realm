@@ -1,5 +1,5 @@
 import { ValidationError, cutoffMsFor } from "@realm/commons";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
@@ -8,6 +8,7 @@ import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
+type Delivery = typeof deliveries.$inferSelect;
 
 const WEEKEND = new Set(["sat", "sun"]);
 
@@ -56,4 +57,49 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
     cutoffAt: cutoffMsFor(d.dateIso, cutoffHour, timezone),
   })));
   return dates.length;
+}
+
+/** Rows past their snapshotted cutoff are immutable. cutoff_at is never re-derived. */
+export function assertMutable(row: Delivery): void {
+  if (Date.now() > row.cutoffAt) {
+    throw new ValidationError("This delivery is locked — its cutoff has passed");
+  }
+}
+
+function assertOriginal(row: Delivery): void {
+  // A make-up cannot itself be skipped or paused: that would spawn a make-up of a make-up and
+  // grow the tail without bound.
+  if (row.makeupForDeliveryId !== null) {
+    throw new ValidationError("A make-up delivery cannot be skipped or paused");
+  }
+}
+
+async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
+  const [row] = await tx.select().from(deliveries).where(eq(deliveries.publicId, publicId)).limit(1);
+  if (!row) throw new ValidationError("Delivery not found");
+  return row;
+}
+
+export async function skipDelivery(deliveryPublicId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${row.orderId})`);
+    assertOriginal(row);
+    assertMutable(row);
+    if (row.status !== "scheduled") throw new ValidationError(`Cannot skip a ${row.status} delivery`);
+    await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
+  });
+}
+
+export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${row.orderId})`);
+    assertMutable(row);
+    if (row.status !== "skipped") throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
+    const [mk] = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+    if (mk) throw new ValidationError("This delivery has already been replaced by a make-up");
+    await tx.update(deliveries).set({ status: "scheduled" }).where(eq(deliveries.id, row.id));
+  });
 }
