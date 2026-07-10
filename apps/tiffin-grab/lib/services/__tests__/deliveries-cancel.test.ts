@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
-const { reconcileMakeups, maybeComplete } = await import("../deliveries.service");
+const { reconcileMakeups, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -123,25 +123,78 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     await expect(activateOrder(o.publicId)).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it("maybeComplete flips active -> completed once no scheduled/paused rows remain", async () => {
+  it("maybeComplete does NOT flip when every original is skipped but none are past cutoff (live make-up debt)", async () => {
     const o = await makeOrder();
     await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.orderId, o.id));
+
+    // Cutoffs are still in the future: this is unmaterialized make-up debt, not completion.
+    await expect(maybeComplete(o.id)).resolves.toBe(false);
+    const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("active");
+  });
+
+  it("maybeComplete does not flip a cancelled order, and returns false while rows remain", async () => {
+    const o = await makeOrder();
+    await expect(maybeComplete(o.id)).resolves.toBe(false); // rows still scheduled, future dated
+    let [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("active");
+
+    await cancelOrder(o.publicId);
+    await expect(maybeComplete(o.id)).resolves.toBe(false); // never promotes a cancelled order
+    [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("cancelled"); // never promoted from cancelled
+  });
+
+  it("maybeComplete refuses to complete an order with live (future-cutoff) make-up debt, even after those cutoffs pass and reconcileMakeups spawns make-ups", async () => {
+    const o = await makeOrder();
+    const rows = await rowsFor(o);
+    for (const r of rows) await skipDelivery(r.publicId); // legal: all cutoffs still future
+
+    await expect(maybeComplete(o.id)).resolves.toBe(false);
+    let [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("active");
+
+    // Force every cutoff into the past and let the worker materialize the owed make-ups.
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.orderId, o.id));
+    const created = await reconcileMakeups(o.id);
+    expect(created).toBe(rows.length);
+
+    // The make-ups are freshly scheduled, future-dated rows: still outstanding.
+    await expect(maybeComplete(o.id)).resolves.toBe(false);
+    [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("active");
+  });
+
+  // Distinct past weekday dates (Mon-Fri, 2020-01-06..10) — deliveries has UNIQUE(order_id, delivery_date).
+  const PAST_DATES = ["2020-01-06", "2020-01-07", "2020-01-08", "2020-01-09", "2020-01-10"];
+
+  async function backdateAllRows(o: { id: bigint }) {
+    const rows = await rowsFor(o);
+    for (const [i, r] of rows.entries()) {
+      await db.update(deliveries)
+        .set({ deliveryDate: PAST_DATES[i % PAST_DATES.length], cutoffAt: Date.now() - 1000 })
+        .where(eq(deliveries.id, r.id));
+    }
+  }
+
+  it("maybeComplete completes an order whose every delivery is past-dated, scheduled, with no unresolved debt", async () => {
+    const o = await makeOrder();
+    await backdateAllRows(o);
 
     await expect(maybeComplete(o.id)).resolves.toBe(true);
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("completed");
   });
 
-  it("maybeComplete does not flip a cancelled order, and returns false while rows remain", async () => {
+  it("maybeComplete stays false when all dates are past but one original is skipped with no make-up yet", async () => {
     const o = await makeOrder();
-    await expect(maybeComplete(o.id)).resolves.toBe(false); // rows still scheduled
-    let [order] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(order.status).toBe("active");
+    const rows = await rowsFor(o);
+    await backdateAllRows(o);
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, rows[0].id));
 
-    await cancelOrder(o.publicId);
-    await expect(maybeComplete(o.id)).resolves.toBe(true); // no scheduled/paused rows left (all cancelled)
-    [order] = await db.select().from(orders).where(eq(orders.id, o.id));
-    expect(order.status).toBe("cancelled"); // never promoted from cancelled
+    await expect(maybeComplete(o.id)).resolves.toBe(false);
+    const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(order.status).toBe("active");
   });
 
   it("throws when updating durationWeeks or frequencyId on an order that already has delivery rows", async () => {

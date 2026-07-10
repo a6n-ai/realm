@@ -138,4 +138,15 @@ describe("reconcileMakeups (integration)", () => {
     const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
     expect(mk).toBeUndefined();
   });
+
+  it("returns 0 for a completed order (defense in depth: correct maybeComplete should never let this happen)", async () => {
+    const o = await activatedOrder();
+    const d = await nthDelivery(o, 0);
+    await skipDelivery(d.publicId);
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
+    await db.update(orders).set({ status: "completed" }).where(eq(orders.id, o.id));
+    expect(await reconcileMakeups(o.id)).toBe(0);
+    const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
+    expect(mk).toBeUndefined();
+  });
 });

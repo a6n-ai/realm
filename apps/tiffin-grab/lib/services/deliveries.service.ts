@@ -1,4 +1,4 @@
-import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@realm/commons";
+import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@realm/commons";
 import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -225,7 +225,9 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled") return 0;
+    // Defense in depth: a correctly-behaving maybeComplete never completes an order with debt,
+    // so this should be unreachable — but it bounds the blast radius if that logic regresses.
+    if (!order || order.status === "cancelled" || order.status === "completed") return 0;
 
     const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
@@ -279,22 +281,49 @@ export async function cancelDeliveries(tx: Tx, orderId: bigint): Promise<number>
   return rows.length;
 }
 
-/** No future non-cancelled rows and no unmaterialized make-up debt -> the subscription is done. */
+/**
+ * No future non-cancelled rows and no unmaterialized make-up debt -> the subscription is done.
+ * A delivered original still reads status='scheduled' (spec 2 has no 'delivered' status), so
+ * "no scheduled/paused rows" is the WRONG completion test — it fires the moment every original
+ * is skipped/paused (even with future cutoffs, i.e. live debt) and never fires on a happy-path
+ * subscription that ran its full course (its past originals stay 'scheduled' forever). The
+ * correct test: no row dated today-or-later that isn't cancelled, AND no missed original
+ * (paused|skipped, makeup_for_delivery_id IS NULL) still lacking a make-up.
+ */
 export async function maybeComplete(orderId: bigint): Promise<boolean> {
   return db.transaction(async (tx) => {
-    // Lock before counting: without this, a concurrent reconcileMakeups can insert a fresh
-    // make-up (new scheduled debt) between our count and the update below, and we'd still
+    // Lock before any read it guards on: without this, a concurrent reconcileMakeups can insert
+    // a fresh make-up (new scheduled debt) between our reads and the update below, and we'd still
     // flip the order to "completed" out from under an outstanding delivery.
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
-    const [{ n }] = await tx.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
+    const { timezone } = await getAppSettings();
+    const today = zonedDateIso(Date.now(), timezone);
+
+    const [{ n: outstanding }] = await tx.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
       eq(deliveries.orderId, orderId),
-      inArray(deliveries.status, ["scheduled", "paused"]),
+      sql`${deliveries.status} != 'cancelled'`,
+      gte(deliveries.deliveryDate, today),
     ));
-    if (n > 0) return false;
-    await tx.update(orders).set({ status: "completed" })
-      .where(and(eq(orders.id, orderId), eq(orders.status, "active")));
-    return true;
+    if (outstanding > 0) return false;
+
+    // Same aliased leftJoin + isNull anti-join formulation as reconcileMakeups — debt counts
+    // regardless of cutoff, since a future-cutoff skipped row will still spawn a make-up later.
+    const [{ n: debt }] = await tx.select({ n: sql<number>`count(*)::int` })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId),
+        inArray(deliveries.status, ["paused", "skipped"]),
+        isNull(existingMakeup.id),
+      ));
+    if (debt > 0) return false;
+
+    const updated = await tx.update(orders).set({ status: "completed" })
+      .where(and(eq(orders.id, orderId), eq(orders.status, "active")))
+      .returning({ id: orders.id });
+    return updated.length > 0;
   });
 }
 
