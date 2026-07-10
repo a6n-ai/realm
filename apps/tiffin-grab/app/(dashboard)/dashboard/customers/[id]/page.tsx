@@ -4,6 +4,7 @@ import { UsersIcon } from "lucide-react";
 import { NotFoundError } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { PageShell, PageHeader, SectionCard, ListRow, OrderStatusBadge, EmptyState, SkeletonListRows } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -32,13 +33,16 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
   await requireStaff();
   const { id } = await params;
 
+  const settingsP = getAppSettings();
   let data;
   try {
     data = await getCustomer360(id);
   } catch (e) {
+    void settingsP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
+  const { timezone } = await settingsP;
 
   return (
     <>
@@ -73,7 +77,7 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
       <SectionCard title={SECTIONS.timeline.title}>
         <div className="space-y-2">
           {data.timeline.map((t) => (
-            <ListRow key={t.id} title={t.label} meta={formatEpoch(t.at, { mode: "datetime" })} />
+            <ListRow key={t.id} title={t.label} meta={formatEpoch(t.at, { mode: "datetime", timeZone: timezone })} />
           ))}
         </div>
       </SectionCard>

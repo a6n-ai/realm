@@ -39,7 +39,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], zones, activities, { currency }] = await Promise.all([
+  const [catalog, slots, existing, [source], zones, activities, { currency, timezone }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     findExistingByContact(inq.phone, inq.email),
@@ -113,6 +113,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         inquiryId={inq.publicId}
         stage={inq.stage as InquiryStage}
         currency={currency}
+        timezone={timezone}
         convertedOrderHref={convertedOrderHref}
         contact={{ fullName: inq.fullName, phone: inq.phone, email: inq.email ?? "" }}
         sourceLabel={source?.label ?? ""}

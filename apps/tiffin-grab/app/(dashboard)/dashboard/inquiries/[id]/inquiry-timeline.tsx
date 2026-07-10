@@ -94,10 +94,12 @@ export function InquiryTimeline({
   activities,
   currency,
   terminal,
+  timezone,
 }: {
   activities: TimelineActivity[];
   currency: string;
   terminal: boolean;
+  timezone: string;
 }) {
   if (activities.length === 0) {
     return <p className="text-muted-foreground py-6 text-center text-sm">No activity yet.</p>;
@@ -143,7 +145,7 @@ export function InquiryTimeline({
                 ) : null}
               </div>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                {formatEpoch(a.createdAt, { mode: "datetime" })}
+                {formatEpoch(a.createdAt, { mode: "datetime", timeZone: timezone })}
               </p>
 
               {a.outcome || a.amount != null || a.nextFollowUpAt != null ? (
@@ -156,7 +158,7 @@ export function InquiryTimeline({
                     <MetaChip
                       className={cn(overdue && "border-bad/30 bg-bad/10 text-bad")}
                     >
-                      ↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date" })}
+                      ↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date", timeZone: timezone })}
                     </MetaChip>
                   ) : null}
                 </div>

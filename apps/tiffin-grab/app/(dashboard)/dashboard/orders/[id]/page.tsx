@@ -143,7 +143,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         ) : (
           <div className="space-y-2">
             {activities.map((a) => (
-              <ListRow key={a.publicId} title={describe(a)} meta={formatEpoch(a.createdAt, { mode: "datetime" })} />
+              <ListRow key={a.publicId} title={describe(a)} meta={formatEpoch(a.createdAt, { mode: "datetime", timeZone: settings.timezone })} />
             ))}
           </div>
         )}
