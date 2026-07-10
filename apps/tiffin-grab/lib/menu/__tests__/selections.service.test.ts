@@ -2,11 +2,12 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
+const { pauseRange, skipDelivery } = await import("@/lib/services/deliveries.service");
 
 const FUTURE_MONDAY = (() => {
   const d = new Date(Date.now() + 56 * 86400000);
@@ -22,8 +23,18 @@ let nonvegDishPublicId: string;
 let vegDishBigintId: bigint;
 
 async function reset() {
-  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
+  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+}
+
+// A scheduled row for FUTURE_MONDAY, far from its cutoff — day-membership and cutoff both now
+// come from the `deliveries` row, so setSelection needs one materialized here (order alone no
+// longer implies a schedule).
+async function seedDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
+  const [row] = await db.insert(deliveries).values({
+    orderId, deliveryDate: FUTURE_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,
+  }).returning();
+  return row;
 }
 
 describe("selectionsService.setSelection", () => {
@@ -38,6 +49,7 @@ describe("selectionsService.setSelection", () => {
       deploymentId: "SUB-TEST01", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     }).returning();
     order = o;
+    await seedDelivery(o.id);
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
     const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
@@ -63,9 +75,10 @@ describe("selectionsService.setSelection", () => {
       .rejects.toBeInstanceOf(ValidationError);
   });
   it("rejects after cutoff (locked)", async () => {
-    // Use a past week so the per-day rolling cutoff has already elapsed.
+    // Use a past week/date so the row's own snapshotted cutoff has already elapsed.
     const [pastWeek] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning();
     await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
+    await seedDelivery(order.id, { deliveryDate: "2000-01-03", cutoffAt: Date.now() - 1000 });
     const pastOrder = { ...order, startDate: "2000-01-03" };
     await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
@@ -91,5 +104,37 @@ describe("selectionsService.setSelection", () => {
   // Order-level pausedFrom/pausedUntil is dropped in this task (per-delivery pause lands on the
   // `deliveries` table in a later task) — the former "paused order" describe block tested that
   // column directly and is removed here; Task 8 reintroduces pause-aware day-membership checks
-  // against `deliveries`.
+  // against `deliveries` below.
+
+  it("rejects a pick for a paused delivery", async () => {
+    await pauseRange(order.publicId, FUTURE_MONDAY, FUTURE_MONDAY);
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects a pick for a skipped delivery", async () => {
+    const [row] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    await skipDelivery(row.publicId);
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects a pick for a date with no delivery row for that order", async () => {
+    await db.delete(deliveries).where(eq(deliveries.orderId, order.id));
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("accepts a pick for a scheduled delivery before its cutoffAt", async () => {
+    await db.update(deliveries).set({ cutoffAt: Date.now() + 1e9 }).where(eq(deliveries.orderId, order.id));
+    await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
+    const [row] = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));
+    expect(row.dishId).toBe(vegDishBigintId);
+  });
+
+  it("rejects a pick for a scheduled delivery after its cutoffAt", async () => {
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.orderId, order.id));
+    await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
 });

@@ -61,6 +61,21 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
   return dates.length;
 }
 
+/**
+ * Visible deliveries for an order within [from, until] (inclusive), ordered by date.
+ * Only `status = 'scheduled'` rows are visible — paused/skipped/cancelled rows vanish.
+ * Read-only: this must NEVER reconcile or write. Callers (grid, selection validation) rely
+ * on that to run safely inside async Server Components.
+ */
+export async function visibleDeliveries(orderId: bigint, from: string, until: string): Promise<Delivery[]> {
+  return db.select().from(deliveries).where(and(
+    eq(deliveries.orderId, orderId),
+    eq(deliveries.status, "scheduled"),
+    gte(deliveries.deliveryDate, from),
+    lte(deliveries.deliveryDate, until),
+  )).orderBy(asc(deliveries.deliveryDate));
+}
+
 /** Rows past their snapshotted cutoff are immutable. cutoff_at is never re-derived. */
 export function assertMutable(row: Delivery): void {
   if (Date.now() > row.cutoffAt) {

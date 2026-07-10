@@ -3,11 +3,9 @@
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
 import { ValidationError } from "@realm/commons";
-import { cutoffMsFor } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates, type DayOfWeek } from "@/lib/menu/delivery-dates";
@@ -41,17 +39,19 @@ export const selectionsService = {
 
     const deliveryDateIso = dateInWeek(menuWeek.weekStart, dayOfWeek);
 
-    // The day must be part of this subscription's delivery set.
-    const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
-    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays });
-    if (!dates.some((d) => d.dateIso === deliveryDateIso)) {
+    // The `deliveries` row is the single source of truth for day-membership AND cutoff: a
+    // paused/skipped/cancelled delivery — or a date with no row at all — has no scheduled row here.
+    const [deliveryRow] = await db.select({ cutoffAt: deliveries.cutoffAt }).from(deliveries)
+      .where(and(
+        eq(deliveries.orderId, order.id),
+        eq(deliveries.deliveryDate, deliveryDateIso),
+        eq(deliveries.status, "scheduled"),
+      ))
+      .limit(1);
+    if (!deliveryRow) {
       throw new ValidationError("That day isn't part of your order");
     }
-
-    // Per-day rolling cutoff in the app timezone.
-    const { timezone, cutoffHour } = await getAppSettings();
-    if (Date.now() > cutoffMsFor(deliveryDateIso, cutoffHour, timezone)) {
+    if (Date.now() > deliveryRow.cutoffAt) {
       throw new ValidationError("Selections are locked — the cutoff for that day has passed");
     }
 

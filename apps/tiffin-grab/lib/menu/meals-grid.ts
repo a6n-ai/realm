@@ -1,13 +1,13 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { cutoffMsFor } from "@realm/commons";
+import { parseIsoDateUtc, weekdayKey } from "@realm/commons";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
-import { orderDeliveryDays } from "./delivery-days";
-import { comingWeekStartIso, subscriptionDeliveryDates, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
+import { comingWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { dietsForPlanKey } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { visibleDeliveries } from "@/lib/services/deliveries.service";
 
 export type GridCell = {
   day: DayOfWeek;
@@ -24,6 +24,13 @@ export type GridCell = {
 };
 
 export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean };
+
+/** ISO date `days` after `iso` (UTC date math, no timezone). */
+function addDaysIso(iso: string, days: number): string {
+  const d = parseIsoDateUtc(iso);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 export type MealOrder = {
   id: bigint;
@@ -53,7 +60,10 @@ export async function buildMealsGrid(
   order: MealOrder,
   settings: { timezone: string; cutoffHour: number },
 ): Promise<MealsGridResult> {
-  const { timezone, cutoffHour } = settings;
+  // cutoffHour is intentionally unused here: lockMs/locked come from each row's own
+  // stored cutoffAt (snapshotted when the delivery schedule was written), not recomputed
+  // from settings at read time.
+  const { timezone } = settings;
   const comingMonday = comingWeekStartIso(Date.now(), timezone);
 
   const [releasedWeek] = await db
@@ -63,18 +73,10 @@ export async function buildMealsGrid(
     .limit(1);
   if (!releasedWeek) return { empty: "no-week" };
 
-  const deliveryDays = orderDeliveryDays({
-    frequencyKey: order.frequencyKey,
-    includeSaturday: order.includeSaturday,
-    includeSunday: order.includeSunday,
-  });
-  const subDates = subscriptionDeliveryDates({
-    startDate: order.startDate,
-    durationWeeks: order.durationWeeks,
-    deliveryDays,
-  });
-  const weekDates = subDates.filter((d) => d.weekStartIso === releasedWeek.weekStart);
-  if (weekDates.length === 0) return { empty: "no-dates" };
+  const weekStart = releasedWeek.weekStart;
+  const weekEnd = addDaysIso(weekStart, 6);
+  const rows = await visibleDeliveries(order.id, weekStart, weekEnd);
+  if (rows.length === 0) return { empty: "no-dates" };
 
   const [planRow] = await db
     .select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts })
@@ -102,10 +104,15 @@ export async function buildMealsGrid(
 
   const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet }]));
 
-  const weekDatesView: WeekDateView[] = weekDates.map((d) => {
-    const lockMs = cutoffMsFor(d.dateIso, cutoffHour, timezone);
-    return { ...d, lockMs, locked: Date.now() > lockMs };
-  });
+  // Use each row's stored cutoffAt — never recomputed here. Missed-ness is decided once,
+  // at materialization/reconciliation time, not re-derived at read time.
+  const weekDatesView: WeekDateView[] = rows.map((row) => ({
+    dateIso: row.deliveryDate,
+    dayOfWeek: weekdayKey(parseIsoDateUtc(row.deliveryDate)) as DayOfWeek,
+    weekStartIso: weekStart,
+    lockMs: row.cutoffAt,
+    locked: Date.now() > row.cutoffAt,
+  }));
 
   const grid: GridCell[] = [];
   for (const { dateIso, dayOfWeek: day, locked } of weekDatesView) {

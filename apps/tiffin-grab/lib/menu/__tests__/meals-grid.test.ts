@@ -5,7 +5,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { comingWeekStartIso } from "@/lib/menu/delivery-dates";
 import type { GridCell } from "../meals-grid";
@@ -13,13 +13,24 @@ import type { GridCell } from "../meals-grid";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
 const { buildMealsGrid } = await import("../meals-grid");
+const { skipDelivery, pauseRange } = await import("@/lib/services/deliveries.service");
 
 const SETTINGS = { timezone: "UTC", cutoffHour: 23 };
 const COMING_MONDAY = comingWeekStartIso(Date.now(), SETTINGS.timezone);
 
 async function reset() {
-  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
+  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+}
+
+// A scheduled delivery row for COMING_MONDAY, far from its cutoff — the grid's read path only
+// shows dates with a visible ('scheduled') row, so every grid test needs one materialized here
+// (order alone no longer implies a schedule).
+async function seedMondayDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
+  const [row] = await db.insert(deliveries).values({
+    orderId, deliveryDate: COMING_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,
+  }).returning();
+  return row;
 }
 
 async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$inferInsert> = {}) {
@@ -58,6 +69,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     const snap = await loadCatalogSnapshot();
     const vegPlan = snap.plans.find((p) => p.key === "veg")!;
     const { order, mealOrder } = await makeOrder(vegPlan.id);
+    await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
     const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
@@ -91,6 +103,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     const snap = await loadCatalogSnapshot();
     const vegPlan = snap.plans.find((p) => p.key === "veg")!;
     const { order, mealOrder } = await makeOrder(vegPlan.id);
+    await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
     const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
@@ -118,6 +131,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
       categoryCounts: { rice: 1, roti: 4, raita: 1, salad: 1 }, // sabzi intentionally omitted
     }).returning();
     const { order, mealOrder } = await makeOrder(planNoSabziCount.id);
+    await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
     const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
@@ -129,5 +143,57 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
     if (grid.empty !== null) throw new Error(`expected grid, got empty=${grid.empty}`);
     expect(cellsFor(grid.grid, "mon", "sabzi")).toHaveLength(0);
+  });
+});
+
+describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("a skipped delivery vanishes from the grid", async () => {
+    const snap = await loadCatalogSnapshot();
+    const vegPlan = snap.plans.find((p) => p.key === "veg")!;
+    const { order, mealOrder } = await makeOrder(vegPlan.id);
+    const d = await seedMondayDelivery(order.id);
+    await makeWeek();
+
+    await skipDelivery(d.publicId);
+
+    const grid = await buildMealsGrid(mealOrder, SETTINGS);
+    if (grid.empty === null) {
+      expect(grid.weekDatesView.some((v) => v.dateIso === COMING_MONDAY)).toBe(false);
+    } else {
+      expect(grid.empty).toBe("no-dates");
+    }
+  });
+
+  it("a paused delivery vanishes from the grid", async () => {
+    const snap = await loadCatalogSnapshot();
+    const vegPlan = snap.plans.find((p) => p.key === "veg")!;
+    const { order, mealOrder } = await makeOrder(vegPlan.id);
+    await seedMondayDelivery(order.id, { orderId: order.id, status: "paused" });
+    await makeWeek();
+
+    const grid = await buildMealsGrid(mealOrder, SETTINGS);
+    if (grid.empty === null) {
+      expect(grid.weekDatesView.some((v) => v.dateIso === COMING_MONDAY)).toBe(false);
+    } else {
+      expect(grid.empty).toBe("no-dates");
+    }
+  });
+
+  it("the grid's lockMs equals the row's stored cutoffAt", async () => {
+    const snap = await loadCatalogSnapshot();
+    const vegPlan = snap.plans.find((p) => p.key === "veg")!;
+    const { order, mealOrder } = await makeOrder(vegPlan.id);
+    const cutoffAt = Date.now() + 12345;
+    const d = await seedMondayDelivery(order.id, { cutoffAt });
+    await makeWeek();
+
+    const grid = await buildMealsGrid(mealOrder, SETTINGS);
+    if (grid.empty !== null) throw new Error(`expected grid, got empty=${grid.empty}`);
+    const view = grid.weekDatesView.find((v) => v.dateIso === COMING_MONDAY)!;
+    expect(view.lockMs).toBe(d.cutoffAt);
+    expect(view.lockMs).toBe(cutoffAt);
   });
 });

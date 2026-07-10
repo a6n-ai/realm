@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { app, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { app, deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
@@ -11,8 +11,17 @@ let week: typeof menuWeeks.$inferSelect;
 let dishPublicId: string;
 
 async function reset() {
-  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
+  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   await db.delete(orders); await db.delete(dishes);
+}
+
+// setSelection now requires a scheduled `deliveries` row for the date, not just a day-of-week
+// membership computation — order alone no longer implies a schedule.
+async function seedDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
+  const [row] = await db.insert(deliveries).values({
+    orderId, deliveryDate: "2099-01-05", status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,
+  }).returning();
+  return row;
 }
 
 describe("setSelection per-day cutoff + span", () => {
@@ -44,6 +53,7 @@ describe("setSelection per-day cutoff + span", () => {
       deploymentId: "SUB-cutoff-test", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V",
     }).returning();
     order = o;
+    await seedDelivery(o.id);
   });
   afterAll(reset);
 
@@ -63,6 +73,7 @@ describe("setSelection per-day cutoff + span", () => {
   it("rejects after the cutoff has passed", async () => {
     const [past] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning(); // 2000 Mon, long past
     await db.insert(menuItems).values({ menuWeekId: past.id, dayOfWeek: "mon", slot: "sabzi", dishId: (await db.select().from(dishes).limit(1))[0].id, isDefault: true });
+    await seedDelivery(order.id, { deliveryDate: "2000-01-03", cutoffAt: Date.now() - 1000 });
     const pastOrder = { ...order, startDate: "2000-01-03" };
     await expect(
       selectionsService.setSelection({ order: pastOrder, menuWeek: past, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, dishPublicId }),
