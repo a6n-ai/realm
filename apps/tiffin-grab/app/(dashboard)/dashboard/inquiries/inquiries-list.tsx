@@ -11,6 +11,7 @@ import { TableCell } from "@realm/ui/table";
 import { Badge } from "@realm/ui/badge";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 
@@ -52,6 +53,7 @@ export function InquiriesList({
   staff?: { publicId: string; name: string }[];
   reassignAction?: (inquiryId: string, ownerId: string) => Promise<void>;
 }) {
+  const tz = useTimezone();
   return (
     <div className="space-y-4">
       <DataTable
@@ -96,14 +98,14 @@ export function InquiriesList({
           <TableCell>{r.source}</TableCell>
           <TableCell className="text-right tabular-nums">
             {r.lastTouchAt != null
-              ? formatEpoch(r.lastTouchAt, { mode: "datetime" })
+              ? formatEpoch(r.lastTouchAt, { mode: "datetime", timeZone: tz })
               : "—"}
           </TableCell>
           <TableCell className="text-right">
             {r.nextFollowUpAt != null ? (
               <span className="inline-flex items-center gap-2">
                 <span className="tabular-nums">
-                  {formatEpoch(r.nextFollowUpAt, { mode: "date" })}
+                  {formatEpoch(r.nextFollowUpAt, { mode: "date", timeZone: tz })}
                 </span>
                 {r.overdue ? <Badge variant="destructive">Overdue</Badge> : null}
               </span>
@@ -112,7 +114,7 @@ export function InquiriesList({
             )}
           </TableCell>
           <TableCell className="text-right tabular-nums">
-            {formatEpoch(r.createdAt, { mode: "date" })}
+            {formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
         </>
       )}
