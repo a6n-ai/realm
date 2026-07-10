@@ -114,7 +114,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       </SectionCard>
 
       <SectionCard title="Deliveries">
-        <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} />
+        <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} orderStatus={order.status} />
       </SectionCard>
 
       <SectionCard title="Coming week meals">

@@ -5,8 +5,6 @@ import { requireStaff } from "@/lib/auth/guards";
 import { activateOrder, cancelOrder, pauseOrder, readOrder, resumeOrder } from "@/lib/services/orders.service";
 import {
   maybeComplete,
-  pauseRange,
-  resumeOrder as resumeDeliveryRange,
   setDeliveryAddress,
   skipDelivery,
   unskipDelivery,
@@ -61,12 +59,12 @@ export async function editDeliveryAddress(
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
-// Row-level pause/resume, distinct from pause()/resume() above: those flip the order's own
-// status through orders.service and only succeed on a whole-schedule pause. These act directly
-// on the delivery rows in a date window without touching order.status, for partial pauses.
+// Row-level pause/resume buttons on the deliveries panel. These route through the same
+// orders.service.pause/resume as LifecycleControls (not deliveries.service directly) so
+// order.status stays the single source of truth no matter which UI surface is used.
 export async function pauseDeliveryRange(orderId: string, window: { from: string; until: string }) {
   await requireStaff();
-  await pauseRange(orderId, window.from, window.until);
+  await pauseOrder(orderId, window);
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -74,7 +72,7 @@ export async function pauseDeliveryRange(orderId: string, window: { from: string
 
 export async function resumeDeliveryRangeAction(orderId: string) {
   await requireStaff();
-  await resumeDeliveryRange(orderId);
+  await resumeOrder(orderId);
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);

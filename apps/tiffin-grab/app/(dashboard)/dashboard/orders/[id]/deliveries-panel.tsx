@@ -103,7 +103,15 @@ function EditAddressDialog({
   );
 }
 
-export function DeliveriesPanel({ orderId, deliveries }: { orderId: string; deliveries: DeliveryRow[] }) {
+export function DeliveriesPanel({
+  orderId,
+  deliveries,
+  orderStatus,
+}: {
+  orderId: string;
+  deliveries: DeliveryRow[];
+  orderStatus: string;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [from, setFrom] = useState("");
@@ -136,10 +144,12 @@ export function DeliveriesPanel({ orderId, deliveries }: { orderId: string; deli
           onChange={(e) => setUntil(e.target.value)}
           className="rounded-md border bg-transparent px-2 py-1 text-sm"
         />
+        {/* Mirrors LifecycleControls' status gating: orders.service.pause/resume require
+            "active"/"paused" respectively, so disable rather than let the call throw. */}
         <Button
           variant="secondary"
           size="sm"
-          disabled={pending || !from || !until}
+          disabled={pending || !from || !until || orderStatus !== "active"}
           onClick={() => run(() => pauseDeliveryRange(orderId, { from, until }))}
         >
           Pause range
@@ -147,7 +157,7 @@ export function DeliveriesPanel({ orderId, deliveries }: { orderId: string; deli
         <Button
           variant="outline"
           size="sm"
-          disabled={pending}
+          disabled={pending || orderStatus !== "paused"}
           onClick={() => run(() => resumeDeliveryRangeAction(orderId))}
         >
           Resume
