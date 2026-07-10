@@ -7,6 +7,7 @@ import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 import type { SortState } from "@/lib/list/sort";
 import { ReassignControl } from "@/components/reassign/reassign-control";
@@ -50,6 +51,7 @@ export function OrdersList({
   canReassign: boolean;
   staff: { publicId: string; name: string }[];
 }) {
+  const tz = useTimezone();
   return (
     <div className="space-y-4">
     <DataTable
@@ -91,7 +93,7 @@ export function OrdersList({
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
           <TableCell className="text-right tabular-nums">
-            {formatEpoch(o.createdAt, { mode: "date" })}
+            {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
         </>
       )}

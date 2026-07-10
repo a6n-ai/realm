@@ -5,6 +5,8 @@ import { HistoryIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { Skeleton } from "@realm/ui/skeleton";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import type { DiscountLogSortColumn } from "./page";
 
@@ -32,10 +34,6 @@ type DiscountLogRow = {
   orderPublicId: string | null;
 };
 
-function fmt(ms: number): string {
-  return new Date(ms).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" });
-}
-
 function StatsGrid({ stats }: { stats: Stat[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -58,6 +56,8 @@ export function DiscountLogs({
   rows: DiscountLogRow[];
   sort: SortState<DiscountLogSortColumn>;
 }) {
+  const tz = useTimezone();
+  const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
     <>
       <StatsGrid stats={stats} />

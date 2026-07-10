@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
 import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
@@ -57,6 +58,7 @@ export function TicketsList({
 }) {
   // Status + owner are client-side filters layered on top of DataTable's own
   // "q" search (which filters the rows we hand it via search.keys).
+  const tz = useTimezone();
   const [activeStatus, setActiveStatus] = useUrlState("status", "all");
   const [owner, setOwner] = useUrlState("owner", ALL_OWNERS);
 
@@ -174,7 +176,7 @@ export function TicketsList({
           </TableCell>
           <TableCell className="text-right tabular-nums">
             {r.lastMessageAt != null
-              ? formatEpoch(r.lastMessageAt, { mode: "datetime" })
+              ? formatEpoch(r.lastMessageAt, { mode: "datetime", timeZone: tz })
               : "—"}
           </TableCell>
           <TableCell>

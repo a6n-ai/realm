@@ -1,12 +1,13 @@
+import { parseIsoDateUtc } from "@realm/commons";
 import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 function weekRangeLabel(weekStart: string): string {
-  const start = new Date(`${weekStart}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString("en-CA", { day: "numeric", month: "short" });
-  return `${fmt(start)} – ${fmt(end)}`;
+  const end = parseIsoDateUtc(weekStart);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const endIso = end.toISOString().slice(0, 10);
+  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(endIso, { mode: "short" })}`;
 }
 
 export function WeeklyMenuPoster({

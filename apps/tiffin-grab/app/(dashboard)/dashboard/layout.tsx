@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { NotFoundError, zonedDateIso } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getAppSettings, getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
@@ -16,6 +16,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CrmShell } from "@realm/crm";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
+import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
@@ -42,6 +43,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const hasPin = Boolean(user.pinHash);
   if (hasPin && (await isLocked())) redirect("/login");
 
+  const { timezone } = await getAppSettings();
+
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
   // Customers have none of the tickets/inquiries/customers nav items, so skip
@@ -63,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
+    <TimezoneProvider tz={timezone}>
     <QuickAddProvider>
     <CrmShell
       sidebar={
@@ -88,5 +92,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       {children}
     </CrmShell>
     </QuickAddProvider>
+    </TimezoneProvider>
   );
 }

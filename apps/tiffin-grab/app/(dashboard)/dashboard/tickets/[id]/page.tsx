@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   ticketsService,
   type TicketPriority,
@@ -122,15 +123,17 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
 
   const ticketP = loadTicket(id);
   const messagesP = ticketsService.listMessages(id);
+  const settingsP = getAppSettings();
   let ticket;
   try {
     ticket = await ticketP;
   } catch (e) {
     void messagesP.catch(() => {});
+    void settingsP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const messages = await messagesP;
+  const [messages, { timezone }] = await Promise.all([messagesP, settingsP]);
   const closed = ticket.status === "resolved" || ticket.status === "closed";
   const channel = `ticket:${ticket.publicId}`;
 
@@ -164,7 +167,7 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-semibold">{AUTHOR_LABEL[m.authorType] ?? m.authorType}</span>
               <span className="text-muted-foreground nums text-xs">
-                {formatEpoch(m.createdAt, { mode: "datetime" })}
+                {formatEpoch(m.createdAt, { mode: "datetime", timeZone: timezone })}
               </span>
             </div>
             <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>

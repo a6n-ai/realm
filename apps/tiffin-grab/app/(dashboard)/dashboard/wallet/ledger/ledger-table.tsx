@@ -5,6 +5,8 @@ import { ScrollTextIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { eventLabel } from "@/components/notifications/template-status";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import type { WalletSortColumn } from "./page";
 
@@ -33,10 +35,6 @@ const COLUMNS: readonly Column<WalletSortColumn>[] = [
   { key: "memo", label: "Memo", sortable: true },
 ];
 
-function fmt(ms: number): string {
-  return new Date(ms).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" });
-}
-
 export function LedgerTable({
   rows,
   sort,
@@ -44,6 +42,8 @@ export function LedgerTable({
   rows: Row[];
   sort: SortState<WalletSortColumn>;
 }) {
+  const tz = useTimezone();
+  const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
     <DataTable
       columns={COLUMNS}

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRightIcon,
   BanknoteIcon,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@realm/ui/badge";
 import { cn } from "@realm/ui/cn";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";
 
@@ -99,6 +102,7 @@ export function InquiryTimeline({
   currency: string;
   terminal: boolean;
 }) {
+  const tz = useTimezone();
   if (activities.length === 0) {
     return <p className="text-muted-foreground py-6 text-center text-sm">No activity yet.</p>;
   }
@@ -143,7 +147,7 @@ export function InquiryTimeline({
                 ) : null}
               </div>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                {formatEpoch(a.createdAt, { mode: "datetime" })}
+                {formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}
               </p>
 
               {a.outcome || a.amount != null || a.nextFollowUpAt != null ? (
@@ -156,7 +160,7 @@ export function InquiryTimeline({
                     <MetaChip
                       className={cn(overdue && "border-bad/30 bg-bad/10 text-bad")}
                     >
-                      ↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date" })}
+                      ↳ Next: {formatEpoch(a.nextFollowUpAt, { mode: "date", timeZone: tz })}
                     </MetaChip>
                   ) : null}
                 </div>

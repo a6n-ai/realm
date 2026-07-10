@@ -13,6 +13,8 @@ import {
 import { TableCell } from "@realm/ui/table";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import { eventLabel } from "./template-status";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
@@ -70,10 +72,6 @@ function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
   );
 }
 
-function fmt(ms: number | null): string {
-  return ms ? new Date(ms).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "—";
-}
-
 export function TemplateList({
   items,
   sort,
@@ -81,6 +79,8 @@ export function TemplateList({
   items: TemplateStatus[];
   sort: SortState<TemplateSortColumn>;
 }) {
+  const tz = useTimezone();
+  const fmt = (ms: number | null) => (ms ? formatEpoch(ms, { mode: "date", timeZone: tz }) : "—");
   const [status, setStatus] = useUrlState("status", "all");
 
   const rows = useMemo<Row[]>(
