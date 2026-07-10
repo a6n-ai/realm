@@ -4,6 +4,8 @@ import { BellIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
 import { eventLabel } from "@/components/notifications/template-status";
+import { formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
 import type { LogSortColumn } from "./page";
 
@@ -38,11 +40,9 @@ const STATUS_STYLE: Record<string, string> = {
   processing: "text-warn",
 };
 
-function fmt(ms: number): string {
-  return new Date(ms).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" });
-}
-
 export function LogsTable({ rows, sort }: { rows: Row[]; sort: SortState<LogSortColumn> }) {
+  const tz = useTimezone();
+  const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
     <DataTable
       columns={COLUMNS}

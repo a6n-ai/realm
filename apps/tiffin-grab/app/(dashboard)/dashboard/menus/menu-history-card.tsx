@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { parseIsoDateUtc } from "@realm/commons";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
+import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
+import { useTimezone } from "@/components/providers/timezone-provider";
 
 type WeekMenu = {
   publicId: string;
@@ -20,16 +23,16 @@ type WeekMenu = {
 };
 
 function weekRange(weekStart: string): string {
-  const start = new Date(`${weekStart}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString("en-CA", { day: "numeric", month: "short" });
-  return `${fmt(start)} – ${fmt(end)}`;
+  const end = parseIsoDateUtc(weekStart);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const endIso = end.toISOString().slice(0, 10);
+  return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(endIso, { mode: "short" })}`;
 }
 
 export function MenuHistoryCard({
   week, planType, accent, highlight = null,
 }: { week: WeekMenu; planType: string; accent: string; highlight?: "current" | "upcoming" | null }) {
+  const tz = useTimezone();
   const columns = buildPosterColumns(week.slots, week.items);
   const [day, setDay] = useState(0);
   const col = columns[day];
@@ -54,7 +57,7 @@ export function MenuHistoryCard({
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {week.itemCount} dishes
-            {week.releasedAt ? ` · released ${new Date(week.releasedAt).toLocaleDateString("en-CA")}` : ""}
+            {week.releasedAt ? ` · released ${formatEpoch(week.releasedAt, { mode: "date", timeZone: tz })}` : ""}
           </p>
         </div>
         <Badge variant={week.status === "released" ? "default" : "secondary"} className="shrink-0 capitalize">

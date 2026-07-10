@@ -5,6 +5,7 @@ import { CalendarIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Calendar } from "@realm/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -12,7 +13,7 @@ function toIso(d: Date): string {
 
 function label(value: string): string {
   if (!value) return "Pick a Monday";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return formatDateOnly(value, { mode: "weekday" });
 }
 
 // Week menus always start on a Monday; the calendar disables every other day so
