@@ -2,13 +2,14 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@realm/commons";
 import { db } from "@/db/client";
-import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
+import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createOrder } = await import("../orders.service");
 
 async function reset() {
+  await db.delete(deliveries);
   await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
@@ -50,6 +51,12 @@ describe("createOrder (integration)", () => {
     expect(Number(o.total)).toBeCloseTo(Number(o.perTiffinPrice) * o.tiffinCount, 2);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
+    // A zone-matched order lands on "active" directly (createOrder never calls
+    // activate()) and must materialize its N delivery rows in the same tx.
+    expect(o.status).toBe("active");
+    const drops = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(drops.length).toBe(o.durationWeeks * 5); // 5_day frequency
+    expect(drops.every((d) => d.status === "scheduled" && d.makeupForDeliveryId === null)).toBe(true);
   });
 
   it("seeds the activity timeline with a created row matching the initial status", async () => {

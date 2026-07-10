@@ -13,6 +13,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
+import { materializeDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateStartDate } from "./start-date";
@@ -274,7 +275,12 @@ export async function createOrder(
         currentOwner: input.currentOwner ?? null,
         createdBy,
       })
-      .returning({ id: orders.id, publicId: orders.publicId });
+      .returning();
+
+    // createOrder never calls activate() — an in-zone customer lands on "active"
+    // directly here, so materialization must be hooked on both paths, not just
+    // the waitlisted→active transition below.
+    if (order.status === "active") await materializeDeliveries(tx, order);
 
     // Payment + matching ledger credit (the discounted total is what's paid).
     await recordPayment(tx, { orderId: order.id, userId, amount: pricing.total, createdBy });
@@ -521,6 +527,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       { type: "activated", toStatus: "active" },
     );
     const order = await this.read(publicId);
+    // The other route into "active" (createOrder) materializes inline; this is
+    // the waitlisted→active transition's hook.
+    await db.transaction((tx) => materializeDeliveries(tx, order));
     if (order.userId != null) {
       try {
         await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
