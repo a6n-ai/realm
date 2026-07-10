@@ -13,7 +13,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
-import { materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
+import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateStartDate } from "./start-date";
@@ -486,7 +486,6 @@ export async function listOrderActivities(orderId: bigint) {
 }
 
 type OrderStatusValue = (typeof orders.status.enumValues)[number];
-type OrderActivityType = (typeof orderActivities.type.enumValues)[number];
 
 // The order lifecycle is built on the shared commons abstractions: OrdersService
 // extends the updatable entity service (inheriting read/update with managed-column
@@ -500,23 +499,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     new BaseRepository(db, orderActivities, orderActivities.publicId, orderActivities.id),
   );
 
-  // Guarded status transition: validate the current status, update the entity
-  // through the inherited service, then record the audit activity.
-  private async transition(
-    publicId: string,
-    guard: (current: OrderStatusValue) => void,
-    patch: Partial<typeof orders.$inferInsert>,
-    activity: { type: OrderActivityType; toStatus: OrderStatusValue },
-  ): Promise<void> {
-    const order = await this.read(publicId);
-    guard(order.status);
-    await this.update(publicId, patch);
-    await this.activities.create({
-      orderId: order.id,
-      type: activity.type,
-      fromStatus: order.status,
-      toStatus: activity.toStatus,
-    });
+  // durationWeeks/frequencyId drive delivery-row materialization (row count, cutoff dates);
+  // once rows exist, changing either would silently desync them from the schedule they were
+  // materialized against. Freeze both the moment any delivery row exists — including a
+  // cancelled subscription's void rows, since cancel() never deletes them.
+  async update(publicId: string, patch: Record<string, unknown>): Promise<typeof orders.$inferSelect> {
+    if (patch.durationWeeks !== undefined || patch.frequencyId !== undefined) {
+      const order = await this.read(publicId);
+      const [row] = await db.select({ id: deliveries.id }).from(deliveries)
+        .where(eq(deliveries.orderId, order.id)).limit(1);
+      if (row) throw new ValidationError("Duration and frequency are fixed once a subscription is active");
+    }
+    return super.update(publicId, patch);
   }
 
   async activate(publicId: string): Promise<void> {
@@ -559,13 +553,35 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     }
   }
 
+  // Terminal: cancel() has no reverse. activate()'s existing `if (c !== "waitlisted") throw`
+  // guard already forbids reactivating a cancelled order — no separate check needed here.
+  // Bypasses transition()/update() for the same reason activate() does: cancelDeliveries must
+  // run in the SAME tx as the status flip (a crash between the two must roll back both), and
+  // the lock must be taken before the pre-cancelled guard is evaluated (TOCTOU — see
+  // skipDelivery in deliveries.service.ts for the same shape).
   async cancel(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
-      { status: "cancelled" },
-      { type: "cancelled", toStatus: "cancelled" },
-    );
+    const actorId = await this.currentUserId();
+    await db.transaction(async (tx) => {
+      const [idRow] = await tx.select({ id: orders.id }).from(orders)
+        .where(eq(orders.publicId, publicId)).limit(1);
+      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+
+      const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      if (order.status === "cancelled") throw new ValidationError("Order is already cancelled");
+
+      const [row] = await tx.update(orders).set({ status: "cancelled", updatedBy: actorId })
+        .where(eq(orders.id, order.id)).returning();
+      await cancelDeliveries(tx, row.id);
+      await tx.insert(orderActivities).values({
+        orderId: row.id,
+        type: "cancelled",
+        fromStatus: order.status,
+        toStatus: "cancelled",
+        createdBy: actorId,
+      });
+    });
   }
 
   // Delegates the actual row-marking to pauseRange (which validates the window and does its own
@@ -627,3 +643,10 @@ export const pauseOrder = (publicId: string, window: { from: string; until: stri
 export const resumeOrder = (publicId: string): Promise<void> => ordersService.resume(publicId);
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
+// The generic guarded update path: durationWeeks/frequencyId are rejected once the order has
+// any delivery row (see OrdersService.update above). No UI route calls this with those fields
+// yet, but it's the sanctioned entry point future editors must route through.
+export const updateOrder = (
+  publicId: string,
+  patch: Record<string, unknown>,
+): Promise<typeof orders.$inferSelect> => ordersService.update(publicId, patch);

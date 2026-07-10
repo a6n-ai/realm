@@ -258,6 +258,30 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
   });
 }
 
+/**
+ * Marks every scheduled/paused row (originals and make-ups alike) cancelled. Terminal: cancel()
+ * never reactivates, so there is no corresponding "uncancel". Caller owns the transaction/lock —
+ * this runs inside orders.service.ts cancel()'s own advisory-locked tx.
+ */
+export async function cancelDeliveries(tx: Tx, orderId: bigint): Promise<number> {
+  const rows = await tx.update(deliveries).set({ status: "cancelled" })
+    .where(and(eq(deliveries.orderId, orderId), inArray(deliveries.status, ["scheduled", "paused"])))
+    .returning({ id: deliveries.id });
+  return rows.length;
+}
+
+/** No future non-cancelled rows and no unmaterialized make-up debt -> the subscription is done. */
+export async function maybeComplete(orderId: bigint): Promise<boolean> {
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
+    eq(deliveries.orderId, orderId),
+    inArray(deliveries.status, ["scheduled", "paused"]),
+  ));
+  if (n > 0) return false;
+  await db.update(orders).set({ status: "completed" })
+    .where(and(eq(orders.id, orderId), eq(orders.status, "active")));
+  return true;
+}
+
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
 export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string>): string {
   const d = parseIsoDateUtc(afterIso);
