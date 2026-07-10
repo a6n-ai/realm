@@ -272,14 +272,21 @@ export async function cancelDeliveries(tx: Tx, orderId: bigint): Promise<number>
 
 /** No future non-cancelled rows and no unmaterialized make-up debt -> the subscription is done. */
 export async function maybeComplete(orderId: bigint): Promise<boolean> {
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
-    eq(deliveries.orderId, orderId),
-    inArray(deliveries.status, ["scheduled", "paused"]),
-  ));
-  if (n > 0) return false;
-  await db.update(orders).set({ status: "completed" })
-    .where(and(eq(orders.id, orderId), eq(orders.status, "active")));
-  return true;
+  return db.transaction(async (tx) => {
+    // Lock before counting: without this, a concurrent reconcileMakeups can insert a fresh
+    // make-up (new scheduled debt) between our count and the update below, and we'd still
+    // flip the order to "completed" out from under an outstanding delivery.
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [{ n }] = await tx.select({ n: sql<number>`count(*)::int` }).from(deliveries).where(and(
+      eq(deliveries.orderId, orderId),
+      inArray(deliveries.status, ["scheduled", "paused"]),
+    ));
+    if (n > 0) return false;
+    await tx.update(orders).set({ status: "completed" })
+      .where(and(eq(orders.id, orderId), eq(orders.status, "active")));
+    return true;
+  });
 }
 
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */

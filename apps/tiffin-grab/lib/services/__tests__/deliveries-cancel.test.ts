@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { activateOrder, cancelOrder, createOrder, updateOrder } = await import("../orders.service");
+const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
 const { reconcileMakeups, maybeComplete } = await import("../deliveries.service");
 
 async function reset() {
@@ -74,6 +74,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     const before = await rowsFor(o);
     expect(before.length).toBeGreaterThan(0);
     const beforeCount = before.length;
+    const beforeOriginalsCount = before.filter((r) => r.makeupForDeliveryId === null).length;
 
     // Pause one row and manually plant a "make-up" row (a scheduled row with a
     // non-null makeupForDeliveryId) so cancellation is proven to reach make-ups too.
@@ -93,6 +94,9 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     expect(after.every((r) => r.status === "cancelled")).toBe(true);
     const afterMakeup = after.find((r) => r.id === makeup.id)!;
     expect(afterMakeup.status).toBe("cancelled");
+    // Direct proof that originals are never deleted, not just inferred from the total count.
+    const afterOriginalsCount = after.filter((r) => r.makeupForDeliveryId === null).length;
+    expect(afterOriginalsCount).toBe(beforeOriginalsCount);
 
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("cancelled");
@@ -142,15 +146,15 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
 
   it("throws when updating durationWeeks or frequencyId on an order that already has delivery rows", async () => {
     const o = await makeOrder();
-    await expect(updateOrder(o.publicId, { durationWeeks: 2 })).rejects.toBeInstanceOf(ValidationError);
-    await expect(updateOrder(o.publicId, { frequencyId: 999n })).rejects.toBeInstanceOf(ValidationError);
+    await expect(ordersService.update(o.publicId, { durationWeeks: 2 })).rejects.toBeInstanceOf(ValidationError);
+    await expect(ordersService.update(o.publicId, { frequencyId: 999n })).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("the same update succeeds on an order with no delivery rows yet", async () => {
     const o = await makeWaitlistedOrder();
     const rows = await rowsFor(o);
     expect(rows.length).toBe(0);
-    await expect(updateOrder(o.publicId, { durationWeeks: 3 })).resolves.toBeDefined();
+    await expect(ordersService.update(o.publicId, { durationWeeks: 3 })).resolves.toBeDefined();
     const [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.durationWeeks).toBe(3);
   });

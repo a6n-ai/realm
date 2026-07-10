@@ -634,7 +634,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 }
 
-const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
+export const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
 
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
@@ -643,10 +643,3 @@ export const pauseOrder = (publicId: string, window: { from: string; until: stri
 export const resumeOrder = (publicId: string): Promise<void> => ordersService.resume(publicId);
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
-// The generic guarded update path: durationWeeks/frequencyId are rejected once the order has
-// any delivery row (see OrdersService.update above). No UI route calls this with those fields
-// yet, but it's the sanctioned entry point future editors must route through.
-export const updateOrder = (
-  publicId: string,
-  patch: Record<string, unknown>,
-): Promise<typeof orders.$inferSelect> => ordersService.update(publicId, patch);
