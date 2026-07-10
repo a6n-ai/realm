@@ -61,3 +61,25 @@ describe("formatDateOnly", () => {
     expect(formatDateOnly("2026-07-31", { mode: "short", locale: "en-US" })).toBe("Jul 31");
   });
 });
+
+describe("formatEpoch requires a timeZone for absolute modes", () => {
+  it("still formats relative mode without a timeZone", () => {
+    const s = formatEpoch(Date.now() + 3_600_000, { mode: "relative" });
+    expect(typeof s).toBe("string");
+  });
+
+  it("rejects an absolute format with no timeZone (type-level)", () => {
+    // Type-checked but never invoked: opts is required now, so calling with none/without
+    // timeZone would throw at runtime — these calls exist purely for tsc to reject.
+    const noOpts = () => {
+      // @ts-expect-error timeZone is required for absolute modes
+      formatEpoch(0);
+    };
+    const noTimeZone = () => {
+      // @ts-expect-error timeZone is required for absolute modes
+      formatEpoch(0, { mode: "date" });
+    };
+    expect(typeof noOpts).toBe("function");
+    expect(typeof noTimeZone).toBe("function");
+  });
+});

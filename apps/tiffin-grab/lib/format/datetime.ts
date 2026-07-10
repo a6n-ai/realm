@@ -4,20 +4,23 @@ export function epochToDate(ms: number): Date {
   return new Date(ms);
 }
 
-type FormatMode = "date" | "datetime" | "time" | "relative";
+type AbsoluteMode = "date" | "datetime" | "time";
 
-const PRESETS: Record<Exclude<FormatMode, "relative">, Intl.DateTimeFormatOptions> = {
+const PRESETS: Record<AbsoluteMode, Intl.DateTimeFormatOptions> = {
   date: { year: "numeric", month: "short", day: "numeric" },
   datetime: { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
   time: { hour: "numeric", minute: "2-digit" },
 };
 
-export function formatEpoch(
-  ms: number,
-  opts: { timeZone?: string; mode?: FormatMode; withZone?: boolean; locale?: string } = {},
-): string {
-  const { mode = "datetime", timeZone, withZone, locale } = opts;
-  if (mode === "relative") {
+type FormatEpochOpts =
+  | { mode: "relative"; locale?: string }
+  // timeZone is REQUIRED: omitting it silently formats in the runtime's zone (the server's
+  // during SSR), which is the bug this audit exists to fix.
+  | { mode?: AbsoluteMode; timeZone: string; withZone?: boolean; locale?: string };
+
+export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
+  if (opts.mode === "relative") {
+    const { locale } = opts;
     const diff = ms - Date.now();
     const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
     const mins = Math.round(diff / 60000);
@@ -26,9 +29,9 @@ export function formatEpoch(
     if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
     return rtf.format(Math.round(hours / 24), "day");
   }
-  const presetOpts = PRESETS[mode];
+  const { mode = "datetime", timeZone, withZone, locale } = opts;
   return new Intl.DateTimeFormat(locale, {
-    ...presetOpts,
+    ...PRESETS[mode],
     timeZone,
     ...(withZone ? { timeZoneName: "short" } : {}),
   }).format(ms);
