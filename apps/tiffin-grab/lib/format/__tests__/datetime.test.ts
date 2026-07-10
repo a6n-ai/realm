@@ -72,14 +72,20 @@ describe("formatEpoch requires a timeZone for absolute modes", () => {
     // Type-checked but never invoked: opts is required now, so calling with none/without
     // timeZone would throw at runtime — these calls exist purely for tsc to reject.
     const noOpts = () => {
-      // @ts-expect-error timeZone is required for absolute modes
+      // @ts-expect-error opts is a required argument (no `= {}` default) — this isolates
+      // arity, not the timeZone constraint itself.
       formatEpoch(0);
     };
     const noTimeZone = () => {
       // @ts-expect-error timeZone is required for absolute modes
       formatEpoch(0, { mode: "date" });
     };
+    const noTimeZoneDefaultMode = () => {
+      // @ts-expect-error timeZone is required when mode is omitted (it defaults to "datetime")
+      formatEpoch(0, { locale: "en-US" });
+    };
     expect(typeof noOpts).toBe("function");
     expect(typeof noTimeZone).toBe("function");
+    expect(typeof noTimeZoneDefaultMode).toBe("function");
   });
 });
