@@ -82,4 +82,45 @@ describe("setAppSettings recomputes cutoff_at (integration)", () => {
       await setAppSettings(original);
     }
   });
+
+  it("recomputes cutoff_at using the new timezone, not the old one", async () => {
+    const original = await getAppSettings();
+    try {
+      const o = await activatedOrder();
+      const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+
+      // America/Vancouver has a different UTC offset than the America/Toronto default/schema
+      // default, so this fails if patch.timezone is ever swapped for a hardcoded "America/Toronto".
+      await setAppSettings({ timezone: "America/Vancouver", cutoffHour: 9 });
+
+      for (const row of rows) {
+        const [after] = await db.select().from(deliveries).where(eq(deliveries.id, row.id));
+        expect(after.cutoffAt).toBe(cutoffMsFor(row.deliveryDate, 9, "America/Vancouver"));
+      }
+    } finally {
+      await setAppSettings(original);
+    }
+  });
+
+  it("does not resurrect a row whose cutoff lapsed mid-loop (simulated race)", async () => {
+    const original = await getAppSettings();
+    try {
+      const o = await activatedOrder();
+      const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+      const target = rows[0];
+
+      // Row is selected as "future" by setAppSettings's SELECT (cutoffAt is Date.now() + 1e9 from
+      // activatedOrder), but we lapse it here to simulate reconcileMakeups marking it missed
+      // concurrently, between the SELECT and the per-row UPDATE.
+      const lapsed = Date.now() - 1000;
+      await db.update(deliveries).set({ cutoffAt: lapsed }).where(eq(deliveries.id, target.id));
+
+      await setAppSettings({ timezone: "America/Toronto", cutoffHour: 11 });
+
+      const [after] = await db.select().from(deliveries).where(eq(deliveries.id, target.id));
+      expect(after.cutoffAt).toBe(lapsed); // guarded UPDATE must skip the now-lapsed row
+    } finally {
+      await setAppSettings(original);
+    }
+  });
 });

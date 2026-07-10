@@ -1,6 +1,6 @@
 import { UpdatableRepository } from "@realm/database";
 import { cutoffMsFor } from "@realm/commons";
-import { eq, gt } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
 import { db } from "@/db/client";
 import { app, deliveries } from "@/db/schema";
@@ -70,9 +70,13 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
   const future = await db.select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
     .from(deliveries).where(gt(deliveries.cutoffAt, now));
   for (const r of future) {
+    // Re-check cutoffAt > now (same captured `now`) on the write itself: if this row's
+    // cutoff lapsed between the SELECT and here, it may have already spawned a make-up
+    // via reconcileMakeups running concurrently, making it terminal — overwriting it with
+    // a new future cutoff would un-terminal-ize it and double-count a paid drop.
     await db.update(deliveries)
       .set({ cutoffAt: cutoffMsFor(r.deliveryDate, patch.cutoffHour, patch.timezone) })
-      .where(eq(deliveries.id, r.id));
+      .where(and(eq(deliveries.id, r.id), gt(deliveries.cutoffAt, now)));
   }
 }
 
