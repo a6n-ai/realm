@@ -520,19 +520,39 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   async activate(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
-      { status: "active" },
-      { type: "activated", toStatus: "active" },
-    );
     const order = await this.read(publicId);
-    // The other route into "active" (createOrder) materializes inline; this is
-    // the waitlisted→active transition's hook.
-    await db.transaction((tx) => materializeDeliveries(tx, order));
-    if (order.userId != null) {
+    if (order.status !== "waitlisted") {
+      throw new ValidationError(`Cannot activate an order that is ${order.status}`);
+    }
+    const actorId = await this.currentUserId();
+
+    // Status flip + delivery materialization + activity log in one tx: if
+    // materialization throws, the whole activation rolls back — the design
+    // forbids an "active" order with zero delivery rows. Bypasses the audited
+    // update()/transition() path for the same reason createOrder does (see its
+    // comment above): those helpers aren't tx-aware, so a raw in-tx write is
+    // the smaller change vs threading a tx through the shared service layer.
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(orders)
+        .set({ status: "active", updatedBy: actorId })
+        .where(eq(orders.publicId, publicId))
+        .returning();
+      if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.insert(orderActivities).values({
+        orderId: row.id,
+        type: "activated",
+        fromStatus: order.status,
+        toStatus: "active",
+        createdBy: actorId,
+      });
+      await materializeDeliveries(tx, row);
+      return row;
+    });
+
+    if (updated.userId != null) {
       try {
-        await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
+        await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
       } catch (e) {
         log.error({ err: e }, "wallet award on activation failed");
       }
