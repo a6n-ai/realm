@@ -182,6 +182,30 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
     }
   });
 
+  it("a scheduled make-up delivery appears in the grid (visibleDeliveries has no makeupForDeliveryId filter)", async () => {
+    const snap = await loadCatalogSnapshot();
+    const vegPlan = snap.plans.find((p) => p.key === "veg")!;
+    const { order, mealOrder } = await makeOrder(vegPlan.id);
+    const original = await seedMondayDelivery(order.id);
+    await makeWeek();
+
+    // A make-up is a real, independently-scheduled delivery — it must show up in the grid just
+    // like any other scheduled row, regardless of makeupForDeliveryId.
+    const makeupDateIso = (() => {
+      const d = new Date(`${COMING_MONDAY}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    await db.insert(deliveries).values({
+      orderId: order.id, deliveryDate: makeupDateIso, status: "scheduled",
+      cutoffAt: Date.now() + 1e9, makeupForDeliveryId: original.id,
+    });
+
+    const grid = await buildMealsGrid(mealOrder, SETTINGS);
+    if (grid.empty !== null) throw new Error(`expected grid, got empty=${grid.empty}`);
+    expect(grid.weekDatesView.some((v) => v.dateIso === makeupDateIso)).toBe(true);
+  });
+
   it("the grid's lockMs equals the row's stored cutoffAt", async () => {
     const snap = await loadCatalogSnapshot();
     const vegPlan = snap.plans.find((p) => p.key === "veg")!;
