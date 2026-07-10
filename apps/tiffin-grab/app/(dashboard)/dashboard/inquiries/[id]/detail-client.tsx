@@ -49,7 +49,6 @@ export function InquiryDetailClient({
   inquiryId,
   stage,
   currency,
-  timezone,
   convertedOrderHref,
   contact,
   sourceLabel,
@@ -66,7 +65,6 @@ export function InquiryDetailClient({
   inquiryId: string;
   stage: InquiryStage;
   currency: string;
-  timezone: string;
   convertedOrderHref?: string;
   contact: { fullName: string; phone: string; email: string };
   sourceLabel: string;
@@ -197,7 +195,7 @@ export function InquiryDetailClient({
 
         <Card className="min-w-0 lg:col-start-1 lg:row-start-2">
           <h2 className="mb-4 text-base font-semibold">Activity</h2>
-          <InquiryTimeline activities={activities} currency={currency} terminal={terminal} timezone={timezone} />
+          <InquiryTimeline activities={activities} currency={currency} terminal={terminal} />
         </Card>
       </div>
 
