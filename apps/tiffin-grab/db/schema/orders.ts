@@ -3,12 +3,13 @@ import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable,
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 
-export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused"]);
+export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused", "completed"]);
 // Additive: 'simulated_paid' stays the default; 'pending' / 'refunded' added for manual capture.
 export const paymentStatus = pgEnum("payment_status", ["simulated_paid", "pending", "refunded"]);
 export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
 export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
+  "skipped", "unskipped", "delivery_address_changed",
 ]);
 
 export const orders = pgTable("orders", {
@@ -29,8 +30,6 @@ export const orders = pgTable("orders", {
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
   status: orderStatus("status").notNull().default("pending"),
-  pausedFrom: date("paused_from"),
-  pausedUntil: date("paused_until"),
   deploymentId: text("deployment_id").notNull().unique(),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   fullName: text("full_name").notNull(),
@@ -63,6 +62,9 @@ export const orderActivities = pgTable("order_activities", {
   note: text("note"),
   fromStatus: orderStatus("from_status"),
   toStatus: orderStatus("to_status"),
+  // Plain bigint, no .references(): a TS-level reference would cycle orders -> deliveries -> orders.
+  // FK added in raw SQL in the migration.
+  deliveryId: bigint("delivery_id", { mode: "bigint" }),
 }, (t) => [
   index("order_activities_order_created_idx").on(t.orderId, t.createdAt),
 ]);

@@ -15,26 +15,21 @@ export function mondayOfIso(dateIso: string): string {
 }
 
 // First durationWeeks × deliveryDays.length delivery dates on/after startDate.
-// A pauseWindow (inclusive ISO dates) suppresses any delivery inside it without
-// counting it toward the total, so the tail extends to still yield all deliveries.
+// A row factory: produces the exact date set materialized into `deliveries` rows.
 export function subscriptionDeliveryDates(input: {
   startDate: string;
   durationWeeks: number;
   deliveryDays: DayOfWeek[];
-  pauseWindow?: { from: string; until: string };
 }): DeliveryDate[] {
   const want = new Set(input.deliveryDays);
   const total = input.durationWeeks * input.deliveryDays.length;
-  const pause = input.pauseWindow;
   const out: DeliveryDate[] = [];
   const d = parseIsoDateUtc(input.startDate);
   // Walk forward day-by-day, collecting matching weekdays until we have `total`.
-  // Skipped (paused) days don't count, so widen the guard to allow the extension.
   for (let guard = 0; out.length < total && guard < total * 7 + 400; guard++) {
     const dow = weekdayKey(d);
     const dateIso = iso(d);
-    const paused = !!pause && dateIso >= pause.from && dateIso <= pause.until;
-    if (want.has(dow) && !paused) {
+    if (want.has(dow)) {
       out.push({ dateIso, dayOfWeek: dow, weekStartIso: mondayOfIso(dateIso) });
     }
     d.setUTCDate(d.getUTCDate() + 1);

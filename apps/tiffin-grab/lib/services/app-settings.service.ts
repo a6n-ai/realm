@@ -1,7 +1,9 @@
 import { UpdatableRepository } from "@realm/database";
+import { cutoffMsFor } from "@realm/commons";
+import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
 import { db } from "@/db/client";
-import { app } from "@/db/schema";
+import { app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
 import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
 import type { LeadAssignmentConfig } from "./assignment";
@@ -59,6 +61,22 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
     await appSettingsEntity.update(row.publicId, patch);
   } else {
     await appSettingsEntity.create(patch);
+  }
+
+  // Missed-ness must stay monotonic: rows whose cutoff already passed are terminal (they may
+  // already have spawned a make-up). Only future rows adopt the new cutoff. Use `patch` (the
+  // values just written) rather than getAppSettings(), which may still serve a stale cached read.
+  const now = Date.now();
+  const future = await db.select({ id: deliveries.id, deliveryDate: deliveries.deliveryDate })
+    .from(deliveries).where(gt(deliveries.cutoffAt, now));
+  for (const r of future) {
+    // Re-check cutoffAt > now (same captured `now`) on the write itself: if this row's
+    // cutoff lapsed between the SELECT and here, it may have already spawned a make-up
+    // via reconcileMakeups running concurrently, making it terminal — overwriting it with
+    // a new future cutoff would un-terminal-ize it and double-count a paid drop.
+    await db.update(deliveries)
+      .set({ cutoffAt: cutoffMsFor(r.deliveryDate, patch.cutoffHour, patch.timezone) })
+      .where(and(eq(deliveries.id, r.id), gt(deliveries.cutoffAt, now)));
   }
 }
 

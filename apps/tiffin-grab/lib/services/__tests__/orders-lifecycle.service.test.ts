@@ -5,7 +5,7 @@ import { nextWeekday, ValidationError } from "@realm/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries, users, deliveries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const svc = await import("../orders.service");
 
@@ -46,16 +46,46 @@ describe("order lifecycle (integration)", () => {
     expect(acts[0].toStatus).toBe("active");
   });
 
-  it("pauseOrder active → paused with window, resumeOrder clears it", async () => {
+  it("pauseOrder active → paused, resumeOrder → active", async () => {
     const id = await makeOrder("active");
-    await svc.pauseOrder(id, { from: "2026-07-06", until: "2026-07-10" });
+    // A wide window (order.startDate is computed at runtime as nextWeekday(now)) so every future
+    // original — regardless of when the test runs — falls inside it and the order fully pauses.
+    await svc.pauseOrder(id, { from: "2000-01-01", until: "2100-01-01" });
     let [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("paused");
-    expect(o.pausedFrom).toBe("2026-07-06");
     await svc.resumeOrder(id);
     [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
-    expect(o.pausedFrom).toBeNull();
+  });
+
+  // Regression: the deliveries-panel order-level Pause range/Resume buttons now call
+  // svc.pauseOrder/svc.resumeOrder (the same authority as LifecycleControls) instead of
+  // calling deliveries.service directly, so rows and order.status can never disagree.
+  it("a full-schedule pause via the single authority flips both every future original row and order.status together, and resume reverts both", async () => {
+    const id = await makeOrder("active");
+    const [order] = await db.select().from(orders).where(eq(orders.publicId, id));
+
+    await svc.pauseOrder(id, { from: "2000-01-01", until: "2100-01-01" });
+    const [pausedOrder] = await db.select().from(orders).where(eq(orders.publicId, id));
+    expect(pausedOrder.status).toBe("paused");
+    const pausedRows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    expect(pausedRows.length).toBeGreaterThan(0);
+    expect(pausedRows.every((r) => r.status === "paused")).toBe(true);
+
+    await svc.resumeOrder(id);
+    const [resumedOrder] = await db.select().from(orders).where(eq(orders.publicId, id));
+    expect(resumedOrder.status).toBe("active");
+    const resumedRows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    expect(resumedRows.every((r) => r.status === "scheduled")).toBe(true);
+  });
+
+  it("pauseOrder with a window covering none of the order's deliveries leaves it active", async () => {
+    const id = await makeOrder("active");
+    await svc.pauseOrder(id, { from: "2000-01-01", until: "2000-01-02" });
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
+    expect(o.status).toBe("active");
+    const acts = await svc.listOrderActivities(o.id);
+    expect(acts.every((a) => a.type !== "paused")).toBe(true);
   });
 
   it("rejects illegal transitions", async () => {

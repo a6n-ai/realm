@@ -3,9 +3,9 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -13,6 +13,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
+import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateStartDate } from "./start-date";
@@ -274,7 +275,12 @@ export async function createOrder(
         currentOwner: input.currentOwner ?? null,
         createdBy,
       })
-      .returning({ id: orders.id, publicId: orders.publicId });
+      .returning();
+
+    // createOrder never calls activate() — an in-zone customer lands on "active"
+    // directly here, so materialization must be hooked on both paths, not just
+    // the waitlisted→active transition below.
+    if (order.status === "active") await materializeDeliveries(tx, order);
 
     // Payment + matching ledger credit (the discounted total is what's paid).
     await recordPayment(tx, { orderId: order.id, userId, amount: pricing.total, createdBy });
@@ -480,7 +486,6 @@ export async function listOrderActivities(orderId: bigint) {
 }
 
 type OrderStatusValue = (typeof orders.status.enumValues)[number];
-type OrderActivityType = (typeof orderActivities.type.enumValues)[number];
 
 // The order lifecycle is built on the shared commons abstractions: OrdersService
 // extends the updatable entity service (inheriting read/update with managed-column
@@ -494,74 +499,132 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     new BaseRepository(db, orderActivities, orderActivities.publicId, orderActivities.id),
   );
 
-  // Guarded status transition: validate the current status, update the entity
-  // through the inherited service, then record the audit activity.
-  private async transition(
-    publicId: string,
-    guard: (current: OrderStatusValue) => void,
-    patch: Partial<typeof orders.$inferInsert>,
-    activity: { type: OrderActivityType; toStatus: OrderStatusValue },
-  ): Promise<void> {
-    const order = await this.read(publicId);
-    guard(order.status);
-    await this.update(publicId, patch);
-    await this.activities.create({
-      orderId: order.id,
-      type: activity.type,
-      fromStatus: order.status,
-      toStatus: activity.toStatus,
-    });
+  // durationWeeks/frequencyId drive delivery-row materialization (row count, cutoff dates);
+  // once rows exist, changing either would silently desync them from the schedule they were
+  // materialized against. Freeze both the moment any delivery row exists — including a
+  // cancelled subscription's void rows, since cancel() never deletes them.
+  async update(publicId: string, patch: Record<string, unknown>): Promise<typeof orders.$inferSelect> {
+    if (patch.durationWeeks !== undefined || patch.frequencyId !== undefined) {
+      const order = await this.read(publicId);
+      const [row] = await db.select({ id: deliveries.id }).from(deliveries)
+        .where(eq(deliveries.orderId, order.id)).limit(1);
+      if (row) throw new ValidationError("Duration and frequency are fixed once a subscription is active");
+    }
+    return super.update(publicId, patch);
   }
 
   async activate(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "waitlisted") throw new ValidationError(`Cannot activate an order that is ${c}`); },
-      { status: "active" },
-      { type: "activated", toStatus: "active" },
-    );
     const order = await this.read(publicId);
-    if (order.userId != null) {
+    if (order.status !== "waitlisted") {
+      throw new ValidationError(`Cannot activate an order that is ${order.status}`);
+    }
+    const actorId = await this.currentUserId();
+
+    // Status flip + delivery materialization + activity log in one tx: if
+    // materialization throws, the whole activation rolls back — the design
+    // forbids an "active" order with zero delivery rows. Bypasses the audited
+    // update()/transition() path for the same reason createOrder does (see its
+    // comment above): those helpers aren't tx-aware, so a raw in-tx write is
+    // the smaller change vs threading a tx through the shared service layer.
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(orders)
+        .set({ status: "active", updatedBy: actorId })
+        .where(eq(orders.publicId, publicId))
+        .returning();
+      if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.insert(orderActivities).values({
+        orderId: row.id,
+        type: "activated",
+        fromStatus: order.status,
+        toStatus: "active",
+        createdBy: actorId,
+      });
+      await materializeDeliveries(tx, row);
+      return row;
+    });
+
+    if (updated.userId != null) {
       try {
-        await walletService.award(order.userId, "order_activated", { type: "order", id: order.publicId });
+        await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
       } catch (e) {
         log.error({ err: e }, "wallet award on activation failed");
       }
     }
   }
 
+  // Terminal: cancel() has no reverse. activate()'s existing `if (c !== "waitlisted") throw`
+  // guard already forbids reactivating a cancelled order — no separate check needed here.
+  // Bypasses transition()/update() for the same reason activate() does: cancelDeliveries must
+  // run in the SAME tx as the status flip (a crash between the two must roll back both), and
+  // the lock must be taken before the pre-cancelled guard is evaluated (TOCTOU — see
+  // skipDelivery in deliveries.service.ts for the same shape).
   async cancel(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c === "cancelled") throw new ValidationError("Order is already cancelled"); },
-      { status: "cancelled" },
-      { type: "cancelled", toStatus: "cancelled" },
-    );
+    const actorId = await this.currentUserId();
+    await db.transaction(async (tx) => {
+      const [idRow] = await tx.select({ id: orders.id }).from(orders)
+        .where(eq(orders.publicId, publicId)).limit(1);
+      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+
+      const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
+      if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
+      if (order.status === "cancelled") throw new ValidationError("Order is already cancelled");
+
+      const [row] = await tx.update(orders).set({ status: "cancelled", updatedBy: actorId })
+        .where(eq(orders.id, order.id)).returning();
+      await cancelDeliveries(tx, row.id);
+      await tx.insert(orderActivities).values({
+        orderId: row.id,
+        type: "cancelled",
+        fromStatus: order.status,
+        toStatus: "cancelled",
+        createdBy: actorId,
+      });
+    });
   }
 
-  // async so the synchronous window validation surfaces as a rejected promise.
+  // Delegates the actual row-marking to pauseRange (which validates the window and does its own
+  // locked, cutoff-aware update). The order flips to "paused" only if every future original ended
+  // up paused — a window narrower than the subscription leaves the order "active" with some rows
+  // paused and others still scheduled.
   async pause(publicId: string, window: { from: string; until: string }): Promise<void> {
-    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
-      throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
-    }
-    // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
-    if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
-      { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
-      { type: "paused", toStatus: "paused" },
-    );
+    const order = await this.read(publicId);
+    if (order.status !== "active") throw new ValidationError(`Cannot pause an order that is ${order.status}`);
+    await pauseRange(publicId, window.from, window.until);
+
+    const [remaining] = await db.select({ id: deliveries.id }).from(deliveries)
+      .where(and(
+        eq(deliveries.orderId, order.id),
+        isNull(deliveries.makeupForDeliveryId),
+        gt(deliveries.cutoffAt, Date.now()),
+        ne(deliveries.status, "paused"),
+      ))
+      .limit(1);
+    if (remaining) return;
+
+    await this.update(publicId, { status: "paused" });
+    await this.activities.create({
+      orderId: order.id,
+      type: "paused",
+      fromStatus: order.status,
+      toStatus: "paused",
+    });
   }
 
+  // Delegates to resumeOrderDeliveries (reverts future paused rows to scheduled) then always flips
+  // the order back to "active" — the guard above already requires the order to be "paused".
   async resume(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
-      { status: "active", pausedFrom: null, pausedUntil: null },
-      { type: "resumed", toStatus: "active" },
-    );
+    const order = await this.read(publicId);
+    if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);
+    await resumeOrderDeliveries(publicId);
+    await this.update(publicId, { status: "active" });
+    await this.activities.create({
+      orderId: order.id,
+      type: "resumed",
+      fromStatus: order.status,
+      toStatus: "active",
+    });
   }
 
   async reassign(publicId: string, ownerId: string): Promise<void> {
@@ -571,7 +634,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 }
 
-const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
+export const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
 
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);

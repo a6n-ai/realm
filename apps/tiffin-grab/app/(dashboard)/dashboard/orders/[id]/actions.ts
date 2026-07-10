@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
-import { activateOrder, cancelOrder, pauseOrder, resumeOrder } from "@/lib/services/orders.service";
+import { activateOrder, cancelOrder, pauseOrder, readOrder, resumeOrder } from "@/lib/services/orders.service";
+import {
+  maybeComplete,
+  setDeliveryAddress,
+  skipDelivery,
+  unskipDelivery,
+} from "@/lib/services/deliveries.service";
 
 export async function activate(orderId: string) {
   await requireStaff();
@@ -22,5 +28,52 @@ export async function pause(orderId: string, window: { from: string; until: stri
 export async function resume(orderId: string) {
   await requireStaff();
   await resumeOrder(orderId);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function skipDeliveryAction(orderId: string, deliveryPublicId: string) {
+  await requireStaff();
+  await skipDelivery(deliveryPublicId);
+  const order = await readOrder(orderId);
+  await maybeComplete(order.id);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function unskipDeliveryAction(orderId: string, deliveryPublicId: string) {
+  await requireStaff();
+  await unskipDelivery(deliveryPublicId);
+  const order = await readOrder(orderId);
+  await maybeComplete(order.id);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function editDeliveryAddress(
+  orderId: string,
+  deliveryPublicId: string,
+  input: { fullName: string; addressLine: string; city: string; postalCode: string },
+) {
+  await requireStaff();
+  await setDeliveryAddress(deliveryPublicId, input);
+  const order = await readOrder(orderId);
+  await maybeComplete(order.id);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+// Row-level pause/resume buttons on the deliveries panel. These route through the same
+// orders.service.pause/resume as LifecycleControls (not deliveries.service directly) so
+// order.status stays the single source of truth no matter which UI surface is used.
+export async function pauseDeliveryRange(orderId: string, window: { from: string; until: string }) {
+  await requireStaff();
+  await pauseOrder(orderId, window);
+  const order = await readOrder(orderId);
+  await maybeComplete(order.id);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function resumeDeliveryRangeAction(orderId: string) {
+  await requireStaff();
+  await resumeOrder(orderId);
+  const order = await readOrder(orderId);
+  await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }

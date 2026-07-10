@@ -3,19 +3,18 @@
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
 import { ValidationError } from "@realm/commons";
-import { cutoffMsFor } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { orderDeliveryDays } from "@/lib/menu/delivery-days";
-import { subscriptionDeliveryDates, type DayOfWeek } from "@/lib/menu/delivery-dates";
+import { visibleDeliveries } from "@/lib/services/deliveries.service";
+import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 
 type Order = typeof orders.$inferSelect;
 type Week = typeof menuWeeks.$inferSelect;
 
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
 
 // Single source of truth for "which diets does this plan key admit" — shared by setSelection
 // (input validation), buildMealsGrid (dish-option filtering), and resolveDeliveryMeal
@@ -41,18 +40,19 @@ export const selectionsService = {
 
     const deliveryDateIso = dateInWeek(menuWeek.weekStart, dayOfWeek);
 
-    // The day must be part of this subscription's delivery set.
-    const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
-    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
-    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow });
-    if (!dates.some((d) => d.dateIso === deliveryDateIso)) {
+    // The `deliveries` row is the single source of truth for day-membership AND cutoff: a
+    // paused/skipped/cancelled delivery — or a date with no row at all — has no scheduled row here.
+    const [deliveryRow] = await db.select({ cutoffAt: deliveries.cutoffAt }).from(deliveries)
+      .where(and(
+        eq(deliveries.orderId, order.id),
+        eq(deliveries.deliveryDate, deliveryDateIso),
+        eq(deliveries.status, "scheduled"),
+      ))
+      .limit(1);
+    if (!deliveryRow) {
       throw new ValidationError("That day isn't part of your order");
     }
-
-    // Per-day rolling cutoff in the app timezone.
-    const { timezone, cutoffHour } = await getAppSettings();
-    if (Date.now() > cutoffMsFor(deliveryDateIso, cutoffHour, timezone)) {
+    if (Date.now() > deliveryRow.cutoffAt) {
       throw new ValidationError("Selections are locked — the cutoff for that day has passed");
     }
 
@@ -87,20 +87,24 @@ export const selectionsService = {
   async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string }) {
     const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId } = input;
 
-    const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
-    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
-    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow })
-      .filter((d) => d.weekStartIso === menuWeek.weekStart);
+    // The `deliveries` table is the single source of truth for which dates exist in this week —
+    // the same source buildMealsGrid reads via visibleDeliveries. A make-up can land on a date
+    // outside durationWeeks × deliveryDays, so recomputing dates from the plan's schedule (as
+    // this used to do) silently drops make-up dates the grid still shows.
+    const weekEnd = dateInWeek(menuWeek.weekStart, "sun");
+    const rows = await visibleDeliveries(order.id, menuWeek.weekStart, weekEnd);
+    const dateToDay = new Map<string, DayOfWeek>(DAY_KEYS.map((day) => [dateInWeek(menuWeek.weekStart, day), day]));
 
     let applied = 0;
     const skipped: { dateIso: string; reason: string }[] = [];
-    for (const d of dates) {
+    for (const row of rows) {
+      const dayOfWeek = dateToDay.get(row.deliveryDate);
+      if (!dayOfWeek) continue; // defensive: visibleDeliveries is already bounded to this week
       try {
-        await this.setSelection({ order, menuWeek, dayOfWeek: d.dayOfWeek, slot, personIndex, pickIndex, dishPublicId });
+        await this.setSelection({ order, menuWeek, dayOfWeek, slot, personIndex, pickIndex, dishPublicId });
         applied += 1;
       } catch (e) {
-        skipped.push({ dateIso: d.dateIso, reason: e instanceof Error ? e.message : "Could not apply" });
+        skipped.push({ dateIso: row.deliveryDate, reason: e instanceof Error ? e.message : "Could not apply" });
       }
     }
     return { applied, skipped };

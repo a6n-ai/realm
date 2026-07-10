@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -20,7 +20,7 @@ let vegDishPublicId: string;
 let vegDishBigintId: bigint;
 
 async function reset() {
-  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
+  await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
 }
 
@@ -51,6 +51,11 @@ describe("selectionsService.applyToWeek", () => {
     for (const day of ["mon", "tue", "wed", "thu"] as const) {
       await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: day, slot: "sabzi", dishId: vegDishBigintId, isDefault: false });
     }
+    // A scheduled delivery row for every weekday (incl. Friday) — Friday must still be "skipped"
+    // for missing the dish, not for missing a delivery row.
+    await db.insert(deliveries).values([0, 1, 2, 3, 4].map((offset) => ({
+      orderId: o.id, deliveryDate: dateInWeek(FUTURE_MONDAY, offset), status: "scheduled" as const, cutoffAt: Date.now() + 1e9,
+    })));
   });
   afterAll(reset);
 
@@ -61,5 +66,31 @@ describe("selectionsService.applyToWeek", () => {
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));
     expect(rows).toHaveLength(4);
     expect(rows.every((r) => r.dishId === vegDishBigintId)).toBe(true);
+  });
+
+  // Regression for FINDING 1: a make-up delivery can land on a tail date outside
+  // durationWeeks × deliveryDays. applyToWeek must read `deliveries` rows (like buildMealsGrid
+  // does via visibleDeliveries), not recompute the week's dates from the plan's schedule —
+  // otherwise the grid shows a selectable make-up cell that applyToWeek silently ignores.
+  it("applies to a make-up delivery date outside the original schedule", async () => {
+    // Saturday of the same week: not one of the 5 weekday deliveries seeded in beforeEach, and
+    // outside durationWeeks × deliveryDays for this "5_day" order — a date subscriptionDeliveryDates
+    // would never produce, but a real make-up row can land here.
+    const makeupDateIso = dateInWeek(FUTURE_MONDAY, 5);
+    const [originalDelivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
+    const [makeupRow] = await db.insert(deliveries).values({
+      orderId: order.id, deliveryDate: makeupDateIso, status: "scheduled" as const,
+      cutoffAt: Date.now() + 1e9, makeupForDeliveryId: originalDelivery.id,
+    }).returning();
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", slot: "sabzi", dishId: vegDishBigintId, isDefault: false });
+
+    const res = await selectionsService.applyToWeek({ order, menuWeek: week, slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
+
+    expect(res.applied).toBeGreaterThanOrEqual(1);
+    const makeupSelection = await db.select().from(mealSelections)
+      .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.dayOfWeek, "sat")));
+    expect(makeupSelection).toHaveLength(1);
+    expect(makeupSelection[0].dishId).toBe(vegDishBigintId);
+    expect(makeupRow.makeupForDeliveryId).toBe(originalDelivery.id); // sanity: row really is a make-up
   });
 });

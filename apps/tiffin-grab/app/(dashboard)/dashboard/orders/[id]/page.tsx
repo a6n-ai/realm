@@ -5,6 +5,7 @@ import { NotFoundError, formatMoney as fmt } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { effectiveAddress, listDeliveries } from "@/lib/services/deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { formatEpoch } from "@/lib/format/datetime";
 import {
@@ -18,6 +19,8 @@ import {
 import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
+import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
+import type { DeliveryRow } from "./deliveries-panel-columns";
 
 
 function describe(a: { type: string; note: string | null; fromStatus: string | null; toStatus: string | null }) {
@@ -55,14 +58,36 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [activities, settings] = await Promise.all([listOrderActivities(order.id), settingsP]);
+  const [activities, settings, rawDeliveries] = await Promise.all([
+    listOrderActivities(order.id),
+    settingsP,
+    listDeliveries(order.id),
+  ]);
+
+  const dateById = new Map(rawDeliveries.map((d) => [d.id, d.deliveryDate]));
+  const deliveryRows: DeliveryRow[] = rawDeliveries.map((d) => {
+    const addr = effectiveAddress(d, order);
+    return {
+      publicId: d.publicId,
+      deliveryDate: d.deliveryDate,
+      status: d.status,
+      cutoffAt: d.cutoffAt,
+      isMakeup: d.makeupForDeliveryId !== null,
+      makeupForDate: d.makeupForDeliveryId !== null ? (dateById.get(d.makeupForDeliveryId) ?? null) : null,
+      address: {
+        fullName: addr.fullName,
+        addressLine: addr.addressLine ?? "",
+        city: addr.city,
+        postalCode: addr.postalCode ?? "",
+      },
+    };
+  });
 
   const grid = await buildMealsGrid(
     {
       id: order.id, publicId: order.publicId, planId: order.planId, persons: order.persons,
       mealSlots: order.mealSlots, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
       startDate: order.startDate, durationWeeks: order.durationWeeks, frequencyKey: order.frequencyKey,
-      pausedFrom: order.pausedFrom, pausedUntil: order.pausedUntil,
     },
     settings,
   );
@@ -79,9 +104,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           </div>
           <p><span className="text-muted-foreground">Plan: </span>{order.planName} · {order.mealSizeName} · {order.frequencyKey}</p>
           <p><span className="text-muted-foreground">Schedule: </span>start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) · {order.mealSlots.join(", ")}</p>
-          {order.status === "paused" && order.pausedFrom && (
-            <p><span className="text-muted-foreground">Paused: </span>{order.pausedFrom} → {order.pausedUntil}</p>
-          )}
           <p><span className="text-muted-foreground">Address: </span>{order.addressLine}, {order.city} {order.postalCode}</p>
           <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))} · Payments: {order.payments.map((p) => fmt(Number(p.amount))).join(", ") || "none"}</p>
         </div>
@@ -89,6 +111,10 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <SectionCard title="Lifecycle">
         <LifecycleControls orderId={order.publicId} status={order.status} />
+      </SectionCard>
+
+      <SectionCard title="Deliveries">
+        <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} orderStatus={order.status} />
       </SectionCard>
 
       <SectionCard title="Coming week meals">
@@ -149,6 +175,10 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
 
       <SectionCard title="Lifecycle">
         <Skeleton className="h-9 w-48" />
+      </SectionCard>
+
+      <SectionCard title="Deliveries">
+        <DeliveriesPanelSkeleton />
       </SectionCard>
 
       <SectionCard title="Coming week meals">
