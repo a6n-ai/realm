@@ -76,6 +76,15 @@ export async function visibleDeliveries(orderId: bigint, from: string, until: st
   )).orderBy(asc(deliveries.deliveryDate));
 }
 
+/**
+ * Every delivery row for an order (all statuses, originals and make-ups alike), for the admin
+ * panel. Unlike visibleDeliveries this is not customer-facing and must not hide paused/skipped/
+ * cancelled rows. Read-only: never reconciles.
+ */
+export async function listDeliveries(orderId: bigint): Promise<Delivery[]> {
+  return db.select().from(deliveries).where(eq(deliveries.orderId, orderId)).orderBy(asc(deliveries.deliveryDate));
+}
+
 /** Rows past their snapshotted cutoff are immutable. cutoff_at is never re-derived. */
 export function assertMutable(row: Delivery): void {
   if (Date.now() > row.cutoffAt) {
