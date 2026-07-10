@@ -1,5 +1,6 @@
-import { ValidationError, cutoffMsFor } from "@realm/commons";
-import { and, eq, gt, gte, isNull, lte, sql } from "drizzle-orm";
+import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@realm/commons";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
@@ -108,8 +109,9 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
   }
   if (from > until) throw new ValidationError("Pause start must be on or before pause end");
 
-  return db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
+  let orderId: bigint;
+  const updatedCount = await db.transaction(async (tx) => {
+    orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
     const updated = await tx.update(deliveries)
@@ -125,6 +127,10 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
       .returning({ id: deliveries.id });
     return updated.length;
   });
+  // reconcileMakeups opens its own transaction and takes its own advisory lock — must run
+  // after this one commits, never nested inside it.
+  await reconcileMakeups(orderId!);
+  return updatedCount;
 }
 
 /**
@@ -133,8 +139,9 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
  * row already past its cutoff is a terminal miss backed by a make-up and is left untouched.
  */
 export async function resumeOrder(orderPublicId: string): Promise<number> {
-  return db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
+  let orderId: bigint;
+  const updatedCount = await db.transaction(async (tx) => {
+    orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
     const updated = await tx.update(deliveries)
@@ -147,11 +154,14 @@ export async function resumeOrder(orderPublicId: string): Promise<number> {
       .returning({ id: deliveries.id });
     return updated.length;
   });
+  await reconcileMakeups(orderId!);
+  return updatedCount;
 }
 
 export async function skipDelivery(deliveryPublicId: string): Promise<void> {
+  let orderId: bigint;
   await db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
@@ -163,11 +173,89 @@ export async function skipDelivery(deliveryPublicId: string): Promise<void> {
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot skip a ${row.status} delivery`);
   });
+  await reconcileMakeups(orderId!);
+}
+
+// Self-join alias used only to test "does a make-up already exist for this row" — a correlated
+// NOT EXISTS written via a bare `${deliveries}` interpolation is not guaranteed to alias
+// correctly in Drizzle's raw sql tag, so this uses a real join alias instead.
+const existingMakeup = alias(deliveries, "existing_makeup");
+
+/**
+ * Append one make-up per missed original. A missed original is an ORIGINAL row
+ * (makeup_for_delivery_id IS NULL) whose status is paused|skipped and whose snapshotted cutoff
+ * has passed. Make-ups are terminal and are never reconciled.
+ *
+ * Serialized per order by a TRANSACTION-scoped advisory lock: db/client.ts sets prepare:false
+ * for transaction-mode PgBouncer, where a session is not pinned across statements, so
+ * pg_advisory_lock (session-scoped) would not hold. Dates are assigned one at a time,
+ * re-reading max(delivery_date) after each insert, so two missed rows get distinct slots —
+ * UNIQUE(makeup_for_delivery_id) alone would not prevent them colliding on
+ * UNIQUE(order_id, delivery_date).
+ *
+ * NEVER call from a read path: buildMealsGrid runs inside async Server Components.
+ */
+export async function reconcileMakeups(orderId: bigint): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled") return 0;
+
+    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = new Set(orderDeliveryDays({
+      frequencyKey: freq!.key,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+    }));
+
+    const missed = await tx.select({ id: deliveries.id })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId), // make-ups are terminal
+        inArray(deliveries.status, ["paused", "skipped"]),
+        lte(deliveries.cutoffAt, Date.now()),
+        isNull(existingMakeup.id), // no make-up exists yet for this row
+      ))
+      .orderBy(asc(deliveries.deliveryDate));
+    if (missed.length === 0) return 0;
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    let created = 0;
+    for (const src of missed) {
+      const [{ max }] = await tx.select({ max: sql<string>`max(${deliveries.deliveryDate})` })
+        .from(deliveries).where(eq(deliveries.orderId, orderId));
+      const nextDate = nextDeliveryDateAfter(max, deliveryDays);
+      const inserted = await tx.insert(deliveries).values({
+        orderId,
+        deliveryDate: nextDate,
+        status: "scheduled",
+        cutoffAt: cutoffMsFor(nextDate, cutoffHour, timezone),
+        makeupForDeliveryId: src.id,
+      }).onConflictDoNothing().returning({ id: deliveries.id });
+      created += inserted.length;
+    }
+    return created;
+  });
+}
+
+/** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
+export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string>): string {
+  const d = parseIsoDateUtc(afterIso);
+  for (let guard = 0; guard < 30; guard++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (deliveryDays.has(weekdayKey(d))) return d.toISOString().slice(0, 10);
+  }
+  throw new ValidationError("Could not find a make-up slot within 30 days");
 }
 
 export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
+  let orderId: bigint;
   await db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
@@ -182,4 +270,5 @@ export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
   });
+  await reconcileMakeups(orderId!);
 }
