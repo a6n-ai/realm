@@ -44,8 +44,7 @@ export const selectionsService = {
     // The day must be part of this subscription's delivery set.
     const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
     const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
-    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
-    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow });
+    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays });
     if (!dates.some((d) => d.dateIso === deliveryDateIso)) {
       throw new ValidationError("That day isn't part of your order");
     }
@@ -89,8 +88,7 @@ export const selectionsService = {
 
     const [freq] = await db.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
     const deliveryDays = orderDeliveryDays({ frequencyKey: freq?.key ?? "5_day", includeSaturday: order.includeSaturday, includeSunday: order.includeSunday }) as DayOfWeek[];
-    const pauseWindow = order.pausedFrom && order.pausedUntil ? { from: order.pausedFrom, until: order.pausedUntil } : undefined;
-    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays, pauseWindow })
+    const dates = subscriptionDeliveryDates({ startDate: order.startDate, durationWeeks: order.durationWeeks, deliveryDays })
       .filter((d) => d.weekStartIso === menuWeek.weekStart);
 
     let applied = 0;

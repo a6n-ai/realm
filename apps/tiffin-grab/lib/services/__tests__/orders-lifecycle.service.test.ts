@@ -46,16 +46,14 @@ describe("order lifecycle (integration)", () => {
     expect(acts[0].toStatus).toBe("active");
   });
 
-  it("pauseOrder active → paused with window, resumeOrder clears it", async () => {
+  it("pauseOrder active → paused, resumeOrder → active", async () => {
     const id = await makeOrder("active");
     await svc.pauseOrder(id, { from: "2026-07-06", until: "2026-07-10" });
     let [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("paused");
-    expect(o.pausedFrom).toBe("2026-07-06");
     await svc.resumeOrder(id);
     [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
-    expect(o.pausedFrom).toBeNull();
   });
 
   it("rejects illegal transitions", async () => {

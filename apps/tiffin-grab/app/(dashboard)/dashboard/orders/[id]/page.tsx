@@ -62,7 +62,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       id: order.id, publicId: order.publicId, planId: order.planId, persons: order.persons,
       mealSlots: order.mealSlots, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
       startDate: order.startDate, durationWeeks: order.durationWeeks, frequencyKey: order.frequencyKey,
-      pausedFrom: order.pausedFrom, pausedUntil: order.pausedUntil,
     },
     settings,
   );
@@ -79,9 +78,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           </div>
           <p><span className="text-muted-foreground">Plan: </span>{order.planName} · {order.mealSizeName} · {order.frequencyKey}</p>
           <p><span className="text-muted-foreground">Schedule: </span>start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) · {order.mealSlots.join(", ")}</p>
-          {order.status === "paused" && order.pausedFrom && (
-            <p><span className="text-muted-foreground">Paused: </span>{order.pausedFrom} → {order.pausedUntil}</p>
-          )}
           <p><span className="text-muted-foreground">Address: </span>{order.addressLine}, {order.city} {order.postalCode}</p>
           <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))} · Payments: {order.payments.map((p) => fmt(Number(p.amount))).join(", ") || "none"}</p>
         </div>

@@ -43,8 +43,6 @@ async function MealsData() {
       durationWeeks: orders.durationWeeks,
       status: orders.status,
       frequencyKey: deliveryFrequencies.key,
-      pausedFrom: orders.pausedFrom,
-      pausedUntil: orders.pausedUntil,
     })
     .from(orders)
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))

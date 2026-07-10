@@ -36,7 +36,7 @@ async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$infer
   const mealOrder = {
     id: o.id, publicId: o.publicId, planId: o.planId, persons: o.persons, mealSlots: o.mealSlots,
     includeSaturday: o.includeSaturday, includeSunday: o.includeSunday, startDate: o.startDate,
-    durationWeeks: o.durationWeeks, frequencyKey: "5_day", pausedFrom: o.pausedFrom, pausedUntil: o.pausedUntil,
+    durationWeeks: o.durationWeeks, frequencyKey: "5_day",
   };
   return { order: o, mealOrder };
 }

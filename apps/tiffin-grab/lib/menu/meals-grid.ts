@@ -36,8 +36,6 @@ export type MealOrder = {
   startDate: string;
   durationWeeks: number;
   frequencyKey: string;
-  pausedFrom?: string | null;
-  pausedUntil?: string | null;
 };
 
 export type MealsGridResult =
@@ -70,15 +68,10 @@ export async function buildMealsGrid(
     includeSaturday: order.includeSaturday,
     includeSunday: order.includeSunday,
   });
-  const pauseWindow =
-    order.pausedFrom && order.pausedUntil
-      ? { from: order.pausedFrom, until: order.pausedUntil }
-      : undefined;
   const subDates = subscriptionDeliveryDates({
     startDate: order.startDate,
     durationWeeks: order.durationWeeks,
     deliveryDays,
-    pauseWindow,
   });
   const weekDates = subDates.filter((d) => d.weekStartIso === releasedWeek.weekStart);
   if (weekDates.length === 0) return { empty: "no-dates" };

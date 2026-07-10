@@ -550,7 +550,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     await this.transition(
       publicId,
       (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
-      { status: "paused", pausedFrom: window.from, pausedUntil: window.until },
+      { status: "paused" },
       { type: "paused", toStatus: "paused" },
     );
   }
@@ -559,7 +559,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     await this.transition(
       publicId,
       (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
-      { status: "active", pausedFrom: null, pausedUntil: null },
+      { status: "active" },
       { type: "resumed", toStatus: "active" },
     );
   }
