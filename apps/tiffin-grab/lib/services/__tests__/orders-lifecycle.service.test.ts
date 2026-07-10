@@ -48,12 +48,23 @@ describe("order lifecycle (integration)", () => {
 
   it("pauseOrder active → paused, resumeOrder → active", async () => {
     const id = await makeOrder("active");
-    await svc.pauseOrder(id, { from: "2026-07-06", until: "2026-07-10" });
+    // A wide window (order.startDate is computed at runtime as nextWeekday(now)) so every future
+    // original — regardless of when the test runs — falls inside it and the order fully pauses.
+    await svc.pauseOrder(id, { from: "2000-01-01", until: "2100-01-01" });
     let [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("paused");
     await svc.resumeOrder(id);
     [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
+  });
+
+  it("pauseOrder with a window covering none of the order's deliveries leaves it active", async () => {
+    const id = await makeOrder("active");
+    await svc.pauseOrder(id, { from: "2000-01-01", until: "2000-01-02" });
+    const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
+    expect(o.status).toBe("active");
+    const acts = await svc.listOrderActivities(o.id);
+    expect(acts.every((a) => a.type !== "paused")).toBe(true);
   });
 
   it("rejects illegal transitions", async () => {

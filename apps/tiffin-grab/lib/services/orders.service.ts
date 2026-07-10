@@ -3,9 +3,9 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
+import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -13,7 +13,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
-import { materializeDeliveries } from "./deliveries.service";
+import { materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { validateStartDate } from "./start-date";
@@ -568,29 +568,47 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     );
   }
 
-  // async so the synchronous window validation surfaces as a rejected promise.
+  // Delegates the actual row-marking to pauseRange (which validates the window and does its own
+  // locked, cutoff-aware update). The order flips to "paused" only if every future original ended
+  // up paused — a window narrower than the subscription leaves the order "active" with some rows
+  // paused and others still scheduled.
   async pause(publicId: string, window: { from: string; until: string }): Promise<void> {
-    const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!isoDateRegex.test(window.from) || !isoDateRegex.test(window.until)) {
-      throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
-    }
-    // Lexicographic comparison is valid because ISO-8601 dates sort correctly.
-    if (window.from > window.until) throw new ValidationError("Pause start must be on or before pause end");
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "active") throw new ValidationError(`Cannot pause an order that is ${c}`); },
-      { status: "paused" },
-      { type: "paused", toStatus: "paused" },
-    );
+    const order = await this.read(publicId);
+    if (order.status !== "active") throw new ValidationError(`Cannot pause an order that is ${order.status}`);
+    await pauseRange(publicId, window.from, window.until);
+
+    const [remaining] = await db.select({ id: deliveries.id }).from(deliveries)
+      .where(and(
+        eq(deliveries.orderId, order.id),
+        isNull(deliveries.makeupForDeliveryId),
+        gt(deliveries.cutoffAt, Date.now()),
+        ne(deliveries.status, "paused"),
+      ))
+      .limit(1);
+    if (remaining) return;
+
+    await this.update(publicId, { status: "paused" });
+    await this.activities.create({
+      orderId: order.id,
+      type: "paused",
+      fromStatus: order.status,
+      toStatus: "paused",
+    });
   }
 
+  // Delegates to resumeOrderDeliveries (reverts future paused rows to scheduled) then always flips
+  // the order back to "active" — the guard above already requires the order to be "paused".
   async resume(publicId: string): Promise<void> {
-    await this.transition(
-      publicId,
-      (c) => { if (c !== "paused") throw new ValidationError(`Cannot resume an order that is ${c}`); },
-      { status: "active" },
-      { type: "resumed", toStatus: "active" },
-    );
+    const order = await this.read(publicId);
+    if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);
+    await resumeOrderDeliveries(publicId);
+    await this.update(publicId, { status: "active" });
+    await this.activities.create({
+      orderId: order.id,
+      type: "resumed",
+      fromStatus: order.status,
+      toStatus: "active",
+    });
   }
 
   async reassign(publicId: string, ownerId: string): Promise<void> {
