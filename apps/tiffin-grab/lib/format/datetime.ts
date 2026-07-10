@@ -1,3 +1,5 @@
+import { parseIsoDateUtc } from "@realm/commons";
+
 export function epochToDate(ms: number): Date {
   return new Date(ms);
 }
@@ -35,4 +37,29 @@ export function formatEpoch(
 // Labeled datetime in the app/delivery timezone (e.g. "Jul 16, 2026, 6:00 PM EDT").
 export function formatDeliveryTime(ms: number, timezone: string): string {
   return formatEpoch(ms, { timeZone: timezone, mode: "datetime", withZone: true });
+}
+
+const DATE_ONLY_PRESETS = {
+  long: { year: "numeric", month: "short", day: "numeric" },
+  short: { month: "short", day: "numeric" },
+  weekday: { weekday: "short", year: "numeric", month: "short", day: "numeric" },
+} satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+/**
+ * Render a calendar date (`YYYY-MM-DD`) from a Postgres `date` column.
+ *
+ * Zone-free by construction: a `date` has no instant, so there is nothing to convert. The
+ * internal `timeZone: "UTC"` pins the output to the calendar date and is deliberately NOT a
+ * parameter — passing the app timezone here would shift the day (rendering 2026-07-16 in
+ * America/Toronto yields "Jul 15, 8:00 PM").
+ */
+export function formatDateOnly(
+  iso: string,
+  opts: { mode?: keyof typeof DATE_ONLY_PRESETS; locale?: string } = {},
+): string {
+  const { mode = "long", locale } = opts;
+  return new Intl.DateTimeFormat(locale, {
+    ...DATE_ONLY_PRESETS[mode],
+    timeZone: "UTC",
+  }).format(parseIsoDateUtc(iso));
 }
