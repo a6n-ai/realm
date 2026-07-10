@@ -1,5 +1,5 @@
 import { ValidationError, cutoffMsFor } from "@realm/commons";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
@@ -80,26 +80,45 @@ async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
   return row;
 }
 
+/** Pre-lock lookup: only orderId, so we know what to lock before trusting any other column. */
+async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<bigint> {
+  const [row] = await tx.select({ orderId: deliveries.orderId }).from(deliveries)
+    .where(eq(deliveries.publicId, publicId)).limit(1);
+  if (!row) throw new ValidationError("Delivery not found");
+  return row.orderId;
+}
+
 export async function skipDelivery(deliveryPublicId: string): Promise<void> {
   await db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${row.orderId})`);
     assertOriginal(row);
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot skip a ${row.status} delivery`);
-    await tx.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, row.id));
+    const updated = await tx.update(deliveries).set({ status: "skipped" })
+      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+      .returning({ id: deliveries.id });
+    if (updated.length === 0) throw new ValidationError(`Cannot skip a ${row.status} delivery`);
   });
 }
 
 export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
   await db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${row.orderId})`);
+    assertOriginal(row);
     assertMutable(row);
     if (row.status !== "skipped") throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
     const [mk] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (mk) throw new ValidationError("This delivery has already been replaced by a make-up");
-    await tx.update(deliveries).set({ status: "scheduled" }).where(eq(deliveries.id, row.id));
+    const updated = await tx.update(deliveries).set({ status: "scheduled" })
+      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "skipped")))
+      .returning({ id: deliveries.id });
+    if (updated.length === 0) throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
   });
 }

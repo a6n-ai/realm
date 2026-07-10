@@ -92,6 +92,16 @@ describe("skipDelivery / unskipDelivery (integration)", () => {
   it("rejects skipping an already-skipped row", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, status: "skipped" });
     await expect(skipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
+    expect(row.status).toBe("skipped");
+  });
+
+  it("rejects re-skipping a row already skipped by a prior call (guard evaluated post-lock)", async () => {
+    const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9 });
+    await skipDelivery(d.publicId);
+    await expect(skipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
+    expect(row.status).toBe("skipped");
   });
 
   it("unskip restores scheduled before cutoff", async () => {
