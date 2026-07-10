@@ -2,10 +2,11 @@ import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@real
 import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, orders } from "@/db/schema";
+import { deliveries, deliveryFrequencies, deliveryZones, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
+import { matchZone } from "@/lib/catalog/postal";
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
@@ -271,4 +272,63 @@ export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
     if (updated.length === 0) throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
   });
   await reconcileMakeups(orderId!);
+}
+
+/** Prefix match against delivery_zones.postal_prefixes (active zones only). Rejects an unserviced postal code. */
+export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint> {
+  const zones = await tx.select({
+    id: deliveryZones.id,
+    name: deliveryZones.name,
+    postalPrefixes: deliveryZones.postalPrefixes,
+    slotWindow: deliveryZones.slotWindow,
+    active: deliveryZones.active,
+  }).from(deliveryZones).where(eq(deliveryZones.active, true));
+  const hit = matchZone(postalCode, zones);
+  // Deliberately asymmetric with createOrder, which WAITLISTS an unmatched postal code
+  // (orders.service.ts ~line 248): an active subscription may not redirect a drop to an
+  // unserviced address, whereas a brand-new order can simply wait for coverage.
+  if (!hit) throw new ValidationError("We don't deliver to that postal code");
+  return zones.find((z) => z.name === hit.name)!.id;
+}
+
+export async function setDeliveryAddress(
+  deliveryPublicId: string,
+  input: { fullName: string; addressLine: string; city: string; postalCode: string },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
+    assertMutable(row);
+    if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+    const zoneId = await resolveZoneId(tx, input.postalCode);
+    const updated = await tx.update(deliveries).set({ ...input, zoneId })
+      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+      .returning({ id: deliveries.id });
+    if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+  });
+}
+
+export async function clearDeliveryAddress(deliveryPublicId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    assertMutable(row);
+    if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+    const updated = await tx.update(deliveries)
+      .set({ fullName: null, addressLine: null, city: null, postalCode: null, zoneId: null })
+      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+      .returning({ id: deliveries.id });
+    if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+  });
+}
+
+/** All-NULL override columns mean "inherit the order's address". */
+export function effectiveAddress(d: Delivery, order: Order) {
+  return d.addressLine === null
+    ? { fullName: order.fullName, addressLine: order.addressLine, city: order.city, postalCode: order.postalCode, zoneId: order.zoneId }
+    : { fullName: d.fullName!, addressLine: d.addressLine, city: d.city!, postalCode: d.postalCode!, zoneId: d.zoneId };
 }
