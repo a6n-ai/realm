@@ -14,6 +14,19 @@ vi.mock("@/lib/services/session-service", () => ({ currentUserId: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({
   getAppSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Kolkata" }),
 }));
+// Stub the DB-backed subscription read so this guard test never touches the real
+// db/schema import graph (which itself transitively pulls in session-service and
+// breaks the partial mock above).
+vi.mock("@/lib/services/customer-deliveries.service", () => ({
+  myActiveSubscriptions: vi.fn().mockResolvedValue([]),
+  nextDeliveryByOrder: vi.fn().mockResolvedValue(new Map()),
+}));
+// The subscription section's Pause/Resume controls import these "use server" actions, which
+// themselves pull in the full db/schema import graph — stub them for the same reason.
+vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+  pauseMySubscription: vi.fn(),
+  resumeMySubscription: vi.fn(),
+}));
 
 const { currentUserId } = await import("@/lib/services/session-service");
 const MePage = (await import("../page")).default;

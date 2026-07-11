@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { SectionCard } from "@realm/design-system";
+import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { myActiveSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
+import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
 import { HOME_SECTIONS } from "./home-sections";
 import { SectionSkeleton } from "./section-skeleton";
 
@@ -23,18 +26,34 @@ export default async function MePage() {
         <p className="text-muted-foreground text-sm text-pretty">Everything for your meals, all in one place.</p>
       </header>
 
-      {HOME_SECTIONS.map((section) => (
-        <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
-          <SectionSlot title={section.title} userId={userId} timezone={timezone} />
-        </Suspense>
-      ))}
+      {HOME_SECTIONS.map((section) =>
+        section.key === "subscription" ? (
+          <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
+            <SubscriptionSectionData userId={userId} timezone={timezone} />
+          </Suspense>
+        ) : (
+          <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
+            <SectionSlot title={section.title} />
+          </Suspense>
+        ),
+      )}
     </main>
   );
 }
 
-// Placeholder slot — Tasks 8–12 swap this for each section's real async data
-// component (subscription · browse · coupons · wallet · analytics).
-function SectionSlot({ title }: { title: string; userId: bigint; timezone: string }) {
+async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  const today = zonedDateIso(Date.now(), timezone); // reads only — no reconcile/materialize here
+  const [subs, nextByOrder] = await Promise.all([
+    myActiveSubscriptions(userId),
+    nextDeliveryByOrder(userId, today),
+  ]);
+  const subscriptions = subs.map((s) => ({ ...s, nextDelivery: nextByOrder.get(s.publicId) ?? null }));
+  return <SubscriptionSection subscriptions={subscriptions} />;
+}
+
+// Placeholder slot — Tasks 9–12 swap this for each section's real async data
+// component (browse · coupons · wallet · analytics).
+function SectionSlot({ title }: { title: string }) {
   return (
     <SectionCard title={title}>
       <p className="text-muted-foreground text-sm">Coming soon.</p>
