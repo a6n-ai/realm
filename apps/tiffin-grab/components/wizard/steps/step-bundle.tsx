@@ -29,11 +29,11 @@ export function StepBundle({ catalog, selections, set }: {
                     key={m.publicId}
                     role="button"
                     onClick={() => set({ mealSizeId: m.publicId })}
-                    className={`cursor-pointer p-4 transition ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
+                    className={`hover-lift cursor-pointer p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{m.name}</span>
-                      <span className="text-sm">${m.basePrice.toFixed(2)}</span>
+                      <span className="nums text-sm font-medium">${m.basePrice.toFixed(2)}</span>
                     </div>
                     <div className="mt-1"><MealSizeItems items={m.items} /></div>
                     {active && (
