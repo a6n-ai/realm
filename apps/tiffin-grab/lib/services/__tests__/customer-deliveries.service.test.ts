@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, cancelOrder } = await import("../orders.service");
-const { assertOwnsDelivery, assertOwnsOrder, myDeliveries } = await import("../customer-deliveries.service");
+const { assertOwnsDelivery, assertOwnsOrder, myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
 
 // Wide enough to bracket any real nextWeekday()-derived delivery date, regardless of "today".
 const FROM = "2000-01-01";
@@ -72,6 +72,18 @@ describe("customer-deliveries.service (integration)", () => {
     expect(new Set(rows.map((r) => r.orderPublicId))).toEqual(new Set([aOrder1.publicId, aOrder2.publicId]));
     const dates = rows.map((r) => r.deliveryDate);
     expect(dates).toEqual([...dates].sort());
+  });
+
+  it("myActiveSubscriptions returns only the caller's active/paused orders", async () => {
+    const aOrder1 = await makeOrder(PHONE_A, "User A");
+    const aOrder2 = await makeOrder(PHONE_A, "User A");
+    const bOrder = await makeOrder(PHONE_B, "User B");
+    await cancelOrder(bOrder.publicId); // cancelled, and would also fail the userId scoping check
+    const userA = await userIdByPhone(PHONE_A);
+
+    const subs = await myActiveSubscriptions(userA);
+    expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([aOrder1.publicId, aOrder2.publicId]));
+    expect(subs.every((s) => ["active", "paused"].includes(s.status))).toBe(true);
   });
 
   it("never returns another user's deliveries", async () => {
