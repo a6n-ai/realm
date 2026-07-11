@@ -158,7 +158,7 @@ function DeliveryCard({ d, tz, pending, run }: {
             <ChangeAddressDialog
               deliveryPublicId={d.publicId}
               address={d.address}
-              disabled={pending}
+              disabled={pending || locked}
               onSaved={() => {
                 /* revalidatePath in the action refreshes server data on next navigation */
               }}
@@ -168,7 +168,7 @@ function DeliveryCard({ d, tz, pending, run }: {
             <Button
               variant="ghost"
               size="sm"
-              disabled={pending}
+              disabled={pending || locked}
               onClick={() => run(() => clearMyDeliveryAddress(d.publicId), "Address reset to default")}
             >
               Use default

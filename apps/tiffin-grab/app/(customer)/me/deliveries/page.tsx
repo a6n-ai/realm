@@ -4,6 +4,7 @@ import { parseIsoDateUtc, zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myActiveSubscriptions, myDeliveries, myDeliveryMeal } from "@/lib/services/customer-deliveries.service";
+import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { MAX_EXTRA_WINDOWS, WINDOW_DAYS } from "./calendar-constants";
 import { DeliveryCalendar, DeliveryCalendarSkeleton } from "./delivery-calendar";
 
@@ -39,23 +40,19 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   ]);
 
   // myDeliveries doesn't join the order's own address columns (it only returns the delivery's
-  // override columns), so the order's address — needed for the "inherit" case where all four
-  // override columns are NULL — is threaded from the subscriptions list already in hand, keyed
-  // by orderPublicId, rather than re-querying per row.
-  const orderAddressByPublicId = new Map(
-    subscriptions.map((s) => [
-      s.publicId,
-      { fullName: s.fullName, addressLine: s.addressLine, city: s.city, postalCode: s.postalCode },
-    ]),
-  );
+  // override columns), so the order's address — needed by effectiveAddress for the "inherit"
+  // case where all four override columns are NULL — is threaded from the subscriptions list
+  // already in hand, keyed by orderPublicId, rather than re-querying per row.
+  const subscriptionByPublicId = new Map(subscriptions.map((s) => [s.publicId, s]));
 
   const deliveries = await Promise.all(
     rawDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
       const hasAddressOverride = d.addressLine !== null;
-      const address = hasAddressOverride
-        ? { fullName: d.fullName!, addressLine: d.addressLine!, city: d.city!, postalCode: d.postalCode! }
-        : (orderAddressByPublicId.get(d.orderPublicId) ?? { fullName: "", addressLine: "", city: "", postalCode: "" });
+      const subscription = subscriptionByPublicId.get(d.orderPublicId);
+      const address = subscription
+        ? effectiveAddress(d, subscription)
+        : { fullName: "", addressLine: "", city: "", postalCode: "", zoneId: null };
       return { ...d, meal, address, hasAddressOverride };
     }),
   );
