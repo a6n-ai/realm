@@ -6,6 +6,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { toast } from "sonner";
+import { emailSchema, phoneSchema } from "@realm/commons";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
 import { Button } from "@realm/ui/button";
@@ -95,6 +96,9 @@ export function Checkout() {
 
   if (!selections) return null;
 
+  const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
+  const emailValid = !contact.email.trim() || emailSchema.safeParse(contact.email).success;
+
   return (
     <div className="grid gap-8 md:grid-cols-[1fr_320px]">
       <div className="space-y-6">
@@ -103,8 +107,16 @@ export function Checkout() {
             <h2 className="text-lg font-medium">Address & contact</h2>
             <div className="grid gap-3">
               <div><Label htmlFor="fullName">Full name</Label><Input id="fullName" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
-              <div><Label htmlFor="phone">Phone</Label><Input id="phone" type="tel" autoComplete="tel" value={contact.phone} onChange={(e) => set({ phone: e.target.value })} /></div>
-              <div><Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label><Input id="email" type="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} /></div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" type="tel" autoComplete="tel" value={contact.phone} onChange={(e) => set({ phone: e.target.value })} />
+                {contact.phone.trim() && !phoneValid && <p className="mt-1 text-xs text-destructive">Enter a valid phone number</p>}
+              </div>
+              <div>
+                <Label htmlFor="email">Email <span className="text-muted-foreground">(optional)</span></Label>
+                <Input id="email" type="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
+                {contact.email.trim() && !emailValid && <p className="mt-1 text-xs text-destructive">Enter a valid email</p>}
+              </div>
               <div><Label htmlFor="addr">Address</Label><Input id="addr" value={contact.addressLine} onChange={(e) => set({ addressLine: e.target.value })} /></div>
               <div><Label htmlFor="city">City</Label><Input id="city" value={contact.city} onChange={(e) => set({ city: e.target.value })} /></div>
               <div className="flex items-end gap-2">
@@ -114,7 +126,7 @@ export function Checkout() {
               {zone?.served && <p className="text-sm text-emerald-600">Served — {zone.name}, delivery {zone.slotWindow}.</p>}
               {zone && !zone.served && <p className="text-sm text-amber-600">Not yet served — you&apos;ll join the waitlist for your area.</p>}
             </div>
-            <Button disabled={!contact.fullName || !contact.phone || !contact.postalCode} onClick={() => setStep(2)}>Continue to payment</Button>
+            <Button disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode} onClick={() => setStep(2)}>Continue to payment</Button>
           </section>
         )}
 
