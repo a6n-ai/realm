@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
+import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@realm/commons";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
@@ -28,6 +29,7 @@ export function Checkout() {
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
+  const [waitlisted, setWaitlisted] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -47,6 +49,20 @@ export function Checkout() {
   };
 
   const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
+
+  const joinWaitlist = async () => {
+    try {
+      await createWebsiteInquiry({
+        fullName: contact.fullName,
+        phone: contact.phone,
+        email: contact.email || undefined,
+        postalCode: contact.postalCode,
+      });
+      setWaitlisted(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not join the waitlist.");
+    }
+  };
 
   const applyCoupon = async () => {
     if (!selections) return;
@@ -125,8 +141,15 @@ export function Checkout() {
               </div>
               {zone?.served && <p className="text-sm text-emerald-600">Served — {zone.name}, delivery {zone.slotWindow}.</p>}
               {zone && !zone.served && <p className="text-sm text-amber-600">Not yet served — you&apos;ll join the waitlist for your area.</p>}
+              {zone && !zone.served && !waitlisted && (
+                <div className="space-y-2">
+                  <p className="text-sm text-amber-600">Not in your area yet.</p>
+                  <Button type="button" variant="outline" disabled={!contact.fullName || !contact.phone} onClick={joinWaitlist}>Join waitlist</Button>
+                </div>
+              )}
+              {waitlisted && <p className="text-sm text-emerald-600">You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</p>}
             </div>
-            <Button disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode} onClick={() => setStep(2)}>Continue to payment</Button>
+            <Button disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
           </section>
         )}
 
