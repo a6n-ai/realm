@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCES, slug, rowToForm } from "../resource-config";
+import { RESOURCES, catalogIndexEntries, slug, rowToForm } from "../resource-config";
+
+describe("catalogIndexEntries", () => {
+  it("omits dish-categories as a standalone card and folds it into the dishes card", () => {
+    const entries = catalogIndexEntries();
+    expect(entries.some((e) => e.key === "dish-categories")).toBe(false);
+    const dishesEntry = entries.find((e) => e.key === "dishes");
+    expect(dishesEntry).toBeDefined();
+    expect(dishesEntry?.label).toBe("Dishes & Categories");
+  });
+
+  it("leaves every other resource untouched", () => {
+    const entries = catalogIndexEntries();
+    const otherKeys = Object.keys(RESOURCES).filter((k) => k !== "dish-categories");
+    expect(entries.map((e) => e.key).sort()).toEqual(otherKeys.sort());
+  });
+});
 
 describe("slug", () => {
   it("lowercases, hyphenates, strips junk", () => {
@@ -66,12 +82,28 @@ describe("blank numeric fields (form feeds \"\")", () => {
 
   it("meal-sizes: blank macros round-trip to null instead of 0", () => {
     const out = RESOURCES["meal-sizes"].schema.parse({
-      key: "x", name: "X", tier: "budget", diet: "veg", components: [],
+      key: "x", name: "X", tier: "budget", planId: "pln_test", items: [],
       kcalMin: "300", kcalMax: "500", proteinG: "", carbsG: "", fatG: "", basePrice: "10",
     });
     expect(out.proteinG).toBeNull();
     expect(out.carbsG).toBeNull();
     expect(out.fatG).toBeNull();
+  });
+
+  it("meal-sizes: requires a plan and a valid composition row (name is NOT NULL)", () => {
+    const base = { key: "x", name: "X", tier: "budget", kcalMin: "1", kcalMax: "2", basePrice: "10" };
+    // Missing plan is rejected.
+    expect(() => RESOURCES["meal-sizes"].schema.parse({ ...base, items: [] })).toThrow();
+    // A composition row without a name is rejected (would violate NOT NULL on insert).
+    expect(() => RESOURCES["meal-sizes"].schema.parse({
+      ...base, planId: "pln_test", items: [{ name: "", category: "sabzi", qty: "1" }],
+    })).toThrow();
+    // A well-formed row parses; blank weight round-trips to null.
+    const out = RESOURCES["meal-sizes"].schema.parse({
+      ...base, planId: "pln_test",
+      items: [{ name: "Paneer", category: "sabzi", weightValue: "", weightUnit: "", qty: "2" }],
+    });
+    expect((out.items as Record<string, unknown>[])[0]).toMatchObject({ name: "Paneer", category: "sabzi", weightValue: null, weightUnit: null, qty: 2 });
   });
 
   it("required numeric blank is rejected rather than silently coerced to 0", () => {

@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "categoryCounts";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "categoryCounts" | "composition";
 
 export interface FieldDef {
   key: string;
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "weekdays" | "categories";
+  optionsSource?: "weekdays" | "categories" | "plans";
   optionLabels?: Record<string, string>;
   unit?: string;
   optional?: boolean;
@@ -68,11 +68,25 @@ const plansSchema = z.object({
   active,
 });
 
+// A composition row: the required NOT NULL `name`, a category soft-ref (validated
+// against dish_categories server-side), an optional numeric weight (numeric column
+// ⇒ string in Drizzle, nullable) with a nullable unit, and a positive qty.
+const compositionItem = z.object({
+  name: z.string().trim().min(1, "Item name is required"),
+  category: z.string().trim().min(1, "Category is required"),
+  weightValue: z.preprocess((v) => (v === "" || v == null ? null : String(v)), z.string().nullable()),
+  weightUnit: z.preprocess((v) => (v === "" || v == null ? null : v), z.enum(["oz", "g", "ml", "piece"]).nullable()),
+  qty: reqNum(z.coerce.number().int().positive()),
+});
+
 const mealSizesSchema = z.object({
   key, name,
   tier: z.enum(["budget", "medium", "premium"]),
-  diet: z.enum(["veg", "nonveg", "both"]),
-  components: z.array(z.string()).default([]),
+  // Plan dropdown value is the plan publicId/key; the service resolves it to
+  // plans.id on write (mirrors menu.service). `components` is no longer hand-edited
+  // — it is derived from `items` on save.
+  planId: z.string().trim().min(1, "Plan is required"),
+  items: z.array(compositionItem).default([]),
   kcalMin: reqNum(z.coerce.number().int().nonnegative()),
   kcalMax: reqNum(z.coerce.number().int().nonnegative()),
   proteinG: optNum(z.coerce.number().int().nonnegative()),
@@ -181,9 +195,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
       { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS },
-      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg", "both"], optionLabels: ENUM_LABELS },
-      { key: "components", label: "Components", type: "csv" },
+      { key: "items", label: "Composition", type: "composition", optionsSource: "categories", tableHidden: true },
       { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
       { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },
       { key: "proteinG", label: "Protein", type: "number", unit: "g", optional: true, tableHidden: true },
@@ -234,6 +248,14 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
 };
 
+// Index-grid cards: dish-categories has no standalone card — its editor is
+// folded into the "Dishes & Categories" tabbed page at /dashboard/catalog/dishes.
+export function catalogIndexEntries(): ResourceDef[] {
+  return Object.values(RESOURCES)
+    .filter((r) => r.key !== "dish-categories")
+    .map((r) => (r.key === "dishes" ? { ...r, label: "Dishes & Categories" } : r));
+}
+
 const ARRAY_TYPES = new Set<FieldType>(["csv", "multiselect"]);
 
 export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Record<string, unknown> {
@@ -241,6 +263,7 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
   for (const f of def.fields) {
     const v = row[f.key];
     if (ARRAY_TYPES.has(f.type)) out[f.key] = Array.isArray(v) ? v : [];
+    else if (f.type === "composition") out[f.key] = Array.isArray(v) ? v : [];
     else if (f.type === "boolean") out[f.key] = Boolean(v);
     else if (f.type === "image") out[f.key] = v ?? null;
     else if (f.type === "categoryCounts") out[f.key] = v && typeof v === "object" ? v : {};
@@ -253,6 +276,7 @@ export function emptyForm(def: ResourceDef): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const f of def.fields) {
     if (ARRAY_TYPES.has(f.type)) out[f.key] = [];
+    else if (f.type === "composition") out[f.key] = [];
     else if (f.type === "boolean") out[f.key] = false;
     else if (f.type === "image") out[f.key] = null;
     else if (f.type === "categoryCounts") out[f.key] = {};

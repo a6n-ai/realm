@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { dishCategories } from "@/db/schema";
-import { dishes, mealSizeItems, mealSizes } from "@/db/schema/catalog";
+import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema/catalog";
 import { orders } from "@/db/schema/orders";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -97,8 +97,11 @@ describe("schema: meal-size ↔ category delta (Task 1)", () => {
     }
   });
 
-  it("every seeded meal_sizes row has plan_type='tiffin'", async () => {
-    const rows = await db.select({ planType: mealSizes.planType }).from(mealSizes);
+  it("every seeded meal_sizes row is scoped to a tiffin plan via plan_id", async () => {
+    const rows = await db
+      .select({ planType: plans.planType })
+      .from(mealSizes)
+      .innerJoin(plans, eq(mealSizes.planId, plans.id));
     expect(rows.length).toBe(17);
     for (const r of rows) {
       expect(r.planType).toBe("tiffin");

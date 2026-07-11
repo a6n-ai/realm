@@ -3,7 +3,6 @@ import type { FileDetail } from "@realm/storage/model";
 import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
-export const mealDiet = pgEnum("meal_diet", ["veg", "nonveg", "both"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
 export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
 export const weightUnit = pgEnum("weight_unit", ["oz", "g", "ml", "piece"]);
@@ -34,10 +33,9 @@ export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
-  // Scopes a meal size to a plan type; the subscribe wizard hides plan types with no sizes.
-  planType: planType("plan_type").notNull().default("tiffin"),
+  // Scopes a meal size to exactly one plan; the subscribe wizard hides plans with no sizes.
+  planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
   tier: mealTier("tier").notNull(),
-  diet: mealDiet("diet").notNull(),
   components: jsonb("components").$type<string[]>().notNull().default([]),
   kcalMin: integer("kcal_min").notNull(),
   kcalMax: integer("kcal_max").notNull(),

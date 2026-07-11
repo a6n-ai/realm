@@ -84,13 +84,14 @@ export async function buildMealsGrid(
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1);
-  const planKey = planRow?.key ?? "mixed";
+  if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
+  const planKey = planRow.key;
   const allowedDiets = dietsForPlanKey(planKey);
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
   const [categories, weekResolved, dishRows] = await Promise.all([
-    dishCategoriesService.forPlanType((planRow?.planType ?? "tiffin") as "tiffin" | "healthy"),
+    dishCategoriesService.forPlanType(planRow.planType as "tiffin" | "healthy"),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
     // including stale-pick re-validation and diet filtering — buildMealsGrid must not re-derive it.
     resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),

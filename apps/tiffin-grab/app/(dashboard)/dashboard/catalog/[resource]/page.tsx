@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { asc, desc, getTableColumns, type Column as DrizzleColumn } from "drizzle-orm";
+import { asc, desc, eq, getTableColumns, inArray, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
@@ -40,7 +40,7 @@ function sortableColumns(def: ResourceDef): string[] {
   ];
 }
 
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+export type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
 export default async function CatalogResourcePage({
   params, searchParams,
@@ -62,7 +62,9 @@ export default async function CatalogResourcePage({
   );
 }
 
-async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
+// Exported for reuse by the combined dishes+dish-categories tabbed page, which
+// mounts this loader twice (once per resource) instead of duplicating it.
+export async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
   await requireAdmin();
   const def: ResourceDef | undefined = RESOURCES[resource];
   const table = TABLES[resource];
@@ -76,6 +78,11 @@ async function CatalogData({ resource, searchParams }: { resource: string; searc
       dynamicOptions[f.key] = categoryRows.map((c) => ({ value: c.key, label: c.label }));
     } else if (f.optionsSource === "weekdays") {
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
+    } else if (f.optionsSource === "plans") {
+      // Dropdown value is the plan publicId — the same identifier the meal-size
+      // service resolves back to plans.id on write.
+      const planRows = await db.select({ publicId: plans.publicId, name: plans.name }).from(plans).where(eq(plans.active, true));
+      dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
     }
   }
 
@@ -98,6 +105,38 @@ async function CatalogData({ resource, searchParams }: { resource: string; searc
     for (const f of def.fields) dto[f.key] = r[f.key];
     return dto;
   });
+
+  // Meal sizes carry two things the generic flatten can't: the plan reference is
+  // stored as a bigint FK but the editor works in plan publicId space, and the
+  // composition lives in a second table. Resolve planId → publicId (so the plan
+  // dropdown preselects) and attach each row's items ordered by sortOrder.
+  if (resource === "meal-sizes") {
+    const planPublicById = new Map(
+      (await db.select({ id: plans.id, publicId: plans.publicId }).from(plans)).map((p) => [p.id, p.publicId]),
+    );
+    const mealSizeIds = raw.map((r) => r.id as bigint);
+    const itemRows = mealSizeIds.length
+      ? await db.select().from(mealSizeItems).where(inArray(mealSizeItems.mealSizeId, mealSizeIds)).orderBy(asc(mealSizeItems.sortOrder))
+      : [];
+    const itemsByMealSize = new Map<bigint, Record<string, unknown>[]>();
+    for (const it of itemRows) {
+      const bucket = itemsByMealSize.get(it.mealSizeId) ?? [];
+      bucket.push({
+        name: it.name,
+        category: it.category,
+        // numeric column ⇒ string in Drizzle; blank the null so the Input renders empty.
+        weightValue: it.weightValue == null ? "" : String(it.weightValue),
+        weightUnit: it.weightUnit ?? "",
+        qty: it.qty,
+      });
+      itemsByMealSize.set(it.mealSizeId, bucket);
+    }
+    rows.forEach((dto, i) => {
+      const id = raw[i].id as bigint;
+      dto.planId = planPublicById.get(raw[i].planId as bigint) ?? "";
+      dto.items = itemsByMealSize.get(id) ?? [];
+    });
+  }
 
   return <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} sort={sort} />;
 }

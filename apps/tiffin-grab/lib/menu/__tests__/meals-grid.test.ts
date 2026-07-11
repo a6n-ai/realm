@@ -3,7 +3,7 @@
 // selection, stale-pick fallback, or diet filtering itself. Every test here asserts BOTH
 // buildMealsGrid and resolveDeliveryMeal AGREE — that agreement is the invariant under test.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -21,6 +21,7 @@ const COMING_MONDAY = comingWeekStartIso(Date.now(), SETTINGS.timezone);
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(plans).where(like(plans.key, "veg_no_sabzi_%"));
 }
 
 // A scheduled delivery row for COMING_MONDAY, far from its cutoff — the grid's read path only
@@ -125,6 +126,17 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     // sabzi (correctly veg) is still present in both, to prove the day/week isn't broken wholesale.
     expect(resolved.find((r) => r.category === "sabzi")).toBeDefined();
     expect(cellsFor(grid.grid, "mon", "sabzi").length).toBeGreaterThan(0);
+  });
+
+  it("reset() cleans up its own veg_no_sabzi_ junk plans (scoped cleanup, not a blanket wipe)", async () => {
+    await db.insert(plans).values({
+      key: `veg_no_sabzi_${Math.floor(Math.random() * 1e6)}`, name: "Veg (no sabzi count)", planType: "tiffin",
+    });
+
+    await reset();
+
+    const leaked = await db.select().from(plans).where(like(plans.key, "veg_no_sabzi_%"));
+    expect(leaked).toHaveLength(0);
   });
 
   it("emits zero cells/picks for a selectable category the order's category_counts omits", async () => {

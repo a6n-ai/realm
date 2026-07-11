@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { selectablePlans } from "../plan-filter";
 
-function meal(key: string, planType: "tiffin" | "healthy", diet: "veg" | "nonveg" | "both") {
+function meal(key: string, planKey: string) {
   return {
-    publicId: `msz_${key}`, key, name: key, planType, tier: "budget" as const, diet,
+    publicId: `msz_${key}`, key, name: key, planKey, tier: "budget" as const,
     components: [], items: [], kcalMin: 400, kcalMax: 600,
     proteinG: null, carbsG: null, fatG: null, basePrice: 10, trial: false,
   };
@@ -14,26 +14,27 @@ function plan(key: string, planType: "tiffin" | "healthy") {
   return { publicId: `pln_${key}`, key, name: key, description: null, planType, offeredSlots: [], allowedStartDays: [] };
 }
 
-// Mirrors the seed: veg/halal_nonveg/mixed are tiffin plans; healthy is a healthy
-// plan; all meal sizes are tiffin. Healthy has no sizes → must be hidden.
+// Mirrors the seed: veg/non-veg are tiffin plans; healthy is a healthy plan.
+// Every meal size is scoped to a single plan by planKey. A plan is selectable
+// iff at least one meal size names its key. Healthy has no sizes → hidden.
 const catalog: ClientCatalogSnapshot = {
-  plans: [plan("veg", "tiffin"), plan("halal_nonveg", "tiffin"), plan("mixed", "tiffin"), plan("healthy", "healthy")],
-  mealSizes: [meal("small_thali", "tiffin", "veg"), meal("nonveg_4", "tiffin", "nonveg")],
+  plans: [plan("veg", "tiffin"), plan("non-veg", "tiffin"), plan("healthy", "healthy")],
+  mealSizes: [meal("small_thali", "veg"), meal("nonveg_4", "non-veg")],
   frequencies: [], durations: [], zones: [],
 };
 
 describe("selectablePlans", () => {
-  it("hides plan types with no meal sizes (Healthy) and keeps tiffin plans", () => {
+  it("hides plans with no meal sizes (Healthy) and keeps plans that have sizes", () => {
     const keys = selectablePlans(catalog).map((p) => p.key);
-    expect(keys).toEqual(["veg", "halal_nonveg", "mixed"]);
+    expect(keys).toEqual(["veg", "non-veg"]);
     expect(keys).not.toContain("healthy");
   });
 
-  it("keeps a veg plan only when a veg/both size exists for its plan type", () => {
+  it("keeps a plan only when a size with its planKey exists", () => {
     const nonvegOnly: ClientCatalogSnapshot = {
       ...catalog,
-      mealSizes: [meal("nonveg_4", "tiffin", "nonveg")],
+      mealSizes: [meal("nonveg_4", "non-veg")],
     };
-    expect(selectablePlans(nonvegOnly).map((p) => p.key)).toEqual(["halal_nonveg", "mixed"]);
+    expect(selectablePlans(nonvegOnly).map((p) => p.key)).toEqual(["non-veg"]);
   });
 });

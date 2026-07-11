@@ -148,7 +148,7 @@ async function NewCustomerAction() {
 
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
-    mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.diet })),
+    mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
     frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name })),
     durations: catalog.durations.map((d) => ({ weeks: d.weeks })),
   };

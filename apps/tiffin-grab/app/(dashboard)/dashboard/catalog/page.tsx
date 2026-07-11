@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRightIcon, LayersIcon, UtensilsCrossedIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
-import { RESOURCES } from "./resource-config";
+import { catalogIndexEntries } from "./resource-config";
 
 export default async function CatalogIndexPage() {
   await requireAdmin();
@@ -10,7 +10,7 @@ export default async function CatalogIndexPage() {
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title="Catalog" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {Object.values(RESOURCES).map((r) => (
+        {catalogIndexEntries().map((r) => (
           <Link key={r.key} href={`/dashboard/catalog/${r.key}`} className="group">
             <Card variant="lift" className="h-full">
               <CardHeader className="flex flex-row items-start justify-between">

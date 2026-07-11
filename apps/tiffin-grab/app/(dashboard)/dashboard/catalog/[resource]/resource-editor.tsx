@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon,
+  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, Trash2Icon,
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { DataTable, ResponsiveDialog, type Column } from "@/components/ds";
@@ -30,7 +30,11 @@ type Options = Record<string, { value: string; label: string }[]>;
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
-const isSpanningType = (f: FieldDef) => isArrayType(f) || f.type === "categoryCounts";
+const isSpanningType = (f: FieldDef) => isArrayType(f) || f.type === "categoryCounts" || f.type === "composition";
+
+const WEIGHT_UNITS = [
+  { value: "oz", label: "oz" }, { value: "g", label: "g" }, { value: "ml", label: "ml" }, { value: "piece", label: "piece" },
+];
 
 // Single source of truth for the table's visible columns: every field except
 // hidden ones and the slug key (shown as subtext under the first column). Both
@@ -95,6 +99,111 @@ function formatNumber(f: FieldDef, n: number): string {
 
 /* ─────────────────────────── Dialog form ─────────────────────────── */
 
+// Repeating-row editor for a meal size's composition. Each row is a required
+// name, a category soft-ref, an optional numeric weight + unit, and a qty; the
+// service full-replaces the rows and derives sortOrder from the array order.
+function CompositionField({
+  f, form, options,
+}: {
+  f: FieldDef;
+  form: ReturnType<typeof useForm<Record<string, unknown>>>;
+  options: Options;
+}) {
+  // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
+  // array element shape from the key — cast the field-array path/append payload.
+  const { fields, append, remove } = useFieldArray<Record<string, unknown>>({ control: form.control, name: f.key as never });
+  const cats = options[f.key] ?? [];
+
+  return (
+    <FormItem className="grid gap-2">
+      <FormLabel>{f.label}</FormLabel>
+      <div className="grid gap-2">
+        {fields.length === 0 ? <p className="text-muted-foreground text-sm">No items yet — add the dishes that make up this meal size.</p> : null}
+        {fields.map((row, idx) => (
+          <div key={row.id} className="grid grid-cols-1 items-end gap-2 rounded-md border p-2.5 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_5.5rem_4rem_auto]">
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.name`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Name</span>
+                  <Input value={field.value ?? ""} onChange={field.onChange} placeholder="Paneer masala" />
+                </label>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.category`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Category</span>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>{cats.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </label>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.weightValue`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Weight</span>
+                  <Input className="nums" value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
+                </label>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.weightUnit`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Unit</span>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>{WEIGHT_UNITS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </label>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.qty`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Qty</span>
+                  <Input className="nums" type="number" min={1} value={field.value ?? ""} onChange={field.onChange} />
+                </label>
+              )}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive self-end"
+              aria-label="Remove item"
+              onClick={() => remove(idx)}
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-self-start active:scale-[0.96]"
+          onClick={() => append({ name: "", category: "", weightValue: "", weightUnit: "", qty: 1 })}
+        >
+          <PlusIcon className="size-4" /> Add item
+        </Button>
+      </div>
+      <FormMessage />
+    </FormItem>
+  );
+}
+
 function FieldControl({
   f, form, options, isNew,
 }: {
@@ -103,6 +212,7 @@ function FieldControl({
   options: Options;
   isNew: boolean;
 }) {
+  if (f.type === "composition") return <CompositionField f={f} form={form} options={options} />;
   const opts = f.optionsSource
     ? (options[f.key] ?? [])
     : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
@@ -245,10 +355,11 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             publicId: "preview",
             key: String(values.key ?? ""),
             name: String(values.name || "Meal name"),
-            planType: "tiffin",
+            planId: 0n,
+            planKey: String(values.planId ?? ""),
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
-            diet: (values.diet as "veg" | "nonveg" | "both") || "veg",
-            components: (values.components as string[]) ?? [],
+            // components is derived from the composition rows, not hand-edited.
+            components: ((values.items as { name?: string }[]) ?? []).map((i) => i?.name ?? "").filter(Boolean),
             items: [],
             kcalMin: num(values.kcalMin),
             kcalMax: num(values.kcalMax),
