@@ -9,9 +9,11 @@ import { couponsService } from "@/lib/services/coupons.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { selectablePlans } from "@/components/wizard/plan-filter";
+import { walletService } from "@/lib/services/wallet.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
 import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
+import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
 import { HOME_SECTIONS } from "./home-sections";
 import { SectionSkeleton } from "./section-skeleton";
 
@@ -44,6 +46,10 @@ export default async function MePage() {
         ) : section.key === "coupons" ? (
           <Suspense key={section.key} fallback={<CouponsSectionSkeleton />}>
             <CouponsSectionData />
+          </Suspense>
+        ) : section.key === "wallet" ? (
+          <Suspense key={section.key} fallback={<WalletSectionSkeleton />}>
+            <WalletSectionData userId={userId} />
           </Suspense>
         ) : (
           <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
@@ -79,8 +85,16 @@ async function CouponsSectionData() {
   return <CouponsSection coupons={coupons} />;
 }
 
-// Placeholder slot — Tasks 11–12 swap this for each section's real async data
-// component (wallet · analytics).
+// Session-scoped wallet read — userId resolved server-side from currentUserId(), never client input.
+async function WalletSectionData({ userId }: { userId: bigint }) {
+  const [balance, transactions] = await Promise.all([
+    walletService.balance(userId),
+    walletService.recentTransactions(userId, 10),
+  ]);
+  return <WalletSection balance={balance} transactions={transactions} />;
+}
+
+// Placeholder slot — Task 12 swaps this for the real async data component (analytics).
 function SectionSlot({ title }: { title: string }) {
   return (
     <SectionCard title={title}>
