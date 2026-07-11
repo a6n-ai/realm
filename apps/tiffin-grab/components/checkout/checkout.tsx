@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
+import { toast } from "sonner";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
 import { Button } from "@realm/ui/button";
@@ -85,6 +86,8 @@ export function Checkout() {
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
       router.push(`/activate/${deploymentId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
