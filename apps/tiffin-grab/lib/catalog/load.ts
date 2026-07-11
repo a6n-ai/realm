@@ -43,7 +43,7 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays, categoryCounts: p.categoryCounts })),
     mealSizes: mealRows.map((m) => ({
       id: m.id, publicId: m.publicId, key: m.key, name: m.name, tier: m.tier, diet: m.diet, components: m.components,
-      items: (itemsByMealSize.get(m.id) ?? []).map((i) => ({ name: i.name, qty: i.qty, weightValue: i.weightValue == null ? null : Number(i.weightValue), weightUnit: i.weightUnit })),
+      items: (itemsByMealSize.get(m.id) ?? []).map((i) => ({ name: i.name, category: i.category, qty: i.qty, weightValue: i.weightValue == null ? null : Number(i.weightValue), weightUnit: i.weightUnit })),
       kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,
       basePrice: Number(m.basePrice),
       trial: m.trial,

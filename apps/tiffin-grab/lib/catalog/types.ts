@@ -8,7 +8,7 @@ export interface MealSizeView {
   tier: "budget" | "medium" | "premium";
   diet: "veg" | "nonveg" | "both";
   components: string[];
-  items: { name: string; qty: number; weightValue: number | null; weightUnit: "oz" | "g" | "ml" | "piece" | null }[];
+  items: { name: string; category: string; qty: number; weightValue: number | null; weightUnit: "oz" | "g" | "ml" | "piece" | null }[];
   kcalMin: number;
   kcalMax: number;
   proteinG: number | null;
