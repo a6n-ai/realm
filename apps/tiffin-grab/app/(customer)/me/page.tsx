@@ -5,7 +5,11 @@ import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myActiveSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { toClientCatalog } from "@/lib/catalog/types";
+import { selectablePlans } from "@/components/wizard/plan-filter";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
+import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
 import { HOME_SECTIONS } from "./home-sections";
 import { SectionSkeleton } from "./section-skeleton";
 
@@ -31,6 +35,10 @@ export default async function MePage() {
           <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
             <SubscriptionSectionData userId={userId} timezone={timezone} />
           </Suspense>
+        ) : section.key === "browse" ? (
+          <Suspense key={section.key} fallback={<BrowsePlansSectionSkeleton />}>
+            <BrowsePlansSectionData />
+          </Suspense>
         ) : (
           <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
             <SectionSlot title={section.title} />
@@ -51,8 +59,15 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
   return <SubscriptionSection subscriptions={subscriptions} />;
 }
 
-// Placeholder slot — Tasks 9–12 swap this for each section's real async data
-// component (browse · coupons · wallet · analytics).
+// Global catalog data — safely public, no userId scoping needed (same filter
+// the public /subscribe wizard uses).
+async function BrowsePlansSectionData() {
+  const catalog = toClientCatalog(await loadCatalogSnapshot());
+  return <BrowsePlansSection plans={selectablePlans(catalog)} />;
+}
+
+// Placeholder slot — Tasks 10–12 swap this for each section's real async data
+// component (coupons · wallet · analytics).
 function SectionSlot({ title }: { title: string }) {
   return (
     <SectionCard title={title}>
