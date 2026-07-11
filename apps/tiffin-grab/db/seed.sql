@@ -392,31 +392,6 @@ FROM new_week nw
                                   ('Egg Bhurji', 5)) AS want(name, ord)
                               JOIN dishes d ON d.name = want.name) AS dsh;
 
--- ============ ADMIN USER ============
--- Seeded admin with a temporary password ("changeme123"). password_set=false
--- forces a password reset on first login. Change it after logging in.
-WITH admin AS (
-    INSERT INTO users (public_id, created_at, updated_at, name, email, email_verified, role, password_set)
-        SELECT 'usr_admin_seed',
-               (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-               (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-               'Admin',
-               'info@tiffingrab.ca',
-               TRUE,
-               'admin',
-               FALSE
-        WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'info@tiffingrab.ca')
-        RETURNING id)
-INSERT
-INTO account (id, public_id, account_id, provider_id, user_id, password)
-SELECT (next_id())::TEXT,
-       'act_admin_seed',
-       a.id::TEXT,
-       'credential',
-       a.id,
-       '$2b$10$Gsig1JM7UdYxUpD1IVKUiuWaUUdSXGpMIL3K4qsh2B57BWwK0P/ni'
-FROM admin a;
-
 COMMIT;
 
 -- Verify:
