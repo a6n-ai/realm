@@ -159,9 +159,7 @@ function DeliveryCard({ d, tz, pending, run }: {
               deliveryPublicId={d.publicId}
               address={d.address}
               disabled={pending || locked}
-              onSaved={() => {
-                /* revalidatePath in the action refreshes server data on next navigation */
-              }}
+              onSaved={() => run(() => Promise.resolve())}
             />
           )}
           {d.status === "scheduled" && d.hasAddressOverride && (

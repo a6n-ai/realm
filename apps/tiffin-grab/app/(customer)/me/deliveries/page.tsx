@@ -50,6 +50,10 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
       const meal = await myDeliveryMeal(d);
       const hasAddressOverride = d.addressLine !== null;
       const subscription = subscriptionByPublicId.get(d.orderPublicId);
+      // Unreachable in practice: myDeliveries scopes by orders.userId, so every delivery's
+      // orderPublicId is one of this user's own orders, and only active/paused orders are
+      // returned by myActiveSubscriptions — any delivery missing from subscriptionByPublicId
+      // is dropped client-side by DeliveryCalendar's bySub grouping before this fallback matters.
       const address = subscription
         ? effectiveAddress(d, subscription)
         : { fullName: "", addressLine: "", city: "", postalCode: "", zoneId: null };
