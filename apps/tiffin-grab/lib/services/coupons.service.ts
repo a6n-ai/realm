@@ -3,7 +3,7 @@ import { UpdatableRepository } from "@realm/database";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
-import type { CouponConfig } from "@/db/schema/coupons";
+import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
 import { ledgerService } from "./ledger.service";
 import { SessionUpdatableService } from "./session-service";
@@ -52,6 +52,21 @@ export interface BestCouponsResult {
   lines: PricingLine[];
   redemptions: { coupon: Coupon; amount: number }[];
   manualError?: string;
+}
+
+// Customer-safe projection of a coupon for the browse list — no admin-only
+// fields (redemptionCount, ownerUserId, istDate).
+export interface AvailableCoupon {
+  code: string;
+  name: string;
+  description: string | null;
+  kind: CouponKind;
+  valuePct: string | null;
+  valueAmount: string | null;
+  minSubtotal: string | null;
+  planTypes: string[];
+  autoApply: boolean;
+  expiresAt: number | null;
 }
 
 export interface RepCouponContext {
@@ -366,6 +381,29 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       capPct: row.capPct != null ? num(row.capPct) : null,
       capAmount: row.capAmount != null ? num(row.capAmount) : null,
     };
+  }
+
+  // Customer browse list: active, non-rep coupons currently in-window, projected
+  // to customer-safe fields. Catalog data (not user-owned) — no userId gate.
+  async listAvailable(): Promise<AvailableCoupon[]> {
+    const rows = await db
+      .select()
+      .from(coupons)
+      .where(and(eq(coupons.active, true), ne(coupons.kind, "rep_daily")));
+    return rows
+      .filter((c) => !this.windowError(c))
+      .map((c) => ({
+        code: c.code,
+        name: c.name,
+        description: c.description,
+        kind: c.kind,
+        valuePct: c.valuePct,
+        valueAmount: c.valueAmount,
+        minSubtotal: c.minSubtotal,
+        planTypes: c.planTypes,
+        autoApply: c.autoApply,
+        expiresAt: c.expiresAt,
+      }));
   }
 
   private async loadByCode(code: string): Promise<Coupon> {
