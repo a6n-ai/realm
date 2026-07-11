@@ -5,11 +5,13 @@ import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myActiveSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
+import { couponsService } from "@/lib/services/coupons.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { selectablePlans } from "@/components/wizard/plan-filter";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
 import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
+import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { HOME_SECTIONS } from "./home-sections";
 import { SectionSkeleton } from "./section-skeleton";
 
@@ -39,6 +41,10 @@ export default async function MePage() {
           <Suspense key={section.key} fallback={<BrowsePlansSectionSkeleton />}>
             <BrowsePlansSectionData />
           </Suspense>
+        ) : section.key === "coupons" ? (
+          <Suspense key={section.key} fallback={<CouponsSectionSkeleton />}>
+            <CouponsSectionData />
+          </Suspense>
         ) : (
           <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
             <SectionSlot title={section.title} />
@@ -66,8 +72,15 @@ async function BrowsePlansSectionData() {
   return <BrowsePlansSection plans={selectablePlans(catalog)} />;
 }
 
-// Placeholder slot — Tasks 10–12 swap this for each section's real async data
-// component (coupons · wallet · analytics).
+// Catalog-wide coupon list — active, non-rep coupons in window. Not user-owned data,
+// so no userId gate (mirrors browse plans above).
+async function CouponsSectionData() {
+  const coupons = await couponsService.listAvailable();
+  return <CouponsSection coupons={coupons} />;
+}
+
+// Placeholder slot — Tasks 11–12 swap this for each section's real async data
+// component (wallet · analytics).
 function SectionSlot({ title }: { title: string }) {
   return (
     <SectionCard title={title}>
