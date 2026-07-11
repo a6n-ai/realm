@@ -45,7 +45,7 @@ describe("selectionsService.applyToWeek", () => {
     order = o;
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
-    const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
+    const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
     vegDishPublicId = vd.publicId; vegDishBigintId = vd.id;
     // Offer the dish Mon–Thu (4 of the 5 weekday deliveries); Friday deliberately has no menu item for it.
     for (const day of ["mon", "tue", "wed", "thu"] as const) {

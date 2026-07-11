@@ -13,7 +13,6 @@ export const dishes = pgTable("dishes", {
   name: text("name").notNull(),
   description: text("description"),
   diet: dishDiet("diet").notNull(),
-  slots: text("slots").array().notNull().default([]),
   image: jsonb("image").$type<FileDetail>(),
   active: boolean("active").notNull().default(true),
 });

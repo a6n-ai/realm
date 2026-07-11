@@ -122,7 +122,6 @@ const dishesSchema = z.object({
   name,
   description: z.string().trim().optional().nullable(),
   diet: z.enum(["veg", "nonveg"]),
-  slots: z.array(z.string()).default([]),
   image: fileDetail,
   active,
 });
@@ -133,7 +132,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "name", label: "Name", type: "text" },
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
-      { key: "slots", label: "Categories", type: "multiselect", optionsSource: "categories" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "image", label: "Image", type: "image", optional: true },
     ],
