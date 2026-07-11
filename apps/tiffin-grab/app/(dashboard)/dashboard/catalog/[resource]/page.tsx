@@ -40,7 +40,7 @@ function sortableColumns(def: ResourceDef): string[] {
   ];
 }
 
-type SearchParams = Promise<{ sort?: string; dir?: string }>;
+export type SearchParams = Promise<{ sort?: string; dir?: string }>;
 
 export default async function CatalogResourcePage({
   params, searchParams,
@@ -62,7 +62,9 @@ export default async function CatalogResourcePage({
   );
 }
 
-async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
+// Exported for reuse by the combined dishes+dish-categories tabbed page, which
+// mounts this loader twice (once per resource) instead of duplicating it.
+export async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
   await requireAdmin();
   const def: ResourceDef | undefined = RESOURCES[resource];
   const table = TABLES[resource];

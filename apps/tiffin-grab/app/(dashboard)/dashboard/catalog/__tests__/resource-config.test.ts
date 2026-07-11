@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCES, slug, rowToForm } from "../resource-config";
+import { RESOURCES, catalogIndexEntries, slug, rowToForm } from "../resource-config";
+
+describe("catalogIndexEntries", () => {
+  it("omits dish-categories as a standalone card and folds it into the dishes card", () => {
+    const entries = catalogIndexEntries();
+    expect(entries.some((e) => e.key === "dish-categories")).toBe(false);
+    const dishesEntry = entries.find((e) => e.key === "dishes");
+    expect(dishesEntry).toBeDefined();
+    expect(dishesEntry?.label).toBe("Dishes & Categories");
+  });
+
+  it("leaves every other resource untouched", () => {
+    const entries = catalogIndexEntries();
+    const otherKeys = Object.keys(RESOURCES).filter((k) => k !== "dish-categories");
+    expect(entries.map((e) => e.key).sort()).toEqual(otherKeys.sort());
+  });
+});
 
 describe("slug", () => {
   it("lowercases, hyphenates, strips junk", () => {

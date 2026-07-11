@@ -248,6 +248,14 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
 };
 
+// Index-grid cards: dish-categories has no standalone card — its editor is
+// folded into the "Dishes & Categories" tabbed page at /dashboard/catalog/dishes.
+export function catalogIndexEntries(): ResourceDef[] {
+  return Object.values(RESOURCES)
+    .filter((r) => r.key !== "dish-categories")
+    .map((r) => (r.key === "dishes" ? { ...r, label: "Dishes & Categories" } : r));
+}
+
 const ARRAY_TYPES = new Set<FieldType>(["csv", "multiselect"]);
 
 export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Record<string, unknown> {
