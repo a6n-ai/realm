@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { SectionCard } from "@realm/design-system";
 import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myActiveSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
+import { myActiveSubscriptions, myDeliveries, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
 import { couponsService } from "@/lib/services/coupons.service";
+import { ledgerService } from "@/lib/services/ledger.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { selectablePlans } from "@/components/wizard/plan-filter";
@@ -14,8 +14,9 @@ import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/c
 import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
+import { AnalyticsTiles, AnalyticsTilesSkeleton } from "@/components/customer/home/analytics-tiles";
+import { monthWindow } from "@/components/customer/home/analytics-month-window";
 import { HOME_SECTIONS } from "./home-sections";
-import { SectionSkeleton } from "./section-skeleton";
 
 // The consumer-app home: a single scroll of session-scoped sections. Each is its
 // own Suspense island so a slow read never blocks the rest of the page. Tasks
@@ -52,8 +53,8 @@ export default async function MePage() {
             <WalletSectionData userId={userId} />
           </Suspense>
         ) : (
-          <Suspense key={section.key} fallback={<SectionSkeleton title={section.title} />}>
-            <SectionSlot title={section.title} />
+          <Suspense key={section.key} fallback={<AnalyticsTilesSkeleton />}>
+            <AnalyticsTilesData userId={userId} timezone={timezone} />
           </Suspense>
         ),
       )}
@@ -94,11 +95,20 @@ async function WalletSectionData({ userId }: { userId: bigint }) {
   return <WalletSection balance={balance} transactions={transactions} />;
 }
 
-// Placeholder slot — Task 12 swaps this for the real async data component (analytics).
-function SectionSlot({ title }: { title: string }) {
+// Session-scoped: the month window is computed from the APP timezone (never the
+// server's UTC clock — spec 6), and every read below is scoped to `userId`.
+async function AnalyticsTilesData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  const { from, until } = monthWindow(Date.now(), timezone);
+  const [deliveriesThisMonth, totalSpend, totalSavings] = await Promise.all([
+    myDeliveries(userId, from, until),
+    ledgerService.totalSpent(userId),
+    ledgerService.totalSavings(userId),
+  ]);
   return (
-    <SectionCard title={title}>
-      <p className="text-muted-foreground text-sm">Coming soon.</p>
-    </SectionCard>
+    <AnalyticsTiles
+      deliveriesThisMonth={deliveriesThisMonth.length}
+      totalSpend={totalSpend}
+      totalSavings={totalSavings}
+    />
   );
 }
