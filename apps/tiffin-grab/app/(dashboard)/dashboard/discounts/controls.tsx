@@ -3,8 +3,8 @@
 import * as React from "react";
 import { ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { tzOffsetMinutes } from "@realm/commons";
-import type { CouponKind } from "@/db/schema/coupons";
 import type { planType } from "@/db/schema/catalog";
+import { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS } from "./kind-labels";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
@@ -16,18 +16,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
 import { cn } from "@realm/ui/cn";
 
-// Shared label tables + typed controls for the discounts sub-pages. Kept out of
-// the server schema so no drizzle code is pulled into the client bundle (the enum
-// types are erased at compile).
-export const KIND_LABELS: Record<CouponKind, string> = {
-  percentage: "Percentage off",
-  fixed: "Fixed amount off",
-  free_delivery: "Free delivery",
-  first_order: "First order",
-  rep_daily: "Rep daily",
-};
-export const ALL_KINDS = Object.keys(KIND_LABELS) as CouponKind[];
-export const CREATABLE_KINDS = ALL_KINDS.filter((k) => k !== "rep_daily");
+// Shared label tables + typed controls for the discounts sub-pages.
+export { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS };
 
 // Keyed by the plan_type enum (type-only import — erased at compile, no drizzle in the
 // client bundle) so adding an enum value is a compile error rather than silent drift.

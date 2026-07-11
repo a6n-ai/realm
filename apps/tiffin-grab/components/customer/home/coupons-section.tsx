@@ -6,7 +6,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { Card, EmptyState, SectionCard } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { KIND_LABELS } from "@/app/(dashboard)/dashboard/discounts/controls";
+import { KIND_LABELS } from "@/app/(dashboard)/dashboard/discounts/kind-labels";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 // Discount pill text — distinct from the admin table's couponValue() (which reads
