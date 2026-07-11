@@ -72,8 +72,8 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
-    const [staleDish] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [staleDish] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg" }).returning();
 
     // mon: only the default is offered (staleDish was removed from mon's menu).
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
@@ -106,11 +106,11 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDish.id, isDefault: true });
 
     // rice is fixed/non-selectable, but its only mon item is nonveg — outside the veg plan's diet.
-    const [riceNonveg] = await db.insert(dishes).values({ name: "Chicken Biryani Rice", diet: "nonveg", slots: ["lunch"] }).returning();
+    const [riceNonveg] = await db.insert(dishes).values({ name: "Chicken Biryani Rice", diet: "nonveg" }).returning();
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "rice", dishId: riceNonveg.id, isDefault: true });
 
     const resolved = await resolveDeliveryMeal(order, week, "mon", 1);
@@ -134,7 +134,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziDish] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDish.id, isDefault: true });
 
     const resolved = await resolveDeliveryMeal(order, week, "mon", 1);

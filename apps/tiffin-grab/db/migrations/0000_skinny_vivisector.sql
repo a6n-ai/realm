@@ -16,10 +16,12 @@ CREATE TYPE "public"."dish_diet" AS ENUM('veg', 'nonveg');--> statement-breakpoi
 CREATE TYPE "public"."meal_diet" AS ENUM('veg', 'nonveg', 'both');--> statement-breakpoint
 CREATE TYPE "public"."meal_tier" AS ENUM('budget', 'medium', 'premium');--> statement-breakpoint
 CREATE TYPE "public"."plan_type" AS ENUM('tiffin', 'healthy');--> statement-breakpoint
-CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note');--> statement-breakpoint
-CREATE TYPE "public"."order_status" AS ENUM('pending', 'active', 'waitlisted', 'cancelled', 'paused');--> statement-breakpoint
+CREATE TYPE "public"."weight_unit" AS ENUM('oz', 'g', 'ml', 'piece');--> statement-breakpoint
+CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note', 'skipped', 'unskipped', 'delivery_address_changed');--> statement-breakpoint
+CREATE TYPE "public"."order_status" AS ENUM('pending', 'active', 'waitlisted', 'cancelled', 'paused', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."payment_method" AS ENUM('simulated', 'cash', 'etransfer', 'manual');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('simulated_paid', 'pending', 'refunded');--> statement-breakpoint
+CREATE TYPE "public"."delivery_status" AS ENUM('scheduled', 'paused', 'skipped', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."coupon_kind" AS ENUM('percentage', 'fixed', 'free_delivery', 'first_order', 'rep_daily');--> statement-breakpoint
 CREATE TYPE "public"."ledger_direction" AS ENUM('debit', 'credit');--> statement-breakpoint
 CREATE TYPE "public"."ledger_entry_type" AS ENUM('payment', 'refund', 'discount', 'adjustment');--> statement-breakpoint
@@ -30,6 +32,7 @@ CREATE TYPE "public"."ticket_category" AS ENUM('order', 'billing', 'catering', '
 CREATE TYPE "public"."ticket_message_author" AS ENUM('customer', 'staff', 'system');--> statement-breakpoint
 CREATE TYPE "public"."ticket_priority" AS ENUM('low', 'normal', 'high', 'urgent');--> statement-breakpoint
 CREATE TYPE "public"."ticket_status" AS ENUM('open', 'in_progress', 'waiting_on_customer', 'resolved', 'closed');--> statement-breakpoint
+CREATE TYPE "public"."section_kind" AS ENUM('tickets', 'inquiries', 'customers');--> statement-breakpoint
 CREATE TYPE "public"."day_of_week" AS ENUM('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun');--> statement-breakpoint
 CREATE TYPE "public"."menu_week_status" AS ENUM('draft', 'released');--> statement-breakpoint
 CREATE TYPE "public"."audit_operation" AS ENUM('create', 'update', 'delete', 'read', 'login', 'logout', 'login_failed');--> statement-breakpoint
@@ -106,6 +109,9 @@ CREATE TABLE "users" (
 	"pin_hash" text,
 	"pin_attempts" integer DEFAULT 0 NOT NULL,
 	"password_set" boolean DEFAULT true NOT NULL,
+	"username" text,
+	"display_username" text,
+	"is_anonymous" boolean DEFAULT false NOT NULL,
 	"is_system" boolean DEFAULT false NOT NULL,
 	"address_line" text,
 	"address_unit" text,
@@ -120,7 +126,8 @@ CREATE TABLE "users" (
 	"locale" "locale" DEFAULT 'en' NOT NULL,
 	"bauth_created_at" timestamp DEFAULT now() NOT NULL,
 	"bauth_updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "users_public_id_unique" UNIQUE("public_id")
+	CONSTRAINT "users_public_id_unique" UNIQUE("public_id"),
+	CONSTRAINT "users_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
 CREATE TABLE "verification" (
@@ -210,7 +217,6 @@ CREATE TABLE "dishes" (
 	"name" text NOT NULL,
 	"description" text,
 	"diet" "dish_diet" NOT NULL,
-	"slots" text[] DEFAULT '{}' NOT NULL,
 	"image" jsonb,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "dishes_public_id_unique" UNIQUE("public_id")
@@ -229,6 +235,23 @@ CREATE TABLE "duration_packages" (
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "duration_packages_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "duration_packages_weeks_unique" UNIQUE("weeks")
+);
+--> statement-breakpoint
+CREATE TABLE "meal_size_items" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"meal_size_id" bigint NOT NULL,
+	"name" text NOT NULL,
+	"qty" integer DEFAULT 1 NOT NULL,
+	"weight_value" numeric(6, 2),
+	"weight_unit" "weight_unit",
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "meal_size_items_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
 CREATE TABLE "meal_sizes" (
@@ -250,6 +273,7 @@ CREATE TABLE "meal_sizes" (
 	"carbs_g" integer,
 	"fat_g" integer,
 	"base_price" numeric(10, 2) NOT NULL,
+	"trial" boolean DEFAULT false NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "meal_sizes_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "meal_sizes_key_unique" UNIQUE("key")
@@ -269,6 +293,7 @@ CREATE TABLE "plans" (
 	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
 	"offered_slots" text[] DEFAULT '{}' NOT NULL,
 	"allowed_start_days" text[] DEFAULT '{"mon","tue","wed","thu","fri"}' NOT NULL,
+	"category_counts" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "plans_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "plans_key_unique" UNIQUE("key")
@@ -300,6 +325,7 @@ CREATE TABLE "order_activities" (
 	"note" text,
 	"from_status" "order_status",
 	"to_status" "order_status",
+	"delivery_id" bigint,
 	CONSTRAINT "order_activities_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
@@ -327,8 +353,6 @@ CREATE TABLE "orders" (
 	"pricing_snapshot" jsonb NOT NULL,
 	"total" numeric(10, 2) NOT NULL,
 	"status" "order_status" DEFAULT 'pending' NOT NULL,
-	"paused_from" date,
-	"paused_until" date,
 	"deployment_id" text NOT NULL,
 	"zone_id" bigint,
 	"full_name" text NOT NULL,
@@ -352,6 +376,27 @@ CREATE TABLE "payments" (
 	"captured_at" bigint,
 	"note" text,
 	CONSTRAINT "payments_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
+CREATE TABLE "deliveries" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"order_id" bigint NOT NULL,
+	"delivery_date" date NOT NULL,
+	"status" "delivery_status" DEFAULT 'scheduled' NOT NULL,
+	"cutoff_at" bigint NOT NULL,
+	"makeup_for_delivery_id" bigint,
+	"full_name" text,
+	"address_line" text,
+	"city" text,
+	"postal_code" text,
+	"zone_id" bigint,
+	CONSTRAINT "deliveries_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
 CREATE TABLE "coupon_redemptions" (
@@ -473,6 +518,7 @@ CREATE TABLE "ticket_messages" (
 	"author_id" bigint NOT NULL,
 	"author_type" "ticket_message_author" NOT NULL,
 	"body" text NOT NULL,
+	"attachments" jsonb,
 	CONSTRAINT "ticket_messages_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
@@ -493,6 +539,18 @@ CREATE TABLE "tickets" (
 	"order_id" bigint,
 	"closed_at" bigint,
 	CONSTRAINT "tickets_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
+CREATE TABLE "section_seen" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"user_id" bigint NOT NULL,
+	"section" "section_kind" NOT NULL,
+	"seen_at" bigint NOT NULL,
+	CONSTRAINT "section_seen_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
 CREATE TABLE "lead_sources" (
@@ -541,6 +599,23 @@ CREATE TABLE "inquiry_user_config" (
 	CONSTRAINT "inquiry_user_config_user_source_unq" UNIQUE("user_id","source_id")
 );
 --> statement-breakpoint
+CREATE TABLE "dish_categories" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
+	"key" text NOT NULL,
+	"label" text NOT NULL,
+	"enabled" boolean DEFAULT false NOT NULL,
+	"selectable" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "dish_categories_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
 CREATE TABLE "meal_selections" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -554,24 +629,9 @@ CREATE TABLE "meal_selections" (
 	"day_of_week" "day_of_week" NOT NULL,
 	"slot" text NOT NULL,
 	"person_index" integer NOT NULL,
+	"pick_index" integer DEFAULT 1 NOT NULL,
 	"dish_id" bigint NOT NULL,
 	CONSTRAINT "meal_selections_public_id_unique" UNIQUE("public_id")
-);
---> statement-breakpoint
-CREATE TABLE "meal_slots" (
-	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
-	"public_id" text NOT NULL,
-	"app_id" bigint DEFAULT current_app_id() NOT NULL,
-	"created_at" bigint NOT NULL,
-	"created_by" bigint,
-	"updated_at" bigint NOT NULL,
-	"updated_by" bigint,
-	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
-	"key" text NOT NULL,
-	"label" text NOT NULL,
-	"enabled" boolean DEFAULT false NOT NULL,
-	"sort_order" integer DEFAULT 0 NOT NULL,
-	CONSTRAINT "meal_slots_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
 CREATE TABLE "menu_items" (
@@ -805,6 +865,7 @@ ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY (
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_flag_id_feature_flags_id_fk" FOREIGN KEY ("flag_id") REFERENCES "public"."feature_flags"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "meal_size_items" ADD CONSTRAINT "meal_size_items_meal_size_id_meal_sizes_id_fk" FOREIGN KEY ("meal_size_id") REFERENCES "public"."meal_sizes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_activities" ADD CONSTRAINT "order_activities_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_current_owner_users_id_fk" FOREIGN KEY ("current_owner") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -813,6 +874,9 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_meal_size_id_meal_sizes_id_fk" FOREI
 ALTER TABLE "orders" ADD CONSTRAINT "orders_frequency_id_delivery_frequencies_id_fk" FOREIGN KEY ("frequency_id") REFERENCES "public"."delivery_frequencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_zone_id_delivery_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."delivery_zones"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payments" ADD CONSTRAINT "payments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_makeup_for_delivery_id_deliveries_id_fk" FOREIGN KEY ("makeup_for_delivery_id") REFERENCES "public"."deliveries"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_zone_id_delivery_zones_id_fk" FOREIGN KEY ("zone_id") REFERENCES "public"."delivery_zones"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_coupon_id_coupons_id_fk" FOREIGN KEY ("coupon_id") REFERENCES "public"."coupons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "coupon_redemptions" ADD CONSTRAINT "coupon_redemptions_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -832,6 +896,7 @@ ALTER TABLE "ticket_messages" ADD CONSTRAINT "ticket_messages_author_id_users_id
 ALTER TABLE "tickets" ADD CONSTRAINT "tickets_raised_by_users_id_fk" FOREIGN KEY ("raised_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tickets" ADD CONSTRAINT "tickets_current_owner_users_id_fk" FOREIGN KEY ("current_owner") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tickets" ADD CONSTRAINT "tickets_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "section_seen" ADD CONSTRAINT "section_seen_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lead_subsources" ADD CONSTRAINT "lead_subsources_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiry_user_config" ADD CONSTRAINT "inquiry_user_config_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiry_user_config" ADD CONSTRAINT "inquiry_user_config_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -850,10 +915,15 @@ CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> stat
 CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email") WHERE "users"."email" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_phone_unique" ON "users" USING btree ("phone") WHERE "users"."phone" is not null;--> statement-breakpoint
+CREATE INDEX "users_created_idx" ON "users" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "order_activities_order_created_idx" ON "order_activities" USING btree ("order_id","created_at");--> statement-breakpoint
 CREATE INDEX "orders_user_created_idx" ON "orders" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "orders_current_owner_idx" ON "orders" USING btree ("current_owner");--> statement-breakpoint
 CREATE INDEX "payments_order_idx" ON "payments" USING btree ("order_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "deliveries_order_date_unique" ON "deliveries" USING btree ("order_id","delivery_date");--> statement-breakpoint
+CREATE UNIQUE INDEX "deliveries_makeup_unique" ON "deliveries" USING btree ("makeup_for_delivery_id");--> statement-breakpoint
+CREATE INDEX "deliveries_order_date_idx" ON "deliveries" USING btree ("order_id","delivery_date");--> statement-breakpoint
 CREATE INDEX "coupon_redemptions_coupon_idx" ON "coupon_redemptions" USING btree ("coupon_id");--> statement-breakpoint
 CREATE INDEX "coupon_redemptions_user_idx" ON "coupon_redemptions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "coupon_redemptions_order_idx" ON "coupon_redemptions" USING btree ("order_id");--> statement-breakpoint
@@ -865,15 +935,18 @@ CREATE INDEX "inquiries_phone_lower_idx" ON "inquiries" USING btree (lower("phon
 CREATE INDEX "inquiries_email_lower_idx" ON "inquiries" USING btree (lower("email"));--> statement-breakpoint
 CREATE INDEX "inquiries_owner_idx" ON "inquiries" USING btree ("current_owner");--> statement-breakpoint
 CREATE UNIQUE INDEX "inquiries_open_phone_source_uq" ON "inquiries" USING btree (lower("phone"),"source_id") WHERE "inquiries"."stage" not in ('converted', 'lost');--> statement-breakpoint
+CREATE INDEX "inquiries_created_idx" ON "inquiries" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "inquiry_activities_inquiry_created_idx" ON "inquiry_activities" USING btree ("inquiry_id","created_at");--> statement-breakpoint
 CREATE INDEX "ticket_messages_ticket_created_idx" ON "ticket_messages" USING btree ("ticket_id","created_at");--> statement-breakpoint
 CREATE INDEX "tickets_raised_by_idx" ON "tickets" USING btree ("raised_by");--> statement-breakpoint
 CREATE INDEX "tickets_owner_idx" ON "tickets" USING btree ("current_owner");--> statement-breakpoint
 CREATE INDEX "tickets_status_idx" ON "tickets" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "tickets_created_idx" ON "tickets" USING btree ("created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "section_seen_user_section_idx" ON "section_seen" USING btree ("user_id","section");--> statement-breakpoint
 CREATE INDEX "lead_subsources_source_idx" ON "lead_subsources" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "inquiry_user_config_source_idx" ON "inquiry_user_config" USING btree ("source_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index");--> statement-breakpoint
-CREATE UNIQUE INDEX "meal_slots_type_key_unique" ON "meal_slots" USING btree ("plan_type","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "dish_categories_type_key_unique" ON "dish_categories" USING btree ("plan_type","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index","pick_index");--> statement-breakpoint
 CREATE UNIQUE INDEX "menu_items_unique" ON "menu_items" USING btree ("menu_week_id","day_of_week","slot","dish_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "menu_weeks_type_week_unique" ON "menu_weeks" USING btree ("plan_type","week_start");--> statement-breakpoint
 CREATE INDEX "coin_rate_currency_created_idx" ON "coin_rate" USING btree ("currency","created_at");--> statement-breakpoint

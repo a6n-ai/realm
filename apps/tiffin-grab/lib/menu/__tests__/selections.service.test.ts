@@ -52,9 +52,9 @@ describe("selectionsService.setSelection", () => {
     await seedDelivery(o.id);
     const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
     week = w;
-    const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
-    const [vd2] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg", slots: ["lunch"] }).returning();
-    const [nd] = await db.insert(dishes).values({ name: "Chicken", diet: "nonveg", slots: ["lunch"] }).returning();
+    const [vd] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [vd2] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg" }).returning();
+    const [nd] = await db.insert(dishes).values({ name: "Chicken", diet: "nonveg" }).returning();
     vegDishPublicId = vd.publicId;
     vegDishPublicId2 = vd2.publicId;
     nonvegDishPublicId = nd.publicId;

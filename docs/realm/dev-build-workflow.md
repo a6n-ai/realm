@@ -70,6 +70,37 @@ monorepo root, so the standalone output nests the app under
   cd apps/tiffin-grab && pnpm exec next build
   ```
 
+## Rebuild the database from the baseline
+
+`apps/tiffin-grab/db/migrations/0000_*.sql` is a single hand-edited baseline
+(migrations `0000`–`0007` were squashed into it). **There is no in-place
+upgrade path**: an existing local DB's `drizzle.__drizzle_migrations` table
+still holds the 8 old hashes, and the regenerated `0000` hash won't match row
+0 — `db:migrate` errors/refuses instead of applying anything. Every existing
+dev DB must be **dropped and rebuilt** with the sequence below. Realm-prod is
+pre-launch (live orders are still on WooCommerce), so this drop+rebuild is the
+sanctioned reset there too — no real data is lost.
+
+```bash
+# DB_URL falls back DIRECT_DATABASE_URL -> DATABASE_URL, matching db/resolve-migration-url.ts.
+# Locally DIRECT_DATABASE_URL is often unset; without the fallback, psql "" would target the
+# default DB/user and the migrate step (drizzle) and the psql steps could hit DIFFERENT databases.
+DB_URL="${DIRECT_DATABASE_URL:-$DATABASE_URL}"
+
+# 1. Drop everything, INCLUDING drizzle's migration-tracking schema. Skipping the
+#    `drizzle` schema drop leaves the old hash rows behind, so the regenerated
+#    `0000` reads as already-applied and db:migrate silently no-ops.
+psql "$DB_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS drizzle CASCADE;'
+# 2. Apply the single baseline migration.
+pnpm --filter tiffin-grab db:migrate
+# 3. Seed catalog + reference data (idempotent).
+psql "$DB_URL" -f apps/tiffin-grab/db/seed.sql
+# 4. Seed login-able staff (scrypt hash can't live in SQL — a real runnable step,
+#    not a comment). Not optional: skipping it yields a DB with zero users and
+#    no one (admin/sales) can log in.
+pnpm --filter tiffin-grab db:seed-staff
+```
+
 ## Testing
 
 Service/integration tests hit a **real seeded Postgres** (the live-DB harness);

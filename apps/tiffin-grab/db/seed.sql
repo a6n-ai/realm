@@ -86,68 +86,147 @@ VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FR
         '{"protein":1,"grain":1,"veg":2,"salad":1}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
--- ============ MEAL SIZES ============
-INSERT INTO meal_sizes (public_id, created_at, updated_at, key, name, tier, diet, components, kcal_min, kcal_max,
+-- ============ MEAL SIZES ============ (17 real tiffingrab.ca sizes; components='[]' placeholder
+-- derived below from meal_size_items. kcal per tier: budget 450-650, medium 650-900, premium 900-1300.
+-- Macros left NULL. trial=true only for the two trial sizes.)
+INSERT INTO meal_sizes (public_id, created_at, updated_at, key, name, tier, diet, trial, components, kcal_min, kcal_max,
                         protein_g, carbs_g, fat_g, base_price)
 VALUES ('msz_small_thali', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'small_thali', 'Small Thali', 'budget', 'veg', '[
-    "12oz Sabzi",
-    "12oz Rice",
-    "2 Rotis"
-  ]'::jsonb, 550, 650, 18, 90, 16, 9.99),
-       ('msz_sabzi_only', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'sabzi_only', 'Sabzi Only', 'budget', 'veg', '[
-         "2x 8oz Sabzi",
-         "8oz Daal"
-       ]'::jsonb, 400, 550, 20, 45, 18, 8.49),
-       ('msz_four_item_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'four_item_regular', '4-Item Thali (Regular)', 'medium', 'both', '[
-         "8oz Sabzi",
-         "8oz Daal",
-         "12oz Rice",
-         "2 Rotis"
-       ]'::jsonb, 750, 850, 28, 110, 22, 11.99),
-       ('msz_four_item_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'four_item_large', '4-Item Thali (Large)', 'medium', 'both', '[
-         "12oz Sabzi",
-         "12oz Daal",
-         "12oz Rice",
-         "4 Rotis"
-       ]'::jsonb, 950, 1100, 36, 140, 28, 13.99),
-       ('msz_five_item_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'five_item_regular', '5-Item Thali (Regular)', 'medium', 'both', '[
-         "8oz Sabzi",
-         "8oz Daal",
-         "12oz Rice",
-         "3 Rotis",
-         "8oz Raita/Salad"
-       ]'::jsonb, 850, 1000, 32, 125, 26, 13.49),
-       ('msz_new_thali', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'new_thali', 'New Thali', 'medium', 'both', '[
-         "8oz Sabzi",
-         "8oz Daal",
-         "8 Rotis"
-       ]'::jsonb, 900, 1100, 34, 130, 24, 12.49),
-       ('msz_five_item_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'five_item_large', '5-Item Thali (Large)', 'premium', 'both', '[
-         "12oz Sabzi",
-         "12oz Daal",
-         "12oz Rice",
-         "6 Rotis",
-         "Salad",
-         "Raita"
-       ]'::jsonb, 1200, 1450, 44, 165, 34, 16.99),
-       ('msz_maharaja_thali', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'maharaja_thali', 'Maharaja Thali', 'premium', 'both', '[
-         "12oz Sabzi",
-         "12oz Daal",
-         "8oz Sabzi",
-         "12oz Rice",
-         "8 Rotis",
-         "Salad",
-         "Raita"
-       ]'::jsonb, 1500, 1750, 52, 190, 40, 19.99)
+        'small_thali', 'Small Thali', 'budget', 'veg', FALSE, '[]'::jsonb, 450, 650, NULL, NULL, NULL, 8.50),
+       ('msz_sabzi_only_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'sabzi_only_veg', 'Sabzi Only (Veg)', 'budget', 'veg', FALSE, '[]'::jsonb, 450, 650, NULL, NULL, NULL, 9.00),
+       ('msz_veg_4_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'veg_4_regular', '4-Item Veg Thali (Regular)', 'medium', 'veg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 10.00),
+       ('msz_sabzi_only_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'sabzi_only_nonveg', 'Sabzi Only (Non-Veg)', 'budget', 'nonveg', FALSE, '[]'::jsonb, 450, 650, NULL, NULL, NULL, 10.00),
+       ('msz_veg_5_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'veg_5_regular', '5-Item Veg Thali (Regular)', 'medium', 'veg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 11.00),
+       ('msz_nonveg_4_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'nonveg_4_regular', '4-Item Non-Veg Thali (Regular)', 'medium', 'nonveg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 11.00),
+       ('msz_new_plan_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'new_plan_veg', 'New Plan (Veg)', 'medium', 'veg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 11.50),
+       ('msz_veg_4_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'veg_4_large', '4-Item Veg Thali (Large)', 'medium', 'veg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 11.50),
+       ('msz_nonveg_5_regular', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'nonveg_5_regular', '5-Item Non-Veg Thali (Regular)', 'medium', 'nonveg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 12.00),
+       ('msz_new_plan_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'new_plan_nonveg', 'New Plan (Non-Veg)', 'medium', 'nonveg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 12.50),
+       ('msz_nonveg_4_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'nonveg_4_large', '4-Item Non-Veg Thali (Large)', 'medium', 'nonveg', FALSE, '[]'::jsonb, 650, 900, NULL, NULL, NULL, 12.50),
+       ('msz_veg_5_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'veg_5_large', '5-Item Veg Thali (Large)', 'premium', 'veg', FALSE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 13.00),
+       ('msz_maharaja_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'maharaja_veg', 'Maharaja Thali (Veg)', 'premium', 'veg', FALSE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 14.00),
+       ('msz_nonveg_5_large', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'nonveg_5_large', '5-Item Non-Veg Thali (Large)', 'premium', 'nonveg', FALSE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 14.00),
+       ('msz_trial_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'trial_veg', 'Trial Meal (Veg) 5-Item', 'premium', 'veg', TRUE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 14.50),
+       ('msz_maharaja_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'maharaja_nonveg', 'Maharaja Thali (Non-Veg)', 'premium', 'nonveg', FALSE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 14.75),
+       ('msz_trial_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'trial_nonveg', 'Trial Meal (Non-Veg) 5-Item', 'premium', 'nonveg', TRUE, '[]'::jsonb, 900, 1300, NULL, NULL, NULL, 15.50)
 ON CONFLICT (key) DO NOTHING;
+
+-- ============ MEAL SIZE ITEMS ============ (FK by meal_sizes.key subquery; no unique key -> wipe+reinsert
+-- like pricing_tiers. roti rows: qty=N, weight_value=NULL, weight_unit='piece'; weighed items unit='oz'.
+-- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
+DELETE FROM meal_size_items;
+INSERT INTO meal_size_items
+  (public_id, created_at, updated_at, meal_size_id, name, qty, weight_value, weight_unit, sort_order)
+SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (SELECT id FROM meal_sizes WHERE key = v.meal_size_key),
+       v.name, v.qty, v.weight_value, v.weight_unit::weight_unit, v.sort_order
+FROM (VALUES
+  ('small_thali', 'Sabzi', 1, 12, 'oz', 0),
+  ('small_thali', 'Rice', 1, 12, 'oz', 1),
+  ('small_thali', 'Roti', 2, NULL, 'piece', 2),
+  ('sabzi_only_veg', 'Sabzi', 2, 8, 'oz', 0),
+  ('sabzi_only_veg', 'Daal', 1, 8, 'oz', 1),
+  ('veg_4_regular', 'Sabzi', 1, 8, 'oz', 0),
+  ('veg_4_regular', 'Daal', 1, 8, 'oz', 1),
+  ('veg_4_regular', 'Rice', 1, 12, 'oz', 2),
+  ('veg_4_regular', 'Roti', 2, NULL, 'piece', 3),
+  ('sabzi_only_nonveg', 'Sabzi', 1, 8, 'oz', 0),
+  ('sabzi_only_nonveg', 'Curry', 1, 8, 'oz', 1),
+  ('sabzi_only_nonveg', 'Daal', 1, 8, 'oz', 2),
+  ('veg_5_regular', 'Sabzi', 1, 8, 'oz', 0),
+  ('veg_5_regular', 'Daal', 1, 8, 'oz', 1),
+  ('veg_5_regular', 'Extra', 1, 8, 'oz', 2),
+  ('veg_5_regular', 'Rice', 1, 12, 'oz', 3),
+  ('veg_5_regular', 'Roti', 3, NULL, 'piece', 4),
+  ('nonveg_4_regular', 'Curry', 1, 8, 'oz', 0),
+  ('nonveg_4_regular', 'Daal', 1, 8, 'oz', 1),
+  ('nonveg_4_regular', 'Rice', 1, 12, 'oz', 2),
+  ('nonveg_4_regular', 'Roti', 2, NULL, 'piece', 3),
+  ('new_plan_veg', 'Sabzi', 1, 8, 'oz', 0),
+  ('new_plan_veg', 'Daal', 1, 8, 'oz', 1),
+  ('new_plan_veg', 'Roti', 8, NULL, 'piece', 2),
+  ('veg_4_large', 'Sabzi', 1, 12, 'oz', 0),
+  ('veg_4_large', 'Daal', 1, 12, 'oz', 1),
+  ('veg_4_large', 'Rice', 1, 12, 'oz', 2),
+  ('veg_4_large', 'Roti', 4, NULL, 'piece', 3),
+  ('nonveg_5_regular', 'Curry', 1, 8, 'oz', 0),
+  ('nonveg_5_regular', 'Daal', 1, 8, 'oz', 1),
+  ('nonveg_5_regular', 'Extra', 1, 8, 'oz', 2),
+  ('nonveg_5_regular', 'Rice', 1, 12, 'oz', 3),
+  ('nonveg_5_regular', 'Roti', 3, NULL, 'piece', 4),
+  ('new_plan_nonveg', 'Curry', 1, 8, 'oz', 0),
+  ('new_plan_nonveg', 'Daal', 1, 8, 'oz', 1),
+  ('new_plan_nonveg', 'Roti', 8, NULL, 'piece', 2),
+  ('nonveg_4_large', 'Curry', 1, 12, 'oz', 0),
+  ('nonveg_4_large', 'Daal', 1, 12, 'oz', 1),
+  ('nonveg_4_large', 'Rice', 1, 12, 'oz', 2),
+  ('nonveg_4_large', 'Roti', 4, NULL, 'piece', 3),
+  ('veg_5_large', 'Sabzi', 1, 12, 'oz', 0),
+  ('veg_5_large', 'Daal', 1, 12, 'oz', 1),
+  ('veg_5_large', 'Extra', 1, 8, 'oz', 2),
+  ('veg_5_large', 'Rice', 1, 12, 'oz', 3),
+  ('veg_5_large', 'Roti', 6, NULL, 'piece', 4),
+  ('maharaja_veg', 'Sabzi', 1, 12, 'oz', 0),
+  ('maharaja_veg', 'Daal', 1, 12, 'oz', 1),
+  ('maharaja_veg', 'Extra', 1, 8, 'oz', 2),
+  ('maharaja_veg', 'Salad', 1, 8, 'oz', 3),
+  ('maharaja_veg', 'Raita', 1, 8, 'oz', 4),
+  ('maharaja_veg', 'Rice', 1, 12, 'oz', 5),
+  ('maharaja_veg', 'Roti', 8, NULL, 'piece', 6),
+  ('nonveg_5_large', 'Curry', 1, 12, 'oz', 0),
+  ('nonveg_5_large', 'Daal', 1, 12, 'oz', 1),
+  ('nonveg_5_large', 'Extra', 1, 8, 'oz', 2),
+  ('nonveg_5_large', 'Rice', 1, 12, 'oz', 3),
+  ('nonveg_5_large', 'Roti', 6, NULL, 'piece', 4),
+  ('trial_veg', 'Sabzi', 1, 8, 'oz', 0),
+  ('trial_veg', 'Daal', 1, 8, 'oz', 1),
+  ('trial_veg', 'Extra', 1, 8, 'oz', 2),
+  ('trial_veg', 'Rice', 1, 12, 'oz', 3),
+  ('trial_veg', 'Roti', 3, NULL, 'piece', 4),
+  ('maharaja_nonveg', 'Curry', 1, 12, 'oz', 0),
+  ('maharaja_nonveg', 'Daal', 1, 12, 'oz', 1),
+  ('maharaja_nonveg', 'Extra', 1, 8, 'oz', 2),
+  ('maharaja_nonveg', 'Salad', 1, 8, 'oz', 3),
+  ('maharaja_nonveg', 'Raita', 1, 8, 'oz', 4),
+  ('maharaja_nonveg', 'Rice', 1, 12, 'oz', 5),
+  ('maharaja_nonveg', 'Roti', 8, NULL, 'piece', 6),
+  ('trial_nonveg', 'Curry', 1, 8, 'oz', 0),
+  ('trial_nonveg', 'Daal', 1, 8, 'oz', 1),
+  ('trial_nonveg', 'Extra', 1, 8, 'oz', 2),
+  ('trial_nonveg', 'Rice', 1, 12, 'oz', 3),
+  ('trial_nonveg', 'Roti', 3, NULL, 'piece', 4)
+) AS v(meal_size_key, name, qty, weight_value, weight_unit, sort_order);
+
+-- Derive human-readable components[] from the structured items (single source of truth).
+-- Runs unconditionally: the meal_sizes INSERT above uses ON CONFLICT DO NOTHING and seeds
+-- components='[]', so only this UPDATE populates it (and refreshes it on every reseed).
+UPDATE meal_sizes ms SET components = COALESCE((
+  SELECT json_agg(
+           CASE WHEN i.weight_value IS NULL
+                THEN i.qty || '× ' || i.name
+                ELSE i.qty || '× ' || i.name || ' ' || rtrim(rtrim(i.weight_value::text, '0'), '.') || i.weight_unit
+           END
+           ORDER BY i.sort_order)
+  FROM meal_size_items i WHERE i.meal_size_id = ms.id
+), '[]'::json)::jsonb;
 
 -- ============ DELIVERY FREQUENCIES ============
 INSERT INTO delivery_frequencies (public_id, created_at, updated_at, key, name, days_per_week, courier_discount_pct)
@@ -255,22 +334,18 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
 ON CONFLICT (plan_type, key) DO NOTHING;
 
 -- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
-INSERT INTO dishes (public_id, created_at, updated_at, name, description, diet, slots)
+INSERT INTO dishes (public_id, created_at, updated_at, name, description, diet)
 SELECT v.public_id,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        v.name,
        v.description,
-       v.diet::dish_diet,
-       v.slots::TEXT[]
-FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'veg', ARRAY ['lunch']),
-             ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg',
-              ARRAY ['lunch']),
-             ('dsh_aloo_gobi', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'veg', ARRAY ['lunch']),
-             ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg',
-              ARRAY ['lunch']),
-             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg',
-              ARRAY ['lunch'])) AS v(public_id, name, description, diet, slots)
+       v.diet::dish_diet
+FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'veg'),
+             ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg'),
+             ('dsh_aloo_gobi', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'veg'),
+             ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg'),
+             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg')) AS v(public_id, name, description, diet)
 WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
 
 -- ============ MENU: WEEK + ITEMS ============ (next Monday UTC; guard week+items on week_start existing)
@@ -344,6 +419,7 @@ COMMIT;
 -- select 'lead_subsources', count(*) from lead_subsources union all
 -- select 'plans', count(*) from plans union all
 -- select 'meal_sizes', count(*) from meal_sizes union all
+-- select 'meal_size_items', count(*) from meal_size_items union all
 -- select 'delivery_frequencies', count(*) from delivery_frequencies union all
 -- select 'duration_packages', count(*) from duration_packages union all
 -- select 'delivery_zones', count(*) from delivery_zones union all

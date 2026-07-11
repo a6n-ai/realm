@@ -8,12 +8,14 @@ export interface MealSizeView {
   tier: "budget" | "medium" | "premium";
   diet: "veg" | "nonveg" | "both";
   components: string[];
+  items: { name: string; qty: number; weightValue: number | null; weightUnit: "oz" | "g" | "ml" | "piece" | null }[];
   kcalMin: number;
   kcalMax: number;
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
   basePrice: number;
+  trial: boolean;
 }
 
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution

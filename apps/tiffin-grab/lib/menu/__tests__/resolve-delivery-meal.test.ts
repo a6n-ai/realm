@@ -38,10 +38,10 @@ describe("resolveDeliveryMeal", () => {
     week = w;
 
     // sabzi is the seeded selectable category (veg plan's category_counts has sabzi:2)
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
-    const [sabziPicked] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [sabziPicked] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg" }).returning();
     // rice is the seeded fixed category (selectable=false)
-    const [riceDefault] = await db.insert(dishes).values({ name: "Basmati", diet: "veg", slots: ["lunch"] }).returning();
+    const [riceDefault] = await db.insert(dishes).values({ name: "Basmati", diet: "veg" }).returning();
 
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziPicked.id, isDefault: false });
@@ -74,8 +74,8 @@ describe("resolveDeliveryMeal", () => {
   it("falls back to the lowest-position item (deterministic) when no item is marked isDefault", async () => {
     // tue has no explicit isDefault in the sabzi category and no explicit picks —
     // both dishes are isDefault=false with distinct positions.
-    const [sabziLow] = await db.insert(dishes).values({ name: "Aloo Gobi", diet: "veg", slots: ["lunch"] }).returning();
-    const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziLow] = await db.insert(dishes).values({ name: "Aloo Gobi", diet: "veg" }).returning();
+    const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala", diet: "veg" }).returning();
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziLow.id, isDefault: false, position: 1 });
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziHigh.id, isDefault: false, position: 2 });
 

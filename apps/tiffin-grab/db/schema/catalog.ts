@@ -1,18 +1,18 @@
 import { updatableColumns } from "@realm/database";
 import type { FileDetail } from "@realm/storage/model";
-import { boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const mealDiet = pgEnum("meal_diet", ["veg", "nonveg", "both"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
 export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
+export const weightUnit = pgEnum("weight_unit", ["oz", "g", "ml", "piece"]);
 
 export const dishes = pgTable("dishes", {
   ...updatableColumns("dsh"),
   name: text("name").notNull(),
   description: text("description"),
   diet: dishDiet("diet").notNull(),
-  slots: text("slots").array().notNull().default([]),
   image: jsonb("image").$type<FileDetail>(),
   active: boolean("active").notNull().default(true),
 });
@@ -42,7 +42,22 @@ export const mealSizes = pgTable("meal_sizes", {
   carbsG: integer("carbs_g"),
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
+  trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
+});
+
+export const mealSizeItems = pgTable("meal_size_items", {
+  ...updatableColumns("msi"),
+  // NOT NULL (per M1): a mistyped meal_size_key in a seed subquery must fail the
+  // insert loudly rather than silently insert an orphan row.
+  mealSizeId: bigint("meal_size_id", { mode: "bigint" })
+    .notNull()
+    .references(() => mealSizes.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  qty: integer("qty").notNull().default(1),
+  weightValue: numeric("weight_value", { precision: 6, scale: 2 }),
+  weightUnit: weightUnit("weight_unit"),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 export const addons = pgTable("addons", {

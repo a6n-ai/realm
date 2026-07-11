@@ -248,12 +248,14 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
             diet: (values.diet as "veg" | "nonveg" | "both") || "veg",
             components: (values.components as string[]) ?? [],
+            items: [],
             kcalMin: num(values.kcalMin),
             kcalMax: num(values.kcalMax),
             proteinG: optMacro(values.proteinG),
             carbsG: optMacro(values.carbsG),
             fatG: optMacro(values.fatG),
             basePrice: num(values.basePrice),
+            trial: Boolean(values.trial),
           }}
         />
       </div>

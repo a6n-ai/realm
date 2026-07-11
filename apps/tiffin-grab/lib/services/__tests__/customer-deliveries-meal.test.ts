@@ -50,7 +50,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       planType: plan.planType, weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", slots: ["lunch"] }).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
 
     const meal = await myDeliveryMeal({ ...delivery, orderPublicId: order.publicId, planName: plan.name, isMakeup: false });
