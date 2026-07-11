@@ -53,6 +53,19 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
     return net.toFixed(2);
   }
 
+  // Total savings = SUM(discount debits). Both coupon and wallet redemptions
+  // land here as `discount` rows, so this single aggregate is the whole number.
+  async totalSavings(userId: bigint): Promise<string> {
+    const [row] = await db
+      .select({
+        discounted: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'discount' then ${ledgerEntries.amount} else 0 end), 0)`,
+      })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.userId, userId));
+    const net = Number(row?.discounted ?? 0);
+    return net.toFixed(2);
+  }
+
   // Append-only: never delete a ledger row.
   async delete(): Promise<number> {
     throw new Error("ledger_entries is append-only");

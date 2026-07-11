@@ -64,6 +64,21 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
   }));
 }
 
+// One row per subscription: the earliest still-scheduled delivery. `myDeliveries`
+// already returns deliveryDate ASC, so the first "scheduled" row seen per
+// orderPublicId is the next one — paused/skipped rows are excluded here even
+// though myDeliveries surfaces them (VISIBLE) for other callers.
+export async function nextDeliveryByOrder(userId: bigint, from: string): Promise<Map<string, CustomerDelivery>> {
+  const farFuture = "9999-12-31";
+  const rows = await myDeliveries(userId, from, farFuture);
+  const next = new Map<string, CustomerDelivery>();
+  for (const row of rows) {
+    if (row.status !== "scheduled") continue;
+    if (!next.has(row.orderPublicId)) next.set(row.orderPublicId, row);
+  }
+  return next;
+}
+
 // Ownership guards: called by customer server actions BEFORE delegating to
 // shared admin mutations that have no ownership check of their own. Not-owned
 // and not-existent both throw the same NotFoundError — never a distinct
