@@ -92,7 +92,7 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
 // only through the admin/cron flows, not from a customer-facing lookup.
 export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<ResolvedCategory[] | { pending: true }> {
   const [order] = await db
-    .select({ id: orders.id, planId: orders.planId, planType: plans.planType })
+    .select({ id: orders.id, planId: orders.planId, categoryCounts: orders.categoryCounts, planType: plans.planType })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .where(eq(orders.publicId, d.orderPublicId))
@@ -110,5 +110,5 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
   const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
-  return resolveDeliveryMeal({ id: order.id, planId: order.planId }, { id: week.id }, dayOfWeek, person);
+  return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, dayOfWeek, person);
 }

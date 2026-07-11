@@ -37,6 +37,7 @@ export type MealOrder = {
   publicId: string;
   planId: bigint;
   persons: number;
+  categoryCounts: Record<string, number>;
   mealSlots: string[];
   includeSaturday: boolean;
   includeSunday: boolean;
@@ -79,7 +80,7 @@ export async function buildMealsGrid(
   if (rows.length === 0) return { empty: "no-dates" };
 
   const [planRow] = await db
-    .select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts })
+    .select({ key: plans.key, planType: plans.planType })
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1);

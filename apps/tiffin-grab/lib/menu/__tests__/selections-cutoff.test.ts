@@ -48,6 +48,7 @@ describe("setSelection per-day cutoff + span", () => {
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d.id, isDefault: true });
     const [o] = await db.insert(orders).values({
       userId, planId: plan.id, mealSizeId: mealSize.id, frequencyId: freq.id, persons: 1, mealSlots: ["lunch"],
+      categoryCounts: { sabzi: 2, rice: 1, roti: 4, raita: 1, salad: 1 },
       includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: "2099-01-05",
       pricingSnapshot: {}, tiffinCount: 5, perTiffinPrice: "10.00", total: "50.00", status: "active",
       deploymentId: "SUB-cutoff-test", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V",

@@ -10,7 +10,7 @@ import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
-type Order = Pick<typeof orders.$inferSelect, "id" | "planId">;
+type Order = Pick<typeof orders.$inferSelect, "id" | "planId" | "categoryCounts">;
 type Week = Pick<typeof menuWeeks.$inferSelect, "id">;
 
 type Item = { slot: string; dishId: bigint; isDefault: boolean; diet: "veg" | "nonveg"; name: string; publicId: string };
@@ -72,7 +72,7 @@ function resolveCategoriesForDay(
 }
 
 export async function resolveDeliveryMeal(order: Order, week: Week, dayOfWeek: DayOfWeek, person: number): Promise<ResolvedCategory[]> {
-  const [plan] = await db.select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+  const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
   if (!plan) return [];
   const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
   const items = await db
@@ -84,7 +84,7 @@ export async function resolveDeliveryMeal(order: Order, week: Week, dayOfWeek: D
     .from(mealSelections)
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  return resolveCategoriesForDay(items, picks, cats, plan.counts ?? {}, dietsForPlanKey(plan.key));
+  return resolveCategoriesForDay(items, picks, cats, order.categoryCounts ?? {}, dietsForPlanKey(plan.key));
 }
 
 export type ResolvedMealsWeek = Map<string, ResolvedCategory[]>;
@@ -97,7 +97,7 @@ export function resolvedMealsWeekKey(day: DayOfWeek, personIndex: number): strin
 // one per (day, person). buildMealsGrid uses this rather than re-inlining the resolution.
 export async function resolveDeliveryMealsForWeek(order: Order, week: Week, persons: number): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
-  const [plan] = await db.select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+  const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
   if (!plan) return result;
   const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
   const items = await db
@@ -110,7 +110,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
   const allowedDiets = dietsForPlanKey(plan.key);
-  const counts = plan.counts ?? {};
+  const counts = order.categoryCounts ?? {};
   const days = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
   for (const day of days) {
     const dayItems = items.filter((i) => i.dayOfWeek === day);
