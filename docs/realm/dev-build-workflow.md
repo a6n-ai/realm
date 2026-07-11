@@ -81,8 +81,6 @@ dev DB must be **dropped and rebuilt** with the sequence below. Realm-prod is
 pre-launch (live orders are still on WooCommerce), so this drop+rebuild is the
 sanctioned reset there too — no real data is lost.
 
-Run from `apps/tiffin-grab/`:
-
 ```bash
 # DB_URL falls back DIRECT_DATABASE_URL -> DATABASE_URL, matching db/resolve-migration-url.ts.
 # Locally DIRECT_DATABASE_URL is often unset; without the fallback, psql "" would target the
