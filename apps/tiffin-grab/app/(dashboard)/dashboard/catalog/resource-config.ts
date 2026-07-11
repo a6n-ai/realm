@@ -71,7 +71,6 @@ const plansSchema = z.object({
 const mealSizesSchema = z.object({
   key, name,
   tier: z.enum(["budget", "medium", "premium"]),
-  diet: z.enum(["veg", "nonveg", "both"]),
   components: z.array(z.string()).default([]),
   kcalMin: reqNum(z.coerce.number().int().nonnegative()),
   kcalMax: reqNum(z.coerce.number().int().nonnegative()),
@@ -182,7 +181,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
       { key: "tier", label: "Tier", type: "select", options: ["budget", "medium", "premium"], optionLabels: ENUM_LABELS },
-      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg", "both"], optionLabels: ENUM_LABELS },
       { key: "components", label: "Components", type: "csv" },
       { key: "kcalMin", label: "kcal min", type: "number", unit: "kcal" },
       { key: "kcalMax", label: "kcal max", type: "number", unit: "kcal" },

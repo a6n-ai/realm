@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes, mealSizeItems, mealSizes } from "@/db/schema";
+import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
@@ -53,11 +53,14 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
     db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
     dishCategoriesService.forPlanType(planType),
+    // Aggregate item categories across every plan of this plan_type (veg + non-veg
+    // are both 'tiffin'), so join through plans rather than filtering a single plan.
     db
       .select({ category: mealSizeItems.category, qty: mealSizeItems.qty })
       .from(mealSizeItems)
       .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
-      .where(and(eq(mealSizes.planType, planType), eq(mealSizes.active, true))),
+      .innerJoin(plans, eq(mealSizes.planId, plans.id))
+      .where(and(eq(plans.planType, planType), eq(mealSizes.active, true))),
   ]);
   const mealType = mealTypes[planType];
   // "N needed" hint: max qty any meal size in this plan type asks for, per

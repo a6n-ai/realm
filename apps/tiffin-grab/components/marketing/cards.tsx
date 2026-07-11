@@ -11,12 +11,17 @@ export function StepCard({ n, title, body }: { n: number; title: string; body: s
   );
 }
 
+// Public Veg/Non-Veg badge is derived from the size's owning plan; other plans
+// (e.g. healthy) get no badge.
+const PLAN_BADGE: Record<string, string> = { veg: "Veg", "non-veg": "Non-Veg" };
+
 export function MealCard({ meal }: { meal: MealSizeView }) {
+  const badge = PLAN_BADGE[meal.planKey];
   return (
     <div className="flex flex-col rounded-lg border p-5">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium">{meal.name}</h3>
-        <Badge variant="secondary" className="capitalize">{meal.diet}</Badge>
+        {badge ? <Badge variant="secondary">{badge}</Badge> : null}
       </div>
       <p className="text-muted-foreground mt-1 text-sm">{meal.components.join(", ")}</p>
       <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-1 text-xs">

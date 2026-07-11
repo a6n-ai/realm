@@ -5,10 +5,11 @@ export interface MealSizeView {
   publicId: string;
   key: string;
   name: string;
-  // Scopes the size to a plan type; the subscribe wizard hides plan types with no sizes.
-  planType: "tiffin" | "healthy";
+  // Scopes the size to exactly one plan. planId is server-only (FK resolution);
+  // planKey crosses the wire so the client filters sizes by their owning plan.
+  planId: bigint;
+  planKey: string;
   tier: "budget" | "medium" | "premium";
-  diet: "veg" | "nonveg" | "both";
   components: string[];
   items: { name: string; category: string; qty: number; weightValue: number | null; weightUnit: "oz" | "g" | "ml" | "piece" | null }[];
   kcalMin: number;
@@ -33,7 +34,9 @@ export interface CatalogSnapshot {
 
 // Client-facing snapshot: no internal bigint id crosses the wire. Client
 // components select by publicId (meal size) or business key (plan/frequency).
-export type ClientMealSizeView = Omit<MealSizeView, "id">;
+// Both server-only ids are stripped for the wire; the client selects by
+// publicId and filters by the string planKey.
+export type ClientMealSizeView = Omit<MealSizeView, "id" | "planId">;
 
 export interface ClientCatalogSnapshot {
   plans: { publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
@@ -48,9 +51,13 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     const { id: _id, ...rest } = row;
     return rest;
   };
+  const dropMealIds = (row: MealSizeView): ClientMealSizeView => {
+    const { id: _id, planId: _planId, ...rest } = row;
+    return rest;
+  };
   return {
     plans: snapshot.plans.map(dropId),
-    mealSizes: snapshot.mealSizes.map(dropId),
+    mealSizes: snapshot.mealSizes.map(dropMealIds),
     frequencies: snapshot.frequencies.map(dropId),
     durations: snapshot.durations.map(dropId),
     zones: snapshot.zones.map(dropId),

@@ -29,9 +29,7 @@ describe("loadCatalogSnapshot items + trial", () => {
       }
       expect(m.components.length).toBeGreaterThan(0);
 
-      if (m.diet === "veg") expect(m.diet).toBe("veg");
-      if (m.diet === "nonveg") expect(m.diet).toBe("nonveg");
-      expect(m.diet).not.toBe("both");
+      expect(["veg", "non-veg"]).toContain(m.planKey);
     }
   });
 });
