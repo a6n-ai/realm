@@ -14,6 +14,9 @@ export const dishes = pgTable("dishes", {
   description: text("description"),
   diet: dishDiet("diet").notNull(),
   image: jsonb("image").$type<FileDetail>(),
+  // Soft ref to dish_categories.key (no DB FK — key is unique only per (planType, key)).
+  // Nullable for back-compat: a null-category dish may be placed in any slot.
+  category: text("category"),
   active: boolean("active").notNull().default(true),
 });
 
@@ -33,6 +36,8 @@ export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
+  // Scopes a meal size to a plan type; the subscribe wizard hides plan types with no sizes.
+  planType: planType("plan_type").notNull().default("tiffin"),
   tier: mealTier("tier").notNull(),
   diet: mealDiet("diet").notNull(),
   components: jsonb("components").$type<string[]>().notNull().default([]),
@@ -54,6 +59,11 @@ export const mealSizeItems = pgTable("meal_size_items", {
     .notNull()
     .references(() => mealSizes.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  // Soft ref to dish_categories.key (no DB FK — see M8/Constraint 7). NOT NULL: every
+  // item belongs to a category so checkout can reduce items into per-category counts.
+  category: text("category").notNull(),
+  // Optional display override for the item label.
+  label: text("label"),
   qty: integer("qty").notNull().default(1),
   weightValue: numeric("weight_value", { precision: 6, scale: 2 }),
   weightUnit: weightUnit("weight_unit"),
