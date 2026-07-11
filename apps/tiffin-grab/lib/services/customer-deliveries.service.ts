@@ -1,7 +1,9 @@
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError, weekdayKey } from "@realm/commons";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orders, plans } from "@/db/schema";
+import { deliveries, menuWeeks, orders, plans } from "@/db/schema";
+import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -83,4 +85,30 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+}
+
+// Pure read: resolves "what's coming" for one delivery against the released menu_week for its
+// plan/week. Never calls reconcileMakeups/materializeDeliveries — those are write paths reached
+// only through the admin/cron flows, not from a customer-facing lookup.
+export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<ResolvedCategory[] | { pending: true }> {
+  const [order] = await db
+    .select({ id: orders.id, planId: orders.planId, planType: plans.planType })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(eq(orders.publicId, d.orderPublicId))
+    .limit(1);
+  if (!order) return { pending: true };
+
+  const weekStart = mondayOfIso(d.deliveryDate);
+  const [week] = await db
+    .select({ id: menuWeeks.id })
+    .from(menuWeeks)
+    .where(and(eq(menuWeeks.planType, order.planType), eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
+    .limit(1);
+  if (!week) return { pending: true };
+
+  // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
+  // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
+  const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
+  return resolveDeliveryMeal({ id: order.id, planId: order.planId }, { id: week.id }, dayOfWeek, person);
 }
