@@ -12,13 +12,13 @@ describe("slug", () => {
 describe("plans schema", () => {
   const s = RESOURCES.plans.schema;
   it("accepts a valid plan", () => {
-    expect(() => s.parse({ key: "tiffin-standard", name: "Tiffin Standard", planType: "tiffin", offeredSlots: ["bf"], allowedStartDays: ["mon"] })).not.toThrow();
+    expect(() => s.parse({ key: "tiffin-standard", name: "Tiffin Standard", planType: "tiffin", allowedStartDays: ["mon"] })).not.toThrow();
   });
   it("rejects a bad planType enum", () => {
-    expect(() => s.parse({ key: "x", name: "X", planType: "deluxe", offeredSlots: [], allowedStartDays: [] })).toThrow();
+    expect(() => s.parse({ key: "x", name: "X", planType: "deluxe", allowedStartDays: [] })).toThrow();
   });
   it("rejects an invalid key slug", () => {
-    expect(() => s.parse({ key: "Tiffin Standard", name: "X", planType: "tiffin", offeredSlots: [], allowedStartDays: [] })).toThrow();
+    expect(() => s.parse({ key: "Tiffin Standard", name: "X", planType: "tiffin", allowedStartDays: [] })).toThrow();
   });
 });
 
@@ -86,8 +86,8 @@ describe("blank numeric fields (form feeds \"\")", () => {
 
 describe("rowToForm", () => {
   it("keeps arrays as arrays and stringifies scalars", () => {
-    const out = rowToForm(RESOURCES.plans, { key: "x", name: "X", planType: "tiffin", offeredSlots: ["bf", "dn"], allowedStartDays: ["mon"], description: null });
-    expect(out.offeredSlots).toEqual(["bf", "dn"]);
+    const out = rowToForm(RESOURCES.plans, { key: "x", name: "X", planType: "tiffin", allowedStartDays: ["mon"], description: null });
+    expect(out.allowedStartDays).toEqual(["mon"]);
     expect(out.description).toBe("");
   });
 });

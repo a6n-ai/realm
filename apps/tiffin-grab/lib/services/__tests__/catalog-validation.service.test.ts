@@ -13,12 +13,12 @@ afterEach(async () => {
 
 describe("catalog service validation", () => {
   it("rejects a bad planType enum", async () => {
-    await expect(planService.create({ key: "zz-test-plan", name: "ZZ", planType: "deluxe", offeredSlots: [], allowedStartDays: [] }))
+    await expect(planService.create({ key: "zz-test-plan", name: "ZZ", planType: "deluxe", allowedStartDays: [] }))
       .rejects.toThrow();
   });
 
   it("rejects a key with spaces", async () => {
-    await expect(planService.create({ key: "ZZ Test", name: "ZZ", planType: "tiffin", offeredSlots: [], allowedStartDays: [] }))
+    await expect(planService.create({ key: "ZZ Test", name: "ZZ", planType: "tiffin", allowedStartDays: [] }))
       .rejects.toThrow();
   });
 

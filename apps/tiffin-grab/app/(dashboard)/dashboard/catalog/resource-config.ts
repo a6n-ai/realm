@@ -64,12 +64,6 @@ const plansSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
   planType: z.enum(["tiffin", "healthy"]),
-  // offeredSlots is derived server-side (planService) as Object.keys(categoryCounts) —
-  // accepted here so the round-trip through the generic schema.parse doesn't strip it.
-  offeredSlots: z.array(z.string()).default([]),
-  // Deep validation (positive integers, non-empty) runs through parseCategoryCounts
-  // in planService before this schema ever sees the value; kept loose here.
-  categoryCounts: z.record(z.string(), z.number()).default({}),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
   active,
 });
@@ -179,7 +173,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
-      { key: "categoryCounts", label: "Categories", type: "categoryCounts", optionsSource: "categories" },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
     ],
   },

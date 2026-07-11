@@ -15,6 +15,13 @@
       "when": 1783769170305,
       "tag": "0001_closed_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783774892712,
+      "tag": "0002_cuddly_mongu",
+      "breakpoints": true
     }
   ]
 }

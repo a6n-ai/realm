@@ -4,7 +4,6 @@ import type { z } from "zod";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
-import { parseCategoryCounts } from "@/lib/menu/category-counts";
 import { SessionUpdatableService } from "./session-service";
 
 // "Delete" retires the row (active=false) so historical orders that reference
@@ -30,29 +29,7 @@ class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
   }
 }
 
-// offeredSlots is a derived column, not an independent input: whenever the
-// editor submits categoryCounts, re-derive offeredSlots = Object.keys(counts)
-// so the two never drift. parseCategoryCounts is the single source of "is this
-// counts map valid" (keys non-empty strings, values positive integers) — it
-// throws before the row ever reaches the generic schema.parse. It does NOT
-// reject an empty map ({}); that case is caught downstream by the
-// build-catalog / orders guards, not here.
-function withDerivedOfferedSlots(values: Record<string, unknown>): Record<string, unknown> {
-  if (!("categoryCounts" in values)) return values;
-  const categoryCounts = parseCategoryCounts(values.categoryCounts);
-  return { ...values, categoryCounts, offeredSlots: Object.keys(categoryCounts) };
-}
-
-class PlanService extends CatalogService<typeof plans> {
-  async create(values: Record<string, unknown>) {
-    return super.create(withDerivedOfferedSlots(values));
-  }
-  async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, withDerivedOfferedSlots(patch));
-  }
-}
-
-export const planService = new PlanService(new UpdatableRepository(db, plans, plans.publicId, plans.id), RESOURCES.plans.schema);
+export const planService = new CatalogService(new UpdatableRepository(db, plans, plans.publicId, plans.id), RESOURCES.plans.schema);
 export const mealSizeService = new CatalogService(new UpdatableRepository(db, mealSizes, mealSizes.publicId, mealSizes.id), RESOURCES["meal-sizes"].schema);
 export const addonService = new CatalogService(new UpdatableRepository(db, addons, addons.publicId, addons.id), RESOURCES.addons.schema);
 export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);

@@ -66,24 +66,20 @@ FROM (VALUES ('lss_web_direct', 'website', 'direct', 'Direct'),
 WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);
 
 -- ============ PLANS ============
-INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type, offered_slots,
-                   allowed_start_days, category_counts)
+INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type,
+                   allowed_start_days)
 VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'veg',
         'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin',
-        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
-        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
+        ARRAY ['mon','tue','wed','thu','fri']),
        ('pln_halal_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'halal_nonveg', 'Halal Non-Veg Plan', 'Poultry, mutton, egg masalas, daals, chapatis.', 'tiffin',
-        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
-        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
+        ARRAY ['mon','tue','wed','thu','fri']),
        ('pln_mixed', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'mixed',
         'Veg & Non-Veg Mixed Plan', 'Alternating vegetarian and non-vegetarian days.', 'tiffin',
-        ARRAY ['sabzi','rice','roti','raita','salad'], ARRAY ['mon','tue','wed','thu','fri'],
-        '{"sabzi":2,"rice":1,"roti":4,"raita":1,"salad":1}'::jsonb),
+        ARRAY ['mon','tue','wed','thu','fri']),
        ('pln_healthy', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'healthy', 'Healthy Plan', 'Breakfast, lunch, and dinner — pick the slots you want.', 'healthy',
-        ARRAY ['protein','grain','veg','salad'], ARRAY ['mon','tue','wed','thu','fri'],
-        '{"protein":1,"grain":1,"veg":2,"salad":1}'::jsonb)
+        ARRAY ['mon','tue','wed','thu','fri'])
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ MEAL SIZES ============ (17 real tiffingrab.ca sizes; components='[]' placeholder
