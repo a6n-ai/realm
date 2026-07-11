@@ -140,11 +140,10 @@ export function Checkout() {
                 <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
               </div>
               {zone?.served && <p className="text-sm text-emerald-600">Served — {zone.name}, delivery {zone.slotWindow}.</p>}
-              {zone && !zone.served && <p className="text-sm text-amber-600">Not yet served — you&apos;ll join the waitlist for your area.</p>}
               {zone && !zone.served && !waitlisted && (
                 <div className="space-y-2">
                   <p className="text-sm text-amber-600">Not in your area yet.</p>
-                  <Button type="button" variant="outline" disabled={!contact.fullName || !contact.phone} onClick={joinWaitlist}>Join waitlist</Button>
+                  <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
                 </div>
               )}
               {waitlisted && <p className="text-sm text-emerald-600">You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</p>}
