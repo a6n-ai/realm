@@ -1,7 +1,7 @@
 import type { PricingSelections } from "@/lib/pricing";
 
 export interface WizardSelections extends PricingSelections {
-  planKey: "veg" | "halal_nonveg" | "mixed" | null;
+  planKey: "veg" | "non-veg" | "healthy" | null;
 }
 
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";

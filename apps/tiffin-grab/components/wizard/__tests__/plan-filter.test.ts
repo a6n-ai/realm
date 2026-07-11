@@ -14,10 +14,10 @@ function plan(key: string, planType: "tiffin" | "healthy") {
   return { publicId: `pln_${key}`, key, name: key, description: null, planType, offeredSlots: [], allowedStartDays: [] };
 }
 
-// Mirrors the seed: veg/halal_nonveg/mixed are tiffin plans; healthy is a healthy
+// Mirrors the seed: veg/non-veg are tiffin plans; healthy is a healthy
 // plan; all meal sizes are tiffin. Healthy has no sizes → must be hidden.
 const catalog: ClientCatalogSnapshot = {
-  plans: [plan("veg", "tiffin"), plan("halal_nonveg", "tiffin"), plan("mixed", "tiffin"), plan("healthy", "healthy")],
+  plans: [plan("veg", "tiffin"), plan("non-veg", "tiffin"), plan("healthy", "healthy")],
   mealSizes: [meal("small_thali", "tiffin", "veg"), meal("nonveg_4", "tiffin", "nonveg")],
   frequencies: [], durations: [], zones: [],
 };
@@ -25,7 +25,7 @@ const catalog: ClientCatalogSnapshot = {
 describe("selectablePlans", () => {
   it("hides plan types with no meal sizes (Healthy) and keeps tiffin plans", () => {
     const keys = selectablePlans(catalog).map((p) => p.key);
-    expect(keys).toEqual(["veg", "halal_nonveg", "mixed"]);
+    expect(keys).toEqual(["veg", "non-veg"]);
     expect(keys).not.toContain("healthy");
   });
 
@@ -34,6 +34,6 @@ describe("selectablePlans", () => {
       ...catalog,
       mealSizes: [meal("nonveg_4", "tiffin", "nonveg")],
     };
-    expect(selectablePlans(nonvegOnly).map((p) => p.key)).toEqual(["halal_nonveg", "mixed"]);
+    expect(selectablePlans(nonvegOnly).map((p) => p.key)).toEqual(["non-veg"]);
   });
 });

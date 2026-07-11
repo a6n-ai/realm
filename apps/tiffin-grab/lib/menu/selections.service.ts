@@ -21,7 +21,7 @@ const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
 // (per-category diet filtering) so the three can never disagree.
 export function dietsForPlanKey(planKey: string): ("veg" | "nonveg")[] {
   if (planKey === "veg") return ["veg"];
-  if (planKey === "halal_nonveg") return ["nonveg"];
+  if (planKey === "non-veg") return ["nonveg"];
   return ["veg", "nonveg"];
 }
 
