@@ -2,6 +2,7 @@ import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/ty
 import type { WizardSelections } from "../selections";
 import { Card } from "@realm/ui/card";
 import { Badge } from "@realm/ui/badge";
+import { MealSizeItems } from "../meal-size-items";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 
@@ -10,7 +11,7 @@ export function StepBundle({ catalog, selections, set }: {
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
 }) {
-  const meals = catalog.mealSizes.filter((m) => m.planKey === selections.planKey);
+  const meals = catalog.mealSizes.filter((m) => m.planKey === selections.planKey && !m.trial);
 
   return (
     <div className="space-y-4">
@@ -28,13 +29,13 @@ export function StepBundle({ catalog, selections, set }: {
                     key={m.publicId}
                     role="button"
                     onClick={() => set({ mealSizeId: m.publicId })}
-                    className={`cursor-pointer p-4 transition ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
+                    className={`hover-lift cursor-pointer p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{m.name}</span>
-                      <span className="text-sm">${m.basePrice.toFixed(2)}</span>
+                      <span className="nums text-sm font-medium">${m.basePrice.toFixed(2)}</span>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{m.components.join(", ")}</div>
+                    <div className="mt-1"><MealSizeItems items={m.items} /></div>
                     {active && (
                       <div className="mt-3 flex flex-wrap gap-1">
                         <Badge variant="secondary">{m.kcalMin}–{m.kcalMax} kcal</Badge>

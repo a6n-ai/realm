@@ -1,9 +1,21 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
-import { coinRate, eventPayout, ledgerEntries, walletLedger } from "@/db/schema";
+import { coinRate, eventPayout, ledgerEntries, orders, walletLedger } from "@/db/schema";
 
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
+
+export type WalletTx = {
+  publicId: string;
+  direction: "credit" | "debit";
+  coins: number;
+  eventType: BusinessEvent | null;
+  sourceType: string;
+  sourceId: string;
+  memo: string | null;
+  createdAt: number;
+  orderPublicId: string | null;
+};
 
 class WalletService {
   async balance(userId: bigint): Promise<number> {
@@ -42,6 +54,26 @@ class WalletService {
       .onConflictDoNothing({ target: [walletLedger.sourceType, walletLedger.sourceId, walletLedger.eventType] })
       .returning({ id: walletLedger.id });
     return res.length > 0;
+  }
+
+  async recentTransactions(userId: bigint, limit = 10): Promise<WalletTx[]> {
+    return db
+      .select({
+        publicId: walletLedger.publicId,
+        direction: walletLedger.direction,
+        coins: walletLedger.coins,
+        eventType: walletLedger.eventType,
+        sourceType: walletLedger.sourceType,
+        sourceId: walletLedger.sourceId,
+        memo: walletLedger.memo,
+        createdAt: walletLedger.createdAt,
+        orderPublicId: orders.publicId,
+      })
+      .from(walletLedger)
+      .leftJoin(orders, eq(orders.id, walletLedger.orderId))
+      .where(eq(walletLedger.userId, userId))
+      .orderBy(desc(walletLedger.createdAt))
+      .limit(limit);
   }
 
   async activeRate(currency: string): Promise<number> {

@@ -6,6 +6,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
+import { Check } from "lucide-react";
 import { initialSelections, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
@@ -48,12 +49,26 @@ export function Wizard({ catalog }: { catalog: ClientCatalogSnapshot }) {
 
   return (
     <div className="space-y-6">
-      <ol className="flex gap-2 text-xs">
-        {STEPS.map((label, i) => (
-          <li key={label} className={`rounded-full px-3 py-1 ${i === step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-            {i + 1}. {label}
-          </li>
-        ))}
+      <ol className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 text-xs sm:mx-0 sm:px-0 [scrollbar-width:none]">
+        {STEPS.map((label, i) => {
+          const done = i < step;
+          const current = i === step;
+          return (
+            <li key={label} className="flex shrink-0 items-center gap-1">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={`flex size-5 items-center justify-center rounded-full text-[11px] font-medium transition-colors ${
+                    done || current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {done ? <Check className="size-3" /> : i + 1}
+                </span>
+                <span className={`whitespace-nowrap ${current ? "font-medium text-foreground" : "text-muted-foreground"}`}>{label}</span>
+              </span>
+              {i < STEPS.length - 1 && <span aria-hidden className="mx-1 h-px w-4 shrink-0 bg-border sm:w-6" />}
+            </li>
+          );
+        })}
       </ol>
 
       {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} />}
@@ -61,11 +76,11 @@ export function Wizard({ catalog }: { catalog: ClientCatalogSnapshot }) {
       {step === 2 && <StepSchedule catalog={catalog} selections={selections} set={set} />}
       {step === 3 && <StepDuration catalog={catalog} selections={selections} set={set} result={result} />}
 
-      <div className="flex justify-between">
+      <div className="flex justify-between gap-2">
         <Button variant="outline" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
         {step < 3
-          ? <Button disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
-          : <Button disabled={!selections.mealSizeId || !selections.startDate} onClick={deploy}>Continue to checkout</Button>}
+          ? <Button size="lg" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Next</Button>
+          : <Button size="lg" disabled={!selections.mealSizeId || !selections.startDate} onClick={deploy}>Continue to checkout</Button>}
       </div>
     </div>
   );
