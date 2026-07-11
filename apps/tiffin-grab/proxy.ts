@@ -63,8 +63,10 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
-  const onDashboard = pathname.startsWith("/dashboard");
-  if (onDashboard && !hasSession) {
+  // /me (customer) shares this presence-only gate with /dashboard; the role
+  // split (customer vs staff/admin) is decided by the (customer) layout below.
+  const onGuarded = pathname.startsWith("/dashboard") || pathname.startsWith("/me");
+  if (onGuarded && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
@@ -73,10 +75,10 @@ export function proxy(request: NextRequest) {
   // Protected pages must never sit in the browser's bfcache — otherwise after
   // sign-out the Back button restores the rendered dashboard without re-hitting
   // this gate. no-store makes the browser re-request → redirect to /login.
-  if (onDashboard) res.headers.set("Cache-Control", "no-store, must-revalidate");
+  if (onGuarded) res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*"],
+  matcher: ["/dashboard/:path*", "/me/:path*", "/api/:path*"],
 };

@@ -25,6 +25,11 @@ async function sessionActorId(): Promise<bigint | null> {
   }
 }
 
+/** The session user's internal bigint id, or null. Resolves the publicId getSession() returns. */
+export function currentUserId(): Promise<bigint | null> {
+  return sessionActorId();
+}
+
 export type AuditEntry = {
   entity: string;
   entityPublicId: string;

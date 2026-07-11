@@ -411,7 +411,10 @@ export async function clearDeliveryAddress(deliveryPublicId: string): Promise<vo
 }
 
 /** All-NULL override columns mean "inherit the order's address". */
-export function effectiveAddress(d: Delivery, order: Order) {
+export function effectiveAddress(
+  d: Delivery,
+  order: Pick<Order, "fullName" | "addressLine" | "city" | "postalCode" | "zoneId">,
+) {
   return d.addressLine === null
     ? { fullName: order.fullName, addressLine: order.addressLine, city: order.city, postalCode: order.postalCode, zoneId: order.zoneId }
     : { fullName: d.fullName!, addressLine: d.addressLine, city: d.city!, postalCode: d.postalCode!, zoneId: d.zoneId };
