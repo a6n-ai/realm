@@ -27,6 +27,30 @@ vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
   pauseMySubscription: vi.fn(),
   resumeMySubscription: vi.fn(),
 }));
+// coupons/ledger/catalog services all extend SessionBaseService/SessionUpdatableService
+// (or transitively import a service that does, e.g. catalog/load -> dish-categories.service).
+// The partial session-service mock above breaks those class declarations at import time
+// ("Class extends value undefined"), so stub the services outright — same reasoning as
+// customer-deliveries.service above.
+vi.mock("@/lib/services/coupons.service", () => ({
+  couponsService: { listAvailable: vi.fn().mockResolvedValue([]) },
+}));
+vi.mock("@/lib/services/ledger.service", () => ({
+  ledgerService: { totalSpent: vi.fn().mockResolvedValue(0), totalSavings: vi.fn().mockResolvedValue(0) },
+}));
+vi.mock("@/lib/catalog/load", () => ({
+  loadCatalogSnapshot: vi.fn().mockResolvedValue({
+    plans: [],
+    mealSizes: [],
+    frequencies: [],
+    durations: [],
+    zones: [],
+    tiers: [],
+  }),
+}));
+vi.mock("@/lib/services/wallet.service", () => ({
+  walletService: { balance: vi.fn().mockResolvedValue(0), recentTransactions: vi.fn().mockResolvedValue([]) },
+}));
 
 const { currentUserId } = await import("@/lib/services/session-service");
 const MePage = (await import("../page")).default;
