@@ -245,6 +245,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             publicId: "preview",
             key: String(values.key ?? ""),
             name: String(values.name || "Meal name"),
+            planType: "tiffin",
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
             diet: (values.diet as "veg" | "nonveg" | "both") || "veg",
             components: (values.components as string[]) ?? [],

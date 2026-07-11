@@ -5,6 +5,8 @@ export interface MealSizeView {
   publicId: string;
   key: string;
   name: string;
+  // Scopes the size to a plan type; the subscribe wizard hides plan types with no sizes.
+  planType: "tiffin" | "healthy";
   tier: "budget" | "medium" | "premium";
   diet: "veg" | "nonveg" | "both";
   components: string[];

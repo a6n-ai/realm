@@ -49,7 +49,7 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   const [mealTypes, appSettings, activeDishes, weeks, categories, planRows] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
-    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
     dishCategoriesService.forPlanType(planType),
     db

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { dishCategories } from "@/db/schema";
 import { dishes, mealSizeItems, mealSizes } from "@/db/schema/catalog";
@@ -12,7 +12,36 @@ async function cleanup() {
   await db.delete(orders).where(eq(orders.deploymentId, TEST_DEPLOYMENT_ID));
 }
 
+// Sibling live-DB suites truncate `dishes`/`dish_categories` and vitest's
+// sequencer order is not stable (fileParallelism is off but the cache reorders
+// runs), so the ambient seed may be gone by the time this suite runs. Re-assert
+// the exact seed rows these tests inspect, idempotently, so the checks verify the
+// category delta rather than another suite's cleanup timing.
+async function ensureSeedRows() {
+  await db
+    .insert(dishCategories)
+    .values(
+      [
+        { key: "daal", label: "Daal", sortOrder: 6 },
+        { key: "curry", label: "Curry", sortOrder: 7, selectable: true },
+        { key: "extra", label: "Extra", sortOrder: 8 },
+      ].map((c) => ({ planType: "tiffin" as const, enabled: true, selectable: false, ...c })),
+    )
+    .onConflictDoNothing();
+  await db
+    .insert(dishes)
+    .values([
+      { publicId: "dsh_dal_tadka", name: "Dal Tadka", diet: "veg", category: "daal" },
+      { publicId: "dsh_paneer_butter_masala", name: "Paneer Butter Masala", diet: "veg", category: "curry" },
+      { publicId: "dsh_aloo_gobi", name: "Aloo Gobi", diet: "veg", category: "sabzi" },
+      { publicId: "dsh_chicken_curry", name: "Chicken Curry", diet: "nonveg", category: "curry" },
+      { publicId: "dsh_egg_bhurji", name: "Egg Bhurji", diet: "nonveg", category: "extra" },
+    ])
+    .onConflictDoNothing();
+}
+
 describe("schema: meal-size ↔ category delta (Task 1)", () => {
+  beforeAll(ensureSeedRows);
   afterAll(cleanup);
 
   it("orders.categoryCounts defaults to an empty object", async () => {

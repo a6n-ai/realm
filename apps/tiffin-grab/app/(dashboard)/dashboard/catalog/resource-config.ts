@@ -23,6 +23,9 @@ export interface ResourceDef {
   schema: z.ZodObject<z.ZodRawShape>;
   fields: FieldDef[];
   keyed: boolean;
+  // Boolean column that carries the retire/restore status. Defaults to "active";
+  // dish_categories uses "enabled" instead (no `active` column).
+  statusField?: string;
 }
 
 export const WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -118,12 +121,34 @@ const addonsSchema = z.object({
   active,
 });
 
+// Select controls serialize "no choice" as "" (see emptyForm/rowToForm); coerce a
+// blank category back to null so the optional soft ref round-trips cleanly.
+const optCategory = z.preprocess(
+  (v) => (v === "" || v == null ? null : v),
+  z.string().trim().min(1).nullable().optional(),
+);
+
 const dishesSchema = z.object({
   name,
   description: z.string().trim().optional().nullable(),
   diet: z.enum(["veg", "nonveg"]),
+  // Soft ref to dish_categories.key; nullable so an uncategorized dish stays
+  // placeable in any menu slot (I5). Enforced server-side via dishesService.
+  category: optCategory,
   image: fileDetail,
   active,
+});
+
+// dish_categories uses `enabled` as its status column (not `active`); retire/
+// restore maps to it in dishCategoriesService. Duplicate-key errors surface per
+// planType only — the unique constraint is composite (planType, key), a soft ref
+// with no FK (Constraint 7).
+const dishCategoriesSchema = z.object({
+  key,
+  label: name,
+  planType: z.enum(["tiffin", "healthy"]),
+  selectable: z.boolean().default(false),
+  sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
 });
 
 export const RESOURCES: Record<string, ResourceDef> = {
@@ -132,8 +157,19 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "name", label: "Name", type: "text" },
       { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
+      { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "image", label: "Image", type: "image", optional: true },
+    ],
+  },
+  "dish-categories": {
+    key: "dish-categories", label: "Categories", singular: "category", keyed: true, schema: dishCategoriesSchema, statusField: "enabled",
+    fields: [
+      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
+      { key: "label", label: "Label", type: "text" },
+      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
+      { key: "selectable", label: "Customer-selectable", type: "boolean" },
+      { key: "sortOrder", label: "Sort order", type: "number" },
     ],
   },
   plans: {

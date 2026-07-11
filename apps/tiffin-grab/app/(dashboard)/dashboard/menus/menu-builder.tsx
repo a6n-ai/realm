@@ -25,7 +25,7 @@ const CONFIG_FIELDS = [
   { key: "week", label: "Week start (Monday)", control: "w-56" },
 ] as const;
 
-type Dish = { id: string; name: string; diet: "veg" | "nonveg" };
+type Dish = { id: string; name: string; diet: "veg" | "nonveg"; category: string | null };
 type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
 type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
@@ -76,7 +76,9 @@ export function MenuBuilder({
     const t = createTarget;
     if (!t || !week || !newName.trim()) return;
     run(async () => {
-      const d = await createDish({ name: newName, diet: newDiet });
+      // Default the new dish's category to the slot it was created in, so the
+      // category guard accepts it and it stays scoped to that slot.
+      const d = await createDish({ name: newName, diet: newDiet, category: t.slot });
       await addItem({ menuWeekId: week.id, dayOfWeek: t.storeDay, slot: t.slot, dishId: d.publicId, position: t.position });
       setCreateTarget(null);
       setNewName("");
@@ -160,7 +162,9 @@ export function MenuBuilder({
                   <div className="space-y-3">
                     {categories.map((cat) => {
                       const ci = cellItems(col.days, cat.key);
-                      const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id));
+                      // Offer only dishes that belong to this category; null-category
+                      // dishes stay placeable in any slot (I5).
+                      const addable = dishes.filter((d) => !ci.some((i) => i.dishId === d.id) && (d.category == null || d.category === cat.key));
                       const needed = categoryCounts[cat.key];
                       return (
                         <div key={cat.key} className="space-y-1.5">
