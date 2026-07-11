@@ -122,10 +122,16 @@ export async function createOrder(
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
+  const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
+  if (!mealSize) throw new ValidationError("Invalid meal size");
   // Dish selection happens per-delivery after subscribing, not at checkout —
-  // order.mealSlots is derived from the plan's own categories, never trusted
-  // from the client-submitted selections.
-  const mealSlots = Object.keys(plan.categoryCounts);
+  // order.categoryCounts/mealSlots are derived from the chosen meal size's own
+  // server-loaded items, never trusted from the client-submitted selections.
+  const categoryCounts = mealSize.items.reduce<Record<string, number>>((acc, i) => {
+    acc[i.category] = (acc[i.category] ?? 0) + i.qty;
+    return acc;
+  }, {});
+  const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
   const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
@@ -133,8 +139,6 @@ export async function createOrder(
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
   const basePricing = priceSubscription(input.selections, pricingCatalog);
-  const mealSize = snapshot.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
-  if (!mealSize) throw new ValidationError("Invalid meal size");
   const zone = matchZone(input.contact.postalCode, snapshot.zones);
   const zoneRow = zone ? snapshot.zones.find((z) => z.name === zone.name) : undefined;
 
@@ -257,6 +261,7 @@ export async function createOrder(
         frequencyId: frequency.id,
         persons: input.selections.persons,
         mealSlots,
+        categoryCounts,
         includeSaturday: input.selections.includeSaturday,
         includeSunday: input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,

@@ -3,11 +3,12 @@ import { and, asc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes, plans } from "@/db/schema";
+import { dishes, mealSizeItems, mealSizes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { maxQtyByCategory } from "@/lib/menu/category-hint";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "./menu-builder";
 import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
@@ -46,29 +47,22 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   const { type, week: weekId } = await searchParams;
   const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
 
-  const [mealTypes, appSettings, activeDishes, weeks, categories, planRows] = await Promise.all([
+  const [mealTypes, appSettings, activeDishes, weeks, categories, sizeItemRows] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
-    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
     dishCategoriesService.forPlanType(planType),
     db
-      .select({ counts: plans.categoryCounts })
-      .from(plans)
-      .where(and(eq(plans.planType, planType), eq(plans.active, true)))
-      .orderBy(asc(plans.key)),
+      .select({ category: mealSizeItems.category, qty: mealSizeItems.qty })
+      .from(mealSizeItems)
+      .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
+      .where(and(eq(mealSizes.planType, planType), eq(mealSizes.active, true))),
   ]);
   const mealType = mealTypes[planType];
-  // "N needed" hint: the plan whose category_counts sum to the most food is the
-  // one the admin should build enough variety for (biggest plan wins ties).
-  // Postgres gives no row-order guarantee without ORDER BY, so we order by
-  // plans.key ascending and keep first-seen-wins (`>`) in the reduce below —
-  // on a tie, the lowest key deterministically wins, so the hint never flickers.
-  const categoryCounts = planRows.reduce<Record<string, number>>((max, r) => {
-    const total = Object.values(r.counts).reduce((n, v) => n + v, 0);
-    const maxTotal = Object.values(max).reduce((n, v) => n + v, 0);
-    return total > maxTotal ? r.counts : max;
-  }, {});
+  // "N needed" hint: max qty any meal size in this plan type asks for, per
+  // category — the admin should build enough variety to cover the biggest size.
+  const categoryCounts = maxQtyByCategory(sizeItemRows);
 
   let week: { id: string; weekStart: string; status: string } | null = null;
   let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean }[] = [];

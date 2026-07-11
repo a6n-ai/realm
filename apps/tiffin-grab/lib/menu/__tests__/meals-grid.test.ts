@@ -40,12 +40,14 @@ async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$infer
   const [o] = await db.insert(orders).values({
     userId: u.id, planId, mealSizeId: snap.mealSizes[0].id, frequencyId: freq.id,
     persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: COMING_MONDAY,
+    // Counts now live on the order snapshot, not the plan — default to the veg shape.
+    categoryCounts: { sabzi: 2, rice: 1 },
     tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
     deploymentId: `SUB-GRID-${Math.floor(Math.random() * 1e6)}`, fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     ...overrides,
   }).returning();
   const mealOrder = {
-    id: o.id, publicId: o.publicId, planId: o.planId, persons: o.persons, mealSlots: o.mealSlots,
+    id: o.id, publicId: o.publicId, planId: o.planId, persons: o.persons, categoryCounts: o.categoryCounts, mealSlots: o.mealSlots,
     includeSaturday: o.includeSaturday, includeSunday: o.includeSunday, startDate: o.startDate,
     durationWeeks: o.durationWeeks, frequencyKey: "5_day",
   };
@@ -125,12 +127,12 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     expect(cellsFor(grid.grid, "mon", "sabzi").length).toBeGreaterThan(0);
   });
 
-  it("emits zero cells/picks for a selectable category the plan's category_counts omits", async () => {
-    const [planNoSabziCount] = await db.insert(plans).values({
+  it("emits zero cells/picks for a selectable category the order's category_counts omits", async () => {
+    const [vegPlan] = await db.insert(plans).values({
       key: `veg_no_sabzi_${Math.floor(Math.random() * 1e6)}`, name: "Veg (no sabzi count)", planType: "tiffin",
-      categoryCounts: { rice: 1, roti: 4, raita: 1, salad: 1 }, // sabzi intentionally omitted
     }).returning();
-    const { order, mealOrder } = await makeOrder(planNoSabziCount.id);
+    // The omission now lives on the order snapshot, not the plan: sabzi intentionally omitted.
+    const { order, mealOrder } = await makeOrder(vegPlan.id, { categoryCounts: { rice: 1, roti: 4, raita: 1, salad: 1 } });
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 

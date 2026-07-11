@@ -34,8 +34,11 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     const allowed = new Set((await dishCategoriesService.forPlanType(week.planType as PlanType)).map((s) => s.key));
     if (!allowed.has(input.slot)) throw new ValidationError(`Slot "${input.slot}" is not configured for this plan type`);
-    const [dish] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, input.dishId)).limit(1);
+    const [dish] = await db.select({ id: dishes.id, category: dishes.category }).from(dishes).where(eq(dishes.publicId, input.dishId)).limit(1);
     if (!dish) throw new ValidationError("Dish not found");
+    // A categorized dish may only be placed in its own category's slot; a
+    // null-category dish stays placeable in any slot (back-compat — I5).
+    if (dish.category != null && dish.category !== input.slot) throw new ValidationError("Dish category does not match slot");
     const [dupe] = await db.select({ id: menuItems.id }).from(menuItems)
       .where(and(eq(menuItems.menuWeekId, week.id), eq(menuItems.dayOfWeek, input.dayOfWeek), eq(menuItems.slot, input.slot), eq(menuItems.dishId, dish.id))).limit(1);
     if (dupe) return null;

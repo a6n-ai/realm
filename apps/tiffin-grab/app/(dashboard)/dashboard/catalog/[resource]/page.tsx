@@ -4,7 +4,7 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { asc, desc, getTableColumns, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
@@ -14,6 +14,7 @@ import { ResourceEditor, ResourceEditorSkeleton } from "./resource-editor";
 
 const TABLES: Record<string, PgTable> = {
   dishes,
+  "dish-categories": dishCategories,
   plans,
   "meal-sizes": mealSizes,
   "delivery-frequencies": deliveryFrequencies,
@@ -81,15 +82,18 @@ async function CatalogData({ resource, searchParams }: { resource: string; searc
   const allowed = sortableColumns(def);
   const sort = parseSort(await searchParams, allowed, { column: allowed[0], dir: "asc" });
 
+  const statusField = def.statusField ?? "active";
   const columns = getTableColumns(table) as Record<string, DrizzleColumn>;
-  const sortCol = columns[sort.column === STATUS_SORT_KEY ? "active" : sort.column];
+  const sortCol = columns[sort.column === STATUS_SORT_KEY ? statusField : sort.column];
   const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
 
   const raw = (await db.select().from(table).orderBy(orderBy)) as Record<string, unknown>[];
   const rows = raw.map((r) => {
     const dto: Record<string, unknown> & { publicId: string } = {
       publicId: r.publicId as string,
-      active: r.active,
+      // Normalize the resource's status column onto `active` so the editor's
+      // retire/restore UI works uniformly (dish_categories uses `enabled`).
+      active: r[statusField],
     };
     for (const f of def.fields) dto[f.key] = r[f.key];
     return dto;

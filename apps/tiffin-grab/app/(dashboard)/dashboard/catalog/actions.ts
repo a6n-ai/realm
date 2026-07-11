@@ -13,11 +13,13 @@ import {
   pricingTierService,
 } from "@/lib/services/catalog.service";
 import { dishesService } from "@/lib/services/dishes.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 // NOTE: lead-source services were never catalog resources — drop them from this map;
 // lead sources are managed on /dashboard/settings/lead-sources.
 
 const SERVICES = {
   dishes: dishesService,
+  "dish-categories": dishCategoriesService,
   plans: planService,
   "meal-sizes": mealSizeService,
   "delivery-frequencies": deliveryFrequencyService,

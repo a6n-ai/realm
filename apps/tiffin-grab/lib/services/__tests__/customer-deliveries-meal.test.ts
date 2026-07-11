@@ -40,6 +40,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
+      categoryCounts: { sabzi: 2, rice: 1 },
       durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
       deploymentId: "SUB-TEST04", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     }).returning();
@@ -66,6 +67,7 @@ describe("myDeliveryMeal (integration)", () => {
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
+      categoryCounts: { sabzi: 2, rice: 1 },
       durationWeeks: 1, startDate: OTHER_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
       deploymentId: "SUB-TEST05", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
     }).returning();

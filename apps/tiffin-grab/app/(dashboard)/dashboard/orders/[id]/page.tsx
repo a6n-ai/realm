@@ -86,6 +86,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const grid = await buildMealsGrid(
     {
       id: order.id, publicId: order.publicId, planId: order.planId, persons: order.persons,
+      categoryCounts: order.categoryCounts,
       mealSlots: order.mealSlots, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
       startDate: order.startDate, durationWeeks: order.durationWeeks, frequencyKey: order.frequencyKey,
     },

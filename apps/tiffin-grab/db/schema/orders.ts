@@ -21,6 +21,8 @@ export const orders = pgTable("orders", {
   frequencyId: bigint("frequency_id", { mode: "bigint" }).notNull().references(() => deliveryFrequencies.id),
   persons: integer("persons").notNull().default(1),
   mealSlots: text("meal_slots").array().notNull().default(["lunch"]),
+  // Snapshot of per-category counts from the chosen meal size at checkout (immutable).
+  categoryCounts: jsonb("category_counts").$type<Record<string, number>>().notNull().default({}),
   includeSaturday: boolean("include_saturday").notNull().default(false),
   includeSunday: boolean("include_sunday").notNull().default(false),
   durationWeeks: integer("duration_weeks").notNull(),

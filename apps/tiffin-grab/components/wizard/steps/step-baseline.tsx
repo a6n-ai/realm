@@ -1,5 +1,6 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
+import { selectablePlans } from "../plan-filter";
 import { Card } from "@realm/ui/card";
 
 export function StepBaseline({ catalog, selections, set }: {
@@ -9,7 +10,7 @@ export function StepBaseline({ catalog, selections, set }: {
 }) {
   return (
     <div className="grid gap-3">
-      {catalog.plans.map((p) => (
+      {selectablePlans(catalog).map((p) => (
         <Card
           key={p.key}
           role="button"

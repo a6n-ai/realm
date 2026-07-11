@@ -38,14 +38,14 @@ export async function setDefault(itemId: string) {
   revalidate();
 }
 
-export async function createDish(input: { name: string; diet: "veg" | "nonveg" }) {
+export async function createDish(input: { name: string; diet: "veg" | "nonveg"; category?: string | null }) {
   await requireAdmin();
   const name = input.name.trim();
   if (!name) throw new Error("Dish name is required");
-  const row = await dishesService.create({ name, description: null, diet: input.diet, image: null });
+  const row = await dishesService.create({ name, description: null, diet: input.diet, category: input.category ?? null, image: null });
   revalidate();
   revalidatePath("/dashboard/catalog/dishes");
-  return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg" };
+  return { publicId: row.publicId, name: row.name, diet: row.diet as "veg" | "nonveg", category: row.category };
 }
 
 export async function reorderItems(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; orderedItemIds: string[] }) {

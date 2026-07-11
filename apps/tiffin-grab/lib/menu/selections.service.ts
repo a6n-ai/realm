@@ -65,7 +65,7 @@ export const selectionsService = {
     )).limit(1);
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
-    const [plan] = await db.select({ key: plans.key, planType: plans.planType, counts: plans.categoryCounts }).from(plans).where(eq(plans.id, order.planId)).limit(1);
+    const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
     if (!plan || !dietsForPlanKey(plan.key).includes(dishRow.diet)) throw new ValidationError("Dish does not match your plan");
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
@@ -74,7 +74,7 @@ export const selectionsService = {
     const cat = cats.find((c) => c.key === slot);
     if (!cat) throw new ValidationError("Unknown category");
     if (!cat.selectable) throw new ValidationError("This item is fixed and can't be changed");
-    const max = plan.counts?.[slot] ?? 0;
+    const max = order.categoryCounts?.[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
     await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, slot, personIndex, pickIndex, dishId })

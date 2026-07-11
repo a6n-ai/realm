@@ -38,6 +38,7 @@ describe("selectionsService.applyToWeek", () => {
     const [o] = await db.insert(orders).values({
       userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
+      categoryCounts: { sabzi: 2, rice: 1, roti: 4, raita: 1, salad: 1 },
       durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00",
       pricingSnapshot: {}, total: "50.00", status: "active",
       deploymentId: "SUB-APPLY1", fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
