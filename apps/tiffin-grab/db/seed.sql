@@ -222,7 +222,7 @@ UPDATE meal_sizes ms SET components = COALESCE((
   SELECT json_agg(
            CASE WHEN i.weight_value IS NULL
                 THEN i.qty || '× ' || i.name
-                ELSE i.qty || '× ' || i.name || ' ' || trim(trailing '.0' from i.weight_value::text) || i.weight_unit
+                ELSE i.qty || '× ' || i.name || ' ' || rtrim(rtrim(i.weight_value::text, '0'), '.') || i.weight_unit
            END
            ORDER BY i.sort_order)
   FROM meal_size_items i WHERE i.meal_size_id = ms.id
