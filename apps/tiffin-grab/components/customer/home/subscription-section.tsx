@@ -13,6 +13,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
 import { pauseMySubscription, resumeMySubscription } from "@/app/(customer)/me/deliveries/actions";
 import { SUB_STATUS_LABEL, TONE_CLASS } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { PlanHero } from "./plan-hero";
 
 // M1: myActiveSubscriptions returns plan/status/address only (no mealSizeId, meal-items, or
 // price) — this card renders plan, status, and next-delivery date ONLY. Do not add meal chips
@@ -95,21 +96,24 @@ function SubscriptionCard({ sub }: { sub: SubscriptionWithNext }) {
   }
 
   return (
-    <Card variant="flat" className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold">{sub.planName}</p>
-          {sub.nextDelivery && (
-            <p className="text-muted-foreground text-xs">Next delivery {formatDateOnly(sub.nextDelivery.deliveryDate)}</p>
-          )}
+    <Card variant="flat" className="space-y-0 overflow-hidden p-0">
+      <PlanHero planKey={sub.planKey} planType={sub.planType} />
+      <div className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">{sub.planName}</p>
+            {sub.nextDelivery && (
+              <p className="text-muted-foreground text-xs">Next delivery {formatDateOnly(sub.nextDelivery.deliveryDate)}</p>
+            )}
+          </div>
+          <StatusPill status={sub.status as "active" | "paused"} />
         </div>
-        <StatusPill status={sub.status as "active" | "paused"} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/me/deliveries">Manage</Link>
-        </Button>
-        <PauseResumeControl sub={sub} pending={pending} run={run} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/me/deliveries">Manage</Link>
+          </Button>
+          <PauseResumeControl sub={sub} pending={pending} run={run} />
+        </div>
       </div>
     </Card>
   );

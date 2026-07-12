@@ -10,6 +10,8 @@ export type CustomerDelivery = Delivery & { orderPublicId: string; planName: str
 export type Subscription = {
   publicId: string;
   planName: string;
+  planType: "tiffin" | "healthy";
+  planKey: string;
   status: string;
   fullName: string;
   addressLine: string;
@@ -25,6 +27,8 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .select({
       publicId: orders.publicId,
       planName: plans.name,
+      planType: plans.planType,
+      planKey: plans.key,
       status: orders.status,
       fullName: orders.fullName,
       addressLine: orders.addressLine,
