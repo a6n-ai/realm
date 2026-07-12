@@ -26,6 +26,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
+  // Customers have their own app at /me — the CRM shell is staff/admin only.
+  // This is the mirror of the (customer) layout's non-user → /dashboard guard,
+  // and it also makes post-login push("/dashboard") land customers on /me.
+  if (session.user.role === "user") redirect("/me");
+
   // One read covers PIN state + the header avatar (name/image). A session can
   // outlive its user row (e.g. dev DB reseeded) — treat that as expired.
   let user;
@@ -47,9 +52,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
-  // Customers have none of the tickets/inquiries/customers nav items, so skip
-  // the activity probe for them entirely.
-  const activity = role === "user" ? null : await newActivity();
+  const activity = await newActivity();
 
   // Sales reps (role member) get today's daily-coupon card in the sidebar, but
   // only when the allowance is on and this rep is not disabled. publicId is the
