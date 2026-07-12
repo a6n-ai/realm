@@ -4,6 +4,9 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({
   getAppSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Kolkata", cutoffHour: 18, currency: "INR" }),
 }));
+vi.mock("@/lib/services/users.service", () => ({
+  usersService: { read: vi.fn().mockResolvedValue({ name: "Demo", email: "d@x.ca", image: null }) },
+}));
 // next/navigation's redirect() throws in the real runtime; mirror that so the
 // layout's control flow (throw → never reach the JSX below) is exercised.
 vi.mock("next/navigation", () => ({
@@ -33,7 +36,7 @@ describe("(customer) layout guard", () => {
   });
 
   it("renders children for a customer (role user)", async () => {
-    mockGetSession.mockResolvedValueOnce({ user: { role: "user" } });
+    mockGetSession.mockResolvedValueOnce({ user: { id: "usr_1", role: "user" } });
     const result = await CustomerLayout({ children: "hello" });
     expect(result).toBeTruthy();
   });
