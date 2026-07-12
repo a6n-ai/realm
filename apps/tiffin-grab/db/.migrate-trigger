@@ -1,0 +1,3 @@
+# Deploy/migration trigger. Bump this file to force a pipeline run that applies
+# pending migrations. Not read by the app — a no-op marker only.
+2026-07-12: squashed baseline (0000_baseline) + staff seed in seed.sql
