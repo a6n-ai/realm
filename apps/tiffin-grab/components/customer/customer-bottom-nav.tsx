@@ -1,11 +1,12 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { CalendarDaysIcon, HomeIcon } from "lucide-react";
+import { CalendarDaysIcon, HomeIcon, UserIcon } from "lucide-react";
 import { BottomNav, type BottomNavItem } from "@realm/design-system";
 
 const TABS = [
   { href: "/me", title: "Home", icon: HomeIcon },
   { href: "/me/deliveries", title: "Deliveries", icon: CalendarDaysIcon },
+  { href: "/me/profile", title: "Profile", icon: UserIcon },
 ];
 
 // TABS is built as an array so later tasks can add more (account, orders, …)
