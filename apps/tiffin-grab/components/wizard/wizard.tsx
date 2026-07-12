@@ -6,7 +6,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
-import { Check } from "lucide-react";
+import { ArrowLeftIcon, Check } from "lucide-react";
 import { initialSelections, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
@@ -49,6 +49,16 @@ export function Wizard({ catalog }: { catalog: ClientCatalogSnapshot }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          onClick={() => (step > 0 ? setStep((s) => s - 1) : router.back())}
+        >
+          <ArrowLeftIcon data-icon="inline-start" /> Back
+        </Button>
+      </div>
       <ol className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 text-xs sm:mx-0 sm:px-0 [scrollbar-width:none]">
         {STEPS.map((label, i) => {
           const done = i < step;
