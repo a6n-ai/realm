@@ -56,6 +56,11 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 :root {
@@ -248,4 +253,23 @@
   body:has(#invoice-doc) #invoice-doc,
   body:has(#invoice-doc) #invoice-doc * { visibility: visible; }
   #invoice-doc { position: absolute; inset: 0; margin: 1rem; }
+}
+
+/* Native cross-fade between routes; per-slice shared-element names layer on top. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-soft);
+}
+
+/* One global brake: kill motion for users who ask for it. Primitives ALSO guard
+   in JS (useReducedMotion) — this covers CSS-only animation and view transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
