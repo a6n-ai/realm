@@ -14,7 +14,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
 
   return (
     <TimezoneProvider tz={timezone}>
-      <div className="mx-auto min-h-dvh max-w-md pb-16">{children}</div>
+      <div className="mx-auto min-h-dvh max-w-md pb-16 md:max-w-5xl">{children}</div>
       <CustomerBottomNav />
     </TimezoneProvider>
   );
