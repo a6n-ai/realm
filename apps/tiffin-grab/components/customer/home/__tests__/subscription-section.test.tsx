@@ -25,6 +25,8 @@ afterEach(() => {
 const baseSub: SubscriptionWithNext = {
   publicId: "ord_1",
   planName: "Weekly Veg",
+  planType: "tiffin",
+  planKey: "weekly-veg",
   status: "active",
   fullName: "A",
   addressLine: "1 St",

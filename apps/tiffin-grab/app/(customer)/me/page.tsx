@@ -73,10 +73,15 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
 }
 
 // Global catalog data — safely public, no userId scoping needed (same filter
-// the public /subscribe wizard uses).
+// the public /subscribe wizard uses). priceFrom is the min meal-size basePrice
+// per plan, computed server-side (never trust a client amount).
 async function BrowsePlansSectionData() {
   const catalog = toClientCatalog(await loadCatalogSnapshot());
-  return <BrowsePlansSection plans={selectablePlans(catalog)} />;
+  const plans = selectablePlans(catalog).map((p) => {
+    const prices = catalog.mealSizes.filter((m) => m.planKey === p.key && !m.trial).map((m) => m.basePrice);
+    return { ...p, priceFrom: prices.length ? Math.min(...prices) : null };
+  });
+  return <BrowsePlansSection plans={plans} />;
 }
 
 // Catalog-wide coupon list — active, non-rep coupons in window. Not user-owned data,
