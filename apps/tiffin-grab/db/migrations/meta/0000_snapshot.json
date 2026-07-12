@@ -1,5 +1,5 @@
 {
-  "id": "862d44ef-3fb3-40eb-8550-adb35cc9b48c",
+  "id": "7a699757-df1a-45fb-9cd9-b6eafb9463e3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1242,6 +1242,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -1418,6 +1424,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "qty": {
           "name": "qty",
           "type": "integer",
@@ -1536,16 +1554,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "tier": {
-          "name": "tier",
-          "type": "meal_tier",
-          "typeSchema": "public",
+        "plan_id": {
+          "name": "plan_id",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
-        "diet": {
-          "name": "diet",
-          "type": "meal_diet",
+        "tier": {
+          "name": "tier",
+          "type": "meal_tier",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -1609,7 +1626,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "meal_sizes_plan_id_plans_id_fk": {
+          "name": "meal_sizes_plan_id_plans_id_fk",
+          "tableFrom": "meal_sizes",
+          "tableTo": "plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "meal_sizes_public_id_unique": {
@@ -1705,26 +1736,12 @@
           "notNull": true,
           "default": "'tiffin'"
         },
-        "offered_slots": {
-          "name": "offered_slots",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
         "allowed_start_days": {
           "name": "allowed_start_days",
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
           "default": "'{\"mon\",\"tue\",\"wed\",\"thu\",\"fri\"}'"
-        },
-        "category_counts": {
-          "name": "category_counts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "active": {
           "name": "active",
@@ -2066,6 +2083,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{\"lunch\"}'"
+        },
+        "category_counts": {
+          "name": "category_counts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "include_saturday": {
           "name": "include_saturday",
@@ -6693,15 +6717,6 @@
       "values": [
         "veg",
         "nonveg"
-      ]
-    },
-    "public.meal_diet": {
-      "name": "meal_diet",
-      "schema": "public",
-      "values": [
-        "veg",
-        "nonveg",
-        "both"
       ]
     },
     "public.meal_tier": {

@@ -1,5 +1,5 @@
--- Full database seed: lead sources, catalog, feature flags, app settings, wallet, menu.
--- Data only — no admin/staff users (password hashing, created via app) and no
+-- Full database seed: lead sources, catalog, feature flags, app settings, wallet, menu,
+-- plus the two login-able staff accounts (admin + sales) at the end. No
 -- notification templates (authored via UI).
 -- id -> next_id() (DB). public_id/created_at/updated_at have NO db default -> supplied here.
 -- Idempotent: ON CONFLICT (<unique>) DO NOTHING; tables without a unique key use NOT EXISTS
@@ -391,6 +391,38 @@ FROM new_week nw
                                   ('Chicken Curry', 4),
                                   ('Egg Bhurji', 5)) AS want(name, ord)
                               JOIN dishes d ON d.name = want.name) AS dsh;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- STAFF LOGINS (moved here from db/seed-staff.ts). Two credential accounts.
+-- Passwords are bcrypt(rounds=10) hashes — admin=Admin123!, sales=Member123! —
+-- precomputed because SQL can't hash. To change a password: hash the new value
+-- with bcryptjs (rounds 10) and replace the string below. password_set defaults
+-- true so these log in immediately. Idempotent via NOT EXISTS on email.
+-- ─────────────────────────────────────────────────────────────────────────────
+WITH new_admin AS (
+    INSERT INTO users (public_id, name, email, role, created_at, updated_at)
+    SELECT 'usr_seed_admin', 'Admin', 'admin@tiffingrab.ca', 'admin',
+           (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@tiffingrab.ca')
+    RETURNING id
+)
+INSERT INTO account (public_id, account_id, provider_id, user_id, password)
+SELECT 'act_seed_admin', id::text, 'credential', id,
+       '$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm'
+FROM new_admin;
+
+WITH new_sales AS (
+    INSERT INTO users (public_id, name, email, role, created_at, updated_at)
+    SELECT 'usr_seed_sales', 'Sales', 'sales@tiffingrab.ca', 'member',
+           (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'sales@tiffingrab.ca')
+    RETURNING id
+)
+INSERT INTO account (public_id, account_id, provider_id, user_id, password)
+SELECT 'act_seed_sales', id::text, 'credential', id,
+       '$2b$10$Slod73d6U3ztgMGId8zwBO9CEKJA3H/U3Rnvq28Antb9w2.FHSxWy'
+FROM new_sales;
 
 COMMIT;
 

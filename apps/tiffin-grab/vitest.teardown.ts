@@ -15,16 +15,12 @@ export async function setup() {
 
 // Live-DB service suites blanket-delete their tables (users, dishes, menu, catalog,
 // app_settings) and truncate wallet tables, leaving the shared dev DB empty. The
-// integration suites need that data present, so restore it after the run — the
-// single SQL data seed (db/seed.sql) plus the login-able staff users (their scrypt
-// hash can't live in SQL). Best-effort: a failure must not fail the run.
+// integration suites need that data present, so restore it after the run from the
+// single SQL data seed (db/seed.sql) — which now also carries the two login-able
+// staff accounts. Best-effort: a failure must not fail the run.
 //
 // PROD SAFETY: this ONLY runs against a local DB. On main/CI, DATABASE_URL points
 // at prod — isLocalDb() short-circuits so tests never seed or wipe prod.
-const STAFF = [
-  { email: "admin@tiffingrab.ca", password: "Admin123!", name: "Admin", role: "admin" as const },
-  { email: "sales@tiffingrab.ca", password: "Member123!", name: "Sales", role: "member" as const },
-];
 
 function isLocalDb(url: string): boolean {
   try {
@@ -46,22 +42,6 @@ export async function teardown() {
     const { fileURLToPath } = await import("node:url");
     const sqlPath = fileURLToPath(new URL("./db/seed.sql", import.meta.url));
     await client.unsafe(readFileSync(sqlPath, "utf8"));
-
-    // Staff login (idempotent by email).
-    const { drizzle } = await import("drizzle-orm/postgres-js");
-    const { eq } = await import("drizzle-orm");
-    const schema = await import("@/db/schema");
-    const { hashPassword } = await import("@/lib/auth/password");
-    const db = drizzle(client, { schema });
-    for (const s of STAFF) {
-      const [existing] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, s.email)).limit(1);
-      if (existing) continue;
-      const password = await hashPassword(s.password);
-      await db.transaction(async (tx) => {
-        const [u] = await tx.insert(schema.users).values({ email: s.email, name: s.name, role: s.role }).returning({ id: schema.users.id });
-        await tx.insert(schema.account).values({ accountId: String(u.id), providerId: "credential", userId: u.id, password });
-      });
-    }
   } catch (err) {
     console.warn("[vitest] local reseed after tests failed (non-fatal):", err instanceof Error ? err.message : err);
   } finally {
