@@ -8,6 +8,7 @@ import { usersService } from "@/lib/services/users.service";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { CustomerSidebar } from "@/components/customer/customer-sidebar";
+import { CustomerSearch } from "@/components/customer/customer-search";
 
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -31,6 +32,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     <TimezoneProvider tz={timezone}>
       <CrmShell
         sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
+        center={<CustomerSearch />}
         bottomNav={<CustomerBottomNav />}
       >
         {children}
