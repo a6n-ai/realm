@@ -149,7 +149,7 @@ export function SubscriptionSectionSkeleton() {
   return (
     <SectionCard title="Your subscription">
       <div className="space-y-3">
-        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-52 w-full rounded-lg" />
       </div>
     </SectionCard>
   );

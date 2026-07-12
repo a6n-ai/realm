@@ -78,7 +78,7 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
 async function BrowsePlansSectionData() {
   const catalog = toClientCatalog(await loadCatalogSnapshot());
   const plans = selectablePlans(catalog).map((p) => {
-    const prices = catalog.mealSizes.filter((m) => m.planKey === p.key).map((m) => m.basePrice);
+    const prices = catalog.mealSizes.filter((m) => m.planKey === p.key && !m.trial).map((m) => m.basePrice);
     return { ...p, priceFrom: prices.length ? Math.min(...prices) : null };
   });
   return <BrowsePlansSection plans={plans} />;

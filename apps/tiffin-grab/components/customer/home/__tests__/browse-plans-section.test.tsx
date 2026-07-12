@@ -8,11 +8,11 @@ import { BrowsePlansSection, type PlanWithPrice } from "../browse-plans-section"
 
 afterEach(cleanup);
 
-function meal(key: string, planKey: string, basePrice: number) {
+function meal(key: string, planKey: string, basePrice: number, trial = false) {
   return {
     publicId: `msz_${key}`, key, name: key, planKey, tier: "budget" as const,
     components: [], items: [], kcalMin: 400, kcalMax: 600,
-    proteinG: null, carbsG: null, fatG: null, basePrice, trial: false,
+    proteinG: null, carbsG: null, fatG: null, basePrice, trial,
   };
 }
 
@@ -29,7 +29,7 @@ const catalog: ClientCatalogSnapshot = {
 // Mirrors the server mapping in BrowsePlansSectionData.
 function withPrice(cat: ClientCatalogSnapshot): PlanWithPrice[] {
   return selectablePlans(cat).map((p) => {
-    const prices = cat.mealSizes.filter((m) => m.planKey === p.key).map((m) => m.basePrice);
+    const prices = cat.mealSizes.filter((m) => m.planKey === p.key && !m.trial).map((m) => m.basePrice);
     return { ...p, priceFrom: prices.length ? Math.min(...prices) : null };
   });
 }
@@ -55,5 +55,16 @@ describe("BrowsePlansSection", () => {
   it("renders an EmptyState when there are no selectable plans", () => {
     render(<BrowsePlansSection plans={[]} />);
     expect(screen.getByText(/no plans/i)).toBeInTheDocument();
+  });
+
+  it("excludes trial meal sizes from the minimum price", () => {
+    const catalogWithTrial: ClientCatalogSnapshot = {
+      plans: [plan("veg", "Weekly Veg", "tiffin")],
+      mealSizes: [meal("trial_taste", "veg", 3, true), meal("small_thali", "veg", 12), meal("big_thali", "veg", 10)],
+      frequencies: [], durations: [], zones: [],
+    };
+    render(<BrowsePlansSection plans={withPrice(catalogWithTrial)} />);
+    expect(screen.getByText(/from \$10\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/from \$3\.00/)).not.toBeInTheDocument();
   });
 });
