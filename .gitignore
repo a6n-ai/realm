@@ -62,3 +62,7 @@ skills-lock.json
 docs/*
 !docs/realm/
 .vcscore
+
+# openspec scratch + local screenshots (not part of the repo)
+openspec/
+/Screenshot*.png
