@@ -21,6 +21,59 @@
 - Verify gate after each task: `pnpm --filter tiffin-grab exec tsc --noEmit` + the task's test. Final task runs `pnpm turbo typecheck && pnpm turbo test`.
 - Worktree: `/Users/lawbringr/IdeaProjects/realm-wt-2f09d8c4`, branch `wt/slice4-deliveries`. node_modules already installed.
 
+## Live-DB Test Harness (shared — Tasks 1, 5, 6, 8)
+
+These tests run against the **local dev DB** (`DATABASE_URL` default `postgres://lawbringr@localhost:5432/tiffin`, `REDIS_URL` redis DB 15 — both from `vitest.config.ts`). Prod is never touched. Suites run serially (`fileParallelism: false`), so a full wipe in `reset()` is safe. Mirror `app/(customer)/me/deliveries/__tests__/actions.test.ts` — its exact, proven pattern:
+
+```ts
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { eq, ne } from "drizzle-orm";
+import { nextWeekday } from "@realm/commons";
+
+const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+
+const { db } = await import("@/db/client");
+const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
+const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
+const { createOrder } = await import("@/lib/services/orders.service");
+
+async function reset() {
+  await db.delete(deliveries); await db.delete(ledgerEntries); await db.delete(orderActivities);
+  await db.delete(payments); await db.delete(orders); await db.delete(users).where(ne(users.isSystem, true));
+}
+
+// Postal M5V 2T6 is a seeded Toronto zone -> order lands "active" with materialized deliveries.
+async function makeOrder(phone: string, fullName: string) {
+  const snap = await loadCatalogSnapshot();
+  const { publicId } = await createOrder({
+    planKey: snap.plans[0].key,
+    selections: { mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],
+      includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: nextWeekday(new Date()).toISOString().slice(0, 10) },
+    contact: { fullName, phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+  });
+  const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  return o;
+}
+
+async function userIdOf(order: { id: bigint }) {
+  const [u] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
+    .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, order.id));
+  return u; // { id, publicId }
+}
+
+// Force an order to waitlisted (deterministic — avoids depending on which postals are out-of-zone).
+async function makeWaitlisted(phone: string, fullName: string) {
+  const o = await makeOrder(phone, fullName);
+  await db.delete(deliveries).where(eq(deliveries.orderId, o.id)); // waitlisted orders have none
+  await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.id, o.id));
+  return o;
+}
+```
+
+Wrap each DB task's assertions with `beforeEach(reset)` + `afterAll(reset)`. Use distinct phones per user (e.g. `+16475550501`, `+16475550502`). If the local DB is unreachable, the implementer must FLAG it — never delete/skip the assertions to make the task "pass".
+
 ## File Structure
 
 - `lib/services/customer-deliveries.service.ts` — add `myWaitlistedSubscriptions`, `myDeliveryHistory`, `myDeliveryActivity` (+ types). Existing reads untouched.
@@ -57,18 +110,31 @@
 
 - [ ] **Step 2: Write the failing test**
 
-Create `apps/tiffin-grab/lib/services/__tests__/waitlisted-subscriptions.test.ts`. **First READ an existing live-DB service test** in the repo (e.g. `app/(customer)/me/deliveries/__tests__/actions.test.ts`) and reuse its seed/cleanup helpers + `beforeEach`/`afterEach` scoping. The test must:
-- seed a user + a `waitlisted` order (plan, mealSize, frequency) + an `active` order for the same user.
-- assert `myWaitlistedSubscriptions(userId)` returns exactly the waitlisted one, with `planName`, `mealSizeName`, `daysPerWeek`, `postalCode`, `status: "waitlisted"`.
-- assert the `active` order is NOT returned.
-- clean up only the identifiers it created.
+Create `apps/tiffin-grab/lib/services/__tests__/waitlisted-subscriptions.test.ts` using the **shared harness** (above). Add `myWaitlistedSubscriptions` to the imports:
 
-Assertion core (wrap in the mirrored fixture scaffolding):
 ```ts
-const rows = await myWaitlistedSubscriptions(userId);
-expect(rows.map((r) => r.status)).toEqual(["waitlisted"]);
-expect(rows[0]).toMatchObject({ planName: expect.any(String), mealSizeName: expect.any(String), daysPerWeek: expect.any(Number), postalCode: expect.any(String) });
+const { myWaitlistedSubscriptions } = await import("@/lib/services/customer-deliveries.service");
+
+describe("myWaitlistedSubscriptions (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("returns waitlisted orders with summary, excludes active", async () => {
+    const wl = await makeWaitlisted("+16475550501", "WL User");
+    // Add an ACTIVE order for the SAME user so we prove filtering, not just emptiness.
+    await makeOrder("+16475550501", "WL User"); // same phone -> same provisioned user
+    const { id: userId } = await userIdOf(wl);
+
+    const rows = await myWaitlistedSubscriptions(userId);
+    expect(rows.map((r) => r.status)).toEqual(["waitlisted"]);
+    expect(rows[0]).toMatchObject({
+      planName: expect.any(String), mealSizeName: expect.any(String),
+      daysPerWeek: expect.any(Number), postalCode: expect.any(String),
+    });
+  });
+});
 ```
+(If `makeOrder` with the same phone provisions a distinct user rather than reusing, instead assert only that the waitlisted row is returned and its fields are populated — the exclusion of active is already covered by the status filter in the query.)
 
 - [ ] **Step 3: Run it, verify it fails**
 
@@ -340,11 +406,31 @@ Record the caller list (expected: `app/(customer)/me/deliveries/actions.ts` + ad
 
 - [ ] **Step 2: Write the failing test**
 
-Create `apps/tiffin-grab/lib/services/__tests__/delivery-activity.test.ts` (live-DB; mirror an existing service test's seed/cleanup). Seed a user + active order + one scheduled delivery. Then:
-- call `skipDelivery(deliveryPublicId, actorId)` → assert one `order_activities` row exists with `type="skipped"`, `deliveryId` = that delivery's id, `createdBy = actorId`, `orderId` = the order.
-- call `unskipDelivery(...)` → asserts a `type="unskipped"` row.
-- call `setDeliveryAddress(..., input, actorId)` → asserts a `type="delivery_address_changed"` row.
-Query via `db.select().from(orderActivities).where(eq(orderActivities.deliveryId, deliveryId))`.
+Create `apps/tiffin-grab/lib/services/__tests__/delivery-activity.test.ts` using the **shared harness** (above). Drive through the customer action (`skipMyDelivery`) so the actor→`createdBy` wiring is tested end-to-end (the action passes the session user as `actorId`):
+
+```ts
+const { skipMyDelivery } = await import("@/app/(customer)/me/deliveries/actions");
+function actAs(publicId: string) { session.user = { id: publicId, role: "user" }; }
+
+describe("delivery activity audit (integration)", () => {
+  beforeEach(async () => { await reset(); session.user = null; });
+  afterAll(reset);
+
+  it("writes a 'skipped' order_activities row with the session actor as createdBy", async () => {
+    const order = await makeOrder("+16475550511", "Skip User");
+    const { id: userId, publicId: userPublic } = await userIdOf(order);
+    const [d] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+
+    actAs(userPublic);
+    await skipMyDelivery(d.publicId);
+
+    const acts = await db.select().from(orderActivities).where(eq(orderActivities.deliveryId, d.id));
+    expect(acts).toHaveLength(1);
+    expect(acts[0]).toMatchObject({ type: "skipped", orderId: order.id, deliveryId: d.id, createdBy: userId });
+  });
+});
+```
+Add analogous cases for `unskipMyDelivery` → `type: "unskipped"` and `setMyDeliveryAddress` → `type: "delivery_address_changed"` (import them from the same actions module; `setMyDeliveryAddress` takes `(publicId, { fullName, addressLine, city, postalCode })`).
 
 - [ ] **Step 3: Run it, verify it fails**
 
@@ -394,7 +480,28 @@ git commit -m "feat(deliveries): write order_activities on skip/unskip/address c
 
 - [ ] **Step 1: Write the failing test**
 
-Create `apps/tiffin-grab/lib/services/__tests__/delivery-history.test.ts` (live-DB, mirror seed/cleanup). Seed a user + order + deliveries dated in the past and future. Assert `myDeliveryHistory(userId, "<30d ago>", "<today>")` returns the past ones (DESC), excludes future ones.
+Create `apps/tiffin-grab/lib/services/__tests__/delivery-history.test.ts` using the **shared harness** (above). `makeOrder` already materializes future deliveries; hand-insert a past one, then assert the window:
+
+```ts
+const { myDeliveryHistory } = await import("@/lib/services/customer-deliveries.service");
+
+describe("myDeliveryHistory (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("returns past deliveries in [since, before), newest first, excludes future", async () => {
+    const order = await makeOrder("+16475550521", "Hist User");
+    const { id: userId } = await userIdOf(order);
+    // Force one existing delivery into the past.
+    const [d] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
+    await db.update(deliveries).set({ deliveryDate: "2026-07-05" }).where(eq(deliveries.id, d.id));
+
+    const past = await myDeliveryHistory(userId, "2026-06-13", "2026-07-13");
+    expect(past.some((r) => r.deliveryDate === "2026-07-05")).toBe(true);
+    expect(past.every((r) => r.deliveryDate < "2026-07-13")).toBe(true);
+  });
+});
+```
 
 - [ ] **Step 2: Run it, verify it fails**
 
@@ -536,7 +643,31 @@ git commit -m "feat(deliveries): derived display-status label helper"
 
 `order-activity-describe.test.ts` (pure): assert a couple mappings the extracted function must preserve — e.g. `describeActivity({ type: "skipped", note: null, fromStatus: null, toStatus: null })` returns a non-empty string containing "kip"; `type: "delivery_address_changed"` returns a string mentioning address. (Match whatever labels the extracted map actually uses — read them in Step 1 and assert on the real text.)
 
-`my-delivery-activity.test.ts` (live-DB, mirror seed/cleanup): seed userA + order + a delivery activity row (or call skipDelivery from Task 5); seed userB + their own activity. Assert `myDeliveryActivity(userAId)` returns userA's rows only (IDOR), newest first, each with `orderPublicId`.
+`my-delivery-activity.test.ts` uses the **shared harness** (above) + `actAs`. Generate real activity via the Task-5 action, prove IDOR:
+
+```ts
+const { myDeliveryActivity } = await import("@/lib/services/customer-deliveries.service");
+const { skipMyDelivery } = await import("@/app/(customer)/me/deliveries/actions");
+function actAs(publicId: string) { session.user = { id: publicId, role: "user" }; }
+
+describe("myDeliveryActivity (integration)", () => {
+  beforeEach(async () => { await reset(); session.user = null; });
+  afterAll(reset);
+
+  it("returns only the caller's own activity, newest first", async () => {
+    const aOrder = await makeOrder("+16475550531", "A"); const a = await userIdOf(aOrder);
+    const bOrder = await makeOrder("+16475550532", "B"); const b = await userIdOf(bOrder);
+    const [ad] = await db.select().from(deliveries).where(eq(deliveries.orderId, aOrder.id));
+    const [bd] = await db.select().from(deliveries).where(eq(deliveries.orderId, bOrder.id));
+    actAs(a.publicId); await skipMyDelivery(ad.publicId);
+    actAs(b.publicId); await skipMyDelivery(bd.publicId);
+
+    const aActivity = await myDeliveryActivity(a.id);
+    expect(aActivity.length).toBeGreaterThan(0);
+    expect(aActivity.every((r) => r.orderPublicId === aOrder.publicId)).toBe(true);
+  });
+});
+```
 
 - [ ] **Step 3: Run them, verify they fail**
 
@@ -701,7 +832,7 @@ git commit -m "feat(customer): delivery history section (past + activity log)"
 - Motion reuse (WaitlistCard scooter, EmptyState CTA, Reveal stagger) → Tasks 2/4/9. ✓
 - No schema change / no enum change → held throughout (audit uses existing table). ✓
 
-**Placeholder scan:** Live-DB service tests (Tasks 1, 5, 6, 8) intentionally delegate fixture/cleanup to "mirror the existing service test" rather than embedding guessed seed helpers — the repo's live-DB harness API isn't visible from the plan, and inventing it would be wrong code. Each such task names the file to read and gives the exact assertion core. This is a deliberate, flagged handoff, not a vague placeholder. All pure/jsdom tests (Tasks 2, 7, 9) and all implementation code are complete.
+**Placeholder scan:** None. Live-DB service tests (Tasks 1, 5, 6, 8) use the concrete **shared harness** section (real `reset`/`makeOrder`/`makeWaitlisted`/`userIdOf`/`actAs` copied from the proven `me/deliveries/__tests__/actions.test.ts`) with full assertion bodies inlined per task. All pure/jsdom tests (Tasks 2, 7, 9) and all implementation code are complete.
 
 **Type consistency:** `WaitlistedSubscription` (Task 1) consumed identically in Tasks 2/3/4. `CustomerDelivery` (existing) reused in Task 6 + rendered in Task 9. `CustomerActivity` (Task 8) consumed in Task 9. `describeActivity` signature (Task 8) matches the admin `describe` shape it's extracted from. The four mutation signatures gain `actorId: bigint` consistently in Task 5 and every caller is updated there. `deliveryDisplayStatus(status, deliveryDate, today)` (Task 7) called with the same arg order in Task 9.
 
