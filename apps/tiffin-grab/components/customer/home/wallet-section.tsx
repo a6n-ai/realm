@@ -2,7 +2,8 @@
 
 import { CoinsIcon } from "lucide-react";
 import { Skeleton } from "@realm/ui/skeleton";
-import { Card, EmptyState, SectionCard } from "@/components/ds";
+import { Card, SectionCard } from "@/components/ds";
+import { AnimatedNumber, LottieEmptyState } from "@/components/motion";
 import { eventLabel } from "@/components/notifications/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -36,12 +37,18 @@ export function WalletSection({ balance, transactions }: { balance: number; tran
         </span>
         <div>
           <p className="text-muted-foreground text-xs">Coin balance</p>
-          <p className="text-2xl font-semibold tabular-nums">{balance}</p>
+          <p className="text-2xl font-semibold">
+            <AnimatedNumber value={balance} />
+          </p>
         </div>
       </Card>
 
       {transactions.length === 0 ? (
-        <EmptyState icon={CoinsIcon} message="No wallet activity yet. Earns and redemptions will appear here." />
+        <LottieEmptyState
+          animation="coin-burst"
+          title="No wallet activity yet"
+          body="Earns and redemptions will appear here."
+        />
       ) : (
         <div className="divide-y">
           {transactions.map((tx) => (

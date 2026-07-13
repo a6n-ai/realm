@@ -1,12 +1,24 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
 import { WalletSection } from "../wallet-section";
 
-afterEach(cleanup);
+// jsdom has no network stack, and the Lottie primitive (now used by the empty
+// state) fetches its JSON on mount — stub it so the relative "/lottie/*.json"
+// URL doesn't throw an unhandled rejection.
+const fakeAnimationData = { v: "5.5.7", fr: 30, layers: [] };
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => fakeAnimationData }));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function tx(overrides: Partial<WalletTx>): WalletTx {
   return {
