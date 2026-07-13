@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myActiveSubscriptions, myDeliveries, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
+import {
+  myActiveSubscriptions,
+  myDeliveries,
+  myWaitlistedSubscriptions,
+  nextDeliveryByOrder,
+} from "@/lib/services/customer-deliveries.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { ledgerService } from "@/lib/services/ledger.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -64,12 +69,13 @@ export default async function MePage() {
 
 async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; timezone: string }) {
   const today = zonedDateIso(Date.now(), timezone); // reads only — no reconcile/materialize here
-  const [subs, nextByOrder] = await Promise.all([
+  const [subs, nextByOrder, waitlisted] = await Promise.all([
     myActiveSubscriptions(userId),
     nextDeliveryByOrder(userId, today),
+    myWaitlistedSubscriptions(userId),
   ]);
   const subscriptions = subs.map((s) => ({ ...s, nextDelivery: nextByOrder.get(s.publicId) ?? null }));
-  return <SubscriptionSection subscriptions={subscriptions} />;
+  return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
 }
 
 // Global catalog data — safely public, no userId scoping needed (same filter

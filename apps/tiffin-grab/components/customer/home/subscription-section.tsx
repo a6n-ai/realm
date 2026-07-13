@@ -10,10 +10,11 @@ import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, EmptyState, SectionCard } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
-import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
+import type { CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import { pauseMySubscription, resumeMySubscription } from "@/app/(customer)/me/deliveries/actions";
 import { SUB_STATUS_LABEL, TONE_CLASS } from "@/app/(customer)/me/deliveries/calendar-constants";
 import { PlanHero } from "./plan-hero";
+import { WaitlistCard } from "./waitlist-card";
 
 // M1: myActiveSubscriptions returns plan/status/address only (no mealSizeId, meal-items, or
 // price) — this card renders plan, status, and next-delivery date ONLY. Do not add meal chips
@@ -119,10 +120,28 @@ function SubscriptionCard({ sub }: { sub: SubscriptionWithNext }) {
   );
 }
 
-export function SubscriptionSection({ subscriptions }: { subscriptions: SubscriptionWithNext[] }) {
+export function SubscriptionSection({
+  subscriptions,
+  waitlisted = [],
+}: {
+  subscriptions: SubscriptionWithNext[];
+  waitlisted?: WaitlistedSubscription[];
+}) {
   return (
     <SectionCard title="Your subscription">
-      {subscriptions.length === 0 ? (
+      {subscriptions.length > 0 ? (
+        <div className="space-y-3">
+          {subscriptions.map((sub) => (
+            <SubscriptionCard key={sub.publicId} sub={sub} />
+          ))}
+        </div>
+      ) : waitlisted.length > 0 ? (
+        <div className="space-y-3">
+          {waitlisted.map((sub) => (
+            <WaitlistCard key={sub.publicId} sub={sub} />
+          ))}
+        </div>
+      ) : (
         <EmptyState
           icon={PackageIcon}
           message="No active subscriptions yet."
@@ -132,12 +151,6 @@ export function SubscriptionSection({ subscriptions }: { subscriptions: Subscrip
             </Button>
           }
         />
-      ) : (
-        <div className="space-y-3">
-          {subscriptions.map((sub) => (
-            <SubscriptionCard key={sub.publicId} sub={sub} />
-          ))}
-        </div>
       )}
     </SectionCard>
   );
