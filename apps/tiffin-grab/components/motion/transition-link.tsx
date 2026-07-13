@@ -14,7 +14,8 @@ export function TransitionLink({ href, onClick, ...rest }: TransitionLinkProps) 
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
     onClick?.(e);
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    const url = typeof href === "string" ? href : href.toString();
+    if (typeof href !== "string") return;
+    const url = href;
     const start = (document as unknown as { startViewTransition?: (cb: () => void) => unknown }).startViewTransition;
     if (reduce || typeof start !== "function") {
       e.preventDefault();

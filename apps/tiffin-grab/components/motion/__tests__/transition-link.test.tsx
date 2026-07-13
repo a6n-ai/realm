@@ -39,4 +39,14 @@ describe("TransitionLink", () => {
     expect(start).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/me/deliveries");
   });
+
+  it("lets next/link handle navigation natively for object hrefs", () => {
+    const start = vi.fn();
+    (document as unknown as { startViewTransition: unknown }).startViewTransition = start;
+    render(<TransitionLink href={{ pathname: "/me" }}>Profile</TransitionLink>);
+    fireEvent.click(screen.getByText("Profile"));
+    expect(start).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalledWith("[object Object]");
+    expect(push).not.toHaveBeenCalled();
+  });
 });

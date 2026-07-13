@@ -39,6 +39,15 @@ describe("Reveal", () => {
     expect(screen.getByText("two")).toBeInTheDocument();
   });
 
+  it("renders a nested Reveal's children without its own viewport trigger (group drives it)", () => {
+    render(
+      <Reveal.Group>
+        <Reveal><p>grouped child</p></Reveal>
+      </Reveal.Group>,
+    );
+    expect(screen.getByText("grouped child")).toBeInTheDocument();
+  });
+
   it("still renders children under reduced motion", () => {
     reducedMotion = true;
     render(<Reveal><p>visible</p></Reveal>);
