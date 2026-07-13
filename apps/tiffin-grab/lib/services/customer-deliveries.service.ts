@@ -1,7 +1,7 @@
 import { NotFoundError, weekdayKey } from "@realm/commons";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 
@@ -104,6 +104,30 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+}
+
+export type WaitlistedSubscription = {
+  publicId: string; planName: string; mealSizeName: string;
+  daysPerWeek: number; status: "waitlisted" | "pending";
+  fullName: string; addressLine: string; city: string; postalCode: string;
+};
+
+// Waitlisted/pending orders have NO materialized deliveries, so they are absent
+// from myActiveSubscriptions (active/paused only). Surfaced separately so the
+// logged-in customer sees their pending order instead of a blank "no orders".
+export async function myWaitlistedSubscriptions(userId: bigint): Promise<WaitlistedSubscription[]> {
+  const rows = await db
+    .select({
+      publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
+      daysPerWeek: deliveryFrequencies.daysPerWeek, status: orders.status,
+      fullName: orders.fullName, addressLine: orders.addressLine, city: orders.city, postalCode: orders.postalCode,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, ["waitlisted", "pending"])));
+  return rows.map((r) => ({ ...r, status: r.status as "waitlisted" | "pending" }));
 }
 
 // Pure read: resolves "what's coming" for one delivery against the released menu_week for its
