@@ -1,10 +1,12 @@
 import { Suspense } from "react";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { SignupForm } from "./signup-form";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const { defaultCountry } = await getAppSettings();
   return (
     <Suspense>
-      <SignupForm />
+      <SignupForm defaultCountry={defaultCountry} />
     </Suspense>
   );
 }

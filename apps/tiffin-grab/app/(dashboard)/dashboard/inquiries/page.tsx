@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { count, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
-import { tzToDefaultCountry } from "@realm/commons";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -69,7 +68,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function loadSheetData() {
-  const [{ timezone }, sourceRows, subRows, zones] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, zones] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -92,8 +91,6 @@ async function loadSheetData() {
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true)),
   ]);
-
-  const defaultCountry = tzToDefaultCountry(timezone);
 
   const sources = sourceRows
     .filter((s) => s.active)

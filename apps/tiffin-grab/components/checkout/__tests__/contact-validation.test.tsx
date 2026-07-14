@@ -48,7 +48,7 @@ describe("Checkout contact format validation", () => {
 
   it("disables Continue with an invalid phone and shows an inline error", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -63,7 +63,7 @@ describe("Checkout contact format validation", () => {
 
   it("enables Continue with a valid phone and empty (optional) email", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -78,7 +78,7 @@ describe("Checkout contact format validation", () => {
 
   it("disables Continue with an invalid non-empty email", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });

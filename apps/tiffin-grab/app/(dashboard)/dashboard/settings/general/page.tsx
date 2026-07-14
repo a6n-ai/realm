@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { SettingsIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings, getDefaultCountrySetting } from "@/lib/services/app-settings.service";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { SettingsForm, SettingsFormSkeleton } from "./settings-form";
 
@@ -20,6 +20,14 @@ export default function GeneralSettingsPage() {
 
 async function SettingsData() {
   await requireAdmin();
-  const settings = await getAppSettings();
-  return <SettingsForm timezone={settings.timezone} cutoffHour={settings.cutoffHour} currency={settings.currency} />;
+  const [settings, rawCountry] = await Promise.all([getAppSettings(), getDefaultCountrySetting()]);
+  return (
+    <SettingsForm
+      timezone={settings.timezone}
+      cutoffHour={settings.cutoffHour}
+      currency={settings.currency}
+      defaultCountry={rawCountry}
+      autoCountry={settings.defaultCountry}
+    />
+  );
 }

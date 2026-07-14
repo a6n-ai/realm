@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon } from "lucide-react";
 import { eq, sql } from "drizzle-orm";
-import { tzToDefaultCountry } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders, users } from "@/db/schema";
@@ -108,7 +107,7 @@ async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
 async function NewCustomerAction() {
   await requireStaff();
 
-  const [{ timezone }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, catalog, slots, zones] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -133,8 +132,6 @@ async function NewCustomerAction() {
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true)),
   ]);
-
-  const defaultCountry = tzToDefaultCountry(timezone);
 
   const sources = sourceRows
     .filter((s) => s.active)

@@ -11,18 +11,30 @@ import { saveAppSettings } from "./actions";
 
 const ZONES = ["America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg", "America/Halifax", "Asia/Kolkata", "UTC"];
 const CURRENCIES = ["INR", "USD", "AED", "GBP", "EUR"];
+const COUNTRIES: { code: string; name: string }[] = [
+  { code: "CA", name: "Canada" },
+  { code: "IN", name: "India" },
+  { code: "US", name: "United States" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "GB", name: "United Kingdom" },
+];
+const AUTO = "auto"; // Select needs a non-empty value; maps to null (derive from timezone).
 
 const FIELDS = [
   { key: "timezone", label: "App timezone", hint: "Used for all delivery cutoffs and time display." },
   { key: "cutoffHour", label: "Selection cutoff hour (0–23)", hint: "Orders for a day lock at this hour the day before, in the app timezone." },
   { key: "currency", label: "Currency", hint: "Currency all amounts are captured and displayed in." },
+  { key: "defaultCountry", label: "Default phone country", hint: "Country pre-selected in every phone-number input." },
 ] as const;
 
-export function SettingsForm({ timezone, cutoffHour, currency }: { timezone: string; cutoffHour: number; currency: string }) {
+export function SettingsForm({
+  timezone, cutoffHour, currency, defaultCountry, autoCountry,
+}: { timezone: string; cutoffHour: number; currency: string; defaultCountry: string | null; autoCountry: string }) {
   const router = useRouter();
   const [tz, setTz] = useState(timezone);
   const [hour, setHour] = useState(String(cutoffHour));
   const [ccy, setCcy] = useState(currency);
+  const [country, setCountry] = useState(defaultCountry ?? AUTO);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -35,7 +47,7 @@ export function SettingsForm({ timezone, cutoffHour, currency }: { timezone: str
     start(async () => {
       setError(null);
       try {
-        await saveAppSettings({ timezone: tz, cutoffHour: parsed, currency: ccy });
+        await saveAppSettings({ timezone: tz, cutoffHour: parsed, currency: ccy, defaultCountry: country === AUTO ? null : country });
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
@@ -66,6 +78,17 @@ export function SettingsForm({ timezone, cutoffHour, currency }: { timezone: str
           <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
         </Select>
         <p className="text-muted-foreground mt-1 text-xs">{FIELDS[2].hint}</p>
+      </div>
+      <div>
+        <Label>{FIELDS[3].label}</Label>
+        <Select value={country} onValueChange={setCountry}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={AUTO}>Auto (from timezone — {autoCountry})</SelectItem>
+            {COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground mt-1 text-xs">{FIELDS[3].hint}</p>
       </div>
       <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
     </div>

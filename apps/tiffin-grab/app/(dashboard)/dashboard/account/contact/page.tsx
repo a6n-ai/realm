@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { tzToDefaultCountry } from "@realm/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ContactSection } from "@/components/account/sections/contact-section";
 import { requireAccountUser } from "../current-user";
@@ -13,8 +12,7 @@ export default function AccountContactPage() {
 }
 
 async function ContactData() {
-  const [{ user }, { timezone }] = await Promise.all([requireAccountUser(), getAppSettings()]);
-  const defaultCountry = tzToDefaultCountry(timezone);
+  const [{ user }, { defaultCountry }] = await Promise.all([requireAccountUser(), getAppSettings()]);
   return (
     <ContactSection
       phone={user.phone ?? ""}
