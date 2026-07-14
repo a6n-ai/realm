@@ -148,7 +148,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
   it("maybeComplete refuses to complete an order with live (future-cutoff) make-up debt, even after those cutoffs pass and reconcileMakeups spawns make-ups", async () => {
     const o = await makeOrder();
     const rows = await rowsFor(o);
-    for (const r of rows) await skipDelivery(r.publicId); // legal: all cutoffs still future
+    for (const r of rows) await skipDelivery(r.publicId, 1n); // legal: all cutoffs still future
 
     await expect(maybeComplete(o.id)).resolves.toBe(false);
     let [order] = await db.select().from(orders).where(eq(orders.id, o.id));

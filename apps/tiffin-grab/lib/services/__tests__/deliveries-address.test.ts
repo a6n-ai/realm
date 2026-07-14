@@ -83,7 +83,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
       addressLine: "2 Other St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    });
+    }, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBe("New Name");
     expect(row.addressLine).toBe("2 Other St");
@@ -110,7 +110,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
         addressLine: "2 Other St",
         city: "Ottawa",
         postalCode: "K1A 0A1",
-      }),
+      }, 1n),
     ).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();
@@ -129,7 +129,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
         addressLine: "2 Other St",
         city: "Toronto",
         postalCode: "M4C 1A1",
-      }),
+      }, 1n),
     ).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();
@@ -148,7 +148,7 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
       addressLine: "3 Third St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    });
+    }, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, mk.id));
     expect(row.fullName).toBe("Makeup Name");
     expect(row.zoneId).not.toBeNull();
@@ -162,8 +162,8 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
       addressLine: "2 Other St",
       city: "Toronto",
       postalCode: "M4C 1A1",
-    });
-    await clearDeliveryAddress(d.publicId);
+    }, 1n);
+    await clearDeliveryAddress(d.publicId, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.fullName).toBeNull();
     expect(row.addressLine).toBeNull();

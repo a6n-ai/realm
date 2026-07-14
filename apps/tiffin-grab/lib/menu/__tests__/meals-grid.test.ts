@@ -171,7 +171,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
     const d = await seedMondayDelivery(order.id);
     await makeWeek();
 
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
     if (grid.empty === null) {

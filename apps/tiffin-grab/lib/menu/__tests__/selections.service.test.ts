@@ -116,7 +116,7 @@ describe("selectionsService.setSelection", () => {
 
   it("rejects a pick for a skipped delivery", async () => {
     const [row] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-    await skipDelivery(row.publicId);
+    await skipDelivery(row.publicId, 1n);
     await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });

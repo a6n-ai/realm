@@ -15,14 +15,14 @@ async function me(): Promise<bigint> {
 export async function skipMyDelivery(deliveryPublicId: string) {
   const userId = await me();
   await assertOwnsDelivery(userId, deliveryPublicId); // IDOR gate — before the mutation
-  await skipDelivery(deliveryPublicId);
+  await skipDelivery(deliveryPublicId, userId);
   revalidatePath("/me/deliveries");
 }
 
 export async function unskipMyDelivery(deliveryPublicId: string) {
   const userId = await me();
   await assertOwnsDelivery(userId, deliveryPublicId);
-  await unskipDelivery(deliveryPublicId);
+  await unskipDelivery(deliveryPublicId, userId);
   revalidatePath("/me/deliveries");
 }
 
@@ -32,14 +32,14 @@ export async function setMyDeliveryAddress(
 ) {
   const userId = await me();
   await assertOwnsDelivery(userId, deliveryPublicId);
-  await setDeliveryAddress(deliveryPublicId, input);
+  await setDeliveryAddress(deliveryPublicId, input, userId);
   revalidatePath("/me/deliveries");
 }
 
 export async function clearMyDeliveryAddress(deliveryPublicId: string) {
   const userId = await me();
   await assertOwnsDelivery(userId, deliveryPublicId);
-  await clearDeliveryAddress(deliveryPublicId);
+  await clearDeliveryAddress(deliveryPublicId, userId);
   revalidatePath("/me/deliveries");
 }
 

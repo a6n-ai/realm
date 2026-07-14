@@ -64,14 +64,14 @@ describe("skipDelivery / unskipDelivery (integration)", () => {
 
   it("skips a future scheduled row", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9 });
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("skipped");
   });
 
   it("rejects a skip once the row's cutoff has passed", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() - 1000 });
-    await expect(skipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(skipDelivery(d.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("scheduled");
   });
@@ -84,36 +84,36 @@ describe("skipDelivery / unskipDelivery (integration)", () => {
       makeupForDeliveryId: src.id,
       orderId: src.orderId,
     });
-    await expect(skipDelivery(mk.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(skipDelivery(mk.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, mk.id));
     expect(row.status).toBe("scheduled");
   });
 
   it("rejects skipping an already-skipped row", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, status: "skipped" });
-    await expect(skipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(skipDelivery(d.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("skipped");
   });
 
   it("rejects re-skipping a row already skipped by a prior call (guard evaluated post-lock)", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9 });
-    await skipDelivery(d.publicId);
-    await expect(skipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await skipDelivery(d.publicId, 1n);
+    await expect(skipDelivery(d.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("skipped");
   });
 
   it("unskip restores scheduled before cutoff", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, status: "skipped" });
-    await unskipDelivery(d.publicId);
+    await unskipDelivery(d.publicId, 1n);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("scheduled");
   });
 
   it("rejects unskip once the row's cutoff has passed", async () => {
     const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() - 1000, status: "skipped" });
-    await expect(unskipDelivery(d.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(unskipDelivery(d.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.status).toBe("skipped");
   });
@@ -126,7 +126,7 @@ describe("skipDelivery / unskipDelivery (integration)", () => {
       makeupForDeliveryId: src.id,
       orderId: src.orderId,
     });
-    await expect(unskipDelivery(src.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(unskipDelivery(src.publicId, 1n)).rejects.toBeInstanceOf(ValidationError);
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, src.id));
     expect(row.status).toBe("skipped");
   });

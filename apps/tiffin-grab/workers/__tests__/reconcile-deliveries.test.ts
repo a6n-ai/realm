@@ -73,7 +73,7 @@ describe("reconcileAllDeliveries (integration)", () => {
     const b = await activatedOrder();
     for (const o of [a, b]) {
       const d = await nthDelivery(o, 0);
-      await skipDelivery(d.publicId);
+      await skipDelivery(d.publicId, 1n);
       await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     }
     const n = await reconcileAllDeliveries();

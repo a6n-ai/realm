@@ -74,7 +74,7 @@ describe("reconcileMakeups (integration)", () => {
   it("spawns nothing before cutoff, exactly one after", async () => {
     const o = await activatedOrder(); // N = 10
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     expect(await reconcileMakeups(o.id)).toBe(0); // cutoff not passed
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     expect(await reconcileMakeups(o.id)).toBe(1);
@@ -86,8 +86,8 @@ describe("reconcileMakeups (integration)", () => {
   it("two missed rows produce two make-ups on distinct dates", async () => {
     const o = await activatedOrder();
     const [a, b] = [await nthDelivery(o, 0), await nthDelivery(o, 1)];
-    await skipDelivery(a.publicId);
-    await skipDelivery(b.publicId);
+    await skipDelivery(a.publicId, 1n);
+    await skipDelivery(b.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 })
       .where(inArray(deliveries.id, [a.id, b.id]));
     expect(await reconcileMakeups(o.id)).toBe(2);
@@ -99,7 +99,7 @@ describe("reconcileMakeups (integration)", () => {
   it("a missed make-up spawns nothing (make-ups are terminal)", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await reconcileMakeups(o.id);
     await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1 })
@@ -122,7 +122,7 @@ describe("reconcileMakeups (integration)", () => {
       .where(and(eq(deliveries.orderId, o.id), isNull(deliveries.makeupForDeliveryId)));
     expect((await originals()).length).toBe(10);
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await reconcileMakeups(o.id);
     expect((await originals()).length).toBe(10); // make-up is not an original
@@ -131,7 +131,7 @@ describe("reconcileMakeups (integration)", () => {
   it("returns 0 for a cancelled order", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, o.id));
     expect(await reconcileMakeups(o.id)).toBe(0);
@@ -142,7 +142,7 @@ describe("reconcileMakeups (integration)", () => {
   it("returns 0 for a completed order (defense in depth: correct maybeComplete should never let this happen)", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId);
+    await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await db.update(orders).set({ status: "completed" }).where(eq(orders.id, o.id));
     expect(await reconcileMakeups(o.id)).toBe(0);

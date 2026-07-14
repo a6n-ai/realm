@@ -140,7 +140,7 @@ describe("pauseRange / resumeOrder (integration)", () => {
   it("resume reverts future paused rows, deletes nothing, ignores skipped", async () => {
     const o = await activatedOrder();
     await pauseRange(o.publicId, "2030-01-07", "2030-01-11"); // pauses week 1 (5 rows)
-    await skipDelivery((await nthDelivery(o, 5)).publicId); // skip first row of week 2
+    await skipDelivery((await nthDelivery(o, 5)).publicId, 1n); // skip first row of week 2
     const before = await countRows(o);
     const n = await resumeOrder(o.publicId);
     expect(n).toBe(5);

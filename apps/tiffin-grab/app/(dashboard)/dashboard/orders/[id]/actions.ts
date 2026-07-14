@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
 import { activateOrder, cancelOrder, pauseOrder, readOrder, resumeOrder } from "@/lib/services/orders.service";
+import { currentUserId } from "@/lib/services/session-service";
 import {
   maybeComplete,
   setDeliveryAddress,
@@ -33,7 +34,8 @@ export async function resume(orderId: string) {
 
 export async function skipDeliveryAction(orderId: string, deliveryPublicId: string) {
   await requireStaff();
-  await skipDelivery(deliveryPublicId);
+  const actorId = await currentUserId();
+  await skipDelivery(deliveryPublicId, actorId);
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -41,7 +43,8 @@ export async function skipDeliveryAction(orderId: string, deliveryPublicId: stri
 
 export async function unskipDeliveryAction(orderId: string, deliveryPublicId: string) {
   await requireStaff();
-  await unskipDelivery(deliveryPublicId);
+  const actorId = await currentUserId();
+  await unskipDelivery(deliveryPublicId, actorId);
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);
@@ -53,7 +56,8 @@ export async function editDeliveryAddress(
   input: { fullName: string; addressLine: string; city: string; postalCode: string },
 ) {
   await requireStaff();
-  await setDeliveryAddress(deliveryPublicId, input);
+  const actorId = await currentUserId();
+  await setDeliveryAddress(deliveryPublicId, input, actorId);
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);

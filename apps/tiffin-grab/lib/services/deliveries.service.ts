@@ -2,7 +2,7 @@ import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso
 import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, deliveryZones, orders } from "@/db/schema";
+import { deliveries, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
@@ -183,7 +183,7 @@ export async function resumeOrder(orderPublicId: string): Promise<number> {
   return updatedCount;
 }
 
-export async function skipDelivery(deliveryPublicId: string): Promise<void> {
+export async function skipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
   let orderId: bigint;
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -197,6 +197,9 @@ export async function skipDelivery(deliveryPublicId: string): Promise<void> {
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot skip a ${row.status} delivery`);
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: row.id, type: "skipped", createdBy: actorId,
+    });
   });
   await reconcileMakeups(orderId!);
 }
@@ -337,7 +340,7 @@ export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string
   throw new ValidationError("Could not find a make-up slot within 30 days");
 }
 
-export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
+export async function unskipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
   let orderId: bigint;
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -354,6 +357,9 @@ export async function unskipDelivery(deliveryPublicId: string): Promise<void> {
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "skipped")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: row.id, type: "unskipped", createdBy: actorId,
+    });
   });
   await reconcileMakeups(orderId!);
 }
@@ -378,6 +384,7 @@ export async function resolveZoneId(tx: Tx, postalCode: string): Promise<bigint>
 export async function setDeliveryAddress(
   deliveryPublicId: string,
   input: { fullName: string; addressLine: string; city: string; postalCode: string },
+  actorId: bigint | null,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -392,10 +399,13 @@ export async function setDeliveryAddress(
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
+    });
   });
 }
 
-export async function clearDeliveryAddress(deliveryPublicId: string): Promise<void> {
+export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
@@ -407,6 +417,9 @@ export async function clearDeliveryAddress(deliveryPublicId: string): Promise<vo
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
+    });
   });
 }
 
