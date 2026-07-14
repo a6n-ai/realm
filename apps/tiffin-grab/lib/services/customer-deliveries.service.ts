@@ -1,5 +1,5 @@
 import { NotFoundError, weekdayKey } from "@realm/commons";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -128,6 +128,24 @@ export async function myWaitlistedSubscriptions(userId: bigint): Promise<Waitlis
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["waitlisted", "pending"])));
   return rows.map((r) => ({ ...r, status: r.status as "waitlisted" | "pending" }));
+}
+
+// Past deliveries for the History section. Bounded lookback [since, before);
+// `before` is today (exclusive) so it never overlaps the forward myDeliveries window.
+export async function myDeliveryHistory(userId: bigint, since: string, before: string): Promise<CustomerDelivery[]> {
+  const rows = await db
+    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(and(
+      eq(orders.userId, userId),
+      inArray(deliveries.status, [...VISIBLE]),
+      gte(deliveries.deliveryDate, since),
+      lt(deliveries.deliveryDate, before),
+    ))
+    .orderBy(desc(deliveries.deliveryDate));
+  return rows.map((r) => ({ ...r.d, orderPublicId: r.orderPublicId, planName: r.planName, isMakeup: r.d.makeupForDeliveryId !== null }));
 }
 
 // Pure read: resolves "what's coming" for one delivery against the released menu_week for its
