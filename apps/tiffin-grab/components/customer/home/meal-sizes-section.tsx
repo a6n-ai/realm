@@ -17,7 +17,7 @@ const TIER_LABEL: Record<ClientMealSizeView["tier"], string> = {
   premium: "Premium",
 };
 
-function MealSizeCard({ mealSize, dishPool }: { mealSize: ClientMealSizeView; dishPool: CustomerDish[] }) {
+function MealSizeCard({ mealSize, dishPool, planName }: { mealSize: ClientMealSizeView; dishPool: CustomerDish[]; planName: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,7 +26,7 @@ function MealSizeCard({ mealSize, dishPool }: { mealSize: ClientMealSizeView; di
         <DishSlideshow dishes={dishPool.slice(0, 5)} className="h-full w-full" />
       </div>
       <div className="space-y-1.5 p-4">
-        <p className="text-muted-foreground text-xs font-medium">{TIER_LABEL[mealSize.tier]} · {mealSize.planKey}</p>
+        <p className="text-muted-foreground text-xs font-medium">{TIER_LABEL[mealSize.tier]} · {planName}</p>
         <p className="text-base font-semibold">{mealSize.name}</p>
         {mealSize.components.length > 0 && (
           <p className="text-muted-foreground text-sm">{mealSize.components.join(" · ")}</p>
@@ -73,24 +73,35 @@ function groupByPlanKey(mealSizes: ClientMealSizeView[]): Map<string, ClientMeal
   return groups;
 }
 
-export function MealSizesSection({ mealSizes, dishPool }: { mealSizes: ClientMealSizeView[]; dishPool: CustomerDish[] }) {
+export function MealSizesSection({
+  mealSizes,
+  dishPool,
+  planNames = {},
+}: {
+  mealSizes: ClientMealSizeView[];
+  dishPool: CustomerDish[];
+  planNames?: Record<string, string>;
+}) {
   const groups = groupByPlanKey(mealSizes);
 
   return (
     <SectionCard title="Meal sizes">
       <div className="space-y-6">
-        {Array.from(groups.entries()).map(([planKey, sizes]) => (
+        {Array.from(groups.entries()).map(([planKey, sizes]) => {
+          const planName = planNames[planKey] ?? planKey;
+          return (
           <div key={planKey}>
-            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">{planKey}</p>
+            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">{planName}</p>
             <Reveal.Group className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sizes.map((mealSize) => (
                 <Reveal key={mealSize.publicId}>
-                  <MealSizeCard mealSize={mealSize} dishPool={dishPool} />
+                  <MealSizeCard mealSize={mealSize} dishPool={dishPool} planName={planName} />
                 </Reveal>
               ))}
             </Reveal.Group>
           </div>
-        ))}
+          );
+        })}
       </div>
     </SectionCard>
   );

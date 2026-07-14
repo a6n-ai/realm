@@ -110,7 +110,8 @@ async function MealSizesSectionData() {
     toClientCatalog(await loadCatalogSnapshot()),
     dishesService.listActiveWithImages(),
   ]);
-  return <MealSizesSection mealSizes={catalog.mealSizes} dishPool={dishPool} />;
+  const planNames = Object.fromEntries(catalog.plans.map((p) => [p.key, p.name]));
+  return <MealSizesSection mealSizes={catalog.mealSizes} dishPool={dishPool} planNames={planNames} />;
 }
 
 // Global dish gallery — public, no userId scoping needed.
