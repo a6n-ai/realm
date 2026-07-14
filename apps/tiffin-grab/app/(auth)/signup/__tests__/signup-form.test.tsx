@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 
 describe("SignupForm", () => {
   it("renders a create-account action", () => {
-    render(<SignupForm />);
+    render(<SignupForm defaultCountry="CA" />);
     expect(screen.getByRole("button", { name: /create account|sign up/i })).toBeDefined();
   });
 });

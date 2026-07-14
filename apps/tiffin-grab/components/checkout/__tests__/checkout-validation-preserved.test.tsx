@@ -68,7 +68,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("gates Continue on fullName && phoneValid && emailValid && postalCode && zone-served", async () => {
     validatePostal.mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     expect(continueBtn().disabled).toBe(true);
@@ -85,7 +85,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("shows the waitlist path for an unserved postal and blocks Continue", async () => {
     validatePostal.mockResolvedValue({ served: false });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -100,7 +100,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     await waitFor(() =>
       expect(createWebsiteInquiry).toHaveBeenCalledWith({
         fullName: "Jane Doe",
-        phone: "4165551234",
+        phone: "+14165551234", // PhoneInput normalizes to E.164
         email: undefined,
         postalCode: "99999",
       }),
@@ -111,7 +111,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
   it("shows the coupon error state for a rejected code", async () => {
     validatePostal.mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/coupon code/i);
     fireEvent.change(screen.getByLabelText(/coupon code/i), { target: { value: "BOGUS" } });

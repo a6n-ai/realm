@@ -35,7 +35,19 @@ describe("app-settings service (integration)", () => {
 
   it("returns defaults when no row exists", async () => {
     const s = await getAppSettings();
-    expect(s).toEqual({ timezone: "America/Toronto", cutoffHour: 18 });
+    expect(s).toEqual({ timezone: "America/Toronto", cutoffHour: 18, currency: "INR", defaultCountry: "CA" });
+  });
+
+  it("resolves defaultCountry: explicit setting wins, else timezone fallback", async () => {
+    // No explicit country + Kolkata timezone → tzToDefaultCountry fallback (IN).
+    await setAppSettings({ timezone: "Asia/Kolkata", cutoffHour: 18 });
+    expect((await getAppSettings()).defaultCountry).toBe("IN");
+    // Explicit admin choice overrides the timezone-derived value.
+    await setAppSettings({ timezone: "Asia/Kolkata", cutoffHour: 18, defaultCountry: "GB" });
+    expect((await getAppSettings()).defaultCountry).toBe("GB");
+    // Clearing back to null re-enables the fallback.
+    await setAppSettings({ timezone: "Asia/Kolkata", cutoffHour: 18, defaultCountry: null });
+    expect((await getAppSettings()).defaultCountry).toBe("IN");
   });
 
   it("creates then updates the singleton and audits both", async () => {

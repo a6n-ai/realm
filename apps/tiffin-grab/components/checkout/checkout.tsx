@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Country } from "react-phone-number-input";
+import { PhoneInput } from "@realm/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
@@ -19,7 +21,7 @@ import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
-export function Checkout() {
+export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
   const [result, setResult] = useState<PricingResult | null>(null);
@@ -152,7 +154,7 @@ export function Checkout() {
                 <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" type="tel" autoComplete="tel" value={contact.phone} onChange={(e) => set({ phone: e.target.value })} />
+                  <PhoneInput id="phone" autoComplete="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
                   {contact.phone.trim() && !phoneValid && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 </div>
                 <div className="grid gap-1.5">

@@ -1,7 +1,6 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { tzToDefaultCountry } from "@realm/commons";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources } from "@/db/schema";
@@ -33,7 +32,7 @@ export type QuickAddData = {
 export async function loadQuickAddData(): Promise<QuickAddData> {
   await requireStaff();
 
-  const [{ timezone }, sourceRows, subRows, zones, catalog, slots] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, zones, catalog, slots] = await Promise.all([
     getAppSettings(),
     db.select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active }).from(leadSources),
     db
@@ -56,7 +55,7 @@ export async function loadQuickAddData(): Promise<QuickAddData> {
     }));
 
   return {
-    defaultCountry: tzToDefaultCountry(timezone),
+    defaultCountry,
     sources,
     zones,
     catalog: {

@@ -53,7 +53,7 @@ describe("Checkout postal-served gate + waitlist", () => {
 
   it("blocks Continue and offers Join waitlist for an unserved postal, then confirms on submit", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
@@ -73,7 +73,7 @@ describe("Checkout postal-served gate + waitlist", () => {
 
     await waitFor(() => expect(createWebsiteInquiry).toHaveBeenCalledWith({
       fullName: "Jane Doe",
-      phone: "4165551234",
+      phone: "+14165551234", // PhoneInput normalizes to E.164
       email: "jane@example.com",
       postalCode: "99999",
     }));

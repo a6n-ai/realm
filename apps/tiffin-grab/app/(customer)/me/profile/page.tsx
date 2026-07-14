@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { tzToDefaultCountry } from "@realm/commons";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
 import { ProfileSection } from "@/components/account/sections/profile-section";
@@ -57,8 +56,7 @@ async function ProfileData() {
 }
 
 async function ContactData() {
-  const [{ user }, { timezone }] = await Promise.all([requireAccountUser(), getAppSettings()]);
-  const defaultCountry = tzToDefaultCountry(timezone);
+  const [{ user }, { defaultCountry }] = await Promise.all([requireAccountUser(), getAppSettings()]);
   return (
     <ContactSection
       phone={user.phone ?? ""}

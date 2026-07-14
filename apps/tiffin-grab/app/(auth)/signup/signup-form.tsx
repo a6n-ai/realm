@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { signIn } from "@/lib/auth/client";
 import { Button } from "@realm/ui/button";
@@ -31,7 +32,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function SignupForm() {
+export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -83,7 +84,7 @@ export function SignupForm() {
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <PhoneInput {...field} defaultCountry="CA" />
+                        <PhoneInput {...field} defaultCountry={defaultCountry} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

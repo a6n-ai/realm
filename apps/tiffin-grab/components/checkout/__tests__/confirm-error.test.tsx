@@ -47,7 +47,7 @@ describe("Checkout confirm() error handling", () => {
   });
 
   it("surfaces a confirmSubscription failure as a toast, not an unhandled throw", async () => {
-    render(<Checkout />);
+    render(<Checkout defaultCountry="CA" />);
 
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });

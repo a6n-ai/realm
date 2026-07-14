@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { tzToDefaultCountry } from "@realm/commons";
 import { Section } from "@/components/marketing/section";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ContactForm } from "./contact-form";
@@ -11,8 +10,7 @@ export const metadata: Metadata = { title: "Contact — Tiffin Grab", descriptio
 export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
-  const { timezone } = await getAppSettings();
-  const defaultCountry = tzToDefaultCountry(timezone);
+  const { defaultCountry } = await getAppSettings();
 
   return (
     <Section className="space-y-6">

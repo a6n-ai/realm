@@ -1,5 +1,6 @@
 import { UpdatableRepository } from "@realm/database";
-import { cutoffMsFor } from "@realm/commons";
+import { cutoffMsFor, tzToDefaultCountry } from "@realm/commons";
+import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
 import { db } from "@/db/client";
@@ -44,19 +45,31 @@ const appSettingsEntity = new AppSettingsService(
   new UpdatableRepository(db, app, app.publicId, app.id),
 );
 
-export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string }> {
+export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string; defaultCountry: CountryCode }> {
   return settingsCache.getOrSet("settings", async () => {
     const [row] = await db.select().from(app).limit(1);
-    if (!row) return { ...DEFAULTS };
-    return { timezone: row.timezone, cutoffHour: row.cutoffHour, currency: row.currency };
+    const timezone = row?.timezone ?? DEFAULTS.timezone;
+    return {
+      timezone,
+      cutoffHour: row?.cutoffHour ?? DEFAULTS.cutoffHour,
+      currency: row?.currency ?? DEFAULTS.currency,
+      // Explicit admin setting wins; NULL falls back to the timezone-derived country.
+      defaultCountry: (row?.defaultCountry as CountryCode | null) ?? tzToDefaultCountry(timezone),
+    };
   });
 }
 
-export async function setAppSettings(input: { timezone: string; cutoffHour: number; currency?: string }): Promise<void> {
+export async function setAppSettings(input: { timezone: string; cutoffHour: number; currency?: string; defaultCountry?: CountryCode | null }): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId, currency: app.currency }).from(app).limit(1);
   // currency is optional here (the general settings form may not send it yet);
   // preserve the existing value, falling back to the default.
-  const patch = { timezone: input.timezone, cutoffHour: input.cutoffHour, currency: input.currency ?? row?.currency ?? DEFAULTS.currency };
+  const patch = {
+    timezone: input.timezone,
+    cutoffHour: input.cutoffHour,
+    currency: input.currency ?? row?.currency ?? DEFAULTS.currency,
+    // undefined = leave unchanged; null = clear back to timezone fallback.
+    ...(input.defaultCountry !== undefined ? { defaultCountry: input.defaultCountry } : {}),
+  };
   if (row) {
     await appSettingsEntity.update(row.publicId, patch);
   } else {
@@ -78,6 +91,13 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
       .set({ cutoffAt: cutoffMsFor(r.deliveryDate, patch.cutoffHour, patch.timezone) })
       .where(and(eq(deliveries.id, r.id), gt(deliveries.cutoffAt, now)));
   }
+}
+
+// Raw stored value for the settings editor: NULL means "auto (from timezone)".
+// getAppSettings resolves that fallback, so the form can't tell auto from explicit.
+export async function getDefaultCountrySetting(): Promise<CountryCode | null> {
+  const [row] = await db.select({ dc: app.defaultCountry }).from(app).limit(1);
+  return (row?.dc as CountryCode | null) ?? null;
 }
 
 export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {
