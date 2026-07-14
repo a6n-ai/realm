@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 import { describeActivity } from "../order-activity-describe";
 
 describe("describeActivity", () => {
-  it("labels skipped activity (falls back to note ?? type)", () => {
-    const label = describeActivity({ type: "skipped", note: null, fromStatus: null, toStatus: null });
-    expect(label).toMatch(/kip/);
-  });
-
-  it("labels delivery_address_changed activity (falls back to note ?? type)", () => {
-    const label = describeActivity({ type: "delivery_address_changed", note: null, fromStatus: null, toStatus: null });
-    expect(label).toMatch(/address/);
+  it("labels the delivery activity types with human copy", () => {
+    expect(describeActivity({ type: "skipped", note: null, fromStatus: null, toStatus: null })).toBe("Skipped");
+    expect(describeActivity({ type: "unskipped", note: null, fromStatus: null, toStatus: null })).toBe("Un-skipped");
+    expect(describeActivity({ type: "delivery_address_changed", note: null, fromStatus: null, toStatus: null })).toBe(
+      "Delivery address changed",
+    );
   });
 
   it("labels known activity types verbatim", () => {

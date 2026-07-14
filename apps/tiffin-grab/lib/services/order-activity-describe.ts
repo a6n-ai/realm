@@ -6,6 +6,9 @@ export function describeActivity(a: { type: string; note: string | null; fromSta
     case "resumed": return "Resumed";
     case "cancelled": return "Cancelled";
     case "status_change": return `Status: ${a.fromStatus} → ${a.toStatus}`;
+    case "skipped": return "Skipped";
+    case "unskipped": return "Un-skipped";
+    case "delivery_address_changed": return "Delivery address changed";
     default: return a.note ?? a.type;
   }
 }
