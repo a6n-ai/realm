@@ -1,9 +1,18 @@
+import type { FileDetail } from "@realm/storage/model";
 import type { MealSlot } from "./meal-types";
 
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 export type DayOfWeek = (typeof DAYS)[number];
 
-export type PosterItem = { dayOfWeek: DayOfWeek; slot: string; dishName: string; diet: "veg" | "nonveg"; position: number };
+export type PosterItem = {
+  dayOfWeek: DayOfWeek;
+  slot: string;
+  dishName: string;
+  diet: "veg" | "nonveg";
+  position: number;
+  image?: FileDetail | null;
+  dishPublicId?: string;
+};
 export type RenderedGroup = { slotLabel: string | null; dishes: { name: string; diet: "veg" | "nonveg" }[] };
 export type RenderedColumn = { label: string; groups: RenderedGroup[] };
 

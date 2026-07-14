@@ -157,12 +157,28 @@ export const menuService = {
         .orderBy(asc(menuWeeks.weekStart)).limit(1);
       if (!week) return null;
       const rows = await db
-        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
+        .select({
+          dayOfWeek: menuItems.dayOfWeek,
+          slot: menuItems.slot,
+          position: menuItems.position,
+          dishName: dishes.name,
+          diet: dishes.diet,
+          image: dishes.image,
+          dishPublicId: dishes.publicId,
+        })
         .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
         .where(eq(menuItems.menuWeekId, week.id)).orderBy(asc(menuItems.position));
       const categories = await dishCategoriesService.forPlanType(planType);
       const cfg = (await getMealTypes())[planType];
-      const items: PosterItem[] = rows.map((r) => ({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, diet: r.diet, position: r.position }));
+      const items: PosterItem[] = rows.map((r) => ({
+        dayOfWeek: r.dayOfWeek as DayOfWeek,
+        slot: r.slot,
+        dishName: r.dishName,
+        diet: r.diet,
+        position: r.position,
+        image: r.image ?? null,
+        dishPublicId: r.dishPublicId,
+      }));
       return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: week.weekStart, slots: categories, items };
     });
   },
