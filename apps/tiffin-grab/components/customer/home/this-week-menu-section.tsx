@@ -73,6 +73,9 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
                     )}
                   />
                 </div>
+                {item.image ? (
+                  <span className="mt-1 block truncate text-xs font-medium">{item.dishName}</span>
+                ) : null}
               </Pressable>
             ))}
           </Reveal>
