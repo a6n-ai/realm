@@ -15,7 +15,12 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { selectablePlans } from "@/components/wizard/plan-filter";
 import { walletService } from "@/lib/services/wallet.service";
+import { menuService } from "@/lib/services/menu.service";
+import { dishesService } from "@/lib/services/dishes.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
+import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
+import { MealSizesSection, MealSizesSectionSkeleton } from "@/components/customer/home/meal-sizes-section";
+import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
 import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
@@ -44,6 +49,18 @@ export default async function MePage() {
         section.key === "subscription" ? (
           <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
             <SubscriptionSectionData userId={userId} timezone={timezone} />
+          </Suspense>
+        ) : section.key === "menu" ? (
+          <Suspense key={section.key} fallback={<ThisWeekMenuSectionSkeleton />}>
+            <MenuSectionData userId={userId} />
+          </Suspense>
+        ) : section.key === "mealSizes" ? (
+          <Suspense key={section.key} fallback={<MealSizesSectionSkeleton />}>
+            <MealSizesSectionData />
+          </Suspense>
+        ) : section.key === "dishes" ? (
+          <Suspense key={section.key} fallback={<DishesSectionSkeleton />}>
+            <DishesSectionData />
           </Suspense>
         ) : section.key === "browse" ? (
           <Suspense key={section.key} fallback={<BrowsePlansSectionSkeleton />}>
@@ -76,6 +93,30 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
   ]);
   const subscriptions = subs.map((s) => ({ ...s, nextDelivery: nextByOrder.get(s.publicId) ?? null }));
   return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
+}
+
+// Session-scoped: plan type comes from the customer's active subscription (defaults
+// to "tiffin" if none), the published week itself is public catalog data (cached).
+async function MenuSectionData({ userId }: { userId: bigint }) {
+  const subs = await myActiveSubscriptions(userId);
+  const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
+  const week = await menuService.getPublishedWeek(planType);
+  return <ThisWeekMenuSection week={week} />;
+}
+
+// Global catalog + dish-pool reads — public, no userId scoping needed.
+async function MealSizesSectionData() {
+  const [catalog, dishPool] = await Promise.all([
+    toClientCatalog(await loadCatalogSnapshot()),
+    dishesService.listActiveWithImages(),
+  ]);
+  return <MealSizesSection mealSizes={catalog.mealSizes} dishPool={dishPool} />;
+}
+
+// Global dish gallery — public, no userId scoping needed.
+async function DishesSectionData() {
+  const dishes = await dishesService.listActiveWithImages();
+  return <DishesSection dishes={dishes} />;
 }
 
 // Global catalog data — safely public, no userId scoping needed (same filter
