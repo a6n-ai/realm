@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarDaysIcon, MapPinIcon, PauseIcon, PencilIcon, PlayIcon } from "lucide-react";
@@ -11,8 +12,9 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, ResponsiveDialog, SkeletonListRows } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
-import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
+import type { CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import {
   clearMyDeliveryAddress,
   pauseMySubscription,
@@ -275,10 +277,12 @@ export function DeliveryCalendar({
   subscriptions,
   deliveries,
   extraWindows,
+  waitlisted = [],
 }: {
   subscriptions: Subscription[];
   deliveries: DeliveryCardData[];
   extraWindows: number;
+  waitlisted?: WaitlistedSubscription[];
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -304,8 +308,20 @@ export function DeliveryCalendar({
 
   if (subscriptions.length === 0) {
     return (
-      <div className="p-4">
-        <EmptyState icon={CalendarDaysIcon} message="No active subscriptions yet." />
+      <div className="space-y-3 p-4">
+        {waitlisted.length > 0 ? (
+          waitlisted.map((s) => <WaitlistCard key={s.publicId} sub={s} />)
+        ) : (
+          <EmptyState
+            icon={CalendarDaysIcon}
+            message="No active subscriptions yet."
+            action={
+              <Button asChild size="sm">
+                <Link href="/subscribe">Browse plans</Link>
+              </Button>
+            }
+          />
+        )}
       </div>
     );
   }

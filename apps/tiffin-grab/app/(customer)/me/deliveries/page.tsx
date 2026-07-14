@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { parseIsoDateUtc, zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myActiveSubscriptions, myDeliveries, myDeliveryMeal } from "@/lib/services/customer-deliveries.service";
+import { myActiveSubscriptions, myDeliveries, myDeliveryMeal, myWaitlistedSubscriptions } from "@/lib/services/customer-deliveries.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { MAX_EXTRA_WINDOWS, WINDOW_DAYS } from "./calendar-constants";
 import { DeliveryCalendar, DeliveryCalendarSkeleton } from "./delivery-calendar";
@@ -34,9 +34,10 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const until = untilDate.toISOString().slice(0, 10);
 
   // Reads only — this page never calls reconcileMakeups/materializeDeliveries.
-  const [subscriptions, rawDeliveries] = await Promise.all([
+  const [subscriptions, rawDeliveries, waitlisted] = await Promise.all([
     myActiveSubscriptions(userId),
     myDeliveries(userId, today, until),
+    myWaitlistedSubscriptions(userId),
   ]);
 
   // myDeliveries doesn't join the order's own address columns (it only returns the delivery's
@@ -61,5 +62,5 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     }),
   );
 
-  return <DeliveryCalendar subscriptions={subscriptions} deliveries={deliveries} extraWindows={extraWindows} />;
+  return <DeliveryCalendar subscriptions={subscriptions} deliveries={deliveries} extraWindows={extraWindows} waitlisted={waitlisted} />;
 }
