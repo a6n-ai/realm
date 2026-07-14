@@ -1,7 +1,7 @@
 import { NotFoundError, weekdayKey } from "@realm/commons";
 import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 
@@ -146,6 +146,37 @@ export async function myDeliveryHistory(userId: bigint, since: string, before: s
     ))
     .orderBy(desc(deliveries.deliveryDate));
   return rows.map((r) => ({ ...r.d, orderPublicId: r.orderPublicId, planName: r.planName, isMakeup: r.d.makeupForDeliveryId !== null }));
+}
+
+export type CustomerActivity = {
+  publicId: string;
+  type: string;
+  note: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  deliveryId: bigint | null;
+  createdAt: number;
+  orderPublicId: string;
+};
+
+// Activity log scoped to the caller's own orders (IDOR via orders.userId).
+export async function myDeliveryActivity(userId: bigint, limit = 50): Promise<CustomerActivity[]> {
+  return db
+    .select({
+      publicId: orderActivities.publicId,
+      type: orderActivities.type,
+      note: orderActivities.note,
+      fromStatus: orderActivities.fromStatus,
+      toStatus: orderActivities.toStatus,
+      deliveryId: orderActivities.deliveryId,
+      createdAt: orderActivities.createdAt,
+      orderPublicId: orders.publicId,
+    })
+    .from(orderActivities)
+    .innerJoin(orders, eq(orderActivities.orderId, orders.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orderActivities.createdAt))
+    .limit(limit);
 }
 
 // Pure read: resolves "what's coming" for one delivery against the released menu_week for its

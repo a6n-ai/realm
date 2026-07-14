@@ -4,6 +4,7 @@ import { PackageIcon } from "lucide-react";
 import { NotFoundError, formatMoney as fmt } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
+import { describeActivity } from "@/lib/services/order-activity-describe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { effectiveAddress, listDeliveries } from "@/lib/services/deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
@@ -21,19 +22,6 @@ import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
 import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
 import type { DeliveryRow } from "./deliveries-panel-columns";
-
-
-function describe(a: { type: string; note: string | null; fromStatus: string | null; toStatus: string | null }) {
-  switch (a.type) {
-    case "created": return "Order created";
-    case "activated": return "Activated";
-    case "paused": return "Paused";
-    case "resumed": return "Resumed";
-    case "cancelled": return "Cancelled";
-    case "status_change": return `Status: ${a.fromStatus} → ${a.toStatus}`;
-    default: return a.note ?? a.type;
-  }
-}
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -144,7 +132,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         ) : (
           <div className="space-y-2">
             {activities.map((a) => (
-              <ListRow key={a.publicId} title={describe(a)} meta={formatEpoch(a.createdAt, { mode: "datetime", timeZone: settings.timezone })} />
+              <ListRow key={a.publicId} title={describeActivity(a)} meta={formatEpoch(a.createdAt, { mode: "datetime", timeZone: settings.timezone })} />
             ))}
           </div>
         )}
