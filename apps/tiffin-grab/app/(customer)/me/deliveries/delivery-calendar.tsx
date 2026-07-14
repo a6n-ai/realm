@@ -12,9 +12,10 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, ResponsiveDialog, SkeletonListRows } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
-import type { CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
+import type { CustomerActivity, CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
+import { DeliveryHistory } from "./delivery-history";
 import {
   clearMyDeliveryAddress,
   pauseMySubscription,
@@ -278,11 +279,17 @@ export function DeliveryCalendar({
   deliveries,
   extraWindows,
   waitlisted = [],
+  history = [],
+  activity = [],
+  today = "",
 }: {
   subscriptions: Subscription[];
   deliveries: DeliveryCardData[];
   extraWindows: number;
   waitlisted?: WaitlistedSubscription[];
+  history?: CustomerDelivery[];
+  activity?: CustomerActivity[];
+  today?: string;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -308,20 +315,23 @@ export function DeliveryCalendar({
 
   if (subscriptions.length === 0) {
     return (
-      <div className="space-y-3 p-4">
-        {waitlisted.length > 0 ? (
-          waitlisted.map((s) => <WaitlistCard key={s.publicId} sub={s} />)
-        ) : (
-          <EmptyState
-            icon={CalendarDaysIcon}
-            message="No active subscriptions yet."
-            action={
-              <Button asChild size="sm">
-                <Link href="/subscribe">Browse plans</Link>
-              </Button>
-            }
-          />
-        )}
+      <div className="space-y-6 p-4">
+        <div className="space-y-3">
+          {waitlisted.length > 0 ? (
+            waitlisted.map((s) => <WaitlistCard key={s.publicId} sub={s} />)
+          ) : (
+            <EmptyState
+              icon={CalendarDaysIcon}
+              message="No active subscriptions yet."
+              action={
+                <Button asChild size="sm">
+                  <Link href="/subscribe">Browse plans</Link>
+                </Button>
+              }
+            />
+          )}
+        </div>
+        <DeliveryHistory history={history} activity={activity} today={today} />
       </div>
     );
   }
@@ -353,6 +363,7 @@ export function DeliveryCalendar({
       >
         Load more ({WINDOW_DAYS} days)
       </Button>
+      <DeliveryHistory history={history} activity={activity} today={today} />
     </div>
   );
 }
