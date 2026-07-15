@@ -11,12 +11,12 @@ import { EarnSpendTiles } from "../earn-spend-tiles";
 afterEach(cleanup);
 describe("WalletHero", () => {
   it("shows coins and money value", () => {
-    render(<WalletHero coins={1240} money={12.4} />);
+    render(<WalletHero coins={1240} money={12.4} currency="USD" />);
     expect(screen.getByText("1240")).toBeInTheDocument();
     expect(screen.getByText(/\$12\.40/)).toBeInTheDocument();
   });
   it("hides money when null", () => {
-    render(<WalletHero coins={1240} money={null} />);
+    render(<WalletHero coins={1240} money={null} currency="INR" />);
     expect(screen.queryByText(/\$/)).toBeNull();
   });
 });

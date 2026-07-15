@@ -29,7 +29,7 @@ async function MyWalletData({ searchParams }: { searchParams: SearchParams }) {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const currency = (await getAppSettings()).currency ?? "CAD";
+  const { currency } = await getAppSettings();
   const { condition, page } = parseFilterState(WALLET_FACETS, await searchParams);
 
   const [balance, { earned, spent }, ledger] = await Promise.all([
@@ -41,7 +41,7 @@ async function MyWalletData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <div className="space-y-4">
-      <WalletHero coins={balance} money={money} />
+      <WalletHero coins={balance} money={money} currency={currency} />
       <EarnSpendTiles earned={earned} spent={spent} />
       <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} />
     </div>

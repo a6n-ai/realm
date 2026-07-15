@@ -3,7 +3,10 @@
 import { Card } from "@/components/ds";
 import { AnimatedNumber, Lottie } from "@/components/motion";
 
-export function WalletHero({ coins, money }: { coins: number; money: number | null }) {
+export function WalletHero({ coins, money, currency }: { coins: number; money: number | null; currency: string }) {
+  // Money is display-only; format with the app's actual currency symbol
+  // (₹ for INR, $ for USD/CAD, …) — never a hardcoded "$".
+  const fmt = new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol" });
   return (
     <Card variant="flat" className="flex items-center gap-3 p-4">
       <Lottie src="/lottie/coin-burst.json" mode="loop" className="size-16" />
@@ -13,7 +16,7 @@ export function WalletHero({ coins, money }: { coins: number; money: number | nu
         </p>
         {money != null && (
           <p className="text-muted-foreground text-sm">
-            <AnimatedNumber value={money} format={(n) => ` ≈ $${n.toFixed(2)}`} />
+            <AnimatedNumber value={money} format={(n) => `≈ ${fmt.format(n)}`} />
           </p>
         )}
       </div>
