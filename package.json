@@ -15,5 +15,10 @@
     "turbo": "^2.9.18",
     "typescript": "^5",
     "vitest": "^4.1.9"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.10": ">=8.5.10"
+    }
   }
 }
