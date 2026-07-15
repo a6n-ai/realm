@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarDaysIcon, MapPinIcon, PauseIcon, PencilIcon, PlayIcon } from "lucide-react";
+import { CalendarDaysIcon, MapPinIcon, PauseIcon, PencilIcon, PlayIcon, UtensilsCrossedIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
@@ -15,6 +15,7 @@ import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import type { CustomerActivity, CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
+import { TransitionLink } from "@/components/motion/transition-link";
 import { DeliveryHistory } from "./delivery-history";
 import {
   clearMyDeliveryAddress,
@@ -344,7 +345,17 @@ export function DeliveryCalendar({
 
   return (
     <div className="space-y-6 p-4">
-      <PageHeader icon={CalendarDaysIcon} title="My deliveries" />
+      <PageHeader
+        icon={CalendarDaysIcon}
+        title="My deliveries"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <TransitionLink href="/me/meals">
+              <UtensilsCrossedIcon data-icon="inline-start" /> Pick your meals
+            </TransitionLink>
+          </Button>
+        }
+      />
       {subscriptions.map((sub) => (
         <SubscriptionSection
           key={sub.publicId}
