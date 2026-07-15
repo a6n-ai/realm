@@ -1,5 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
+import type { Condition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { conditionToSql, columnResolver } from "@realm/database";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, orders, walletLedger } from "@/db/schema";
 
@@ -26,6 +29,30 @@ class WalletService {
       .from(walletLedger)
       .where(eq(walletLedger.userId, userId));
     return row?.bal ?? 0;
+  }
+
+  async ledgerPage(userId: bigint, condition: Condition | undefined, page: PageRequest): Promise<Page<WalletTx>> {
+    const facet = conditionToSql(condition, columnResolver({
+      direction: walletLedger.direction,
+      eventType: walletLedger.eventType,
+      createdAt: walletLedger.createdAt,
+      memo: walletLedger.memo,
+    }));
+    // userId scope is NOT user-controllable — AND it with the facet condition.
+    const where = facet ? and(eq(walletLedger.userId, userId), facet) : eq(walletLedger.userId, userId);
+    const rows = await db
+      .select({
+        publicId: walletLedger.publicId, direction: walletLedger.direction, coins: walletLedger.coins,
+        eventType: walletLedger.eventType, sourceType: walletLedger.sourceType, sourceId: walletLedger.sourceId,
+        memo: walletLedger.memo, createdAt: walletLedger.createdAt, orderPublicId: orders.publicId,
+      })
+      .from(walletLedger)
+      .leftJoin(orders, eq(walletLedger.orderId, orders.id))
+      .where(where)
+      .orderBy(desc(walletLedger.createdAt))
+      .limit(page.size).offset(page.page * page.size);
+    const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(walletLedger).where(where);
+    return { items: rows.map((r) => ({ ...r, orderPublicId: r.orderPublicId ?? null })), page: page.page, size: page.size, total: count };
   }
 
   async award(
