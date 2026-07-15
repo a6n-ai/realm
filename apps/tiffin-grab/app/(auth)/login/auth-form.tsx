@@ -6,6 +6,7 @@ import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
@@ -16,6 +17,8 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
+import { PhoneInput } from "@realm/ui/phone-input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@realm/ui/tabs";
 import { verifyPinAction } from "./actions";
 
 // Single auth screen. Password by default; when a locked session with a PIN
@@ -23,7 +26,7 @@ import { verifyPinAction } from "./actions";
 // to password (and vice-versa). No navigation between the two → no back button.
 type Mode = "password" | "pin";
 
-export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
+export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; defaultCountry: Country }) {
   // A locked session (PIN available) opens straight in PIN mode; the panel still
   // offers "Sign in with password instead" to switch. Otherwise, password.
   const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : "password");
@@ -36,7 +39,7 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
             {mode === "pin" ? (
               <PinPanel onUsePassword={() => setMode("password")} />
             ) : (
-              <PasswordPanel canUsePin={canUsePin} onUsePin={() => setMode("pin")} />
+              <PasswordPanel canUsePin={canUsePin} defaultCountry={defaultCountry} onUsePin={() => setMode("pin")} />
             )}
           </div>
           <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
@@ -56,33 +59,39 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
 }
 
 const passwordSchema = z.object({
-  identifier: z.string().min(1, "Phone, email, or username is required"),
+  identifier: z.string().min(1, "Phone or email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-function PasswordPanel({ canUsePin, onUsePin }: { canUsePin: boolean; onUsePin: () => void }) {
+function PasswordPanel({ canUsePin, defaultCountry, onUsePin }: { canUsePin: boolean; defaultCountry: Country; onUsePin: () => void }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  // Phone/email tab selects the sign-in method; the identifier field is shared.
+  const [method, setMethod] = useState<"phone" | "email">("phone");
   const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { identifier: "", password: "" },
   });
 
+  // Switching tabs clears the identifier so a half-typed phone doesn't leak into
+  // the email field (and vice-versa).
+  const switchMethod = (next: string) => {
+    if (next !== "phone" && next !== "email") return;
+    setMethod(next);
+    form.setValue("identifier", "");
+    form.clearErrors("identifier");
+    setError(null);
+  };
+
   async function onSubmit(values: z.infer<typeof passwordSchema>) {
     setError(null);
     try {
       const { identifier, password } = values;
-      // One field, three sign-in methods: '@' → email, phone-shaped → phone,
-      // otherwise treat it as a username.
-      const isEmail = /@/.test(identifier);
-      const isPhone = /^\+?[\d\s()-]{6,}$/.test(identifier);
-      const result = isEmail
-        ? await signIn.email({ email: identifier, password })
-        : isPhone
-          ? await signIn.phoneNumber({ phoneNumber: identifier, password })
-          : await signIn.username({ username: identifier, password });
+      const result = method === "phone"
+        ? await signIn.phoneNumber({ phoneNumber: identifier, password })
+        : await signIn.email({ email: identifier, password });
       if (result?.error) {
         setError("Invalid credentials");
         return;
@@ -111,19 +120,47 @@ function PasswordPanel({ canUsePin, onUsePin }: { canUsePin: boolean; onUsePin: 
               Unlock with your PIN instead
             </Button>
           )}
-          <FormField
-            control={form.control}
-            name="identifier"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Phone, email, or username</FormLabel>
-                <FormControl>
-                  <Input autoComplete="username" placeholder="you@example.com, +1…, or username" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <Tabs value={method} onValueChange={switchMethod} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="phone">Phone</TabsTrigger>
+              <TabsTrigger value="email">Email</TabsTrigger>
+            </TabsList>
+            <TabsContent value="phone">
+              <FormField
+                control={form.control}
+                name="identifier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone number</FormLabel>
+                    <FormControl>
+                      <PhoneInput
+                        autoComplete="tel"
+                        defaultCountry={defaultCountry}
+                        value={field.value}
+                        onChange={(v) => field.onChange(v ?? "")}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+            <TabsContent value="email">
+              <FormField
+                control={form.control}
+                name="identifier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+          </Tabs>
           <FormField
             control={form.control}
             name="password"
