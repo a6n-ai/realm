@@ -1,0 +1,30 @@
+# Shared public ingress. ONE Caddy fronts every app on the box (auto-TLS via
+# Let's Encrypt). It reaches each app's `web` over the external `edge` network
+# by container name (tiffin-grab-web, puchkaman-web, …). App stacks live in
+# sibling folders (../tiffin-grab, ../puchkaman) and are deployed independently;
+# Caddy has no depends_on across those projects — it proxies whatever is up and
+# retries the rest.
+#
+# Create the network once on the box:  docker network create edge
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env.production # provides $ACME_EMAIL, $TG_DOMAIN to the Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # persists issued certs across restarts
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    external: true
