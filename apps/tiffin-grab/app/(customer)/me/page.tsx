@@ -3,29 +3,10 @@ import { redirect } from "next/navigation";
 import { zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import {
-  myActiveSubscriptions,
-  myDeliveries,
-  myWaitlistedSubscriptions,
-  nextDeliveryByOrder,
-} from "@/lib/services/customer-deliveries.service";
-import { couponsService } from "@/lib/services/coupons.service";
-import { ledgerService } from "@/lib/services/ledger.service";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { toClientCatalog } from "@/lib/catalog/types";
-import { selectablePlans } from "@/components/wizard/plan-filter";
+import { myActiveSubscriptions, myWaitlistedSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { menuService } from "@/lib/services/menu.service";
-import { dishesService } from "@/lib/services/dishes.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
-import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
-import { MealSizesSection, MealSizesSectionSkeleton } from "@/components/customer/home/meal-sizes-section";
-import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
-import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
-import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
-import { AnalyticsTiles, AnalyticsTilesSkeleton } from "@/components/customer/home/analytics-tiles";
-import { monthWindow } from "@/components/customer/home/analytics-month-window";
 import { HOME_SECTIONS } from "./home-sections";
 
 // The consumer-app home: a single scroll of session-scoped sections. Each is its
@@ -50,33 +31,9 @@ export default async function MePage() {
           <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
             <SubscriptionSectionData userId={userId} timezone={timezone} />
           </Suspense>
-        ) : section.key === "menu" ? (
-          <Suspense key={section.key} fallback={<ThisWeekMenuSectionSkeleton />}>
-            <MenuSectionData userId={userId} />
-          </Suspense>
-        ) : section.key === "mealSizes" ? (
-          <Suspense key={section.key} fallback={<MealSizesSectionSkeleton />}>
-            <MealSizesSectionData />
-          </Suspense>
-        ) : section.key === "dishes" ? (
-          <Suspense key={section.key} fallback={<DishesSectionSkeleton />}>
-            <DishesSectionData />
-          </Suspense>
-        ) : section.key === "browse" ? (
-          <Suspense key={section.key} fallback={<BrowsePlansSectionSkeleton />}>
-            <BrowsePlansSectionData />
-          </Suspense>
-        ) : section.key === "coupons" ? (
-          <Suspense key={section.key} fallback={<CouponsSectionSkeleton />}>
-            <CouponsSectionData />
-          </Suspense>
-        ) : section.key === "wallet" ? (
+        ) : (
           <Suspense key={section.key} fallback={<WalletSectionSkeleton />}>
             <WalletSectionData userId={userId} />
-          </Suspense>
-        ) : (
-          <Suspense key={section.key} fallback={<AnalyticsTilesSkeleton />}>
-            <AnalyticsTilesData userId={userId} timezone={timezone} />
           </Suspense>
         ),
       )}
@@ -95,50 +52,6 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
   return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
 }
 
-// Session-scoped: plan type comes from the customer's active subscription (defaults
-// to "tiffin" if none), the published week itself is public catalog data (cached).
-async function MenuSectionData({ userId }: { userId: bigint }) {
-  const subs = await myActiveSubscriptions(userId);
-  const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
-  const week = await menuService.getPublishedWeek(planType);
-  return <ThisWeekMenuSection week={week} />;
-}
-
-// Global catalog + dish-pool reads — public, no userId scoping needed.
-async function MealSizesSectionData() {
-  const [catalog, dishPool] = await Promise.all([
-    toClientCatalog(await loadCatalogSnapshot()),
-    dishesService.listActiveWithImages(),
-  ]);
-  const planNames = Object.fromEntries(catalog.plans.map((p) => [p.key, p.name]));
-  return <MealSizesSection mealSizes={catalog.mealSizes} dishPool={dishPool} planNames={planNames} />;
-}
-
-// Global dish gallery — public, no userId scoping needed.
-async function DishesSectionData() {
-  const dishes = await dishesService.listActiveWithImages();
-  return <DishesSection dishes={dishes} />;
-}
-
-// Global catalog data — safely public, no userId scoping needed (same filter
-// the public /subscribe wizard uses). priceFrom is the min meal-size basePrice
-// per plan, computed server-side (never trust a client amount).
-async function BrowsePlansSectionData() {
-  const catalog = toClientCatalog(await loadCatalogSnapshot());
-  const plans = selectablePlans(catalog).map((p) => {
-    const prices = catalog.mealSizes.filter((m) => m.planKey === p.key && !m.trial).map((m) => m.basePrice);
-    return { ...p, priceFrom: prices.length ? Math.min(...prices) : null };
-  });
-  return <BrowsePlansSection plans={plans} />;
-}
-
-// Catalog-wide coupon list — active, non-rep coupons in window. Not user-owned data,
-// so no userId gate (mirrors browse plans above).
-async function CouponsSectionData() {
-  const coupons = await couponsService.listAvailable();
-  return <CouponsSection coupons={coupons} />;
-}
-
 // Session-scoped wallet read — userId resolved server-side from currentUserId(), never client input.
 async function WalletSectionData({ userId }: { userId: bigint }) {
   const [balance, transactions] = await Promise.all([
@@ -146,22 +59,4 @@ async function WalletSectionData({ userId }: { userId: bigint }) {
     walletService.recentTransactions(userId, 10),
   ]);
   return <WalletSection balance={balance} transactions={transactions} />;
-}
-
-// Session-scoped: the month window is computed from the APP timezone (never the
-// server's UTC clock — spec 6), and every read below is scoped to `userId`.
-async function AnalyticsTilesData({ userId, timezone }: { userId: bigint; timezone: string }) {
-  const { from, until } = monthWindow(Date.now(), timezone);
-  const [deliveriesThisMonth, totalSpend, totalSavings] = await Promise.all([
-    myDeliveries(userId, from, until),
-    ledgerService.totalSpent(userId),
-    ledgerService.totalSavings(userId),
-  ]);
-  return (
-    <AnalyticsTiles
-      deliveriesThisMonth={deliveriesThisMonth.length}
-      totalSpend={totalSpend}
-      totalSavings={totalSavings}
-    />
-  );
 }

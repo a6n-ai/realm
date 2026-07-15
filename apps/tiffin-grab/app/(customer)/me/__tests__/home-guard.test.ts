@@ -72,11 +72,8 @@ describe("/me home shell", () => {
     render(await MePage());
 
     expect(screen.getByRole("heading", { name: /home/i, level: 1 })).toBeInTheDocument();
-    // Resolved-Decision-#2 section order: subscription · browse · coupons · wallet · analytics.
+    // Trimmed mobile home: subscription · wallet only.
     expect(screen.getByRole("heading", { name: /your subscription/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /browse plans/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /available coupons/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^wallet$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /your activity/i })).toBeInTheDocument();
   });
 });
