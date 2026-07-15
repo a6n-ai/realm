@@ -26,4 +26,10 @@ describe("CustomerBottomNav", () => {
     expect(screen.getByRole("link", { name: /Deliveries/i })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: /Home/i })).not.toHaveAttribute("aria-current");
   });
+
+  it("renders a Meals tab to /me/meals", () => {
+    mockPathname = "/me";
+    render(<CustomerBottomNav />);
+    expect(screen.getByRole("link", { name: /Meals/i })).toHaveAttribute("href", "/me/meals");
+  });
 });

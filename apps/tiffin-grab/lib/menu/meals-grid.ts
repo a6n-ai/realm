@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, weekdayKey } from "@realm/commons";
+import type { FileDetail } from "@realm/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { comingWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
@@ -19,7 +20,7 @@ export type GridCell = {
   quantity: number;
   selectedDishId: string | null;
   isDefaulted: boolean;
-  dishes: { id: string; name: string; diet: "veg" | "nonveg" }[];
+  dishes: { id: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null }[];
   locked: boolean;
 };
 
@@ -97,14 +98,14 @@ export async function buildMealsGrid(
     resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
     allDishBigintIds.length > 0
       ? db
-          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, diet: dishes.diet })
+          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, diet: dishes.diet, image: dishes.image })
           .from(dishes)
           .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
   ]);
 
-  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet }]));
+  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet, image: d.image ?? null }]));
 
   // Use each row's stored cutoffAt — never recomputed here. Missed-ness is decided once,
   // at materialization/reconciliation time, not re-derived at read time.
@@ -131,7 +132,7 @@ export async function buildMealsGrid(
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
         .filter(
-          (d): d is { id: string; name: string; diet: "veg" | "nonveg" } =>
+          (d): d is { id: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null } =>
             !!d && allowedDiets.includes(d.diet),
         );
 

@@ -19,6 +19,7 @@ import {
 const NAV = [
   { title: "Home", href: "/me", icon: HomeIcon },
   { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
+  { title: "Meals", href: "/me/meals", icon: UtensilsCrossedIcon },
   { title: "Profile", href: "/me/profile", icon: UserIcon },
 ] as const;
 
