@@ -12,10 +12,13 @@ vi.mock("@/components/motion", () => ({
 }));
 
 vi.mock("@/components/ds", () => ({
-  FacetFilters: ({ spec }: { spec: unknown }) => <div data-testid="facet-filters" data-spec={JSON.stringify(spec)} />,
   ListPagination: ({ page, size, total }: { page: number; size: number; total: number }) => (
     <div data-testid="list-pagination">{`${page}-${size}-${total}`}</div>
   ),
+}));
+
+vi.mock("@/components/filters/reui-facet-filters", () => ({
+  ReuiFacetFilters: ({ spec }: { spec: unknown }) => <div data-testid="facet-filters" data-spec={JSON.stringify(spec)} />,
 }));
 
 vi.mock("@/components/providers/timezone-provider", () => ({ useTimezone: () => "UTC" }));

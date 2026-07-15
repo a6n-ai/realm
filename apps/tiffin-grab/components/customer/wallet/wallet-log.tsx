@@ -1,7 +1,8 @@
 "use client";
 
 import { Skeleton } from "@realm/ui/skeleton";
-import { FacetFilters, ListPagination } from "@/components/ds";
+import { ListPagination } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";
 import { eventLabel } from "@/components/notifications/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -38,7 +39,7 @@ export function WalletLog({
 }) {
   return (
     <div className="space-y-4">
-      <FacetFilters spec={WALLET_FACETS} />
+      <ReuiFacetFilters spec={WALLET_FACETS} />
       {items.length === 0 ? (
         <LottieEmptyState
           animation="coin-burst"
