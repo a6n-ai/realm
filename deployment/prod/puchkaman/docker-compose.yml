@@ -1,0 +1,30 @@
+# Puchkaman prod stack — public marketing site only (no DB, redis, worker or
+# migrations yet). Just the Next.js standalone container, fronted by the shared
+# Caddy in ../proxy which reaches it as `puchkaman-web:3000` over `edge`.
+#
+# Image is built in CI (deployment/prod/Dockerfile, --build-arg APP=puchkaman)
+# and pushed to GHCR; the box only pulls it (deploy.sh).
+x-awslogs: &awslogs
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION:-ca-central-1}
+    awslogs-group: /puchkaman/prod
+    awslogs-create-group: "true"
+
+services:
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/a6n-ai/puchkaman-web}:${IMAGE_TAG:-latest}
+    container_name: puchkaman-web # stable hostname the shared Caddy targets
+    restart: unless-stopped
+    logging: *awslogs
+    # No env_file: the public site needs no runtime secrets today. Add one here
+    # (and uncomment) when admin/DB/auth land.
+    # env_file: .env.production
+    expose:
+      - "3000" # internal only; the shared Caddy is the sole public ingress
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true

@@ -4,7 +4,7 @@
 # Requires: docker, a checked-out repo (for compose + config), and a filled-in
 # .env.production alongside this file.
 set -euo pipefail
-cd "$(dirname "$0")"   # deployment/prod — compose + .env.production live here
+cd "$(dirname "$0")"   # deployment/prod/tiffin-grab — compose + .env.production live here
 
 test -f .env.production || { echo "missing .env.production (copy .env.production.example)"; exit 1; }
 
@@ -16,7 +16,7 @@ set -a; . ./.env.production; set +a
 # CI exports IMAGE_TAG=<commit sha>; manual runs fall back to :latest.
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
 
-git -C ../.. pull --ff-only              # refresh compose/config only — source is in the image
+git -C ../../.. pull --ff-only           # refresh compose/config only — source is in the image
 
 # Private GHCR? Make the box authenticate before pulling. Simplest is to keep the
 # packages PUBLIC (no login needed). To keep them private, put a read:packages

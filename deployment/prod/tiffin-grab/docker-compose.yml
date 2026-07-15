@@ -7,12 +7,14 @@
 #   tiffin-grab-tools = build  target (source + drizzle-kit + tsx) → worker, migrate
 # Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
 #
-# redis + caddy service defs are reused from their per-service subfolders.
+# redis + pgbouncer service defs are reused from their per-service subfolders.
 # Redis stays colocated per-app (isolated cache); RabbitMQ is the only shared
 # box — the worker reaches it via RABBITMQ_URL in .env.production.
+# Caddy is NO LONGER here — it's a standalone shared ingress in ../proxy that
+# fronts every app. `web` joins the external `edge` network so the shared Caddy
+# can reach it as `tiffin-grab-web:3000`.
 include:
   - redis/docker-compose.yml
-  - caddy/docker-compose.yml
   - pgbouncer/docker-compose.yml
 
 # Ships each container's stdout (pino JSON) to CloudWatch via the Docker awslogs
@@ -32,6 +34,7 @@ x-awslogs: &awslogs
 services:
   web:
     image: ${WEB_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-web}:${IMAGE_TAG:-latest}
+    container_name: tiffin-grab-web # stable hostname the shared Caddy targets
     restart: unless-stopped
     logging: *awslogs
     env_file: .env.production
@@ -39,7 +42,10 @@ services:
       # Redis is a compose service, not localhost — override the seam default.
       REDIS_URL: redis://redis:6379
     expose:
-      - "3000" # internal only; Caddy is the sole public ingress
+      - "3000" # internal only; the shared Caddy is the sole public ingress
+    networks:
+      - default # reach redis/pgbouncer in this project
+      - edge # reached by the shared Caddy in ../proxy
     depends_on:
       redis:
         condition: service_healthy
@@ -66,3 +72,9 @@ services:
     command: ["pnpm", "--filter", "tiffin-grab", "exec", "drizzle-kit", "migrate"]
     profiles:
       - tools
+
+# Shared ingress network — created once on the box (`docker network create edge`)
+# and joined by the standalone Caddy in ../proxy and every app's `web`.
+networks:
+  edge:
+    external: true

@@ -1,0 +1,582 @@
+/* ============================================================
+   PUCHKAMAN — Neobrutalist design system
+   Yellow-dominant, balanced: thick ink borders, hard shadows,
+   chunky type, warm cream cards. Mobile-first.
+   Ported verbatim from the Claude Design project (styles.css).
+   ponytail: kept the Google Fonts @import (one line, works); swap
+   to next/font only if font perf measurably matters.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  /* brand */
+  --yellow:      #FFD21A;
+  --yellow-deep: #F4B500;
+  --red:         #FF3B26;
+  --red-deep:    #E22A18;
+  --ink:         #16140D;
+  --cream:       #FFF4DA;
+  --paper:       #FFFBF0;
+  --white:       #FFFFFF;
+  --mint:        #16C79A;  /* sparing cool pop for VEG / NEW */
+  --pink:        #FF8BA7;  /* sparing warm pop for stickers */
+
+  /* semantic — these flip in [data-theme="dark"] */
+  --page-bg:     var(--yellow);   /* body / large yellow sections */
+  --ink-bg:      var(--ink);      /* ink used AS A BACKGROUND (stays dark in dark mode) */
+  --ink-deep:    var(--ink);      /* true-dark TEXT on yellow/cream (stays dark in dark mode) */
+
+  /* structure */
+  --bd: 3px;
+  --border: var(--bd) solid var(--ink);
+  --r: 16px;
+  --r-sm: 10px;
+  --r-lg: 26px;
+  --sh: 7px 7px 0 var(--ink);
+  --sh-sm: 4px 4px 0 var(--ink);
+  --sh-lg: 12px 12px 0 var(--ink);
+  --sh-red: 7px 7px 0 var(--red);
+
+  --maxw: 1240px;
+  --font: 'Archivo', system-ui, sans-serif;
+  --mono: 'Space Mono', ui-monospace, monospace;
+}
+
+/* ============================================================
+   DARK MODE
+   Toggled via <html data-theme="dark">. Strategy:
+   - Brand accents (yellow, red) stay.
+   - --ink flips to a warm light cream so all text/borders/shadows
+     that reference it remain visible on the dark page.
+   - Card/surface vars (--white, --cream, --paper) flip to dark.
+   - --page-bg / --ink-bg / --ink-deep are semantic locks so
+     anything that MUST stay yellow-as-bg / dark-as-bg / dark-text
+     keeps doing so in dark mode (see overrides below the block).
+   ============================================================ */
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* Warm "dark espresso" base — NOT black. The brand reads as a
+     toasted-chocolate room with the yellow & red glowing on top,
+     so it still feels like Puchkaman after dark, not a void. */
+  --yellow:      #FFCE12;   /* a hair richer so it pops on brown */
+  --yellow-deep: #F4B500;
+  --red:         #FF5B43;   /* lifted so it stays vivid on dark */
+  --red-deep:    #E83A24;
+  --ink:         #FCEFCF;   /* warm cream — text/borders/shadows on dark */
+  --cream:       #322615;   /* warm card surface (toffee) */
+  --paper:       #271D10;   /* deep espresso */
+  --white:       #3D2F1B;   /* lifted "white" card surface (caramel-brown) */
+  --mint:        #2BD6AB;
+  --pink:        #FF9DB5;
+
+  --page-bg:     #241A0D;   /* warm espresso page bg (clearly brown, not black) */
+  --ink-bg:      #1A1208;   /* deeper espresso for ink-as-bg sections */
+  --ink-deep:    #16140D;   /* always-true-dark text on yellow/cream */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font);
+  background: var(--page-bg);
+  color: var(--ink);
+  line-height: 1.45;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s ease, color .25s ease;
+}
+
+img { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+::selection { background: var(--ink); color: var(--yellow); }
+
+/* ---------- type ---------- */
+h1, h2, h3, h4 { line-height: 0.95; letter-spacing: -0.02em; font-weight: 900; }
+.display {
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+}
+.mono {
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+}
+.kicker {
+  font-family: var(--mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+}
+
+/* ---------- layout ---------- */
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+section { position: relative; }
+.section-pad { padding: 64px 0; }
+
+/* ============================================================
+   Shadow / border / fill SYSTEM
+   ─────────────────────────────────────────────────────────────
+   Brand palette (5): yellow, red, ink, cream, white.
+   Surfaces are containers; fills are buttons/cards/divs that
+   sit on them. Two hard rules:
+     1. shadow color  ≠  the element's own fill
+     2. shadow color  ≠  the parent surface's background
+   Border follows a related rule (≠ parent surface) so the
+   shape stays defined.
+
+   USAGE
+     • Tag a container with one of:
+         .surface-yellow .surface-red .surface-ink
+         .surface-cream  .surface-white
+       (Body defaults to yellow — only tag if the container's
+        bg differs from its parent's surface.)
+     • Give buttons & cards a fill variant:
+         .btn--yellow .btn--red .btn--ink .btn--cream .btn--white
+         .card--yellow .card--red .card--ink .card--cream .card--white
+       The right shadow + border is chosen automatically by
+       cascade — authors never pick a shadow color by hand.
+   ============================================================ */
+
+/* Border default — ≠ surface so the shape outline is visible.
+   Surfaces (light) all use ink border; ink surface flips to yellow. */
+:root,
+.surface-yellow,
+.surface-red,
+.surface-cream,
+.surface-white { --bd-c: var(--ink); }
+.surface-ink   { --bd-c: var(--yellow); }
+
+/* Fill self-defaults — every fill picks a shadow ≠ its own bg.
+   These are LOW specificity (1 class) so a parent .surface-* can
+   override only the combos that conflict with that surface. */
+.btn--white,  .card--white  { --sh-c: var(--ink); }
+.btn--yellow, .card--yellow { --sh-c: var(--ink); }
+.btn--red,    .card--red    { --sh-c: var(--ink); }
+.btn--ink,    .card--ink    { --sh-c: var(--red); }   /* ink shadow would be invisible on ink fill */
+.btn--cream,  .card--cream  { --sh-c: var(--ink); }
+/* root fallback if no fill class is present (e.g. .card alone) */
+:root { --sh-c: var(--ink); }
+
+/* Surface conflict overrides — kick in only when the fill's default
+   shadow matches the parent surface. Specificity (2 classes) beats
+   the fill self-default (1 class). For each surface, the bare
+   `.btn` / `.card` baseline is declared first (it covers default
+   white fill) and per-color modifier rules override it below. */
+
+/* surface red — only ink fill conflicts */
+.surface-red .btn,       .surface-red .card       { --sh-c: var(--ink); }
+.surface-red .btn--ink,  .surface-red .card--ink  { --sh-c: var(--yellow); }
+
+/* surface ink — default ink shadow always conflicts with ink surface */
+.surface-ink .btn,         .surface-ink .card         { --sh-c: var(--yellow); }
+.surface-ink .btn--yellow, .surface-ink .card--yellow { --sh-c: var(--red); }
+.surface-ink .btn--cream,  .surface-ink .card--cream  { --sh-c: var(--red); }
+.surface-ink .btn--ink,    .surface-ink .card--ink    { --sh-c: var(--yellow); }
+.surface-ink .btn--red,    .surface-ink .card--red    { --sh-c: var(--yellow); }
+.surface-ink .btn--white,  .surface-ink .card--white  { --sh-c: var(--yellow); }
+
+/* Backward-compat aliases for older markup */
+.on-dark { --bd-c: var(--yellow); }
+.on-dark .btn--white,  .on-dark .card--white  { --sh-c: var(--yellow); }
+.on-dark .btn--yellow, .on-dark .card--yellow { --sh-c: var(--red); }
+.on-dark .btn--red,    .on-dark .card--red    { --sh-c: var(--yellow); }
+.on-dark .btn--ink,    .on-dark .card--ink    { --sh-c: var(--yellow); }
+.on-dark .btn--cream,  .on-dark .card--cream  { --sh-c: var(--red); }
+.on-red  .btn--ink,    .on-red  .card--ink    { --sh-c: var(--yellow); }
+
+/* ---------- buttons ---------- */
+.btn {
+  --btn-bg: var(--white);
+  --btn-fg: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-weight: 800; font-size: 1rem;
+  padding: 14px 22px;
+  border: var(--bd) solid var(--bd-c);
+  border-radius: var(--r-sm);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 4px 4px 0 var(--sh-c);
+  transition: transform .08s ease, box-shadow .08s ease, background .12s ease;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--sh-c); }
+.btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--sh-c); }
+.btn--white  { --btn-bg: var(--white);  --btn-fg: var(--ink); }
+.btn--yellow { --btn-bg: var(--yellow); --btn-fg: var(--ink); }
+.btn--red    { --btn-bg: var(--red);    --btn-fg: var(--white); }
+.btn--ink    { --btn-bg: var(--ink);    --btn-fg: var(--yellow); }
+.btn--cream  { --btn-bg: var(--cream);  --btn-fg: var(--ink); }
+.btn--lg     { padding: 18px 28px; font-size: 1.1rem; border-radius: var(--r); }
+.btn--block  { width: 100%; }
+.btn--sm     { padding: 9px 14px; font-size: 0.82rem; box-shadow: 3px 3px 0 var(--sh-c); }
+.btn--sm:hover  { box-shadow: 5px 5px 0 var(--sh-c); }
+.btn--sm:active { box-shadow: 1px 1px 0 var(--sh-c); }
+
+/* ---------- cards ---------- */
+.card {
+  --card-bg: var(--white);
+  background: var(--card-bg);
+  border: var(--bd) solid var(--bd-c);
+  border-radius: var(--r);
+  box-shadow: 7px 7px 0 var(--sh-c);
+}
+.card--white  { --card-bg: var(--white); }
+.card--yellow { --card-bg: var(--yellow); }
+.card--red    { --card-bg: var(--red);   color: #fff; }
+.card--ink    { --card-bg: var(--ink);   color: var(--cream); }
+.card--cream  { --card-bg: var(--cream); }
+.card--lift { transition: transform .12s ease, box-shadow .12s ease; }
+.card--lift:hover { transform: translate(-3px,-3px); box-shadow: 12px 12px 0 var(--sh-c); }
+
+/* When a coloured card should ALSO act as the surface for its
+   inner children, add a `surface-*` class alongside `card--*`:
+     <div class="card card--ink surface-ink">
+   That way the card's OWN shadow (from its parent's surface)
+   stays correct AND children inside get the right inner shadow. */
+
+
+/* ---------- stickers / pills ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-weight: 700; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 6px 11px;
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--white);
+}
+.pill--red   { background: var(--red); color: #fff; }
+.pill--yellow{ background: var(--yellow); }
+.pill--ink   { background: var(--ink); color: var(--yellow); }
+.pill--mint  { background: var(--mint); color: #fff; }
+
+.sticker {
+  position: absolute;
+  font-family: var(--mono); font-weight: 700; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 9px 13px;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--red); color: #fff;
+  box-shadow: var(--sh-sm);
+  z-index: 3;
+  white-space: nowrap;
+}
+
+/* ---------- placeholder imagery ---------- */
+.ph {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  background-color: var(--cream);
+  background-image: repeating-linear-gradient(
+    -45deg, transparent 0 13px, rgba(22,20,13,.07) 13px 26px);
+  border: var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  color: var(--ink);
+  min-height: 120px;
+}
+.ph__label {
+  font-family: var(--mono); font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  background: var(--ink); color: var(--yellow);
+  padding: 5px 10px; border-radius: 6px;
+  text-align: center; max-width: 80%;
+}
+.ph--yellow { background-color: var(--yellow); }
+.ph--red { background-color: #ffd9d2; }
+
+/* ---------- marquee ---------- */
+.marquee {
+  background: var(--ink); color: var(--yellow);
+  border-top: var(--border); border-bottom: var(--border);
+  overflow: hidden; white-space: nowrap;
+  padding: 12px 0;
+}
+.marquee__track {
+  display: inline-flex; gap: 34px; align-items: center;
+  animation: scroll-x 22s linear infinite;
+  font-family: var(--mono); font-weight: 700; font-size: 0.95rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.marquee__track span { display: inline-flex; align-items: center; gap: 34px; }
+@keyframes scroll-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee--yellow { background: var(--yellow); color: var(--ink); }
+
+/* ---------- forms ---------- */
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field label {
+  font-family: var(--mono); font-weight: 700; font-size: 0.74rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.input, .select, .textarea {
+  font-family: var(--font); font-size: 1rem; font-weight: 500;
+  padding: 13px 14px;
+  border: var(--border); border-radius: var(--r-sm);
+  background: var(--white); color: var(--ink);
+  width: 100%;
+  transition: box-shadow .1s ease, transform .1s ease;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; box-shadow: var(--sh-sm); transform: translate(-1px,-1px);
+}
+.textarea { resize: vertical; min-height: 120px; }
+.field--err .input, .field--err .select, .field--err .textarea {
+  border-color: var(--red); box-shadow: 4px 4px 0 var(--red);
+}
+.err-msg {
+  font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--red-deep);
+}
+
+/* ---------- star rating ---------- */
+.stars { display: inline-flex; gap: 2px; color: var(--ink); }
+
+/* ---------- reveal animation ---------- */
+.reveal { opacity: 0; transform: translateY(22px); }
+.reveal.in { opacity: 1; transform: none; transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+
+/* ---------- entrance: chunky pop-in with overshoot ---------- */
+@keyframes pop-in {
+  0%   { opacity: 0; transform: translateY(26px) scale(.94); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.anim { opacity: 1; }
+.anim-ready .anim {
+  opacity: 0;
+  animation: pop-in .6s cubic-bezier(.22,1.25,.4,1) both;
+  animation-delay: var(--d, 0s);
+}
+
+/* hero image: drop in keeping its tilt, then idle-float */
+@keyframes drop-in {
+  0%   { opacity: 0; transform: translateY(38px) rotate(-3deg) scale(.92); }
+  100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+@keyframes bob {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-9px); }
+}
+.anim-ready .hero-art {
+  animation: drop-in .7s cubic-bezier(.22,1.15,.4,1) .15s both,
+             bob 5.5s ease-in-out 1s infinite;
+}
+
+/* floating stickers — keep their tilt while gently bobbing */
+@keyframes float-l {
+  0%,100% { transform: rotate(-3.5deg) translateY(0); }
+  50%     { transform: rotate(-3.5deg) translateY(-7px); }
+}
+@keyframes float-r {
+  0%,100% { transform: rotate(3.5deg) translateY(0); }
+  50%     { transform: rotate(3.5deg) translateY(-7px); }
+}
+.float-l { animation: float-l 4.2s ease-in-out infinite; }
+.float-r { animation: float-r 5s ease-in-out .6s infinite; }
+
+/* nav logo dot — slow breathing pulse */
+@keyframes dot-pulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.28); }
+}
+.logo-dot { animation: dot-pulse 2.6s ease-in-out infinite; }
+
+/* pause scrolling strips on hover for readability */
+.marquee:hover .marquee__track,
+.ribbon:hover .ribbon__track { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.in { opacity: 1 !important; transform: none !important; transition: none; }
+  .marquee__track, .ribbon__track { animation: none; }
+  .anim { opacity: 1 !important; animation: none !important; }
+  .hero-art, .float-l, .float-r, .logo-dot { animation: none !important; }
+}
+
+/* ---------- helpers ---------- */
+.grid { display: grid; gap: 20px; }
+.flex { display: flex; }
+.center { align-items: center; }
+.between { justify-content: space-between; }
+.wrap-gap { gap: 12px; flex-wrap: wrap; }
+.tac { text-align: center; }
+.clamp-2 {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rotate-l { transform: rotate(-3deg); }
+.rotate-r { transform: rotate(3deg); }
+
+/* tape strip accent */
+.tape {
+  display: inline-block;
+  background: var(--yellow);
+  border: 2.5px solid var(--ink);
+  padding: 2px 10px;
+  transform: rotate(-1.5deg);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+/* hero dot texture — separates the hero from the flat yellow nav */
+.hero-bg {
+  background-color: var(--page-bg);
+  background-image: radial-gradient(rgba(22,20,13,.09) 1.7px, transparent 1.8px);
+  background-size: 24px 24px;
+  background-position: -4px -4px;
+}
+[data-theme="dark"] .hero-bg {
+  background-image: radial-gradient(rgba(255,206,18,.13) 1.7px, transparent 1.8px);
+}
+
+/* announcement ribbon */
+.ribbon {
+  background: var(--red);
+  color: #fff;
+  border-bottom: var(--border);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ribbon__track {
+  display: inline-flex; gap: 28px; align-items: center;
+  padding: 9px 0;
+  animation: scroll-x 26s linear infinite;
+}
+.ribbon__track span { display: inline-flex; gap: 28px; align-items: center; }
+
+/* highlighter marker behind a word */
+.marker {
+  display: inline-block;
+  background: var(--red);
+  color: #fff;
+  border: var(--border);
+  border-radius: 10px;
+  padding: 0 0.16em;
+  margin: 0 0.02em;
+  box-shadow: 4px 4px 0 var(--ink);
+  transform: rotate(-1.6deg);
+}
+
+/* ============================================================
+   DARK MODE — component overrides
+   ─────────────────────────────────────────────────────────────
+   In dark mode --ink flips to light cream. Anywhere ink was
+   being used AS A BACKGROUND (sections, cards, buttons, pills,
+   marquee, stickers), force it to a true-dark color so the
+   visual hierarchy (page → dark section → text) survives the
+   theme flip. !important is used to beat the inline styles
+   sprinkled across the JSX.
+   ============================================================ */
+[data-theme="dark"] .surface-ink {
+  background: var(--ink-bg) !important;
+  color: var(--ink) !important;
+}
+[data-theme="dark"] footer.surface-ink {
+  background: var(--ink-bg) !important;
+  color: var(--ink) !important;
+}
+[data-theme="dark"] .card--ink {
+  background: var(--ink-bg);
+  color: var(--ink);
+}
+[data-theme="dark"] .btn--ink {
+  --btn-bg: var(--ink-bg);
+  --btn-fg: var(--yellow);
+}
+[data-theme="dark"] .pill--ink {
+  background: var(--ink-bg);
+  color: var(--yellow);
+}
+[data-theme="dark"] .marquee {
+  background: var(--ink-bg);
+  color: var(--yellow);
+}
+[data-theme="dark"] .marquee--yellow {
+  background: var(--yellow);
+  color: var(--ink-deep);
+}
+
+/* yellow surfaces in dark mode: text/borders that referenced --ink
+   would now be light-cream (invisible on yellow). Force ink-deep. */
+[data-theme="dark"] .btn--yellow { --btn-fg: var(--ink-deep); }
+[data-theme="dark"] .pill--yellow,
+[data-theme="dark"] .card--yellow {
+  color: var(--ink-deep);
+}
+[data-theme="dark"] .tape {
+  background: var(--yellow) !important;
+  color: var(--ink-deep) !important;
+  border-color: var(--ink-deep);
+  box-shadow: 3px 3px 0 var(--ink-deep);
+}
+[data-theme="dark"] ::selection { background: var(--yellow); color: var(--ink-deep); }
+
+/* placeholder imagery: lighter slash pattern + dark label */
+[data-theme="dark"] .ph {
+  background-color: var(--cream);
+  background-image: repeating-linear-gradient(
+    -45deg, transparent 0 13px, rgba(255,206,18,.06) 13px 26px);
+}
+[data-theme="dark"] .ph--yellow { background-color: var(--yellow); }
+[data-theme="dark"] .ph__label { background: var(--yellow); color: var(--ink-deep); }
+
+/* nav / header bar uses --page-bg too, so this is just to fix
+   any leftover yellow-tinted accents on yellow surfaces */
+[data-theme="dark"] .nav-link:hover { background: var(--white) !important; }
+
+/* form inputs in dark mode: dark surface, light text, light border */
+[data-theme="dark"] .input,
+[data-theme="dark"] .select,
+[data-theme="dark"] .textarea {
+  background: var(--white);
+  color: var(--ink);
+}
+
+/* ribbon stays red+white in both modes — no change needed */
+
+/* ---------- Theme toggle button ---------- */
+.theme-toggle {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border: var(--border); border-radius: 10px;
+  background: var(--white);
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .08s ease, box-shadow .08s ease, background .12s ease;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.theme-toggle:hover  { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 var(--ink); }
+.theme-toggle:active { transform: translate(1px,1px);   box-shadow: 1px 1px 0 var(--ink); }
+.theme-toggle svg { width: 20px; height: 20px; display: block; }
+.theme-toggle .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle .icon-sun  { display: none; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+/* ============================================================
+   Responsive + hover — folded in from index.html's inline
+   <style id="responsive"> so the Next port matches the original.
+   ============================================================ */
+@media (min-width: 880px) {
+  .nav-desk { display: flex !important; }
+  .burger { display: none !important; }
+  .hero-grid { grid-template-columns: 1.05fr 0.95fr !important; }
+  .footer-grid { grid-template-columns: 1.6fr 1fr 1.2fr !important; }
+  .contact-grid { grid-template-columns: 1fr 1.1fr !important; }
+}
+@media (max-width: 879px) {
+  .nav-order { display: none !important; }
+}
+.nav-link:hover { background: var(--white) !important; border-color: var(--ink) !important; }
+.foot-link:hover { color: var(--yellow); }

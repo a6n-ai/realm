@@ -76,6 +76,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # puchkaman: public-only marketing site → web image only (no tools/migrate).
+      # Reuses the same Dockerfile via --build-arg APP; shares the warmed buildx cache.
+      - name: Build + push puchkaman-web (runner)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: runner
+          build-args: |
+            APP=puchkaman
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/puchkaman-web:${{ github.sha }}
+            ghcr.io/a6n-ai/puchkaman-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # Push-only by default: CI publishes images to GHCR and stops. To let CI also
   # SSH-deploy, set repo variable ENABLE_SSH_DEPLOY=true and add the EC2 secrets.
   deploy:
@@ -97,4 +114,4 @@ jobs:
             set -euo pipefail
             DEPLOY_PATH="${{ vars.DEPLOY_PATH }}"
             cd "${DEPLOY_PATH:-$HOME/realm}/deployment/prod"
-            ./deploy.sh
+            ./deploy-all.sh
