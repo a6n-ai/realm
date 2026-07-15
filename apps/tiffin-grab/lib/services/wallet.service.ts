@@ -103,6 +103,25 @@ class WalletService {
       .limit(limit);
   }
 
+  async earnSpendTotals(userId: bigint): Promise<{ earned: number; spent: number }> {
+    const coinsIf = (dir: "credit" | "debit") =>
+      sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = ${dir} then ${walletLedger.coins} else 0 end), 0) as int)`;
+    const [agg] = await db.select({ earned: coinsIf("credit"), spent: coinsIf("debit") })
+      .from(walletLedger).where(eq(walletLedger.userId, userId));
+    return { earned: agg.earned, spent: agg.spent };
+  }
+
+  // Display-only money value. activeRate throws when a currency has no coin_rate
+  // row; degrade to null so the wallet renders coins-only instead of 500ing.
+  async moneyValue(coins: number, currency: string): Promise<number | null> {
+    try {
+      const rate = await this.activeRate(currency);
+      return Number((coins * rate).toFixed(2));
+    } catch {
+      return null;
+    }
+  }
+
   async activeRate(currency: string): Promise<number> {
     const [row] = await db
       .select({ v: coinRate.valuePerCoin })
