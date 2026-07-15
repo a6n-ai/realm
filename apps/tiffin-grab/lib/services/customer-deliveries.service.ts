@@ -148,6 +148,32 @@ export async function myDeliveryHistory(userId: bigint, since: string, before: s
   return rows.map((r) => ({ ...r.d, orderPublicId: r.orderPublicId, planName: r.planName, isMakeup: r.d.makeupForDeliveryId !== null }));
 }
 
+export type SubSummary = {
+  publicId: string;
+  planName: string;
+  mealSizeName: string;
+  daysPerWeek: number;
+  status: string;
+  createdAt: number;
+};
+
+// All of a customer's subscriptions across every status, newest first — for the
+// "you already have" summary on /subscribe. Current (active/paused/waitlisted/
+// pending) vs past (cancelled/completed) grouping is done in the component.
+export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
+  return db
+    .select({
+      publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
+      daysPerWeek: deliveryFrequencies.daysPerWeek, status: orders.status, createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt));
+}
+
 export type CustomerActivity = {
   publicId: string;
   type: string;
