@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // for the relative "/lottie/*.json" URL (see components/motion/__tests__/lottie.test.tsx).
 const fakeAnimationData = { v: "5.5.7", fr: 30, layers: [] };
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock("motion/react", () => ({ useReducedMotion: () => true }));
 vi.mock("@/components/motion", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("@/components/motion");

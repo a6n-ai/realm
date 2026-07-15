@@ -3,7 +3,7 @@
 import { CoinsIcon } from "lucide-react";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, SectionCard } from "@/components/ds";
-import { AnimatedNumber, LottieEmptyState } from "@/components/motion";
+import { AnimatedNumber, LottieEmptyState, TransitionLink } from "@/components/motion";
 import { eventLabel } from "@/components/notifications/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -51,11 +51,15 @@ export function WalletSection({ balance, transactions }: { balance: number; tran
         />
       ) : (
         <div className="divide-y">
-          {transactions.map((tx) => (
+          {transactions.slice(0, 3).map((tx) => (
             <WalletTxRow key={tx.publicId} tx={tx} />
           ))}
         </div>
       )}
+
+      <TransitionLink href="/me/wallet" className="text-primary block pt-3 text-sm font-medium">
+        View wallet →
+      </TransitionLink>
     </SectionCard>
   );
 }

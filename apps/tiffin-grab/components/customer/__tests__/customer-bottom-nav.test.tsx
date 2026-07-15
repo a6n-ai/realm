@@ -32,4 +32,10 @@ describe("CustomerBottomNav", () => {
     render(<CustomerBottomNav />);
     expect(screen.getByRole("link", { name: /Meals/i })).toHaveAttribute("href", "/me/meals");
   });
+
+  it("renders a Wallet tab to /me/wallet", () => {
+    mockPathname = "/me";
+    render(<CustomerBottomNav />);
+    expect(screen.getByRole("link", { name: /Wallet/i })).toHaveAttribute("href", "/me/wallet");
+  });
 });

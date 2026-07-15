@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDaysIcon, HomeIcon, LogOutIcon, UserIcon, UtensilsCrossedIcon } from "lucide-react";
+import { CalendarDaysIcon, HomeIcon, LogOutIcon, UserIcon, UtensilsCrossedIcon, WalletIcon } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ const NAV = [
   { title: "Home", href: "/me", icon: HomeIcon },
   { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
   { title: "Meals", href: "/me/meals", icon: UtensilsCrossedIcon },
+  { title: "Wallet", href: "/me/wallet", icon: WalletIcon },
   { title: "Profile", href: "/me/profile", icon: UserIcon },
 ] as const;
 

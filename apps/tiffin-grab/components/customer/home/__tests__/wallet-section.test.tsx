@@ -2,6 +2,11 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";
 import { WalletSection } from "../wallet-section";
