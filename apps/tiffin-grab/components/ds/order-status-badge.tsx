@@ -1,11 +1,11 @@
 import { cn } from "@realm/ui/cn";
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
-  pending: "Pending", active: "Active", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled",
+  pending: "Pending", active: "Active", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled", completed: "Completed",
 };
 type Variant = "neutral" | "ok" | "warn" | "bad";
 const STATUS_VARIANT: Record<string, Variant> = {
-  pending: "neutral", active: "ok", waitlisted: "warn", paused: "warn", cancelled: "bad",
+  pending: "neutral", active: "ok", waitlisted: "warn", paused: "warn", cancelled: "bad", completed: "neutral",
 };
 const VARIANT_CLASS: Record<Variant, string> = {
   neutral: "bg-muted text-muted-foreground border",
