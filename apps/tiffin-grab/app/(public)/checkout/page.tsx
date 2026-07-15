@@ -1,6 +1,10 @@
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { Checkout } from "@/components/checkout/checkout";
 
+// Reads runtime app-settings from the DB — must not be statically prerendered
+// at build time (no DB in the build container).
+export const dynamic = "force-dynamic";
+
 export default async function CheckoutPage() {
   const { defaultCountry } = await getAppSettings();
   return (
