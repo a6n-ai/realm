@@ -174,10 +174,13 @@ different value.
 
 ## File storage: S3 bucket (`tiffin-grab-files-<acct>-us-east-1-an`)
 
-Provisioned 2026-07-16. This repo has no CDK/CloudFormation — prod infra is shell
-scripts plus this file — so the bucket was created by CLI and recorded here rather than
-bootstrapping an IaC toolchain for one bucket and one IAM statement. These commands are
-the source of truth; re-run them to rebuild it.
+Provisioned 2026-07-16. Prod infra here is shell scripts plus this file, with one
+CloudFormation template for DNS (`deployment/dns/route53-domain.yaml`). The bucket was
+created by CLI and recorded here instead: it is one bucket and one IAM statement, and
+CloudFormation **cannot create `SecureString` SSM parameters** — an unsupported type —
+so the parameters below stay CLI regardless. Templating only the bucket would split this
+one unit of work across two mechanisms. These commands are the source of truth; re-run
+them to rebuild it. Revisit if CFN becomes the direction for prod infra beyond DNS.
 
 The name is **not** a global-namespace name. The bucket lives in the account regional
 namespace (`--bucket-namespace account-regional`), which is why it carries the
