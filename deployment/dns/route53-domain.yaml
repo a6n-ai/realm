@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Public Route 53 hosted zone for a Realm client domain, with apex + www A
+  records pointing at the shared EC2 Elastic IP. Reusable per domain via
+  parameters. Registrar (Namecheap) must delegate to this zone's name servers.
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: Apex domain, no trailing dot (e.g. puchkaman.ca).
+    AllowedPattern: "^[a-z0-9.-]+\\.[a-z]{2,}$"
+  TargetIp:
+    Type: String
+    Description: IPv4 the apex and www resolve to (the box Elastic IP).
+    AllowedPattern: "^\\d{1,3}(\\.\\d{1,3}){3}$"
+  RecordTtl:
+    Type: Number
+    Default: 300
+    Description: TTL (seconds) for the A records.
+
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    # Retain: deleting the stack must not silently drop the delegated zone
+    # (its NS set would change on re-create, breaking the registrar delegation).
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Ref DomainName
+
+  ApexRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Ref DomainName
+      Type: A
+      TTL: !Ref RecordTtl
+      ResourceRecords:
+        - !Ref TargetIp
+
+  WwwRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub "www.${DomainName}"
+      Type: A
+      TTL: !Ref RecordTtl
+      ResourceRecords:
+        - !Ref TargetIp
+
+Outputs:
+  HostedZoneId:
+    Description: Route 53 hosted zone id.
+    Value: !Ref HostedZone
+  NameServers:
+    Description: Set these as Custom DNS nameservers at the registrar (Namecheap).
+    Value: !Join [", ", !GetAtt HostedZone.NameServers]
