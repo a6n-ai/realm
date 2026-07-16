@@ -15,8 +15,8 @@ import { db } from "@/db/client";
 //   FILES_S3_REGION             default "auto"
 //   FILES_S3_ENDPOINT           set for R2/MinIO/Backblaze; omit for AWS S3
 //   FILES_S3_FORCE_PATH_STYLE   "true" for MinIO / most non-AWS endpoints
-//   FILES_S3_ACCESS_KEY_ID      required when S3 is enabled
-//   FILES_S3_SECRET_ACCESS_KEY  required when S3 is enabled
+//   FILES_S3_ACCESS_KEY_ID      omit on AWS to use the EC2 instance role
+//   FILES_S3_SECRET_ACCESS_KEY  omit on AWS to use the EC2 instance role
 //   FILES_LOCAL_DIR             local-disk base dir (default ".files-storage")
 //   FILES_PUBLIC_BASE_URL       public base for static file URLs
 function required(name: string): string {
@@ -25,18 +25,31 @@ function required(name: string): string {
   return v;
 }
 
-function makeStorage(): StorageProvider {
+// Static keys only when both are set (MinIO/R2 dev). Left undefined, the SDK's
+// default chain finds the EC2 instance role — prod keeps no long-lived keys.
+function s3Credentials(): { accessKeyId: string; secretAccessKey: string } | undefined {
+  const accessKeyId = process.env.FILES_S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.FILES_S3_SECRET_ACCESS_KEY;
+  if (!accessKeyId || !secretAccessKey) return undefined;
+  return { accessKeyId, secretAccessKey };
+}
+
+export function makeStorage(): StorageProvider {
   if (process.env.FILES_S3_BUCKET) {
     return new S3StorageProvider({
       bucket: required("FILES_S3_BUCKET"),
+      // "auto" is an R2-ism; real S3 signs per-region and 400s on "auto".
       region: process.env.FILES_S3_REGION ?? "auto",
       endpoint: process.env.FILES_S3_ENDPOINT,
       forcePathStyle: process.env.FILES_S3_FORCE_PATH_STYLE === "true",
-      credentials: {
-        accessKeyId: required("FILES_S3_ACCESS_KEY_ID"),
-        secretAccessKey: required("FILES_S3_SECRET_ACCESS_KEY"),
-      },
+      credentials: s3Credentials(),
     });
+  }
+  // The container has no volume for FILES_LOCAL_DIR, so on-disk files die with it
+  // on the next deploy while their file_system rows survive — silent 404s, not an
+  // error. Fail loudly instead: in prod, S3 is the only correct backend.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("FILES_S3_BUCKET is not set — refusing to store files on ephemeral container disk");
   }
   return new LocalStorageProvider(process.env.FILES_LOCAL_DIR ?? ".files-storage");
 }
