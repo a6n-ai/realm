@@ -16,7 +16,7 @@ export interface SesSendClient {
 }
 
 export interface SesProviderConfig extends EmailProviderConfig {
-  /** AWS region, e.g. "ca-central-1". Ignored when a client is injected. */
+  /** AWS region, e.g. "us-east-1". Ignored when a client is injected. */
   region?: string;
   /**
    * SES configuration set — routes bounce/complaint/delivery events to the
