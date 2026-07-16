@@ -60,6 +60,10 @@ services:
     logging: *awslogs
     env_file: .env.production
     command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-consumer.ts"]
+    # Disabled until a rabbitmq broker exists — RABBITMQ_URL is unset/placeholder,
+    # so the consumer crash-loops. Behind a profile so `up` never starts it; run
+    # `docker compose --profile worker up -d worker` once a broker is wired.
+    profiles: ["worker"]
 
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.
