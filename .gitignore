@@ -59,8 +59,7 @@ graphify-out/
 .idea/
 .mcp.json
 skills-lock.json
-docs/*
-!docs/realm/
+docs/
 .vcscore
 
 # openspec scratch + local screenshots (not part of the repo)

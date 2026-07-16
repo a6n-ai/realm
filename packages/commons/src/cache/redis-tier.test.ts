@@ -39,6 +39,13 @@ describe("RedisTier", () => {
     expect(await tier.get<{ a: number }>("k")).toEqual({ value: { a: 1 } });
   });
 
+  it("round-trips bigint values (JSON has none) symmetrically", async () => {
+    const { client } = fakeRedis();
+    const tier = new RedisTier(client, "cat");
+    await tier.set("k", { id: 42n, nested: [{ planId: -7n }], name: "x" });
+    expect(await tier.get("k")).toEqual({ value: { id: 42n, nested: [{ planId: -7n }], name: "x" } });
+  });
+
   it("negative-caches null/undefined as a HIT (distinguishable from a miss)", async () => {
     const { client } = fakeRedis();
     const tier = new RedisTier(client, "cat");

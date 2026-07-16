@@ -79,6 +79,10 @@ image, and `up -d`s; tiffin-grab also runs `migrate`. Pin/rollback with a SHA:
 
    Note `--recursive` grants **everything** under the path — an explicit Deny on a child
    parameter does not hold against a recursive read of its parent. Scope the path.
+
+   The role also carries a second inline policy, `s3-files-access`, for the files bucket
+   (see "File storage: S3 bucket" below). Keep them as **separate** inline policies:
+   `put-role-policy` replaces by name, so a shared name would silently drop the other.
 2. **Elastic IP** associated (permanent public IP; dynamic IP breaks DNS on stop/start).
 3. **RDS** Postgres, same VPC, `Public access = No`, initial DB `tiffin`, DB SG allows
    **5432 from the EC2 SG**.
@@ -142,8 +146,19 @@ Essentials (see `.env.production.example` for the full list):
 /tiffin-grab/prod/CRON_SECRET          openssl rand -hex 32
 /tiffin-grab/prod/AWS_REGION           us-east-1
 /tiffin-grab/prod/NOTIFY_FROM_NAME     Tiffin Grab         # spaces fine, no quoting needed
-# S3 optional; blank = local-disk file fallback
+/tiffin-grab/prod/FILES_S3_BUCKET      tiffin-grab-files-<acct>-us-east-1-an
+/tiffin-grab/prod/FILES_S3_REGION      us-east-1
 ```
+
+**S3 is REQUIRED, not optional.** Without `FILES_S3_BUCKET` the app throws at boot
+rather than fall back to the container's local disk — no volume is mounted there, so
+the fallback silently ate every upload on each deploy. A boot crash naming the missing
+parameter is the guard working. Leave `FILES_S3_ACCESS_KEY_ID` / `FILES_S3_SECRET_ACCESS_KEY`
+**unset**: unset credentials is exactly what makes the SDK use the instance role (as SES
+already does). Setting only one of the pair is treated as unset.
+
+`FILES_S3_REGION` must be a real region — the code default is `"auto"`, an R2-ism that
+real S3 rejects when signing.
 
 TLS/domain vars still live in **`proxy/.env.production`** (a real hand-edited file, not
 in SSM): `ACME_EMAIL=you@tiffingrab.ca` and `TG_DOMAIN=app.tiffingrab.ca` (puchkaman.ca
@@ -156,6 +171,74 @@ are safe. The one value it *cannot* represent is a **single quote**: the generat
 is parsed both by shell (`.`) and by compose's `env_file:`, and no quoting form is
 literal to both. A parameter containing one makes `deploy.sh` fail loudly; pick a
 different value.
+
+## File storage: S3 bucket (`tiffin-grab-files-<acct>-us-east-1-an`)
+
+Provisioned 2026-07-16. Prod infra here is shell scripts plus this file, with one
+CloudFormation template for DNS (`deployment/dns/route53-domain.yaml`). The bucket was
+created by CLI and recorded here instead: it is one bucket and one IAM statement, and
+CloudFormation **cannot create `SecureString` SSM parameters** — an unsupported type —
+so the parameters below stay CLI regardless. Templating only the bucket would split this
+one unit of work across two mechanisms. These commands are the source of truth; re-run
+them to rebuild it. Revisit if CFN becomes the direction for prod infra beyond DNS.
+
+The name is **not** a global-namespace name. The bucket lives in the account regional
+namespace (`--bucket-namespace account-regional`), which is why it carries the
+`<account-id>-<region>-an` suffix: only this account can create names in it, so there is
+nothing to squat and nothing to enumerate. Only `create-bucket` needs the namespace flag
+— every read/write/presign addresses it as an ordinary bucket name, and the app takes the
+name from SSM, so it is config, not code.
+
+**One private bucket, not two.** Block Public Access stays fully on. Public vs private is
+the `resource_type` column (`static` | `secured`), not a bucket ACL: `urlFor()` presigns
+`secured` rows and serves `static` rows off `FILES_PUBLIC_BASE_URL`. A public bucket is
+the top S3 leak vector and buys nothing a cache header does not.
+
+```bash
+B=tiffin-grab-files-<acct>-us-east-1-an
+
+aws s3api create-bucket --bucket "$B" --bucket-namespace account-regional --region us-east-1
+aws s3api put-bucket-versioning --bucket "$B" --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket "$B" --server-side-encryption-configuration \
+  '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true,"BlockedEncryptionTypes":{"EncryptionType":["SSE-C"]}}]}'
+aws s3api put-bucket-policy --bucket "$B" --policy \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"DenyInsecureTransport\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",\"Resource\":[\"arn:aws:s3:::$B/*\",\"arn:aws:s3:::$B\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}}]}"
+```
+
+Do **not** add `put-public-access-block` or ownership-control calls: S3 now enables BPA
+and sets `BucketOwnerEnforced` by default on new buckets. Verified, not assumed —
+all four BPA flags read back `true`. Re-setting them is a chance to get them wrong.
+
+Instance-role grant (`s3-files-access` inline policy on `realm-tiffin-grab-prod-role`).
+**Both ARNs are required**: `s3:ListBucket` targets the bucket itself, the object actions
+target `/*`. Omitting the bare ARN is the classic `AccessDenied` on `list()`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::tiffin-grab-files-<acct>-us-east-1-an/*" },
+    { "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::tiffin-grab-files-<acct>-us-east-1-an" }
+  ]
+}
+```
+
+Access logging is deliberately **not** configured: SAL-to-CloudWatch needs a
+customer-managed KMS key plus ingest charges, and CloudTrail data events bill per
+request — not worth it for dish photos on a `t3.small`. Revisit on an incident.
+
+Audit the bucket any time with:
+
+```bash
+aws s3api get-public-access-block --bucket "$B"      # expect all four true
+aws s3api get-bucket-encryption --bucket "$B"        # expect AES256 + BucketKey + SSE-C blocked
+aws s3api get-bucket-versioning --bucket "$B"        # expect Enabled
+aws s3api get-bucket-policy --bucket "$B"            # expect DenyInsecureTransport
+```
 
 ## First deploy: migrate + single admin
 

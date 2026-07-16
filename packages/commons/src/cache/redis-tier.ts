@@ -3,6 +3,24 @@ import type { CacheEntry, CacheTier } from "./types";
 
 const logger = createLogger("cache:redis-tier");
 
+// JSON has no bigint, but cached values (e.g. the catalog snapshot's `bigint`
+// row ids) do — a plain JSON.stringify throws and the L2 write is silently lost.
+// Tag bigints on write and revive them on read so L2 round-trips exactly what L1
+// holds. ponytail: a real object literally shaped `{ $bigint: "<digits>" }` would
+// be mis-revived; distinctive tag + digit check makes that collision negligible.
+const BIGINT_TAG = "$bigint";
+function bigintReplacer(_key: string, value: unknown): unknown {
+  return typeof value === "bigint" ? { [BIGINT_TAG]: value.toString() } : value;
+}
+function bigintReviver(_key: string, value: unknown): unknown {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const keys = Object.keys(value);
+    const tag = (value as Record<string, unknown>)[BIGINT_TAG];
+    if (keys.length === 1 && typeof tag === "string" && /^-?\d+$/.test(tag)) return BigInt(tag);
+  }
+  return value;
+}
+
 /**
  * Minimal shape of the Redis client this tier needs. Structural on purpose —
  * commons is the acyclic floor and must not import `ioredis`; the app injects
@@ -34,7 +52,7 @@ export class RedisTier implements CacheTier {
   async get<T>(key: string): Promise<CacheEntry<T> | undefined> {
     try {
       const raw = await this.client.get(key);
-      return raw == null ? undefined : (JSON.parse(raw) as CacheEntry<T>);
+      return raw == null ? undefined : (JSON.parse(raw, bigintReviver) as CacheEntry<T>);
     } catch (err) {
       logger.warn({ err, key }, "RedisTier.get failed, treating as miss");
       return undefined;
@@ -43,7 +61,7 @@ export class RedisTier implements CacheTier {
 
   async set<T>(key: string, value: T, ttlMs?: number): Promise<void> {
     try {
-      const payload = JSON.stringify({ value });
+      const payload = JSON.stringify({ value }, bigintReplacer);
       if (ttlMs && ttlMs > 0) await this.client.set(key, payload, "PX", ttlMs);
       else await this.client.set(key, payload);
     } catch (err) {

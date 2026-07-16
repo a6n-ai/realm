@@ -4,21 +4,15 @@
 #
 # Image is built in CI (deployment/prod/Dockerfile, --build-arg APP=puchkaman)
 # and pushed to GHCR; the box only pulls it (deploy.sh).
-x-awslogs: &awslogs
-  driver: awslogs
-  options:
-    # Everything is us-east-1. This stack has no env_file, so AWS_REGION is never
-    # set for it — the default is what actually applies, not a fallback.
-    awslogs-region: ${AWS_REGION:-us-east-1}
-    awslogs-group: /puchkaman/prod
-    awslogs-create-group: "true"
-
+#
+# ponytail: no logging driver — Docker default (json-file). awslogs needs an
+# env_file (AWS_REGION) + an IAM grant for /puchkaman/prod the tiffin role lacks;
+# a public static site doesn't need CloudWatch. Add logs when a backend lands.
 services:
   web:
     image: ${WEB_IMAGE:-ghcr.io/a6n-ai/puchkaman-web}:${IMAGE_TAG:-latest}
     container_name: puchkaman-web # stable hostname the shared Caddy targets
     restart: unless-stopped
-    logging: *awslogs
     # No env_file: the public site needs no runtime secrets today. Add one here
     # (and uncomment) when admin/DB/auth land.
     # env_file: .env.production

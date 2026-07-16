@@ -53,4 +53,8 @@ git -C ../../.. pull --ff-only           # refresh compose/config only — sourc
 docker compose pull                      # pull web + tools images at IMAGE_TAG
 docker compose --profile tools run --rm migrate   # drizzle-kit migrate against RDS (direct)
 docker compose up -d
-docker image prune -f
+# -a, not just dangling: CI deploys with IMAGE_TAG=<commit sha>, so every deploy
+# pulls a NEW tag (~1.9GB across web+tools+puchkaman) and the old SHA-tagged images
+# stay tagged — invisible to a bare `prune -f`. They also have zero cache value: the
+# next deploy's tag is a different SHA. Rollback still works, GHCR keeps every tag.
+docker image prune -af
