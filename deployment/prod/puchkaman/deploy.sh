@@ -13,4 +13,6 @@ git -C ../../.. pull --ff-only           # refresh compose/config only — sourc
 # Private GHCR? Log in first (see tiffin-grab/deploy.sh). Public packages need none.
 docker compose pull
 docker compose up -d
-docker image prune -f
+# -a, not just dangling — see tiffin-grab/deploy.sh: SHA-tagged images from prior
+# deploys stay tagged, so `prune -f` never reaps them.
+docker image prune -af
