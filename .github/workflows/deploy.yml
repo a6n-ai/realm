@@ -112,6 +112,8 @@ jobs:
           envs: IMAGE_TAG # forward IMAGE_TAG into the remote shell → deploy.sh
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${{ vars.DEPLOY_PATH }}"
-            cd "${DEPLOY_PATH:-$HOME/realm}/deployment/prod"
+            REPO="${{ vars.DEPLOY_PATH }}"
+            REPO="${REPO:-$HOME/realm}"
+            git -C "$REPO" pull --ff-only   # else new deploy-all.sh / compose changes never reach the box
+            cd "$REPO/deployment/prod"
             ./deploy-all.sh
