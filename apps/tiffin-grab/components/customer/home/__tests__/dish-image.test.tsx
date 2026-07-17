@@ -7,10 +7,21 @@ import { DishImage } from "../dish-image";
 afterEach(cleanup);
 
 describe("DishImage", () => {
-  it("renders an img with the photo url + alt when image present", () => {
+  it("routes the photo through the next/image optimizer, preserving the file url", () => {
     render(<DishImage image={{ url: "/api/files/paneer.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 } as never} name="Paneer" />);
     const img = screen.getByRole("img", { name: "Paneer" });
-    expect(img).toHaveAttribute("src", "/api/files/paneer.jpg");
+    // next/image rewrites src to /_next/image?url=<encoded>&w=..&q=.. — assert the
+    // optimizer is used AND that it wraps the real file url, not just that src changed.
+    const src = img.getAttribute("src") ?? "";
+    expect(src).toContain("/_next/image");
+    expect(decodeURIComponent(src)).toContain("/api/files/paneer.jpg");
+  });
+
+  it("requests a srcset sized to the tile, not the viewport", () => {
+    render(<DishImage image={{ url: "/api/files/paneer.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 } as never} name="Paneer" sizes="56px" />);
+    // Without an explicit sizes, fill assumes 100vw and pulls the largest candidate into
+    // a 56px box — the bandwidth win is the whole point of using next/image here.
+    expect(screen.getByRole("img", { name: "Paneer" })).toHaveAttribute("sizes", "56px");
   });
 
   it("renders a gradient fallback (no img) when image is null", () => {
