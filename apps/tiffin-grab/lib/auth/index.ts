@@ -9,6 +9,7 @@ import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
+import { sendPasswordResetEmail, sendVerificationEmail } from "./emails";
 import { recordAudit } from "@/lib/services/session-service";
 
 const log = createLogger("auth");
@@ -34,13 +35,12 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      // debug: dev-only delivery stand-in — keeps the reset URL out of prod (CloudWatch) logs
-      log.debug(`password reset for ${user.email ?? user.id}: ${url}`);
+      await sendPasswordResetEmail(user, url);
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      log.debug(`verify email for ${user.email ?? user.id}: ${url}`);
+      await sendVerificationEmail(user, url);
     },
   },
   user: {
