@@ -580,3 +580,238 @@ section { position: relative; }
 }
 .nav-link:hover { background: var(--white) !important; border-color: var(--ink) !important; }
 .foot-link:hover { color: var(--yellow); }
+
+/* ============================================================
+   ADMIN — same brand system, admin-only structural pieces.
+   No new colors: status semantics map onto existing brand hues so
+   the admin never introduces a palette the storefront doesn't have.
+   ============================================================ */
+:root {
+  --success: var(--mint);
+  --warning: var(--yellow-deep);
+  --danger: var(--red);
+}
+
+/* Keyboard focus — visible ring using the brand ink color, not a
+   browser-default blue outline (matches .input:focus's own look). */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2.5px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+[data-theme="dark"] :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--yellow);
+}
+
+/* ---------- admin shell ---------- */
+.admin-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--paper);
+}
+.admin-sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  background: var(--ink-bg);
+  color: var(--cream);
+  border-right: var(--bd) solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  transition: width .16s ease;
+}
+.admin-sidebar--collapsed { width: 76px; }
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--white);
+  border-bottom: var(--border);
+}
+.admin-content {
+  flex: 1;
+  padding: 28px clamp(16px, 3vw, 36px) 60px;
+}
+
+/* sidebar nav rows */
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 2px 10px;
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--cream);
+  opacity: 0.82;
+  border: 2px solid transparent;
+  transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+.admin-nav-link:hover { background: rgba(255,244,218,.08); opacity: 1; }
+.admin-nav-link.is-active {
+  background: var(--yellow);
+  color: var(--ink-deep);
+  border-color: var(--ink);
+  opacity: 1;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.35);
+}
+
+/* mobile sidebar drawer */
+.admin-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(22,20,13,.55);
+  z-index: 39;
+}
+.admin-sidebar-close { display: none; }
+@media (max-width: 860px) {
+  .admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    transform: translateX(-100%);
+  }
+  .admin-sidebar.is-open { transform: translateX(0); }
+  .admin-sidebar-close { display: inline-grid; }
+}
+
+/* ---------- status / category pills (admin) ---------- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+}
+.status-pill--success { background: var(--success); color: var(--ink-deep); }
+.status-pill--danger  { background: var(--danger); color: #fff; }
+.status-pill--dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ---------- data table (card-rows) ---------- */
+.admin-table { width: 100%; border-collapse: separate; border-spacing: 0 12px; }
+.admin-table thead th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  opacity: 0.6;
+  padding: 0 14px 6px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.admin-table thead th:hover { opacity: 0.95; }
+.admin-table tbody tr {
+  background: var(--white);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.admin-table tbody tr td {
+  border-top: var(--bd) solid var(--ink);
+  border-bottom: var(--bd) solid var(--ink);
+  padding: 10px 14px;
+  vertical-align: middle;
+}
+.admin-table tbody tr td:first-child { border-left: var(--bd) solid var(--ink); border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.admin-table tbody tr td:last-child { border-right: var(--bd) solid var(--ink); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.admin-table tbody tr:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 var(--ink); }
+.admin-row-checked { background: var(--cream) !important; }
+
+/* icon button (compact, ghost) */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-sm);
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .08s ease, box-shadow .08s ease, background .12s ease;
+}
+.icon-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+.icon-btn:active { transform: translate(1px,1px); box-shadow: 0 0 0 var(--ink); }
+.icon-btn--danger:hover { background: var(--red); color: #fff; }
+
+/* ---------- skeleton loading ---------- */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.skeleton {
+  border-radius: var(--r-sm);
+  background: var(--cream);
+  background-image: linear-gradient(90deg, transparent, rgba(22,20,13,.08), transparent);
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+[data-theme="dark"] .skeleton {
+  background-image: linear-gradient(90deg, transparent, rgba(255,206,18,.08), transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* dropdown menu (Radix, admin) */
+[data-radix-popper-content-wrapper] .card [role="menuitem"]:hover,
+[data-radix-popper-content-wrapper] .card a:hover {
+  background: var(--cream);
+}
+.card[data-state="open"] { animation: menu-in .12s ease both; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+@media (min-width: 640px) {
+  .admin-topbar-email { display: inline-block !important; }
+}
+
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+.admin-spin { animation: admin-spin .8s linear infinite; }
+
+/* ---------- switch (Radix, admin) ---------- */
+.admin-switch {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--white);
+  border: 2px solid var(--ink);
+  position: relative;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background .12s ease;
+}
+.admin-switch[data-state="checked"] { background: var(--success); }
+.admin-switch-thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  transform: translateX(3px);
+  transition: transform .14s ease;
+}
+.admin-switch[data-state="checked"] .admin-switch-thumb { transform: translateX(21px); }
+
+/* ---------- empty state ---------- */
+.empty-state {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 64px 24px;
+  gap: 8px;
+}

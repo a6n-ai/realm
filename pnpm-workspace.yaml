@@ -5,3 +5,8 @@ packages:
 
 patchedDependencies:
   "@react-email/editor@1.5.10": "patches/@react-email__editor@1.5.10.patch"
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
