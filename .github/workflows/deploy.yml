@@ -29,6 +29,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Which apps changed? Inline git-diff (no external action → no Node-version
+  # deprecation churn). Shared inputs (packages/**, Dockerfile, lockfile,
+  # workspace) rebuild both apps.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -36,23 +39,28 @@ jobs:
       puchkaman: ${{ steps.filter.outputs.puchkaman }}
     steps:
       - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          # Shared inputs (packages, Dockerfile, lockfile, workspace) rebuild both.
-          filters: |
-            tiffin:
-              - 'apps/tiffin-grab/**'
-              - 'packages/**'
-              - 'deployment/prod/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-            puchkaman:
-              - 'apps/puchkaman/**'
-              - 'packages/**'
-              - 'deployment/prod/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
+          fetch-depth: 0 # need the previous commit to diff against
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Manual run or a first push (no prior commit) → build both.
+          if [ "$EVENT" = "workflow_dispatch" ] || [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "tiffin=true"    >> "$GITHUB_OUTPUT"
+            echo "puchkaman=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$SHA")"
+          SHARED='^(packages/|deployment/prod/|pnpm-lock\.yaml|pnpm-workspace\.yaml)'
+          tiffin=false; puchkaman=false
+          if echo "$CHANGED" | grep -qE "^apps/tiffin-grab/|$SHARED"; then tiffin=true; fi
+          if echo "$CHANGED" | grep -qE "^apps/puchkaman/|$SHARED";  then puchkaman=true; fi
+          echo "tiffin=$tiffin"       >> "$GITHUB_OUTPUT"
+          echo "puchkaman=$puchkaman" >> "$GITHUB_OUTPUT"
 
   build-tiffin-grab:
     needs: changes
