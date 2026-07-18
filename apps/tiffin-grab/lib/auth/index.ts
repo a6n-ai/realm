@@ -105,6 +105,22 @@ export const auth = betterAuth({
   // Doc ref: https://www.better-auth.com/docs/concepts/database#database-hooks
   databaseHooks: {
     session: {
+      // Login gate: only `active` accounts may get a session. Fires after the
+      // credential/OTP check passes, so a deactivated/suspended/deleted user is
+      // authenticated but denied a session. Existing sessions are additionally
+      // re-checked in the Node getSession path (see requireAccountUser).
+      create: {
+        before: async (sess) => {
+          const [u] = await db
+            .select({ status: users.status })
+            .from(users)
+            .where(eq(users.id, BigInt(sess.userId as string)))
+            .limit(1);
+          if (u && u.status !== "active") {
+            throw new APIError("FORBIDDEN", { message: "This account is not active. Contact support." });
+          }
+        },
+      },
       delete: {
         after: async (sess) => {
           try {

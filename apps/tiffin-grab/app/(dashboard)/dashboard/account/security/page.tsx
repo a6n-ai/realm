@@ -3,6 +3,7 @@ import { Role } from "@realm/commons";
 import { PasswordSection } from "@/components/account/sections/password-section";
 import { PinSection } from "@/components/account/sections/pin-section";
 import { EmailSection } from "@/components/account/sections/email-section";
+import { DeleteAccountSection } from "@/components/account/sections/delete-account-section";
 import { requireAccountUser } from "../current-user";
 
 export default function AccountSecurityPage() {
@@ -11,6 +12,7 @@ export default function AccountSecurityPage() {
       <Suspense fallback={<><EmailSection.Skeleton /><PasswordSection.Skeleton /></>}>
         <SecurityData />
       </Suspense>
+      <DeleteAccountSection />
     </div>
   );
 }

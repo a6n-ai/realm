@@ -8,4 +8,5 @@ export {
   sendWelcomeVerify,
   sendPasswordChanged,
   sendNewLogin,
+  sendDeleteVerification,
 } from "./emails";

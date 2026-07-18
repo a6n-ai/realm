@@ -4,6 +4,7 @@ import {
   type OtpType,
   type SecurityEmailContext,
   sendNewLogin,
+  sendDeleteVerification,
   sendOtpEmail,
   sendPasswordChanged,
   sendWelcomeVerify,
@@ -27,6 +28,11 @@ export function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<
 /** Link-based email verification (signup + on-demand resend). */
 export function sendVerification(user: { email?: string | null }, url: string): Promise<void> {
   return user.email ? sendWelcomeVerify(ctx(), user.email, url) : Promise.resolve();
+}
+
+/** Confirm-link for account deletion (OAuth / no-password paths). */
+export function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
+  return user.email ? sendDeleteVerification(ctx(), user.email, url) : Promise.resolve();
 }
 
 /** Security alert after a password reset or change. */

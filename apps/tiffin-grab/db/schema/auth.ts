@@ -9,6 +9,14 @@ const nextIdText = sql`(next_id())::text`;
 
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
+/**
+ * Account lifecycle. Only `active` may sign in. `inactive` = admin-deactivated
+ * (reversible); `suspended` = admin-blocked for policy; `deleted` = soft-deleted
+ * (hidden from lists, contact anonymized so the email/phone can be reused). We
+ * never hard-delete — user rows are referenced across orders/wallet/tickets.
+ */
+export const userStatus = pgEnum("user_status", ["active", "inactive", "suspended", "deleted"]);
+
 /** Supported notification locales. Recipient locale → en fallback at render. */
 export const locale = pgEnum("locale", ["en", "fr"]);
 
@@ -23,6 +31,7 @@ export const users = pgTable(
     image: text("image"),
     phone: text("phone"),
     role: userRole("role").notNull().default("user"),
+    status: userStatus("status").notNull().default("active"),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
     // false = account still on an issued default/temp password and must set its

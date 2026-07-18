@@ -75,6 +75,15 @@ export function sendWelcomeVerify(ctx: SecurityEmailContext, to: string, url: st
   );
 }
 
+/** Confirm-link for self-service account deletion (used for OAuth / no-password paths). */
+export function sendDeleteVerification(ctx: SecurityEmailContext, to: string, url: string): Promise<void> {
+  return trySend(
+    ctx, to,
+    `Confirm deleting your ${ctx.appName} account`,
+    `We received a request to permanently delete your ${ctx.appName} account.\n\n[Confirm account deletion](${url})\n\nThis cannot be undone. If you didn't request this, ignore this email and your account stays active.`,
+  );
+}
+
 /** Security notice after a password reset or change. */
 export function sendPasswordChanged(ctx: SecurityEmailContext, to: string): Promise<void> {
   return trySend(

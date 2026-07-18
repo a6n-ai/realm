@@ -4,6 +4,7 @@ import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-
 import { ProfileSection } from "@/components/account/sections/profile-section";
 import { ContactSection } from "@/components/account/sections/contact-section";
 import { EmailSection } from "@/components/account/sections/email-section";
+import { DeleteAccountSection } from "@/components/account/sections/delete-account-section";
 import { AddressSection, AddressSectionSkeleton } from "@/components/account/sections/address-section";
 import { DietarySection } from "@/components/account/sections/dietary-section";
 import { DietarySectionSkeleton } from "@/app/(dashboard)/dashboard/account/dietary/dietary-section-skeleton";
@@ -45,6 +46,8 @@ export default function MeProfilePage() {
       <Suspense fallback={<NotificationsSectionSkeleton />}>
         <NotificationsData />
       </Suspense>
+
+      <DeleteAccountSection />
     </main>
   );
 }

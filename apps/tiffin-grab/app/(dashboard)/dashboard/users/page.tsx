@@ -52,6 +52,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
       email: u.email,
       phone: u.phone,
       role: u.role,
+      status: u.status,
       flags: allFlags.map((f) => ({
         id: f.publicId,
         key: f.key,

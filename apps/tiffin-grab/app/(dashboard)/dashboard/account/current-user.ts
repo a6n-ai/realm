@@ -17,6 +17,9 @@ export async function requireAccountUser() {
     if (err instanceof NotFoundError) redirect("/login");
     throw err;
   }
+  // Status may have flipped after this session was issued (admin deactivate /
+  // self delete). Only `active` accounts keep access.
+  if ((user as { status?: string }).status !== "active") redirect("/login");
   return { user, role: session.user.role as RoleValue };
 }
 
