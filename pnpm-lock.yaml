@@ -207,6 +207,9 @@ importers:
       '@realm/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@realm/auth-ui':
+        specifier: workspace:*
+        version: link:../../packages/auth-ui
       '@realm/commons':
         specifier: workspace:*
         version: link:../../packages/commons
@@ -407,6 +410,46 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
+
+  packages/auth-ui:
+    dependencies:
+      '@hookform/resolvers':
+        specifier: ^5.4.0
+        version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
+      '@realm/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
+      react-hook-form:
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.4)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.17
+      next:
+        specifier: 16.2.9
+        version: 16.2.9(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
   packages/commons:
     dependencies:

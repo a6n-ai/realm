@@ -2,12 +2,13 @@ import { Suspense } from "react";
 import { Role } from "@realm/commons";
 import { PasswordSection } from "@/components/account/sections/password-section";
 import { PinSection } from "@/components/account/sections/pin-section";
+import { EmailSection } from "@/components/account/sections/email-section";
 import { requireAccountUser } from "../current-user";
 
 export default function AccountSecurityPage() {
   return (
     <div className="space-y-5">
-      <Suspense fallback={<PasswordSection.Skeleton />}>
+      <Suspense fallback={<><EmailSection.Skeleton /><PasswordSection.Skeleton /></>}>
         <SecurityData />
       </Suspense>
     </div>
@@ -22,6 +23,7 @@ async function SecurityData() {
   return (
     <>
       {isStaff && <PinSection hasPin={Boolean(user.pinHash)} />}
+      <EmailSection currentEmail={user.email} />
       <PasswordSection />
     </>
   );

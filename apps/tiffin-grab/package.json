@@ -21,6 +21,8 @@
     "@react-email/render": "^2.0.9",
     "@react-pdf/renderer": "^4.5.1",
     "@realm/auth": "workspace:*",
+    "@realm/auth": "workspace:*",
+    "@realm/auth-ui": "workspace:*",
     "@realm/commons": "workspace:*",
     "@realm/crm": "workspace:*",
     "@realm/database": "workspace:*",

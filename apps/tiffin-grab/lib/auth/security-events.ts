@@ -6,6 +6,7 @@ import {
   sendNewLogin,
   sendOtpEmail,
   sendPasswordChanged,
+  sendWelcomeVerify,
 } from "@realm/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
@@ -21,6 +22,11 @@ function ctx(): SecurityEmailContext {
 /** emailOTP plugin callback: deliver a reset/verify/sign-in code via SES. */
 export function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<void> {
   return sendOtpEmail(ctx(), email, otp, type);
+}
+
+/** Link-based email verification (signup + on-demand resend). */
+export function sendVerification(user: { email?: string | null }, url: string): Promise<void> {
+  return user.email ? sendWelcomeVerify(ctx(), user.email, url) : Promise.resolve();
 }
 
 /** Security alert after a password reset or change. */

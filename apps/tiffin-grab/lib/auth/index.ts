@@ -9,8 +9,7 @@ import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
-import { sendPasswordResetEmail, sendVerificationEmail } from "./emails";
-import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp } from "./security-events";
+import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp, sendVerification } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
 
 const log = createLogger("auth");
@@ -33,18 +32,15 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 256,
     requireEmailVerification: false, // customers are phone-first; email optional
-    resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
+    // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user, url }) => {
-      await sendPasswordResetEmail(user, url);
-    },
   },
   emailVerification: {
     // Fire the verify/welcome email on email signups (phone-first users with no
     // email are skipped inside the sender).
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail(user, url);
+      await sendVerification(user, url);
     },
   },
   user: {
