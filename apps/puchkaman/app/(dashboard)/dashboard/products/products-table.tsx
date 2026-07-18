@@ -10,12 +10,16 @@ import {
   PackageSearchIcon,
   PencilIcon,
   PlusIcon,
+  RefreshCwIcon,
   SearchIcon,
   Trash2Icon,
 } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
+import type { PendingSync } from "@/db/schema/products";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { EmptyState } from "@/components/admin/empty-state";
+import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
+import { SyncDialog } from "@/components/admin/sync-dialog";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
 import { ProductForm } from "./product-form";
@@ -32,7 +36,22 @@ export type ProductRow = {
   image: FileDetail | null;
   tags: string[] | null;
   active: boolean;
+  source: "manual" | "uber_eats";
+  lastSyncedAt: number | null;
+  syncStatus: "none" | "synced" | "update_available";
+  pendingSync: PendingSync | null;
 };
+
+function relativeTime(ms: number | null): string {
+  if (!ms) return "—";
+  const diff = Date.now() - ms;
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
 
 type SortField = "name" | "category" | "price" | "status";
 type SortDir = "asc" | "desc";
@@ -45,6 +64,8 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [removing, setRemoving] = useState<ProductRow | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [reviewing, setReviewing] = useState<ProductRow | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
@@ -171,9 +192,14 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
             ))}
           </select>
         </div>
-        <button className="btn btn--red btn--sm" onClick={openNew}>
-          <PlusIcon size={16} /> Add product
-        </button>
+        <div className="flex" style={{ gap: 8 }}>
+          <button className="btn btn--white btn--sm" onClick={() => setSyncOpen(true)}>
+            <RefreshCwIcon size={16} /> Sync from Uber Eats
+          </button>
+          <button className="btn btn--red btn--sm" onClick={openNew}>
+            <PlusIcon size={16} /> Add product
+          </button>
+        </div>
       </div>
 
       {/* bulk action bar */}
@@ -231,7 +257,9 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
                 <SortableHeader field="category" label="Category" sort={sort} onSort={toggleSort} />
                 <SortableHeader field="price" label="Price" sort={sort} onSort={toggleSort} align="right" />
                 <SortableHeader field="status" label="Status" sort={sort} onSort={toggleSort} />
-                <th style={{ width: 92, textAlign: "right" }}>Actions</th>
+                <th>Source</th>
+                <th>Last synced</th>
+                <th style={{ width: 116, textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -272,6 +300,28 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
                       <span className="status-pill--dot" />
                       {row.active ? "Active" : "Archived"}
                     </span>
+                  </td>
+                  <td>
+                    {row.source === "uber_eats" ? (
+                      row.syncStatus === "update_available" ? (
+                        <button
+                          className="status-pill status-pill--danger"
+                          style={{ cursor: "pointer", background: "var(--yellow-deep)", color: "var(--ink-deep)" }}
+                          onClick={() => setReviewing(row)}
+                        >
+                          Update available
+                        </button>
+                      ) : (
+                        <span className="pill" style={{ background: "var(--mint)", color: "#fff" }}>
+                          Uber Eats
+                        </span>
+                      )
+                    ) : (
+                      <span className="pill">Manual</span>
+                    )}
+                  </td>
+                  <td className="mono" style={{ fontSize: "0.78rem", opacity: 0.65, whiteSpace: "nowrap" }}>
+                    {relativeTime(row.lastSyncedAt)}
                   </td>
                   <td>
                     <div className="flex" style={{ gap: 6, justifyContent: "flex-end" }}>
@@ -332,6 +382,8 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
         danger
         onConfirm={confirmBulkRemove}
       />
+      <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
+      <PendingSyncReviewDialog product={reviewing} onOpenChange={(open) => !open && setReviewing(null)} />
     </div>
   );
 }

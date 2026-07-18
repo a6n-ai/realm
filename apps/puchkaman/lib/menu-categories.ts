@@ -14,7 +14,11 @@ export type CategoryId =
   | "sandwich"
   | "drinks"
   | "hot"
-  | "combos";
+  | "combos"
+  | "bowl"
+  | "fries"
+  | "burgers"
+  | "extra";
 
 export const CATEGORY_IDS: CategoryId[] = [
   "trad",
@@ -29,12 +33,16 @@ export const CATEGORY_IDS: CategoryId[] = [
   "drinks",
   "hot",
   "combos",
+  "bowl",
+  "fries",
+  "burgers",
+  "extra",
 ];
 
 export const CATEGORIES: Record<CategoryId, { name: string; emoji: string; note: string }> = {
   trad: { name: "Traditional Puchkas", emoji: "💧", note: "The Kolkata classics. Crispy shells, spiced water." },
   fusion: { name: "Fusion Puchkas", emoji: "🔥", note: "Our viral hero. Global flavours, OG crunch." },
-  vada: { name: "Vada Pav", emoji: "🍔", note: "Mumbai's spicy potato slider." },
+  vada: { name: "Vada Pav", emoji: "🥔", note: "Mumbai's spicy potato slider." },
   bhaji: { name: "Pav Bhaji", emoji: "🧈", note: "Buttery mashed-veg curry with toasted pav." },
   rolls: { name: "Kathi Rolls & Wraps", emoji: "🌯", note: "Flaky paratha, smoky fillings." },
   momos: { name: "Momos", emoji: "🥟", note: "Steamed or fried, with fiery chutney." },
@@ -44,6 +52,10 @@ export const CATEGORIES: Record<CategoryId, { name: string; emoji: string; note:
   drinks: { name: "Summer Drinks", emoji: "🥤", note: "Beat the GTA heat." },
   hot: { name: "Hot Drinks & Milkshakes", emoji: "☕", note: "Warm up or thicken up." },
   combos: { name: "Combos", emoji: "🍱", note: "Mix, match & save. Built for sharing." },
+  bowl: { name: "Bowls", emoji: "🍚", note: "Rice bowls loaded with protein and sauce." },
+  fries: { name: "Fries & Onion Rings", emoji: "🍟", note: "Crispy sides, loaded or classic." },
+  burgers: { name: "Burgers", emoji: "🍔", note: "Handheld and loaded." },
+  extra: { name: "Extras", emoji: "➕", note: "Add-ons for your order." },
 };
 
 export const TAG_STYLE: Record<string, { label: string; variant: string }> = {

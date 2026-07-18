@@ -21,6 +21,8 @@ export const productSchema = z.object({
   image: fileDetail,
   tags: z.array(z.enum(["best", "viral", "new"])).optional(),
   active: z.boolean().optional(),
+  featured: z.boolean().optional(),
+  displayOrder: reqNum(z.coerce.number().int()).optional(),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;
