@@ -80,8 +80,40 @@ case). Until granted, verify a test recipient address to exercise the flow.
 2. Confirm the email arrives and DKIM/SPF pass (Gmail: "Show original" → PASS).
 3. Check the box logs: `auth-email` logger shows `password reset sent to …`.
 
-## Phase 2 (later)
+## Phase 2 — bounce/complaint suppression
 
-Bounce/complaint suppression adds an SES **configuration set** + SNS topic + a
-signature-verified `/api/webhooks/ses` route, then sets `SES_CONFIGURATION_SET`
-in SSM. Separate stack + spec — not needed for sending.
+SES config set publishes BOUNCE/COMPLAINT to an SNS topic → the signature-verified
+`/api/webhooks/ses` route flips `notification_prefs.suppressed`; the enqueue path
+(`resolveChannels`) then stops emailing that address. Stack:
+`deployment/email/ses-suppression.yaml`.
+
+**Order matters** — the webhook must be live before the SNS subscription is created,
+or SNS can't auto-confirm it:
+
+1. **Ship the webhook**: merge to `main` and let prod deploy (route lives at
+   `app/api/webhooks/ses`). Confirm `https://app.tiffingrab.ca/api/webhooks/ses` is
+   reachable (a plain GET/empty POST returns 400/403 — that's fine, it's alive).
+2. **Deploy the stack**:
+   ```bash
+   aws cloudformation deploy --region us-east-1 \
+     --stack-name tiffin-grab-ses-suppression \
+     --template-file deployment/email/ses-suppression.yaml
+   ```
+   Creating the subscription POSTs a `SubscriptionConfirmation`; the route
+   auto-confirms it. Verify: `aws sns list-subscriptions-by-topic --topic-arn <FeedbackTopicArn>`
+   shows a real SubscriptionArn (not `PendingConfirmation`).
+3. **Point sends at the config set** so events flow:
+   ```bash
+   aws ssm put-parameter --region us-east-1 --overwrite \
+     --name /tiffin-grab/prod/SES_CONFIGURATION_SET --type String \
+     --value tiffin-grab-prod
+   # optional defense-in-depth for the webhook:
+   aws ssm put-parameter --region us-east-1 --overwrite \
+     --name /tiffin-grab/prod/SES_FEEDBACK_TOPIC_ARN --type String --value <FeedbackTopicArn>
+   ```
+   Then redeploy the app (box: `cd ~/realm/deployment/prod/tiffin-grab && ./deploy.sh`)
+   so `getEmailProvider` picks up `SES_CONFIGURATION_SET`.
+4. **Verify**: send to `bounce@simulator.amazonses.com` and
+   `complaint@simulator.amazonses.com` (SES mailbox simulator — works even in the
+   sandbox). Each should flip `notification_prefs.suppressed=true` for a matching
+   user (create test users with those addresses first).
