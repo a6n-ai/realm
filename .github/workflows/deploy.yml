@@ -1,28 +1,23 @@
-# Deploy on push to main: build two images → push to GHCR → box pulls + starts.
+# Deploy on push to main: build changed apps' images → push to GHCR → box pulls
+# + restarts only what changed.
 #
-#   build job  — builds tiffin-grab-web (runner target) + tiffin-grab-tools (build target)
-#                from deployment/prod/Dockerfile, pushes both to ghcr.io tagged
-#                with the commit SHA and :latest. GITHUB_TOKEN authenticates.
-#   deploy job — SSHes into the app box, passes IMAGE_TAG=<sha>, runs deploy.sh
-#                which pulls those images and restarts the stack.
+#   changes job        — path-filter: which apps' images need rebuilding.
+#   build-tiffin-grab  — tiffin-grab-web (runner) + tiffin-grab-tools (build).
+#   build-puchkaman    — puchkaman-web (runner). Runs in PARALLEL with tiffin-grab.
+#   deploy job         — SSHes into the box, IMAGE_TAG=<sha>, redeploys only the
+#                        app(s) that were rebuilt this push (their <sha> image exists).
 #
-# Required repo secrets (Settings → Secrets and variables → Actions):
-#   EC2_HOST     app box public IP / DNS
-#   EC2_USER     ssh user (e.g. ubuntu)
-#   EC2_SSH_KEY  private key whose public half is in the box's authorized_keys
-# Optional repo variable:
-#   DEPLOY_PATH  repo checkout path on the box (default: ~/realm)
+# Both app builds share the base `build` Dockerfile stage; each keeps its own gha
+# cache scope so they don't clobber each other. A change under packages/** (shared)
+# rebuilds both. workflow_dispatch forces both.
 #
-# GHCR packages: after the first run, make ghcr.io/a6n-ai/tiffin-grab-web and
-# tiffin-grab-tools PUBLIC (package → Settings → Change visibility) so the box pulls
-# with no creds. To keep them private, see the "private GHCR" note in deploy.sh.
+# Required repo secrets: EC2_HOST, EC2_USER, EC2_SSH_KEY.
+# Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
 name: deploy
 
 on:
   push:
     branches: [main]
-    # Docs-only pushes don't change the image (Dockerfile ignores *.md too), so
-    # skip the build+deploy entirely. workflow_dispatch still forces a run.
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -34,11 +29,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tiffin: ${{ steps.filter.outputs.tiffin }}
+      puchkaman: ${{ steps.filter.outputs.puchkaman }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Shared inputs (packages, Dockerfile, lockfile, workspace) rebuild both.
+          filters: |
+            tiffin:
+              - 'apps/tiffin-grab/**'
+              - 'packages/**'
+              - 'deployment/prod/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            puchkaman:
+              - 'apps/puchkaman/**'
+              - 'packages/**'
+              - 'deployment/prod/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+
+  build-tiffin-grab:
+    needs: changes
+    if: ${{ needs.changes.outputs.tiffin == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # push to GHCR
+      packages: write
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v4
@@ -48,9 +70,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # web first: building the runner target also builds the shared `build`
-      # stage, warming the buildx cache the tools image reuses.
-      - name: Build + push web (runner)
+      # web first: the runner target also builds the shared `build` stage, warming
+      # the cache the tools image reuses.
+      - name: Build + push tiffin-grab-web (runner)
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -60,10 +82,10 @@ jobs:
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-web:${{ github.sha }}
             ghcr.io/a6n-ai/tiffin-grab-web:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=tiffin-grab
+          cache-to: type=gha,mode=max,scope=tiffin-grab
 
-      - name: Build + push tools (build)
+      - name: Build + push tiffin-grab-tools (build)
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -73,11 +95,26 @@ jobs:
           tags: |
             ghcr.io/a6n-ai/tiffin-grab-tools:${{ github.sha }}
             ghcr.io/a6n-ai/tiffin-grab-tools:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=tiffin-grab
+          cache-to: type=gha,mode=max,scope=tiffin-grab
 
-      # puchkaman: public-only marketing site → web image only (no tools/migrate).
-      # Reuses the same Dockerfile via --build-arg APP; shares the warmed buildx cache.
+  build-puchkaman:
+    needs: changes
+    if: ${{ needs.changes.outputs.puchkaman == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # puchkaman: public marketing site → web image only (no tools/migrate).
       - name: Build + push puchkaman-web (runner)
         uses: docker/build-push-action@v7
         with:
@@ -90,30 +127,39 @@ jobs:
           tags: |
             ghcr.io/a6n-ai/puchkaman-web:${{ github.sha }}
             ghcr.io/a6n-ai/puchkaman-web:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=puchkaman
+          cache-to: type=gha,mode=max,scope=puchkaman
 
-  # Push-only by default: CI publishes images to GHCR and stops. To let CI also
-  # SSH-deploy, set repo variable ENABLE_SSH_DEPLOY=true and add the EC2 secrets.
+  # Redeploy only the app(s) rebuilt this push. Runs if at least one build
+  # succeeded and none failed. Push-only unless ENABLE_SSH_DEPLOY=true.
   deploy:
-    needs: build
-    if: ${{ vars.ENABLE_SSH_DEPLOY == 'true' }}
+    needs: [build-tiffin-grab, build-puchkaman]
+    if: >-
+      ${{ always() && vars.ENABLE_SSH_DEPLOY == 'true'
+          && needs.build-tiffin-grab.result != 'failure'
+          && needs.build-puchkaman.result != 'failure'
+          && (needs.build-tiffin-grab.result == 'success' || needs.build-puchkaman.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
-      - name: SSH → pull + restart on the app box
+      - name: SSH → pull + restart changed apps on the box
         uses: appleboy/ssh-action@v1
         env:
           IMAGE_TAG: ${{ github.sha }}
+          DEPLOY_TIFFIN: ${{ needs.build-tiffin-grab.result == 'success' }}
+          DEPLOY_PUCHKAMAN: ${{ needs.build-puchkaman.result == 'success' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 20m
-          envs: IMAGE_TAG # forward IMAGE_TAG into the remote shell → deploy.sh
+          envs: IMAGE_TAG,DEPLOY_TIFFIN,DEPLOY_PUCHKAMAN
           script: |
             set -euo pipefail
             REPO="${{ vars.DEPLOY_PATH }}"
             REPO="${REPO:-$HOME/realm}"
-            git -C "$REPO" pull --ff-only   # else new deploy-all.sh / compose changes never reach the box
+            git -C "$REPO" pull --ff-only
             cd "$REPO/deployment/prod"
-            ./deploy-all.sh
+            docker network inspect edge >/dev/null 2>&1 || docker network create edge
+            (cd proxy && docker compose pull && docker compose up -d)
+            if [ "$DEPLOY_TIFFIN" = "true" ]; then (cd tiffin-grab && ./deploy.sh); fi
+            if [ "$DEPLOY_PUCHKAMAN" = "true" ]; then (cd puchkaman && ./deploy.sh); fi
