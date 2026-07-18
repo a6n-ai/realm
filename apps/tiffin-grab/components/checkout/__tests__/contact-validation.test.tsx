@@ -61,7 +61,7 @@ describe("Checkout contact format validation", () => {
     ).toBe(true);
   });
 
-  it("enables Continue with a valid phone and empty (optional) email", async () => {
+  it("requires email — Continue stays disabled until a valid email is entered", async () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
     render(<Checkout defaultCountry="CA" />);
 
@@ -70,6 +70,12 @@ describe("Checkout contact format validation", () => {
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
 
+    // Email is now required → empty email keeps Continue disabled.
+    expect(
+      (screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
     expect(screen.queryByText(/enter a valid phone number/i)).toBeNull();
     expect(
       (screen.getByRole("button", { name: /continue to payment/i }) as HTMLButtonElement).disabled,
