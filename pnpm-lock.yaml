@@ -397,6 +397,9 @@ importers:
       '@realm/commons':
         specifier: workspace:*
         version: link:../commons
+      '@realm/email':
+        specifier: workspace:*
+        version: link:../email
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
