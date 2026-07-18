@@ -3,6 +3,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
 import { ProfileSection } from "@/components/account/sections/profile-section";
 import { ContactSection } from "@/components/account/sections/contact-section";
+import { EmailSection } from "@/components/account/sections/email-section";
 import { AddressSection, AddressSectionSkeleton } from "@/components/account/sections/address-section";
 import { DietarySection } from "@/components/account/sections/dietary-section";
 import { DietarySectionSkeleton } from "@/app/(dashboard)/dashboard/account/dietary/dietary-section-skeleton";
@@ -27,6 +28,10 @@ export default function MeProfilePage() {
 
       <Suspense fallback={<ContactSection.Skeleton />}>
         <ContactData />
+      </Suspense>
+
+      <Suspense fallback={<EmailSection.Skeleton />}>
+        <EmailData />
       </Suspense>
 
       <Suspense fallback={<AddressSectionSkeleton />}>
@@ -66,6 +71,11 @@ async function ContactData() {
       defaultCountry={defaultCountry}
     />
   );
+}
+
+async function EmailData() {
+  const { user } = await requireAccountUser();
+  return <EmailSection currentEmail={user.email} />;
 }
 
 async function AddressData() {
