@@ -49,6 +49,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
     const ov = overridesByUser.get(u.id);
     return {
       id: u.publicId,
+      name: u.name,
       email: u.email,
       phone: u.phone,
       role: u.role,

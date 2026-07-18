@@ -11,6 +11,7 @@ type FlagState = { id: string; key: string; label: string; enabled: boolean };
 
 export type UserListRow = {
   id: string;
+  name: string | null;
   email: string | null;
   phone: string | null;
   role: RoleValue;
@@ -21,7 +22,8 @@ export type UserListRow = {
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<"email" | "role" | "status" | "flags" | "actions">[] = [
+const COLUMNS: readonly Column<"name" | "email" | "role" | "status" | "flags" | "actions">[] = [
+  { key: "name", label: "Name" },
   { key: "email", label: "Contact", sortable: true },
   { key: "role", label: "Role", sortable: true },
   { key: "status", label: "Status" },
@@ -43,7 +45,7 @@ export function UsersList({
       rowKey={(r) => r.id}
       sort={sort}
       idAccessor={(r) => r.id}
-      search={{ placeholder: "Search by contact, role or ID…", shortPlaceholder: "Search…", keys: ["email", "phone", "role"] }}
+      search={{ placeholder: "Search by name, contact, role or ID…", shortPlaceholder: "Search…", keys: ["name", "email", "phone", "role"] }}
       emptyIcon={UsersIcon}
       emptyMessage="No users yet."
       emptySearchMessage="No users match your search."

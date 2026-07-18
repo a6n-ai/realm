@@ -27,6 +27,13 @@ export async function setUserRole(userId: string, role: RoleValue) {
   revalidatePath("/dashboard/users");
 }
 
+export async function adminUpdateContact(userId: string, input: { email?: string; phone?: string }) {
+  await requireAdmin();
+  await usersService.updateContact(userId, input);
+  revalidatePath(`/dashboard/users/${userId}`);
+  revalidatePath("/dashboard/users");
+}
+
 export async function setUserFlag(userId: string, flagId: string, enabled: boolean) {
   await requireAdmin();
   await userFeatureFlagsService.setFlag(userId, flagId, enabled);
