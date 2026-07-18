@@ -65,7 +65,7 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
                 className="flex flex-col gap-1 rounded-lg text-left"
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-lg">
-                  <DishImage image={item.image ?? null} name={item.dishName} />
+                  <DishImage image={item.image ?? null} name={item.dishName} sizes="160px" />
                   <span
                     className={cn(
                       "absolute right-1.5 top-1.5 size-2.5 rounded-full ring-2 ring-white/80",

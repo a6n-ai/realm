@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  SES sending identity for tiffingrab.ca: an EasyDKIM-signed domain identity
+  with a custom MAIL FROM subdomain for SPF alignment. This domain's DNS is
+  hosted at Hostinger (NOT Route 53), so this stack does NOT create DNS records
+  — it outputs the DKIM CNAMEs and MAIL FROM MX/SPF values to enter by hand in
+  the Hostinger DNS panel. (Route-53-hosted domains like puchkaman can auto-add
+  records; tiffingrab cannot.)
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: tiffingrab.ca
+    Description: Sending domain, no trailing dot.
+    AllowedPattern: "^[a-z0-9.-]+\\.[a-z]{2,}$"
+  MailFromSubdomain:
+    Type: String
+    Default: mail
+    Description: Label for the custom MAIL FROM subdomain (e.g. "mail" -> mail.<domain>).
+
+Resources:
+  Identity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref DomainName
+      # EasyDKIM: SES generates the keypair and returns 3 CNAME tokens (outputs below).
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        # Reject if the MAIL FROM MX isn't resolvable — don't silently fall back
+        # to amazonses.com (which weakens SPF alignment).
+        BehaviorOnMxFailure: REJECT_MESSAGE
+        MailFromDomain: !Sub "${MailFromSubdomain}.${DomainName}"
+
+Outputs:
+  IdentityArn:
+    Description: SES identity ARN — scope the instance-role ses:SendEmail policy to this.
+    Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+
+  # --- Paste these into Hostinger DNS (see README). Name shown is the full host;
+  #     Hostinger may want it relative to the zone (strip the ".tiffingrab.ca"). ---
+  DkimRecord1Name:
+    Value: !GetAtt Identity.DkimDNSTokenName1
+  DkimRecord1Value:
+    Description: CNAME target for DkimRecord1Name.
+    Value: !GetAtt Identity.DkimDNSTokenValue1
+  DkimRecord2Name:
+    Value: !GetAtt Identity.DkimDNSTokenName2
+  DkimRecord2Value:
+    Value: !GetAtt Identity.DkimDNSTokenValue2
+  DkimRecord3Name:
+    Value: !GetAtt Identity.DkimDNSTokenName3
+  DkimRecord3Value:
+    Value: !GetAtt Identity.DkimDNSTokenValue3
+  MailFromDomain:
+    Value: !Sub "${MailFromSubdomain}.${DomainName}"
+  MailFromMxValue:
+    Description: MX record value for MailFromDomain (priority 10).
+    Value: !Sub "feedback-smtp.${AWS::Region}.amazonses.com"
+  MailFromSpfValue:
+    Description: TXT record value for MailFromDomain.
+    Value: "v=spf1 include:amazonses.com ~all"

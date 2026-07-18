@@ -231,6 +231,34 @@ Access logging is deliberately **not** configured: SAL-to-CloudWatch needs a
 customer-managed KMS key plus ingest charges, and CloudTrail data events bill per
 request — not worth it for dish photos on a `t3.small`. Revisit on an incident.
 
+Lifecycle rule — **required because versioning is on**. A versioned bucket leaks storage
+three separate ways, and all three bill forever; one rule plugs all of them:
+
+```bash
+aws s3api put-bucket-lifecycle-configuration --bucket "$B" --lifecycle-configuration '{
+  "Rules": [{
+    "ID": "expire-noncurrent-and-orphans",
+    "Status": "Enabled",
+    "Filter": { "Prefix": "" },
+    "NoncurrentVersionExpiration": { "NoncurrentDays": 30 },
+    "Expiration": { "ExpiredObjectDeleteMarker": true },
+    "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+  }]
+}'
+```
+
+- `NoncurrentVersionExpiration` — every replaced dish photo keeps its old version
+  forever without this. 30 days is the recovery window for a bad overwrite.
+- `ExpiredObjectDeleteMarker` — a delete leaves a marker behind; once its versions age
+  out the marker is billable clutter. **Cannot** be combined with `ExpirationInDays`,
+  `ExpirationDate`, or `TagFilters` in the same rule.
+- `AbortIncompleteMultipartUpload` — a failed upload leaves orphaned parts that bill
+  forever and are **invisible to `s3 ls`**. The image uploader can multipart, so this is
+  live. This is the classic silent S3 bill.
+
+`put-bucket-lifecycle-configuration` **replaces the whole config** — `get` it first and
+merge if a rule already exists.
+
 Audit the bucket any time with:
 
 ```bash
@@ -238,7 +266,22 @@ aws s3api get-public-access-block --bucket "$B"      # expect all four true
 aws s3api get-bucket-encryption --bucket "$B"        # expect AES256 + BucketKey + SSE-C blocked
 aws s3api get-bucket-versioning --bucket "$B"        # expect Enabled
 aws s3api get-bucket-policy --bucket "$B"            # expect DenyInsecureTransport
+aws s3api get-bucket-lifecycle-configuration --bucket "$B"   # expect the expiry rule
 ```
+
+Verify the **instance role** (not your own creds) can actually reach the bucket — this is
+the grant most likely to be wrong, and it is what the app uses. Run it on the box:
+
+```bash
+ssh tiffin-prod
+aws sts get-caller-identity --query Arn --output text   # expect assumed-role/realm-tiffin-grab-prod-role/...
+echo test | aws s3 cp - "s3://$B/_verify/check.txt" --region us-east-1
+aws s3api list-objects-v2 --bucket "$B" --prefix _verify --region us-east-1   # needs the bare bucket ARN
+aws s3 rm "s3://$B/_verify/check.txt" --region us-east-1
+```
+
+Note `curl localhost:3000` on the box returns nothing — `web` does not publish 3000 to the
+host. Caddy reaches it by container name over the `edge` net; test via the public URL.
 
 ## First deploy: migrate + single admin
 

@@ -132,8 +132,8 @@ export function MealPicker({
                           if (!dish) return null;
                           return (
                             <div key={key} className="flex items-center gap-3 rounded-lg border p-2">
-                              <div className="size-14 shrink-0 overflow-hidden rounded-md">
-                                <DishImage image={dish.image} name={dish.name} />
+                              <div className="relative size-14 shrink-0 overflow-hidden rounded-md">
+                                <DishImage image={dish.image} name={dish.name} sizes="56px" />
                               </div>
                               {dish.image && <span className="text-sm font-medium">{dish.name}</span>}
                             </div>
@@ -160,8 +160,8 @@ export function MealPicker({
                                       disabled && "opacity-60",
                                     )}
                                   >
-                                    <div className="aspect-square w-full overflow-hidden rounded-md">
-                                      <DishImage image={o.image} name={o.name} />
+                                    <div className="relative aspect-square w-full overflow-hidden rounded-md">
+                                      <DishImage image={o.image} name={o.name} sizes="(max-width: 640px) 45vw, 180px" />
                                     </div>
                                     {/* DishImage already renders the name as a fallback tile when there's no photo;
                                         only add a separate label when there IS a photo, to avoid duplicate text. */}

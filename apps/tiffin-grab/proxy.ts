@@ -9,9 +9,10 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
 
 // /api is private by default. Only these prefixes are reachable without a
-// session cookie: Better Auth's own handler, and cron (self-auths via
-// CRON_SECRET bearer inside the route). Add a prefix here to make it public.
-const PUBLIC_API = ["/api/auth", "/api/cron"];
+// session cookie: Better Auth's own handler, cron (self-auths via CRON_SECRET
+// bearer inside the route), and the SES feedback webhook (self-auths by
+// verifying the SNS message signature). Add a prefix here to make it public.
+const PUBLIC_API = ["/api/auth", "/api/cron", "/api/webhooks"];
 
 // Cross-origin allowlist, comma-separated env. Empty = same-origin only
 // (browsers block cross-origin by default — this stays locked until set).

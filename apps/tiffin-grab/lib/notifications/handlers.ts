@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { SesEmailProvider } from "@realm/email";
 import { AppError } from "@realm/commons";
+import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { notifications, notificationOutbox, users } from "@/db/schema";
 import { renderEmailForEvent, renderInAppForEvent } from "./template-service";
@@ -47,14 +47,7 @@ const inApp: ChannelHandler = async (row) => {
 export const __inAppForTest = inApp;
 
 function buildEmailHandler(): ChannelHandler {
-  const provider = new SesEmailProvider({
-    region: process.env.AWS_REGION,
-    configurationSetName: process.env.SES_CONFIGURATION_SET,
-    defaultFrom: {
-      email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
-      name: process.env.NOTIFY_FROM_NAME ?? "Tiffin Grab",
-    },
-  });
+  const provider = getEmailProvider();
   return async (row) => {
     const { vars } = payloadParts(row);
     const [user] = await db

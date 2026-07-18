@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Phase 2 — SES bounce/complaint feedback for tiffin-grab. A configuration set
+  publishes BOUNCE + COMPLAINT events to an SNS topic, which POSTs to the app's
+  signature-verified /api/webhooks/ses route. The route flips
+  notification_prefs.suppressed for the affected user; the existing enqueue path
+  (resolveChannels) then stops emailing that address. Deploy the webhook code to
+  prod FIRST so SNS can auto-confirm the subscription on create.
+
+Parameters:
+  ConfigurationSetName:
+    Type: String
+    Default: tiffin-grab-prod
+    Description: SES configuration set name. Put this in SSM SES_CONFIGURATION_SET, then redeploy the app.
+  WebhookEndpoint:
+    Type: String
+    Default: https://app.tiffingrab.ca/api/webhooks/ses
+    Description: HTTPS endpoint SNS delivers feedback to. Must be live before deploy (auto-confirm).
+
+Resources:
+  ConfigSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref ConfigurationSetName
+
+  FeedbackTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: tiffin-grab-ses-feedback
+
+  # SES must be allowed to publish to the topic; scope to this account.
+  FeedbackTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref FeedbackTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSesPublish
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref FeedbackTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  EventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    # Topic policy must exist before SES starts publishing.
+    DependsOn: FeedbackTopicPolicy
+    Properties:
+      ConfigurationSetName: !Ref ConfigSet
+      EventDestination:
+        Name: sns-bounce-complaint
+        Enabled: true
+        MatchingEventTypes:
+          - BOUNCE
+          - COMPLAINT
+        SnsDestination:
+          TopicARN: !Ref FeedbackTopic
+
+  # Creating this triggers a SubscriptionConfirmation POST to WebhookEndpoint,
+  # which the live route auto-confirms (after verifying the SNS signature).
+  WebhookSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref FeedbackTopic
+      Protocol: https
+      Endpoint: !Ref WebhookEndpoint
+
+Outputs:
+  ConfigurationSetName:
+    Description: Set SSM /tiffin-grab/prod/SES_CONFIGURATION_SET to this, then redeploy.
+    Value: !Ref ConfigSet
+  FeedbackTopicArn:
+    Description: Optionally set SSM /tiffin-grab/prod/SES_FEEDBACK_TOPIC_ARN to this (webhook defense-in-depth).
+    Value: !Ref FeedbackTopic

@@ -61,7 +61,6 @@ export const ROUTES: RouteSpec[] = [
   { path: "/login", label: "login" },
   { path: "/signup", label: "signup" },
   { path: "/forgot-password", label: "forgot-password" },
-  { path: "/reset-password", label: "reset-password" },
   { path: "/verify-email", label: "verify-email" },
   { path: "/lock", label: "lock" },
   // marketing

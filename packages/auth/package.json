@@ -8,6 +8,7 @@
   "scripts": { "typecheck": "tsc --noEmit" },
   "dependencies": {
     "@realm/commons": "workspace:*",
+    "@realm/email": "workspace:*",
     "bcryptjs": "^3.0.3"
   },
   "devDependencies": { "typescript": "^5" }

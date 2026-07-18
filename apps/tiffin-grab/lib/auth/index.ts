@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { phoneNumber, username, anonymous } from "better-auth/plugins";
+import { phoneNumber, username, anonymous, emailOTP } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { Role } from "@realm/commons";
@@ -9,6 +9,7 @@ import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
+import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp, sendVerification } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
 
 const log = createLogger("auth");
@@ -31,16 +32,15 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 256,
     requireEmailVerification: false, // customers are phone-first; email optional
-    resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
+    // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user, url }) => {
-      // debug: dev-only delivery stand-in — keeps the reset URL out of prod (CloudWatch) logs
-      log.debug(`password reset for ${user.email ?? user.id}: ${url}`);
-    },
   },
   emailVerification: {
+    // Fire the verify/welcome email on email signups (phone-first users with no
+    // email are skipped inside the sender).
+    sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
-      log.debug(`verify email for ${user.email ?? user.id}: ${url}`);
+      await sendVerification(user, url);
     },
   },
   user: {
@@ -83,6 +83,19 @@ export const auth = betterAuth({
         log.debug(`linked anonymous ${anonymousUser.user.id} -> ${newUser.user.id}`);
       },
     }),
+    // Email OTP: 6-digit codes for password reset and email change. Codes are
+    // stored hashed and expire in 10 min. The single sendVerificationOTP callback
+    // routes each type to the shared @realm/auth copy via SES.
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 600,
+      allowedAttempts: 5,
+      storeOTP: "hashed",
+      changeEmail: { enabled: true, verifyCurrentEmail: true },
+      sendVerificationOTP: async ({ email, otp, type }) => {
+        await sendAuthOtp(email, otp, type);
+      },
+    }),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.
@@ -121,6 +134,22 @@ export const auth = betterAuth({
   // Doc ref: https://www.better-auth.com/docs/concepts/hooks
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
+      const failed = ctx.context.returned instanceof APIError;
+
+      // Password changed — OTP reset (body carries email) or authenticated change
+      // (email from the session). Fire the security alert on success only.
+      if (ctx.path === "/email-otp/reset-password" || ctx.path === "/change-password") {
+        if (failed) return;
+        try {
+          const body = ctx.body as { email?: string } | undefined;
+          const sessionEmail = (ctx.context as { session?: { user?: { email?: string } } }).session?.user?.email;
+          await notifyPasswordChanged(body?.email ?? sessionEmail ?? null);
+        } catch (e) {
+          log.error({ err: e }, "password-changed email hook failed");
+        }
+        return;
+      }
+
       const SIGN_IN_PATHS = ["/sign-in/email", "/sign-in/phone-number", "/sign-in/username"];
       if (!SIGN_IN_PATHS.includes(ctx.path)) return;
 
@@ -141,6 +170,18 @@ export const auth = betterAuth({
           });
         } catch (e) {
           log.error({ err: e }, "audit login hook failed");
+        }
+        // New-device sign-in alert (best-effort; skips known IPs).
+        try {
+          const s = newSession.session as { userId: string; ipAddress?: string | null; userAgent?: string | null };
+          await notifyNewLoginIfNewDevice({
+            userId: String(s.userId),
+            email: newSession.user.email,
+            ip: s.ipAddress,
+            userAgent: s.userAgent,
+          });
+        } catch (e) {
+          log.error({ err: e }, "new-login email hook failed");
         }
         return;
       }
