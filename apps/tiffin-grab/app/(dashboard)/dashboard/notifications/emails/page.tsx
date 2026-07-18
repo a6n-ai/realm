@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { emailLog, notificationPrefs } from "@/db/schema";
+import { emailLog, notificationPrefs, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard } from "@/components/ds";
@@ -37,7 +37,7 @@ async function EmailsData() {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const n = sql<number>`cast(count(*) as int)`;
 
-  const [{ timezone }, sent24, failed24, totalSent, suppressed, rows] = await Promise.all([
+  const [{ timezone }, sent24, failed24, totalSent, suppressed, rows, suppressedRows] = await Promise.all([
     getAppSettings(),
     db.select({ n }).from(emailLog).where(and(eq(emailLog.status, "sent"), gte(emailLog.createdAt, dayAgo))),
     db.select({ n }).from(emailLog).where(and(eq(emailLog.status, "failed"), gte(emailLog.createdAt, dayAgo))),
@@ -55,6 +55,13 @@ async function EmailsData() {
       })
       .from(emailLog)
       .orderBy(desc(emailLog.createdAt))
+      .limit(100),
+    db
+      .select({ email: users.email, reason: notificationPrefs.suppressedReason, at: notificationPrefs.updatedAt })
+      .from(notificationPrefs)
+      .innerJoin(users, eq(users.id, notificationPrefs.userId))
+      .where(and(eq(notificationPrefs.channel, "email"), eq(notificationPrefs.suppressed, true)))
+      .orderBy(desc(notificationPrefs.updatedAt))
       .limit(100),
   ]);
 
@@ -102,6 +109,37 @@ async function EmailsData() {
           </div>
         )}
       </SectionCard>
+
+      <SectionCard title="Suppressed addresses" subtitle="Bounced or complained — email is auto-skipped for these until cleared.">
+        {suppressedRows.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No suppressed addresses.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Since</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {suppressedRows.map((s, i) => (
+                  <TableRow key={`${s.email}-${i}`}>
+                    <TableCell className="text-sm">{s.email ?? "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant="outline">{s.reason ?? "suppressed"}</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
+                      {formatEpoch(s.at, { mode: "datetime", timeZone: timezone })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }
@@ -114,13 +152,15 @@ function EmailsSkeleton() {
           <Skeleton key={i} className="h-20 w-full" />
         ))}
       </div>
-      <SectionCard title="Recent emails">
-        <div className="space-y-2">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      </SectionCard>
+      {["Recent emails", "Suppressed addresses"].map((t) => (
+        <SectionCard key={t} title={t}>
+          <div className="space-y-2">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </SectionCard>
+      ))}
     </div>
   );
 }
