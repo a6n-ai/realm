@@ -21,14 +21,15 @@ export async function cancel(orderId: string) {
   await cancelOrder(orderId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
-export async function pause(orderId: string, window: { from: string; until: string }) {
+export async function pause(orderId: string, window: { from: string; until: string; indefinite?: boolean }) {
   await requireStaff();
   await pauseOrder(orderId, window);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 export async function resume(orderId: string) {
   await requireStaff();
-  await resumeOrder(orderId);
+  const actorId = await currentUserId();
+  await resumeOrder(orderId, actorId ?? undefined);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 

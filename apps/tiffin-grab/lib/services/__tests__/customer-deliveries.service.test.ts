@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, cancelOrder } = await import("../orders.service");
-const { assertOwnsDelivery, assertOwnsOrder, myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
+const { assertOwnsDelivery, assertOwnsOrder, myActiveSubscriptions, myDeliveries, myPausePanel } = await import("../customer-deliveries.service");
 
 // Wide enough to bracket any real nextWeekday()-derived delivery date, regardless of "today".
 const FROM = "2000-01-01";
@@ -138,5 +138,19 @@ describe("customer-deliveries.service (integration)", () => {
     await expect(assertOwnsOrder(userA, bOrder.publicId)).rejects.toBeInstanceOf(NotFoundError);
     await expect(assertOwnsOrder(userA, aOrder.publicId)).resolves.toBeUndefined();
     await expect(assertOwnsOrder(userA, "ord_doesnotexist")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("myPausePanel returns limits+usage for the owner, and IDOR-blocks another user", async () => {
+    const aOrder = await makeOrder(PHONE_A, "User A");
+    const bOrder = await makeOrder(PHONE_B, "User B");
+    const userA = await userIdByPhone(PHONE_A);
+
+    const panel = await myPausePanel(userA, aOrder.publicId);
+    expect(panel.usage).toEqual({ count: 0, daysUsed: 0, hasOpenPause: false });
+    expect(panel.limits).toHaveProperty("maxPauses");
+    expect(panel.limits).toHaveProperty("maxPauseDaysTotal");
+    expect(panel.limits).toHaveProperty("maxPauseStretchDays");
+
+    await expect(myPausePanel(userA, bOrder.publicId)).rejects.toBeInstanceOf(NotFoundError);
   });
 });

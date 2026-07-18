@@ -5,6 +5,7 @@ import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orderActivities,
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { autoResumeIfElapsed } from "./orders.service";
+import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -112,6 +113,20 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+}
+
+// Pause budget for the customer's pause UI: limits (nullable = unlimited) and
+// current usage, so the panel can show "N of M pauses used" before submit.
+export async function myPausePanel(userId: bigint, orderPublicId: string) {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  const [row] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Subscription not found");
+  const [limits, usage] = await Promise.all([getPauseLimits(row.id), getPauseUsage(row.id)]);
+  return { limits, usage };
 }
 
 export type WaitlistedSubscription = {
