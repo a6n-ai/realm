@@ -690,5 +690,15 @@ export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
     .limit(1);
   if (!open || open.isIndefinite || open.untilDate >= today) return;
   const [ord] = await db.select({ publicId: orders.publicId, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (ord?.status === "paused") await ordersService.resume(ord.publicId);
+  if (ord?.status === "paused") {
+    await ordersService.resume(ord.publicId);
+    return;
+  }
+  // Partial pause: the order never fully paused (some deliveries stayed scheduled), so status is
+  // still "active" and resume()'s status guard doesn't apply — close the elapsed open row directly
+  // so getPauseUsage().hasOpenPause releases and a new pause becomes legal again. resumedBy stays
+  // null (system auto-close, not an actor); no order-status change means no activity row.
+  await db.update(subscriptionPauses)
+    .set({ resumedAt: new Date() })
+    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
 }

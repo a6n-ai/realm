@@ -128,4 +128,24 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     const [o] = await db.select().from(orders).where(eq(orders.id, orderId));
     expect(o.status).toBe("paused");
   });
+
+  it("autoResumeIfElapsed closes an elapsed PARTIAL-pause row without a status flip, so a fresh pause is legal again", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    // A window in the past covers no future delivery, so the order stays "active" while the
+    // recorded pause row stays open — the common "partial pause" shape the bug report describes.
+    await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2000-01-02" });
+    const [before] = await db.select().from(orders).where(eq(orders.id, orderId));
+    expect(before.status).toBe("active");
+
+    await autoResumeIfElapsed(orderId);
+
+    const [pauseRow] = await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId));
+    expect(pauseRow.resumedAt).not.toBeNull();
+    const [after] = await db.select().from(orders).where(eq(orders.id, orderId));
+    expect(after.status).toBe("active"); // never flipped — there was nothing to resume
+
+    // The one-open-pause guard has released: a new pause no longer throws "already paused".
+    await expect(svc.pauseOrder(publicId, { from: "2000-01-03", until: "2000-01-04" })).resolves.toBeUndefined();
+  });
 });
