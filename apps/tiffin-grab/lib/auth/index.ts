@@ -39,6 +39,9 @@ export const auth = betterAuth({
     // Fire the verify/welcome email on email signups (phone-first users with no
     // email are skipped inside the sender).
     sendOnSignUp: true,
+    // Clicking the verify link signs the user in — checkout onboarding relies on
+    // this to land a brand-new customer on /set-password with a live session.
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       await sendVerification(user, url);
     },
