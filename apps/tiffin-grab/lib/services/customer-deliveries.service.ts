@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import { autoResumeIfElapsed } from "./orders.service";
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -23,6 +24,13 @@ export type Subscription = {
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
 
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
+  // Flip any elapsed pause window back to "active" before reporting status — otherwise a
+  // customer whose pause silently expired keeps seeing "paused" until some other write touches
+  // the order.
+  const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));
+  await Promise.all(pausedOrderIds.map((o) => autoResumeIfElapsed(o.id)));
+
   return db
     .select({
       publicId: orders.publicId,
