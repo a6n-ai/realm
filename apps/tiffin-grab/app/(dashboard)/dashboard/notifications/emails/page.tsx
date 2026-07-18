@@ -1,18 +1,41 @@
 import { Suspense } from "react";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql, type SQL } from "drizzle-orm";
+import type { FilterCondition } from "@realm/commons";
+import { conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { emailLog, notificationPrefs } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
-import { SectionCard, ListPagination } from "@/components/ds";
+import { SectionCard, ListPagination, parseFilterState, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { EmailLogFilters } from "./email-log-filters";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
-const PAGE_SIZE = 25;
-const STATUSES = ["sent", "failed", "suppressed"] as const;
+
+// Status + recipient filters, same facet framework as the orders/customers
+// tables. The list is a UNION (sends + suppressions), so we resolve facet fields
+// to the union alias `t.*` instead of a single table's columns.
+const SPEC: FacetDef[] = [
+  {
+    kind: "pills",
+    field: "status",
+    label: "Status",
+    options: [
+      { value: "sent", label: "Sent" },
+      { value: "failed", label: "Failed" },
+      { value: "suppressed", label: "Suppressed" },
+    ],
+  },
+  { kind: "search", fields: ["recipient"] },
+];
+
+function resolveEmailFacet(f: FilterCondition): SQL | undefined {
+  if (f.field === "status") return sql`t.status = ${String(f.value)}`;
+  if (f.field === "recipient") return sql`t.recipient ilike ${String(f.value)}`;
+  return undefined;
+}
 
 export default function EmailsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -35,14 +58,10 @@ type ActivityRow = { at: number; recipient: string | null; subject: string; stat
 
 async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const status = STATUSES.includes(sp.status as never) ? sp.status : null;
-  const q = sp.q?.trim() || null;
-  const page = Math.max(0, Number.parseInt(sp.page ?? "0", 10) || 0);
+  const { condition, page } = parseFilterState(SPEC, sp);
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const n = sql<number>`cast(count(*) as int)`;
 
-  // Unified feed: real sends (email_log) UNION address-level suppressions, so one
-  // list carries sent / failed / suppressed. Filters + offset pagination run on it.
   const base = sql`(
     select el.created_at as at, el.recipient, el.subject, el.status::text as status, el.error
     from ${emailLog} el
@@ -52,11 +71,8 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
     from ${notificationPrefs} np join users u on u.id = np.user_id
     where np.channel = 'email' and np.suppressed = true
   ) t`;
-  const conds = [
-    status ? sql`t.status = ${status}` : undefined,
-    q ? sql`t.recipient ilike ${`%${q}%`}` : undefined,
-  ].filter(Boolean);
-  const whereSql = conds.length ? sql` where ${sql.join(conds, sql` and `)}` : sql``;
+  const where = conditionToSql(condition, resolveEmailFacet);
+  const whereSql = where ? sql` where ${where}` : sql``;
 
   const [{ timezone }, sent24, failed24, totalSent, suppressed, items, totalRes] = await Promise.all([
     getAppSettings(),
@@ -64,7 +80,7 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
     db.select({ n }).from(emailLog).where(and(eq(emailLog.status, "failed"), gte(emailLog.createdAt, dayAgo))),
     db.select({ n }).from(emailLog).where(eq(emailLog.status, "sent")),
     db.select({ n }).from(notificationPrefs).where(and(eq(notificationPrefs.channel, "email"), eq(notificationPrefs.suppressed, true))),
-    db.execute(sql`select at, recipient, subject, status, error from ${base}${whereSql} order by at desc limit ${PAGE_SIZE} offset ${page * PAGE_SIZE}`),
+    db.execute(sql`select at, recipient, subject, status, error from ${base}${whereSql} order by at desc limit ${page.size} offset ${page.page * page.size}`),
     db.execute(sql`select cast(count(*) as int) as total from ${base}${whereSql}`),
   ]);
 
@@ -82,7 +98,7 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
 
       <SectionCard title="Email log" subtitle="Every send and every suppressed address, newest first.">
         <div className="space-y-4">
-          <EmailLogFilters />
+          <ReuiFacetFilters spec={SPEC} />
           {rows.length === 0 ? (
             <p className="text-muted-foreground text-sm">No emails match.</p>
           ) : (
@@ -116,7 +132,7 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
               </Table>
             </div>
           )}
-          <ListPagination page={page} size={PAGE_SIZE} total={total} />
+          <ListPagination page={page.page} size={page.size} total={total} />
         </div>
       </SectionCard>
     </div>
