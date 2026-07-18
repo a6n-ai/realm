@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Route 53 public hosted zone for tiffingrab.ca, migrated from Hostinger. Copies
+  every existing record (Titan mailboxes, Brevo sending, the EC2 app subdomain,
+  Hostinger FTP, the WordPress apex/www) so switching the registrar nameservers
+  to this zone's NS set is non-disruptive. SES sending records are added later
+  (see comment at the bottom) once the SES identity stack outputs its DKIM tokens.
+
+  APEX CAVEAT: tiffingrab.ca / www serve a Hostinger-hosted WordPress site via a
+  proprietary ALIAS -> *.cdn.hstgr.net. Route 53 cannot alias the apex to an
+  external hostname, so the apex is pinned to Hostinger's current CDN IPs
+  (ApexIps param). Those IPs can rotate; this is a short-lived bridge until the
+  WP site moves into the app. Update ApexIps if the apex site starts failing.
+
+Parameters:
+  ApexIps:
+    Type: CommaDelimitedList
+    Default: "93.127.173.143,91.108.106.237"
+    Description: >-
+      Hostinger CDN IPs the WordPress apex resolves to (captured 2026-07-18).
+      Temporary bridge; may rotate. Update and redeploy if the apex site breaks.
+  AppIp:
+    Type: String
+    Default: "52.73.226.216"
+    Description: Elastic IP of the shared EC2 box (app.tiffingrab.ca).
+
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    # Retain: deleting the stack must not drop the delegated zone (its NS set
+    # would change on re-create, breaking the registrar delegation).
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: tiffingrab.ca
+
+  # --- Apex WordPress site (Hostinger). Temporary A-record bridge (see caveat). ---
+  ApexA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: tiffingrab.ca
+      Type: A
+      TTL: 300
+      ResourceRecords: !Ref ApexIps
+
+  WwwCname:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: www.tiffingrab.ca
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - www.tiffingrab.ca.cdn.hstgr.net
+
+  # --- Titan Email (mailboxes: info@tiffingrab.ca receives here) ---
+  ApexMx:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: tiffingrab.ca
+      Type: MX
+      TTL: 3600
+      ResourceRecords:
+        - "10 mx1.titan.email"
+        - "20 mx2.titan.email"
+
+  TitanDkim:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: titan1._domainkey.tiffingrab.ca
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - '"v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCQ88svj2uPHmAFpFZRrLyS1l04ps4VVt4BWcF/rqaldaolitH+2AbbgjG9qRI6QxHNPWvN4UGZOEeS7gnU3mqqtVN9bIXT9FC5dVmm8UprC2SL7oP1caI/kTV1eEmBwe3QubnXtc2xLfMM6inDVWZdETejB5tH+G8DZNB4HRmv5QIDAQAB"'
+
+  # --- Apex TXT: Brevo verification + Titan SPF (both in one record set) ---
+  ApexTxt:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: tiffingrab.ca
+      Type: TXT
+      TTL: 3600
+      ResourceRecords:
+        - '"brevo-code:f4115d4076dac4f7b4a0f2b6158a95aa"'
+        - '"v=spf1 include:spf.titan.email ~all"'
+
+  Dmarc:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: _dmarc.tiffingrab.ca
+      Type: TXT
+      TTL: 14400
+      ResourceRecords:
+        - '"v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com"'
+
+  # --- Brevo (transactional/marketing sending) DKIM ---
+  Brevo1Dkim:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: brevo1._domainkey.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - b1.tiffingrab-ca.dkim.brevo.com
+
+  Brevo2Dkim:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: brevo2._domainkey.tiffingrab.ca
+      Type: CNAME
+      TTL: 14400
+      ResourceRecords:
+        - b2.tiffingrab-ca.dkim.brevo.com
+
+  # --- The Realm app on EC2 ---
+  AppA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: app.tiffingrab.ca
+      Type: A
+      TTL: 3600
+      ResourceRecords:
+        - !Ref AppIp
+
+  # --- Hostinger FTP ---
+  FtpA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: ftp.tiffingrab.ca
+      Type: A
+      TTL: 1800
+      ResourceRecords:
+        - "82.180.129.236"
+
+  # --- SES sending records (DKIM x3 + mail-from MX/SPF) are NOT here yet:
+  #     the EasyDKIM tokens don't exist until deployment/email/ses-tiffin-grab.yaml
+  #     is deployed. After that, add them to THIS zone (additive, safe to apply to
+  #     the live zone at any time), then SES verifies. See deployment/email/README.md.
+
+Outputs:
+  HostedZoneId:
+    Description: Route 53 hosted zone id (use when adding SES records later).
+    Value: !Ref HostedZone
+  NameServers:
+    Description: >-
+      Set these 4 as the custom nameservers at the registrar (Hostinger) to
+      delegate tiffingrab.ca to Route 53. Do this only after verifying the
+      records above match the Hostinger zone.
+    Value: !Join [", ", !GetAtt HostedZone.NameServers]
