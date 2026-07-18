@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "last_synced_image_url" text;

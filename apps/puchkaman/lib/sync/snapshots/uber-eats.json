@@ -1,0 +1,718 @@
+{
+  "provider": "uber_eats",
+  "storeUrl": "https://www.ubereats.com/ca/store/street-food-cafe-%E2%80%93-puchkaman/uA_yNuarQgGGD61dDChmOQ",
+  "storeName": "Street Food Cafe – Puchkaman",
+  "fetchedAt": "2026-07-18T12:53:32.623Z",
+  "items": [
+    {
+      "externalId": "combo-deals::best-seller-combo",
+      "name": "Best Seller Combo",
+      "description": "Choose one of our best selling items, side and a refreshing drink for the perfect combo!",
+      "rawCategory": "Combo Deals",
+      "category": "combos",
+      "price": 14.49,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/d92fb494663e7cf4c2a59a887be6efd3/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "combo-deals::puchkaman-combo",
+      "name": "Puchkaman Combo",
+      "description": "Choose one of our signature fusion puchkas,side and a refreshing drink for the perfect combo!",
+      "rawCategory": "Combo Deals",
+      "category": "combos",
+      "price": 13.49,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/ace834a7412da5e7eea49b1e71fb50db/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "combo-deals::classic-combo",
+      "name": "Classic Combo",
+      "description": "Choose one of our classic items and a refreshing drink for the perfect combo!",
+      "rawCategory": "Combo Deals",
+      "category": "combos",
+      "price": 11.49,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/41dfad267cc9c698f28d536e84e856d0/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "puchka-or-panipuri-or-golgappa::dahi-puchka",
+      "name": "Dahi Puchka",
+      "description": "Crispy puchka filled with yogurt, chutneys, and spices.",
+      "rawCategory": "Puchka or Panipuri or Golgappa",
+      "category": "trad",
+      "price": 8.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/927efec5ba10a555a6c3082bc346ede1/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "puchka-or-panipuri-or-golgappa::ghugni-puchka",
+      "name": "Ghugni Puchka",
+      "description": "Puchka stuffed with spicy and tangy yellow pea curry and chutneys.",
+      "rawCategory": "Puchka or Panipuri or Golgappa",
+      "category": "trad",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/90ff3dda0fe26d80d53a4fe8c26b7cb4/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "puchka-or-panipuri-or-golgappa::kolkatas-special-aloo-puchka",
+      "name": "Kolkata’s Special Aloo Puchka",
+      "description": "Classic Kolkata puchka stuffed with spiced potato filling served with flavoured water.",
+      "rawCategory": "Puchka or Panipuri or Golgappa",
+      "category": "trad",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/e4a1015cf658161df5c993d0f256450d/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "non-veg-fusion-puchka-sauce-based-no-water::spicy-chicken-blast-puchka",
+      "name": "Spicy Chicken Blast Puchka",
+      "description": "Crunchy puchka packed with bold spicy chicken and topped with tandoori mayo",
+      "rawCategory": "Non Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 7.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/d55b0e7a426221962297b8c2f7432424/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "non-veg-fusion-puchka-sauce-based-no-water::firangi-chicken-puchka",
+      "name": "Firangi Chicken Puchka",
+      "description": "Crispy puchka stuffed with creamy spiced chicken filling.",
+      "rawCategory": "Non Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 7.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/c95eb4a031f4b56c90e9a310965c394f/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "non-veg-fusion-puchka-sauce-based-no-water::spicy-prawn-puchka",
+      "name": "Spicy Prawn Puchka",
+      "description": "Street-style prawn puchka with tangy Korean twist",
+      "rawCategory": "Non Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 11.05,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/50e4ca3b8e8e6e43dd16dfcfb3e71ff5/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "non-veg-fusion-puchka-sauce-based-no-water::pan-fried-chicken-mo-puchka",
+      "name": "Pan Fried Chicken Mo-Puchka",
+      "description": "Crispy puchka stuffed with juicy chicken momo filling.",
+      "rawCategory": "Non Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 9.95,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "veg-fusion-puchka-sauce-based-no-water::corn-cheese-puchka",
+      "name": "Corn Cheese Puchka",
+      "description": "Crispy puchka filled with sweet corn and melted cheese.",
+      "rawCategory": "Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/c22b44371ecc1b24a98ecd8d06e3a815/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "veg-fusion-puchka-sauce-based-no-water::pan-fried-noodle-puchka",
+      "name": "Pan Fried Noodle Puchka",
+      "description": "Crispy puchka filled with flavorful pan-fried noodles.",
+      "rawCategory": "Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/cec90c4185a26103263f42bcf6be4a69/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "veg-fusion-puchka-sauce-based-no-water::paneer-schezwan-puchka-or-panipuri-or-golgappa",
+      "name": "Paneer Schezwan Puchka or panipuri or Golgappa",
+      "description": "Crispy puchka stuffed with spicy Schezwan paneer stuffing.",
+      "rawCategory": "Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/2024f024147d1e9d039dd0a55d77dd3e/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "veg-fusion-puchka-sauce-based-no-water::mushroom-blast-puchka",
+      "name": "Mushroom Blast Puchka",
+      "description": "Crunchy puchka filled with spicy mushroom mixture.",
+      "rawCategory": "Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 7.49,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/8f140fbfd5b87c072d13ab31ba9ed94c/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "veg-fusion-puchka-sauce-based-no-water::paneer-mo-puchka",
+      "name": "Paneer Mo-Puchka",
+      "description": "Crunchy puchka stuffed with juicy paneer momo filling.",
+      "rawCategory": "Veg Fusion Puchka [Sauce based NO water]",
+      "category": "fusion",
+      "price": 9.95,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "dessert-puchka::strawberry-puchka",
+      "name": "Strawberry Puchka",
+      "description": "Crispy puchka stuffed with sweet strawberry delight",
+      "rawCategory": "Dessert Puchka",
+      "category": "fusion",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/db092eca7c27537449d6fbb7e8adb47c/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "dessert-puchka::chocolate-puchka",
+      "name": "Chocolate Puchka",
+      "description": "Crispy puchka filled with rich chocolate and whipped cream",
+      "rawCategory": "Dessert Puchka",
+      "category": "fusion",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/591f1828bd346d728e3b34447d67a45b/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::churmur",
+      "name": "Churmur",
+      "description": "Crushed puchka shells mixed with spiced potatoes, onions, tangy tamarind chutney, and Kolkata street spices for a crunchy, spicy, and tangy snack.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/40930e2903b6895c6e357c14884128b7/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::papri-chaat",
+      "name": "Papri Chaat",
+      "description": "Crunchy papri topped with yogurt, chutneys, and spices.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/808caed4385146a86e6c42a326cbf61b/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::aloo-kabli",
+      "name": "Aloo Kabli",
+      "description": "Tangy potato chaat mixed with onions, spices, and chutneys.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 5.55,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/da985e60b253e992934caa73d8c114dd/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::aloo-tikki-chaat",
+      "name": "Aloo Tikki Chaat",
+      "description": "Crispy potato patties topped with yogurt, chutneys, and chaat spices.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/d1cf6e80d3014cdf2499dd38f24aef83/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::ragda-patty-chaat",
+      "name": "Ragda Patty Chaat",
+      "description": "Crispy potato patties and warm ragda curry served with yogurt and chutneys.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/e8ae1cd63b320a178873e5942e0979fb/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "chaats::corn-chaat",
+      "name": "Corn Chaat",
+      "description": "Sweet corn tossed with onions, fresh, tangy lemon, chaat masala for a light, and tangy street-style snack.",
+      "rawCategory": "Chaats",
+      "category": "chaat",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/c448dfe0591e78adeb4eff2d1322c991/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "vada-pav::classic-vada-pav",
+      "name": "Classic Vada Pav",
+      "description": "Mumbai’s famous potato fritter sandwich with chutney.",
+      "rawCategory": "Vada Pav",
+      "category": "vada",
+      "price": 6.65,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/132c4dcb19f651452c784401d4ca27bd/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "vada-pav::crispy-veg-vada-pav",
+      "name": "Crispy Veg Vada Pav",
+      "description": "Crispy potato fritter slider with chutneys and pav.",
+      "rawCategory": "Vada Pav",
+      "category": "vada",
+      "price": 7.65,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "pav-bhaji::mumbai-pav-bhaji",
+      "name": "Mumbai Pav Bhaji",
+      "description": "Rich buttery vegetable mash served with toasted pav buns.",
+      "rawCategory": "Pav Bhaji",
+      "category": "bhaji",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/1b5524a54cce138f08ee5a48daafda7f/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "pav-bhaji::ghugni-pav",
+      "name": "Ghugni Pav",
+      "description": "Tangy and Spicy yellow pea curry served with soft toasted pav.",
+      "rawCategory": "Pav Bhaji",
+      "category": "bhaji",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/f8e4043e88289760d25c66d428e0810f/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "pav-bhaji::corn-cheese-pav",
+      "name": "Corn Cheese Pav",
+      "description": "Sweet corn and melted cheese served with warm buttery pav.",
+      "rawCategory": "Pav Bhaji",
+      "category": "bhaji",
+      "price": 8.85,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/b4ec5285b9aa9b7cd9f152a0c10bb97e/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "sandwich::corn-cheese-sandwich",
+      "name": "Corn Cheese Sandwich",
+      "description": "Toasted sandwich loaded with sweet corn and melted cheese.",
+      "rawCategory": "Sandwich",
+      "category": "sandwich",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/cc0c636a2a4ebb1c6a1c1e87ec987670/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "sandwich::chicken-sandwich",
+      "name": "Chicken Sandwich",
+      "description": "Grilled chicken sandwich with fresh veggies, cheese and sauce.",
+      "rawCategory": "Sandwich",
+      "category": "sandwich",
+      "price": 7.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/5972fb06a8eb7f046addd8e99ba6c96b/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "sandwich::bombay-toast-sandwich",
+      "name": "Bombay Toast Sandwich",
+      "description": "Mumbai-style toasted sandwich with potatoes, veggies, and chutney.",
+      "rawCategory": "Sandwich",
+      "category": "sandwich",
+      "price": 9.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "sandwich::paneer-sandwich",
+      "name": "Paneer Sandwich",
+      "description": "Grilled paneer sandwich with melted cheese and spices.",
+      "rawCategory": "Sandwich",
+      "category": "sandwich",
+      "price": 7.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "momo::tandoori-momo",
+      "name": "Tandoori Momo",
+      "description": "Momos tossed in smoky tandoori spices and cooked in tandoor oven",
+      "rawCategory": "Momo",
+      "category": "momos",
+      "price": 11.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/2b0629f6996e1672ce43da99dfc51baf/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "momo::kurkure-momo",
+      "name": "Kurkure Momo",
+      "description": "Extra crispy fried momos with chicken or paneer filling",
+      "rawCategory": "Momo",
+      "category": "momos",
+      "price": 11.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/7a1230ffe4cbcb9669294ad6f25c60b4/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "momo::classic-steam-momo",
+      "name": "Classic Steam Momo",
+      "description": "Soft steamed dumplings filled with flavorful filling.",
+      "rawCategory": "Momo",
+      "category": "momos",
+      "price": 10.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/98dff49809e74fdbe74e61cbe1e188f2/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "momo::pan-fried-momo",
+      "name": "Pan Fried Momo",
+      "description": "Golden pan-fried momos with juicy filling.",
+      "rawCategory": "Momo",
+      "category": "momos",
+      "price": 10.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/0e250a9cbc2d692db9a510f4d0a9e326/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "momo::momo-platter",
+      "name": "Momo platter",
+      "description": "A flavorful mix of Steam, Pan-Fried, Tandoori, and Kurkure momos served with rich chutney, fresh coriander",
+      "rawCategory": "Momo",
+      "category": "momos",
+      "price": 17.48,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/2922c83361b90002cf5802c5f1c264cf/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "wraps-roll::chicken-kathi-roll",
+      "name": "Chicken Kathi Roll",
+      "description": "Kolkata-style paratha roll filled with flavorful chicken and sauces.",
+      "rawCategory": "Wraps & Roll",
+      "category": "rolls",
+      "price": 9.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/cb2b5bc86ebaf17019f89b1d097f8290/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "wraps-roll::paneer-kathi-roll",
+      "name": "Paneer Kathi Roll",
+      "description": "Crispy paratha loaded with spiced paneer magic",
+      "rawCategory": "Wraps & Roll",
+      "category": "rolls",
+      "price": 9.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "wraps-roll::egg-kathi-roll",
+      "name": "Egg Kathi Roll",
+      "description": "Classic street roll with egg, vegetables and spices in crispy paratha.",
+      "rawCategory": "Wraps & Roll",
+      "category": "rolls",
+      "price": 8.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::masala-chai",
+      "name": "Masala Chai",
+      "description": "Traditional tea brewed with aromatic spices",
+      "rawCategory": "Beverages",
+      "category": "hot",
+      "price": 2.79,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/ce2dba8914cd58644fb1ffebb8484ce1/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::karak-chai",
+      "name": "Karak Chai",
+      "description": "Strong and creamy street-style karak tea.",
+      "rawCategory": "Beverages",
+      "category": "hot",
+      "price": 2.2,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/58afd70c665423bdaf06566f9cc8dca0/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::aam-panna",
+      "name": "Aam Panna",
+      "description": "Refreshing raw mango drink with sweet and tangy flavors.",
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/d890cba1cd3cc71c3edf2b72699ce31d/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::kala-khatta-soda",
+      "name": "Kala Khatta Soda",
+      "description": "Sweet and tangy Java Plum(jamun) flavored soda.",
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 5.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/157ce973b5bb9d5d86f24d634cb4b9b4/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::mango-lassi",
+      "name": "Mango Lassi",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 4.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/d387bd2046c667166be222baf4d370ed/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::nukkad-cold-coffee",
+      "name": "Nukkad Cold Coffee",
+      "description": "Nukkad Cold Coffee is a highly popular, desi-style iced coffee from Indian street cafes (nukkads). It is known for being thick and ultra-frothy.",
+      "rawCategory": "Beverages",
+      "category": "hot",
+      "price": 5.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/afe4b9f541c51cd11d5f697a7284d232/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::lychee-iced-tea",
+      "name": "Lychee Iced Tea",
+      "description": "This crisp, tropical blend pairs bold, smooth iced tea with the sweet, floral essence of exotic lychee. Lightly sweetened and served ice-cold.",
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 5.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/5e890aeed63cba610a6967741ccbcbfa/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::oreo-milkshake",
+      "name": "Oreo Milkshake",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "hot",
+      "price": 7.75,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/f7d630a658435d9a7ebfeb996046faba/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "beverages::pink-chai",
+      "name": "Pink Chai",
+      "description": "Traditional Kashmiri pink tea with creamy flavor.",
+      "rawCategory": "Beverages",
+      "category": "hot",
+      "price": 3.35,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::coke",
+      "name": "Coke",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::diet-coke",
+      "name": "Diet Coke",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::crush",
+      "name": "Crush",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::ginger-ale",
+      "name": "Ginger Ale",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "beverages::sprite",
+      "name": "Sprite",
+      "description": null,
+      "rawCategory": "Beverages",
+      "category": "drinks",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::jhaal-muri",
+      "name": "Jhaal Muri",
+      "description": "Kolkata-style puffed rice mixed with mustard oil, onions, and spices.",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 4.4,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/0f9f46224eaabcd51c1a6ec5256eafe9/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::chowmein-spring-rolls",
+      "name": "Chowmein Spring Rolls",
+      "description": "Two pieces of Crispy long spring rolls filled with savory, stir-fried noodle filling.",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/24e5a6dd02b97f770fdf6ab455e6833a/d03e52b3c8af19d8fa8222e23efd9cfa.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::beguni",
+      "name": "Beguni",
+      "description": "Crispy battered eggplant fritters, a classic Kolkata street snack",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 2.2,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::piazu",
+      "name": "Piazu",
+      "description": "Crispy onion fritters fried with aromatic spices.",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 1.69,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::aloo-chop",
+      "name": "Aloo Chop",
+      "description": "Golden fried spiced potato fritter with crunchy coating.",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 1.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "muri-bhaja::beetroot-vegetable-chop",
+      "name": "Beetroot Vegetable Chop",
+      "description": "Crispy fried beetroot cutlet packed with bold Kolkata spices.",
+      "rawCategory": "Muri & Bhaja",
+      "category": "chaat",
+      "price": 3.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "maggi::pan-fried-maggi",
+      "name": "Pan Fried Maggi",
+      "description": "Classic Maggi noodles tossed and pan-fried with spices.",
+      "rawCategory": "Maggi",
+      "category": "maggi",
+      "price": 5.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/0feb3dd62bd74346485446ee92b5ff87/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "milkshakes::oreo-milkshake",
+      "name": "Oreo Milkshake",
+      "description": "Rich milkshake blended with Oreo cookies and cream.",
+      "rawCategory": "Milkshakes",
+      "category": "hot",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/f7d630a658435d9a7ebfeb996046faba/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "milkshakes::strawberry-milkshake",
+      "name": "Strawberry Milkshake",
+      "description": "Smooth strawberry milkshake, rich and refreshing delight",
+      "rawCategory": "Milkshakes",
+      "category": "hot",
+      "price": 6.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/58a98d87d84273e478aaffb68ed77b00/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "bowl::tandoori-mint-bowl",
+      "name": "Tandoori Mint Bowl",
+      "description": "Flavorful rice bowl with protein, vegetables, Tandoori mayo and fresh mint sauce.",
+      "rawCategory": "Bowl",
+      "category": "bowl",
+      "price": 15.99,
+      "imageUrl": "https://tb-static.uber.com/prod/image-proc/processed_images/6726bb103c2899837e01cb9b4e425cab/c67fc65e9b4e16a553eb7574fba090f1.jpeg",
+      "available": true
+    },
+    {
+      "externalId": "fries-onion-rings::regular-fries",
+      "name": "Regular Fries",
+      "description": "Classic crispy golden fries.",
+      "rawCategory": "Fries & Onion Rings",
+      "category": "fries",
+      "price": 3.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "fries-onion-rings::tandoori-mayo-fries",
+      "name": "Tandoori Mayo Fries",
+      "description": "Crispy fries topped with creamy tandoori mayo.",
+      "rawCategory": "Fries & Onion Rings",
+      "category": "fries",
+      "price": 3.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "fries-onion-rings::onion-rings",
+      "name": "Onion Rings",
+      "description": "Crispy golden fried onion rings.",
+      "rawCategory": "Fries & Onion Rings",
+      "category": "fries",
+      "price": 4.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "fries-onion-rings::butter-chicken-fries",
+      "name": "Butter Chicken Fries",
+      "description": "Crispy fries topped with rich buttery chicken sauce.",
+      "rawCategory": "Fries & Onion Rings",
+      "category": "fries",
+      "price": 7.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "burgers::aalo-tikki-burger",
+      "name": "Aalo tikki Burger",
+      "description": "Crispy spiced potato patty with fresh veggies and tangy sauces in a soft bun.",
+      "rawCategory": "Burgers",
+      "category": "burgers",
+      "price": 7.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "burgers::aaloo-tikki-noodle-burger",
+      "name": "Aaloo Tikki Noodle Burger",
+      "description": null,
+      "rawCategory": "Burgers",
+      "category": "burgers",
+      "price": 7.99,
+      "imageUrl": null,
+      "available": true
+    },
+    {
+      "externalId": "extra::extra-pav-bread",
+      "name": "Extra Pav Bread",
+      "description": "Extra Bread for Pav Bhaji",
+      "rawCategory": "Extra",
+      "category": "extra",
+      "price": 1.99,
+      "imageUrl": null,
+      "available": true
+    }
+  ]
+}
