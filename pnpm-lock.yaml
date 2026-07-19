@@ -38,6 +38,9 @@ importers:
       '@realm/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@realm/auth-ui':
+        specifier: workspace:*
+        version: link:../../packages/auth-ui
       '@realm/commons':
         specifier: workspace:*
         version: link:../../packages/commons
@@ -50,6 +53,9 @@ importers:
       '@realm/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@realm/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@realm/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
