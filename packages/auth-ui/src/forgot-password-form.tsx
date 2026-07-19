@@ -20,8 +20,10 @@ type Result = { error?: unknown };
 export interface ForgotPasswordFormProps {
   onSendEmailOtp: (email: string) => Promise<Result>;
   onResetWithEmailOtp: (input: { email: string; otp: string; password: string }) => Promise<Result>;
-  onSendPhoneOtp: (phone: string) => Promise<Result>;
-  onResetWithPhoneOtp: (input: { phone: string; otp: string; password: string }) => Promise<Result>;
+  // Phone channel is optional — apps without a phone plugin (e.g. puchkaman)
+  // omit these and the form falls back to email-only.
+  onSendPhoneOtp?: (phone: string) => Promise<Result>;
+  onResetWithPhoneOtp?: (input: { phone: string; otp: string; password: string }) => Promise<Result>;
   onSuccess?: () => void;
 }
 
@@ -32,6 +34,7 @@ const verifySchema = z.object({
 });
 
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
+  const supportsPhone = Boolean(props.onSendPhoneOtp && props.onResetWithPhoneOtp);
   const [step, setStep] = useState<"request" | "verify">("request");
   const [identifier, setIdentifier] = useState("");
   const [isEmail, setIsEmail] = useState(true);
@@ -49,10 +52,10 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   async function onRequest(values: z.infer<typeof requestSchema>) {
     setError(null);
     const id = values.identifier.trim();
-    const email = id.includes("@");
+    const email = supportsPhone ? id.includes("@") : true;
     // Never reveal whether the account exists — advance regardless of result.
     if (email) await props.onSendEmailOtp(id);
-    else await props.onSendPhoneOtp(id);
+    else await props.onSendPhoneOtp!(id);
     setIdentifier(id);
     setIsEmail(email);
     setStep("verify");
@@ -63,7 +66,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
     const { code, newPassword } = values;
     const res = isEmail
       ? await props.onResetWithEmailOtp({ email: identifier, otp: code, password: newPassword })
-      : await props.onResetWithPhoneOtp({ phone: identifier, otp: code, password: newPassword });
+      : await props.onResetWithPhoneOtp!({ phone: identifier, otp: code, password: newPassword });
     if (res.error) {
       setError("Invalid or expired code.");
       return;
@@ -107,12 +110,20 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       <form onSubmit={requestForm.handleSubmit(onRequest)} className="grid gap-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Reset your password</h1>
-          <p className="text-muted-foreground text-sm">Enter your phone or email — we'll send a code.</p>
+          <p className="text-muted-foreground text-sm">
+            {supportsPhone ? "Enter your phone or email — we'll send a code." : "Enter your email — we'll send a code."}
+          </p>
         </div>
         <FormField control={requestForm.control} name="identifier" render={({ field }) => (
           <FormItem>
-            <FormLabel>Phone or email</FormLabel>
-            <FormControl><Input autoComplete="username" placeholder="you@example.com or +1…" {...field} /></FormControl>
+            <FormLabel>{supportsPhone ? "Phone or email" : "Email"}</FormLabel>
+            <FormControl>
+              <Input
+                autoComplete="username"
+                placeholder={supportsPhone ? "you@example.com or +1…" : "you@example.com"}
+                {...field}
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )} />
