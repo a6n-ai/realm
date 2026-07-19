@@ -1,18 +1,25 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { and, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, zonedDateIso } from "@realm/commons";
+import { db } from "@/db/client";
+import { menuWeeks } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import {
   myActiveSubscriptions,
+  myCalendar,
   myDeliveries,
   myDeliveryActivity,
   myDeliveryHistory,
   myDeliveryMeal,
+  myPausePanel,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
-import { MAX_EXTRA_WINDOWS, WINDOW_DAYS } from "./calendar-constants";
+import { MAX_EXTRA_WINDOWS, WINDOW_DAYS, type CalendarCell } from "./calendar-constants";
 import { DeliveryCalendar, DeliveryCalendarSkeleton } from "./delivery-calendar";
 
 type SearchParams = Promise<{ days?: string }>;
@@ -61,6 +68,50 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // already in hand, keyed by orderPublicId, rather than re-querying per row.
   const subscriptionByPublicId = new Map(subscriptions.map((s) => [s.publicId, s]));
 
+  // Pause budget panel per subscription, for the calendar's "N pauses left" / indefinite-toggle
+  // gating — myPausePanel re-checks ownership itself, redundant with the map key here but cheap
+  // and keeps the IDOR guard on every read path, not just the mutating actions.
+  const pausePanelEntries = await Promise.all(
+    subscriptions.map(async (s) => [s.publicId, await myPausePanel(userId, s.publicId)] as const),
+  );
+  const pausePanels = Object.fromEntries(pausePanelEntries);
+
+  // Calendar meal-picker cells (Task 9): one myCalendar call per subscription over the same
+  // [today, until] window as the delivery list above, so "this week + next week" both come back
+  // in a single fetch and the mobile week-toggle / desktop month-nav just filter it client-side.
+  const calendarEntries = await Promise.all(
+    subscriptions.map(async (s) => [s.publicId, await myCalendar(userId, s.publicId, { from: today, until })] as const),
+  );
+  const calendarBySub = Object.fromEntries(calendarEntries);
+
+  // myCalendar's CalendarDay omits the released week's own id (it only resolves against it
+  // internally) — resolve weekStart -> menuWeekId separately so pickMyDish/applyMyDishToWeek
+  // (which require it) can be called from the calendar cells.
+  const weekStarts = [...new Set(Object.values(calendarBySub).flat().map((c) => mondayOfIso(c.date)))];
+  const planTypes = [...new Set(subscriptions.map((s) => s.planType))];
+  const releasedWeeks = weekStarts.length && planTypes.length
+    ? await db
+        .select({ planType: menuWeeks.planType, weekStart: menuWeeks.weekStart, publicId: menuWeeks.publicId })
+        .from(menuWeeks)
+        .where(and(inArray(menuWeeks.planType, planTypes), inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")))
+    : [];
+  const menuWeekIdByKey = new Map(releasedWeeks.map((w) => [`${w.planType}:${w.weekStart}`, w.publicId]));
+
+  const calendarCells: Record<string, CalendarCell[]> = {};
+  for (const s of subscriptions) {
+    calendarCells[s.publicId] = (calendarBySub[s.publicId] ?? []).map((c) => ({
+      ...c,
+      menuWeekId: menuWeekIdByKey.get(`${s.planType}:${mondayOfIso(c.date)}`) ?? null,
+    }));
+  }
+
+  // Category labels for the picker's per-slot headings — merged across plan types since a
+  // customer only ever has one active planType's worth of categories in view at a time, but the
+  // fetch is deduped by planType regardless.
+  const categoryRows = await Promise.all(planTypes.map((pt) => dishCategoriesService.forPlanType(pt)));
+  const categoryLabels: Record<string, string> = {};
+  for (const rows of categoryRows) for (const r of rows) categoryLabels[r.key] = r.label;
+
   const deliveries = await Promise.all(
     rawDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -81,6 +132,9 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     <DeliveryCalendar
       subscriptions={subscriptions}
       deliveries={deliveries}
+      pausePanels={pausePanels}
+      calendarCells={calendarCells}
+      categoryLabels={categoryLabels}
       extraWindows={extraWindows}
       waitlisted={waitlisted}
       history={history}

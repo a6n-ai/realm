@@ -43,7 +43,10 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string) {
   revalidatePath("/me/deliveries");
 }
 
-export async function pauseMySubscription(orderPublicId: string, window: { from: string; until: string }) {
+export async function pauseMySubscription(
+  orderPublicId: string,
+  window: { from: string; until: string; indefinite?: boolean },
+) {
   const userId = await me();
   await assertOwnsOrder(userId, orderPublicId);
   await pauseOrder(orderPublicId, window);

@@ -8,6 +8,10 @@ export const app = pgTable("app", {
   ...updatableColumns("aps"),
   timezone: text("timezone").notNull().default("America/Toronto"),
   cutoffHour: integer("cutoff_hour").notNull().default(18),
+  // Fallback pause limits when a duration_packages column is null. null here = unlimited.
+  defaultMaxPauses: integer("default_max_pauses"),
+  defaultMaxPauseDaysTotal: integer("default_max_pause_days_total"),
+  defaultMaxPauseStretchDays: integer("default_max_pause_stretch_days"),
   currency: text("currency").notNull().default("INR"),
   // ISO 3166-1 alpha-2 country the phone-number inputs default to. NULL = derive
   // from timezone (tzToDefaultCountry) so existing rows keep their current behavior.

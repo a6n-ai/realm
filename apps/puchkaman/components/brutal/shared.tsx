@@ -4,7 +4,7 @@ import { useId, type CSSProperties, type MouseEventHandler, type ReactNode } fro
 /* Route map — the design's hash-router `page` names → real Next routes. */
 export const ROUTE: Record<string, string> = {
   home: "/",
-  menu: "/menu",
+  menu: "/productsmenu",
   fusion: "/fusion",
   catering: "/catering",
   events: "/events",

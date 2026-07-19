@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarDaysIcon, MapPinIcon, PauseIcon, PencilIcon, PlayIcon, UtensilsCrossedIcon } from "lucide-react";
+import { CalendarDaysIcon, MapPinIcon, PencilIcon, UtensilsCrossedIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
@@ -12,42 +12,36 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, ResponsiveDialog, SkeletonListRows } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
-import type { CustomerActivity, CustomerDelivery, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
-import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import type { CustomerActivity, CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import { TransitionLink } from "@/components/motion/transition-link";
 import { DeliveryHistory } from "./delivery-history";
+import { mealChips, type DeliveryCardMeal } from "./meal-chips";
+import { PauseCalendarSection } from "./pause-calendar";
 import {
   clearMyDeliveryAddress,
-  pauseMySubscription,
-  resumeMySubscription,
   setMyDeliveryAddress,
   skipMyDelivery,
   unskipMyDelivery,
 } from "./actions";
-import { MAX_EXTRA_WINDOWS, STATUS_LABEL, STATUS_TONE, SUB_STATUS_LABEL, TONE_CLASS, WINDOW_DAYS, type DeliveryStatus } from "./calendar-constants";
+import { MAX_EXTRA_WINDOWS, STATUS_LABEL, STATUS_TONE, SUB_STATUS_LABEL, TONE_CLASS, WINDOW_DAYS, type CalendarCell, type DeliveryStatus } from "./calendar-constants";
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 
 export type DeliveryCardData = CustomerDelivery & {
-  meal: ResolvedCategory[] | { pending: true };
+  meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
 };
 
-// One chip per distinct dish in a resolved category, "{count}× {dish}" — a category's `picks`
-// can repeat the same dish (fixed categories) or vary per unit (selectable ones), so dedupe by
-// name rather than rendering one chip per pick.
-function mealChips(meal: DeliveryCardData["meal"]): string[] {
-  if ("pending" in meal) return [];
-  const chips: string[] = [];
-  for (const cat of meal) {
-    const counts = new Map<string, number>();
-    for (const p of cat.picks) counts.set(p.name, (counts.get(p.name) ?? 0) + 1);
-    for (const [name, n] of counts) chips.push(`${n}× ${name}`);
-  }
-  return chips;
-}
+export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;
+
+// Defensive fallback only — page.tsx fetches a PausePanel for every active subscription, so this
+// is never expected to be hit, but it keeps PauseCalendarSection's props total if it ever is.
+const DEFAULT_PAUSE_PANEL: PausePanel = {
+  limits: { maxPauses: null, maxPauseDaysTotal: null, maxPauseStretchDays: null },
+  usage: { count: 0, daysUsed: 0, hasOpenPause: false },
+};
 
 function StatusBadge({ status }: { status: DeliveryStatus }) {
   return (
@@ -208,47 +202,12 @@ function DeliveryCard({ d, tz, pending, run }: {
   );
 }
 
-function PauseRangeControl({ sub, pending, run }: {
-  sub: Subscription;
-  pending: boolean;
-  run: (fn: () => Promise<void>, successMsg?: string) => void;
-}) {
-  const [from, setFrom] = useState("");
-  const [until, setUntil] = useState("");
-
-  if (sub.status === "paused") {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={pending}
-        onClick={() => run(() => resumeMySubscription(sub.publicId), "Subscription resumed")}
-      >
-        <PlayIcon data-icon="inline-start" /> Resume
-      </Button>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 rounded-lg border bg-transparent px-2 text-sm" />
-      <span className="text-muted-foreground text-xs">to</span>
-      <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} className="h-8 rounded-lg border bg-transparent px-2 text-sm" />
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={pending || !from || !until}
-        onClick={() => run(() => pauseMySubscription(sub.publicId, { from, until }), "Subscription paused")}
-      >
-        <PauseIcon data-icon="inline-start" /> Pause range
-      </Button>
-    </div>
-  );
-}
-
-function SubscriptionSection({ sub, deliveries, tz, pending, run }: {
+function SubscriptionSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, pending, run }: {
   sub: Subscription;
   deliveries: DeliveryCardData[];
+  pausePanel: PausePanel;
+  calendarDays: CalendarCell[];
+  categoryLabels: Record<string, string>;
   tz: string;
   pending: boolean;
   run: (fn: () => Promise<void>, successMsg?: string) => void;
@@ -260,8 +219,8 @@ function SubscriptionSection({ sub, deliveries, tz, pending, run }: {
           <h2 className="text-base font-semibold">{sub.planName}</h2>
           <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
         </div>
-        <PauseRangeControl sub={sub} pending={pending} run={run} />
       </div>
+      <PauseCalendarSection sub={sub} deliveries={deliveries} pausePanel={pausePanel} calendarDays={calendarDays} categoryLabels={categoryLabels} tz={tz} />
       {deliveries.length === 0 ? (
         <p className="text-muted-foreground text-sm">No deliveries in this window.</p>
       ) : (
@@ -278,6 +237,9 @@ function SubscriptionSection({ sub, deliveries, tz, pending, run }: {
 export function DeliveryCalendar({
   subscriptions,
   deliveries,
+  pausePanels = {},
+  calendarCells = {},
+  categoryLabels = {},
   extraWindows,
   waitlisted = [],
   history = [],
@@ -286,6 +248,9 @@ export function DeliveryCalendar({
 }: {
   subscriptions: Subscription[];
   deliveries: DeliveryCardData[];
+  pausePanels?: Record<string, PausePanel>;
+  calendarCells?: Record<string, CalendarCell[]>;
+  categoryLabels?: Record<string, string>;
   extraWindows: number;
   waitlisted?: WaitlistedSubscription[];
   history?: CustomerDelivery[];
@@ -361,6 +326,9 @@ export function DeliveryCalendar({
           key={sub.publicId}
           sub={sub}
           deliveries={bySub.get(sub.publicId) ?? []}
+          pausePanel={pausePanels[sub.publicId] ?? DEFAULT_PAUSE_PANEL}
+          calendarDays={calendarCells[sub.publicId] ?? []}
+          categoryLabels={categoryLabels}
           tz={tz}
           pending={pending}
           run={run}

@@ -3,6 +3,12 @@
 // Server Component importing a value from a "use client" module gets a client reference back,
 // not the real value (the /dashboard/orders bug this pattern exists to avoid).
 
+import type { CalendarDay } from "@/lib/services/customer-deliveries.service";
+
+// myCalendar's CalendarDay doesn't carry the released week's own id — page.tsx resolves it
+// separately (menuWeeks lookup by planType+weekStart) since pickMyDish/applyMyDishToWeek need it.
+export type CalendarCell = CalendarDay & { menuWeekId: string | null };
+
 export type DeliveryStatus = "scheduled" | "paused" | "skipped" | "cancelled";
 
 export const STATUS_LABEL: Record<DeliveryStatus, string> = {
