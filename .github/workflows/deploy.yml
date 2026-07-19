@@ -11,7 +11,7 @@
 # cache scope so they don't clobber each other. A change under packages/** (shared)
 # rebuilds both. workflow_dispatch forces both.
 #
-# Required repo secrets: EC2_HOST, EC2_USER, EC2_SSH_KEY.
+# Required repo secrets: EC2_HOST (Box A), EC2_HOST_PUCHKAMAN (Box B), EC2_USER, EC2_SSH_KEY.
 # Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
 name: deploy
 
@@ -138,6 +138,21 @@ jobs:
           cache-from: type=gha,scope=puchkaman
           cache-to: type=gha,mode=max,scope=puchkaman
 
+      - name: Build + push puchkaman-tools (build)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: build
+          build-args: |
+            APP=puchkaman
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/puchkaman-tools:${{ github.sha }}
+            ghcr.io/a6n-ai/puchkaman-tools:latest
+          cache-from: type=gha,scope=puchkaman
+          cache-to: type=gha,mode=max,scope=puchkaman
+
   # Redeploy only the app(s) rebuilt this push. Runs if at least one build
   # succeeded and none failed. Push-only unless ENABLE_SSH_DEPLOY=true.
   deploy:
@@ -149,25 +164,42 @@ jobs:
           && (needs.build-tiffin-grab.result == 'success' || needs.build-puchkaman.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
-      - name: SSH → pull + restart changed apps on the box
+      - name: SSH → deploy tiffin-grab on Box A
+        if: ${{ needs.build-tiffin-grab.result == 'success' }}
         uses: appleboy/ssh-action@v1
         env:
           IMAGE_TAG: ${{ github.sha }}
-          DEPLOY_TIFFIN: ${{ needs.build-tiffin-grab.result == 'success' }}
-          DEPLOY_PUCHKAMAN: ${{ needs.build-puchkaman.result == 'success' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 20m
-          envs: IMAGE_TAG,DEPLOY_TIFFIN,DEPLOY_PUCHKAMAN
+          envs: IMAGE_TAG
           script: |
             set -euo pipefail
-            REPO="${{ vars.DEPLOY_PATH }}"
-            REPO="${REPO:-$HOME/realm}"
+            REPO="${{ vars.DEPLOY_PATH }}"; REPO="${REPO:-$HOME/realm}"
             git -C "$REPO" pull --ff-only
             cd "$REPO/deployment/prod"
             docker network inspect edge >/dev/null 2>&1 || docker network create edge
             (cd proxy && docker compose pull && docker compose up -d)
-            if [ "$DEPLOY_TIFFIN" = "true" ]; then (cd tiffin-grab && ./deploy.sh); fi
-            if [ "$DEPLOY_PUCHKAMAN" = "true" ]; then (cd puchkaman && ./deploy.sh); fi
+            (cd tiffin-grab && ./deploy.sh)
+
+      - name: SSH → deploy puchkaman on Box B
+        if: ${{ needs.build-puchkaman.result == 'success' }}
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST_PUCHKAMAN }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 20m
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+            REPO="${{ vars.DEPLOY_PATH }}"; REPO="${REPO:-$HOME/realm}"
+            git -C "$REPO" pull --ff-only
+            cd "$REPO/deployment/prod/puchkaman"
+            docker network inspect edge >/dev/null 2>&1 || docker network create edge
+            (cd proxy && docker compose pull && docker compose up -d)
+            ./deploy.sh
