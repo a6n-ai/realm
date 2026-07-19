@@ -5,8 +5,6 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { AdminShell } from "@/components/admin/admin-shell";
-// Scoped to /dashboard only — see the file's header comment for why.
-import "./dashboard-tailwind.css";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();

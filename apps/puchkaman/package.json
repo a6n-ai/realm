@@ -63,7 +63,6 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "jsdom": "^29.1.1",
-    "shadcn": "^4.11.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5",

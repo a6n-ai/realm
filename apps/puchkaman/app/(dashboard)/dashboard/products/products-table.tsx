@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { PackageSearchIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
 import type { PendingSync } from "@/db/schema/products";
-import { DataTable, FacetFilters, ListPagination, type Column, type FacetDef } from "@realm/design-system";
-import { TableCell } from "@realm/ui/table";
+import type { FacetDef } from "@realm/design-system";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
 import { SyncDialog } from "@/components/admin/sync-dialog";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 import { ProductForm } from "./product-form";
+import { ProductFilters } from "./product-filters";
+import { ProductPagination } from "./product-pagination";
 
 export type ProductRow = {
   id: bigint;
@@ -42,20 +43,6 @@ function relativeTime(ms: number | null): string {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
 }
-
-type ProductColumn = "name" | "category" | "price" | "status" | "source" | "synced" | "actions";
-
-// Single source of truth for the table's columns — DataTable renders both the
-// live header and the loading skeleton from this array (see .Skeleton below).
-const COLUMNS: readonly Column<ProductColumn>[] = [
-  { key: "name", label: "Name" },
-  { key: "category", label: "Category" },
-  { key: "price", label: "Price", align: "right" },
-  { key: "status", label: "Status" },
-  { key: "source", label: "Source" },
-  { key: "synced", label: "Last synced" },
-  { key: "actions", label: "" },
-];
 
 export function ProductsTable({
   spec,
@@ -96,7 +83,7 @@ export function ProductsTable({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <div className="flex wrap-gap between" style={{ alignItems: "center" }}>
-        <div />
+        <ProductFilters spec={spec} />
         <div className="flex" style={{ gap: 8 }}>
           <button className="btn btn--white btn--sm" onClick={() => setSyncOpen(true)}>
             <RefreshCwIcon size={16} /> Sync from Uber Eats
@@ -107,73 +94,111 @@ export function ProductsTable({
         </div>
       </div>
 
-      <DataTable
-        columns={COLUMNS}
-        rows={products}
-        rowKey={(p) => p.publicId}
-        filters={<FacetFilters spec={spec} />}
-        emptyIcon={PackageSearchIcon}
-        emptyMessage="No products yet."
-        emptySearchMessage="No products match your filters."
-        renderRow={(row) => (
-          <>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-2">
-                {row.image?.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={row.image.url}
-                    alt={row.name}
-                    loading="lazy"
-                    style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }}
-                  />
-                ) : (
-                  <div style={{ width: 32, height: 32, borderRadius: 6, background: "var(--muted, #eee)" }} />
-                )}
-                {row.name}
-              </div>
-            </TableCell>
-            <TableCell>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</TableCell>
-            <TableCell className="text-right tabular-nums">${row.price.toFixed(2)}</TableCell>
-            <TableCell>{row.active ? "Active" : "Archived"}</TableCell>
-            <TableCell>
-              {row.source === "uber_eats" ? (
-                row.syncStatus === "update_available" ? (
-                  <button
-                    className="status-pill status-pill--danger"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setReviewing(row)}
-                  >
-                    Update available
-                  </button>
-                ) : (
-                  "Uber Eats"
-                )
-              ) : (
-                "Manual"
-              )}
-            </TableCell>
-            <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-              {relativeTime(row.lastSyncedAt)}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center justify-end gap-1.5">
-                <button className="icon-btn" onClick={() => openEdit(row)} aria-label={`Edit ${row.name}`}>
-                  <PencilIcon size={15} />
-                </button>
-                <button
-                  className="icon-btn icon-btn--danger"
-                  onClick={() => setRemoving(row)}
-                  aria-label={`Remove ${row.name}`}
-                >
-                  <Trash2Icon size={15} />
-                </button>
-              </div>
-            </TableCell>
-          </>
-        )}
-      />
-      <ListPagination page={page} size={size} total={total} />
+      {products.length === 0 ? (
+        <div
+          className="flex center"
+          style={{
+            flexDirection: "column",
+            gap: 10,
+            padding: "48px 16px",
+            border: "var(--bd) solid var(--ink)",
+            borderRadius: "var(--r-sm)",
+            background: "var(--white)",
+          }}
+        >
+          <PackageSearchIcon size={28} style={{ opacity: 0.4 }} />
+          <p style={{ fontWeight: 700, opacity: 0.7 }}>
+            {total === 0 ? "No products yet." : "No products match your filters."}
+          </p>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th style={{ textAlign: "right" }}>Price</th>
+                <th>Status</th>
+                <th>Source</th>
+                <th>Last synced</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((row) => (
+                <tr key={row.publicId}>
+                  <td>
+                    <div className="flex center" style={{ gap: 10 }}>
+                      {row.image?.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={row.image.url}
+                          alt={row.name}
+                          loading="lazy"
+                          style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 6,
+                            background: "var(--cream)",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <span style={{ fontWeight: 700 }}>{row.name}</span>
+                    </div>
+                  </td>
+                  <td>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</td>
+                  <td className="mono" style={{ textAlign: "right" }}>
+                    ${row.price.toFixed(2)}
+                  </td>
+                  <td>{row.active ? "Active" : "Archived"}</td>
+                  <td>
+                    {row.source === "uber_eats" ? (
+                      row.syncStatus === "update_available" ? (
+                        <button
+                          className="status-pill status-pill--danger"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setReviewing(row)}
+                        >
+                          Update available
+                        </button>
+                      ) : (
+                        "Uber Eats"
+                      )
+                    ) : (
+                      "Manual"
+                    )}
+                  </td>
+                  <td className="mono" style={{ fontSize: "0.78rem", whiteSpace: "nowrap", opacity: 0.7 }}>
+                    {relativeTime(row.lastSyncedAt)}
+                  </td>
+                  <td>
+                    <div className="flex" style={{ gap: 6, justifyContent: "flex-end" }}>
+                      <button className="icon-btn" onClick={() => openEdit(row)} aria-label={`Edit ${row.name}`}>
+                        <PencilIcon size={15} />
+                      </button>
+                      <button
+                        className="icon-btn icon-btn--danger"
+                        onClick={() => setRemoving(row)}
+                        aria-label={`Remove ${row.name}`}
+                      >
+                        <Trash2Icon size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ProductPagination page={page} size={size} total={total} />
 
       <ProductForm open={formOpen} onOpenChange={setFormOpen} product={editing} />
 
@@ -190,9 +215,4 @@ export function ProductsTable({
       <PendingSyncReviewDialog product={reviewing} onOpenChange={(open) => !open && setReviewing(null)} />
     </div>
   );
-}
-
-// Loading twin — same bordered card + column header, zero drift with COLUMNS.
-export function ProductsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
 }
