@@ -1,7 +1,11 @@
--- Full database seed: app tenant row, one admin login, and the products that
--- were previously the hardcoded MENU array in app/(marketing)/menu/page.tsx —
--- migrated 1:1 so the public Menu page keeps its current content, now editable
--- from the admin dashboard. Idempotent: NOT EXISTS guards throughout.
+-- Database seed: app tenant row + the products that were previously the
+-- hardcoded MENU array in app/(marketing)/menu/page.tsx — migrated 1:1 so the
+-- public Menu page keeps its current content, now editable from the admin
+-- dashboard. Idempotent: NOT EXISTS guards throughout.
+--
+-- NO admin login here: seed the first admin with db/seed-admin.ts instead
+-- (env-provided password, bcrypt-hashed at runtime, forced first-login reset).
+-- A hardcoded credential must never live in this (public) repo.
 
 BEGIN;
 
@@ -16,23 +20,6 @@ SELECT v.id,
        'CAD'
 FROM (SELECT next_id() AS id) v
 WHERE NOT EXISTS (SELECT 1 FROM app);
-
--- ─────────────────────────────────────────────────────────────────────────────
--- ADMIN LOGIN. Password is bcrypt(rounds=10) of "Admin123!" — precomputed
--- because SQL can't hash. To change it: hash the new value with bcryptjs
--- (rounds 10) and replace the string below. Idempotent via NOT EXISTS on email.
--- ─────────────────────────────────────────────────────────────────────────────
-WITH new_admin AS (
-    INSERT INTO users (public_id, name, email, role, created_at, updated_at)
-    SELECT 'usr_seed_admin', 'Admin', 'admin@puchkaman.ca', 'admin',
-           (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@puchkaman.ca')
-    RETURNING id
-)
-INSERT INTO account (public_id, account_id, provider_id, user_id, password)
-SELECT 'act_seed_admin', id::text, 'credential', id,
-       '$2b$10$5z4NHpygwReYieYaveNkauLJeI9VP5eo4NSv0K8QND81XomlM7cOG'
-FROM new_admin;
 
 -- ============ PRODUCTS (migrated from the static MENU array) ============
 INSERT INTO products (public_id, name, description, category, price, tags, created_at, updated_at)
