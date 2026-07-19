@@ -1,9 +1,17 @@
 import { NotFoundError, weekdayKey } from "@realm/commons";
+import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import {
+  resolveDeliveryMeal,
+  resolveDeliveryMealsForWeek,
+  resolvedMealsWeekKey,
+  type ResolvedCategory,
+} from "@/lib/menu/resolve-delivery-meal";
+import { dietsForPlanKey } from "@/lib/menu/selections.service";
+import { dishCategoriesService } from "./dish-categories.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 
@@ -252,4 +260,101 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
   const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
   return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, dayOfWeek, person);
+}
+
+// Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of
+// "what a subscriber receives" (resolveCategoriesForDay), never a parallel type.
+export type ResolvedMeal = ResolvedCategory[];
+export type MealOption = { category: string; dishId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null };
+export type CalendarDay = {
+  date: string;
+  status: "scheduled" | "paused" | "skipped" | "cancelled";
+  locked: boolean;
+  isMakeup: boolean;
+  meal: ResolvedMeal | null;
+  options: MealOption[];
+};
+
+// Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
+// existing reads — myDeliveries for day membership/status/cutoff, resolveDeliveryMealsForWeek for
+// the resolved pick, and the week's own menu_items for the selectable options list. Never calls
+// reconcileMakeups (write-only, run from Server Components — see myPausePanel's sibling comment).
+export async function myCalendar(userId: bigint, orderPublicId: string, range: { from: string; until: string }): Promise<CalendarDay[]> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before any read
+
+  const [order] = await db
+    .select({ id: orders.id, planId: orders.planId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) throw new NotFoundError("Subscription not found");
+
+  const rows = (await myDeliveries(userId, range.from, range.until)).filter((r) => r.orderPublicId === orderPublicId);
+  if (rows.length === 0) return [];
+
+  // Only released weeks are ever shown: an unreleased next-week has no menu to resolve against,
+  // so its delivery days are simply absent from the calendar rather than rendered blank.
+  const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
+  const releasedWeeks = await db
+    .select()
+    .from(menuWeeks)
+    .where(and(eq(menuWeeks.planType, order.planType), inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")));
+  const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
+  if (weekByStart.size === 0) return [];
+
+  const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
+  // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
+  // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
+  const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
+  const allowedDiets = dietsForPlanKey(order.planKey);
+
+  // Per-week caches: myDeliveries can return many days across the same released week, so batch
+  // the resolution and the day's menu items once per week instead of once per delivery row.
+  const resolvedByWeek = new Map<bigint, Awaited<ReturnType<typeof resolveDeliveryMealsForWeek>>>();
+  const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null }[]>();
+
+  const out: CalendarDay[] = [];
+  for (const row of rows) {
+    const week = weekByStart.get(mondayOfIso(row.deliveryDate));
+    if (!week) continue; // day's week isn't released — omit the cell entirely
+
+    let weekResolved = resolvedByWeek.get(week.id);
+    if (!weekResolved) {
+      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, order.persons);
+      resolvedByWeek.set(week.id, weekResolved);
+    }
+    let weekItems = itemsByWeek.get(week.id);
+    if (!weekItems) {
+      weekItems = await db
+        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, diet: dishes.diet, image: dishes.image })
+        .from(menuItems)
+        .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+        .where(eq(menuItems.menuWeekId, week.id))
+        .orderBy(asc(menuItems.position));
+      itemsByWeek.set(week.id, weekItems);
+    }
+
+    // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
+    // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
+    const dayOfWeek = weekdayKey(new Date(`${row.deliveryDate}T00:00:00Z`));
+    const meal = weekResolved.get(resolvedMealsWeekKey(dayOfWeek, 1)) ?? null;
+
+    const dayItems = weekItems.filter((i) => i.dayOfWeek === dayOfWeek);
+    const options: MealOption[] = selectableCats.flatMap((c) =>
+      dayItems
+        .filter((i) => i.slot === c.key && allowedDiets.includes(i.diet))
+        .map((i) => ({ category: c.key, dishId: i.publicId, name: i.name, diet: i.diet, image: i.image ?? null })),
+    );
+
+    out.push({
+      date: row.deliveryDate,
+      status: row.status as CalendarDay["status"],
+      locked: row.cutoffAt <= Date.now(),
+      isMakeup: row.isMakeup,
+      meal,
+      options,
+    });
+  }
+  return out;
 }
