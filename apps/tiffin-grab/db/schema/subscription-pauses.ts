@@ -1,6 +1,6 @@
 import { baseColumns } from "@realm/database";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, index, pgTable, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, pgTable, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
 import { users } from "./auth";
 
@@ -16,6 +16,9 @@ export const subscriptionPauses = pgTable("subscription_pauses", {
   resumedBy: bigint("resumed_by", { mode: "bigint" }).references(() => users.id),
 }, (t) => [
   index("subscription_pauses_order_idx").on(t.orderId),
-  // Partial index backs the one-open-pause guard.
-  index("subscription_pauses_open_idx").on(t.orderId).where(sql`resumed_at is null`),
+  // Partial UNIQUE index backs the one-open-pause guard at the DB level — a plain
+  // index only supported app-level checks (assertPauseAllowed), which race under
+  // concurrent pause requests. The unique constraint makes a second OPEN row for
+  // the same order impossible, independent of any app-level TOCTOU.
+  uniqueIndex("subscription_pauses_one_open_uniq").on(t.orderId).where(sql`resumed_at is null`),
 ]);

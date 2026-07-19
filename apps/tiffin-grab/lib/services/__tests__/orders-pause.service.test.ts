@@ -55,6 +55,43 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     expect(rows[0].resumedAt).toBeNull();
   });
 
+  // DEFECT 1 (TOCTOU): assertPauseAllowed + the subscriptionPauses insert run with no lock, so two
+  // concurrent pauseMySubscription calls can both pass the app-level check. The DB-level backstop is
+  // the partial UNIQUE index on (order_id) WHERE resumed_at IS NULL — a second OPEN row for the same
+  // order must be physically impossible, independent of any app-level race.
+  it("a second direct insert of an OPEN pause row for the same order violates the unique index", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    await db.insert(subscriptionPauses).values({
+      orderId, fromDate: "2000-01-01", untilDate: "2100-01-01", isIndefinite: false,
+    });
+    let caught: unknown;
+    try {
+      await db.insert(subscriptionPauses).values({
+        orderId, fromDate: "2000-02-01", untilDate: "2100-02-01", isIndefinite: false,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeDefined();
+    type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+    const err = caught as PgErr;
+    const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+    expect(layers.some((l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_uniq"))).toBe(true);
+  });
+
+  it("pauseOrder throws 'already paused' when the unique index rejects a concurrent-winner's open row", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    // Simulate the losing side of a race: an OPEN pause row already exists (as if a concurrent
+    // request won), inserted directly so assertPauseAllowed's own DB read also sees it — this
+    // exercises the ValidationError mapping at the insert site, and the fast-path guard together.
+    await db.insert(subscriptionPauses).values({
+      orderId, fromDate: "2000-01-01", untilDate: "2100-01-01", isIndefinite: false,
+    });
+    await expect(svc.pauseOrder(publicId, { from: "2000-02-01", until: "2100-02-01" })).rejects.toThrow("already paused");
+  });
+
   it("throws 'already paused' on a second overlapping pause while one is open", async () => {
     const publicId = await makeOrder();
     // A window in the past covers no future delivery, so the order stays "active" (per the
@@ -65,6 +102,38 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     const [order] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId));
     expect(order.status).toBe("active");
     await expect(svc.pauseOrder(publicId, { from: "2000-01-03", until: "2000-01-04" })).rejects.toThrow("already paused");
+  });
+
+  // DEFECT 2: autoResumeIfElapsed runs on the read path with no lock, so two concurrent renders can
+  // each observe status="paused" and each call resume(), each inserting a duplicate "resumed"
+  // activity. resume()'s status flip is now a CONDITIONAL update (WHERE status='paused') — only the
+  // call that actually flips the row proceeds to log the activity; a second call against an
+  // already-active order is a no-op.
+  it("a normal pause -> resume logs exactly ONE 'resumed' activity", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2100-01-01" });
+    await svc.resumeOrder(publicId);
+    const acts = await svc.listOrderActivities(orderId);
+    expect(acts.filter((a) => a.type === "resumed")).toHaveLength(1);
+  });
+
+  it("resume() on an order that is already active is a no-op and does not insert a duplicate 'resumed' activity", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2100-01-01" });
+    await svc.resumeOrder(publicId);
+    // Order is now active; simulate the losing side of a concurrent-resume race directly against
+    // the conditional-update SQL path rather than through the public API's status guard.
+    const { orders } = await import("@/db/schema");
+    const { and, eq } = await import("drizzle-orm");
+    const flipped = await db.update(orders)
+      .set({ status: "active" })
+      .where(and(eq(orders.publicId, publicId), eq(orders.status, "paused")))
+      .returning({ id: orders.id });
+    expect(flipped).toHaveLength(0);
+    const acts = await svc.listOrderActivities(orderId);
+    expect(acts.filter((a) => a.type === "resumed")).toHaveLength(1);
   });
 
   it("resume stamps resumedAt and a subsequent pause is allowed again", async () => {
