@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { UpdatableRepository, UpdatableService, columnResolver, conditionToSql } from "@realm/database";
@@ -98,6 +98,44 @@ class ProductsService extends UpdatableService<typeof products> {
     ]);
 
     return { items, page: page.page, size: page.size, total: count };
+  }
+
+  // Dashboard-home aggregates: total/featured/category/pending-sync counts,
+  // plus the small recent/featured lists. All server-side COUNTs — no client
+  // filters, nothing computed off client-submitted data.
+  async productStats(): Promise<{
+    total: number;
+    featured: number;
+    categories: number;
+    pendingSync: number;
+  }> {
+    const [[{ total }], [{ featured }], [{ categories }], [{ pendingSync }]] = await Promise.all([
+      db.select({ total: sql<number>`cast(count(*) as int)` }).from(products),
+      db
+        .select({ featured: sql<number>`cast(count(*) as int)` })
+        .from(products)
+        .where(eq(products.featured, true)),
+      db.select({ categories: sql<number>`cast(count(distinct ${products.category}) as int)` }).from(products),
+      db
+        .select({ pendingSync: sql<number>`cast(count(*) as int)` })
+        .from(products)
+        .where(eq(products.syncStatus, "update_available")),
+    ]);
+
+    return { total, featured, categories, pendingSync };
+  }
+
+  async recentProducts(limit: number): Promise<ProductListRow[]> {
+    return db.select().from(products).orderBy(desc(products.createdAt)).limit(limit);
+  }
+
+  async featuredProducts(limit: number): Promise<ProductListRow[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.featured, true))
+      .orderBy(desc(products.createdAt))
+      .limit(limit);
   }
 }
 
