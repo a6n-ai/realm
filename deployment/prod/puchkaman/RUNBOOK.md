@@ -55,10 +55,33 @@ Install docker + compose + awscli + jq + git.
 
 ## 4. Cutover (from Box A)
 
-1. Before DNS change, verify Box B by IP:
-   `curl --resolve puchkaman.ca:443:<BoxB-IP> https://puchkaman.ca/ -I`
-   then hit `/login`, create a product in `/dashboard`, test an S3 upload.
-2. Flip puchkaman.ca (+ www) DNS → Box B public IP (Route53). Wait for Caddy TLS.
+**TLS chicken-and-egg:** Caddy can't issue a real Let's Encrypt cert for
+puchkaman.ca until DNS points at Box B (ACME needs the public name to resolve
+here). Until the flip, puchkaman.ca still resolves to Box A. So verify in two
+phases: app-level over the IP with cert-check relaxed BEFORE the flip, real TLS
+AFTER.
+
+1. **Pre-flip (app-level, `-k` because the cert isn't issued yet).** Point the
+   Host at Box B by IP and accept Caddy's internal cert:
+
+       IP=<BoxB-IP>
+       curl -k --resolve puchkaman.ca:443:$IP -I https://puchkaman.ca/        # expect 200
+       curl -k --resolve puchkaman.ca:443:$IP -I https://puchkaman.ca/login   # expect 200
+       # admin path redirects to /login without a session (302) — proves proxy.ts + app boot:
+       curl -k --resolve puchkaman.ca:443:$IP -o /dev/null -w '%{http_code}\n' \
+         https://puchkaman.ca/dashboard
+
+   Then in a browser (accept the cert warning), log in and create a product +
+   test an S3 upload — this exercises the NEW RDS + NEW bucket end to end.
+   Also confirm the baseline migrated: `docker compose --profile tools run --rm
+   migrate` in step 3 above prints "No migrations to apply" on a second run.
+
+2. **Flip DNS** puchkaman.ca (+ www) → Box B public IP (Route53). Within a
+   minute or two Caddy completes ACME. Then verify **real** TLS:
+
+       curl -I https://puchkaman.ca/          # 200, valid cert, no -k
+       curl -I https://puchkaman.ca/login     # 200
+
 3. On Box A: `cd ~/realm/deployment/prod && (cd puchkaman && docker compose down)`
    then `docker image rm ghcr.io/a6n-ai/puchkaman-web:latest || true`. Box A's
    shared Caddy no longer references puchkaman (see proxy/Caddyfile).
