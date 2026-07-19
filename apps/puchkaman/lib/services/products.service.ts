@@ -1,9 +1,28 @@
-import { asc, eq } from "drizzle-orm";
-import { UpdatableRepository, UpdatableService } from "@realm/database";
+import { asc, eq, sql } from "drizzle-orm";
+import type { Condition, FilterCondition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { UpdatableRepository, UpdatableService, columnResolver, conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { products, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { productSchema } from "@/lib/products/schema";
+
+export type ProductListRow = typeof products.$inferSelect;
+
+// Every filterable facet (category/source/syncStatus/featured/name/slug) lives
+// on the base `products` table, so a plain columnResolver suffices — except
+// `featured`, whose URL value arrives as the string "true"/"false" (same as
+// every other facet) but needs a real boolean to match the column.
+function resolveProductFacet(f: FilterCondition) {
+  if (f.field === "featured") return eq(products.featured, f.value === "true");
+  return columnResolver({
+    category: products.category,
+    source: products.source,
+    syncStatus: products.syncStatus,
+    name: products.name,
+    slug: products.slug,
+  })(f);
+}
 
 // session.user.id is the acting user's public_id (usr_…); audit columns are
 // bigint. Resolve it to the internal id once per call so create/update stamp
@@ -51,6 +70,34 @@ class ProductsService extends UpdatableService<typeof products> {
   // Admin table view: every product, active or not.
   async listAll() {
     return db.select().from(products).orderBy(asc(products.category), asc(products.name));
+  }
+
+  // Server-side faceted filtering + offset pagination for the admin table —
+  // mirrors tiffin-grab's listOrdersPage. Named `queryProducts` (not `list`):
+  // `list` is already taken by the base UpdatableService method. Every facet
+  // resolves against the base `products` table directly (no FK, so no join
+  // that could inflate/deflate the count).
+  async queryProducts(
+    condition: Condition | undefined,
+    page: PageRequest,
+  ): Promise<Page<ProductListRow>> {
+    const where = conditionToSql(condition, resolveProductFacet);
+
+    const [items, [{ count }]] = await Promise.all([
+      db
+        .select()
+        .from(products)
+        .where(where)
+        .orderBy(asc(products.category), asc(products.name))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(products)
+        .where(where),
+    ]);
+
+    return { items, page: page.page, size: page.size, total: count };
   }
 }
 
