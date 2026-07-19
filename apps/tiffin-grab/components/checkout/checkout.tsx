@@ -99,14 +99,21 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
     if (!selections) return;
     setSubmitting(true);
     try {
-      const { deploymentId } = await confirmSubscription({
+      const res = await confirmSubscription({
         selections,
         planKey: selections.planKey!,
         contact,
         couponCode: appliedCode ?? undefined,
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
-      router.push(`/activate/${deploymentId}`);
+      // Out-of-zone: server created a waitlist inquiry, not an order — show the
+      // waitlist confirmation instead of routing to activation.
+      if (res.waitlisted) {
+        setWaitlisted(true);
+        setStep(1);
+        return;
+      }
+      router.push(`/activate/${res.deploymentId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
