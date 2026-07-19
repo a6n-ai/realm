@@ -14,7 +14,7 @@ export function deliveryDayStatus(
   now: number,
 ): DayStatus {
   if (d.isMakeup) return "makeup";
-  if (now > d.cutoffAt) return "locked";
+  if (now >= d.cutoffAt) return "locked";
   if (d.status === "paused") return "paused";
   if (d.status === "skipped") return "skipped";
   return "scheduled";

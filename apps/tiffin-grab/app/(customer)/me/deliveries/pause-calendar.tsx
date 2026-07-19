@@ -266,6 +266,7 @@ export function PauseCalendarSection({ sub, deliveries, pausePanel, tz }: {
             selected={range}
             onSelect={setRange}
             disabled={isDisabledDay}
+            excludeDisabled
             components={{ DayButton: DotDayButton }}
             className="mx-auto"
           />
