@@ -16,6 +16,10 @@ Parameters:
   DbInstanceClass:
     Type: String
     Default: db.t4g.micro
+  DbEngineVersion:
+    Type: String
+    Default: "18.3"
+    Description: PostgreSQL engine version. Pinned to match tiffin-grab (client parity).
   AllowSshCidr:
     Type: String
     Default: 0.0.0.0/0
@@ -61,6 +65,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: puchkaman-prod
       Engine: postgres
+      EngineVersion: !Ref DbEngineVersion
       DBName: puchkaman
       MasterUsername: puchkaman
       MasterUserPassword: !Ref DbMasterPassword
