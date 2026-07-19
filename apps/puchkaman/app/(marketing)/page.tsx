@@ -94,7 +94,7 @@ export default function HomePage() {
           <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {BEST_SELLERS.map((d, i) => (
               <Reveal key={d.name} delay={i * 60}>
-                <Link href="/menu" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
+                <Link href="/productsmenu" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
                     <Ph label={`${d.name} photo`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
                     {d.sticker && (

@@ -8,7 +8,7 @@ import { Btn } from "./shared";
 /* [route-name, long label, short label] */
 export const NAV_LINKS: [string, string, string][] = [
   ["home", "Home", "Home"],
-  ["menu", "Menu", "Menu"],
+  ["productsmenu", "Menu", "Menu"],
   ["fusion", "Fusion Puchkas", "Fusion"],
   ["catering", "Catering", "Catering"],
   ["events", "Watch Parties", "Events"],
