@@ -52,6 +52,7 @@ describe("Checkout confirm() error handling", () => {
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "12345" } });
 
     fireEvent.click(screen.getByRole("button", { name: /continue to payment/i }));

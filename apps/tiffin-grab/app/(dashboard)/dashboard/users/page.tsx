@@ -49,9 +49,11 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
     const ov = overridesByUser.get(u.id);
     return {
       id: u.publicId,
+      name: u.name,
       email: u.email,
       phone: u.phone,
       role: u.role,
+      status: u.status,
       flags: allFlags.map((f) => ({
         id: f.publicId,
         key: f.key,

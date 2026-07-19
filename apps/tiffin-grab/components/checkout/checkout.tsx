@@ -117,7 +117,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
   if (!selections) return null;
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
-  const emailValid = !contact.email.trim() || emailSchema.safeParse(contact.email).success;
+  const emailValid = emailSchema.safeParse(contact.email.trim()).success;
 
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_360px] md:items-start">
@@ -158,7 +158,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
                   {contact.phone.trim() && !phoneValid && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="email">Email <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" autoComplete="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
                   {contact.email.trim() && !emailValid && <p className="text-xs text-destructive">Enter a valid email</p>}
                 </div>

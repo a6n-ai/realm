@@ -6,6 +6,7 @@ import { cn } from "@realm/ui/cn";
 
 const TABS = [
   { href: "/dashboard/notifications/templates", label: "Templates" },
+  { href: "/dashboard/notifications/emails", label: "Emails" },
   { href: "/dashboard/notifications/logs", label: "Logs" },
   { href: "/dashboard/notifications/analytics", label: "Analytics" },
 ];

@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@realm/database";
 import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@realm/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { account, users } from "@/db/schema";
+import { account, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
@@ -52,6 +52,31 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
   async update(id: string, patch: Record<string, unknown>) {
     return super.update(id, pickUserWritable(patch));
+  }
+
+  /**
+   * Soft-delete: mark `deleted`, anonymize contact so the email/phone free up for
+   * reuse, and revoke every session (log out everywhere). Business rows
+   * (orders/wallet/tickets) are preserved — we never hard-delete a user.
+   */
+  async softDelete(publicId: string) {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+    if (!u) throw new ValidationError("User not found");
+    await db.delete(session).where(eq(session.userId, u.id));
+    return super.update(publicId, { status: "deleted", email: null, phone: null });
+  }
+
+  /** Verify a plaintext password against the user's credential account. */
+  async verifyAccountPassword(publicId: string, plain: string): Promise<boolean> {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
+    if (!u) return false;
+    const [acct] = await db
+      .select({ password: account.password })
+      .from(account)
+      .where(and(eq(account.userId, u.id), eq(account.providerId, "credential")))
+      .limit(1);
+    if (!acct?.password) return false;
+    return verifyPassword(plain, acct.password);
   }
 
   async updateContact(userId: string, input: { phone?: string; email?: string }) {

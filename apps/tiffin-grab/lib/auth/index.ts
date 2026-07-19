@@ -39,6 +39,9 @@ export const auth = betterAuth({
     // Fire the verify/welcome email on email signups (phone-first users with no
     // email are skipped inside the sender).
     sendOnSignUp: true,
+    // Clicking the verify link signs the user in — checkout onboarding relies on
+    // this to land a brand-new customer on /set-password with a live session.
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       await sendVerification(user, url);
     },
@@ -105,6 +108,22 @@ export const auth = betterAuth({
   // Doc ref: https://www.better-auth.com/docs/concepts/database#database-hooks
   databaseHooks: {
     session: {
+      // Login gate: only `active` accounts may get a session. Fires after the
+      // credential/OTP check passes, so a deactivated/suspended/deleted user is
+      // authenticated but denied a session. Existing sessions are additionally
+      // re-checked in the Node getSession path (see requireAccountUser).
+      create: {
+        before: async (sess) => {
+          const [u] = await db
+            .select({ status: users.status })
+            .from(users)
+            .where(eq(users.id, BigInt(sess.userId as string)))
+            .limit(1);
+          if (u && u.status !== "active") {
+            throw new APIError("FORBIDDEN", { message: "This account is not active. Contact support." });
+          }
+        },
+      },
       delete: {
         after: async (sess) => {
           try {

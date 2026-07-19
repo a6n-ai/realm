@@ -26,11 +26,10 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
       </p>
 
       <Card className="mt-8 p-5 text-left text-sm">
-        <div className="font-medium">Your account is ready</div>
+        <div className="font-medium">Check your email</div>
         <p className="mt-1 text-muted-foreground">
-          Log in with <span className="font-medium">{sub.fullName}</span>&apos;s checkout email (or phone) and the
-          temporary password <code className="rounded bg-muted px-1">Tiffin123</code> — you&apos;ll set your own
-          password on first sign-in, then you can manage your delivery schedule.
+          We&apos;ve emailed a link to set your password and finish setting up your account. Click it to sign
+          in — or sign in any time with a one-time code we email you. Then manage your delivery schedule.
         </p>
         <Separator className="my-4" />
         <div className="font-medium">Pick your meals</div>

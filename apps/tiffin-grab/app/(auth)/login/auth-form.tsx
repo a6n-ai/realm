@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import type { Country } from "react-phone-number-input";
 import { z } from "zod";
-import { signIn } from "@/lib/auth/client";
+import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
 import { Button } from "@realm/ui/button";
@@ -24,12 +24,13 @@ import { verifyPinAction } from "./actions";
 // Single auth screen. Password by default; when a locked session with a PIN
 // exists (`canUsePin`), it defaults to PIN entry and offers an in-place toggle
 // to password (and vice-versa). No navigation between the two → no back button.
-type Mode = "password" | "pin";
+type Mode = "email-otp" | "password" | "pin";
 
 export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; defaultCountry: Country }) {
-  // A locked session (PIN available) opens straight in PIN mode; the panel still
-  // offers "Sign in with password instead" to switch. Otherwise, password.
-  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : "password");
+  // Default to email-OTP (passwordless) — the primary method until SMS/WhatsApp
+  // exists. A locked session (PIN available) opens in PIN mode; both panels offer
+  // in-place toggles, so there's no navigation between methods.
+  const [mode, setMode] = useState<Mode>(canUsePin ? "pin" : "email-otp");
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,8 +39,15 @@ export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; de
           <div className="p-6 md:p-8">
             {mode === "pin" ? (
               <PinPanel onUsePassword={() => setMode("password")} />
+            ) : mode === "email-otp" ? (
+              <EmailOtpPanel onUsePassword={() => setMode("password")} />
             ) : (
-              <PasswordPanel canUsePin={canUsePin} defaultCountry={defaultCountry} onUsePin={() => setMode("pin")} />
+              <PasswordPanel
+                canUsePin={canUsePin}
+                defaultCountry={defaultCountry}
+                onUsePin={() => setMode("pin")}
+                onUseEmailOtp={() => setMode("email-otp")}
+              />
             )}
           </div>
           <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
@@ -63,7 +71,7 @@ const passwordSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-function PasswordPanel({ canUsePin, defaultCountry, onUsePin }: { canUsePin: boolean; defaultCountry: Country; onUsePin: () => void }) {
+function PasswordPanel({ canUsePin, defaultCountry, onUsePin, onUseEmailOtp }: { canUsePin: boolean; defaultCountry: Country; onUsePin: () => void; onUseEmailOtp: () => void }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -199,6 +207,9 @@ function PasswordPanel({ canUsePin, defaultCountry, onUsePin }: { canUsePin: boo
           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
             Sign in
           </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={onUseEmailOtp}>
+            Email me a sign-in code instead
+          </Button>
           <div className="text-center text-sm">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="underline underline-offset-4">
@@ -208,6 +219,86 @@ function PasswordPanel({ canUsePin, defaultCountry, onUsePin }: { canUsePin: boo
         </div>
       </form>
     </Form>
+  );
+}
+
+const otpEmailSchema = z.object({ email: z.email("Enter a valid email") });
+const otpCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code") });
+
+// Passwordless sign-in: email a 6-digit code, then sign in with it. The default
+// method until SMS/WhatsApp exists. Auto-registers a new email (magic-link style).
+function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const emailForm = useForm<z.infer<typeof otpEmailSchema>>({ resolver: zodResolver(otpEmailSchema), defaultValues: { email: "" } });
+  const codeForm = useForm<z.infer<typeof otpCodeSchema>>({ resolver: zodResolver(otpCodeSchema), defaultValues: { code: "" } });
+
+  async function sendCode(values: z.infer<typeof otpEmailSchema>) {
+    setError(null);
+    // Never reveal whether the address exists — advance regardless of result.
+    await authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "sign-in" });
+    setEmail(values.email);
+    setStep("code");
+  }
+
+  async function verify(values: z.infer<typeof otpCodeSchema>) {
+    setError(null);
+    const result = await signIn.emailOtp({ email, otp: values.code });
+    if (result?.error) {
+      setError("Invalid or expired code.");
+      return;
+    }
+    await clearLockSession();
+    router.push(params.get("callbackUrl") ?? "/dashboard");
+    router.refresh();
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center text-center">
+        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <p className="text-muted-foreground text-balance">
+          {step === "email" ? "Sign in with a code sent to your email" : `Enter the code we emailed to ${email}`}
+        </p>
+      </div>
+      {step === "email" ? (
+        <Form {...emailForm}>
+          <form onSubmit={emailForm.handleSubmit(sendCode)} className="flex flex-col gap-4">
+            <FormField control={emailForm.control} name="email" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl><Input type="email" autoComplete="email" placeholder="you@example.com" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            {error ? <p className="text-destructive text-sm">{error}</p> : null}
+            <Button type="submit" className="w-full" disabled={emailForm.formState.isSubmitting}>Email me a code</Button>
+          </form>
+        </Form>
+      ) : (
+        <Form {...codeForm}>
+          <form onSubmit={codeForm.handleSubmit(verify)} className="flex flex-col gap-4">
+            <FormField control={codeForm.control} name="code" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Verification code</FormLabel>
+                <FormControl><Input inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="123456" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            {error ? <p className="text-destructive text-sm">{error}</p> : null}
+            <Button type="submit" className="w-full" disabled={codeForm.formState.isSubmitting}>Sign in</Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep("email"); setError(null); }}>Use a different email</Button>
+          </form>
+        </Form>
+      )}
+      <Button type="button" variant="ghost" className="w-full" onClick={onUsePassword}>Sign in with a password instead</Button>
+      <div className="text-center text-sm">
+        Don&apos;t have an account? <Link href="/signup" className="underline underline-offset-4">Sign up</Link>
+      </div>
+    </div>
   );
 }
 

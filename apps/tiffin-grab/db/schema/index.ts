@@ -15,5 +15,6 @@ export * from "./app";
 export * from "./audit";
 export * from "./wallet";
 export * from "./notifications";
+export * from "./email-log";
 export * from "./notification-template";
 export * from "./files";

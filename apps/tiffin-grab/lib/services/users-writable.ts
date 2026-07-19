@@ -3,7 +3,7 @@
 // verification, and the framework-managed audit/identity columns — so a raw
 // PATCH /api/users/[id] cannot inject a bcrypt-bypassing hash or forge
 // emailVerified. Password changes are out of scope for this slice.
-export const USER_WRITABLE_FIELDS = ["name", "email", "phone", "role"] as const;
+export const USER_WRITABLE_FIELDS = ["name", "email", "phone", "role", "status"] as const;
 
 export function pickUserWritable(values: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
