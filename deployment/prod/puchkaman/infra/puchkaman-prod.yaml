@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Puchkaman prod - dedicated RDS + IAM instance role + security group (mirrors tiffin-grab).
+
+# Naming mirrors tiffin-grab (realm-<app>-prod-*): RDS realm-puchkaman-prod-db,
+# one security group realm-puchkaman-prod-sg (box + RDS share it, 5432 self-ref),
+# IAM instance profile realm-puchkaman-prod-role. The files bucket
+# (puchkaman-files-<acct>-<region>-an) is created OUT OF BAND (see note below).
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for the security group + RDS (uses the VPC's default DB subnet group).
+  DbMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: RDS master password (also stored in SSM by the operator, not here).
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+  DbEngineVersion:
+    Type: String
+    Default: "18.3"
+    Description: PostgreSQL engine version. Pinned to match tiffin-grab (client parity).
+  AllowSshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR permitted to SSH to the box (tighten to your IP).
+
+Resources:
+  # One SG for the box AND the RDS, mirroring tiffin-grab's realm-tiffin-grab-prod-sg.
+  # Public web + SSH; Postgres 5432 is reachable only from members of this same SG
+  # (self-reference), so the box reaches RDS but nothing else can.
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: realm-puchkaman-prod-sg
+      GroupDescription: Puchkaman prod - box (web/SSH) + RDS (5432 from this SG only).
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22,  ToPort: 22,  CidrIp: !Ref AllowSshCidr }
+        - { IpProtocol: tcp, FromPort: 80,  ToPort: 80,  CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+      Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-sg }]
+
+  # Self-referencing 5432 ingress as a separate resource (avoids a create-time cycle).
+  DbIngressSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: realm-puchkaman-prod-db
+      Engine: postgres
+      EngineVersion: !Ref DbEngineVersion
+      DBName: puchkaman
+      MasterUsername: puchkaman
+      MasterUserPassword: !Ref DbMasterPassword
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: "20"
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      # Reuse the VPC's default subnet group (same as tiffin-grab: default-vpc-<vpcId>).
+      DBSubnetGroupName: !Sub "default-${VpcId}"
+      VPCSecurityGroups: [!Ref AppSecurityGroup]
+      Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-db }]
+
+  # NOTE: the files bucket is created OUT OF BAND, not here. Its name uses the S3
+  # "account-regional namespace" (suffix -<accountId>-<region>-an), whose CreateBucket
+  # requires the `x-amz-bucket-namespace: account-regional` header that CloudFormation's
+  # AWS::S3::Bucket cannot send (fails MissingNamespaceHeader). Create it once with:
+  #   aws s3api create-bucket --region us-east-1 --bucket-namespace account-regional \
+  #     --bucket puchkaman-files-<acct>-us-east-1-an
+  #   aws s3api put-public-access-block --bucket <name> --public-access-block-configuration \
+  #     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+  #   aws s3api put-bucket-encryption --bucket <name> --server-side-encryption-configuration \
+  #     '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+  # The IAM role below grants access by ARN pattern, so no CFN Ref is needed.
+
+  BoxRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: realm-puchkaman-prod-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: puchkaman-prod-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SsmRead
+                Effect: Allow
+                Action: [ssm:GetParametersByPath, ssm:GetParameters, ssm:GetParameter]
+                Resource:
+                  # GetParametersByPath authorizes against the path NODE, not just
+                  # the child parameters, so grant both the node and /*.
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod/*"
+              - Sid: SsmDecrypt
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/puchkaman/prod:*"
+              - Sid: S3Files
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject, s3:ListBucket]
+                Resource:
+                  - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
+                  - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an/*"
+
+  BoxInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: realm-puchkaman-prod-role
+      Roles: [!Ref BoxRole]
+
+Outputs:
+  DbEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  SecurityGroupId:
+    Description: Shared box + RDS security group (realm-puchkaman-prod-sg).
+    Value: !Ref AppSecurityGroup
+  InstanceProfileName:
+    Value: !Ref BoxInstanceProfile
+  FilesBucketName:
+    Description: Created out of band (account-regional namespace); shown for reference.
+    Value: !Sub "puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"

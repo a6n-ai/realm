@@ -1,26 +1,53 @@
-# Puchkaman prod stack — public marketing site only (no DB, redis, worker or
-# migrations yet). Just the Next.js standalone container, fronted by the shared
-# Caddy in ../proxy which reaches it as `puchkaman-web:3000` over `edge`.
+# Puchkaman prod stack on its OWN box: web + pgbouncer + one-shot migrate,
+# fronted by the Box B Caddy in ../proxy which reaches it as puchkaman-web:3000
+# over `edge`. No redis (nothing reads REDIS_URL), no worker (no broker).
 #
-# Image is built in CI (deployment/prod/Dockerfile, --build-arg APP=puchkaman)
-# and pushed to GHCR; the box only pulls it (deploy.sh).
-#
-# ponytail: no logging driver — Docker default (json-file). awslogs needs an
-# env_file (AWS_REGION) + an IAM grant for /puchkaman/prod the tiffin role lacks;
-# a public static site doesn't need CloudWatch. Add logs when a backend lands.
+# Two images from deployment/prod/Dockerfile (--build-arg APP=puchkaman):
+#   puchkaman-web   = runner target (Next standalone) → web
+#   puchkaman-tools = build  target (source + drizzle-kit) → migrate
+# Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
+include:
+  - pgbouncer/docker-compose.yml
+
+x-awslogs: &awslogs
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION:-us-east-1}
+    awslogs-group: /puchkaman/prod
+    awslogs-create-group: "true"
+
 services:
   web:
     image: ${WEB_IMAGE:-ghcr.io/a6n-ai/puchkaman-web}:${IMAGE_TAG:-latest}
-    container_name: puchkaman-web # stable hostname the shared Caddy targets
+    container_name: puchkaman-web # stable hostname the Box B Caddy targets
     restart: unless-stopped
-    # No env_file: the public site needs no runtime secrets today. Add one here
-    # (and uncomment) when admin/DB/auth land.
-    # env_file: .env.production
+    logging: *awslogs
+    env_file: .env.production
     expose:
-      - "3000" # internal only; the shared Caddy is the sole public ingress
+      - "3000" # internal only; the Box B Caddy is the sole public ingress
     networks:
-      - edge
+      - default # reach pgbouncer in this project
+      - edge # reached by the Box B Caddy in ../proxy
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
 
+  # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
+  # Never starts on `up` (tools profile); invoked by deploy.sh before up.
+  migrate:
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/puchkaman-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
+    env_file: .env.production
+    environment:
+      # Migrations bypass the pooler — drizzle-kit DDL + advisory lock need a
+      # real session on RDS.
+      DATABASE_URL: ${DIRECT_DATABASE_URL}
+    command: ["pnpm", "--filter", "puchkaman", "exec", "drizzle-kit", "migrate"]
+    profiles:
+      - tools
+
+# Box B's own edge network — created once (`docker network create edge`) and
+# joined by ../proxy's Caddy and this web service.
 networks:
   edge:
     external: true

@@ -13,6 +13,8 @@ CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE A
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'member', 'user');--> statement-breakpoint
 CREATE TYPE "public"."file_resource_type" AS ENUM('static', 'secured');--> statement-breakpoint
 CREATE TYPE "public"."file_system_node_type" AS ENUM('file', 'directory');--> statement-breakpoint
+CREATE TYPE "public"."product_source" AS ENUM('manual', 'uber_eats');--> statement-breakpoint
+CREATE TYPE "public"."product_sync_status" AS ENUM('none', 'synced', 'update_available');--> statement-breakpoint
 CREATE TABLE "app" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -122,7 +124,18 @@ CREATE TABLE "products" (
 	"image" jsonb,
 	"tags" text[],
 	"active" boolean DEFAULT true NOT NULL,
-	CONSTRAINT "products_public_id_unique" UNIQUE("public_id")
+	"slug" text,
+	"display_order" integer DEFAULT 0 NOT NULL,
+	"featured" boolean DEFAULT false NOT NULL,
+	"source" "product_source" DEFAULT 'manual' NOT NULL,
+	"external_id" text,
+	"last_synced_at" bigint,
+	"sync_status" "product_sync_status" DEFAULT 'none' NOT NULL,
+	"pending_sync" jsonb,
+	"last_synced_image_url" text,
+	CONSTRAINT "products_public_id_unique" UNIQUE("public_id"),
+	CONSTRAINT "products_slug_unique" UNIQUE("slug"),
+	CONSTRAINT "products_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

@@ -1,0 +1,25 @@
+# Box B public ingress. One Caddy fronts puchkaman only (auto-TLS via Let's
+# Encrypt), reaching puchkaman-web over the external `edge` network by name.
+# Create the network once on the box:  docker network create edge
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env.production # provides $ACME_EMAIL to the Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # persists issued certs across restarts
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    external: true
