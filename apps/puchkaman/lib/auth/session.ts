@@ -25,5 +25,5 @@ export const getSession = cache(async () => {
   if (!s?.user) return null;
   const u = s.user as { publicId?: string; id: string; role?: RoleValue; email?: string };
   if (!u.publicId) return null;
-  return { user: { id: u.publicId, role: u.role ?? Role.ADMIN, email: u.email ?? "" } };
+  return { user: { id: u.publicId, role: u.role ?? Role.USER, email: u.email ?? "" } };
 });

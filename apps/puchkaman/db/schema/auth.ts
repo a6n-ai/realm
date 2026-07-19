@@ -17,6 +17,10 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     role: userRole("role").notNull().default("user"),
+    // false = account still on an issued default/temp password and must set its
+    // own on first login. The dashboard gate redirects to /set-password while
+    // this is false; setOwnPassword flips it true.
+    passwordSet: boolean("password_set").notNull().default(false),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },

@@ -127,6 +127,15 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
                   - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an/*"
+              # Transactional email via SES (from info@puchkaman.ca). Scoped to
+              # this domain identity + config set — the SES stack (puchkaman-ses)
+              # owns those resources; this only grants send.
+              - Sid: SesSend
+                Effect: Allow
+                Action: [ses:SendEmail, ses:SendRawEmail]
+                Resource:
+                  - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/puchkaman.ca"
+                  - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/puchkaman-prod"
 
   BoxInstanceProfile:
     Type: AWS::IAM::InstanceProfile

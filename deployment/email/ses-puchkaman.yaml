@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  SES sending identity for puchkaman.ca: an EasyDKIM-signed domain identity with
+  a custom MAIL FROM subdomain (mail.puchkaman.ca) for SPF alignment. puchkaman.ca
+  is hosted in Route 53, so UNLIKE tiffingrab this stack ALSO creates the DNS
+  records (3 DKIM CNAMEs + MAIL FROM MX/SPF) directly in the hosted zone. The apex
+  SPF/MX (PrivateEmail) is untouched — SES uses the mail.* subdomain envelope.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: puchkaman.ca
+    AllowedPattern: "^[a-z0-9.-]+\\.[a-z]{2,}$"
+  MailFromSubdomain:
+    Type: String
+    Default: mail
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route 53 hosted zone for the domain (auto-adds DKIM + MAIL FROM records).
+  ConfigurationSetName:
+    Type: String
+    Default: puchkaman-prod
+
+Resources:
+  Identity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref DomainName
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        BehaviorOnMxFailure: REJECT_MESSAGE
+        MailFromDomain: !Sub "${MailFromSubdomain}.${DomainName}"
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref ConfigurationSet
+
+  ConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref ConfigurationSetName
+
+  # --- EasyDKIM: 3 CNAMEs auto-added to the R53 zone ---
+  Dkim1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue1]
+  Dkim2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue2]
+  Dkim3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue3]
+
+  # --- Custom MAIL FROM (mail.puchkaman.ca): MX + SPF for envelope alignment ---
+  MailFromMx:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "${MailFromSubdomain}.${DomainName}"
+      Type: MX
+      TTL: "1800"
+      ResourceRecords:
+        - !Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"
+  MailFromSpf:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "${MailFromSubdomain}.${DomainName}"
+      Type: TXT
+      TTL: "1800"
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
+Outputs:
+  IdentityArn:
+    Description: SES identity ARN — scope the instance-role ses:SendEmail policy to this.
+    Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+  ConfigurationSetName:
+    Value: !Ref ConfigurationSet
+  MailFromDomain:
+    Value: !Sub "${MailFromSubdomain}.${DomainName}"
