@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // The serviceability gate is the whole point: an out-of-zone checkout must never
 // call createOrder (no order, no payment) — it captures a waitlist inquiry instead.
-const createOrder = vi.fn(async () => ({ deploymentId: "SUB-XXXXXX", publicId: "ord_x" }));
-const createWebsiteInquiry = vi.fn(async () => ({ ok: true as const, waitlisted: true }));
+const createOrder = vi.fn(async (..._a: unknown[]) => ({ deploymentId: "SUB-XXXXXX", publicId: "ord_x" }));
+const createWebsiteInquiry = vi.fn(async (..._a: unknown[]) => ({ ok: true as const, waitlisted: true }));
 let matchZoneResult: { name: string } | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));

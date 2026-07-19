@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { emailSchema } from "@realm/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
@@ -64,7 +65,10 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
 }
 
 const passwordSchema = z.object({
-  identifier: z.email("Enter a valid email"),
+  // emailSchema (not z.email) lowercases + trims so a differently-cased login
+  // matches the checkout-provisioned account — otherwise a new account is created
+  // and the customer's order (on the original account) doesn't show.
+  identifier: emailSchema,
   password: z.string().min(1, "Password is required"),
 });
 
@@ -177,7 +181,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
   );
 }
 
-const otpEmailSchema = z.object({ email: z.email("Enter a valid email") });
+const otpEmailSchema = z.object({ email: emailSchema });
 const otpCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code") });
 
 // Passwordless sign-in: email a 6-digit code, then sign in with it. The default
