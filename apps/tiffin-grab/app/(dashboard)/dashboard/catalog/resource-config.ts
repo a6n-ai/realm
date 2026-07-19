@@ -106,6 +106,10 @@ const deliveryFrequenciesSchema = z.object({
 const durationPackagesSchema = z.object({
   weeks: reqNum(z.coerce.number().int().positive()),
   discountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
+  // Per-package pause-limit overrides; null (blank) falls back to the app-wide default.
+  maxPauses: optNum(z.coerce.number().int().nonnegative()),
+  maxPauseDaysTotal: optNum(z.coerce.number().int().nonnegative()),
+  maxPauseStretchDays: optNum(z.coerce.number().int().nonnegative()),
   active,
 });
 
@@ -220,6 +224,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "weeks", label: "Weeks", type: "number" },
       { key: "discountPct", label: "Discount", type: "number", unit: "%" },
+      { key: "maxPauses", label: "Max pauses (blank = app default)", type: "number", optional: true, tableHidden: true },
+      { key: "maxPauseDaysTotal", label: "Max pause days total (blank = app default)", type: "number", optional: true, tableHidden: true },
+      { key: "maxPauseStretchDays", label: "Max pause stretch days (blank = app default)", type: "number", optional: true, tableHidden: true },
     ],
   },
   "delivery-zones": {

@@ -59,7 +59,15 @@ export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: 
   });
 }
 
-export async function setAppSettings(input: { timezone: string; cutoffHour: number; currency?: string; defaultCountry?: CountryCode | null }): Promise<void> {
+export async function setAppSettings(input: {
+  timezone: string;
+  cutoffHour: number;
+  currency?: string;
+  defaultCountry?: CountryCode | null;
+  defaultMaxPauses?: number | null;
+  defaultMaxPauseDaysTotal?: number | null;
+  defaultMaxPauseStretchDays?: number | null;
+}): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId, currency: app.currency }).from(app).limit(1);
   // currency is optional here (the general settings form may not send it yet);
   // preserve the existing value, falling back to the default.
@@ -67,8 +75,11 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
     timezone: input.timezone,
     cutoffHour: input.cutoffHour,
     currency: input.currency ?? row?.currency ?? DEFAULTS.currency,
-    // undefined = leave unchanged; null = clear back to timezone fallback.
+    // undefined = leave unchanged; null = clear (unlimited / timezone fallback).
     ...(input.defaultCountry !== undefined ? { defaultCountry: input.defaultCountry } : {}),
+    ...(input.defaultMaxPauses !== undefined ? { defaultMaxPauses: input.defaultMaxPauses } : {}),
+    ...(input.defaultMaxPauseDaysTotal !== undefined ? { defaultMaxPauseDaysTotal: input.defaultMaxPauseDaysTotal } : {}),
+    ...(input.defaultMaxPauseStretchDays !== undefined ? { defaultMaxPauseStretchDays: input.defaultMaxPauseStretchDays } : {}),
   };
   if (row) {
     await appSettingsEntity.update(row.publicId, patch);
@@ -98,6 +109,28 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
 export async function getDefaultCountrySetting(): Promise<CountryCode | null> {
   const [row] = await db.select({ dc: app.defaultCountry }).from(app).limit(1);
   return (row?.dc as CountryCode | null) ?? null;
+}
+
+// Raw stored pause-limit defaults for the settings editor: NULL means unlimited
+// (no client-side derivation to hide, unlike defaultCountry).
+export async function getPauseDefaultsSetting(): Promise<{
+  defaultMaxPauses: number | null;
+  defaultMaxPauseDaysTotal: number | null;
+  defaultMaxPauseStretchDays: number | null;
+}> {
+  const [row] = await db
+    .select({
+      defaultMaxPauses: app.defaultMaxPauses,
+      defaultMaxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
+      defaultMaxPauseStretchDays: app.defaultMaxPauseStretchDays,
+    })
+    .from(app)
+    .limit(1);
+  return {
+    defaultMaxPauses: row?.defaultMaxPauses ?? null,
+    defaultMaxPauseDaysTotal: row?.defaultMaxPauseDaysTotal ?? null,
+    defaultMaxPauseStretchDays: row?.defaultMaxPauseStretchDays ?? null,
+  };
 }
 
 export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {
