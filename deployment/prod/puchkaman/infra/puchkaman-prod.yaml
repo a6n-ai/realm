@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Puchkaman prod - dedicated RDS + S3 + IAM instance role + security groups.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to place the RDS + box security groups in.
+  DbSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two+ subnets (distinct AZs) for the RDS subnet group.
+  DbMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: RDS master password (also stored in SSM by the operator, not here).
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+  AllowSshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR permitted to SSH to the box (tighten to your IP).
+
+Resources:
+  BoxSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Puchkaman EC2 box - public web + SSH.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22,  ToPort: 22,  CidrIp: !Ref AllowSshCidr }
+        - { IpProtocol: tcp, FromPort: 80,  ToPort: 80,  CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+      Tags: [{ Key: app, Value: puchkaman }]
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Puchkaman RDS - 5432 from the box only.
+      VpcId: !Ref VpcId
+      Tags: [{ Key: app, Value: puchkaman }]
+
+  DbIngressFromBox:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref BoxSecurityGroup
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Puchkaman RDS subnet group.
+      SubnetIds: !Ref DbSubnetIds
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: puchkaman-prod
+      Engine: postgres
+      DBName: puchkaman
+      MasterUsername: puchkaman
+      MasterUserPassword: !Ref DbMasterPassword
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: "20"
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      Tags: [{ Key: app, Value: puchkaman }]
+
+  FilesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  BoxRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: realm-puchkaman-prod-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: puchkaman-prod-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SsmRead
+                Effect: Allow
+                Action: [ssm:GetParametersByPath, ssm:GetParameters, ssm:GetParameter]
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod/*"
+              - Sid: SsmDecrypt
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/puchkaman/prod:*"
+              - Sid: S3Files
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject, s3:ListBucket]
+                Resource:
+                  - !GetAtt FilesBucket.Arn
+                  - !Sub "${FilesBucket.Arn}/*"
+
+  BoxInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: realm-puchkaman-prod-role
+      Roles: [!Ref BoxRole]
+
+Outputs:
+  DbEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  BoxSecurityGroupId:
+    Value: !Ref BoxSecurityGroup
+  InstanceProfileName:
+    Value: !Ref BoxInstanceProfile
+  FilesBucketName:
+    Value: !Ref FilesBucket
