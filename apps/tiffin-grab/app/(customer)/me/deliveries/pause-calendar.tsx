@@ -6,16 +6,20 @@ import { toast } from "sonner";
 import { addDays, startOfWeek } from "date-fns";
 import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PauseIcon, PlayIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
+import { weekdayKey } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Switch } from "@realm/ui/switch";
 import { Calendar, CalendarDayButton } from "@realm/ui/calendar";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
 import { Card, CardContent } from "@/components/ds";
+import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardData, PausePanel } from "./delivery-calendar";
+import type { CalendarCell } from "./calendar-constants";
 import { mealChips } from "./meal-chips";
+import { MealDayPicker } from "./meal-day-picker";
 import { pauseMySubscription, resumeMySubscription } from "./actions";
 import { DAY_STATUS_BAR_CLASS, DAY_STATUS_DOT_CLASS, DAY_STATUS_LABEL, deliveryDayStatus, type DayStatus } from "./day-status";
 
@@ -149,10 +153,12 @@ function PauseForm({
   );
 }
 
-export function PauseCalendarSection({ sub, deliveries, pausePanel, tz }: {
+export function PauseCalendarSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz }: {
   sub: Subscription;
   deliveries: DeliveryCardData[];
   pausePanel: PausePanel;
+  calendarDays: CalendarCell[];
+  categoryLabels: Record<string, string>;
   tz: string;
 }) {
   const router = useRouter();
@@ -163,6 +169,29 @@ export function PauseCalendarSection({ sub, deliveries, pausePanel, tz }: {
     for (const d of deliveries) m.set(d.deliveryDate, d);
     return m;
   }, [deliveries]);
+
+  const byCalendarDate = useMemo(() => {
+    const m = new Map<string, CalendarCell>();
+    for (const c of calendarDays) m.set(c.date, c);
+    return m;
+  }, [calendarDays]);
+
+  // Locked days show a read-only cutoff banner; pre-cutoff subscribed days with a released
+  // menu get the interactive picker. Shared by both the desktop agenda panel and the mobile
+  // Drawer body so tapping a day behaves identically in both layouts.
+  function renderMealSection(dateIso: string, delivery: DeliveryCardData | undefined, status: DayStatus) {
+    if (status === "locked") {
+      if (!delivery || "pending" in delivery.meal) return null;
+      return (
+        <CutoffBanner days={[{ dateIso, dayOfWeek: weekdayKey(new Date(`${dateIso}T00:00:00Z`)), lockMs: delivery.cutoffAt }]} />
+      );
+    }
+    const cell = byCalendarDate.get(dateIso);
+    if (!cell) return null;
+    return (
+      <MealDayPicker cell={cell} orderPublicId={sub.publicId} categoryLabels={categoryLabels} onChanged={() => router.refresh()} />
+    );
+  }
 
   const todayIso = useMemo(() => toIsoLocal(new Date()), []);
 
@@ -272,6 +301,7 @@ export function PauseCalendarSection({ sub, deliveries, pausePanel, tz }: {
           />
           <div className="space-y-3">
             <DayAgendaChip status={desktopAgendaStatus} dateIso={desktopAgendaIso} delivery={desktopAgendaDelivery} tz={tz} />
+            {renderMealSection(desktopAgendaIso, desktopAgendaDelivery, desktopAgendaStatus)}
             <PauseForm
               sub={sub}
               pausePanel={pausePanel}
@@ -334,6 +364,7 @@ export function PauseCalendarSection({ sub, deliveries, pausePanel, tz }: {
           </DrawerHeader>
           <div className="space-y-3 px-4 pb-2">
             {agendaDate && <DayAgendaChip status={drawerStatus} dateIso={agendaDate} delivery={drawerDelivery} tz={tz} />}
+            {agendaDate && renderMealSection(agendaDate, drawerDelivery, drawerStatus)}
             <PauseForm
               sub={sub}
               pausePanel={pausePanel}

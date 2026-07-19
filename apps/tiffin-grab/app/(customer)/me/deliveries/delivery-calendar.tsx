@@ -24,7 +24,7 @@ import {
   skipMyDelivery,
   unskipMyDelivery,
 } from "./actions";
-import { MAX_EXTRA_WINDOWS, STATUS_LABEL, STATUS_TONE, SUB_STATUS_LABEL, TONE_CLASS, WINDOW_DAYS, type DeliveryStatus } from "./calendar-constants";
+import { MAX_EXTRA_WINDOWS, STATUS_LABEL, STATUS_TONE, SUB_STATUS_LABEL, TONE_CLASS, WINDOW_DAYS, type CalendarCell, type DeliveryStatus } from "./calendar-constants";
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 
@@ -202,10 +202,12 @@ function DeliveryCard({ d, tz, pending, run }: {
   );
 }
 
-function SubscriptionSection({ sub, deliveries, pausePanel, tz, pending, run }: {
+function SubscriptionSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, pending, run }: {
   sub: Subscription;
   deliveries: DeliveryCardData[];
   pausePanel: PausePanel;
+  calendarDays: CalendarCell[];
+  categoryLabels: Record<string, string>;
   tz: string;
   pending: boolean;
   run: (fn: () => Promise<void>, successMsg?: string) => void;
@@ -218,7 +220,7 @@ function SubscriptionSection({ sub, deliveries, pausePanel, tz, pending, run }: 
           <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
         </div>
       </div>
-      <PauseCalendarSection sub={sub} deliveries={deliveries} pausePanel={pausePanel} tz={tz} />
+      <PauseCalendarSection sub={sub} deliveries={deliveries} pausePanel={pausePanel} calendarDays={calendarDays} categoryLabels={categoryLabels} tz={tz} />
       {deliveries.length === 0 ? (
         <p className="text-muted-foreground text-sm">No deliveries in this window.</p>
       ) : (
@@ -236,6 +238,8 @@ export function DeliveryCalendar({
   subscriptions,
   deliveries,
   pausePanels = {},
+  calendarCells = {},
+  categoryLabels = {},
   extraWindows,
   waitlisted = [],
   history = [],
@@ -245,6 +249,8 @@ export function DeliveryCalendar({
   subscriptions: Subscription[];
   deliveries: DeliveryCardData[];
   pausePanels?: Record<string, PausePanel>;
+  calendarCells?: Record<string, CalendarCell[]>;
+  categoryLabels?: Record<string, string>;
   extraWindows: number;
   waitlisted?: WaitlistedSubscription[];
   history?: CustomerDelivery[];
@@ -321,6 +327,8 @@ export function DeliveryCalendar({
           sub={sub}
           deliveries={bySub.get(sub.publicId) ?? []}
           pausePanel={pausePanels[sub.publicId] ?? DEFAULT_PAUSE_PANEL}
+          calendarDays={calendarCells[sub.publicId] ?? []}
+          categoryLabels={categoryLabels}
           tz={tz}
           pending={pending}
           run={run}
