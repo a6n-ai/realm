@@ -5,9 +5,7 @@ import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { requireAdmin } from "@/lib/auth/guards";
 import { ChangePasswordForm } from "./change-password-form";
-
-// change-email is intentionally not offered here — it needs a tier-2
-// change-email OTP flow that isn't built yet. Don't stub a broken control.
+import { ChangeEmailForm } from "./change-email-form";
 
 export default function AccountPage() {
   return (
@@ -66,6 +64,17 @@ async function AccountData() {
         </p>
         <ChangePasswordForm />
       </section>
+
+      <section className="card" style={{ padding: "clamp(20px,3vw,28px)" }}>
+        <p className="kicker" style={{ opacity: 0.55, marginBottom: 4 }}>
+          Email
+        </p>
+        <p style={{ opacity: 0.7, fontWeight: 500, marginBottom: 18, fontSize: "0.92rem" }}>
+          Change your email. We&apos;ll send a code to your current email ({session.user.email}) first, then a
+          second code to the new address.
+        </p>
+        <ChangeEmailForm currentEmail={session.user.email} />
+      </section>
     </div>
   );
 }
@@ -73,7 +82,7 @@ async function AccountData() {
 function AccountSkeleton() {
   return (
     <div style={{ display: "grid", gap: 20, maxWidth: 480 }}>
-      {[0, 1].map((i) => (
+      {[0, 1, 2].map((i) => (
         <div key={i} className="card" style={{ padding: "clamp(20px,3vw,28px)", display: "grid", gap: 14 }}>
           <div style={{ height: 14, width: 90, background: "var(--paper, rgba(0,0,0,.08))", borderRadius: 4 }} />
           <div style={{ height: 18, width: "70%", background: "var(--paper, rgba(0,0,0,.06))", borderRadius: 4 }} />
