@@ -21,7 +21,7 @@
  * (db/client.ts reads DATABASE_URL; point it at DIRECT_DATABASE_URL since
  * this is a one-shot DDL-adjacent write, not pooled app traffic.)
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hashPassword } from "@realm/auth";
 import { db } from "./client";
 import { account, users } from "./schema";
@@ -38,6 +38,23 @@ async function main() {
   }
 
   await db.transaction(async (tx) => {
+    // app tenant singleton must exist before the users insert: users/account
+    // default app_id to current_app_id(), which resolves via `SELECT id FROM
+    // app ORDER BY id LIMIT 1` — NULL on an empty app table violates the
+    // app_id NOT NULL constraint. Mirrors db/seed.sql's APP block exactly.
+    await tx.execute(sql`
+      INSERT INTO app (id, public_id, app_id, created_at, updated_at, timezone, currency)
+      SELECT v.id,
+             'aps_default',
+             v.id,
+             (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+             (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+             'America/Toronto',
+             'CAD'
+      FROM (SELECT next_id() AS id) v
+      WHERE NOT EXISTS (SELECT 1 FROM app)
+    `);
+
     const [created] = await tx
       .insert(users)
       .values({
