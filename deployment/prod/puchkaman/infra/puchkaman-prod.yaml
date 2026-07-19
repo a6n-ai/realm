@@ -105,7 +105,11 @@ Resources:
               - Sid: SsmRead
                 Effect: Allow
                 Action: [ssm:GetParametersByPath, ssm:GetParameters, ssm:GetParameter]
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod/*"
+                Resource:
+                  # GetParametersByPath authorizes against the path NODE, not just
+                  # the child parameters, so grant both the node and /*.
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/puchkaman/prod/*"
               - Sid: SsmDecrypt
                 Effect: Allow
                 Action: kms:Decrypt
