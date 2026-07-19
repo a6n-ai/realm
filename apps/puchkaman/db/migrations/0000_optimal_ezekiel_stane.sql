@@ -1,3 +1,15 @@
+CREATE SEQUENCE IF NOT EXISTS "id_seq";--> statement-breakpoint
+CREATE OR REPLACE FUNCTION next_id(OUT result bigint) RETURNS bigint LANGUAGE plpgsql AS $fn$
+DECLARE our_epoch bigint := 1735689600000; seq_id bigint; now_millis bigint;
+BEGIN
+  SELECT nextval('id_seq') % 8388608 INTO seq_id;
+  SELECT floor(extract(epoch FROM clock_timestamp()) * 1000) INTO now_millis;
+  result := (now_millis - our_epoch) << 23;
+  result := result | seq_id;
+END;
+$fn$;--> statement-breakpoint
+-- Stub so CREATE TABLE app_id DEFAULTs validate; real body set after tables exist.
+CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE AS $fn$ SELECT NULL::bigint $fn$;--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'member', 'user');--> statement-breakpoint
 CREATE TYPE "public"."file_resource_type" AS ENUM('static', 'secured');--> statement-breakpoint
 CREATE TYPE "public"."file_system_node_type" AS ENUM('file', 'directory');--> statement-breakpoint
@@ -134,4 +146,5 @@ CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email") WHERE 
 CREATE INDEX "users_created_idx" ON "users" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "idx_fs_rtype_ftype_parent" ON "files_file_system" USING btree ("resource_type","file_type","parent_id");--> statement-breakpoint
 CREATE INDEX "idx_fs_rtype_ftype" ON "files_file_system" USING btree ("resource_type","file_type");--> statement-breakpoint
-CREATE INDEX "idx_fs_path" ON "files_file_system" USING btree ("path");
+CREATE INDEX "idx_fs_path" ON "files_file_system" USING btree ("path");--> statement-breakpoint
+CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE AS $fn$ SELECT id FROM app ORDER BY id LIMIT 1 $fn$;
