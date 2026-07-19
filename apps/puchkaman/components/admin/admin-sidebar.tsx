@@ -1,13 +1,35 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronsLeftIcon, ChevronsRightIcon, LogOutIcon, UtensilsCrossedIcon, XIcon, type LucideIcon } from "lucide-react";
+import {
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  SearchIcon,
+  UtensilsCrossedIcon,
+  XIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 
 export type AdminNavItem = { title: string; href: string; icon: LucideIcon };
+export type AdminNavSection = { label: string; items: AdminNavItem[] };
 
-const NAV: AdminNavItem[] = [{ title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon }];
+// Grouped navigation — mirrors tiffin-grab's app-sidebar section shape. Only
+// routes that actually exist under app/(dashboard)/dashboard/ belong here.
+const SECTIONS: AdminNavSection[] = [
+  {
+    label: "Overview",
+    items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon }],
+  },
+  {
+    label: "Catalog",
+    items: [{ title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon }],
+  },
+];
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   return (
@@ -59,6 +81,20 @@ export function AdminSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [query, setQuery] = useState("");
+
+  const isActive = (href: string) => (href === "/dashboard" ? pathname === href : pathname.startsWith(href));
+
+  // Client-side label filter, same behavior as tiffin's sidebar search: a plain
+  // case-insensitive substring match, no fuzzy matching or ranking.
+  const filteredSections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SECTIONS;
+    return SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.title.toLowerCase().includes(q)),
+    })).filter((section) => section.items.length > 0);
+  }, [query]);
 
   const body = (
     <aside className={`admin-sidebar ${collapsed ? "admin-sidebar--collapsed" : ""} ${mobileOpen ? "is-open" : ""}`}>
@@ -69,16 +105,38 @@ export function AdminSidebar({
         </button>
       </div>
 
-      <nav style={{ flex: 1, padding: "14px 0", overflowY: "auto" }}>
-        {NAV.map((item) => {
-          const active = pathname.startsWith(item.href);
-          return (
-            <Link key={item.href} href={item.href} className={`admin-nav-link ${active ? "is-active" : ""}`} title={collapsed ? item.title : undefined}>
-              <item.icon size={18} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-              {!collapsed && <span>{item.title}</span>}
-            </Link>
-          );
-        })}
+      {!collapsed && (
+        <div className="admin-sidebar-search">
+          <SearchIcon size={15} strokeWidth={2.4} aria-hidden />
+          <input
+            type="search"
+            className="admin-sidebar-search__input"
+            placeholder="Search menu…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search dashboard menu"
+          />
+        </div>
+      )}
+
+      <nav style={{ flex: 1, padding: "6px 0 14px", overflowY: "auto" }}>
+        {filteredSections.map((section) => (
+          <div key={section.label} className="admin-nav-group">
+            {!collapsed && <div className="admin-nav-group__label">{section.label}</div>}
+            {section.items.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link key={item.href} href={item.href} className={`admin-nav-link ${active ? "is-active" : ""}`} title={collapsed ? item.title : undefined}>
+                  <item.icon size={18} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+                  {!collapsed && <span>{item.title}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+        {!collapsed && filteredSections.length === 0 && (
+          <p className="admin-nav-empty">No matches</p>
+        )}
       </nav>
 
       <div style={{ borderTop: "2px solid rgba(255,244,218,.15)", padding: "12px 14px", display: "grid", gap: 10 }}>
