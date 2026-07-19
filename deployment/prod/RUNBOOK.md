@@ -1,8 +1,10 @@
 # Production deploy runbook
 
-One EC2 box hosts **multiple client apps** behind one shared Caddy:
-- **tiffin-grab** — https://app.tiffingrab.ca (full stack: web + worker + redis + pgbouncer + RDS)
-- **puchkaman** — https://puchkaman.ca (public marketing site only — web container, no DB)
+Each client app runs on its OWN EC2 box + OWN RDS:
+- **tiffin-grab** — Box A, https://app.tiffingrab.ca (web + worker + redis + pgbouncer + RDS).
+  Deploy config here under `tiffin-grab/` + shared `proxy/`.
+- **puchkaman** — Box B, https://puchkaman.ca (web + pgbouncer + RDS + S3 admin).
+  Deploy config + its own RUNBOOK + Caddy under `puchkaman/`.
 
 CI is **push-only**: pushing to `main` builds `tiffin-grab-web` + `-tools` **and**
 `puchkaman-web` images and pushes them to GHCR. The deploy job is gated behind repo
