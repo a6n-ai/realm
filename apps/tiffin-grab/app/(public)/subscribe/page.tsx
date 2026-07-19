@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { Wizard } from "@/components/wizard/wizard";
 import { currentUserId } from "@/lib/services/session-service";
+import { getSession } from "@/lib/auth/session";
+import { isStaffRole } from "@/lib/auth/landing";
 import { mySubscriptionsSummary } from "@/lib/services/customer-deliveries.service";
 import { ExistingSubscriptions } from "@/components/customer/subscribe/existing-subscriptions";
 
@@ -9,6 +12,12 @@ import { ExistingSubscriptions } from "@/components/customer/subscribe/existing-
 export const dynamic = "force-dynamic";
 
 export default async function SubscribePage() {
+  // Staff self-subscribing would attach a customer order to their staff account
+  // (provisionCustomerByPhone dedupes by phone) — send them to the dashboard,
+  // where they create customer orders on a customer's behalf instead.
+  const session = await getSession();
+  if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
+
   const userId = await currentUserId();
   const [catalog, subs] = await Promise.all([
     loadCatalogSnapshot(),
