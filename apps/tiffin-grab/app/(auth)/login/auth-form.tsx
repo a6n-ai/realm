@@ -6,19 +6,17 @@ import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
+import { CodeOtp } from "@realm/auth-ui";
 import { Button } from "@realm/ui/button";
 import { Card, CardContent } from "@realm/ui/card";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
-import { PhoneInput } from "@realm/ui/phone-input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@realm/ui/tabs";
 import { verifyPinAction } from "./actions";
 
 // Single auth screen. Password by default; when a locked session with a PIN
@@ -26,7 +24,7 @@ import { verifyPinAction } from "./actions";
 // to password (and vice-versa). No navigation between the two → no back button.
 type Mode = "email-otp" | "password" | "pin";
 
-export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; defaultCountry: Country }) {
+export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   // Default to email-OTP (passwordless) — the primary method until SMS/WhatsApp
   // exists. A locked session (PIN available) opens in PIN mode; both panels offer
   // in-place toggles, so there's no navigation between methods.
@@ -44,7 +42,6 @@ export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; de
             ) : (
               <PasswordPanel
                 canUsePin={canUsePin}
-                defaultCountry={defaultCountry}
                 onUsePin={() => setMode("pin")}
                 onUseEmailOtp={() => setMode("email-otp")}
               />
@@ -67,39 +64,25 @@ export function AuthForm({ canUsePin, defaultCountry }: { canUsePin: boolean; de
 }
 
 const passwordSchema = z.object({
-  identifier: z.string().min(1, "Phone or email is required"),
+  identifier: z.email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 
-function PasswordPanel({ canUsePin, defaultCountry, onUsePin, onUseEmailOtp }: { canUsePin: boolean; defaultCountry: Country; onUsePin: () => void; onUseEmailOtp: () => void }) {
+function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: boolean; onUsePin: () => void; onUseEmailOtp: () => void }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  // Phone/email tab selects the sign-in method; the identifier field is shared.
-  const [method, setMethod] = useState<"phone" | "email">("phone");
   const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { identifier: "", password: "" },
   });
 
-  // Switching tabs clears the identifier so a half-typed phone doesn't leak into
-  // the email field (and vice-versa).
-  const switchMethod = (next: string) => {
-    if (next !== "phone" && next !== "email") return;
-    setMethod(next);
-    form.setValue("identifier", "");
-    form.clearErrors("identifier");
-    setError(null);
-  };
-
   async function onSubmit(values: z.infer<typeof passwordSchema>) {
     setError(null);
     try {
       const { identifier, password } = values;
-      const result = method === "phone"
-        ? await signIn.phoneNumber({ phoneNumber: identifier, password })
-        : await signIn.email({ email: identifier, password });
+      const result = await signIn.email({ email: identifier, password });
       if (result?.error) {
         setError("Invalid credentials");
         return;
@@ -128,47 +111,19 @@ function PasswordPanel({ canUsePin, defaultCountry, onUsePin, onUseEmailOtp }: {
               Unlock with your PIN instead
             </Button>
           )}
-          <Tabs value={method} onValueChange={switchMethod} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="phone">Phone</TabsTrigger>
-              <TabsTrigger value="email">Email</TabsTrigger>
-            </TabsList>
-            <TabsContent value="phone">
-              <FormField
-                control={form.control}
-                name="identifier"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone number</FormLabel>
-                    <FormControl>
-                      <PhoneInput
-                        autoComplete="tel"
-                        defaultCountry={defaultCountry}
-                        value={field.value}
-                        onChange={(v) => field.onChange(v ?? "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-            <TabsContent value="email">
-              <FormField
-                control={form.control}
-                name="identifier"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-          </Tabs>
+          <FormField
+            control={form.control}
+            name="identifier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="password"
@@ -266,7 +221,10 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
       </div>
       {step === "email" ? (
         <Form {...emailForm}>
-          <form onSubmit={emailForm.handleSubmit(sendCode)} className="flex flex-col gap-4">
+          {/* key forces a remount across the step swap — otherwise React reuses the
+              prior step's <form>/<input> DOM nodes, and the reused input's native
+              value-tracker can desync from the segmented OTP field's controlled value. */}
+          <form key="email" onSubmit={emailForm.handleSubmit(sendCode)} className="flex flex-col gap-4">
             <FormField control={emailForm.control} name="email" render={({ field }) => (
               <FormItem>
                 <FormLabel>Email</FormLabel>
@@ -280,14 +238,25 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
         </Form>
       ) : (
         <Form {...codeForm}>
-          <form onSubmit={codeForm.handleSubmit(verify)} className="flex flex-col gap-4">
-            <FormField control={codeForm.control} name="code" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Verification code</FormLabel>
-                <FormControl><Input inputMode="numeric" maxLength={6} autoComplete="one-time-code" placeholder="123456" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+          <form key="code" onSubmit={codeForm.handleSubmit(verify)} className="flex flex-col gap-4">
+            <FormField
+              control={codeForm.control}
+              name="code"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Verification code</FormLabel>
+                  <FormControl>
+                    <CodeOtp
+                      value={field.value}
+                      onChange={field.onChange}
+                      onComplete={() => codeForm.handleSubmit(verify)()}
+                      aria-invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             {error ? <p className="text-destructive text-sm">{error}</p> : null}
             <Button type="submit" className="w-full" disabled={codeForm.formState.isSubmitting}>Sign in</Button>
             <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep("email"); setError(null); }}>Use a different email</Button>

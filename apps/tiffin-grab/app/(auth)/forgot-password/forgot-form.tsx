@@ -19,10 +19,6 @@ export function ForgotForm() {
               onResetWithEmailOtp={({ email, otp, password }) =>
                 authClient.emailOtp.resetPassword({ email, otp, password })
               }
-              onSendPhoneOtp={(phoneNumber) => authClient.phoneNumber.requestPasswordReset({ phoneNumber })}
-              onResetWithPhoneOtp={({ phone, otp, password }) =>
-                authClient.phoneNumber.resetPassword({ phoneNumber: phone, otp, newPassword: password })
-              }
               onSuccess={() => router.push("/login")}
             />
             <div className="mt-6 text-center text-sm">
