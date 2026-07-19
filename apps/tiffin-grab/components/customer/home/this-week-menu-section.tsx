@@ -64,7 +64,7 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
                 onClick={() => setSelected(item)}
                 className="flex flex-col gap-1 rounded-lg text-left"
               >
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10">
                   <DishImage image={item.image ?? null} name={item.dishName} sizes="160px" />
                   <span
                     className={cn(

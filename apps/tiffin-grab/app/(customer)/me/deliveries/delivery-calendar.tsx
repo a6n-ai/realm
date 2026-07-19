@@ -1,30 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { CalendarDaysIcon, MapPinIcon, PencilIcon, UtensilsCrossedIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
+import { CalendarDaysIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
 import { Skeleton } from "@realm/ui/skeleton";
-import { Card, CardContent, EmptyState, PageHeader, ResponsiveDialog, SkeletonListRows } from "@/components/ds";
+import { Card, CardContent, EmptyState, PageHeader, SkeletonListRows } from "@/components/ds";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import type { CustomerActivity, CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import { TransitionLink } from "@/components/motion/transition-link";
+import { formatDateOnly } from "@/lib/format/datetime";
 import { DeliveryHistory } from "./delivery-history";
-import { mealChips, type DeliveryCardMeal } from "./meal-chips";
-import { PauseCalendarSection } from "./pause-calendar";
-import {
-  clearMyDeliveryAddress,
-  setMyDeliveryAddress,
-  skipMyDelivery,
-  unskipMyDelivery,
-} from "./actions";
-import { MAX_EXTRA_WINDOWS, STATUS_LABEL, STATUS_TONE, SUB_STATUS_LABEL, TONE_CLASS, WINDOW_DAYS, type CalendarCell, type DeliveryStatus } from "./calendar-constants";
+import type { DeliveryCardMeal } from "./meal-chips";
+import { PauseControl } from "./pause-calendar";
+import { MonthCalendar } from "./month-calendar";
+import { WeekRail } from "./week-rail";
+import { DayDetail } from "./day-detail";
+import { toIsoLocal, SUB_STATUS_LABEL, type CalendarCell } from "./calendar-constants";
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 
@@ -37,181 +32,46 @@ export type DeliveryCardData = CustomerDelivery & {
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;
 
 // Defensive fallback only — page.tsx fetches a PausePanel for every active subscription, so this
-// is never expected to be hit, but it keeps PauseCalendarSection's props total if it ever is.
+// is never expected to be hit, but it keeps the section's props total if it ever is.
 const DEFAULT_PAUSE_PANEL: PausePanel = {
   limits: { maxPauses: null, maxPauseDaysTotal: null, maxPauseStretchDays: null },
   usage: { count: 0, daysUsed: 0, hasOpenPause: false },
 };
 
-function StatusBadge({ status }: { status: DeliveryStatus }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", TONE_CLASS[STATUS_TONE[status]])}>
-      {STATUS_LABEL[status]}
-    </span>
-  );
-}
-
-function ChangeAddressDialog({
-  deliveryPublicId,
-  address,
-  disabled,
-  onSaved,
-}: {
-  deliveryPublicId: string;
-  address: Address;
-  disabled: boolean;
-  onSaved: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pending, start] = useTransition();
-  const [fullName, setFullName] = useState(address.fullName);
-  const [addressLine, setAddressLine] = useState(address.addressLine);
-  const [city, setCity] = useState(address.city);
-  const [postalCode, setPostalCode] = useState(address.postalCode);
-
-  function save() {
-    start(async () => {
-      try {
-        await setMyDeliveryAddress(deliveryPublicId, { fullName, addressLine, city, postalCode });
-        setOpen(false);
-        onSaved();
-        toast.success("Address updated");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to update address");
-      }
-    });
-  }
-
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={setOpen}
-      trigger={
-        <Button variant="outline" size="sm" disabled={disabled}>
-          <PencilIcon data-icon="inline-start" /> Change address
-        </Button>
-      }
-      title="Change delivery address"
-      footer={
-        <div className="flex w-full justify-end gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={pending} onClick={save}>Save</Button>
-        </div>
-      }
-    >
-      <div className="space-y-3 px-4 pb-4 sm:px-0 sm:pb-0">
-        <Input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-        <Input placeholder="Address line" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} />
-        <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-        <Input placeholder="Postal code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-      </div>
-    </ResponsiveDialog>
-  );
-}
-
-function DeliveryCard({ d, tz, pending, run }: {
-  d: DeliveryCardData;
-  tz: string;
-  pending: boolean;
-  run: (fn: () => Promise<void>, successMsg?: string) => void;
-}) {
-  const locked = Date.now() > d.cutoffAt;
-  const chips = mealChips(d.meal);
-
-  return (
-    <Card variant="flat" className={cn("p-4", (locked || d.status === "skipped") && "opacity-70")}>
-      <CardContent className="space-y-3 p-0">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold">{formatDateOnly(d.deliveryDate, { mode: "weekday" })}</p>
-            <p className="text-muted-foreground text-xs">{d.planName}</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {d.isMakeup && <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs">Make-up</span>}
-            <StatusBadge status={d.status as DeliveryStatus} />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {"pending" in d.meal ? (
-            <span className="text-muted-foreground text-xs">Menu not published yet</span>
-          ) : chips.length === 0 ? (
-            <span className="text-muted-foreground text-xs">Nothing scheduled</span>
-          ) : (
-            chips.map((c, i) => (
-              <span key={i} className="bg-muted rounded-full px-2 py-0.5 text-xs">{c}</span>
-            ))
-          )}
-        </div>
-
-        <div className="flex items-start gap-1.5 text-xs">
-          <MapPinIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-          <span className="text-muted-foreground">
-            {d.address.fullName} · {d.address.addressLine}, {d.address.city} {d.address.postalCode}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {d.status === "scheduled" && (
-            <ChangeAddressDialog
-              deliveryPublicId={d.publicId}
-              address={d.address}
-              disabled={pending || locked}
-              onSaved={() => run(() => Promise.resolve())}
-            />
-          )}
-          {d.status === "scheduled" && d.hasAddressOverride && (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={pending || locked}
-              onClick={() => run(() => clearMyDeliveryAddress(d.publicId), "Address reset to default")}
-            >
-              Use default
-            </Button>
-          )}
-
-          {!d.isMakeup && d.status === "scheduled" && !locked && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => run(() => skipMyDelivery(d.publicId), "Delivery skipped")}
-            >
-              Skip
-            </Button>
-          )}
-          {!d.isMakeup && d.status === "scheduled" && locked && (
-            <span className="text-muted-foreground text-xs" title="Past cutoff — locked">
-              Cutoff passed {formatEpoch(d.cutoffAt, { mode: "datetime", timeZone: tz })}
-            </span>
-          )}
-          {!d.isMakeup && d.status === "skipped" && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => run(() => unskipMyDelivery(d.publicId), "Delivery restored")}
-            >
-              Un-skip
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SubscriptionSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, pending, run }: {
+// One subscription's Tiffin Calendar: desktop month calendar + persistent detail panel beside it;
+// mobile week rail + bottom Drawer. Day-tap is meal selection ONLY — pause/resume lives in its
+// own PauseControl trigger, never on the calendar surface itself.
+function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, today }: {
   sub: Subscription;
   deliveries: DeliveryCardData[];
   pausePanel: PausePanel;
   calendarDays: CalendarCell[];
   categoryLabels: Record<string, string>;
   tz: string;
-  pending: boolean;
-  run: (fn: () => Promise<void>, successMsg?: string) => void;
+  today: string;
 }) {
+  const router = useRouter();
+  const todayIso = today || toIsoLocal(new Date());
+  const [selected, setSelected] = useState(todayIso);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
+  const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
+  const cutoffByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d.cutoffAt])), [deliveries]);
+
+  function onChanged() {
+    router.refresh();
+  }
+
+  function selectDesktop(iso: string) {
+    setSelected(iso);
+  }
+
+  function selectMobile(iso: string) {
+    setSelected(iso);
+    setDrawerOpen(true);
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -219,17 +79,47 @@ function SubscriptionSection({ sub, deliveries, pausePanel, calendarDays, catego
           <h2 className="text-base font-semibold">{sub.planName}</h2>
           <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
         </div>
+        <PauseControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
       </div>
-      <PauseCalendarSection sub={sub} deliveries={deliveries} pausePanel={pausePanel} calendarDays={calendarDays} categoryLabels={categoryLabels} tz={tz} />
-      {deliveries.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No deliveries in this window.</p>
-      ) : (
-        <div className="space-y-2">
-          {deliveries.map((d) => (
-            <DeliveryCard key={d.publicId} d={d} tz={tz} pending={pending} run={run} />
-          ))}
-        </div>
-      )}
+
+      {/* Desktop: month calendar + persistent detail panel */}
+      <Card variant="flat" className="hidden p-4 md:block">
+        <CardContent className="grid gap-4 p-0 md:grid-cols-[auto_1fr]">
+          <MonthCalendar cellsByDate={cellsByDate} selected={selected} onSelect={selectDesktop} todayIso={todayIso} />
+          <DayDetail
+            dateIso={selected}
+            cell={cellsByDate.get(selected)}
+            delivery={deliveryByDate.get(selected)}
+            orderPublicId={sub.publicId}
+            categoryLabels={categoryLabels}
+            tz={tz}
+            onChanged={onChanged}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Mobile: week rail + bottom Drawer */}
+      <div className="md:hidden">
+        <WeekRail cellsByDate={cellsByDate} selected={selected} onSelect={selectMobile} todayIso={todayIso} />
+      </div>
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent className="md:hidden">
+          <DrawerHeader className="text-left">
+            <DrawerTitle>{formatDateOnly(selected, { mode: "weekday" })}</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6">
+            <DayDetail
+              dateIso={selected}
+              cell={cellsByDate.get(selected)}
+              delivery={deliveryByDate.get(selected)}
+              orderPublicId={sub.publicId}
+              categoryLabels={categoryLabels}
+              tz={tz}
+              onChanged={onChanged}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
     </section>
   );
 }
@@ -240,7 +130,6 @@ export function DeliveryCalendar({
   pausePanels = {},
   calendarCells = {},
   categoryLabels = {},
-  extraWindows,
   waitlisted = [],
   history = [],
   activity = [],
@@ -251,33 +140,13 @@ export function DeliveryCalendar({
   pausePanels?: Record<string, PausePanel>;
   calendarCells?: Record<string, CalendarCell[]>;
   categoryLabels?: Record<string, string>;
-  extraWindows: number;
+  extraWindows?: number;
   waitlisted?: WaitlistedSubscription[];
   history?: CustomerDelivery[];
   activity?: CustomerActivity[];
   today?: string;
 }) {
   const tz = useTimezone();
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  function run(fn: () => Promise<void>, successMsg?: string) {
-    startTransition(async () => {
-      try {
-        await fn();
-        router.refresh();
-        if (successMsg) toast.success(successMsg);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Action failed");
-      }
-    });
-  }
-
-  function loadMore() {
-    const params = new URLSearchParams(window.location.search);
-    params.set("days", String(extraWindows + 1));
-    router.push(`?${params.toString()}`);
-  }
 
   if (subscriptions.length === 0) {
     return (
@@ -322,7 +191,7 @@ export function DeliveryCalendar({
         }
       />
       {subscriptions.map((sub) => (
-        <SubscriptionSection
+        <TiffinCalendarSection
           key={sub.publicId}
           sub={sub}
           deliveries={bySub.get(sub.publicId) ?? []}
@@ -330,18 +199,9 @@ export function DeliveryCalendar({
           calendarDays={calendarCells[sub.publicId] ?? []}
           categoryLabels={categoryLabels}
           tz={tz}
-          pending={pending}
-          run={run}
+          today={today}
         />
       ))}
-      <Button
-        variant="outline"
-        className="w-full"
-        disabled={pending || extraWindows >= MAX_EXTRA_WINDOWS}
-        onClick={loadMore}
-      >
-        Load more ({WINDOW_DAYS} days)
-      </Button>
       <DeliveryHistory history={history} activity={activity} today={today} />
     </div>
   );

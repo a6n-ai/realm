@@ -8,6 +8,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CheckIcon } from "lucide-react";
 import { weekdayKey } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
@@ -24,6 +25,7 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
 }) {
   const [pending, startTransition] = useTransition();
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
+  const reduce = useReducedMotion();
 
   if (!cell.menuWeekId || cell.options.length === 0) return null;
   const menuWeekId = cell.menuWeekId;
@@ -84,25 +86,37 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
               {options.map((o) => {
                 const isSelected = o.dishId === selected;
                 return (
-                  <button
+                  <motion.button
                     key={o.dishId}
                     type="button"
                     disabled={pending || isSelected}
                     onClick={() => pick(category, o.dishId)}
+                    whileTap={reduce || isSelected ? undefined : { scale: 0.96 }}
+                    transition={{ type: "spring", duration: 0.3, bounce: 0 }}
                     className={cn(
                       "relative flex flex-col items-center gap-1 rounded-lg border p-1.5 text-left",
                       isSelected && "border-primary ring-primary/40 ring-2",
                       pending && "opacity-70",
                     )}
                   >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-md">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-md outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10">
                       <DishImage image={o.image} name={o.name} sizes="(max-width: 640px) 30vw, 120px" />
                     </div>
                     <span className="text-xs font-medium">{o.name}</span>
-                    {isSelected && (
-                      <CheckIcon className="text-primary bg-background absolute top-1 right-1 size-4 rounded-full" aria-hidden />
-                    )}
-                  </button>
+                    <AnimatePresence initial={false}>
+                      {isSelected && (
+                        <motion.span
+                          initial={reduce ? undefined : { scale: 0.25, opacity: 0, filter: "blur(4px)" }}
+                          animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+                          exit={reduce ? undefined : { scale: 0.25, opacity: 0, filter: "blur(4px)" }}
+                          transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                          className="absolute top-1 right-1"
+                        >
+                          <CheckIcon className="text-primary bg-background size-4 rounded-full" aria-hidden />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
                 );
               })}
             </div>
