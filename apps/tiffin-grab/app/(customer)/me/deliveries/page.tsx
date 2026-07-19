@@ -9,6 +9,7 @@ import {
   myDeliveryActivity,
   myDeliveryHistory,
   myDeliveryMeal,
+  myPausePanel,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
@@ -61,6 +62,14 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   // already in hand, keyed by orderPublicId, rather than re-querying per row.
   const subscriptionByPublicId = new Map(subscriptions.map((s) => [s.publicId, s]));
 
+  // Pause budget panel per subscription, for the calendar's "N pauses left" / indefinite-toggle
+  // gating — myPausePanel re-checks ownership itself, redundant with the map key here but cheap
+  // and keeps the IDOR guard on every read path, not just the mutating actions.
+  const pausePanelEntries = await Promise.all(
+    subscriptions.map(async (s) => [s.publicId, await myPausePanel(userId, s.publicId)] as const),
+  );
+  const pausePanels = Object.fromEntries(pausePanelEntries);
+
   const deliveries = await Promise.all(
     rawDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -81,6 +90,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     <DeliveryCalendar
       subscriptions={subscriptions}
       deliveries={deliveries}
+      pausePanels={pausePanels}
       extraWindows={extraWindows}
       waitlisted={waitlisted}
       history={history}
