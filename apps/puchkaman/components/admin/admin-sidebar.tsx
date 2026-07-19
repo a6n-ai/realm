@@ -9,6 +9,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   SearchIcon,
+  UserCircleIcon,
   UtensilsCrossedIcon,
   XIcon,
   type LucideIcon,
@@ -28,6 +29,10 @@ const SECTIONS: AdminNavSection[] = [
   {
     label: "Catalog",
     items: [{ title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon }],
+  },
+  {
+    label: "Settings",
+    items: [{ title: "Account", href: "/dashboard/account", icon: UserCircleIcon }],
   },
 ];
 
