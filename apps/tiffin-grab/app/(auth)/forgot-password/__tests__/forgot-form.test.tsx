@@ -28,4 +28,16 @@ describe("ForgotForm (OTP reset)", () => {
     expect(screen.getByText(/enter your code/i)).toBeDefined();
     expect(phoneNumber.requestPasswordReset).not.toHaveBeenCalled();
   });
+
+  it("accepts a 6-digit code typed into the segmented OTP field", async () => {
+    emailOtp.requestPasswordReset.mockResolvedValue({});
+    render(<ForgotForm />);
+    fireEvent.change(screen.getByPlaceholderText(/you@example.com/i), { target: { value: "user@x.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /send code/i }));
+    await waitFor(() => expect(screen.getByText(/enter your code/i)).toBeDefined());
+    const otpInput = document.querySelector('input[autocomplete="one-time-code"]') as HTMLInputElement;
+    expect(otpInput).not.toBeNull();
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+    expect(otpInput.value).toBe("123456");
+  });
 });
