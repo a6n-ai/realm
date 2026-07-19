@@ -80,19 +80,17 @@ Resources:
       VPCSecurityGroups: [!Ref DbSecurityGroup]
       Tags: [{ Key: app, Value: puchkaman }]
 
-  FilesBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      BucketName: !Sub "puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+  # NOTE: the files bucket is created OUT OF BAND, not here. Its name uses the S3
+  # "account-regional namespace" (suffix -<accountId>-<region>-an), whose CreateBucket
+  # requires the `x-amz-bucket-namespace: account-regional` header that CloudFormation's
+  # AWS::S3::Bucket cannot send (fails MissingNamespaceHeader). Create it once with:
+  #   aws s3api create-bucket --region us-east-1 --bucket-namespace account-regional \
+  #     --bucket puchkaman-files-<acct>-us-east-1-an
+  #   aws s3api put-public-access-block --bucket <name> --public-access-block-configuration \
+  #     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+  #   aws s3api put-bucket-encryption --bucket <name> --server-side-encryption-configuration \
+  #     '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+  # The IAM role below grants access by ARN pattern, so no CFN Ref is needed.
 
   BoxRole:
     Type: AWS::IAM::Role
@@ -128,8 +126,8 @@ Resources:
                 Effect: Allow
                 Action: [s3:GetObject, s3:PutObject, s3:DeleteObject, s3:ListBucket]
                 Resource:
-                  - !GetAtt FilesBucket.Arn
-                  - !Sub "${FilesBucket.Arn}/*"
+                  - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
+                  - !Sub "arn:aws:s3:::puchkaman-files-${AWS::AccountId}-${AWS::Region}-an/*"
 
   BoxInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -145,4 +143,5 @@ Outputs:
   InstanceProfileName:
     Value: !Ref BoxInstanceProfile
   FilesBucketName:
-    Value: !Ref FilesBucket
+    Description: Created out of band (account-regional namespace); shown for reference.
+    Value: !Sub "puchkaman-files-${AWS::AccountId}-${AWS::Region}-an"
