@@ -9,23 +9,10 @@ import type { CalendarDay } from "@/lib/services/customer-deliveries.service";
 // separately (menuWeeks lookup by planType+weekStart) since pickMyDish/applyMyDishToWeek need it.
 export type CalendarCell = CalendarDay & { menuWeekId: string | null };
 
-export type DeliveryStatus = "scheduled" | "paused" | "skipped" | "cancelled";
-
-export const STATUS_LABEL: Record<DeliveryStatus, string> = {
-  scheduled: "Scheduled",
-  paused: "Paused",
-  skipped: "Skipped",
-  cancelled: "Cancelled",
-};
-
+// Still consumed by components/customer/home/subscription-section.tsx's status pill (the home
+// page's subscription card, out of this redesign's scope) — kept even though the calendar's own
+// SubscriptionSection no longer uses it.
 type Tone = "neutral" | "ok" | "warn" | "bad";
-
-export const STATUS_TONE: Record<DeliveryStatus, Tone> = {
-  scheduled: "ok",
-  paused: "warn",
-  skipped: "bad",
-  cancelled: "neutral",
-};
 
 export const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground border",
@@ -41,9 +28,28 @@ export const SUB_STATUS_LABEL: Record<SubscriptionStatus, string> = {
   paused: "Paused",
 };
 
-// Load-more window size. Both page.tsx (date math for `until`) and delivery-calendar.tsx
-// (bumping the `?days=` search param) key off the same constant.
-export const WINDOW_DAYS = 14;
+// Calendar fetch-window size: page.tsx reads [today, today+WINDOW_DAYS] from myCalendar/
+// myDeliveries. 35 days (5 Mon-Sun weeks) so the desktop MonthCalendar always has a full month's
+// worth of real data to render — the old 14-day window (paired with a "Load more" button that the
+// calendar redesign removed) only ever covered half a month.
+export const WINDOW_DAYS = 35;
 
 // Hard ceiling on `?days=`: a hand-edited URL can otherwise force an unbounded date-range read.
 export const MAX_EXTRA_WINDOWS = 12;
+
+// react-day-picker Day objects (and JS Date in general) are constructed from local, not UTC,
+// year/month/day fields — this mirrors that back to a plain "YYYY-MM-DD" so it lines up with
+// `deliveryDate`/`date` (calendar dates, not instants) regardless of the browser's own timezone.
+// Never use parseIsoDateUtc for this: that returns a UTC-midnight Date, which shifts by a day
+// against a local Date in any timezone west of UTC (the "spec-6 bug" referenced elsewhere).
+export function toIsoLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Inverse of toIsoLocal: a calendar-date ISO string to a local midnight Date, for date-fns calls.
+export function parseIsoLocal(iso: string): Date {
+  return new Date(`${iso}T00:00:00`);
+}

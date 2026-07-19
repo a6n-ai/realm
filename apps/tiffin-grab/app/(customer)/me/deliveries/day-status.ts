@@ -45,3 +45,24 @@ export const DAY_STATUS_BAR_CLASS: Record<DayStatus, string> = {
   locked: "after:bg-muted-foreground/30",
   makeup: "after:bg-blue-500",
 };
+
+// Tiffin-tile status RING (the day tile's border) — the calendar's signature "each day is its
+// meal" surface reads status by the ring color around the dish photo itself, not a separate dot.
+export const DAY_STATUS_RING_CLASS: Record<DayStatus, string> = {
+  scheduled: "border-ok",
+  paused: "border-muted-foreground/40",
+  skipped: "border-warn",
+  locked: "border-muted-foreground/25",
+  makeup: "border-blue-500",
+};
+
+// CalendarCell-driven status (myCalendar's day cells carry a precomputed `locked` boolean rather
+// than a raw cutoffAt epoch) — same precedence as deliveryDayStatus (makeup > locked > paused/
+// skipped > scheduled), just keyed off the field the calendar surface actually has on hand.
+export function calendarDayStatus(cell: { status: string; isMakeup: boolean; locked: boolean }): DayStatus {
+  if (cell.isMakeup) return "makeup";
+  if (cell.locked) return "locked";
+  if (cell.status === "paused") return "paused";
+  if (cell.status === "skipped") return "skipped";
+  return "scheduled";
+}
