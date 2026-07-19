@@ -14,10 +14,14 @@ export function BottomNav({
   items,
   onFabClick,
   fabLabel,
+  fabCaption,
 }: {
   items: BottomNavItem[];
   onFabClick?: () => void;
+  /** Accessible name for the raised center button. */
   fabLabel?: string;
+  /** Optional visible caption under the FAB (e.g. "New plan"). */
+  fabCaption?: string;
 }) {
   const half = Math.ceil(items.length / 2);
   const left = items.slice(0, half);
@@ -54,7 +58,7 @@ export function BottomNav({
           <Tab key={i} it={it} />
         ))}
         {onFabClick && (
-          <div className="flex w-16 shrink-0 items-center justify-center">
+          <div className="flex w-[4.5rem] shrink-0 flex-col items-center justify-end pb-1">
             <button
               type="button"
               onClick={onFabClick}
@@ -63,6 +67,11 @@ export function BottomNav({
             >
               <PlusIcon className="size-6" />
             </button>
+            {fabCaption ? (
+              <span className="text-muted-foreground mt-1 max-w-full truncate text-[10px] font-medium leading-none">
+                {fabCaption}
+              </span>
+            ) : null}
           </div>
         )}
         {right.map((it, i) => (

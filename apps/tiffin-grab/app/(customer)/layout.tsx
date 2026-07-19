@@ -10,6 +10,8 @@ import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { CustomerSidebar } from "@/components/customer/customer-sidebar";
 import { CustomerSearch } from "@/components/customer/customer-search";
 import { CustomerProfileMenu } from "@/components/customer/customer-profile-menu";
+import { hasLiveSubscription } from "@/lib/services/customer-deliveries.service";
+import { currentUserId } from "@/lib/services/session-service";
 
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -28,6 +30,8 @@ export default async function CustomerLayout({ children }: { children: ReactNode
 
   const { timezone } = await getAppSettings();
   const email = user.email ?? session.user.email ?? "";
+  const userId = await currentUserId();
+  const hasLivePlan = userId != null ? await hasLiveSubscription(userId) : false;
 
   return (
     <TimezoneProvider tz={timezone}>
@@ -35,7 +39,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
         sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
         center={<CustomerSearch />}
         actions={<CustomerProfileMenu user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
-        bottomNav={<CustomerBottomNav />}
+        bottomNav={<CustomerBottomNav hasLivePlan={hasLivePlan} />}
       >
         {children}
       </CrmShell>

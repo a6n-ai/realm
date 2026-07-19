@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/services/customer-deliveries.service";
+import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { ledgerService } from "@/lib/services/ledger.service";
 import { walletService } from "@/lib/services/wallet.service";
@@ -11,6 +12,11 @@ import { WalletHero } from "@/components/customer/wallet/wallet-hero";
 import { EarnSpendTiles } from "@/components/customer/wallet/earn-spend-tiles";
 import { WalletLog, WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
 import { WALLET_FACETS } from "@/components/customer/wallet/wallet-facets";
+import { BillsList, BillsListSkeleton } from "@/components/customer/wallet/bills-list";
+import { TransactionsList, TransactionsListSkeleton } from "@/components/customer/wallet/transactions-list";
+import { MONEY_LEDGER_FACETS } from "@/components/customer/wallet/money-ledger-facets";
+import { FinancesTabs } from "@/components/customer/wallet/finances-tabs";
+import { parseFinancesTab } from "@/components/customer/wallet/finances-tab";
 import { CouponsSection, CouponsSectionSkeleton } from "@/components/customer/home/coupons-section";
 import { AnalyticsTiles, AnalyticsTilesSkeleton } from "@/components/customer/home/analytics-tiles";
 import { monthWindow } from "@/components/customer/home/analytics-month-window";
@@ -21,28 +27,53 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
+  const sp = await searchParams;
+  const tab = parseFinancesTab(sp.tab);
   const { timezone } = await getAppSettings();
 
   return (
     <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Wallet</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Track coins you've earned and spent.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-balance">Finances</h1>
+        <p className="text-muted-foreground text-sm text-pretty">
+          Coins, bills, and money transactions in one place.
+        </p>
       </header>
-      <Suspense fallback={<WalletLogSkeleton />}>
-        <MyWalletData userId={userId} searchParams={searchParams} />
+
+      <Suspense fallback={null}>
+        <FinancesTabs active={tab} />
       </Suspense>
-      <Suspense fallback={<CouponsSectionSkeleton />}>
-        <CouponsSectionData />
-      </Suspense>
-      <Suspense fallback={<AnalyticsTilesSkeleton />}>
-        <AnalyticsTilesData userId={userId} timezone={timezone} />
-      </Suspense>
+
+      {tab === "coins" ? (
+        <>
+          <Suspense fallback={<WalletLogSkeleton />}>
+            <CoinsPanel userId={userId} searchParams={searchParams} />
+          </Suspense>
+          <Suspense fallback={<CouponsSectionSkeleton />}>
+            <CouponsSectionData />
+          </Suspense>
+          <Suspense fallback={<AnalyticsTilesSkeleton />}>
+            <AnalyticsTilesData userId={userId} timezone={timezone} />
+          </Suspense>
+        </>
+      ) : null}
+
+      {tab === "bills" ? (
+        <Suspense fallback={<BillsListSkeleton />}>
+          <BillsPanel userId={userId} searchParams={searchParams} />
+        </Suspense>
+      ) : null}
+
+      {tab === "transactions" ? (
+        <Suspense fallback={<TransactionsListSkeleton />}>
+          <TransactionsPanel userId={userId} searchParams={searchParams} />
+        </Suspense>
+      ) : null}
     </main>
   );
 }
 
-async function MyWalletData({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
+async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
   const { currency } = await getAppSettings();
   const { condition, page } = parseFilterState(WALLET_FACETS, await searchParams);
 
@@ -59,6 +90,36 @@ async function MyWalletData({ userId, searchParams }: { userId: bigint; searchPa
       <EarnSpendTiles earned={earned} spent={spent} />
       <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} />
     </div>
+  );
+}
+
+async function BillsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
+  const { currency } = await getAppSettings();
+  const { page } = parseFilterState([], await searchParams);
+  const bills = await myBillsPage(userId, page);
+  return (
+    <BillsList
+      items={bills.items}
+      page={bills.page}
+      size={bills.size}
+      total={bills.total}
+      currency={currency}
+    />
+  );
+}
+
+async function TransactionsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
+  const { currency } = await getAppSettings();
+  const { condition, page } = parseFilterState(MONEY_LEDGER_FACETS, await searchParams);
+  const ledger = await myMoneyLedgerPage(userId, condition, page);
+  return (
+    <TransactionsList
+      items={ledger.items}
+      page={ledger.page}
+      size={ledger.size}
+      total={ledger.total}
+      currency={currency}
+    />
   );
 }
 

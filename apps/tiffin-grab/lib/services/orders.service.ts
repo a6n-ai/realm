@@ -3,7 +3,7 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { and, asc, desc, eq, gt, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, subscriptionPauses, users } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
@@ -104,6 +104,10 @@ export interface CreateOrderOptions {
   // account regardless of the phone typed. Omitted for anonymous checkout and
   // agent orders, which resolve/provision the customer by phone.
   ownerUserId?: string | null;
+  // Customer calendars assume one live plan. Default false blocks a second
+  // active/paused order for the same user. Staff CRM / tests that intentionally
+  // create multiples pass true.
+  allowSecondActive?: boolean;
 }
 
 // Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
@@ -130,7 +134,7 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null } = opts;
+  const { actorId = null, ownerUserId = null, allowSecondActive = false } = opts;
   const snapshot = await loadCatalogSnapshot();
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
@@ -187,6 +191,21 @@ export async function createOrder(
       );
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    // Logged-in customer checkout (ownerUserId set): one live plan only — meal picks
+    // happen on the existing calendar. Staff/tests pass allowSecondActive or omit owner.
+    if (!allowSecondActive && ownerUserId) {
+      const [live] = await tx
+        .select({ id: orders.id })
+        .from(orders)
+        .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])))
+        .limit(1);
+      if (live) {
+        throw new ValidationError(
+          "You already have an active subscription. Manage meals and deliveries on your current plan instead of starting another.",
+        );
+      }
+    }
 
     // Server-side discount resolution. Both coupon kinds land as a single
     // adjustments[] line; the redemptions (row + ledger debit) are written

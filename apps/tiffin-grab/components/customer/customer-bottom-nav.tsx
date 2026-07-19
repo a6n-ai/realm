@@ -7,13 +7,10 @@ const TABS = [
   { href: "/me", title: "Home", icon: HomeIcon },
   { href: "/me/menu", title: "Menu", icon: UtensilsCrossedIcon },
   { href: "/me/deliveries", title: "Deliveries", icon: CalendarDaysIcon },
-  { href: "/me/wallet", title: "Wallet", icon: WalletIcon },
+  { href: "/me/wallet", title: "Finances", icon: WalletIcon },
 ];
 
-// TABS is built as an array so later tasks can add more (account, orders, …)
-// without reshaping this component. "/me" must match exactly — startsWith
-// would also match "/me/deliveries" and light both tabs at once.
-export function CustomerBottomNav() {
+export function CustomerBottomNav({ hasLivePlan = false }: { hasLivePlan?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const items: BottomNavItem[] = TABS.map((t) => ({
@@ -22,5 +19,13 @@ export function CustomerBottomNav() {
     href: t.href,
     active: t.href === "/me" ? pathname === "/me" : pathname.startsWith(t.href),
   }));
-  return <BottomNav items={items} onFabClick={() => router.push("/subscribe")} fabLabel="Order" />;
+  const fabHref = hasLivePlan ? "/me/deliveries" : "/subscribe";
+  return (
+    <BottomNav
+      items={items}
+      onFabClick={() => router.push(fabHref)}
+      fabLabel={hasLivePlan ? "Open calendar to pick meals" : "Start a subscription"}
+      fabCaption={hasLivePlan ? "My plan" : "New plan"}
+    />
+  );
 }

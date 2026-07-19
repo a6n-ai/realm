@@ -30,7 +30,7 @@ function WalletTxRow({ tx }: { tx: WalletTx }) {
 
 export function WalletSection({ balance, transactions }: { balance: number; transactions: WalletTx[] }) {
   return (
-    <SectionCard title="Wallet">
+    <SectionCard title="Finances">
       <Card variant="flat" className="flex items-center gap-3 p-4">
         <span className="bg-primary/10 grid size-11 shrink-0 place-items-center rounded-xl">
           <CoinsIcon className="text-primary size-5.5" aria-hidden />
@@ -58,7 +58,7 @@ export function WalletSection({ balance, transactions }: { balance: number; tran
       )}
 
       <TransitionLink href="/me/wallet" className="text-primary block pt-3 text-sm font-medium">
-        View wallet →
+        View finances →
       </TransitionLink>
     </SectionCard>
   );
@@ -68,7 +68,7 @@ export function WalletSection({ balance, transactions }: { balance: number; tran
 // module's export (the /dashboard/orders bug).
 export function WalletSectionSkeleton() {
   return (
-    <SectionCard title="Wallet">
+    <SectionCard title="Finances">
       <Skeleton className="h-20 w-full rounded-lg" />
       <div className="space-y-2 pt-3">
         <Skeleton className="h-10 w-full rounded-lg" />

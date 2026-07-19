@@ -21,7 +21,7 @@ const NAV = [
   { title: "Menu", href: "/me/menu", icon: ChefHatIcon },
   { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
   { title: "Meals", href: "/me/meals", icon: UtensilsCrossedIcon },
-  { title: "Wallet", href: "/me/wallet", icon: WalletIcon },
+  { title: "Finances", href: "/me/wallet", icon: WalletIcon },
   { title: "Profile", href: "/me/profile", icon: UserIcon },
 ] as const;
 

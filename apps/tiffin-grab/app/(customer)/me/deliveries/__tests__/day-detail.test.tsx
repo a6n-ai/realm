@@ -93,6 +93,22 @@ describe("DayDetail — unreleased week (delivery, no cell)", () => {
 });
 
 describe("DayDetail — scheduled, pre-cutoff cell", () => {
+  it("shows Menu not released yet when the cell exists but options are empty", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell({ options: [], menuWeekId: "week_1" })}
+        delivery={makeDelivery()}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        onChanged={noop}
+      />,
+    );
+    expect(screen.getByText("Menu not released yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Skip this day/i })).toBeInTheDocument();
+  });
+
   it("shows Skip this day and Change address", () => {
     render(
       <DayDetail

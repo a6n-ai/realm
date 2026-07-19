@@ -28,10 +28,9 @@ export const SUB_STATUS_LABEL: Record<SubscriptionStatus, string> = {
   paused: "Paused",
 };
 
-// Calendar fetch-window size: page.tsx reads [today, today+WINDOW_DAYS] from myCalendar/
-// myDeliveries. 35 days (5 Mon-Sun weeks) so the desktop MonthCalendar always has a full month's
-// worth of real data to render — the old 14-day window (paired with a "Load more" button that the
-// calendar redesign removed) only ever covered half a month.
+// Calendar fetch-window size: page.tsx reads [today, today+WINDOW_DAYS*(extraWindows+1)] from
+// myCalendar/myDeliveries. 35 days (5 Mon-Sun weeks) so the desktop MonthCalendar always has a
+// full month's worth of real data; "Load more weeks" bumps extraWindows via ?days=N.
 export const WINDOW_DAYS = 35;
 
 // Hard ceiling on `?days=`: a hand-edited URL can otherwise force an unbounded date-range read.

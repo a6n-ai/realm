@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@realm/commons";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
+import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
@@ -21,7 +22,13 @@ import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
-export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
+export function Checkout({
+  defaultCountry,
+  closeHref = "/me",
+}: {
+  defaultCountry: Country;
+  closeHref?: string;
+}) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
   const [result, setResult] = useState<PricingResult | null>(null);
@@ -127,9 +134,16 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
 
   return (
+    <div className="space-y-4">
+      <SubscribeChrome
+        closeHref={closeHref}
+        onBack={() => (step > 1 ? setStep(1) : router.push("/subscribe"))}
+        backLabel={step > 1 ? "Back" : "Edit plan"}
+      />
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Checkout</h1>
     <div className="grid gap-6 md:grid-cols-[1fr_360px] md:items-start">
       <div className="space-y-5">
-        <ol className="flex items-center gap-2 text-xs font-medium">
+        <ol className="flex items-center gap-2 overflow-x-auto text-xs font-medium [scrollbar-width:none]">
           {(["Address & contact", "Payment"] as const).map((label, i) => {
             const n = (i + 1) as 1 | 2;
             const done = step > n;
@@ -263,6 +277,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
           {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
         </Card>
       </aside>
+    </div>
     </div>
   );
 }

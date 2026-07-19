@@ -14,8 +14,9 @@ describe("BottomNav", () => {
       { title: "More", icon: MenuIcon, active: true, onClick: onMore },
     ];
     const { container, getByText, getByLabelText } = render(
-      <BottomNav items={items} onFabClick={onFab} fabLabel="Create" />,
+      <BottomNav items={items} onFabClick={onFab} fabLabel="Create" fabCaption="New" />,
     );
+    expect(getByText("New")).toBeTruthy();
     expect(getByText("Overview")).toBeTruthy();
     // link item stays an <a>; active gets aria-current
     expect(container.querySelector('a[href="/dashboard"][aria-current="page"]')).toBeTruthy();

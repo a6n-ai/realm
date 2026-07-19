@@ -58,6 +58,31 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
 }
 
+/**
+ * Customer calendars and home assume one live plan. Prefer `active` over `paused`;
+ * if several exist (legacy), pick the newest by createdAt.
+ */
+export async function myPrimarySubscription(userId: bigint): Promise<Subscription | null> {
+  const all = await myActiveSubscriptions(userId);
+  if (all.length === 0) return null;
+  const active = all.filter((s) => s.status === "active");
+  const pool = active.length > 0 ? active : all;
+  // myActiveSubscriptions has no createdAt — re-query newest publicId among the pool.
+  if (pool.length === 1) return pool[0]!;
+  const ids = pool.map((s) => s.publicId);
+  const [newest] = await db
+    .select({ publicId: orders.publicId })
+    .from(orders)
+    .where(inArray(orders.publicId, ids))
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  return pool.find((s) => s.publicId === newest?.publicId) ?? pool[0]!;
+}
+
+export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
+  return (await myPrimarySubscription(userId)) != null;
+}
+
 // Scoped to orders.userId = userId: a customer only ever sees their own delivery
 // rows here, across every subscription they own. Cancelled deliveries are
 // filtered by delivery status, not order status — cancelOrder() marks every
@@ -186,6 +211,7 @@ export type SubSummary = {
   daysPerWeek: number;
   status: string;
   createdAt: number;
+  startDate: string;
 };
 
 // All of a customer's subscriptions across every status, newest first — for the
@@ -194,8 +220,13 @@ export type SubSummary = {
 export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
   return db
     .select({
-      publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
-      daysPerWeek: deliveryFrequencies.daysPerWeek, status: orders.status, createdAt: orders.createdAt,
+      publicId: orders.publicId,
+      planName: plans.name,
+      mealSizeName: mealSizes.name,
+      daysPerWeek: deliveryFrequencies.daysPerWeek,
+      status: orders.status,
+      createdAt: orders.createdAt,
+      startDate: orders.startDate,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))

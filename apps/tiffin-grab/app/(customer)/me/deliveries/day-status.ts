@@ -33,6 +33,37 @@ export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
   off: "Not scheduled",
 };
 
+// Customer-facing legend on the calendar surface (Akshayakalpa reference: Delivered / Upcoming /
+// Vacation / On Hold) — maps our internal DayStatus buckets to plain-language copy + dash color.
+export type CalendarLegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
+
+export const CALENDAR_LEGEND: { key: CalendarLegendKey; label: string; dashClass: string }[] = [
+  { key: "delivered", label: "Delivered", dashClass: "bg-ok" },
+  { key: "upcoming", label: "Upcoming", dashClass: "bg-blue-500" },
+  { key: "vacation", label: "Vacation", dashClass: "bg-warn" },
+  { key: "onHold", label: "On Hold", dashClass: "bg-destructive" },
+];
+
+export function calendarLegendKey(status: DayStatus): CalendarLegendKey | null {
+  switch (status) {
+    case "locked":
+      return "delivered";
+    case "scheduled":
+    case "makeup":
+      return "upcoming";
+    case "paused":
+      return "vacation";
+    case "skipped":
+      return "onHold";
+    case "off":
+      return null;
+    default: {
+      const _never: never = status;
+      return _never;
+    }
+  }
+}
+
 // Calendar day-dot color (a small filled circle under the day number).
 export const DAY_STATUS_DOT_CLASS: Record<DayStatus, string> = {
   scheduled: "bg-ok",
@@ -53,17 +84,15 @@ export const DAY_STATUS_BAR_CLASS: Record<DayStatus, string> = {
   off: "after:bg-muted-foreground/15",
 };
 
-// Tiffin-tile status RING (the day tile's border) — the calendar's signature "each day is its
-// meal" surface reads status by the ring color around the dish photo itself, not a separate dot.
-export const DAY_STATUS_RING_CLASS: Record<DayStatus, string> = {
-  scheduled: "border-ok",
-  paused: "border-muted-foreground/40",
-  skipped: "border-warn",
-  locked: "border-muted-foreground/25",
-  makeup: "border-blue-500",
-  // Deliberately lighter than "locked" — no ring at all, just a hairline, since this day was
-  // never sealed shut, it simply never existed on the calendar (off-pattern or unreleased).
-  off: "border-transparent",
+// Tiffin-tile status UNDERLINE — colored dash beneath the day number (Akshayakalpa reference:
+// green = delivered/past, blue = upcoming, yellow = vacation/pause, red = on hold/skipped).
+export const DAY_STATUS_UNDERLINE_CLASS: Record<DayStatus, string> = {
+  scheduled: "bg-blue-500",
+  paused: "bg-warn",
+  skipped: "bg-destructive",
+  locked: "bg-ok",
+  makeup: "bg-blue-500",
+  off: "bg-transparent",
 };
 
 // CalendarCell-driven status (myCalendar's day cells carry a precomputed `locked` boolean rather

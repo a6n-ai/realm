@@ -31,7 +31,7 @@ function pauseBudgetLines(limits: PausePanel["limits"], usage: PausePanel["usage
   return lines;
 }
 
-export function PauseControl({ sub, pausePanel, cutoffByDate, today }: {
+export function PauseControl({ sub, pausePanel, cutoffByDate, today, open: openProp, onOpenChange, hideTrigger = false }: {
   sub: Subscription;
   pausePanel: PausePanel;
   // date -> cutoff epoch, used to disable already-locked days on the pause range calendar.
@@ -39,9 +39,16 @@ export function PauseControl({ sub, pausePanel, cutoffByDate, today }: {
   // Server-provided "today" (app-tz ISO), same value TiffinCalendarSection anchors on — avoids
   // computing `new Date()` during render (hydration-unsafe, and drifts from the server's clock).
   today: string;
+  // Optional controlled open — used by the mobile meal card Pause button (13895.jpg) so pause
+  // stays decoupled from day-tap while still living next to the day's order card.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [indefinite, setIndefinite] = useState(false);
   const [pausePending, startPauseTransition] = useTransition();
@@ -98,10 +105,12 @@ export function PauseControl({ sub, pausePanel, cutoffByDate, today }: {
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <Button variant={paused ? "secondary" : "outline"} size="sm">
-          {paused ? <PlayIcon data-icon="inline-start" /> : <PauseIcon data-icon="inline-start" />}
-          {paused ? "Resume" : "Pause"}
-        </Button>
+        hideTrigger ? undefined : (
+          <Button variant={paused ? "secondary" : "outline"} size="sm">
+            {paused ? <PlayIcon data-icon="inline-start" /> : <PauseIcon data-icon="inline-start" />}
+            {paused ? "Resume" : "Pause"}
+          </Button>
+        )
       }
       title={paused ? "Resume deliveries" : "Pause deliveries"}
       description={sub.planName}

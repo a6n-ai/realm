@@ -90,6 +90,17 @@ describe("createOrder (integration)", () => {
     expect(phoned).toHaveLength(0);
   });
 
+  it("blocks a second live plan when ownerUserId is set (customer checkout)", async () => {
+    const snap = await loadCatalogSnapshot();
+    const [owner] = await db.insert(users).values({ email: "one-plan@x.com", role: "user" }).returning();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await createOrder(input, { ownerUserId: owner.publicId });
+    await expect(createOrder(input, { ownerUserId: owner.publicId })).rejects.toBeInstanceOf(ValidationError);
+    await expect(createOrder(input, { ownerUserId: owner.publicId, allowSecondActive: true })).resolves.toMatchObject({
+      publicId: expect.stringMatching(/^ord_/),
+    });
+  });
+
   it("rejects a malformed phone", async () => {
     const snap = await loadCatalogSnapshot();
     const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);

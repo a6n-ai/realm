@@ -35,24 +35,34 @@ describe("CustomerBottomNav", () => {
     expect(screen.getByRole("link", { name: /Menu/i })).toHaveAttribute("href", "/me/menu");
   });
 
-  it("renders a Wallet tab to /me/wallet", () => {
+  it("renders a Finances tab to /me/wallet", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    expect(screen.getByRole("link", { name: /Wallet/i })).toHaveAttribute("href", "/me/wallet");
+    expect(screen.getByRole("link", { name: /Finances/i })).toHaveAttribute("href", "/me/wallet");
   });
 
-  it("renders 4 tabs (Home/Menu/Deliveries/Wallet), not Meals/Profile", () => {
+  it("renders 4 tabs (Home/Menu/Deliveries/Finances), not Meals/Profile", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    ["Home", "Menu", "Deliveries", "Wallet"].forEach((t) => expect(screen.getByText(t)).toBeInTheDocument());
+    ["Home", "Menu", "Deliveries", "Finances"].forEach((t) => expect(screen.getByText(t)).toBeInTheDocument());
     expect(screen.queryByText("Profile")).toBeNull();
     expect(screen.queryByText("Meals")).toBeNull();
   });
 
-  it("Order FAB navigates to /subscribe", () => {
+  it("New plan FAB navigates to /subscribe with a clear accessible name", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    fireEvent.click(screen.getByRole("button", { name: /Order/i }));
+    expect(screen.getByText("New plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Start a subscription/i }));
     expect(push).toHaveBeenCalledWith("/subscribe");
+  });
+
+  it("My plan FAB navigates to /me/deliveries when a live plan exists", () => {
+    mockPathname = "/me";
+    push.mockClear();
+    render(<CustomerBottomNav hasLivePlan />);
+    expect(screen.getByText("My plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Open calendar to pick meals/i }));
+    expect(push).toHaveBeenCalledWith("/me/deliveries");
   });
 });

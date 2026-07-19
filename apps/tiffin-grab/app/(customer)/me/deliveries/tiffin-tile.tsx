@@ -1,25 +1,20 @@
 "use client";
 
-// The Tiffin Calendar's signature surface: a day IS its meal, not a numbered grid cell. Shared
-// by the desktop month calendar's DayButton slot and the mobile week rail — same visual language,
-// two sizes (`variant`). Cutoff-locked days get a "sealed lid" treatment: dimmed/desaturated
-// photo, a lock badge standing in for a closed tiffin lid, and a light "it's sealed" wobble on
-// tap instead of the usual press-scale — the day is still tappable (view-only detail), just not
-// editable.
+// Calendar day cell: date number + status underline (13895.jpg month grid). The mobile week strip
+// adds a weekday label + optional "Today" tag. No dish photos on the grid — meals show in the
+// inline detail panel below.
 
 import { motion, useReducedMotion } from "motion/react";
-import { LockIcon, UtensilsCrossedIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
 import { cn } from "@realm/ui/cn";
-import { DishImage } from "@/components/customer/home/dish-image";
-import { dietDotClass } from "@/lib/menu/poster";
-import { DAY_STATUS_LABEL, DAY_STATUS_RING_CLASS, type DayStatus } from "./day-status";
+import { DAY_STATUS_UNDERLINE_CLASS, type DayStatus } from "./day-status";
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function TiffinTile({
-  date, status, dishName, dishImage, diet, extraCount = 0, isToday = false, selected = false,
-  variant = "month", onClick,
+  date, status, dishName, dishImage: _dishImage, diet: _diet, extraCount: _extraCount = 0,
+  isToday = false, selected = false, variant = "month", onClick,
 }: {
   date: string;
   status: DayStatus;
@@ -37,17 +32,61 @@ export function TiffinTile({
   const dayNum = local.getDate();
   const weekday = WEEKDAY_SHORT[local.getDay()];
   const locked = status === "locked";
-  // Inert, not locked — no CalendarCell because the day isn't in the plan's delivery pattern
-  // (off day) or its week isn't released yet. Never tappable for a meal, never gets the
-  // sealed-lid treatment (no wobble, no lock badge).
   const off = status === "off";
-  const hasMeal = dishName != null;
 
   const tapAnimation = reduce || off
     ? undefined
     : locked
-      ? { rotate: [0, -2.5, 2.5, -1, 0] } // "it's sealed" nudge — not a press, a refusal
+      ? { rotate: [0, -2.5, 2.5, -1, 0] }
       : { scale: 0.96 };
+
+  const dateCircleClass = cn(
+    "flex shrink-0 items-center justify-center rounded-full font-semibold tabular-nums transition-colors",
+    variant === "week" ? "size-8 text-sm" : "size-8 text-sm",
+    // Selected uses brand primary — not ok/green — so it doesn't collide with the Delivered dash.
+    selected && "bg-primary text-primary-foreground",
+    !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+    !selected && !isToday && "text-foreground",
+  );
+
+  const underlineVisible = status !== "off";
+
+  if (variant === "week") {
+    return (
+      <motion.button
+        type="button"
+        onClick={onClick}
+        disabled={off}
+        whileTap={tapAnimation}
+        transition={locked ? { duration: 0.32, ease: "easeOut" } : { type: "spring", duration: 0.3, bounce: 0 }}
+        aria-label={`${weekday} ${dayNum}${isToday ? ", today" : ""}${dishName ? `, ${dishName}` : ""}${locked ? ", delivered" : off ? ", not scheduled" : ""}`}
+        aria-pressed={selected}
+        className={cn(
+          "group relative flex w-14 shrink-0 snap-center flex-col items-center gap-0.5 px-1 py-1.5 text-center transition-colors",
+          off && "cursor-default opacity-50",
+        )}
+      >
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {weekday}
+        </span>
+
+        <span className="relative">
+          <span className={dateCircleClass}>{dayNum}</span>
+          {locked && (
+            <LockIcon className="absolute -right-1 -top-1 size-3 text-muted-foreground" aria-hidden />
+          )}
+        </span>
+
+        {isToday && (
+          <span className="text-[9px] font-medium leading-none text-primary">Today</span>
+        )}
+
+        {underlineVisible && (
+          <span className={cn("mt-0.5 h-[3px] w-5 rounded-full", DAY_STATUS_UNDERLINE_CLASS[status])} aria-hidden />
+        )}
+      </motion.button>
+    );
+  }
 
   return (
     <motion.button
@@ -56,65 +95,19 @@ export function TiffinTile({
       disabled={off}
       whileTap={tapAnimation}
       transition={locked ? { duration: 0.32, ease: "easeOut" } : { type: "spring", duration: 0.3, bounce: 0 }}
-      aria-label={`${weekday} ${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", sealed" : off ? ", not scheduled" : ""}`}
+      aria-label={`${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", delivered" : off ? ", not scheduled" : ""}`}
       aria-pressed={selected}
       className={cn(
-        // min-h/min-w keep the tap target >=44px even if a parent grid ever squeezes the cell
-        // narrower than that — the tile itself still wants to fill its cell (h-full w-full).
-        "group relative flex aspect-square h-full min-h-11 w-full min-w-11 flex-col overflow-hidden rounded-2xl border-2 text-left transition-shadow",
-        DAY_STATUS_RING_CLASS[status],
-        off && "cursor-default opacity-50",
-        selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+        "group relative mx-auto flex h-full min-h-11 w-full min-w-11 flex-col items-center justify-center gap-1 py-1 text-center",
+        off && "cursor-default opacity-40",
       )}
     >
-      <div className="absolute inset-1 overflow-hidden rounded-xl outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10">
-        {hasMeal ? (
-          <div className={cn("relative h-full w-full", locked && "opacity-40 grayscale")}>
-            <DishImage image={dishImage} name={dishName!} sizes={variant === "week" ? "(max-width: 640px) 30vw, 120px" : "160px"} />
-          </div>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-muted">
-            <UtensilsCrossedIcon className={cn("text-muted-foreground/40", variant === "week" ? "size-6" : "size-8")} aria-hidden />
-          </div>
-        )}
-        {/* Bottom scrim for legible date/name over any photo */}
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-      </div>
-
-      {/* Diet dot, top-right */}
-      {diet && !locked && (
-        <span
-          className={cn("absolute right-2 top-2 z-10 size-2.5 rounded-full ring-1 ring-white/80", dietDotClass(diet, dishName ?? ""))}
-          aria-hidden
-        />
+      <span className={dateCircleClass}>{dayNum}</span>
+      {underlineVisible ? (
+        <span className={cn("h-[3px] w-5 rounded-full", DAY_STATUS_UNDERLINE_CLASS[status])} aria-hidden />
+      ) : (
+        <span className="h-[3px] w-5" aria-hidden />
       )}
-
-      {/* +N extra picks badge */}
-      {extraCount > 0 && !locked && (
-        <span className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-1.5 py-0.5 text-[11px] font-medium leading-none text-white">
-          +{extraCount}
-        </span>
-      )}
-
-      {/* Sealed-lid lock badge, centered */}
-      {locked && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <span className={cn("flex items-center justify-center rounded-full bg-black/45 backdrop-blur-[1px]", variant === "week" ? "size-8" : "size-10")}>
-            <LockIcon className={cn("text-white/90", variant === "week" ? "size-4" : "size-5")} aria-hidden />
-          </span>
-        </div>
-      )}
-
-      {/* Date / weekday / dish name, bottom-anchored */}
-      <div className={cn("relative z-10 mt-auto flex flex-col gap-0 text-white", variant === "week" ? "px-2 pb-2 pt-1" : "px-2.5 pb-2 pt-1")}>
-        <span className={cn("font-medium uppercase tracking-wide text-white/80", variant === "week" ? "text-[10px]" : "text-xs")}>{weekday}</span>
-        <span className={cn("tabular-nums font-semibold leading-tight", variant === "week" ? "text-lg" : "text-xl")}>{dayNum}</span>
-        <span className={cn("mt-0.5 truncate leading-tight text-white/85", variant === "week" ? "text-[11px]" : "text-xs")}>
-          {locked ? "Sealed" : hasMeal ? dishName : DAY_STATUS_LABEL[status]}
-        </span>
-      </div>
-
-      {isToday && <span className="absolute left-2 top-2 z-10 size-2 rounded-full bg-primary ring-1 ring-white/80" aria-hidden />}
     </motion.button>
   );
 }

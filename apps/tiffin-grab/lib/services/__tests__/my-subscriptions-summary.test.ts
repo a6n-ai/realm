@@ -64,7 +64,7 @@ describe("mySubscriptionsSummary (integration)", () => {
 
     expect(subs.length).toBe(2);
     expect(subs.map((s) => s.status).sort()).toEqual(["active", "cancelled"]);
-    expect(subs.every((s) => s.planName && s.mealSizeName)).toBe(true);
+    expect(subs.every((s) => s.planName && s.mealSizeName && s.startDate)).toBe(true);
     expect(subs[0].createdAt).toBeGreaterThanOrEqual(subs[1].createdAt);
     expect(subs.map((s) => s.publicId).sort()).toEqual([aOrderOne.publicId, aOrderTwo.publicId].sort());
   });

@@ -1,8 +1,7 @@
 "use client";
 
-// Desktop: month calendar (reui @realm/ui/calendar) whose DayButton slot is replaced entirely
-// by TiffinTile — "each day IS its meal", not an abstract numbered cell. Bounded to the actual
-// fetched data range (startMonth/endMonth) so month-nav can't page into empty, undated months.
+// Month calendar (reui @realm/ui/calendar) with compact day cells: date number + status dash,
+// matching the Akshayakalpa Calendar tab reference (13895.jpg). Bounded to fetched data range.
 
 import { Calendar } from "@realm/ui/calendar";
 import { toIsoLocal, type CalendarCell } from "./calendar-constants";
@@ -29,18 +28,25 @@ export function MonthCalendar({
       startMonth={startMonth}
       endMonth={endMonth}
       defaultMonth={new Date(`${selected}T00:00:00`)}
-      // Bumped from the reui default (~1.75rem) so a tile's dish photo, status ring, diet/lock
-      // icon, and date+name label all read clearly — the calendar's whole point is that a day
-      // cell IS its meal, not a cramped numbered box. Comfortably >=44px tap target either way.
-      // Scales up at wider breakpoints rather than jumping straight to the largest size, so the
-      // 7-wide grid (7 * cell-size) doesn't outgrow the [auto_1fr] panel split on medium widths.
-      className="mx-auto [--cell-size:5.5rem] lg:[--cell-size:6.5rem] xl:[--cell-size:7.25rem]"
+      // Mobile-first: fill the phone width; slightly larger cells on sm+.
+      className="mx-auto w-full max-w-none bg-transparent p-0 [--cell-size:2.85rem] sm:max-w-md sm:[--cell-size:3rem]"
+      classNames={{
+        weekday: "flex-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground",
+        month_caption: "mb-2",
+        caption_label: "text-base font-semibold",
+        week: "mt-1.5 flex w-full",
+      }}
       components={{
         DayButton: ({ day }) => {
           const iso = toIsoLocal(day.date);
           const cell = cellsByDate.get(iso);
           if (!cell) {
-            return <div className="flex aspect-square w-full items-center justify-center text-sm text-muted-foreground/40 tabular-nums">{day.date.getDate()}</div>;
+            return (
+              <div className="flex aspect-square w-full flex-col items-center justify-center gap-1 py-1 text-sm text-muted-foreground/35 tabular-nums">
+                <span>{day.date.getDate()}</span>
+                <span className="h-[3px] w-5" aria-hidden />
+              </div>
+            );
           }
           const data = cellToTileData(cell);
           return (

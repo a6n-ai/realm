@@ -15,6 +15,7 @@ const {
   myCalendar,
   myDeliveries,
   myPausePanel,
+  myPrimarySubscription,
 } = await import("../customer-deliveries.service");
 
 // Wide enough to bracket any real nextWeekday()-derived delivery date, regardless of "today".
@@ -95,6 +96,19 @@ describe("customer-deliveries.service (integration)", () => {
     const subs = await myActiveSubscriptions(userA);
     expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([aOrder1.publicId, aOrder2.publicId]));
     expect(subs.every((s) => ["active", "paused"].includes(s.status))).toBe(true);
+  });
+
+  it("myPrimarySubscription prefers the newest active plan", async () => {
+    const aOrder1 = await makeOrder(PHONE_A, "User A");
+    const aOrder2 = await makeOrder(PHONE_A, "User A");
+    const userA = await userIdByPhone(PHONE_A);
+
+    const primary = await myPrimarySubscription(userA);
+    expect(primary?.publicId).toBe(aOrder2.publicId);
+
+    await db.update(orders).set({ status: "paused" }).where(eq(orders.id, aOrder2.id));
+    const afterPause = await myPrimarySubscription(userA);
+    expect(afterPause?.publicId).toBe(aOrder1.publicId);
   });
 
   it("never returns another user's deliveries", async () => {

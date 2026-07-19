@@ -1,25 +1,55 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDaysIcon, UtensilsCrossedIcon } from "lucide-react";
+import { CalendarDaysIcon } from "lucide-react";
+import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, SkeletonListRows } from "@/components/ds";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import type { CustomerActivity, CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
+import type { CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
-import { TransitionLink } from "@/components/motion/transition-link";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { DeliveryHistory } from "./delivery-history";
 import type { DeliveryCardMeal } from "./meal-chips";
 import { PauseControl } from "./pause-calendar";
 import { MonthCalendar } from "./month-calendar";
-import { WeekRail } from "./week-rail";
 import { DayDetail } from "./day-detail";
-import { toIsoLocal, SUB_STATUS_LABEL, type CalendarCell } from "./calendar-constants";
+import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
+import { MAX_EXTRA_WINDOWS, toIsoLocal, SUB_STATUS_LABEL, type CalendarCell } from "./calendar-constants";
+import { CALENDAR_LEGEND } from "./day-status";
+
+function DesktopDayStatusLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      {CALENDAR_LEGEND.map(({ key, label, dashClass }) => (
+        <span key={key} className="flex items-center gap-1.5">
+          <span className={cn("h-[3px] w-5 rounded-full", dashClass)} aria-hidden />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function LoadMoreCalendar({ extraWindows }: { extraWindows: number }) {
+  const atMax = extraWindows >= MAX_EXTRA_WINDOWS;
+  if (atMax) {
+    return (
+      <p className="text-center text-xs text-muted-foreground">
+        Showing the maximum calendar window.
+      </p>
+    );
+  }
+  return (
+    <div className="flex justify-center">
+      <Button asChild variant="outline" size="sm">
+        <Link href={`/me/deliveries?days=${extraWindows + 1}`}>Load more weeks</Link>
+      </Button>
+    </div>
+  );
+}
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 
@@ -31,16 +61,11 @@ export type DeliveryCardData = CustomerDelivery & {
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;
 
-// Defensive fallback only — page.tsx fetches a PausePanel for every active subscription, so this
-// is never expected to be hit, but it keeps the section's props total if it ever is.
 const DEFAULT_PAUSE_PANEL: PausePanel = {
   limits: { maxPauses: null, maxPauseDaysTotal: null, maxPauseStretchDays: null },
   usage: { count: 0, daysUsed: 0, hasOpenPause: false },
 };
 
-// One subscription's Tiffin Calendar: desktop month calendar + persistent detail panel beside it;
-// mobile week rail + bottom Drawer. Day-tap is meal selection ONLY — pause/resume lives in its
-// own PauseControl trigger, never on the calendar surface itself.
 function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, today }: {
   sub: Subscription;
   deliveries: DeliveryCardData[];
@@ -53,7 +78,12 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
   const router = useRouter();
   const todayIso = today || toIsoLocal(new Date());
   const [selected, setSelected] = useState(todayIso);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+
+  // Always land on today when the page loads or the app-day rolls over.
+  useEffect(() => {
+    setSelected(todayIso);
+  }, [todayIso]);
 
   const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
   const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
@@ -63,63 +93,91 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
     router.refresh();
   }
 
-  function selectDesktop(iso: string) {
-    setSelected(iso);
-  }
-
-  function selectMobile(iso: string) {
-    setSelected(iso);
-    setDrawerOpen(true);
-  }
+  const selectedCell = cellsByDate.get(selected);
+  const selectedDelivery = deliveryByDate.get(selected);
+  const subPaused = pausePanel.usage.hasOpenPause || sub.status === "paused";
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold">{sub.planName}</h2>
           <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
         </div>
-        <PauseControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
+        <Button
+          type="button"
+          variant={subPaused ? "secondary" : "outline"}
+          size="sm"
+          className="hidden md:inline-flex"
+          onClick={() => setPauseOpen(true)}
+        >
+          {subPaused ? "Resume" : "Pause"}
+        </Button>
+        <PauseControl
+          sub={sub}
+          pausePanel={pausePanel}
+          cutoffByDate={cutoffByDate}
+          today={todayIso}
+          open={pauseOpen}
+          onOpenChange={setPauseOpen}
+          hideTrigger
+        />
       </div>
 
-      {/* Desktop: month calendar + persistent detail panel */}
-      <Card variant="flat" className="hidden p-4 md:block">
-        <CardContent className="grid gap-4 p-0 md:grid-cols-[auto_1fr]">
-          <MonthCalendar cellsByDate={cellsByDate} selected={selected} onSelect={selectDesktop} todayIso={todayIso} />
+      <div className="space-y-3 md:hidden">
+        <MobileLegendRow />
+        <MonthCalendar
+          cellsByDate={cellsByDate}
+          selected={selected}
+          onSelect={setSelected}
+          todayIso={todayIso}
+        />
+        <p className="text-center text-sm font-medium">
+          {formatDateOnly(selected, { mode: "long" })}
+        </p>
+        <MobileDayOrderCard
+          cell={selectedCell}
+          delivery={selectedDelivery}
+          planName={sub.planName}
+          paused={subPaused}
+          onPauseClick={() => setPauseOpen(true)}
+        />
+        <DayDetail
+          variant="picker"
+          dateIso={selected}
+          cell={selectedCell}
+          delivery={selectedDelivery}
+          orderPublicId={sub.publicId}
+          categoryLabels={categoryLabels}
+          tz={tz}
+          onChanged={onChanged}
+        />
+      </div>
+
+      <div className="hidden space-y-3 md:block">
+        <DesktopDayStatusLegend />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr] lg:items-start">
+          <Card variant="flat" className="p-3 sm:p-4">
+            <CardContent className="p-0">
+              <MonthCalendar
+                cellsByDate={cellsByDate}
+                selected={selected}
+                onSelect={setSelected}
+                todayIso={todayIso}
+              />
+            </CardContent>
+          </Card>
           <DayDetail
             dateIso={selected}
-            cell={cellsByDate.get(selected)}
-            delivery={deliveryByDate.get(selected)}
+            cell={selectedCell}
+            delivery={selectedDelivery}
             orderPublicId={sub.publicId}
             categoryLabels={categoryLabels}
             tz={tz}
             onChanged={onChanged}
           />
-        </CardContent>
-      </Card>
-
-      {/* Mobile: week rail + bottom Drawer */}
-      <div className="md:hidden">
-        <WeekRail cellsByDate={cellsByDate} selected={selected} onSelect={selectMobile} todayIso={todayIso} />
+        </div>
       </div>
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="md:hidden">
-          <DrawerHeader className="text-left">
-            <DrawerTitle>{formatDateOnly(selected, { mode: "weekday" })}</DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 pb-6">
-            <DayDetail
-              dateIso={selected}
-              cell={cellsByDate.get(selected)}
-              delivery={deliveryByDate.get(selected)}
-              orderPublicId={sub.publicId}
-              categoryLabels={categoryLabels}
-              tz={tz}
-              onChanged={onChanged}
-            />
-          </div>
-        </DrawerContent>
-      </Drawer>
     </section>
   );
 }
@@ -130,9 +188,8 @@ export function DeliveryCalendar({
   pausePanels = {},
   calendarCells = {},
   categoryLabels = {},
+  extraWindows = 0,
   waitlisted = [],
-  history = [],
-  activity = [],
   today = "",
 }: {
   subscriptions: Subscription[];
@@ -142,8 +199,6 @@ export function DeliveryCalendar({
   categoryLabels?: Record<string, string>;
   extraWindows?: number;
   waitlisted?: WaitlistedSubscription[];
-  history?: CustomerDelivery[];
-  activity?: CustomerActivity[];
   today?: string;
 }) {
   const tz = useTimezone();
@@ -166,7 +221,6 @@ export function DeliveryCalendar({
             />
           )}
         </div>
-        <DeliveryHistory history={history} activity={activity} today={today} />
       </div>
     );
   }
@@ -179,17 +233,7 @@ export function DeliveryCalendar({
 
   return (
     <div className="space-y-6 p-4">
-      <PageHeader
-        icon={CalendarDaysIcon}
-        title="My deliveries"
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <TransitionLink href="/me/meals">
-              <UtensilsCrossedIcon data-icon="inline-start" /> Pick your meals
-            </TransitionLink>
-          </Button>
-        }
-      />
+      <PageHeader icon={CalendarDaysIcon} title="My deliveries" />
       {subscriptions.map((sub) => (
         <TiffinCalendarSection
           key={sub.publicId}
@@ -202,13 +246,11 @@ export function DeliveryCalendar({
           today={today}
         />
       ))}
-      <DeliveryHistory history={history} activity={activity} today={today} />
+      <LoadMoreCalendar extraWindows={extraWindows} />
     </div>
   );
 }
 
-// Exact loading twin: named export, not DeliveryCalendar.Skeleton — page.tsx is a Server
-// Component and cannot dot into this "use client" module.
 export function DeliveryCalendarSkeleton() {
   return (
     <div className="space-y-6 p-4">

@@ -97,4 +97,19 @@ describe("DeliveryCalendar — three-way empty state", () => {
     expect(screen.getByText(/No active subscriptions/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse plans/i })).toHaveAttribute("href", "/subscribe");
   });
+
+  it("renders Load more weeks linking to the next ?days= window", () => {
+    render(
+      <DeliveryCalendar
+        subscriptions={[activeSub]}
+        deliveries={[activeDelivery]}
+        extraWindows={0}
+        waitlisted={[]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: /Load more weeks/i })).toHaveAttribute(
+      "href",
+      "/me/deliveries?days=1",
+    );
+  });
 });
