@@ -1,13 +1,15 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Puchkaman prod - dedicated RDS + S3 + IAM instance role + security groups.
+Description: Puchkaman prod - dedicated RDS + IAM instance role + security group (mirrors tiffin-grab).
+
+# Naming mirrors tiffin-grab (realm-<app>-prod-*): RDS realm-puchkaman-prod-db,
+# one security group realm-puchkaman-prod-sg (box + RDS share it, 5432 self-ref),
+# IAM instance profile realm-puchkaman-prod-role. The files bucket
+# (puchkaman-files-<acct>-<region>-an) is created OUT OF BAND (see note below).
 
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: VPC to place the RDS + box security groups in.
-  DbSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Two+ subnets (distinct AZs) for the RDS subnet group.
+    Description: VPC for the security group + RDS (uses the VPC's default DB subnet group).
   DbMasterPassword:
     Type: String
     NoEcho: true
@@ -26,44 +28,36 @@ Parameters:
     Description: CIDR permitted to SSH to the box (tighten to your IP).
 
 Resources:
-  BoxSecurityGroup:
+  # One SG for the box AND the RDS, mirroring tiffin-grab's realm-tiffin-grab-prod-sg.
+  # Public web + SSH; Postgres 5432 is reachable only from members of this same SG
+  # (self-reference), so the box reaches RDS but nothing else can.
+  AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Puchkaman EC2 box - public web + SSH.
+      GroupName: realm-puchkaman-prod-sg
+      GroupDescription: Puchkaman prod - box (web/SSH) + RDS (5432 from this SG only).
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - { IpProtocol: tcp, FromPort: 22,  ToPort: 22,  CidrIp: !Ref AllowSshCidr }
         - { IpProtocol: tcp, FromPort: 80,  ToPort: 80,  CidrIp: 0.0.0.0/0 }
         - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
-      Tags: [{ Key: app, Value: puchkaman }]
+      Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-sg }]
 
-  DbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Puchkaman RDS - 5432 from the box only.
-      VpcId: !Ref VpcId
-      Tags: [{ Key: app, Value: puchkaman }]
-
-  DbIngressFromBox:
+  # Self-referencing 5432 ingress as a separate resource (avoids a create-time cycle).
+  DbIngressSelf:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref DbSecurityGroup
+      GroupId: !Ref AppSecurityGroup
       IpProtocol: tcp
       FromPort: 5432
       ToPort: 5432
-      SourceSecurityGroupId: !Ref BoxSecurityGroup
-
-  DbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Puchkaman RDS subnet group.
-      SubnetIds: !Ref DbSubnetIds
+      SourceSecurityGroupId: !Ref AppSecurityGroup
 
   Database:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: puchkaman-prod
+      DBInstanceIdentifier: realm-puchkaman-prod-db
       Engine: postgres
       EngineVersion: !Ref DbEngineVersion
       DBName: puchkaman
@@ -76,9 +70,10 @@ Resources:
       MultiAZ: false
       PubliclyAccessible: false
       BackupRetentionPeriod: 7
-      DBSubnetGroupName: !Ref DbSubnetGroup
-      VPCSecurityGroups: [!Ref DbSecurityGroup]
-      Tags: [{ Key: app, Value: puchkaman }]
+      # Reuse the VPC's default subnet group (same as tiffin-grab: default-vpc-<vpcId>).
+      DBSubnetGroupName: !Sub "default-${VpcId}"
+      VPCSecurityGroups: [!Ref AppSecurityGroup]
+      Tags: [{ Key: app, Value: puchkaman }, { Key: Name, Value: realm-puchkaman-prod-db }]
 
   # NOTE: the files bucket is created OUT OF BAND, not here. Its name uses the S3
   # "account-regional namespace" (suffix -<accountId>-<region>-an), whose CreateBucket
@@ -138,8 +133,9 @@ Resources:
 Outputs:
   DbEndpoint:
     Value: !GetAtt Database.Endpoint.Address
-  BoxSecurityGroupId:
-    Value: !Ref BoxSecurityGroup
+  SecurityGroupId:
+    Description: Shared box + RDS security group (realm-puchkaman-prod-sg).
+    Value: !Ref AppSecurityGroup
   InstanceProfileName:
     Value: !Ref BoxInstanceProfile
   FilesBucketName:

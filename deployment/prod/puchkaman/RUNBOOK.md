@@ -10,8 +10,11 @@ Full stack: web + pgbouncer → RDS, better-auth admin, S3 uploads. No redis/wor
       --template-file infra/puchkaman-prod.yaml \
       --capabilities CAPABILITY_NAMED_IAM \
       --parameter-overrides \
-        VpcId=vpc-XXXX DbSubnetIds=subnet-A,subnet-B \
+        VpcId=vpc-XXXX \
         DbMasterPassword='<32+ char password>' AllowSshCidr=<your-ip>/32
+
+The stack uses the VPC's default DB subnet group (default-vpc-<vpcId>) and one
+security group realm-puchkaman-prod-sg shared by the box + RDS, matching tiffin-grab.
 
 Read the outputs:
 
@@ -34,9 +37,10 @@ FILES_S3_REGION. (DATABASE_URL uses pgbouncer:6432; DIRECT_DATABASE_URL ends
 
 ## 3. First-time box bring-up
 
-EC2: Amazon Linux 2023, **x86_64**, t3.small, 30 GiB gp3 encrypted, in the box
-SG (`BoxSecurityGroupId` output), IAM instance profile `realm-puchkaman-prod-role`
-(`InstanceProfileName` output). Install docker + compose + awscli + jq + git.
+EC2: Amazon Linux 2023, **x86_64**, t3.small, 30 GiB gp3 encrypted, tag
+Name=`realm-puchkaman-prod`, in the SG (`SecurityGroupId` output = realm-puchkaman-prod-sg),
+IAM instance profile `realm-puchkaman-prod-role` (`InstanceProfileName` output).
+Install docker + compose + awscli + jq + git.
 
     git clone https://github.com/a6n-ai/realm ~/realm
     cd ~/realm/deployment/prod/puchkaman
