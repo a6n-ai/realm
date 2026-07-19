@@ -37,9 +37,13 @@ export function TiffinTile({
   const dayNum = local.getDate();
   const weekday = WEEKDAY_SHORT[local.getDay()];
   const locked = status === "locked";
+  // Inert, not locked — no CalendarCell because the day isn't in the plan's delivery pattern
+  // (off day) or its week isn't released yet. Never tappable for a meal, never gets the
+  // sealed-lid treatment (no wobble, no lock badge).
+  const off = status === "off";
   const hasMeal = dishName != null;
 
-  const tapAnimation = reduce
+  const tapAnimation = reduce || off
     ? undefined
     : locked
       ? { rotate: [0, -2.5, 2.5, -1, 0] } // "it's sealed" nudge — not a press, a refusal
@@ -49,15 +53,17 @@ export function TiffinTile({
     <motion.button
       type="button"
       onClick={onClick}
+      disabled={off}
       whileTap={tapAnimation}
       transition={locked ? { duration: 0.32, ease: "easeOut" } : { type: "spring", duration: 0.3, bounce: 0 }}
-      aria-label={`${weekday} ${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", sealed" : ""}`}
+      aria-label={`${weekday} ${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", sealed" : off ? ", not scheduled" : ""}`}
       aria-pressed={selected}
       className={cn(
         // min-h/min-w keep the tap target >=44px even if a parent grid ever squeezes the cell
         // narrower than that — the tile itself still wants to fill its cell (h-full w-full).
         "group relative flex aspect-square h-full min-h-11 w-full min-w-11 flex-col overflow-hidden rounded-2xl border-2 text-left transition-shadow",
         DAY_STATUS_RING_CLASS[status],
+        off && "cursor-default opacity-50",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
       )}
     >

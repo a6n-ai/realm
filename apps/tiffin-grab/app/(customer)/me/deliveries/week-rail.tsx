@@ -76,7 +76,7 @@ export function WeekRail({
                 <TiffinTile
                   variant="week"
                   date={iso}
-                  status={data?.status ?? "locked"}
+                  status={data?.status ?? "off"}
                   dishName={data?.dishName ?? null}
                   dishImage={data?.dishImage ?? null}
                   diet={data?.diet ?? null}

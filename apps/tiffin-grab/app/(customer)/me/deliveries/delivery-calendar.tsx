@@ -79,7 +79,7 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
           <h2 className="text-base font-semibold">{sub.planName}</h2>
           <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
         </div>
-        <PauseControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} />
+        <PauseControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
       </div>
 
       {/* Desktop: month calendar + persistent detail panel */}

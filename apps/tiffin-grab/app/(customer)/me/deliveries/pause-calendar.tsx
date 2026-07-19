@@ -31,11 +31,14 @@ function pauseBudgetLines(limits: PausePanel["limits"], usage: PausePanel["usage
   return lines;
 }
 
-export function PauseControl({ sub, pausePanel, cutoffByDate }: {
+export function PauseControl({ sub, pausePanel, cutoffByDate, today }: {
   sub: Subscription;
   pausePanel: PausePanel;
   // date -> cutoff epoch, used to disable already-locked days on the pause range calendar.
   cutoffByDate: Map<string, number>;
+  // Server-provided "today" (app-tz ISO), same value TiffinCalendarSection anchors on — avoids
+  // computing `new Date()` during render (hydration-unsafe, and drifts from the server's clock).
+  today: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -52,10 +55,9 @@ export function PauseControl({ sub, pausePanel, cutoffByDate }: {
   const canOfferIndefinite = limits.maxPauseStretchDays == null;
   const canSubmit = indefinite ? !!range?.from : !!(range?.from && range?.to);
 
-  const todayIso = toIsoLocal(new Date());
   function isDisabledDay(date: Date): boolean {
     const iso = toIsoLocal(date);
-    if (iso < todayIso) return true;
+    if (iso < today) return true;
     const cutoff = cutoffByDate.get(iso);
     return cutoff != null && Date.now() > cutoff;
   }

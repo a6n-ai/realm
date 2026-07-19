@@ -4,7 +4,11 @@
 // on top of DeliveryStatus + isMakeup + cutoff, not a value that ever round-trips
 // through the DB or a server action.
 
-export type DayStatus = "scheduled" | "paused" | "skipped" | "locked" | "makeup";
+// "off" is a distinct inert state from "locked" — a day with no CalendarCell because it isn't in
+// the plan's delivery pattern (weekend/off day) or its week isn't released yet. It is never
+// derived from deliveryDayStatus/calendarDayStatus (both require a real delivery/cell); callers
+// assign it directly when a cell is absent, so it never gets the cutoff "sealed" treatment.
+export type DayStatus = "scheduled" | "paused" | "skipped" | "locked" | "makeup" | "off";
 
 // A day is "locked" once its cutoff has passed, regardless of the underlying delivery
 // status — this is the one status that overrides the raw `status` column, mirroring the
@@ -26,6 +30,7 @@ export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
   skipped: "Skipped",
   locked: "Locked",
   makeup: "Make-up",
+  off: "Not scheduled",
 };
 
 // Calendar day-dot color (a small filled circle under the day number).
@@ -35,6 +40,7 @@ export const DAY_STATUS_DOT_CLASS: Record<DayStatus, string> = {
   skipped: "bg-warn",
   locked: "bg-muted-foreground/30",
   makeup: "bg-blue-500",
+  off: "bg-muted-foreground/15",
 };
 
 // Agenda-chip left status bar (c-calendar-22 pattern: a colored vertical bar, not a dot).
@@ -44,6 +50,7 @@ export const DAY_STATUS_BAR_CLASS: Record<DayStatus, string> = {
   skipped: "after:bg-warn",
   locked: "after:bg-muted-foreground/30",
   makeup: "after:bg-blue-500",
+  off: "after:bg-muted-foreground/15",
 };
 
 // Tiffin-tile status RING (the day tile's border) — the calendar's signature "each day is its
@@ -54,6 +61,9 @@ export const DAY_STATUS_RING_CLASS: Record<DayStatus, string> = {
   skipped: "border-warn",
   locked: "border-muted-foreground/25",
   makeup: "border-blue-500",
+  // Deliberately lighter than "locked" — no ring at all, just a hairline, since this day was
+  // never sealed shut, it simply never existed on the calendar (off-pattern or unreleased).
+  off: "border-transparent",
 };
 
 // CalendarCell-driven status (myCalendar's day cells carry a precomputed `locked` boolean rather
