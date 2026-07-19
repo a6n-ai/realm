@@ -98,7 +98,7 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
                     <div className="relative aspect-square w-full overflow-hidden rounded-md">
                       <DishImage image={o.image} name={o.name} sizes="(max-width: 640px) 30vw, 120px" />
                     </div>
-                    {o.image && <span className="text-xs font-medium">{o.name}</span>}
+                    <span className="text-xs font-medium">{o.name}</span>
                     {isSelected && (
                       <CheckIcon className="text-primary bg-background absolute top-1 right-1 size-4 rounded-full" aria-hidden />
                     )}
