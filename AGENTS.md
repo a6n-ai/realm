@@ -54,7 +54,7 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 
 ## Learned User Preferences
 
-- Prefer expanding customer Wallet into a Finances hub (tabs) over adding a new bottom-nav item; the customer bottom nav is already full.
+- Prefer customer Finances as a hub at `/me/wallet` (tabs), not a bottom-nav item; mobile bottom nav uses Account instead, with wallet and theme controls in the header.
 - Keep delivery fulfillment separate from money billing; monthly bills and money transactions belong under Finances, not under Deliveries History.
 - When matching the customer deliveries calendar to reference screenshots, prioritize the mobile viewport and avoid selected-day fills that clash with status legend colors (use brand primary, not green/`bg-ok`).
 - Prefer mobile-first subscribe/checkout UX with clear back/close; the customer Order FAB should make its subscribe/order purpose obvious.
@@ -63,6 +63,9 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Deliveries plan header uses flat summary text (`SubscriptionPlanSummary`), not pills/chips; show subscription dropdown only when the customer has multiple active subscriptions.
 - Home "This week's menu" should show Mon–Sun columns; days with no dishes render only the day label (no placeholder or underline).
 - Customer Menu and Deliveries must resolve released menu weeks through the same `menuService` API (no cross-week fallback on Menu).
+- Prefer one shared commons address form for checkout, profile, and per-delivery address entry (Google Places can plug in later).
+- Split account/profile by concern with role gating: Profile = basic info; Security = password/PIN; Address, Notifications, and Dietary on their own pages (dietary is customer-only); desktop uses tabs like Finances; mobile uses the account hub sections.
+- Deliveries vacation/pause: start date required, optional end date; confirm pause scope (open-ended from start vs date range) before applying.
 
 ## Learned Workspace Facts
 
@@ -70,8 +73,11 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Customer `/me/deliveries` is calendar-focused (delivery History UI removed); loads one calendar month at a time via `?month=YYYY-MM` (all delivery days in month; menu for each released week in that range).
 - Money “monthly bills” map to prepaid `orders` (+ nested `payments`), not coin wallet rows or delivery rows; there is no separate monthly-invoice entity yet.
 - Subscribe flow is public Wizard → Checkout; `ExistingSubscriptions` lists active plans above the wizard, and soft current-plan hints use `CurrentPlanHint` in wizard steps.
-- Customer bottom-nav center FAB routes to `/subscribe` (Order).
+- Customer bottom nav is Home | Menu | Deliveries | Account with center FAB to `/subscribe` (Order); wallet balance and theme toggle live in the header (`CustomerHeaderActions`).
 - Home week strip and deliveries calendars initialize the selected day to today.
 - Released menu weeks for customer Menu and Deliveries go through `menuService.getReleasedWeek(s)` (exact `weekStart`; Menu no longer falls back to another published week).
 - Deliveries calendar month navigation updates `?month=`; delivery tiles always show for scheduled days; menu options attach only when that delivery's week is released (`menuService.getReleasedWeeks`).
 - Menu page answers "what's published to browse this week?" while Deliveries answers "what's released for this delivery date's week?" — same API gate, different per-surface questions.
+- Deliveries vacation/pause is per subscription via `VacationControl` and `subscription_pauses` (start required; optional end; confirmation before pause/resume).
+- Dashboard account sections are role-gated by `ACCOUNT_NAV` (staff: profile + security; customers also get address, dietary, delivery notes, notifications).
+- Customer account hub lives at `/me/account`; avoid dumping every profile subsection onto a single `/me/profile` page.
