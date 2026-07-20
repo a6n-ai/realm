@@ -20,7 +20,7 @@ import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@realm/ui/cn";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
-import { PresenceDot } from "@/components/tickets/ticket-live";
+import { PresenceDot } from "@/components/ds";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",

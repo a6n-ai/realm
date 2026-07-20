@@ -1,60 +1,7 @@
-import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
-import { LifeBuoyIcon } from "lucide-react";
-import { AuthError, ForbiddenError, NotFoundError } from "@realm/commons";
-import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { ticketsService } from "@/lib/services/tickets.service";
-import { attachmentHref } from "@/lib/services/ticket-attachments";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { TicketThread } from "./ticket-thread";
+import { redirect } from "next/navigation";
 
-export default function TicketThreadPage({ params }: { params: Promise<{ id: string }> }) {
-  return (
-    <PageShell>
-      <PageHeader icon={LifeBuoyIcon} title="Support ticket" />
-
-      <SectionCard title="Conversation">
-        <Suspense fallback={<TicketThread.Skeleton />}>
-          <TicketThreadData params={params} />
-        </Suspense>
-      </SectionCard>
-    </PageShell>
-  );
-}
-
-async function TicketThreadData({ params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+/** Old CRM path — customers live under /me after the shell split. */
+export default async function LegacyTicketRedirect({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
-  // read + listMessages both run the service trust boundary (a customer can only
-  // see their own ticket). Anything other than a real, owned ticket → not-found.
-  let ticket;
-  let rawMessages;
-  try {
-    [ticket, rawMessages] = await Promise.all([
-      ticketsService.read(id),
-      ticketsService.listMessages(id),
-    ]);
-  } catch (e) {
-    if (e instanceof NotFoundError || e instanceof ForbiddenError || e instanceof AuthError) notFound();
-    throw e;
-  }
-
-  const { timezone } = await getAppSettings();
-
-  // Mint a token-gated href per attachment at render time (short-lived, viewer already passed the ticket's trust boundary above).
-  const messages = await Promise.all(
-    rawMessages.map(async (m) => ({
-      ...m,
-      attachments: m.attachments
-        ? await Promise.all(
-            m.attachments.map(async (a) => ({ thumbUrl: a.thumbUrl, name: a.name, href: await attachmentHref(a) })),
-          )
-        : null,
-    })),
-  );
-
-  return <TicketThread ticket={ticket} messages={messages} timezone={timezone} />;
+  redirect(`/me/support/${id}`);
 }

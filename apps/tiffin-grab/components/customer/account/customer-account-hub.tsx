@@ -9,6 +9,7 @@ import {
   CircleHelpIcon,
   ClipboardListIcon,
   FileTextIcon,
+  LifeBuoyIcon,
   LogOutIcon,
   MailIcon,
   MapPinIcon,
@@ -62,6 +63,7 @@ const SETTINGS_ITEMS: MenuItem[] = [
 ];
 
 const SUPPORT_ITEMS: MenuItem[] = [
+  { href: "/me/support", label: "Support tickets", icon: LifeBuoyIcon },
   { href: "/faq", label: "FAQs", icon: CircleHelpIcon },
   { href: "/contact", label: "Contact us", icon: MailIcon },
   { href: "/me/meals", label: "Delivery preferences", icon: UtensilsCrossedIcon },

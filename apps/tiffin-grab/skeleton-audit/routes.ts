@@ -10,7 +10,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/meals", label: "meals" },
   { path: "/dashboard/menus", label: "menus" },
   { path: "/dashboard/catalog", label: "catalog" },
-  { path: "/dashboard/support", label: "support-list" },
+  { path: "/me/support", label: "support-list" },
   { path: "/dashboard/tickets", label: "tickets-list" },
   { path: "/dashboard/wallet/ledger", label: "wallet-ledger" },
   { path: "/dashboard/wallet/payouts", label: "wallet-payouts" },
@@ -28,7 +28,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/settings/meal-types", label: "settings-meal-types" },
   { path: "/dashboard/discounts/rep-allowance", label: "rep-allowance" },
   { path: "/dashboard/wallet/coin-rate", label: "coin-rate" },
-  { path: "/dashboard/support/new", label: "support-new" },
+  { path: "/me/support/new", label: "support-new" },
   // dashboard — account section
   { path: "/dashboard/account", label: "account" },
   { path: "/dashboard/account/profile", label: "account-profile" },
@@ -45,7 +45,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/customers/[id]", label: "customer-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
   { path: "/dashboard/orders/[id]", label: "order-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
   { path: "/dashboard/inquiries/[id]", label: "inquiry-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
-  { path: "/dashboard/support/[id]", label: "support-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
+  { path: "/me/support/[id]", label: "support-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
   { path: "/dashboard/tickets/[id]", label: "ticket-detail", params: { id: "SAMPLE" } }, // FIXME: no seed value found
   // "dishes" is a real resource key from resource-config.ts, seeded with rows
   // (Dal Tadka, Paneer Butter Masala, ...) in db/seed.sql.

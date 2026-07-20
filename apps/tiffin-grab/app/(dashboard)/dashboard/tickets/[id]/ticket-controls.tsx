@@ -10,7 +10,7 @@ import {
 import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@realm/ui/cn";
 import type { RealtimeRole } from "@realm/realtime";
-import { MessageComposer } from "@/components/tickets/message-composer";
+import { MessageComposer } from "@/components/ds";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 
@@ -192,6 +192,7 @@ export function ReplyBox({
       placeholder="Reply to the customer…"
       channel={channel}
       peerRole={peerRole}
+      closedMessage="This ticket is closed. Staff can reopen it to continue the conversation."
     />
   );
 }

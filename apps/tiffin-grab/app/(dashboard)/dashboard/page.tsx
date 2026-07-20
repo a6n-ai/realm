@@ -370,7 +370,7 @@ async function CustomerDashboard({ userId }: { userId: string }) {
                     <span className="nums text-sm font-medium">{fmt(Number(o.total))}</span>
                     <OrderStatusBadge status={o.status} />
                     <Link
-                      href={`/dashboard/support/new?orderId=${o.publicId}`}
+                      href={`/me/support/new?orderId=${o.publicId}`}
                       className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline"
                     >
                       <LifeBuoyIcon className="size-3.5" aria-hidden />

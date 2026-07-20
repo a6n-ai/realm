@@ -45,6 +45,11 @@ describe("CustomerSidebar", () => {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });
+
+  it("links Support under Account to /me/support", () => {
+    renderSidebar();
+    expect(screen.getByRole("link", { name: /^support$/i })).toHaveAttribute("href", "/me/support");
+  });
   it("marks Home active on exact /me only", () => {
     renderSidebar();
     // Home is active at pathname "/me"; Deliveries is not.

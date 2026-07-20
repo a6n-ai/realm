@@ -26,3 +26,8 @@ export * from "./filters/facet";
 export * from "./filters/facet-filters";
 export * from "./filters/parse-filter-state";
 export * from "./list-pagination";
+export * from "./presence-dot";
+export * from "./message-composer";
+export * from "./chat-message-list";
+export { makeImageThumbnail } from "./make-image-thumbnail";
+

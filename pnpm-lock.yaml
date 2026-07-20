@@ -528,6 +528,9 @@ importers:
       '@realm/commons':
         specifier: workspace:*
         version: link:../commons
+      '@realm/realtime':
+        specifier: workspace:*
+        version: link:../realtime
       '@realm/ui':
         specifier: workspace:*
         version: link:../ui

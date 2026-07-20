@@ -106,7 +106,7 @@ export const SECTIONS: NavSection[] = [
     label: "Personal",
     items: [
       { title: "My meals", href: "/dashboard/meals", icon: UtensilsCrossedIcon, roles: ["user"] },
-      { title: "Support", href: "/dashboard/support", icon: LifeBuoyIcon, roles: ["user"] },
+      { title: "Support", href: "/me/support", icon: LifeBuoyIcon, roles: ["user"] },
       { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ["admin", "member", "user"] },
     ],
   },

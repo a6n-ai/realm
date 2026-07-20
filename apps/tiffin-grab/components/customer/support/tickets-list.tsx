@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { MessageCircleIcon, PlusIcon } from "lucide-react";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -32,14 +34,17 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[]; timezone: string }) {
   return (
-    <SectionCard title="My tickets" subtitle={tickets.length === 0 ? "Nothing yet" : undefined}>
+    <SectionCard
+      title="My tickets"
+      subtitle={tickets.length === 0 ? "Nothing yet — raise one if something needs help." : undefined}
+    >
       {tickets.length === 0 ? (
         <EmptyState
           icon={MessageCircleIcon}
-          message="You haven't raised any tickets. If you run into a problem with an order or your account, let us know."
+          message="You haven't raised any tickets. If you run into a problem with a plan, delivery, or billing, let us know."
           action={
-            <Button asChild>
-              <Link href="/dashboard/support/new">
+            <Button asChild className="min-h-11 active:scale-[0.98]">
+              <Link href="/me/support/new">
                 <PlusIcon className="size-4" />
                 New ticket
               </Link>
@@ -53,7 +58,7 @@ export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[
             return (
               <ListRow
                 key={t.publicId}
-                href={`/dashboard/support/${t.publicId}`}
+                href={`/me/support/${t.publicId}`}
                 title={t.subject}
                 meta={`${CATEGORY_LABEL[t.category] ?? t.category} · ${formatEpoch(t.createdAt, { timeZone: timezone, mode: "date", locale: "en-CA" })}`}
                 trailing={<Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>}
@@ -70,7 +75,7 @@ export function TicketsListSkeleton() {
   return (
     <SectionCard title="My tickets">
       <div className="space-y-2">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <ListRow
             key={i}
             title={<Skeleton className="h-4 w-40" />}
@@ -81,4 +86,4 @@ export function TicketsListSkeleton() {
       </div>
     </SectionCard>
   );
-};
+}

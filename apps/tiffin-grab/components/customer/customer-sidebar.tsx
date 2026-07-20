@@ -7,6 +7,7 @@ import {
   CalendarDaysIcon,
   ChefHatIcon,
   HomeIcon,
+  LifeBuoyIcon,
   LogOutIcon,
   UserIcon,
   UtensilsCrossedIcon,
@@ -50,7 +51,10 @@ export const CUSTOMER_NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Account",
-    items: [{ title: "Account", href: "/me/account", icon: UserIcon }],
+    items: [
+      { title: "Account", href: "/me/account", icon: UserIcon },
+      { title: "Support", href: "/me/support", icon: LifeBuoyIcon },
+    ],
   },
 ];
 
@@ -69,6 +73,7 @@ export function CustomerSidebar({
   const isActive = (href: string) => {
     if (href === "/me") return pathname === href;
     if (href === "/me/account") return ACCOUNT_PATHS.has(pathname);
+    if (href === "/me/support") return pathname.startsWith("/me/support");
     return pathname.startsWith(href);
   };
 
