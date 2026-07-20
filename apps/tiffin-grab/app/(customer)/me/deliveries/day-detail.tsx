@@ -22,9 +22,10 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { PencilIcon } from "lucide-react";
-import { weekdayKey } from "@realm/commons";
+import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
+import { AddressDisplay } from "@realm/ui/address-display";
 import { AddressFields } from "@realm/ui/address-fields";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
@@ -38,7 +39,7 @@ import type { CustomerDelivery } from "@/lib/services/customer-deliveries.servic
 import type { DeliveryCardMeal } from "./meal-chips";
 import { clearMyDeliveryAddress, setMyDeliveryAddress, skipMyDelivery, unskipMyDelivery } from "./actions";
 
-type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
+type Address = DeliveryAddressValues;
 type DeliveryCardData = CustomerDelivery & { meal: DeliveryCardMeal; address: Address; hasAddressOverride: boolean };
 
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
@@ -48,15 +49,33 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [fullName, setFullName] = useState(address.fullName);
-  const [addressLine, setAddressLine] = useState(address.addressLine);
-  const [city, setCity] = useState(address.city);
-  const [postalCode, setPostalCode] = useState(address.postalCode);
+  const [values, setValues] = useState<DeliveryAddressValues>(address);
+  const [errors, setErrors] = useState<Partial<Record<keyof DeliveryAddressValues, string>>>({});
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (next) {
+      setValues(address);
+      setErrors({});
+    }
+  }
 
   function save() {
+    const parsed = deliveryAddressSchema.safeParse(values);
+    if (!parsed.success) {
+      const next: Partial<Record<keyof DeliveryAddressValues, string>> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0];
+        if (typeof key === "string" && !(key in next)) {
+          next[key as keyof DeliveryAddressValues] = issue.message;
+        }
+      }
+      setErrors(next);
+      return;
+    }
     start(async () => {
       try {
-        await setMyDeliveryAddress(deliveryPublicId, { fullName, addressLine, city, postalCode });
+        await setMyDeliveryAddress(deliveryPublicId, parsed.data);
         setOpen(false);
         onSaved();
         toast.success("Address updated");
@@ -69,7 +88,7 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   return (
     <ResponsiveDialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       trigger={
         <Button variant="outline" size="sm">
           <PencilIcon data-icon="inline-start" /> Change address
@@ -79,20 +98,28 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
       footer={
         <div className="flex w-full justify-end gap-2">
           <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={pending} onClick={save}>Save</Button>
+          <Button disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
         </div>
       }
     >
-      <div className="px-4 pb-4 sm:px-0 sm:pb-0">
+      <div className="space-y-4 px-4 pb-4 sm:px-0 sm:pb-0">
+        <p className="text-muted-foreground text-sm">
+          Current: <AddressDisplay address={address} className="text-foreground" />
+        </p>
         <AddressFields
           preset="delivery"
           idPrefix={`delivery-${deliveryPublicId}`}
-          values={{ fullName, addressLine, city, postalCode }}
+          values={values}
+          errors={errors}
           onChange={(patch) => {
-            if (patch.fullName !== undefined) setFullName(patch.fullName);
-            if (patch.addressLine !== undefined) setAddressLine(patch.addressLine);
-            if (patch.city !== undefined) setCity(patch.city);
-            if (patch.postalCode !== undefined) setPostalCode(patch.postalCode);
+            setValues((prev) => ({ ...prev, ...patch }));
+            setErrors((prev) => {
+              const next = { ...prev };
+              for (const key of Object.keys(patch) as (keyof DeliveryAddressValues)[]) {
+                delete next[key];
+              }
+              return next;
+            });
           }}
         />
       </div>
