@@ -57,7 +57,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
 
 export function CouponsSection({ coupons }: { coupons: AvailableCoupon[] }) {
   return (
-    <SectionCard title="Available coupons">
+    <SectionCard title="Available coupons" subtitle="Codes you can apply at checkout while they're live.">
       {coupons.length === 0 ? (
         <EmptyState icon={TicketPercentIcon} message="No coupons available right now." />
       ) : (
@@ -75,7 +75,7 @@ export function CouponsSection({ coupons }: { coupons: AvailableCoupon[] }) {
 // module's export (the /dashboard/orders bug).
 export function CouponsSectionSkeleton() {
   return (
-    <SectionCard title="Available coupons">
+    <SectionCard title="Available coupons" subtitle="Codes you can apply at checkout while they're live.">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Skeleton className="h-24 rounded-lg" />
         <Skeleton className="h-24 rounded-lg" />

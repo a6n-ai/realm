@@ -13,7 +13,7 @@ export function AnalyticsTiles({
   totalSavings: string;
 }) {
   return (
-    <SectionCard title="Your activity">
+    <SectionCard title="Your activity" subtitle="Spend, savings, and deliveries for this month.">
       <StatGrid
         cols={3}
         items={[
@@ -30,7 +30,7 @@ export function AnalyticsTiles({
 // module's export (the /dashboard/orders bug).
 export function AnalyticsTilesSkeleton() {
   return (
-    <SectionCard title="Your activity">
+    <SectionCard title="Your activity" subtitle="Spend, savings, and deliveries for this month.">
       <div className="grid grid-cols-3 gap-3">
         <Skeleton className="h-16 rounded-lg" />
         <Skeleton className="h-16 rounded-lg" />

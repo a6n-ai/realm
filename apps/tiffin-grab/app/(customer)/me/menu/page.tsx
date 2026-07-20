@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { UtensilsCrossedIcon } from "lucide-react";
 import { currentUserId } from "@/lib/services/session-service";
 import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
@@ -7,6 +8,7 @@ import { dishesService } from "@/lib/services/dishes.service";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@realm/commons";
+import { PageShell, PageHeader } from "@/components/ds";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
 import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
 import { PlansCtaSection, PlansCtaSectionSkeleton } from "@/components/customer/home/plans-cta-section";
@@ -17,13 +19,12 @@ export default async function MenuPage() {
   if (userId == null) redirect("/login");
 
   return (
-    <main className="space-y-6 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Menu</h1>
-        <p className="text-muted-foreground text-sm text-pretty">
-          See this week&apos;s dishes — tap a photo for details.
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        icon={UtensilsCrossedIcon}
+        title="Menu"
+        subtitle="See this week's dishes — tap a photo for details."
+      />
 
       {MENU_SECTIONS.map((section) =>
         section.key === "menu" ? (
@@ -40,7 +41,7 @@ export default async function MenuPage() {
           </Suspense>
         ),
       )}
-    </main>
+    </PageShell>
   );
 }
 

@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDaysIcon, ChefHatIcon, HomeIcon, LogOutIcon, UserIcon, UtensilsCrossedIcon, WalletIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  ChefHatIcon,
+  HomeIcon,
+  LogOutIcon,
+  UserIcon,
+  UtensilsCrossedIcon,
+  WalletIcon,
+} from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { CUSTOMER_ACCOUNT_NAV } from "@/app/(customer)/me/(account-settings)/nav.config";
 import {
@@ -10,6 +19,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,18 +27,42 @@ import {
   SidebarRail,
 } from "@realm/ui/sidebar";
 
-const NAV = [
-  { title: "Home", href: "/me", icon: HomeIcon },
-  { title: "Menu", href: "/me/menu", icon: ChefHatIcon },
-  { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
-  { title: "Meals", href: "/me/meals", icon: UtensilsCrossedIcon },
-  { title: "Wallet", href: "/me/wallet", icon: WalletIcon },
-  { title: "Account", href: "/me/account", icon: UserIcon },
-] as const;
+type NavItem = { title: string; href: string; icon: LucideIcon };
+type NavSection = { label: string; items: NavItem[] };
+
+// Grouped like admin AppSidebar — section labels orient desktop; icon mode hides labels.
+export const CUSTOMER_NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Overview",
+    items: [{ title: "Home", href: "/me", icon: HomeIcon }],
+  },
+  {
+    label: "Meals",
+    items: [
+      { title: "Menu", href: "/me/menu", icon: ChefHatIcon },
+      { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
+      { title: "Preferences", href: "/me/meals", icon: UtensilsCrossedIcon },
+    ],
+  },
+  {
+    label: "Finances",
+    items: [{ title: "Finances", href: "/me/wallet", icon: WalletIcon }],
+  },
+  {
+    label: "Account",
+    items: [{ title: "Account", href: "/me/account", icon: UserIcon }],
+  },
+];
 
 const ACCOUNT_PATHS = new Set(["/me/account", ...CUSTOMER_ACCOUNT_NAV.map((item) => item.href)]);
 
-export function CustomerSidebar({ user }: { user: { name: string | null; email: string; image: string | null } }) {
+export function CustomerSidebar({
+  user: _user,
+}: {
+  user: { name: string | null; email: string; image: string | null };
+}) {
+  // Layout passes session user for a future avatar footer; nav is role-free for customers.
+  void _user;
   const pathname = usePathname();
   const router = useRouter();
   // "/me" must match exactly — startsWith would also light it on /me/deliveries.
@@ -53,20 +87,23 @@ export function CustomerSidebar({ user }: { user: { name: string | null; email: 
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {NAV.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.title}>
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {CUSTOMER_NAV_SECTIONS.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+            <SidebarMenu>
+              {section.items.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.title}>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
@@ -74,7 +111,10 @@ export function CustomerSidebar({ user }: { user: { name: string | null; email: 
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sign out"
-              onClick={async () => { await signOut(); router.push("/login"); }}
+              onClick={async () => {
+                await signOut();
+                router.push("/login");
+              }}
             >
               <LogOutIcon />
               <span>Sign out</span>

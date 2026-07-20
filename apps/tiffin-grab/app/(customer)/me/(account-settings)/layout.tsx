@@ -1,21 +1,32 @@
 import type { ReactNode } from "react";
-import { AccountSettingsTabs } from "@/components/customer/account/account-settings-tabs";
+import Link from "next/link";
+import { ChevronLeftIcon, UserIcon } from "lucide-react";
+import { PageShell, PageHeader } from "@/components/ds";
+import { AccountSettingsNav } from "@/components/customer/account/account-settings-nav";
 
 export default function CustomerAccountSettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Account settings</h1>
-        <p className="text-muted-foreground text-sm text-pretty">
-          Profile, delivery details, and security — each in its own section.
-        </p>
-      </header>
-
-      <div className="hidden md:block">
-        <AccountSettingsTabs />
+    <PageShell>
+      <div className="md:hidden">
+        <Link
+          href="/me/account"
+          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm transition-colors"
+        >
+          <ChevronLeftIcon className="size-4" aria-hidden />
+          Account
+        </Link>
       </div>
 
-      <div className="min-w-0 max-w-2xl">{children}</div>
-    </main>
+      <PageHeader
+        icon={UserIcon}
+        title="Account settings"
+        subtitle="Profile, delivery details, and security — each in its own section."
+      />
+
+      <div className="grid gap-6 md:grid-cols-[12rem_minmax(0,1fr)] md:gap-10">
+        <AccountSettingsNav />
+        <div className="min-w-0 max-w-2xl">{children}</div>
+      </div>
+    </PageShell>
   );
 }

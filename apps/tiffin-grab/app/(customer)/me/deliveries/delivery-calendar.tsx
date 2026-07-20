@@ -167,24 +167,28 @@ function TiffinCalendarSection({
         />
       </div>
 
-      <div className="hidden space-y-2.5 md:block">
+      <div className="hidden space-y-3 md:block">
         <DesktopDayStatusLegend />
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_1fr] lg:items-start">
-          <Card variant="flat" className="p-3">
+        <div className="grid items-start gap-4 md:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)]">
+          <Card variant="flat" className="p-3 sm:p-4">
             <CardContent className="p-0">
               <MonthCalendar {...monthCalendarProps} />
             </CardContent>
           </Card>
-          <DayDetail
-            dateIso={selected}
-            cell={selectedCell}
-            delivery={selectedDelivery}
-            orderPublicId={sub.publicId}
-            categoryLabels={categoryLabels}
-            categoryCounts={sub.categoryCounts}
-            tz={tz}
-            onChanged={onChanged}
-          />
+          <Card variant="flat" className="min-w-0 p-4 sm:p-5">
+            <CardContent className="p-0">
+              <DayDetail
+                dateIso={selected}
+                cell={selectedCell}
+                delivery={selectedDelivery}
+                orderPublicId={sub.publicId}
+                categoryLabels={categoryLabels}
+                categoryCounts={sub.categoryCounts}
+                tz={tz}
+                onChanged={onChanged}
+              />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>
@@ -217,7 +221,7 @@ export function DeliveryCalendar({
 
   if (subscriptions.length === 0) {
     return (
-      <div className="space-y-5 p-4 pb-6">
+      <div className="mx-auto w-full max-w-6xl space-y-5">
         <div className="space-y-3">
           {waitlisted.length > 0 ? (
             waitlisted.map((s) => <WaitlistCard key={s.publicId} sub={s} />)
@@ -244,10 +248,11 @@ export function DeliveryCalendar({
   const subOnVacation = pausePanel.usage.hasOpenPause || selected.status === "paused";
 
   return (
-    <div className="space-y-5 p-4 pb-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
         icon={CalendarDaysIcon}
         title="My deliveries"
+        subtitle="Month calendar, day details, and vacation pause for your plan."
         actions={
           <Button
             type="button"

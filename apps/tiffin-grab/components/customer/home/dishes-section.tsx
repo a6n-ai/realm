@@ -24,18 +24,23 @@ export function DishesSection({
 
   if (dishes.length === 0) {
     return (
-      <SectionCard title="Dishes">
+      <SectionCard title="Dishes" subtitle="Browse the catalog — tap a photo for details.">
         <LottieEmptyState animation="empty-box" title="No dishes to show yet" />
       </SectionCard>
     );
   }
 
   return (
-    <SectionCard title={dense ? "All dishes" : "Dishes"}>
+    <SectionCard
+      title={dense ? "All dishes" : "Dishes"}
+      subtitle="Browse the catalog — tap a photo for details."
+    >
       <Reveal.Group
         className={cn(
           "grid gap-2.5",
-          dense ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5" : "grid-cols-2 gap-3 sm:grid-cols-3",
+          dense
+            ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7"
+            : "grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4",
         )}
       >
         {dishes.map((dish) => {
@@ -102,7 +107,7 @@ export function DishesSection({
 // module's export (the /dashboard/orders bug).
 export function DishesSectionSkeleton() {
   return (
-    <SectionCard title="All dishes">
+    <SectionCard title="All dishes" subtitle="Browse the catalog — tap a photo for details.">
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-1">

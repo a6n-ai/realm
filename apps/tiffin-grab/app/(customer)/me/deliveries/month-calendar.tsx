@@ -71,7 +71,7 @@ export function MonthCalendar({
       onSelect={(d) => d && onSelect(toIsoLocal(d))}
       startMonth={startMonth}
       endMonth={endMonth}
-      className="mx-auto w-full max-w-none bg-transparent p-0 [--cell-size:2.85rem] sm:max-w-md sm:[--cell-size:3rem]"
+      className="mx-auto w-full max-w-md bg-transparent p-0 [--cell-size:2.85rem] sm:[--cell-size:3rem] md:mx-0 md:max-w-none md:[--cell-size:3.25rem]"
       classNames={{
         month_caption: "mb-2 flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)",
         today: "bg-transparent rounded-(--cell-radius)",

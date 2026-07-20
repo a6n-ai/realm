@@ -13,19 +13,21 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-start justify-between gap-4">
-        <div className="group flex items-center gap-3">
-          <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
-            <Icon className="icon-pop size-5" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-balance">{title}</h1>
-            {subtitle && <p className="text-muted-foreground text-sm text-pretty">{subtitle}</p>}
-          </div>
+    <header className="flex items-start justify-between gap-4">
+      <div className="group flex min-w-0 items-start gap-3">
+        <span className="bg-muted text-muted-foreground mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg md:size-10">
+          <Icon className="icon-pop size-5" />
+        </span>
+        <div className="min-w-0 space-y-0.5 md:space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">{title}</h1>
+          {subtitle ? (
+            <p className="text-muted-foreground text-sm text-pretty md:max-w-prose md:text-base">
+              {subtitle}
+            </p>
+          ) : null}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
-    </div>
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+    </header>
   );
 }

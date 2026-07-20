@@ -16,6 +16,8 @@ import {
   HomeWeekStripSkeleton,
 } from "@/components/customer/home/home-week-strip";
 import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { HomeIcon } from "lucide-react";
+import { PageShell, PageHeader } from "@/components/ds";
 import { HOME_SECTIONS } from "./home-sections";
 
 const HOME_WEEK_DAYS = 14;
@@ -27,27 +29,31 @@ export default async function MePage() {
   const { timezone } = await getAppSettings();
 
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Home</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Everything for your meals, all in one place.</p>
-      </header>
+    <PageShell>
+      <PageHeader
+        icon={HomeIcon}
+        title="Home"
+        subtitle="Everything for your meals, all in one place."
+      />
 
-      {HOME_SECTIONS.map((section) => {
-        if (section.key === "week") {
+      {/* Mobile stacks; desktop uses the width for week + plan side-by-side. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        {HOME_SECTIONS.map((section) => {
+          if (section.key === "week") {
+            return (
+              <Suspense key={section.key} fallback={<HomeWeekStripSkeleton />}>
+                <HomeWeekStripData userId={userId} timezone={timezone} />
+              </Suspense>
+            );
+          }
           return (
-            <Suspense key={section.key} fallback={<HomeWeekStripSkeleton />}>
-              <HomeWeekStripData userId={userId} timezone={timezone} />
+            <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
+              <SubscriptionSectionData userId={userId} timezone={timezone} />
             </Suspense>
           );
-        }
-        return (
-          <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
-            <SubscriptionSectionData userId={userId} timezone={timezone} />
-          </Suspense>
-        );
-      })}
-    </main>
+        })}
+      </div>
+    </PageShell>
   );
 }
 

@@ -26,9 +26,9 @@ export function FinancesTabs({ active }: { active: FinancesTab }) {
         router.push(tabHref(v as FinancesTab));
       }}
     >
-      <TabsList aria-label="Finances sections">
+      <TabsList aria-label="Finances sections" className="md:h-10">
         {TABS.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} asChild>
+          <TabsTrigger key={tab.id} value={tab.id} asChild className="md:px-4">
             <Link href={tabHref(tab.id)}>
               <tab.icon />
               {tab.label}

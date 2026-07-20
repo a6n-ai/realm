@@ -17,15 +17,13 @@ export default async function MeAccountPage() {
   }
 
   return (
-    <main className="md:px-0">
-      <CustomerAccountHub
-        user={{
-          name: user.name ?? null,
-          email: user.email ?? session.user.email ?? "",
-          phone: user.phone ?? null,
-          image: user.image ?? null,
-        }}
-      />
-    </main>
+    <CustomerAccountHub
+      user={{
+        name: user.name ?? null,
+        email: user.email ?? session.user.email ?? "",
+        phone: user.phone ?? null,
+        image: user.image ?? null,
+      }}
+    />
   );
 }

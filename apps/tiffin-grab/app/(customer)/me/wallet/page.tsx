@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { WalletIcon } from "lucide-react";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/services/customer-deliveries.service";
@@ -7,7 +8,7 @@ import { myBillsPage, myMoneyLedgerPage } from "@/lib/services/customer-finances
 import { couponsService } from "@/lib/services/coupons.service";
 import { ledgerService } from "@/lib/services/ledger.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { parseFilterState } from "@/components/ds";
+import { parseFilterState, PageShell, PageHeader } from "@/components/ds";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
 import { EarnSpendTiles } from "@/components/customer/wallet/earn-spend-tiles";
 import { WalletLog, WalletLogSkeleton } from "@/components/customer/wallet/wallet-log";
@@ -32,13 +33,12 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
   const { timezone } = await getAppSettings();
 
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Finances</h1>
-        <p className="text-muted-foreground text-sm text-pretty">
-          Coins, bills, and money transactions in one place.
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        icon={WalletIcon}
+        title="Finances"
+        subtitle="Coins, bills, and money transactions in one place."
+      />
 
       <Suspense fallback={null}>
         <FinancesTabs active={tab} />
@@ -69,7 +69,7 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
           <TransactionsPanel userId={userId} searchParams={searchParams} />
         </Suspense>
       ) : null}
-    </main>
+    </PageShell>
   );
 }
 
@@ -86,8 +86,10 @@ async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchPara
 
   return (
     <div className="space-y-4">
-      <WalletHero coins={balance} money={money} currency={currency} />
-      <EarnSpendTiles earned={earned} spent={spent} />
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:items-stretch">
+        <WalletHero coins={balance} money={money} currency={currency} />
+        <EarnSpendTiles earned={earned} spent={spent} />
+      </div>
       <WalletLog items={ledger.items} page={ledger.page} size={ledger.size} total={ledger.total} />
     </div>
   );

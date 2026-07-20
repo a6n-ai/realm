@@ -35,7 +35,7 @@ export function HomeWeekStrip({
     : undefined;
 
   return (
-    <SectionCard title="This week">
+    <SectionCard title="This week" subtitle="Upcoming meals on your plan — tap a day for status.">
       <div className="space-y-3">
         <SelectedDaySummary dateIso={selected} cell={cell} delivery={delivery} alwaysVisible />
         <WeekRail
@@ -62,7 +62,7 @@ export function HomeWeekStrip({
 
 export function HomeWeekStripEmpty() {
   return (
-    <SectionCard title="This week">
+    <SectionCard title="This week" subtitle="Upcoming meals on your plan — tap a day for status.">
       <p className="text-muted-foreground text-sm text-pretty">
         No deliveries scheduled yet. Start a plan to see your week here.
       </p>
@@ -75,7 +75,7 @@ export function HomeWeekStripEmpty() {
 
 export function HomeWeekStripSkeleton() {
   return (
-    <SectionCard title="This week">
+    <SectionCard title="This week" subtitle="Upcoming meals on your plan — tap a day for status.">
       <Skeleton className="h-10 w-full rounded-lg" />
       <Skeleton className="mt-3 h-16 w-full rounded-lg" />
       <Skeleton className="mt-3 h-4 w-48" />

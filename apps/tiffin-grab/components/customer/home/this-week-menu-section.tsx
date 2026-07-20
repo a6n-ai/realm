@@ -33,7 +33,7 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
 
   if (!week) {
     return (
-      <SectionCard title="This week's menu">
+      <SectionCard title="This week's menu" subtitle="Published dishes for the current week.">
         <LottieEmptyState
           animation="empty-box"
           title="This week's menu drops soon"
@@ -52,9 +52,9 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
 
   return (
     <SectionCard title="This week's menu" subtitle={`Week of ${formatMenuWeekRange(week.weekStart)}`}>
-      <Reveal.Group className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <Reveal.Group className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-7 md:gap-3 md:overflow-visible md:pb-0">
         {columns.map((col) => (
-          <Reveal key={col.label} className="flex w-[6.75rem] shrink-0 flex-col gap-1.5 sm:w-28">
+          <Reveal key={col.label} className="flex w-[6.75rem] shrink-0 flex-col gap-1.5 sm:w-28 md:w-auto md:min-w-0 md:shrink">
             <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">{col.label}</p>
             {col.items.map((item) => (
               <Pressable
@@ -105,7 +105,7 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
 // module's export (the /dashboard/orders bug).
 export function ThisWeekMenuSectionSkeleton() {
   return (
-    <SectionCard title="This week's menu">
+    <SectionCard title="This week's menu" subtitle="Published dishes for the current week.">
       <div className="flex gap-3 overflow-x-auto pb-1">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex w-[6.75rem] shrink-0 flex-col gap-1.5">
