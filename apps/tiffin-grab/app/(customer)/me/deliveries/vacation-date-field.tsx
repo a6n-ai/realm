@@ -78,7 +78,6 @@ export function VacationDateField({
             selected={selected}
             defaultMonth={selected ?? new Date(`${today}T00:00:00`)}
             disabled={isDisabledDay}
-            excludeDisabled
             onSelect={handleSelect}
             className="mx-auto"
           />
