@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
+import { AddressFields } from "@realm/ui/address-fields";
+import { AddressDisplay } from "@realm/ui/address-display";
 import { Skeleton } from "@realm/ui/skeleton";
 import {
   Dialog,
@@ -86,12 +87,17 @@ function EditAddressDialog({
         <DialogHeader>
           <DialogTitle>Edit delivery address</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <Input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          <Input placeholder="Address line" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} />
-          <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-          <Input placeholder="Postal code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-        </div>
+        <AddressFields
+          preset="delivery"
+          idPrefix={`crm-delivery-${deliveryPublicId}`}
+          values={{ fullName, addressLine, city, postalCode }}
+          onChange={(patch) => {
+            if (patch.fullName !== undefined) setFullName(patch.fullName);
+            if (patch.addressLine !== undefined) setAddressLine(patch.addressLine);
+            if (patch.city !== undefined) setCity(patch.city);
+            if (patch.postalCode !== undefined) setPostalCode(patch.postalCode);
+          }}
+        />
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" disabled={pending}>Cancel</Button>
@@ -188,7 +194,7 @@ export function DeliveriesPanel({
                 </TableCell>
                 <TableCell><DeliveryStatusBadge status={d.status} /></TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {d.address.fullName} · {d.address.addressLine}, {d.address.city} {d.address.postalCode}
+                  <AddressDisplay address={d.address} />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="inline-flex items-center gap-2">

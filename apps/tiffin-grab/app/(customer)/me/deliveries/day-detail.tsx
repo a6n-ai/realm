@@ -25,7 +25,7 @@ import { PencilIcon } from "lucide-react";
 import { weekdayKey } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
+import { AddressFields } from "@realm/ui/address-fields";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
@@ -83,11 +83,18 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
         </div>
       }
     >
-      <div className="space-y-3 px-4 pb-4 sm:px-0 sm:pb-0">
-        <Input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-        <Input placeholder="Address line" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} />
-        <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-        <Input placeholder="Postal code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
+      <div className="px-4 pb-4 sm:px-0 sm:pb-0">
+        <AddressFields
+          preset="delivery"
+          idPrefix={`delivery-${deliveryPublicId}`}
+          values={{ fullName, addressLine, city, postalCode }}
+          onChange={(patch) => {
+            if (patch.fullName !== undefined) setFullName(patch.fullName);
+            if (patch.addressLine !== undefined) setAddressLine(patch.addressLine);
+            if (patch.city !== undefined) setCity(patch.city);
+            if (patch.postalCode !== undefined) setPostalCode(patch.postalCode);
+          }}
+        />
       </div>
     </ResponsiveDialog>
   );

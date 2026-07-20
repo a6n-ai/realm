@@ -16,6 +16,7 @@ import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
+import { AddressFields } from "@realm/ui/address-fields";
 import { Card } from "@realm/design-system";
 import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
 
@@ -183,30 +184,39 @@ export function Checkout({
                   <Input id="email" type="email" autoComplete="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
                   {contact.email.trim() && !emailValid && <p className="text-xs text-destructive">Enter a valid email</p>}
                 </div>
-                <div className="grid gap-1.5"><Label htmlFor="addr">Address</Label><Input id="addr" autoComplete="address-line1" value={contact.addressLine} onChange={(e) => set({ addressLine: e.target.value })} /></div>
-                <div className="grid gap-1.5"><Label htmlFor="city">City</Label><Input id="city" autoComplete="address-level2" value={contact.city} onChange={(e) => set({ city: e.target.value })} /></div>
-                <div className="flex items-end gap-2">
-                  <div className="grid flex-1 gap-1.5"><Label htmlFor="postal">Postal code</Label><Input id="postal" autoComplete="postal-code" value={contact.postalCode} onChange={(e) => set({ postalCode: e.target.value })} onBlur={checkPostal} /></div>
-                  <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
-                </div>
-                {zone?.served && (
-                  <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    <MapPin className="mt-0.5 size-4 shrink-0" />
-                    <span>Served — {zone.name}, delivery {zone.slotWindow}.</span>
-                  </div>
-                )}
-                {zone && !zone.served && !waitlisted && (
-                  <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
-                    <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
-                    <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
-                  </div>
-                )}
-                {waitlisted && (
-                  <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    <Check className="mt-0.5 size-4 shrink-0" />
-                    <span>You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</span>
-                  </div>
-                )}
+                <AddressFields
+                  preset="delivery"
+                  idPrefix="checkout"
+                  fields={["addressLine", "city", "postalCode"]}
+                  values={contact}
+                  onChange={set}
+                  onPostalBlur={checkPostal}
+                  postalSlot={
+                    <>
+                      <div className="flex items-end gap-2 pt-1">
+                        <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
+                      </div>
+                      {zone?.served && (
+                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                          <MapPin className="mt-0.5 size-4 shrink-0" />
+                          <span>Served — {zone.name}, delivery {zone.slotWindow}.</span>
+                        </div>
+                      )}
+                      {zone && !zone.served && !waitlisted && (
+                        <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
+                          <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
+                          <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
+                        </div>
+                      )}
+                      {waitlisted && (
+                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                          <Check className="mt-0.5 size-4 shrink-0" />
+                          <span>You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</span>
+                        </div>
+                      )}
+                    </>
+                  }
+                />
               </div>
               <Button size="lg" className="w-full sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
             </section>

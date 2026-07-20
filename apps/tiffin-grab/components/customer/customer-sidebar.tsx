@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDaysIcon, ChefHatIcon, HomeIcon, LogOutIcon, UserIcon, UtensilsCrossedIcon, WalletIcon } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
+import { CUSTOMER_ACCOUNT_NAV } from "@/app/(customer)/me/(account-settings)/nav.config";
 import {
   Sidebar,
   SidebarContent,
@@ -25,11 +26,17 @@ const NAV = [
   { title: "Account", href: "/me/account", icon: UserIcon },
 ] as const;
 
+const ACCOUNT_PATHS = new Set(["/me/account", ...CUSTOMER_ACCOUNT_NAV.map((item) => item.href)]);
+
 export function CustomerSidebar({ user }: { user: { name: string | null; email: string; image: string | null } }) {
   const pathname = usePathname();
   const router = useRouter();
   // "/me" must match exactly — startsWith would also light it on /me/deliveries.
-  const isActive = (href: string) => (href === "/me" ? pathname === href : pathname.startsWith(href));
+  const isActive = (href: string) => {
+    if (href === "/me") return pathname === href;
+    if (href === "/me/account") return ACCOUNT_PATHS.has(pathname);
+    return pathname.startsWith(href);
+  };
 
   return (
     <Sidebar collapsible="icon">

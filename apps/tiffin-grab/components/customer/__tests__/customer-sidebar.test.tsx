@@ -32,11 +32,11 @@ function renderSidebar() {
 }
 
 describe("CustomerSidebar", () => {
-  it("renders Home, Deliveries, Profile links to the right routes", () => {
+  it("renders Home, Deliveries, and Account links to the right routes", () => {
     renderSidebar();
     expect(screen.getByRole("link", { name: /home/i })).toHaveAttribute("href", "/me");
     expect(screen.getByRole("link", { name: /deliveries/i })).toHaveAttribute("href", "/me/deliveries");
-    expect(screen.getByRole("link", { name: /profile/i })).toHaveAttribute("href", "/me/profile");
+    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/me/account");
   });
 
   it("marks Home active on exact /me only", () => {

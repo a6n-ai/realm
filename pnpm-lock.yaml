@@ -671,6 +671,9 @@ importers:
       '@chenglou/pretext':
         specifier: 0.0.8
         version: 0.0.8
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
       '@realm/themes':
         specifier: workspace:*
         version: link:../themes

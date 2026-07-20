@@ -2,57 +2,18 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
+import { profileAddressSchema, type ProfileAddressValues } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Button } from "@realm/ui/button";
-import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
+import { Form } from "@realm/ui/form";
+import { AddressFormFields } from "@realm/ui/address-form-fields";
 import { updateMyAddress } from "@/app/(dashboard)/dashboard/account/actions";
 
-// Radix Select forbids an empty-string item value, so a sentinel maps back to ""
-// in onValueChange to let a customer clear a mis-selected province.
-const NO_PROVINCE = "__none__";
-
-const PROVINCES: { value: string; label: string }[] = [
-  { value: "AB", label: "Alberta" },
-  { value: "BC", label: "British Columbia" },
-  { value: "MB", label: "Manitoba" },
-  { value: "NB", label: "New Brunswick" },
-  { value: "NL", label: "Newfoundland and Labrador" },
-  { value: "NS", label: "Nova Scotia" },
-  { value: "NT", label: "Northwest Territories" },
-  { value: "NU", label: "Nunavut" },
-  { value: "ON", label: "Ontario" },
-  { value: "PE", label: "Prince Edward Island" },
-  { value: "QC", label: "Quebec" },
-  { value: "SK", label: "Saskatchewan" },
-  { value: "YT", label: "Yukon" },
-];
-
-const addressFormSchema = z.object({
-  addressLine: z.string().max(200, "Address is too long"),
-  addressUnit: z.string().max(40, "Unit is too long"),
-  city: z.string().max(100, "City is too long"),
-  postalCode: z.string().max(12, "Postal code is too long"),
-  province: z.string().max(2),
-});
-
-type AddressFormValues = z.infer<typeof addressFormSchema>;
-
-// Single source of truth for the form grid + per-field column spans. The real
-// form and the .Skeleton twin both render from these so the loading state can
-// never drift from the resolved layout.
-const ADDRESS_GRID = "grid gap-3 sm:grid-cols-2";
-const ADDRESS_FIELDS: { name: keyof AddressFormValues; className?: string }[] = [
+const ADDRESS_FIELDS: { name: keyof ProfileAddressValues; className?: string }[] = [
   { name: "addressLine", className: "sm:col-span-2" },
   { name: "addressUnit" },
   { name: "city" },
@@ -75,12 +36,12 @@ export function AddressSection({
   province?: string;
   titleAs?: "h2" | "h3";
 }) {
-  const form = useForm<AddressFormValues>({
-    resolver: zodResolver(addressFormSchema),
+  const form = useForm<ProfileAddressValues>({
+    resolver: zodResolver(profileAddressSchema),
     defaultValues: { addressLine, addressUnit, city, postalCode, province },
   });
 
-  async function onSubmit(values: AddressFormValues) {
+  async function onSubmit(values: ProfileAddressValues) {
     const next = {
       addressLine: values.addressLine.trim(),
       addressUnit: values.addressUnit.trim(),
@@ -108,103 +69,8 @@ export function AddressSection({
         subtitle={hasAddress ? undefined : "Add a delivery address to speed up checkout."}
       >
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className={ADDRESS_GRID}
-          >
-            <FormField
-              control={form.control}
-              name="addressLine"
-              render={({ field }) => (
-                <FormItem className="sm:col-span-2">
-                  <FormLabel>Street address</FormLabel>
-                  <FormControl>
-                    <Input
-                      autoComplete="address-line1"
-                      placeholder="123 Maple St"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="addressUnit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit / Apt</FormLabel>
-                  <FormControl>
-                    <Input
-                      autoComplete="address-line2"
-                      placeholder="Apt 4B"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City</FormLabel>
-                  <FormControl>
-                    <Input autoComplete="address-level2" placeholder="Toronto" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="postalCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Postal code</FormLabel>
-                  <FormControl>
-                    <Input
-                      autoComplete="postal-code"
-                      placeholder="M5V 2T6"
-                      className="tabular-nums"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="province"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Province</FormLabel>
-                  <Select
-                    value={field.value || undefined}
-                    onValueChange={(v) => field.onChange(v === NO_PROVINCE ? "" : v)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select province" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value={NO_PROVINCE}>No province</SelectItem>
-                      {PROVINCES.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+            <AddressFormFields control={form.control} preset="profile" />
             <div className="sm:col-span-2">
               <Button
                 type="submit"
@@ -232,7 +98,7 @@ export function AddressSectionSkeleton({ titleAs }: { titleAs?: "h2" | "h3" }) {
   return (
     <section id="address" className="scroll-mt-24">
       <SectionCard variant="flat" titleAs={titleAs} title="Delivery address">
-        <div className={ADDRESS_GRID}>
+        <div className="grid gap-3 sm:grid-cols-2">
           {ADDRESS_FIELDS.map((f) => (
             <div key={f.name} className={cn("grid gap-1.5", f.className)}>
               <Skeleton className="h-4 w-24" />
@@ -246,4 +112,4 @@ export function AddressSectionSkeleton({ titleAs }: { titleAs?: "h2" | "h3" }) {
       </SectionCard>
     </section>
   );
-};
+}

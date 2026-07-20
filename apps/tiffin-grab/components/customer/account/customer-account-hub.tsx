@@ -3,15 +3,19 @@
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftRightIcon,
+  BellIcon,
   CalendarDaysIcon,
   ChevronRightIcon,
   CircleHelpIcon,
+  ClipboardListIcon,
   FileTextIcon,
   LogOutIcon,
   MailIcon,
   MapPinIcon,
+  PhoneIcon,
   ReceiptIcon,
   SettingsIcon,
+  ShieldIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
@@ -46,12 +50,20 @@ const QUICK_ACTIONS: QuickAction[] = [
   { href: "/me/wallet?tab=bills", label: "Monthly bills", icon: ReceiptIcon },
 ];
 
-const MENU_ITEMS: MenuItem[] = [
+const SETTINGS_ITEMS: MenuItem[] = [
+  { href: "/me/profile", label: "Profile", icon: SettingsIcon },
+  { href: "/me/contact", label: "Contact", icon: PhoneIcon },
+  { href: "/me/address", label: "Delivery address", icon: MapPinIcon },
+  { href: "/me/dietary", label: "Dietary & allergens", icon: UtensilsCrossedIcon },
+  { href: "/me/delivery-notes", label: "Delivery notes", icon: ClipboardListIcon },
+  { href: "/me/notifications", label: "Notifications", icon: BellIcon },
+  { href: "/me/security", label: "Security", icon: ShieldIcon },
+];
+
+const SUPPORT_ITEMS: MenuItem[] = [
   { href: "/faq", label: "FAQs", icon: CircleHelpIcon },
   { href: "/contact", label: "Contact us", icon: MailIcon },
   { href: "/me/meals", label: "Delivery preferences", icon: UtensilsCrossedIcon },
-  { href: "/me/profile", label: "Profile settings", icon: SettingsIcon },
-  { href: "/me/profile", label: "Address & contact", icon: MapPinIcon },
   { href: "/privacy", label: "Privacy policy", icon: FileTextIcon },
 ];
 
@@ -116,31 +128,52 @@ export function CustomerAccountHub({
         </div>
       </section>
 
-      <section className="mt-5 px-4 pb-8 md:px-6">
-        <ul className="bg-card divide-y overflow-hidden rounded-xl border">
-          {MENU_ITEMS.map(({ href, label, icon: Icon }) => (
-            <li key={`${href}-${label}`}>
-              <TransitionLink
-                href={href}
-                className="flex min-h-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-accent/50"
+      <section className="mt-5 space-y-5 px-4 pb-8 md:px-6">
+        <div>
+          <p className="text-muted-foreground mb-2 px-1 text-xs font-medium tracking-wide uppercase">Settings</p>
+          <ul className="bg-card divide-y overflow-hidden rounded-xl border">
+            {SETTINGS_ITEMS.map(({ href, label, icon: Icon }) => (
+              <li key={href}>
+                <TransitionLink
+                  href={href}
+                  className="flex min-h-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-accent/50"
+                >
+                  <Icon className="text-primary size-4 shrink-0" aria-hidden />
+                  <span className="flex-1">{label}</span>
+                  <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                </TransitionLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="text-muted-foreground mb-2 px-1 text-xs font-medium tracking-wide uppercase">Support</p>
+          <ul className="bg-card divide-y overflow-hidden rounded-xl border">
+            {SUPPORT_ITEMS.map(({ href, label, icon: Icon }) => (
+              <li key={href}>
+                <TransitionLink
+                  href={href}
+                  className="flex min-h-12 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-accent/50"
+                >
+                  <Icon className="text-primary size-4 shrink-0" aria-hidden />
+                  <span className="flex-1">{label}</span>
+                  <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                </TransitionLink>
+              </li>
+            ))}
+            <li>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-bad flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-accent/50"
               >
-                <Icon className="text-primary size-4 shrink-0" aria-hidden />
-                <span className="flex-1">{label}</span>
-                <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-              </TransitionLink>
+                <LogOutIcon className="size-4 shrink-0" aria-hidden />
+                <span className="flex-1">Sign out</span>
+              </button>
             </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="text-bad flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-accent/50"
-            >
-              <LogOutIcon className="size-4 shrink-0" aria-hidden />
-              <span className="flex-1">Sign out</span>
-            </button>
-          </li>
-        </ul>
+          </ul>
+        </div>
       </section>
     </div>
   );
