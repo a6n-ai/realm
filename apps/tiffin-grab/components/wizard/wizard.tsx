@@ -14,6 +14,7 @@ import { StepSchedule } from "./steps/step-schedule";
 import { StepDuration } from "./steps/step-duration";
 import { SubscribeChrome } from "./subscribe-chrome";
 import { anySameIsoWeek } from "./same-iso-week";
+import type { CurrentPlanSummary } from "./current-plan-hint";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start & duration"] as const;
 
@@ -21,10 +22,12 @@ export function Wizard({
   catalog,
   closeHref,
   existingStartDates = [],
+  currentPlan = null,
 }: {
   catalog: ClientCatalogSnapshot;
   closeHref: string;
   existingStartDates?: string[];
+  currentPlan?: CurrentPlanSummary | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -99,9 +102,15 @@ export function Wizard({
 
       <p className="text-muted-foreground text-center text-xs sm:hidden">{STEPS[step]}</p>
 
-      {step === 0 && <StepBaseline catalog={catalog} selections={selections} set={set} />}
-      {step === 1 && <StepBundle catalog={catalog} selections={selections} set={set} />}
-      {step === 2 && <StepSchedule catalog={catalog} selections={selections} set={set} />}
+      {step === 0 && (
+        <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+      )}
+      {step === 1 && (
+        <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+      )}
+      {step === 2 && (
+        <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+      )}
       {step === 3 && (
         <StepDuration
           catalog={catalog}
@@ -109,6 +118,7 @@ export function Wizard({
           set={set}
           result={result}
           sameWeekConflict={sameWeekConflict}
+          currentPlan={currentPlan}
         />
       )}
 

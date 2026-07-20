@@ -10,7 +10,16 @@ import type { CustomerDish } from "@/lib/services/dishes.service";
 import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
 
-export function DishesSection({ dishes, daysByDish }: { dishes: CustomerDish[]; daysByDish?: Record<string, string[]> }) {
+export function DishesSection({
+  dishes,
+  daysByDish,
+  dense = false,
+}: {
+  dishes: CustomerDish[];
+  daysByDish?: Record<string, string[]>;
+  /** Food-app density: more columns, shorter cards (Menu page). */
+  dense?: boolean;
+}) {
   const [selected, setSelected] = useState<CustomerDish | null>(null);
 
   if (dishes.length === 0) {
@@ -22,30 +31,54 @@ export function DishesSection({ dishes, daysByDish }: { dishes: CustomerDish[]; 
   }
 
   return (
-    <SectionCard title="Dishes">
-      <Reveal.Group className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {dishes.map((dish) => (
-          <Reveal key={dish.publicId}>
-            <Pressable
-              type="button"
-              aria-label={dish.name}
-              title={dish.name}
-              onClick={() => setSelected(dish)}
-              className="flex w-full flex-col gap-1 rounded-lg text-left"
-            >
-              <div className="relative aspect-square w-full overflow-hidden rounded-lg">
-                <DishImage image={dish.image} name={dish.name} />
-                <span
+    <SectionCard title={dense ? "All dishes" : "Dishes"}>
+      <Reveal.Group
+        className={cn(
+          "grid gap-2.5",
+          dense ? "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5" : "grid-cols-2 gap-3 sm:grid-cols-3",
+        )}
+      >
+        {dishes.map((dish) => {
+          const onMenu = daysByDish?.[dish.publicId];
+          return (
+            <Reveal key={dish.publicId}>
+              <Pressable
+                type="button"
+                aria-label={dish.name}
+                title={dish.name}
+                onClick={() => setSelected(dish)}
+                className="flex w-full flex-col gap-1 rounded-lg text-left transition-transform active:scale-[0.96]"
+              >
+                <div
                   className={cn(
-                    "absolute right-1.5 top-1.5 size-2.5 rounded-full ring-2 ring-white/80",
-                    dietDotClass(dish.diet, dish.name),
+                    "relative w-full overflow-hidden rounded-md outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10",
+                    dense ? "aspect-[4/3]" : "aspect-square rounded-lg",
                   )}
-                />
-              </div>
-              <span className="mt-1 block truncate text-xs font-medium">{dish.name}</span>
-            </Pressable>
-          </Reveal>
-        ))}
+                >
+                  <DishImage image={dish.image} name={dish.name} sizes={dense ? "120px" : "200px"} />
+                  <span
+                    className={cn(
+                      "absolute rounded-full ring-2 ring-white/80",
+                      dense ? "right-1 top-1 size-2" : "right-1.5 top-1.5 size-2.5",
+                      dietDotClass(dish.diet, dish.name),
+                    )}
+                  />
+                  {onMenu && onMenu.length > 0 ? (
+                    <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium tracking-wide text-white uppercase">
+                      This week
+                    </span>
+                  ) : null}
+                </div>
+                {/* Caption only when photo exists — gradient tiles already print the name. */}
+                {dish.image?.url ? (
+                  <span className={cn("block truncate font-medium", dense ? "text-[11px] leading-tight" : "mt-1 text-xs")}>
+                    {dish.name}
+                  </span>
+                ) : null}
+              </Pressable>
+            </Reveal>
+          );
+        })}
       </Reveal.Group>
 
       <DishModal
@@ -69,12 +102,12 @@ export function DishesSection({ dishes, daysByDish }: { dishes: CustomerDish[]; 
 // module's export (the /dashboard/orders bug).
 export function DishesSectionSkeleton() {
   return (
-    <SectionCard title="Dishes">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+    <SectionCard title="All dishes">
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-5">
+        {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-1">
-            <Skeleton className="aspect-square w-full rounded-lg" />
-            <Skeleton className="h-4 w-20" />
+            <Skeleton className="aspect-[4/3] w-full rounded-md" />
+            <Skeleton className="h-3 w-16" />
           </div>
         ))}
       </div>

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: vi.fn(() => ({ refresh: vi.fn(), push: vi.fn() })),
 }));
 
 vi.mock("@/components/providers/timezone-provider", () => ({
@@ -31,7 +31,10 @@ const activeSub: Subscription = {
   city: "City",
   postalCode: "00000",
   zoneId: null,
-} as Subscription;
+  mealSizeName: "Regular",
+  persons: 1,
+  categoryCounts: { sabzi: 1, dal: 1 },
+};
 
 const activeDelivery: DeliveryCardData = {
   publicId: "del_1",
@@ -59,17 +62,39 @@ const waitlistedSub: WaitlistedSubscription = {
 };
 
 describe("DeliveryCalendar — three-way empty state", () => {
-  it("shows the active subscription list, not the waitlist card, when active subs are present", () => {
+  it("shows plan name as flat text without a selector when there is one active sub", () => {
     render(
       <DeliveryCalendar
         subscriptions={[activeSub]}
         deliveries={[activeDelivery]}
-        extraWindows={0}
+        monthKey="2026-07"
         waitlisted={[waitlistedSub]}
+        categoryLabels={{ sabzi: "Sabzi", dal: "Daal" }}
       />,
     );
-    expect(screen.getByRole("heading", { name: "Weekly Veg" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Weekly Veg" })).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText(/Regular/)).toBeInTheDocument();
     expect(screen.queryByText(/on the waitlist/i)).not.toBeInTheDocument();
+  });
+
+  it("shows subscription selector when there are multiple active subs", () => {
+    const secondSub: Subscription = {
+      ...activeSub,
+      publicId: "ord_2",
+      planName: "Daily Non-Veg",
+    };
+    render(
+      <DeliveryCalendar
+        subscriptions={[activeSub, secondSub]}
+        selectedPublicId="ord_1"
+        deliveries={[activeDelivery]}
+        monthKey="2026-07"
+        waitlisted={[]}
+      />,
+    );
+    expect(screen.getByRole("combobox")).toHaveTextContent("Weekly Veg");
   });
 
   it("shows the WaitlistCard when there are zero active subs but a waitlisted one", () => {
@@ -77,7 +102,7 @@ describe("DeliveryCalendar — three-way empty state", () => {
       <DeliveryCalendar
         subscriptions={[]}
         deliveries={[]}
-        extraWindows={0}
+        monthKey="2026-07"
         waitlisted={[waitlistedSub]}
       />,
     );
@@ -90,7 +115,7 @@ describe("DeliveryCalendar — three-way empty state", () => {
       <DeliveryCalendar
         subscriptions={[]}
         deliveries={[]}
-        extraWindows={0}
+        monthKey="2026-07"
         waitlisted={[]}
       />,
     );
@@ -98,18 +123,22 @@ describe("DeliveryCalendar — three-way empty state", () => {
     expect(screen.getByRole("link", { name: /Browse plans/i })).toHaveAttribute("href", "/subscribe");
   });
 
-  it("renders Load more weeks linking to the next ?days= window", () => {
+  it("month navigation requests the next week via ?week=", async () => {
+    const push = vi.fn();
+    const { useRouter } = await import("next/navigation");
+    vi.mocked(useRouter).mockReturnValue({ refresh: vi.fn(), push } as unknown as ReturnType<typeof useRouter>);
+
     render(
       <DeliveryCalendar
         subscriptions={[activeSub]}
         deliveries={[activeDelivery]}
-        extraWindows={0}
+        monthKey="2026-07"
+        today="2026-07-20"
         waitlisted={[]}
       />,
     );
-    expect(screen.getByRole("link", { name: /Load more weeks/i })).toHaveAttribute(
-      "href",
-      "/me/deliveries?days=1",
-    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Go to the Next Month/i })[0]!);
+    expect(push).toHaveBeenCalledWith("/me/deliveries?month=2026-08&sub=ord_1");
   });
 });

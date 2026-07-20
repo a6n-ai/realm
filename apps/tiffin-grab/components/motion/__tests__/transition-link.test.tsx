@@ -16,7 +16,11 @@ afterEach(cleanup);
 
 describe("TransitionLink", () => {
   it("uses startViewTransition when supported", () => {
-    const start = vi.fn((cb: () => void) => { cb(); return { finished: Promise.resolve() }; });
+    const start = vi.fn(function (this: Document, cb: () => void) {
+      expect(this).toBe(document);
+      cb();
+      return { finished: Promise.resolve() };
+    });
     (document as unknown as { startViewTransition: unknown }).startViewTransition = start;
     render(<TransitionLink href="/me/deliveries">Deliveries</TransitionLink>);
     fireEvent.click(screen.getByText("Deliveries"));

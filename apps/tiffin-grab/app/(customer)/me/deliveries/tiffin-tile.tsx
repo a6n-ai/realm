@@ -43,10 +43,13 @@ export function TiffinTile({
   const dateCircleClass = cn(
     "flex shrink-0 items-center justify-center rounded-full font-semibold tabular-nums transition-colors",
     variant === "week" ? "size-8 text-sm" : "size-8 text-sm",
-    // Selected uses brand primary — not ok/green — so it doesn't collide with the Delivered dash.
-    selected && "bg-primary text-primary-foreground",
-    !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
-    !selected && !isToday && "text-foreground",
+    // Week strip: primary fill on the number. Month grid: whole cell is primary (ReUI day style).
+    variant === "week" && selected && "bg-primary text-primary-foreground",
+    variant === "week" && !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+    variant === "week" && !selected && !isToday && "text-foreground",
+    variant === "month" && selected && "text-primary-foreground",
+    variant === "month" && !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+    variant === "month" && !selected && !isToday && "text-foreground",
   );
 
   const underlineVisible = status !== "off";
@@ -98,8 +101,11 @@ export function TiffinTile({
       aria-label={`${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", delivered" : off ? ", not scheduled" : ""}`}
       aria-pressed={selected}
       className={cn(
-        "group relative mx-auto flex h-full min-h-11 w-full min-w-11 flex-col items-center justify-center gap-1 py-1 text-center",
-        off && "cursor-default opacity-40",
+        // Match ReUI CalendarDayButton selected: full-cell primary, not a tiny number chip.
+        "group relative mx-auto flex h-full min-h-11 w-full min-w-11 flex-col items-center justify-center gap-1 rounded-(--cell-radius) py-1 text-center transition-colors",
+        selected && "bg-primary text-primary-foreground",
+        !selected && isToday && "bg-muted",
+        off && !selected && "cursor-default opacity-40",
       )}
     >
       <span className={dateCircleClass}>{dayNum}</span>

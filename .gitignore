@@ -53,6 +53,7 @@ graphify-out/
 
 # AI tooling / agent context (keep local, never commit)
 .claude/
+.cursor/
 .agents/
 .superpowers/
 .planning/
@@ -65,3 +66,8 @@ docs/
 # openspec scratch + local screenshots (not part of the repo)
 openspec/
 /Screenshot*.png
+*.jpg
+*.jpeg
+*.png
+tiffingrab.ca.txt
+.remember

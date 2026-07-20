@@ -44,7 +44,7 @@ describe("customer-finances.service (integration)", () => {
     };
 
     await createOrder(input, { ownerUserId: userA.publicId });
-    await createOrder(input, { ownerUserId: userA.publicId, allowSecondActive: true });
+    await createOrder(input, { ownerUserId: userA.publicId });
     await createOrder(input, { ownerUserId: userB.publicId });
 
     const page = await myBillsPage(userA.id, { page: 0, size: 25 });
@@ -76,8 +76,8 @@ describe("customer-finances.service (integration)", () => {
       contact: { fullName: "A B", phone: "+16475550122", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
     };
     await createOrder(input, { ownerUserId: user.publicId });
-    await createOrder(input, { ownerUserId: user.publicId, allowSecondActive: true });
-    await createOrder(input, { ownerUserId: user.publicId, allowSecondActive: true });
+    await createOrder(input, { ownerUserId: user.publicId });
+    await createOrder(input, { ownerUserId: user.publicId });
 
     const page0 = await myBillsPage(user.id, { page: 0, size: 2 });
     expect(page0.items).toHaveLength(2);

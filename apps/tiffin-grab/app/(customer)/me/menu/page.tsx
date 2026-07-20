@@ -2,26 +2,27 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
 import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { toClientCatalog } from "@/lib/catalog/types";
-import { selectablePlans } from "@/components/wizard/plan-filter";
 import { menuService } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
+import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { zonedDateIso } from "@realm/commons";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
-import { MealSizesSection, MealSizesSectionSkeleton } from "@/components/customer/home/meal-sizes-section";
 import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
-import { BrowsePlansSection, BrowsePlansSectionSkeleton } from "@/components/customer/home/browse-plans-section";
+import { PlansCtaSection, PlansCtaSectionSkeleton } from "@/components/customer/home/plans-cta-section";
 import { MENU_SECTIONS } from "./menu-sections";
 
 export default async function MenuPage() {
   const userId = await currentUserId();
-  if (userId == null) redirect("/login"); // defense in depth — the (customer) layout already gates
+  if (userId == null) redirect("/login");
 
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
+    <main className="space-y-6 px-4 py-6 md:px-6 md:py-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Menu</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Browse this week's menu, sizes, dishes, and plans.</p>
+        <p className="text-muted-foreground text-sm text-pretty">
+          See this week&apos;s dishes — tap a photo for details.
+        </p>
       </header>
 
       {MENU_SECTIONS.map((section) =>
@@ -29,17 +30,13 @@ export default async function MenuPage() {
           <Suspense key={section.key} fallback={<ThisWeekMenuSectionSkeleton />}>
             <MenuSectionData userId={userId} />
           </Suspense>
-        ) : section.key === "mealSizes" ? (
-          <Suspense key={section.key} fallback={<MealSizesSectionSkeleton />}>
-            <MealSizesSectionData />
-          </Suspense>
         ) : section.key === "dishes" ? (
           <Suspense key={section.key} fallback={<DishesSectionSkeleton />}>
-            <DishesSectionData />
+            <DishesSectionData userId={userId} />
           </Suspense>
         ) : (
-          <Suspense key={section.key} fallback={<BrowsePlansSectionSkeleton />}>
-            <BrowsePlansSectionData />
+          <Suspense key={section.key} fallback={<PlansCtaSectionSkeleton />}>
+            <PlansCtaSection />
           </Suspense>
         ),
       )}
@@ -47,39 +44,39 @@ export default async function MenuPage() {
   );
 }
 
-// Session-scoped: plan type comes from the customer's active subscription (defaults
-// to "tiffin" if none), the published week itself is public catalog data (cached).
 async function MenuSectionData({ userId }: { userId: bigint }) {
   const subs = await myActiveSubscriptions(userId);
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
-  const week = await menuService.getPublishedWeek(planType);
+  const { timezone } = await getAppSettings();
+  const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+  // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
+  const week = await menuService.getPublishedWeek(planType, thisMonday);
   return <ThisWeekMenuSection week={week} />;
 }
 
-// Global catalog + dish-pool reads — public, no userId scoping needed.
-async function MealSizesSectionData() {
-  const [catalog, dishPool] = await Promise.all([
-    toClientCatalog(await loadCatalogSnapshot()),
-    dishesService.listActiveWithImages(),
+async function DishesSectionData({ userId }: { userId: bigint }) {
+  const [dishes, subs] = await Promise.all([
+    dishesService.listActive(),
+    myActiveSubscriptions(userId),
   ]);
-  const planNames = Object.fromEntries(catalog.plans.map((p) => [p.key, p.name]));
-  return <MealSizesSection mealSizes={catalog.mealSizes} dishPool={dishPool} planNames={planNames} />;
-}
+  const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
+  const { timezone } = await getAppSettings();
+  const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+  const week = await menuService.getPublishedWeek(planType, thisMonday);
 
-// Global dish gallery — public, no userId scoping needed.
-async function DishesSectionData() {
-  const dishes = await dishesService.listActiveWithImages();
-  return <DishesSection dishes={dishes} />;
-}
+  const daysByDish: Record<string, string[]> = {};
+  if (week) {
+    const DAY_LABEL: Record<string, string> = {
+      mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+    };
+    for (const item of week.items) {
+      if (!item.dishPublicId) continue;
+      const label = DAY_LABEL[item.dayOfWeek] ?? item.dayOfWeek;
+      const list = daysByDish[item.dishPublicId] ?? [];
+      if (!list.includes(label)) list.push(label);
+      daysByDish[item.dishPublicId] = list;
+    }
+  }
 
-// Global catalog data — safely public, no userId scoping needed (same filter
-// the public /subscribe wizard uses). priceFrom is the min meal-size basePrice
-// per plan, computed server-side (never trust a client amount).
-async function BrowsePlansSectionData() {
-  const catalog = toClientCatalog(await loadCatalogSnapshot());
-  const plans = selectablePlans(catalog).map((p) => {
-    const prices = catalog.mealSizes.filter((m) => m.planKey === p.key && !m.trial).map((m) => m.basePrice);
-    return { ...p, priceFrom: prices.length ? Math.min(...prices) : null };
-  });
-  return <BrowsePlansSection plans={plans} />;
+  return <DishesSection dishes={dishes} daysByDish={daysByDish} dense />;
 }

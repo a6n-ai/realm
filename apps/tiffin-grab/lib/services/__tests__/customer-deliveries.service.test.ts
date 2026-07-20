@@ -96,6 +96,8 @@ describe("customer-deliveries.service (integration)", () => {
     const subs = await myActiveSubscriptions(userA);
     expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([aOrder1.publicId, aOrder2.publicId]));
     expect(subs.every((s) => ["active", "paused"].includes(s.status))).toBe(true);
+    expect(subs.every((s) => typeof s.mealSizeName === "string" && s.mealSizeName.length > 0)).toBe(true);
+    expect(subs.every((s) => s.persons >= 1 && typeof s.categoryCounts === "object")).toBe(true);
   });
 
   it("myPrimarySubscription prefers the newest active plan", async () => {
@@ -232,7 +234,7 @@ describe("myCalendar (integration)", () => {
     return { week, sabziDefault, sabziAlt, riceDefault };
   }
 
-  it("returns one cell per delivery day, locked correctly, pick overrides default, and omits days in an unreleased week", async () => {
+  it("returns one cell per delivery day, locked correctly, pick overrides default, and shows unreleased weeks without menu", async () => {
     const { userId, order, plan } = await seedOrder("+16475550401");
     const { week, sabziAlt, riceDefault } = await seedThisWeekMenu(plan.planType);
 
@@ -252,7 +254,11 @@ describe("myCalendar (integration)", () => {
 
     const cells = await myCalendar(userId, order.publicId, { from: THIS_MONDAY, until: TUE_NEXT });
 
-    expect(cells.map((c) => c.date)).toEqual([THIS_MONDAY, TUE_THIS]); // TUE_NEXT (unreleased week) absent
+    expect(cells.map((c) => c.date)).toEqual([THIS_MONDAY, TUE_THIS, TUE_NEXT]);
+    expect(cells.filter((c) => c.menuWeekId === week.publicId)).toHaveLength(2);
+    const nextWeek = cells.find((c) => c.date === TUE_NEXT)!;
+    expect(nextWeek.menuWeekId).toBeNull();
+    expect(nextWeek.options).toEqual([]);
 
     const monday = cells.find((c) => c.date === THIS_MONDAY)!;
     expect(monday.status).toBe("scheduled");

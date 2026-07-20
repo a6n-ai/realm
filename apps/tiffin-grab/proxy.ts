@@ -69,7 +69,9 @@ export function proxy(request: NextRequest) {
   const onGuarded = pathname.startsWith("/dashboard") || pathname.startsWith("/me");
   if (onGuarded && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    // Keep ?month=&sub= so post-login lands back on the same calendar month.
+    const returnTo = `${pathname}${request.nextUrl.search}`;
+    loginUrl.searchParams.set("callbackUrl", returnTo);
     return NextResponse.redirect(loginUrl);
   }
   const res = NextResponse.next();

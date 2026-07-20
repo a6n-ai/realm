@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDaysIcon } from "lucide-react";
+import { CalendarDaysIcon, PalmtreeIcon, PlayIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -13,11 +13,12 @@ import type { CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscripti
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { DeliveryCardMeal } from "./meal-chips";
-import { PauseControl } from "./pause-calendar";
+import { VacationControl, cutoffByDateFromDeliveries } from "./vacation-control";
 import { MonthCalendar } from "./month-calendar";
 import { DayDetail } from "./day-detail";
 import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
-import { MAX_EXTRA_WINDOWS, toIsoLocal, SUB_STATUS_LABEL, type CalendarCell } from "./calendar-constants";
+import { SubscriptionPlanHeader } from "./subscription-items";
+import { toIsoLocal, type CalendarCell } from "./calendar-constants";
 import { CALENDAR_LEGEND } from "./day-status";
 
 function DesktopDayStatusLegend() {
@@ -33,22 +34,11 @@ function DesktopDayStatusLegend() {
   );
 }
 
-function LoadMoreCalendar({ extraWindows }: { extraWindows: number }) {
-  const atMax = extraWindows >= MAX_EXTRA_WINDOWS;
-  if (atMax) {
-    return (
-      <p className="text-center text-xs text-muted-foreground">
-        Showing the maximum calendar window.
-      </p>
-    );
-  }
-  return (
-    <div className="flex justify-center">
-      <Button asChild variant="outline" size="sm">
-        <Link href={`/me/deliveries?days=${extraWindows + 1}`}>Load more weeks</Link>
-      </Button>
-    </div>
-  );
+function deliveriesHref(monthKey: string, selectedPublicId?: string) {
+  const params = new URLSearchParams();
+  params.set("month", monthKey);
+  if (selectedPublicId) params.set("sub", selectedPublicId);
+  return `/me/deliveries?${params.toString()}`;
 }
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
@@ -66,81 +56,103 @@ const DEFAULT_PAUSE_PANEL: PausePanel = {
   usage: { count: 0, daysUsed: 0, hasOpenPause: false },
 };
 
-function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, categoryLabels, tz, today }: {
+function TiffinCalendarSection({
+  sub,
+  allSubscriptions,
+  deliveries,
+  pausePanel,
+  calendarDays,
+  categoryLabels,
+  tz,
+  today,
+  monthKey,
+  onVacationClick,
+}: {
   sub: Subscription;
+  allSubscriptions: Subscription[];
   deliveries: DeliveryCardData[];
   pausePanel: PausePanel;
   calendarDays: CalendarCell[];
   categoryLabels: Record<string, string>;
   tz: string;
   today: string;
+  monthKey: string;
+  onVacationClick: () => void;
 }) {
   const router = useRouter();
   const todayIso = today || toIsoLocal(new Date());
-  const [selected, setSelected] = useState(todayIso);
-  const [pauseOpen, setPauseOpen] = useState(false);
+  const deliveryDatesKey = calendarDays.map((c) => c.date).sort().join(",");
+  const initialSelected = (() => {
+    const dates = deliveryDatesKey ? deliveryDatesKey.split(",") : [];
+    if (dates.includes(todayIso)) return todayIso;
+    const next = dates.find((d) => d >= todayIso);
+    return next ?? todayIso;
+  })();
+  const [selected, setSelected] = useState(initialSelected);
+  const calendarDaysRef = useRef(calendarDays);
+  calendarDaysRef.current = calendarDays;
 
-  // Always land on today when the page loads or the app-day rolls over.
+  // Re-anchor when the app-day rolls — not when the viewed month changes.
   useEffect(() => {
-    setSelected(todayIso);
+    const dates = calendarDaysRef.current.map((c) => c.date).sort();
+    if (dates.includes(todayIso)) {
+      setSelected(todayIso);
+      return;
+    }
+    const next = dates.find((d) => d >= todayIso);
+    setSelected(next ?? todayIso);
   }, [todayIso]);
 
   const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
   const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
-  const cutoffByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d.cutoffAt])), [deliveries]);
 
   function onChanged() {
     router.refresh();
   }
+
+  function switchSubscription(publicId: string) {
+    router.push(deliveriesHref(monthKey, publicId));
+  }
+
+  function changeMonth(nextMonth: string) {
+    router.push(deliveriesHref(nextMonth, sub.publicId));
+  }
+
+  const monthCalendarProps = {
+    cellsByDate,
+    selected,
+    onSelect: setSelected,
+    todayIso,
+    monthKey,
+    onMonthChange: changeMonth,
+  };
 
   const selectedCell = cellsByDate.get(selected);
   const selectedDelivery = deliveryByDate.get(selected);
   const subPaused = pausePanel.usage.hasOpenPause || sub.status === "paused";
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">{sub.planName}</h2>
-          <span className="text-muted-foreground text-xs">{SUB_STATUS_LABEL[sub.status as "active" | "paused"]}</span>
-        </div>
-        <Button
-          type="button"
-          variant={subPaused ? "secondary" : "outline"}
-          size="sm"
-          className="hidden md:inline-flex"
-          onClick={() => setPauseOpen(true)}
-        >
-          {subPaused ? "Resume" : "Pause"}
-        </Button>
-        <PauseControl
-          sub={sub}
-          pausePanel={pausePanel}
-          cutoffByDate={cutoffByDate}
-          today={todayIso}
-          open={pauseOpen}
-          onOpenChange={setPauseOpen}
-          hideTrigger
-        />
-      </div>
+    <section className="space-y-3">
+      <SubscriptionPlanHeader
+        sub={sub}
+        allSubscriptions={allSubscriptions}
+        categoryLabels={categoryLabels}
+        onSwitch={switchSubscription}
+      />
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-2.5 md:hidden">
         <MobileLegendRow />
-        <MonthCalendar
-          cellsByDate={cellsByDate}
-          selected={selected}
-          onSelect={setSelected}
-          todayIso={todayIso}
-        />
+        <MonthCalendar {...monthCalendarProps} />
         <p className="text-center text-sm font-medium">
           {formatDateOnly(selected, { mode: "long" })}
         </p>
         <MobileDayOrderCard
+          dateIso={selected}
           cell={selectedCell}
           delivery={selectedDelivery}
           planName={sub.planName}
           paused={subPaused}
-          onPauseClick={() => setPauseOpen(true)}
+          onPauseClick={onVacationClick}
         />
         <DayDetail
           variant="picker"
@@ -149,22 +161,18 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
           delivery={selectedDelivery}
           orderPublicId={sub.publicId}
           categoryLabels={categoryLabels}
+          categoryCounts={sub.categoryCounts}
           tz={tz}
           onChanged={onChanged}
         />
       </div>
 
-      <div className="hidden space-y-3 md:block">
+      <div className="hidden space-y-2.5 md:block">
         <DesktopDayStatusLegend />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr] lg:items-start">
-          <Card variant="flat" className="p-3 sm:p-4">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,22rem)_1fr] lg:items-start">
+          <Card variant="flat" className="p-3">
             <CardContent className="p-0">
-              <MonthCalendar
-                cellsByDate={cellsByDate}
-                selected={selected}
-                onSelect={setSelected}
-                todayIso={todayIso}
-              />
+              <MonthCalendar {...monthCalendarProps} />
             </CardContent>
           </Card>
           <DayDetail
@@ -173,6 +181,7 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
             delivery={selectedDelivery}
             orderPublicId={sub.publicId}
             categoryLabels={categoryLabels}
+            categoryCounts={sub.categoryCounts}
             tz={tz}
             onChanged={onChanged}
           />
@@ -184,28 +193,31 @@ function TiffinCalendarSection({ sub, deliveries, pausePanel, calendarDays, cate
 
 export function DeliveryCalendar({
   subscriptions,
+  selectedPublicId,
   deliveries,
   pausePanels = {},
   calendarCells = {},
   categoryLabels = {},
-  extraWindows = 0,
+  monthKey = "",
   waitlisted = [],
   today = "",
 }: {
   subscriptions: Subscription[];
+  selectedPublicId?: string;
   deliveries: DeliveryCardData[];
   pausePanels?: Record<string, PausePanel>;
   calendarCells?: Record<string, CalendarCell[]>;
   categoryLabels?: Record<string, string>;
-  extraWindows?: number;
+  monthKey?: string;
   waitlisted?: WaitlistedSubscription[];
   today?: string;
 }) {
   const tz = useTimezone();
+  const [vacationOpen, setVacationOpen] = useState(false);
 
   if (subscriptions.length === 0) {
     return (
-      <div className="space-y-6 p-4">
+      <div className="space-y-5 p-4 pb-6">
         <div className="space-y-3">
           {waitlisted.length > 0 ? (
             waitlisted.map((s) => <WaitlistCard key={s.publicId} sub={s} />)
@@ -225,35 +237,62 @@ export function DeliveryCalendar({
     );
   }
 
-  const bySub = new Map<string, DeliveryCardData[]>(subscriptions.map((s) => [s.publicId, []]));
-  for (const d of deliveries) {
-    const list = bySub.get(d.orderPublicId);
-    if (list) list.push(d);
-  }
+  const selected =
+    subscriptions.find((s) => s.publicId === selectedPublicId) ?? subscriptions[0]!;
+  const selectedDeliveries = deliveries.filter((d) => d.orderPublicId === selected.publicId);
+  const pausePanel = pausePanels[selected.publicId] ?? DEFAULT_PAUSE_PANEL;
+  const subOnVacation = pausePanel.usage.hasOpenPause || selected.status === "paused";
 
   return (
-    <div className="space-y-6 p-4">
-      <PageHeader icon={CalendarDaysIcon} title="My deliveries" />
-      {subscriptions.map((sub) => (
-        <TiffinCalendarSection
-          key={sub.publicId}
-          sub={sub}
-          deliveries={bySub.get(sub.publicId) ?? []}
-          pausePanel={pausePanels[sub.publicId] ?? DEFAULT_PAUSE_PANEL}
-          calendarDays={calendarCells[sub.publicId] ?? []}
-          categoryLabels={categoryLabels}
-          tz={tz}
-          today={today}
-        />
-      ))}
-      <LoadMoreCalendar extraWindows={extraWindows} />
+    <div className="space-y-5 p-4 pb-6">
+      <PageHeader
+        icon={CalendarDaysIcon}
+        title="My deliveries"
+        actions={
+          <Button
+            type="button"
+            variant={subOnVacation ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setVacationOpen(true)}
+          >
+            {subOnVacation ? (
+              <PlayIcon data-icon="inline-start" />
+            ) : (
+              <PalmtreeIcon data-icon="inline-start" />
+            )}
+            {subOnVacation ? "Resume" : "Vacation"}
+          </Button>
+        }
+      />
+      <VacationControl
+        sub={selected}
+        pausePanel={pausePanel}
+        cutoffByDate={cutoffByDateFromDeliveries(selectedDeliveries)}
+        today={today || toIsoLocal(new Date())}
+        open={vacationOpen}
+        onOpenChange={setVacationOpen}
+        hideTrigger
+      />
+      <TiffinCalendarSection
+        key={selected.publicId}
+        sub={selected}
+        allSubscriptions={subscriptions}
+        deliveries={selectedDeliveries}
+        pausePanel={pausePanel}
+        calendarDays={calendarCells[selected.publicId] ?? []}
+        categoryLabels={categoryLabels}
+        tz={tz}
+        today={today}
+        monthKey={monthKey}
+        onVacationClick={() => setVacationOpen(true)}
+      />
     </div>
   );
 }
 
 export function DeliveryCalendarSkeleton() {
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-5 p-4 pb-6">
       <div className="flex items-center gap-3">
         <Skeleton className="size-9 rounded-lg" />
         <Skeleton className="h-7 w-40" />

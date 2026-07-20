@@ -17,20 +17,20 @@ function makeCell(overrides: Partial<CalendarCell> = {}): CalendarCell {
 
 describe("selectedDaySummaryMessage", () => {
   it("returns the off-day copy when there is no cell or delivery", () => {
-    expect(selectedDaySummaryMessage({ cell: undefined, delivery: undefined })).toBe(
+    expect(selectedDaySummaryMessage({ dateIso: "2026-07-20", cell: undefined, delivery: undefined })).toBe(
       "There are no orders scheduled for this day",
     );
   });
 
   it("returns menu-not-published when a delivery exists without a cell", () => {
     expect(
-      selectedDaySummaryMessage({ cell: undefined, delivery: { meal: { pending: true } } }),
-    ).toBe("Menu not published yet");
+      selectedDaySummaryMessage({ dateIso: "2026-08-03", cell: undefined, delivery: { meal: { pending: true } } }),
+    ).toBe("Menu for Aug 3 – Aug 9 isn't published yet");
   });
 
   it("returns menu-not-released when the cell has no options yet", () => {
     expect(
-      selectedDaySummaryMessage({ cell: makeCell({ options: [] }), delivery: { meal: { pending: true } } }),
-    ).toBe("Menu not released yet");
+      selectedDaySummaryMessage({ dateIso: "2026-07-20", cell: makeCell({ options: [] }), delivery: { meal: { pending: true } } }),
+    ).toBe("Menu for Jul 20 – Jul 26 isn't released yet");
   });
 });

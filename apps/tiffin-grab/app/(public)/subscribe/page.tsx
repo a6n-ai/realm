@@ -11,9 +11,9 @@ import {
   ExistingSubscriptions,
   SubscribeCouponsPreview,
 } from "@/components/customer/subscribe/existing-subscriptions";
-import { Button } from "@realm/ui/button";
-import Link from "next/link";
-import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
+import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
+
+const LIVE = new Set(["active", "paused", "waitlisted", "pending"]);
 
 export const dynamic = "force-dynamic";
 
@@ -31,49 +31,51 @@ export default async function SubscribePage() {
     userId != null ? myPrimarySubscription(userId) : Promise.resolve(null),
   ]);
 
-  const hasLivePlan = primary != null;
+  const liveSubs = subs.filter((s) => LIVE.has(s.status));
+  const currentPlan: CurrentPlanSummary | null = (() => {
+    if (!primary) return null;
+    const match = liveSubs.find((s) => s.publicId === primary.publicId) ?? liveSubs[0];
+    if (!match) return null;
+    return {
+      planName: match.planName,
+      mealSizeName: match.mealSizeName,
+      daysPerWeek: match.daysPerWeek,
+      status: match.status,
+      startDate: match.startDate,
+    };
+  })();
+  const existingStartDates = liveSubs.map((s) => s.startDate).filter(Boolean);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-4 sm:py-10">
-      <SubscribeChrome closeHref={closeHref} />
-
       <header className="space-y-1 pb-2">
         <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">
-          {hasLivePlan ? "Your subscription" : "Build your tiffin subscription"}
+          Build your tiffin subscription
         </h1>
         <p className="text-muted-foreground text-sm text-pretty">
-          {hasLivePlan
-            ? "You already have a plan. Pick meals and manage deliveries on your calendar — one subscription per account."
+          {currentPlan
+            ? "You already have a plan — you can start another below. We’ll remind you what’s current on each step."
             : "Four quick steps to your weekly plan — fresh meals, delivered on your schedule."}
         </p>
       </header>
 
       {subs.length > 0 && (
         <div className="mt-4">
-          <ExistingSubscriptions subs={subs} onePlanMode={hasLivePlan} />
+          <ExistingSubscriptions subs={subs} />
         </div>
       )}
 
-      {hasLivePlan ? (
-        <div className="mt-6 space-y-3 rounded-xl border bg-card p-4">
-          <p className="text-sm text-pretty">
-            Add or change meals for any delivery day on your calendar. Starting a second plan is
-            disabled so your schedule stays consistent.
-          </p>
-          <Button asChild size="lg" className="w-full sm:w-auto">
-            <Link href="/me/deliveries">Open calendar &amp; pick meals</Link>
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="mt-5">
-            <SubscribeCouponsPreview coupons={coupons} />
-          </div>
-          <div className="mt-4">
-            <Wizard catalog={toClientCatalog(catalog)} closeHref={closeHref} />
-          </div>
-        </>
-      )}
+      <div className="mt-5">
+        <SubscribeCouponsPreview coupons={coupons} />
+      </div>
+      <div className="mt-4">
+        <Wizard
+          catalog={toClientCatalog(catalog)}
+          closeHref={closeHref}
+          existingStartDates={existingStartDates}
+          currentPlan={currentPlan}
+        />
+      </div>
     </main>
   );
 }

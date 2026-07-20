@@ -85,7 +85,7 @@ describe("DayDetail — unreleased week (delivery, no cell)", () => {
         onChanged={noop}
       />,
     );
-    expect(screen.getByText("Menu not published yet")).toBeInTheDocument();
+    expect(screen.getByText(/Menu for Jul 20 – Jul 26 isn't published yet/)).toBeInTheDocument();
     expect(screen.queryByText("Locked")).not.toBeInTheDocument();
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
     expect(screen.queryByText(/Skip this day/i)).not.toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         onChanged={noop}
       />,
     );
-    expect(screen.getByText("Menu not released yet")).toBeInTheDocument();
+    expect(screen.getByText(/Menu for Jul 20 – Jul 26 isn't released yet/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Skip this day/i })).toBeInTheDocument();
   });
 

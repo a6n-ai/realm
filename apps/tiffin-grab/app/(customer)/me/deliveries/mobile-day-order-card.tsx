@@ -1,15 +1,16 @@
 "use client";
 
 // Mobile-first order card under the month grid (13895.jpg + older Claude chat):
-// dish thumb + name + status badges; Pause opens the shared PauseControl drawer/dialog
+// dish thumb + name + status badges; Vacation opens the shared VacationControl drawer/dialog
 // (day-tap stays meal-only). "Menu not released" when the week isn't out yet.
 
-import { PauseIcon, PlayIcon, UtensilsCrossedIcon } from "lucide-react";
+import { PalmtreeIcon, PlayIcon, UtensilsCrossedIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { DishImage } from "@/components/customer/home/dish-image";
 import type { CalendarCell } from "./calendar-constants";
 import { calendarDayStatus, calendarLegendKey, CALENDAR_LEGEND } from "./day-status";
+import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { cellToTileData } from "./tile-data";
 import { mealChips, type DeliveryCardMeal } from "./meal-chips";
 import type { CustomerDelivery } from "@/lib/services/customer-deliveries.service";
@@ -32,12 +33,14 @@ const STATUS_COPY: Record<"delivered" | "upcoming" | "vacation" | "onHold", stri
 };
 
 export function MobileDayOrderCard({
+  dateIso,
   cell,
   delivery,
   planName,
   paused = false,
   onPauseClick,
 }: {
+  dateIso: string;
   cell: CalendarCell | undefined;
   delivery: DeliveryCardData | undefined;
   planName: string;
@@ -64,7 +67,7 @@ export function MobileDayOrderCard({
   if (kind === "unreleased" || menuNotReleased) {
     return (
       <div className="rounded-xl border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-        {kind === "unreleased" ? "Menu not published yet" : "Menu not released yet"}
+        {kind === "unreleased" ? menuNotPublishedCopy(dateIso) : menuNotReleasedCopy(dateIso)}
       </div>
     );
   }
@@ -112,8 +115,8 @@ export function MobileDayOrderCard({
             className="gap-1.5 border-orange-400/60 text-orange-700 dark:text-orange-400"
             onClick={onPauseClick}
           >
-            {paused ? <PlayIcon className="size-3.5" /> : <PauseIcon className="size-3.5" />}
-            {paused ? "Resume" : "Pause"}
+            {paused ? <PlayIcon className="size-3.5" /> : <PalmtreeIcon className="size-3.5" />}
+            {paused ? "Resume" : "Vacation"}
           </Button>
         </div>
       )}

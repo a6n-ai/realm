@@ -58,23 +58,16 @@ function Group({ title, subs }: { title: string; subs: SubSummary[] }) {
   );
 }
 
-export function ExistingSubscriptions({
-  subs,
-  onePlanMode,
-}: {
-  subs: SubSummary[];
-  /** Live plan exists — copy explains one-sub + meal picks on calendar. */
-  onePlanMode?: boolean;
-}) {
+export function ExistingSubscriptions({ subs }: { subs: SubSummary[] }) {
   if (subs.length === 0) return null;
   const current = subs.filter((s) => CURRENT.has(s.status));
   const past = subs.filter((s) => !CURRENT.has(s.status));
   return (
     <div className="space-y-4">
-      {onePlanMode && current.length > 0 ? (
+      {current.length > 0 ? (
         <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-pretty">
-          Your calendar is tied to this plan. Pick dishes per delivery day from Deliveries — you
-          don&apos;t need a second subscription.
+          You already have a plan. Starting another is fine — manage meals on your calendar, or keep
+          going below to add a new subscription.
         </p>
       ) : null}
       {current.length > 0 && <Group title="Current plan" subs={current} />}

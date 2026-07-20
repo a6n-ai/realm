@@ -37,7 +37,7 @@ export function HomeWeekStrip({
   return (
     <SectionCard title="This week">
       <div className="space-y-3">
-        <SelectedDaySummary cell={cell} delivery={delivery} alwaysVisible />
+        <SelectedDaySummary dateIso={selected} cell={cell} delivery={delivery} alwaysVisible />
         <WeekRail
           cellsByDate={cellsByDate}
           selected={selected}

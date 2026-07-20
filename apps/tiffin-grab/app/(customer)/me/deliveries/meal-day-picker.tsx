@@ -2,9 +2,8 @@
 
 // Interactive per-day meal picker for a pre-cutoff calendar cell — the calendar surface's
 // lighter-weight sibling to components/customer/meals/meal-picker.tsx's full weekly grid.
-// Deliberately single-pick-per-category (personIndex 1, pickIndex 1): the calendar's day-tap
-// flow is a quick "change today's meal" action, not the multi-person/multi-pick editor that
-// page already covers on /me/meals.
+// Supports multiple picks per category from the plan's categoryCounts (e.g. 2× Sabzi →
+// "Sabzi 1" / "Sabzi 2"). Still single-person (personIndex 1); multi-person stays on /me/meals.
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -17,14 +16,22 @@ import { pickMyDish, applyMyDishToWeek } from "../meals/actions";
 import type { MealOption } from "@/lib/services/customer-deliveries.service";
 import type { CalendarCell } from "./calendar-constants";
 
-export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }: {
+export function MealDayPicker({
+  cell,
+  orderPublicId,
+  categoryLabels,
+  categoryCounts = {},
+  onChanged,
+}: {
   cell: CalendarCell;
   orderPublicId: string;
   categoryLabels: Record<string, string>;
+  categoryCounts?: Record<string, number>;
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
+  const [activePick, setActivePick] = useState<Record<string, number>>({});
   const reduce = useReducedMotion();
 
   if (!cell.menuWeekId || cell.options.length === 0) return null;
@@ -37,21 +44,41 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
     byCategory.set(o.category, arr);
   }
 
-  // The resolved meal's first pick per category stands in for "currently selected" — this
-  // picker only ever writes pickIndex 1, so that's the only pick that can be showing here.
-  const selectedByCategory = new Map<string, string>();
+  // picks[i] is pickIndex i+1 for that category.
+  const selectedByCategory = new Map<string, string[]>();
   if (cell.meal) {
     for (const c of cell.meal) {
-      const first = c.picks[0];
-      if (first) selectedByCategory.set(c.category, first.dishPublicId);
+      selectedByCategory.set(
+        c.category,
+        c.picks.map((p) => p.dishPublicId),
+      );
     }
+  }
+
+  function qtyFor(category: string): number {
+    const fromCounts = categoryCounts[category] ?? 0;
+    if (fromCounts > 0) return fromCounts;
+    return Math.max(1, selectedByCategory.get(category)?.length ?? 1);
+  }
+
+  function pickIndexFor(category: string): number {
+    return activePick[category] ?? 1;
   }
 
   function pick(category: string, dishId: string) {
     const dayOfWeek = weekdayKey(new Date(`${cell.date}T00:00:00Z`));
+    const pickIndex = pickIndexFor(category);
     startTransition(async () => {
       try {
-        await pickMyDish({ orderId: orderPublicId, menuWeekId, dayOfWeek, slot: category, personIndex: 1, pickIndex: 1, dishId });
+        await pickMyDish({
+          orderId: orderPublicId,
+          menuWeekId,
+          dayOfWeek,
+          slot: category,
+          personIndex: 1,
+          pickIndex,
+          dishId,
+        });
         onChanged();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't save that pick");
@@ -60,11 +87,19 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
   }
 
   function applyToWeek(category: string, dishId: string) {
-    const key = `${category}:${dishId}`;
+    const pickIndex = pickIndexFor(category);
+    const key = `${category}:${pickIndex}:${dishId}`;
     setApplyingKey(key);
     startTransition(async () => {
       try {
-        const res = await applyMyDishToWeek({ orderId: orderPublicId, menuWeekId, slot: category, personIndex: 1, pickIndex: 1, dishId });
+        const res = await applyMyDishToWeek({
+          orderId: orderPublicId,
+          menuWeekId,
+          slot: category,
+          personIndex: 1,
+          pickIndex,
+          dishId,
+        });
         onChanged();
         toast.success(`Applied to ${res.applied} day${res.applied === 1 ? "" : "s"}`);
       } catch (e) {
@@ -76,12 +111,47 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {[...byCategory.entries()].map(([category, options]) => {
-        const selected = selectedByCategory.get(category);
+        const qty = qtyFor(category);
+        const pickIndex = pickIndexFor(category);
+        const selectedList = selectedByCategory.get(category) ?? [];
+        const selected = selectedList[pickIndex - 1];
+        const label = categoryLabels[category] ?? category;
+
         return (
-          <div key={category}>
-            <p className="text-muted-foreground mb-1.5 text-xs font-medium">{categoryLabels[category] ?? category}</p>
+          <div key={category} className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-muted-foreground text-xs font-medium">
+                {label}
+                <span className="ml-1.5 tabular-nums text-foreground/70">{qty}×</span>
+              </p>
+              {qty > 1 ? (
+                <div className="flex items-center gap-1" role="tablist" aria-label={`${label} item`}>
+                  {Array.from({ length: qty }, (_, i) => {
+                    const n = i + 1;
+                    const active = pickIndex === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActivePick((prev) => ({ ...prev, [category]: n }))}
+                        className={cn(
+                          "rounded-md px-2 py-1 text-[11px] font-medium tabular-nums transition-colors",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        Item {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {options.map((o) => {
                 const isSelected = o.dishId === selected;
@@ -123,11 +193,12 @@ export function MealDayPicker({ cell, orderPublicId, categoryLabels, onChanged }
             {selected && (
               <button
                 type="button"
-                disabled={pending || applyingKey === `${category}:${selected}`}
+                disabled={pending || applyingKey === `${category}:${pickIndex}:${selected}`}
                 onClick={() => applyToWeek(category, selected)}
-                className="text-primary mt-1 text-xs font-medium underline disabled:opacity-50"
+                className="text-primary text-xs font-medium underline disabled:opacity-50"
               >
                 Apply to whole week
+                {qty > 1 ? ` (item ${pickIndex})` : ""}
               </button>
             )}
           </div>

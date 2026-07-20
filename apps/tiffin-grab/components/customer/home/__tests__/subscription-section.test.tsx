@@ -33,6 +33,9 @@ const baseSub: SubscriptionWithNext = {
   city: "City",
   postalCode: "00000",
   zoneId: null,
+  mealSizeName: "Regular",
+  persons: 1,
+  categoryCounts: { sabzi: 1, dal: 1 },
   nextDelivery: {
     publicId: "dlv_1",
     orderId: 1n as unknown as bigint,

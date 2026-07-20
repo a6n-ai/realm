@@ -73,3 +73,11 @@ export function formatDateOnly(
     timeZone: "UTC",
   }).format(parseIsoDateUtc(iso));
 }
+
+/** Mon–Sun label for a menu week (`weekStart` is the Monday ISO date). */
+export function formatMenuWeekRange(weekStart: string, locale = "en-US"): string {
+  const end = parseIsoDateUtc(weekStart);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const endIso = end.toISOString().slice(0, 10);
+  return `${formatDateOnly(weekStart, { mode: "short", locale })} – ${formatDateOnly(endIso, { mode: "short", locale })}`;
+}

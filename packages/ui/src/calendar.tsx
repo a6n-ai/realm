@@ -119,7 +119,9 @@ function Calendar({
           defaultClassNames.range_end
         ),
         today: cn(
-          "rounded-(--cell-radius) bg-muted text-foreground data-[selected=true]:rounded-none",
+          // Muted wash for "today" only — clear it when selected so ReUI primary
+          // (`data-[selected-single=true]:bg-primary` on DayButton) is the visible cue.
+          "rounded-(--cell-radius) bg-muted text-foreground data-[selected=true]:bg-transparent data-[selected=true]:rounded-none",
           defaultClassNames.today
         ),
         outside: cn(

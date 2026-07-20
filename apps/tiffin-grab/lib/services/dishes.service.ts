@@ -11,7 +11,7 @@ export type CustomerDish = {
   name: string;
   description: string | null;
   diet: "veg" | "nonveg";
-  image: FileDetail;
+  image: FileDetail | null;
   category: string | null;
 };
 
@@ -34,9 +34,8 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
     return 1;
   }
 
-  // Customer-facing read: active dishes that actually have a photo, for the home
-  // dish gallery + meal-size slideshows. Text-only (imageless) dishes are excluded
-  // so the browse surfaces stay photo-driven.
+  // Customer-facing read: active dishes that actually have a photo, for meal-size
+  // slideshows. Text-only (imageless) dishes are excluded so those surfaces stay photo-driven.
   async listActiveWithImages(): Promise<CustomerDish[]> {
     const rows = await db
       .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, diet: dishes.diet, image: dishes.image, category: dishes.category })
@@ -44,6 +43,17 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
       .where(and(eq(dishes.active, true), isNotNull(dishes.image)))
       .orderBy(asc(dishes.name));
     return rows.map((r) => ({ ...r, image: r.image as FileDetail }));
+  }
+
+  // Menu gallery: all active dishes — DishImage falls back to a gradient tile when
+  // image is null so seed catalogs still browse like a food app.
+  async listActive(): Promise<CustomerDish[]> {
+    const rows = await db
+      .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, diet: dishes.diet, image: dishes.image, category: dishes.category })
+      .from(dishes)
+      .where(eq(dishes.active, true))
+      .orderBy(asc(dishes.name));
+    return rows.map((r) => ({ ...r, image: (r.image as FileDetail | null) ?? null }));
   }
 }
 const repo = new UpdatableRepository(db, dishes, dishes.publicId, dishes.id);

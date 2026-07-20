@@ -32,3 +32,22 @@ describe("dishesService.listActiveWithImages", () => {
     expect(rows.every((r) => r.image != null)).toBe(true);
   });
 });
+
+describe("dishesService.listActive", () => {
+  beforeEach(wipe);
+  afterAll(wipe);
+
+  it("returns active dishes including those without an image", async () => {
+    const { dishesService } = await import("../dishes.service");
+
+    await db.insert(dishes).values({ name: "TEST_DISH_A", diet: "veg", image: IMG, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_B", diet: "veg", image: null, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_C", diet: "nonveg", image: IMG, active: false });
+
+    const rows = await dishesService.listActive();
+    const names = rows.map((r) => r.name);
+    expect(names).toContain("TEST_DISH_A");
+    expect(names).toContain("TEST_DISH_B");
+    expect(names).not.toContain("TEST_DISH_C");
+  });
+});

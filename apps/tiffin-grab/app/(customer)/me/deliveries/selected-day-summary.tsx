@@ -11,17 +11,19 @@ import type { DeliveryCardMeal } from "./meal-chips";
 import { selectedDaySummaryMessage } from "./day-summary-message";
 
 export function SelectedDaySummary({
+  dateIso,
   cell,
   delivery,
   alwaysVisible = false,
 }: {
+  dateIso: string;
   cell: CalendarCell | undefined;
   delivery: { meal: DeliveryCardMeal } | undefined;
   /** When true, show on desktop too (home week strip). Default: mobile-only for deliveries calendar. */
   alwaysVisible?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const message = selectedDaySummaryMessage({ cell, delivery });
+  const message = selectedDaySummaryMessage({ dateIso, cell, delivery });
 
   return (
     <button

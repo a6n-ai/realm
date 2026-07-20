@@ -2,7 +2,7 @@ import { NotFoundError, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import {
   resolveDeliveryMeal,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/menu/resolve-delivery-meal";
 import { dietsForPlanKey } from "@/lib/menu/selections.service";
 import { dishCategoriesService } from "./dish-categories.service";
+import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 
@@ -28,6 +29,10 @@ export type Subscription = {
   city: string;
   postalCode: string;
   zoneId: bigint | null;
+  mealSizeName: string;
+  persons: number;
+  /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
+  categoryCounts: Record<string, number>;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -40,7 +45,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));
   await Promise.all(pausedOrderIds.map((o) => autoResumeIfElapsed(o.id)));
 
-  return db
+  const rows = await db
     .select({
       publicId: orders.publicId,
       planName: plans.name,
@@ -52,10 +57,18 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       city: orders.city,
       postalCode: orders.postalCode,
       zoneId: orders.zoneId,
+      mealSizeName: mealSizes.name,
+      persons: orders.persons,
+      categoryCounts: orders.categoryCounts,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+  return rows.map((r) => ({
+    ...r,
+    categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
+  }));
 }
 
 /**
@@ -280,11 +293,8 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   if (!order) return { pending: true };
 
   const weekStart = mondayOfIso(d.deliveryDate);
-  const [week] = await db
-    .select({ id: menuWeeks.id })
-    .from(menuWeeks)
-    .where(and(eq(menuWeeks.planType, order.planType), eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
-    .limit(1);
+  // Same exact released-week gate as Menu (`menuService.getReleasedWeek`) — never a parallel query.
+  const week = await menuService.getReleasedWeek(order.planType as "tiffin" | "healthy", weekStart);
   if (!week) return { pending: true };
 
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
@@ -302,6 +312,8 @@ export type CalendarDay = {
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   locked: boolean;
   isMakeup: boolean;
+  /** Released menu_week publicId; null when the delivery exists but that week's menu isn't out yet. */
+  menuWeekId: string | null;
   meal: ResolvedMeal | null;
   options: MealOption[];
 };
@@ -326,13 +338,10 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
   // Only released weeks are ever shown: an unreleased next-week has no menu to resolve against,
   // so its delivery days are simply absent from the calendar rather than rendered blank.
+  // Uses menuService.getReleasedWeeks — same exact weekStart gate as Menu / myDeliveryMeal.
   const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
-  const releasedWeeks = await db
-    .select()
-    .from(menuWeeks)
-    .where(and(eq(menuWeeks.planType, order.planType), inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")));
+  const releasedWeeks = await menuService.getReleasedWeeks(order.planType as "tiffin" | "healthy", weekStarts);
   const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
-  if (weekByStart.size === 0) return [];
 
   const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
   // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
@@ -348,7 +357,19 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const out: CalendarDay[] = [];
   for (const row of rows) {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
-    if (!week) continue; // day's week isn't released — omit the cell entirely
+    if (!week) {
+      // Delivery is scheduled but the week's menu isn't released — still show the day tile.
+      out.push({
+        date: row.deliveryDate,
+        status: row.status as CalendarDay["status"],
+        locked: row.cutoffAt <= Date.now(),
+        isMakeup: row.isMakeup,
+        menuWeekId: null,
+        meal: null,
+        options: [],
+      });
+      continue;
+    }
 
     let weekResolved = resolvedByWeek.get(week.id);
     if (!weekResolved) {
@@ -383,6 +404,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
       status: row.status as CalendarDay["status"],
       locked: row.cutoffAt <= Date.now(),
       isMakeup: row.isMakeup,
+      menuWeekId: week.publicId,
       meal,
       options,
     });

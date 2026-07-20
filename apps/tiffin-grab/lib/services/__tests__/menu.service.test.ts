@@ -53,6 +53,25 @@ describe("menuService (integration)", () => {
     expect(mon.map((x) => x.dishName)).toEqual(["Dal", "Paneer"]);
   });
 
+  it("getReleasedWeek / getReleasedWeeks only return exact released weekStarts", async () => {
+    const draft = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-05-03" });
+    const released = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-05-10" });
+    await menuService.release(released.publicId);
+
+    expect(await menuService.getReleasedWeek("tiffin", "2099-05-03")).toBeNull(); // draft
+    expect(await menuService.getReleasedWeek("tiffin", "2099-05-17")).toBeNull(); // missing
+    const one = await menuService.getReleasedWeek("tiffin", "2099-05-10");
+    expect(one).toMatchObject({ publicId: released.publicId, weekStart: "2099-05-10", planType: "tiffin" });
+
+    // getPublishedWeek(planType, weekStart) shares the same exact gate
+    expect(await menuService.getPublishedWeek("tiffin", "2099-05-03")).toBeNull();
+    expect((await menuService.getPublishedWeek("tiffin", "2099-05-10"))?.weekStart).toBe("2099-05-10");
+
+    const batch = await menuService.getReleasedWeeks("tiffin", ["2099-05-03", "2099-05-10", "2099-05-17"]);
+    expect(batch.map((w) => w.weekStart)).toEqual(["2099-05-10"]);
+    void draft;
+  });
+
   it("listWeeks returns the plan's weeks newest-first with item counts", async () => {
     const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
     const older = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-02" });

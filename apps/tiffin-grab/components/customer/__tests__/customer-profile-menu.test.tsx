@@ -13,6 +13,6 @@ afterEach(cleanup);
 describe("CustomerProfileMenu", () => {
   it("renders a link to /me/profile with the user's initial/avatar", () => {
     render(<CustomerProfileMenu user={{ name: "Asha", email: "a@x.com", image: null }} />);
-    expect(screen.getByRole("link", { name: /profile|Asha/i })).toHaveAttribute("href", "/me/profile");
+    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/me/account");
   });
 });

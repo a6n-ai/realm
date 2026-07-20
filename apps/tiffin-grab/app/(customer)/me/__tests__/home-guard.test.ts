@@ -18,7 +18,9 @@ vi.mock("@/lib/services/app-settings.service", () => ({
 // db/schema import graph (which itself transitively pulls in session-service and
 // breaks the partial mock above).
 vi.mock("@/lib/services/customer-deliveries.service", () => ({
-  myActiveSubscriptions: vi.fn().mockResolvedValue([]),
+  myPrimarySubscription: vi.fn().mockResolvedValue(null),
+  myWaitlistedSubscriptions: vi.fn().mockResolvedValue([]),
+  myCalendar: vi.fn().mockResolvedValue([]),
   nextDeliveryByOrder: vi.fn().mockResolvedValue(new Map()),
 }));
 // The subscription section's Pause/Resume controls import these "use server" actions, which
@@ -72,8 +74,7 @@ describe("/me home shell", () => {
     render(await MePage());
 
     expect(screen.getByRole("heading", { name: /home/i, level: 1 })).toBeInTheDocument();
-    // Trimmed mobile home: subscription · wallet only.
     expect(screen.getByRole("heading", { name: /your subscription/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^wallet$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^finances$/i })).toBeNull();
   });
 });

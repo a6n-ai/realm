@@ -9,9 +9,7 @@ import {
   myWaitlistedSubscriptions,
   nextDeliveryByOrder,
 } from "@/lib/services/customer-deliveries.service";
-import { walletService } from "@/lib/services/wallet.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
-import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
 import {
   HomeWeekStrip,
   HomeWeekStripEmpty,
@@ -43,16 +41,9 @@ export default async function MePage() {
             </Suspense>
           );
         }
-        if (section.key === "subscription") {
-          return (
-            <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
-              <SubscriptionSectionData userId={userId} timezone={timezone} />
-            </Suspense>
-          );
-        }
         return (
-          <Suspense key={section.key} fallback={<WalletSectionSkeleton />}>
-            <WalletSectionData userId={userId} />
+          <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
+            <SubscriptionSectionData userId={userId} timezone={timezone} />
           </Suspense>
         );
       })}
@@ -85,12 +76,4 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
     ? [{ ...primary, nextDelivery: nextByOrder.get(primary.publicId) ?? null }]
     : [];
   return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
-}
-
-async function WalletSectionData({ userId }: { userId: bigint }) {
-  const [balance, transactions] = await Promise.all([
-    walletService.balance(userId),
-    walletService.recentTransactions(userId, 10),
-  ]);
-  return <WalletSection balance={balance} transactions={transactions} />;
 }

@@ -37,10 +37,10 @@ describe("ExistingSubscriptions", () => {
     expect(screen.getAllByRole("link", { name: /Manage/i }).length).toBeGreaterThan(0);
   });
 
-  it("explains one-plan mode when a live plan exists", () => {
-    render(<ExistingSubscriptions subs={[mk("active", "Veg")]} onePlanMode />);
-    expect(screen.getByText(/tied to this plan/i)).toBeInTheDocument();
-    expect(screen.getByText(/don.?t need a second subscription/i)).toBeInTheDocument();
+  it("soft-encourages starting another when a live plan exists", () => {
+    render(<ExistingSubscriptions subs={[mk("active", "Veg")]} />);
+    expect(screen.getByText(/already have a plan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Starting another is fine/i)).toBeInTheDocument();
   });
 
   it("renders nothing when empty", () => {

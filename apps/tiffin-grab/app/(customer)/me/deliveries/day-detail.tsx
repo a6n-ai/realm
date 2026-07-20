@@ -31,6 +31,7 @@ import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
 import type { CalendarCell } from "./calendar-constants";
 import { DAY_STATUS_BAR_CLASS, DAY_STATUS_LABEL, calendarDayStatus, type DayStatus } from "./day-status";
+import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
 import type { CustomerDelivery } from "@/lib/services/customer-deliveries.service";
@@ -167,7 +168,7 @@ function DeliveryDayActions({ delivery, locked, onChanged }: {
 }
 
 export function DayDetail({
-  dateIso, cell, delivery, orderPublicId, categoryLabels, tz, onChanged,
+  dateIso, cell, delivery, orderPublicId, categoryLabels, categoryCounts = {}, tz, onChanged,
   // "picker" hides the status summary banner — mobile already shows MobileDayOrderCard above.
   variant = "full",
 }: {
@@ -176,6 +177,8 @@ export function DayDetail({
   delivery: DeliveryCardData | undefined;
   orderPublicId: string;
   categoryLabels: Record<string, string>;
+  /** Plan composition qty per category — drives how many picks the day picker shows. */
+  categoryCounts?: Record<string, number>;
   tz: string;
   onChanged: () => void;
   variant?: "full" | "picker";
@@ -208,8 +211,8 @@ export function DayDetail({
                 says everything; a "Locked"/"Sealed" pill next to it would be contradictory. */}
             {kind !== "unreleased" && <span className="text-muted-foreground text-xs">{DAY_STATUS_LABEL[status]}</span>}
           </div>
-          {kind === "unreleased" && <p className="mt-1 text-muted-foreground text-xs">Menu not published yet</p>}
-          {kind === "cell" && menuNotReleased && <p className="mt-1 text-muted-foreground text-xs">Menu not released yet</p>}
+          {kind === "unreleased" && <p className="mt-1 text-muted-foreground text-xs">{menuNotPublishedCopy(dateIso)}</p>}
+          {kind === "cell" && menuNotReleased && <p className="mt-1 text-muted-foreground text-xs">{menuNotReleasedCopy(dateIso)}</p>}
           {kind === "cell" && !menuNotReleased && delivery && (
             chips.length === 0 ? (
               <p className="mt-1 text-muted-foreground text-xs">Nothing scheduled</p>
@@ -233,7 +236,13 @@ export function DayDetail({
       {status === "locked" ? (
         delivery ? <CutoffBanner days={[{ dateIso, dayOfWeek: weekdayKey(new Date(`${dateIso}T00:00:00Z`)), lockMs: delivery.cutoffAt }]} /> : null
       ) : kind === "cell" && cell && released ? (
-        <MealDayPicker cell={cell} orderPublicId={orderPublicId} categoryLabels={categoryLabels} onChanged={onChanged} />
+        <MealDayPicker
+          cell={cell}
+          orderPublicId={orderPublicId}
+          categoryLabels={categoryLabels}
+          categoryCounts={categoryCounts}
+          onChanged={onChanged}
+        />
       ) : null}
 
       {kind === "cell" && delivery && (

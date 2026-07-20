@@ -4,10 +4,10 @@
 // not the real value (the /dashboard/orders bug this pattern exists to avoid).
 
 import type { CalendarDay } from "@/lib/services/customer-deliveries.service";
+import { mondayOfIso } from "@/lib/menu/delivery-dates";
 
-// myCalendar's CalendarDay doesn't carry the released week's own id — page.tsx resolves it
-// separately (menuWeeks lookup by planType+weekStart) since pickMyDish/applyMyDishToWeek need it.
-export type CalendarCell = CalendarDay & { menuWeekId: string | null };
+// myCalendar attaches menuWeekId via menuService.getReleasedWeeks (same gate as Menu).
+export type CalendarCell = CalendarDay;
 
 // Still consumed by components/customer/home/subscription-section.tsx's status pill (the home
 // page's subscription card, out of this redesign's scope) — kept even though the calendar's own
@@ -28,13 +28,34 @@ export const SUB_STATUS_LABEL: Record<SubscriptionStatus, string> = {
   paused: "Paused",
 };
 
-// Calendar fetch-window size: page.tsx reads [today, today+WINDOW_DAYS*(extraWindows+1)] from
-// myCalendar/myDeliveries. 35 days (5 Mon-Sun weeks) so the desktop MonthCalendar always has a
-// full month's worth of real data; "Load more weeks" bumps extraWindows via ?days=N.
-export const WINDOW_DAYS = 35;
+/** `YYYY-MM` for the calendar month being viewed. */
+export function currentMonthKey(today: string): string {
+  return today.slice(0, 7);
+}
 
-// Hard ceiling on `?days=`: a hand-edited URL can otherwise force an unbounded date-range read.
-export const MAX_EXTRA_WINDOWS = 12;
+/** Resolve `?month=`; defaults to today's month and never goes to a past month. */
+export function parseMonthParam(monthParam: string | undefined, today: string): string {
+  const floor = currentMonthKey(today);
+  if (!monthParam || !/^\d{4}-\d{2}$/.test(monthParam)) return floor;
+  return monthParam < floor ? floor : monthParam;
+}
+
+/** Inclusive calendar-month bounds for delivery reads; `from` is clamped to today. */
+export function monthFetchRange(monthKey: string, today: string): { from: string; until: string } {
+  const [y, m] = monthKey.split("-").map(Number);
+  const first = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const until = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const from = first < today ? today : first;
+  return { from, until };
+}
+
+/** Monday of the week to load menu options for a selected day (on/after today's week). */
+export function menuWeekForDay(dayIso: string, today: string): string {
+  const minMonday = mondayOfIso(today);
+  const monday = mondayOfIso(dayIso);
+  return monday < minMonday ? minMonday : monday;
+}
 
 // react-day-picker Day objects (and JS Date in general) are constructed from local, not UTC,
 // year/month/day fields — this mirrors that back to a plain "YYYY-MM-DD" so it lines up with

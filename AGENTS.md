@@ -51,3 +51,27 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Audit fields (`created_by`/`updated_by`) stamped from the session, never from input.
 - **Next.js 16:** route protection lives in `proxy.ts` (renamed `middleware.ts`).
   Read `node_modules/next/dist/docs/` before writing framework code.
+
+## Learned User Preferences
+
+- Prefer expanding customer Wallet into a Finances hub (tabs) over adding a new bottom-nav item; the customer bottom nav is already full.
+- Keep delivery fulfillment separate from money billing; monthly bills and money transactions belong under Finances, not under Deliveries History.
+- When matching the customer deliveries calendar to reference screenshots, prioritize the mobile viewport and avoid selected-day fills that clash with status legend colors (use brand primary, not green/`bg-ok`).
+- Prefer mobile-first subscribe/checkout UX with clear back/close; the customer Order FAB should make its subscribe/order purpose obvious.
+- When a logged-in customer starts another subscription, show soft per-step current-plan context (meals, weeks already covered) rather than blocking a second subscription.
+- Customer home and deliveries calendars should default the selected day to today on mount.
+- Deliveries plan header uses flat summary text (`SubscriptionPlanSummary`), not pills/chips; show subscription dropdown only when the customer has multiple active subscriptions.
+- Home "This week's menu" should show Mon–Sun columns; days with no dishes render only the day label (no placeholder or underline).
+- Customer Menu and Deliveries must resolve released menu weeks through the same `menuService` API (no cross-week fallback on Menu).
+
+## Learned Workspace Facts
+
+- Customer Finances hub lives at `/me/wallet` (nav label Finances) with `?tab=` Coins | Bills | Transactions; Coins use `wallet_ledger`, while Bills/Transactions use `orders` / `payments` / `ledger_entries`.
+- Customer `/me/deliveries` is calendar-focused (delivery History UI removed); loads one calendar month at a time via `?month=YYYY-MM` (all delivery days in month; menu for each released week in that range).
+- Money “monthly bills” map to prepaid `orders` (+ nested `payments`), not coin wallet rows or delivery rows; there is no separate monthly-invoice entity yet.
+- Subscribe flow is public Wizard → Checkout; `ExistingSubscriptions` lists active plans above the wizard, and soft current-plan hints use `CurrentPlanHint` in wizard steps.
+- Customer bottom-nav center FAB routes to `/subscribe` (Order).
+- Home week strip and deliveries calendars initialize the selected day to today.
+- Released menu weeks for customer Menu and Deliveries go through `menuService.getReleasedWeek(s)` (exact `weekStart`; Menu no longer falls back to another published week).
+- Deliveries calendar month navigation updates `?month=`; delivery tiles always show for scheduled days; menu options attach only when that delivery's week is released (`menuService.getReleasedWeeks`).
+- Menu page answers "what's published to browse this week?" while Deliveries answers "what's released for this delivery date's week?" — same API gate, different per-surface questions.
