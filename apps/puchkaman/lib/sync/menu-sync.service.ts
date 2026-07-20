@@ -19,6 +19,9 @@ export type DuplicateCandidate = {
 export type SyncResult = {
   added: { publicId: string; name: string }[];
   updatesAvailable: { publicId: string; name: string }[];
+  // Items whose photo changed and was auto-rehosted to our storage this sync
+  // (applied immediately, unlike text/price which wait in updatesAvailable).
+  imagesUpdated: { publicId: string; name: string }[];
   unchangedCount: number;
   duplicates: DuplicateCandidate[];
   categoryIssues: { rawCategory: string; items: string[] }[];
@@ -58,6 +61,7 @@ export class MenuSyncService {
     const result: SyncResult = {
       added: [],
       updatesAvailable: [],
+      imagesUpdated: [],
       unchangedCount: 0,
       duplicates: [],
       categoryIssues: [],
@@ -131,21 +135,32 @@ export class MenuSyncService {
   }
 
   private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult): Promise<void> {
+    // Image changes auto-persist to our storage on every sync (no manual Apply)
+    // so the public site never renders a volatile Uber Eats source URL. Text and
+    // price diffs still queue in pendingSync for admin approval below.
+    const imageChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
+    const imagePatch: Record<string, unknown> = {};
+    if (imageChanged) {
+      imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced") : null;
+      imagePatch.lastSyncedImageUrl = item.imageUrl ?? null;
+      result.imagesUpdated.push({ publicId: existing.publicId, name: existing.name });
+    }
+
     const pending: Record<string, unknown> = {};
     if (existing.name !== item.name) pending.name = item.name;
     if ((existing.description ?? null) !== (item.description ?? null)) pending.description = item.description;
     if (Math.abs(Number(existing.price) - item.price) > PRICE_EPSILON) pending.price = item.price;
-    if ((existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null)) pending.imageUrl = item.imageUrl;
 
     if (Object.keys(pending).length === 0) {
-      await db.update(products).set({ lastSyncedAt: Date.now(), syncStatus: "synced" }).where(eq(products.id, existing.id));
-      result.unchangedCount++;
+      await db.update(products).set({ ...imagePatch, lastSyncedAt: Date.now(), syncStatus: "synced" }).where(eq(products.id, existing.id));
+      if (!imageChanged) result.unchangedCount++;
       return;
     }
 
     await db
       .update(products)
       .set({
+        ...imagePatch,
         pendingSync: { ...pending, fetchedAt: new Date().toISOString() },
         syncStatus: "update_available",
         lastSyncedAt: Date.now(),

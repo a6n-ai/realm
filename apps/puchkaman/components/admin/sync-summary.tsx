@@ -7,6 +7,7 @@ import type { SyncResult } from "@/lib/sync/menu-sync.service";
 const STAT_STYLE: Record<string, { bg: string; label: string }> = {
   added: { bg: "var(--mint)", label: "Added" },
   updatesAvailable: { bg: "var(--yellow)", label: "Updates available" },
+  imagesUpdated: { bg: "var(--mint)", label: "Photos updated" },
   unchanged: { bg: "var(--cream)", label: "Unchanged" },
   duplicates: { bg: "var(--pink)", label: "Duplicates to resolve" },
   categoryIssues: { bg: "var(--red)", label: "Category issues" },
@@ -17,6 +18,7 @@ export function SyncSummary({ result }: { result: SyncResult }) {
   const stats: { key: string; count: number; items: string[] }[] = [
     { key: "added", count: result.added.length, items: result.added.map((i) => i.name) },
     { key: "updatesAvailable", count: result.updatesAvailable.length, items: result.updatesAvailable.map((i) => i.name) },
+    { key: "imagesUpdated", count: result.imagesUpdated.length, items: result.imagesUpdated.map((i) => i.name) },
     { key: "unchanged", count: result.unchangedCount, items: [] },
     { key: "duplicates", count: result.duplicates.length, items: result.duplicates.map((d) => d.incoming.name) },
     {

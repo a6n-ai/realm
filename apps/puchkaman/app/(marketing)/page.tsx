@@ -1,9 +1,20 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import type { FileDetail } from "@realm/storage/model";
 import { Btn, Marquee, Ph, Pill, SectionHead, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { ProductImage } from "@/components/products/product-image";
+import { productsService } from "@/lib/services/products.service";
+import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 
-const BEST_SELLERS = [
+// Home reads live products (real photos rehosted to our storage). force-dynamic
+// so newly featured/synced items and their images show without a rebuild.
+export const dynamic = "force-dynamic";
+
+type BestSellerCard = { name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
+
+// Static fallback (no photos) for a fresh DB with nothing marked featured yet.
+const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
   { name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "red" },
   { name: "Dahi Puchka", tag: "Cooling", desc: "Crispy shells loaded with sweet yogurt & chutneys.", price: "$7" },
   { name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "red" },
@@ -24,7 +35,23 @@ const COMBOS = [
   { e: "🎉", t: "Live Catering", d: "Live puchka & chaat stations for any event across the GTA.", cta: "Get a quote", pg: "catering", bg: "var(--white)" },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const featured = await productsService.featuredProducts(6);
+  const cards: BestSellerCard[] = featured.length
+    ? featured.map((p) => {
+        const badge = (p.tags ?? []).find((t) => TAG_STYLE[t]);
+        return {
+          name: p.name,
+          tag: CATEGORIES[p.category as CategoryId]?.name ?? p.category,
+          desc: p.description ?? "",
+          price: `$${Number(p.price).toFixed(0)}`,
+          sticker: badge ? TAG_STYLE[badge].label : undefined,
+          sv: badge && TAG_STYLE[badge].variant === "red" ? "red" : undefined,
+          image: (p.image as FileDetail | null) ?? null,
+        };
+      })
+    : BEST_SELLERS.map((d) => ({ ...d, image: null }));
+
   return (
     <div>
       {/* ===== ANNOUNCEMENT RIBBON ===== */}
@@ -92,11 +119,11 @@ export default function HomePage() {
         <div className="wrap">
           <SectionHead kicker="Crowd Favourites" title="The Best Sellers" sub="The dishes Scarborough keeps coming back for. Tap any to see the full menu." />
           <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-            {BEST_SELLERS.map((d, i) => (
+            {cards.map((d, i) => (
               <Reveal key={d.name} delay={i * 60}>
                 <Link href="/productsmenu" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
-                    <Ph label={`${d.name} photo`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
+                    <ProductImage image={d.image} name={d.name} />
                     {d.sticker && (
                       <span
                         className="sticker rotate-l"
