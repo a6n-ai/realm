@@ -1,5 +1,5 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@realm/commons";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
@@ -322,6 +322,81 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
       .where(and(eq(orders.id, orderId), eq(orders.status, "active")))
       .returning({ id: orders.id });
     return updated.length > 0;
+  });
+}
+
+/**
+ * Turn one pooled tiffin into a real delivery date the customer picked. The date must be strictly
+ * after the order's current last delivery and land on a plan weekday. Creates a make-up row linked
+ * to the oldest pooled miss lacking a make-up (so maybeComplete's debt anti-join clears), and
+ * decrements orders.pooled_tiffin_count by `persons`.
+ *
+ * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
+ */
+export async function scheduleFromPool(
+  orderPublicId: string,
+  dateIso: string,
+  actorId: bigint | null,
+): Promise<{ deliveryPublicId: string }> {
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDateRegex.test(dateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
+
+  return db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") {
+      throw new ValidationError("This subscription can no longer be scheduled");
+    }
+    if (order.pooledTiffinCount < order.persons) throw new ValidationError("No tiffins left to schedule");
+
+    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
+      .from(deliveries).where(eq(deliveries.orderId, orderId));
+    if (max && dateIso <= max) throw new ValidationError("Date must be after your last delivery");
+
+    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = new Set(orderDeliveryDays({
+      frequencyKey: freq!.key,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+    }));
+    if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
+      throw new ValidationError("That day isn't on your plan");
+    }
+
+    // Oldest pooled miss without a make-up yet — links this new date back to what it makes up for.
+    const [miss] = await tx.select({ id: deliveries.id })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId),
+        isNotNull(deliveries.pooledAt),
+        inArray(deliveries.status, ["paused", "skipped"]),
+        isNull(existingMakeup.id),
+      ))
+      .orderBy(asc(deliveries.deliveryDate))
+      .limit(1);
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const [inserted] = await tx.insert(deliveries).values({
+      orderId,
+      deliveryDate: dateIso,
+      status: "scheduled",
+      cutoffAt: cutoffMsFor(dateIso, cutoffHour, timezone),
+      makeupForDeliveryId: miss?.id ?? null,
+    }).returning({ id: deliveries.id, publicId: deliveries.publicId });
+
+    await tx.update(orders)
+      .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${order.persons}` })
+      .where(eq(orders.id, orderId));
+
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: inserted.id, type: "pool_scheduled", createdBy: actorId,
+    });
+    return { deliveryPublicId: inserted.publicId };
   });
 }
 
