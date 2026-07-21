@@ -677,7 +677,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // UPDATE actually matches a row (i.e. the one that wins the race) proceeds to revert deliveries,
   // close the pause row, and log the "resumed" activity — the loser gets zero rows back and returns
   // as a no-op instead of writing a duplicate activity / redundant delivery revert.
-  async resume(publicId: string, actorId?: bigint): Promise<void> {
+  // `fromDate` (ISO) resumes a vacation partway: only paused days on/after it come back; earlier
+  // paused days move to the remain pool (see resumeOrderDeliveries). Omit for a full resume.
+  async resume(publicId: string, actorId?: bigint, fromDate?: string): Promise<void> {
     const order = await this.read(publicId);
     if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);
     const resolvedActorId = actorId ?? (await this.currentUserId()) ?? null;
@@ -695,7 +697,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       changes: { status: { from: order.status, to: "active" } },
       createdBy: resolvedActorId,
     });
-    await resumeOrderDeliveries(publicId);
+    await resumeOrderDeliveries(publicId, fromDate);
     await db.update(subscriptionPauses)
       .set({ resumedAt: new Date(), resumedBy: resolvedActorId })
       .where(and(eq(subscriptionPauses.orderId, order.id), isNull(subscriptionPauses.resumedAt)));
@@ -720,7 +722,8 @@ export const activateOrder = (publicId: string): Promise<void> => ordersService.
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>
   ordersService.pause(publicId, window);
-export const resumeOrder = (publicId: string, actorId?: bigint): Promise<void> => ordersService.resume(publicId, actorId);
+export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: string): Promise<void> =>
+  ordersService.resume(publicId, actorId, fromDate);
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
 

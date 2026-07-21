@@ -5,9 +5,8 @@ import { currentUserId } from "@/lib/services/session-service";
 import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
-import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { zonedDateIso } from "@realm/commons";
 import { PageShell, PageHeader } from "@/components/ds";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
 import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
@@ -49,7 +48,7 @@ async function MenuSectionData({ userId }: { userId: bigint }) {
   const subs = await myActiveSubscriptions(userId);
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
-  const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+  const thisMonday = thisWeekStartIso(Date.now(), timezone);
   // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
   const week = await menuService.getPublishedWeek(planType, thisMonday);
   return <ThisWeekMenuSection week={week} />;
@@ -62,7 +61,7 @@ async function DishesSectionData({ userId }: { userId: bigint }) {
   ]);
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
-  const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+  const thisMonday = thisWeekStartIso(Date.now(), timezone);
   const week = await menuService.getPublishedWeek(planType, thisMonday);
 
   const daysByDish: Record<string, string[]> = {};

@@ -3,13 +3,13 @@ import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { comingWeekStartIso } from "@/lib/menu/delivery-dates";
+import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { buildMealsGrid } = await import("../meals-grid");
 
 const SETTINGS = { timezone: "UTC", cutoffHour: 23 };
-const COMING_MONDAY = comingWeekStartIso(Date.now(), SETTINGS.timezone);
+const THIS_MONDAY = thisWeekStartIso(Date.now(), SETTINGS.timezone);
 
 const IMG = { url: "/api/files/x.jpg", filePath: "x.jpg", fileName: "x.jpg", name: "x.jpg", type: "image/jpeg", isDirectory: false, size: 1 };
 
@@ -21,7 +21,7 @@ async function reset() {
 
 async function seedMondayDelivery(orderId: bigint) {
   const [row] = await db.insert(deliveries).values({
-    orderId, deliveryDate: COMING_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9,
+    orderId, deliveryDate: THIS_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9,
   }).returning();
   return row;
 }
@@ -32,7 +32,7 @@ async function makeOrder(planId: bigint) {
   const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);
   const [o] = await db.insert(orders).values({
     userId: u.id, planId, mealSizeId: snap.mealSizes[0].id, frequencyId: freq.id,
-    persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: COMING_MONDAY,
+    persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: THIS_MONDAY,
     categoryCounts: { sabzi: 2, rice: 1 },
     tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
     deploymentId: `SUB-GRID-IMG-${Math.floor(Math.random() * 1e6)}`, fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
@@ -46,7 +46,7 @@ async function makeOrder(planId: bigint) {
 }
 
 async function makeWeek() {
-  const [w] = await db.insert(menuWeeks).values({ weekStart: COMING_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+  const [w] = await db.insert(menuWeeks).values({ weekStart: THIS_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
   return w;
 }
 

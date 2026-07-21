@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { reconcileMakeups, skipDelivery } = await import("../deliveries.service");
+const { reconcilePoolFromMisses, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -67,56 +67,66 @@ async function nthDelivery(o: { id: bigint }, n: number) {
   return rows[n];
 }
 
-describe("reconcileMakeups (integration)", () => {
+async function pooledCount(o: { id: bigint }) {
+  const [row] = await db.select({ n: orders.pooledTiffinCount }).from(orders).where(eq(orders.id, o.id));
+  return row.n;
+}
+
+describe("reconcilePoolFromMisses (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("spawns nothing before cutoff, exactly one after", async () => {
-    const o = await activatedOrder(); // N = 10
+  it("pools nothing before cutoff, exactly one tiffin after — and creates no make-up date", async () => {
+    const o = await activatedOrder(); // N = 10, persons = 1
     const d = await nthDelivery(o, 0);
     await skipDelivery(d.publicId, 1n);
-    expect(await reconcileMakeups(o.id)).toBe(0); // cutoff not passed
+    expect(await reconcilePoolFromMisses(o.id)).toBe(0); // cutoff not passed
+    expect(await pooledCount(o)).toBe(0);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
-    expect(await reconcileMakeups(o.id)).toBe(1);
-    expect(await reconcileMakeups(o.id)).toBe(0); // idempotent
-    const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
-    expect(mk.status).toBe("scheduled");
+    expect(await reconcilePoolFromMisses(o.id)).toBe(1);
+    expect(await reconcilePoolFromMisses(o.id)).toBe(0); // idempotent
+    expect(await pooledCount(o)).toBe(1);
+    const [miss] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
+    expect(miss.pooledAt).not.toBeNull();
+    // no make-up date was created
+    const makeups = await db.select().from(deliveries)
+      .where(and(eq(deliveries.orderId, o.id), isNotNull(deliveries.makeupForDeliveryId)));
+    expect(makeups.length).toBe(0);
   });
 
-  it("two missed rows produce two make-ups on distinct dates", async () => {
+  it("two missed rows pool two tiffins", async () => {
     const o = await activatedOrder();
     const [a, b] = [await nthDelivery(o, 0), await nthDelivery(o, 1)];
     await skipDelivery(a.publicId, 1n);
     await skipDelivery(b.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 })
       .where(inArray(deliveries.id, [a.id, b.id]));
-    expect(await reconcileMakeups(o.id)).toBe(2);
-    const mks = await db.select().from(deliveries)
-      .where(and(eq(deliveries.orderId, o.id), isNotNull(deliveries.makeupForDeliveryId)));
-    expect(new Set(mks.map((m) => m.deliveryDate)).size).toBe(2);
+    expect(await reconcilePoolFromMisses(o.id)).toBe(2);
+    expect(await pooledCount(o)).toBe(2);
   });
 
-  it("a missed make-up spawns nothing (make-ups are terminal)", async () => {
+  it("a legacy make-up child leaves its original unpooled (entitlement already on the calendar)", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
-    await skipDelivery(d.publicId, 1n);
-    await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
-    await reconcileMakeups(o.id);
-    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1 })
-      .where(and(eq(deliveries.orderId, o.id), isNotNull(deliveries.makeupForDeliveryId)));
-    expect(await reconcileMakeups(o.id)).toBe(0);
+    // Simulate the old auto-make-up: skipped original past cutoff WITH a make-up child.
+    await db.update(deliveries).set({ status: "skipped", cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
+    await db.insert(deliveries).values({
+      orderId: o.id, deliveryDate: "2030-01-21", status: "scheduled",
+      cutoffAt: Date.now() + 1e9, makeupForDeliveryId: d.id,
+    });
+    expect(await reconcilePoolFromMisses(o.id)).toBe(0);
+    expect(await pooledCount(o)).toBe(0);
   });
 
-  it("a paused row past cutoff produces a make-up too", async () => {
+  it("a paused row past cutoff pools a tiffin too", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
     await db.update(deliveries).set({ status: "paused", cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
-    expect(await reconcileMakeups(o.id)).toBe(1);
-    const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
-    expect(mk.status).toBe("scheduled");
+    expect(await reconcilePoolFromMisses(o.id)).toBe(1);
+    expect(await pooledCount(o)).toBe(1);
   });
 
-  it("keeps count(originals) === N across skip -> cutoff -> reconcile", async () => {
+  it("keeps count(originals) === N across skip -> cutoff -> reconcile (pooling adds no rows)", async () => {
     const o = await activatedOrder(); // N = 10
     const originals = () => db.select().from(deliveries)
       .where(and(eq(deliveries.orderId, o.id), isNull(deliveries.makeupForDeliveryId)));
@@ -124,8 +134,8 @@ describe("reconcileMakeups (integration)", () => {
     const d = await nthDelivery(o, 0);
     await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
-    await reconcileMakeups(o.id);
-    expect((await originals()).length).toBe(10); // make-up is not an original
+    await reconcilePoolFromMisses(o.id);
+    expect((await originals()).length).toBe(10); // pooling never inserts rows
   });
 
   it("returns 0 for a cancelled order", async () => {
@@ -134,19 +144,17 @@ describe("reconcileMakeups (integration)", () => {
     await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, o.id));
-    expect(await reconcileMakeups(o.id)).toBe(0);
-    const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
-    expect(mk).toBeUndefined();
+    expect(await reconcilePoolFromMisses(o.id)).toBe(0);
+    expect(await pooledCount(o)).toBe(0);
   });
 
-  it("returns 0 for a completed order (defense in depth: correct maybeComplete should never let this happen)", async () => {
+  it("returns 0 for a completed order (defense in depth)", async () => {
     const o = await activatedOrder();
     const d = await nthDelivery(o, 0);
     await skipDelivery(d.publicId, 1n);
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1 }).where(eq(deliveries.id, d.id));
     await db.update(orders).set({ status: "completed" }).where(eq(orders.id, o.id));
-    expect(await reconcileMakeups(o.id)).toBe(0);
-    const [mk] = await db.select().from(deliveries).where(eq(deliveries.makeupForDeliveryId, d.id));
-    expect(mk).toBeUndefined();
+    expect(await reconcilePoolFromMisses(o.id)).toBe(0);
+    expect(await pooledCount(o)).toBe(0);
   });
 });

@@ -18,6 +18,9 @@ export const deliveries = pgTable("deliveries", {
   // N originals coexist under this unique index.
   makeupForDeliveryId: bigint("makeup_for_delivery_id", { mode: "bigint" })
     .references((): AnyPgColumn => deliveries.id),
+  // Set once when this miss's tiffins were added to orders.pooled_tiffin_count (idempotent
+  // reconcile). NULL = not yet accounted into the pool.
+  pooledAt: bigint("pooled_at", { mode: "number" }),
   // All four NULL = inherit the order's address.
   fullName: text("full_name"),
   addressLine: text("address_line"),

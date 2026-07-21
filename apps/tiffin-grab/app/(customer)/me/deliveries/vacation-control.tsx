@@ -72,6 +72,8 @@ export function VacationControl({
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [resumePending, startResumeTransition] = useTransition();
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [resumeFromDate, setResumeFromDate] = useState("");
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
 
   const onVacation = pausePanel.usage.hasOpenPause || sub.status === "paused";
   const { limits, usage } = pausePanel;
@@ -154,8 +156,9 @@ export function VacationControl({
     setResumeError(null);
     startResumeTransition(async () => {
       try {
-        await resumeMySubscription(sub.publicId);
+        await resumeMySubscription(sub.publicId, resumeFromDate || undefined);
         router.refresh();
+        setResumeFromDate("");
         setOpen(false);
       } catch (e) {
         setResumeError(e instanceof Error ? e.message : "Failed to resume deliveries");
@@ -206,10 +209,29 @@ export function VacationControl({
         {onVacation ? (
           <div className="space-y-3">
             <p className="text-muted-foreground text-sm">
-              Deliveries are paused for this plan. Resume when you are ready for meals again.
+              Deliveries are paused for this plan. Resume everything now, or pick a day to resume
+              from — paused days before that day move to your remain pool to reschedule later.
             </p>
+            <VacationDateField
+              id="resume-from"
+              label="Resume from"
+              optionalHint=" (optional)"
+              value={resumeFromDate}
+              onChange={setResumeFromDate}
+              today={today}
+              isDisabledDay={isDisabledDay}
+              open={resumePickerOpen}
+              onOpenChange={setResumePickerOpen}
+            />
+            {resumeFromDate && (
+              <p className="text-muted-foreground text-sm">
+                Deliveries resume on {formatDateOnly(resumeFromDate, { mode: "long" })}. Paused days
+                before it become tiffins you can schedule after your last delivery.
+              </p>
+            )}
             <Button disabled={resumePending} onClick={submitResume}>
-              <PlayIcon data-icon="inline-start" /> Resume deliveries
+              <PlayIcon data-icon="inline-start" />
+              {resumeFromDate ? "Resume from this day" : "Resume all deliveries"}
             </Button>
             {resumeError && <p className="text-bad text-xs">{resumeError}</p>}
           </div>

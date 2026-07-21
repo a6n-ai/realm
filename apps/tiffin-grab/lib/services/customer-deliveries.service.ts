@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,
@@ -15,6 +16,7 @@ import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
+import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -159,6 +161,78 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+}
+
+export type TiffinCounts = {
+  /** tiffinCount snapshot from checkout — persons × delivery days over the plan. */
+  total: number;
+  /** Days past cutoff that stayed scheduled (incl. make-ups), × persons. */
+  delivered: number;
+  /** total − delivered. Includes both future scheduled days and pooled tiffins. */
+  remaining: number;
+  /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
+  pooled: number;
+  /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
+  persons: number;
+  /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
+  lastDeliveryDate: string | null;
+  /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
+  deliveryWeekdays: string[];
+};
+
+// Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
+// pool" UI needs (last delivery date + plan weekdays). Delivered is derived from the order's
+// delivery rows via the pure tiffin-counts helper; pooled is the stored counter maintained by
+// reconcilePoolFromMisses / scheduleFromPool.
+export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  const [order] = await db
+    .select({
+      id: orders.id,
+      tiffinCount: orders.tiffinCount,
+      persons: orders.persons,
+      pooled: orders.pooledTiffinCount,
+      includeSaturday: orders.includeSaturday,
+      includeSunday: orders.includeSunday,
+      frequencyKey: deliveryFrequencies.key,
+    })
+    .from(orders)
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) throw new NotFoundError("Subscription not found");
+
+  const rows = await db
+    .select({
+      status: deliveries.status,
+      cutoffAt: deliveries.cutoffAt,
+      makeupForDeliveryId: deliveries.makeupForDeliveryId,
+      pooledAt: deliveries.pooledAt,
+      deliveryDate: deliveries.deliveryDate,
+    })
+    .from(deliveries)
+    .where(eq(deliveries.orderId, order.id));
+
+  const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
+  const lastDeliveryDate = rows.reduce<string | null>(
+    (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
+    null,
+  );
+  const deliveryWeekdays = orderDeliveryDays({
+    frequencyKey: order.frequencyKey,
+    includeSaturday: order.includeSaturday,
+    includeSunday: order.includeSunday,
+  });
+
+  return {
+    total: order.tiffinCount,
+    delivered,
+    remaining: order.tiffinCount - delivered,
+    pooled: order.pooled,
+    persons: order.persons,
+    lastDeliveryDate,
+    deliveryWeekdays,
+  };
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and

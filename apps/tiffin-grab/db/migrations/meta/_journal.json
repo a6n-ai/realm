@@ -43,6 +43,13 @@
       "when": 1784442625667,
       "tag": "0005_last_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784612011825,
+      "tag": "0006_married_red_wolf",
+      "breakpoints": true
     }
   ]
 }

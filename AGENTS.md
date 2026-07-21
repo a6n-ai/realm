@@ -60,24 +60,24 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Prefer mobile-first subscribe/checkout UX with clear back/close; the customer Order FAB should make its subscribe/order purpose obvious.
 - When a logged-in customer starts another subscription, show soft per-step current-plan context (meals, weeks already covered) rather than blocking a second subscription.
 - Customer home and deliveries calendars should default the selected day to today on mount.
-- Deliveries plan header uses flat summary text (`SubscriptionPlanSummary`), not pills/chips; show subscription dropdown only when the customer has multiple active subscriptions.
+- Customer support ticketing must exist in the customer app (not staff-only), stay mobile-friendly, and allow attaching a related order/subscription plus photo/screenshot uploads on create.
 - Home "This week's menu" should show Mon–Sun columns; days with no dishes render only the day label (no placeholder or underline).
-- Customer Menu and Deliveries must resolve released menu weeks through the same `menuService` API (no cross-week fallback on Menu).
+- Entire app (including weekly menu weekStart) must follow the admin app-settings timezone; Menu and Deliveries resolve released weeks through the same `menuService` API with no cross-week fallback.
 - Prefer one shared commons address form for checkout, profile, and per-delivery address entry (Google Places can plug in later).
-- Split account/profile by concern with role gating: Profile = basic info; Security = password/PIN; Address, Notifications, and Dietary on their own pages (dietary is customer-only); desktop uses tabs like Finances; mobile uses the account hub sections.
-- Deliveries vacation/pause: start date required, optional end date; confirm pause scope (open-ended from start vs date range) before applying.
+- Split account/profile by concern with role gating: Profile = basic info; Security = password/PIN; Address, Notifications, Dietary, and Support on their own pages (dietary is customer-only; Support at `/me/support`); desktop uses tabs like Finances; mobile uses the account hub sections.
+- Deliveries should show total and remaining tiffins (count tiffins, not days); hold/skip/vacation misses after cutoff go to a remaining pool for makeup only after the current last delivery, adhering to the plan's delivery-day pattern; vacation resume appends undelivered days after that last day.
 
 ## Learned Workspace Facts
 
 - Customer Finances hub lives at `/me/wallet` (nav label Finances) with `?tab=` Coins | Bills | Transactions; Coins use `wallet_ledger`, while Bills/Transactions use `orders` / `payments` / `ledger_entries`.
-- Customer `/me/deliveries` is calendar-focused (delivery History UI removed); loads one calendar month at a time via `?month=YYYY-MM` (all delivery days in month; menu for each released week in that range).
+- Customer `/me/deliveries` is calendar-focused (delivery History UI removed); loads one calendar month at a time via `?month=YYYY-MM`; plan header uses flat `SubscriptionPlanSummary` (dropdown only when multiple active subs); total/remaining tiffins are product intent, not yet on the UI.
 - Money “monthly bills” map to prepaid `orders` (+ nested `payments`), not coin wallet rows or delivery rows; there is no separate monthly-invoice entity yet.
 - Subscribe flow is public Wizard → Checkout; `ExistingSubscriptions` lists active plans above the wizard, and soft current-plan hints use `CurrentPlanHint` in wizard steps.
 - Customer bottom nav is Home | Menu | Deliveries | Account with center FAB to `/subscribe` (Order); wallet balance and theme toggle live in the header (`CustomerHeaderActions`).
-- Home week strip and deliveries calendars initialize the selected day to today.
-- Released menu weeks for customer Menu and Deliveries go through `menuService.getReleasedWeek(s)` (exact `weekStart`; Menu no longer falls back to another published week).
+- Released menu weeks for customer Menu and Deliveries go through `menuService.getReleasedWeek(s)` with `weekStart` = Monday in the app-settings timezone (exact match; Menu does not fall back to another published week).
 - Deliveries calendar month navigation updates `?month=`; delivery tiles always show for scheduled days; menu options attach only when that delivery's week is released (`menuService.getReleasedWeeks`).
 - Menu page answers "what's published to browse this week?" while Deliveries answers "what's released for this delivery date's week?" — same API gate, different per-surface questions.
-- Deliveries vacation/pause is per subscription via `VacationControl` and `subscription_pauses` (start required; optional end; confirmation before pause/resume).
-- Dashboard account sections are role-gated by `ACCOUNT_NAV` (staff: profile + security; customers also get address, dietary, delivery notes, notifications).
-- Customer account hub lives at `/me/account`; avoid dumping every profile subsection onto a single `/me/profile` page.
+- Deliveries vacation/pause is per subscription via `VacationControl` and `subscription_pauses` (start required; optional end; confirmation before pause/resume); UI “On Hold” maps to `skipped`, vacation to `paused`; makeup for missed tiffins appends after `max(delivery_date)` on plan weekdays.
+- Dashboard account sections are role-gated by `ACCOUNT_NAV` (staff: profile + security; customers also get address, dietary, delivery notes, notifications, support).
+- Customer account hub lives at `/me/account`; Support lives at `/me/support`; avoid dumping every profile subsection onto a single `/me/profile` page.
+- Cross-app support ticket/chat UI belongs in `@realm/design-system` (composed UI), not `@realm/ui`.

@@ -3,19 +3,24 @@
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
-import type { Subscription } from "@/lib/services/customer-deliveries.service";
+import type { Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { SUB_STATUS_LABEL, type SubscriptionStatus } from "./calendar-constants";
+import { SchedulePoolControl } from "./schedule-pool-control";
 
 /** Plan name + status; dropdown only when the customer has multiple active subs. */
 export function SubscriptionPlanHeader({
   sub,
   allSubscriptions,
   categoryLabels,
+  counts,
+  today,
   onSwitch,
 }: {
   sub: Subscription;
   allSubscriptions: Subscription[];
   categoryLabels: Record<string, string>;
+  counts?: TiffinCounts;
+  today: string;
   onSwitch: (publicId: string) => void;
 }) {
   const showSelector = allSubscriptions.length > 1;
@@ -46,7 +51,44 @@ export function SubscriptionPlanHeader({
         <span className="text-muted-foreground text-xs">{statusLabel}</span>
       </div>
       <SubscriptionPlanSummary sub={sub} categoryLabels={categoryLabels} />
+      {counts && <TiffinCountRow sub={sub} counts={counts} today={today} />}
     </div>
+  );
+}
+
+/** Total / delivered / remaining tiffins, plus a "schedule from pool" control when tiffins are owed. */
+function TiffinCountRow({
+  sub,
+  counts,
+  today,
+}: {
+  sub: Subscription;
+  counts: TiffinCounts;
+  today: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-0.5">
+      <dl className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+        <Stat label="Total" value={counts.total} />
+        <Stat label="Delivered" value={counts.delivered} />
+        <Stat label="Remaining" value={counts.remaining} emphasis />
+        {counts.pooled > 0 && <Stat label="To schedule" value={counts.pooled} emphasis />}
+      </dl>
+      {counts.pooled > 0 && (
+        <SchedulePoolControl orderPublicId={sub.publicId} counts={counts} today={today} />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, emphasis = false }: { label: string; value: number; emphasis?: boolean }) {
+  return (
+    <span className="flex items-baseline gap-1">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={emphasis ? "font-semibold text-foreground tabular-nums" : "text-foreground tabular-nums"}>
+        {value}
+      </dd>
+    </span>
   );
 }
 
