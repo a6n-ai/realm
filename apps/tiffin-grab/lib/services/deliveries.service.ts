@@ -159,28 +159,85 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
 }
 
 /**
- * Reverts every future paused row to scheduled. Deletes nothing, and ignores 'skipped' rows by
- * design — skip is a deliberate single-delivery act that only an explicit unskip undoes. A paused
- * row already past its cutoff is a terminal miss backed by a make-up and is left untouched.
+ * Reverts paused rows to scheduled. Ignores 'skipped' rows by design — skip is a deliberate
+ * single-delivery act that only an explicit unskip undoes.
+ *
+ * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back; a paused
+ * row already past its cutoff is a terminal miss and is left for reconcilePoolFromMisses to pool.
+ *
+ * Resume-from (`fromDate`): only paused days on/after `fromDate` (with a future cutoff) come back.
+ * Every earlier paused day — and any whose cutoff already passed — is abandoned to the remain pool,
+ * so the customer reschedules those tiffins after their last delivery.
  */
-export async function resumeOrder(orderPublicId: string): Promise<number> {
+export async function resumeOrder(orderPublicId: string, fromDate?: string): Promise<number> {
+  if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+    throw new ValidationError("Resume date must be ISO YYYY-MM-DD");
+  }
   let orderId: bigint;
   const updatedCount = await db.transaction(async (tx) => {
     orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
+    const conds = [
+      eq(deliveries.orderId, orderId),
+      eq(deliveries.status, "paused"),
+      gt(deliveries.cutoffAt, Date.now()),
+    ];
+    if (fromDate) conds.push(gte(deliveries.deliveryDate, fromDate));
+
     const updated = await tx.update(deliveries)
       .set({ status: "scheduled" })
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        eq(deliveries.status, "paused"),
-        gt(deliveries.cutoffAt, Date.now()),
-      ))
+      .where(and(...conds))
       .returning({ id: deliveries.id });
     return updated.length;
   });
+  // Resume-from deliberately leaves earlier/expired paused days behind — pool ALL of them (any
+  // cutoff), not just the past-cutoff ones reconcilePoolFromMisses would catch.
+  if (fromDate) await poolAllPausedMisses(orderId!);
   await reconcilePoolFromMisses(orderId!);
   return updatedCount;
+}
+
+/**
+ * Pools every still-paused ORIGINAL (any cutoff) not yet pooled and without a make-up child — used
+ * by resume-from, where the days before the chosen resume date are abandoned on purpose. Same
+ * pooled_at + pooled_tiffin_count bookkeeping as reconcilePoolFromMisses, minus the cutoff gate.
+ */
+async function poolAllPausedMisses(orderId: bigint): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") return 0;
+
+    const missed = await tx.select({ id: deliveries.id })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId),
+        eq(deliveries.status, "paused"),
+        isNull(deliveries.pooledAt),
+        isNull(existingMakeup.id),
+      ));
+    if (missed.length === 0) return 0;
+
+    const now = Date.now();
+    let pooledTiffins = 0;
+    for (const src of missed) {
+      const stamped = await tx.update(deliveries).set({ pooledAt: now })
+        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
+        .returning({ id: deliveries.id });
+      if (stamped.length === 0) continue;
+      pooledTiffins += order.persons;
+    }
+    if (pooledTiffins > 0) {
+      await tx.update(orders)
+        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
+        .where(eq(orders.id, orderId));
+    }
+    return pooledTiffins;
+  });
 }
 
 export async function skipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
