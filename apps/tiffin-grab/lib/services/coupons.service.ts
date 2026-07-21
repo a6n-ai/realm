@@ -26,6 +26,9 @@ export interface PublicCodeContext {
   subtotal: number;
   planType?: string;
   userId?: bigint | null;
+  // The chosen payment method id. A coupon with a non-empty allowedPaymentMethods
+  // list is only eligible when this is one of them; empty list = valid everywhere.
+  paymentMethodId?: string | null;
 }
 
 // Auto-apply optimizer input. The customer may also type a manual code, which
@@ -34,6 +37,7 @@ export interface BestCouponsContext {
   subtotal: number;
   planType?: string;
   userId?: bigint | null;
+  paymentMethodId?: string | null;
   manualCode?: string | null;
   // When set, enumerate ONLY the all-stackable set and skip the per-exclusive
   // sets. createOrder passes this when a rep_daily coupon is also applied: an
@@ -172,7 +176,12 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   // non-negative, the maximal "all stackable" set dominates any stackable subset,
   // so the candidate final sets are: {all stackable} and each {exclusive} alone.
   async resolveBestCoupons(ctx: BestCouponsContext): Promise<BestCouponsResult> {
-    const pubCtx: PublicCodeContext = { subtotal: ctx.subtotal, planType: ctx.planType, userId: ctx.userId };
+    const pubCtx: PublicCodeContext = {
+      subtotal: ctx.subtotal,
+      planType: ctx.planType,
+      userId: ctx.userId,
+      paymentMethodId: ctx.paymentMethodId,
+    };
 
     // (a) Gather auto-apply candidates that pass eligibility for this cart.
     const autoRows = await db
@@ -431,6 +440,12 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     }
     if (coupon.planTypes.length && (!ctx.planType || !coupon.planTypes.includes(ctx.planType))) {
       return "This coupon is not valid for the selected plan";
+    }
+    if (
+      coupon.allowedPaymentMethods.length &&
+      (!ctx.paymentMethodId || !coupon.allowedPaymentMethods.includes(ctx.paymentMethodId))
+    ) {
+      return "This coupon is not valid for the selected payment method";
     }
     if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
       return "This coupon has been fully redeemed";
