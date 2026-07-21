@@ -56,6 +56,14 @@ export default async function HomePage() {
       })
     : BEST_SELLERS.map((d) => ({ ...d, image: null }));
 
+  // Hero photo: reuse a real product image (prefer a viral/fusion one) so the
+  // hero isn't a placeholder once the menu has photos. Falls back to the striped
+  // Ph tile when nothing has an image yet.
+  const heroUrl =
+    (picks.find((p) => p.image && (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
+    (picks.find((p) => p.image)?.image as FileDetail | null)?.url ??
+    null;
+
   return (
     <div>
       {/* ===== ANNOUNCEMENT RIBBON ===== */}
@@ -103,7 +111,26 @@ export default async function HomePage() {
                 aria-hidden="true"
                 style={{ position: "absolute", inset: 0, transform: "translate(16px, 18px) rotate(3deg)", background: "var(--ink-bg)", border: "var(--border)", borderRadius: "var(--r)" }}
               />
-              <Ph label="HERO SHOT — overflowing plate of fusion puchkas" ratio="4 / 4.3" mod="rotate-r" style={{ position: "relative", boxShadow: "none" }} />
+              {heroUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={heroUrl}
+                  alt="Fusion puchkas — Puchkaman"
+                  className="rotate-r"
+                  style={{
+                    position: "relative",
+                    display: "block",
+                    width: "100%",
+                    aspectRatio: "4 / 4.3",
+                    objectFit: "cover",
+                    border: "var(--border)",
+                    borderRadius: "var(--r)",
+                    boxShadow: "none",
+                  }}
+                />
+              ) : (
+                <Ph label="HERO SHOT — overflowing plate of fusion puchkas" ratio="4 / 4.3" mod="rotate-r" style={{ position: "relative", boxShadow: "none" }} />
+              )}
               <span className="sticker float-l" style={{ top: -16, left: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>FRESH DAILY</span>
               <span className="sticker float-r" style={{ bottom: 22, right: -14, fontSize: "0.95rem" }}>🔥 NEW: SUMMER DRINKS</span>
               <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
