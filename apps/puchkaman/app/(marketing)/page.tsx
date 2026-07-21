@@ -132,6 +132,7 @@ export default async function HomePage() {
                 <img
                   src={heroUrl}
                   alt="Fusion puchkas — Puchkaman"
+                  fetchPriority="high"
                   className="rotate-r"
                   style={{
                     position: "relative",

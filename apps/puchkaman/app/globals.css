@@ -3,11 +3,10 @@
    Yellow-dominant, balanced: thick ink borders, hard shadows,
    chunky type, warm cream cards. Mobile-first.
    Ported verbatim from the Claude Design project (styles.css).
-   ponytail: kept the Google Fonts @import (one line, works); swap
-   to next/font only if font perf measurably matters.
+   Fonts self-hosted via next/font (layout.tsx) — --font-archivo /
+   --font-space-mono are injected there; removed the render-blocking
+   Google Fonts @import (Lighthouse flagged it, ~310ms).
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
   /* brand */
@@ -39,8 +38,8 @@
   --sh-red: 7px 7px 0 var(--red);
 
   --maxw: 1240px;
-  --font: 'Archivo', system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, monospace;
+  --font: var(--font-archivo), 'Archivo', system-ui, sans-serif;
+  --mono: var(--font-space-mono), 'Space Mono', ui-monospace, monospace;
 }
 
 /* ============================================================
