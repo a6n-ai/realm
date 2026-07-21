@@ -15,6 +15,7 @@ import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
+import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -159,6 +160,53 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+}
+
+export type TiffinCounts = {
+  /** tiffinCount snapshot from checkout — persons × delivery days over the plan. */
+  total: number;
+  /** Days past cutoff that stayed scheduled (incl. make-ups), × persons. */
+  delivered: number;
+  /** total − delivered. Includes both future scheduled days and pooled tiffins. */
+  remaining: number;
+  /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
+  pooled: number;
+};
+
+// Delivered/remaining/pooled tiffins for one subscription, for the deliveries plan header.
+// Delivered is derived from the order's delivery rows via the pure tiffin-counts helper; pooled
+// is the stored counter maintained by reconcilePoolFromMisses / scheduleFromPool.
+export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  const [order] = await db
+    .select({
+      id: orders.id,
+      tiffinCount: orders.tiffinCount,
+      persons: orders.persons,
+      pooled: orders.pooledTiffinCount,
+    })
+    .from(orders)
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) throw new NotFoundError("Subscription not found");
+
+  const rows = await db
+    .select({
+      status: deliveries.status,
+      cutoffAt: deliveries.cutoffAt,
+      makeupForDeliveryId: deliveries.makeupForDeliveryId,
+      pooledAt: deliveries.pooledAt,
+    })
+    .from(deliveries)
+    .where(eq(deliveries.orderId, order.id));
+
+  const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
+  return {
+    total: order.tiffinCount,
+    delivered,
+    remaining: order.tiffinCount - delivered,
+    pooled: order.pooled,
+  };
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and
