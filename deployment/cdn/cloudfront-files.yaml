@@ -46,9 +46,20 @@ Parameters:
     Type: String
     Default: ""
     Description: Required only with AlternateDomainName. Must be an ACM cert in us-east-1.
+  ManageBucketPolicy:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      "true" lets this stack own the bucket policy — only works when the bucket
+      has NO existing policy (AWS::S3::BucketPolicy refuses to adopt one). If the
+      bucket already has a policy (e.g. tiffin-grab's DenyInsecureTransport),
+      deploy with "false" and merge the CloudFront statement in by CLI afterward
+      (see deployment/prod/RUNBOOK.md "Files CDN").
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref AlternateDomainName, ""]]
+  ShouldManageBucketPolicy: !Equals [!Ref ManageBucketPolicy, "true"]
 
 Resources:
   # OAC replaces the legacy Origin Access Identity. SigV4 "always" so CloudFront
@@ -105,6 +116,7 @@ Resources:
   # grows additional bucket-policy statements, add them here too.
   FilesBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: ShouldManageBucketPolicy
     Properties:
       Bucket: !Ref FilesBucketName
       PolicyDocument:

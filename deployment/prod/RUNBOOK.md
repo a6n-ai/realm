@@ -333,8 +333,15 @@ the two paths coexist. Backfill old URLs only if you want the old images on the 
 
 ### Deploy
 
+`AWS::S3::BucketPolicy` **refuses to create when the bucket already has a policy** — it will
+not adopt one. So `ManageBucketPolicy=true` (the default, stack owns the policy) works only on
+a bucket with **no** existing policy. A bucket that already has one (tiffin-grab carries
+`DenyInsecureTransport`) must deploy with `ManageBucketPolicy=false` and get the CloudFront
+statement merged in by CLI afterward. Both cases are shown below.
+
 ```bash
-# 1. Stack per app. StaticPrefix: use * only if the bucket has NO secured objects.
+# --- puchkaman: no pre-existing bucket policy → stack owns it. PublicKeyPattern='*'
+# is safe here (bucket has zero secured objects).
 aws cloudformation deploy --region us-east-1 \
   --stack-name puchkaman-files-cdn \
   --template-file deployment/cdn/cloudfront-files.yaml \
@@ -342,20 +349,39 @@ aws cloudformation deploy --region us-east-1 \
     FilesBucketName=puchkaman-files-<acct>-us-east-1-an \
     PublicKeyPattern='*'
 
+# --- tiffin-grab: bucket already has DenyInsecureTransport → do NOT let CFN own the policy.
 aws cloudformation deploy --region us-east-1 \
   --stack-name tiffin-grab-files-cdn \
   --template-file deployment/cdn/cloudfront-files.yaml \
   --parameter-overrides AppName=tiffin-grab \
     FilesBucketName=tiffin-grab-files-<acct>-us-east-1-an \
-    PublicKeyPattern='public/*'
+    PublicKeyPattern='public/*' ManageBucketPolicy=false
 
-# 2. Read the base URL the stack computed and store it as the app's SSM param.
+# Then merge the CloudFront read statement into the existing policy by hand. Get the
+# distribution id from the stack output, keep DenyInsecureTransport, add the OAC read
+# scoped to public/* with the distribution as SourceArn:
+B=tiffin-grab-files-<acct>-us-east-1-an
+DIST=$(aws cloudformation describe-stacks --region us-east-1 --stack-name tiffin-grab-files-cdn \
+  --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" --output text)
+aws s3api put-bucket-policy --bucket "$B" --policy "{
+  \"Version\":\"2012-10-17\",\"Statement\":[
+    {\"Sid\":\"DenyInsecureTransport\",\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",
+     \"Resource\":[\"arn:aws:s3:::$B\",\"arn:aws:s3:::$B/*\"],
+     \"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}},
+    {\"Sid\":\"AllowCloudFrontStaticRead\",\"Effect\":\"Allow\",
+     \"Principal\":{\"Service\":\"cloudfront.amazonaws.com\"},\"Action\":\"s3:GetObject\",
+     \"Resource\":\"arn:aws:s3:::$B/public/*\",
+     \"Condition\":{\"StringEquals\":{\"AWS:SourceArn\":\"arn:aws:cloudfront::<acct>:distribution/$DIST\"}}}
+  ]}"
+
+# --- both apps: store the CDN base URL as the app's SSM param, then redeploy the app.
 URL=$(aws cloudformation describe-stacks --region us-east-1 --stack-name puchkaman-files-cdn \
   --query "Stacks[0].Outputs[?OutputKey=='FilesPublicBaseUrl'].OutputValue" --output text)
 aws ssm put-parameter --region us-east-1 --overwrite --type SecureString \
   --name /puchkaman/prod/FILES_PUBLIC_BASE_URL --value "$URL"
+# (repeat for tiffin-grab-files-cdn → /tiffin-grab/prod/FILES_PUBLIC_BASE_URL)
 
-# 3. Redeploy the app so it picks up the new FILES_PUBLIC_BASE_URL.
+# Redeploy each app on its box so deploy.sh pulls the new param into .env.production.
 ```
 
 Custom domain (e.g. `cdn.puchkaman.ca`) is optional: pass `AlternateDomainName` +
