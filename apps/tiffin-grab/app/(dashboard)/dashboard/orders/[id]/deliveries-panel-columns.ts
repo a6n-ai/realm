@@ -28,4 +28,6 @@ export type DeliveryRow = {
   isMakeup: boolean;
   makeupForDate: string | null;
   address: { fullName: string; addressLine: string; city: string; postalCode: string };
+  /** True when this row carries a per-delivery address override (vs. inheriting the order's). */
+  hasAddressOverride: boolean;
 };

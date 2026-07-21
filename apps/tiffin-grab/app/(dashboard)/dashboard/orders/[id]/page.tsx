@@ -7,6 +7,7 @@ import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { describeActivity } from "@/lib/services/order-activity-describe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { effectiveAddress, listDeliveries } from "@/lib/services/deliveries.service";
+import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { formatEpoch } from "@/lib/format/datetime";
 import {
@@ -20,6 +21,7 @@ import {
 import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
+import { PoolControls } from "./pool-controls";
 import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
 import type { DeliveryRow } from "./deliveries-panel-columns";
 
@@ -46,10 +48,11 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [activities, settings, rawDeliveries] = await Promise.all([
+  const [activities, settings, rawDeliveries, tiffinCounts] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     listDeliveries(order.id),
+    orderTiffinCounts(order.publicId),
   ]);
 
   const dateById = new Map(rawDeliveries.map((d) => [d.id, d.deliveryDate]));
@@ -62,6 +65,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       cutoffAt: d.cutoffAt,
       isMakeup: d.makeupForDeliveryId !== null,
       makeupForDate: d.makeupForDeliveryId !== null ? (dateById.get(d.makeupForDeliveryId) ?? null) : null,
+      hasAddressOverride: d.addressLine !== null,
       address: {
         fullName: addr.fullName,
         addressLine: addr.addressLine ?? "",
@@ -100,6 +104,10 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <SectionCard title="Lifecycle">
         <LifecycleControls orderId={order.publicId} status={order.status} />
+      </SectionCard>
+
+      <SectionCard title="Tiffins">
+        <PoolControls orderId={order.publicId} counts={tiffinCounts} />
       </SectionCard>
 
       <SectionCard title="Deliveries">
@@ -164,6 +172,14 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
 
       <SectionCard title="Lifecycle">
         <Skeleton className="h-9 w-48" />
+      </SectionCard>
+
+      <SectionCard title="Tiffins">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
       </SectionCard>
 
       <SectionCard title="Deliveries">

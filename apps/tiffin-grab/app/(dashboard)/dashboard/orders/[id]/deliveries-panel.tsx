@@ -24,6 +24,7 @@ import {
   type DeliveryRow,
 } from "./deliveries-panel-columns";
 import {
+  clearDeliveryAddressAction,
   editDeliveryAddress,
   pauseDeliveryRange,
   resumeDeliveryRangeAction,
@@ -230,6 +231,16 @@ export function DeliveriesPanel({
                             address={d.address}
                             disabled={pending}
                           />
+                        )}
+                        {d.status === "scheduled" && d.hasAddressOverride && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => run(() => clearDeliveryAddressAction(orderId, d.publicId))}
+                          >
+                            Reset address
+                          </Button>
                         )}
                       </>
                     )}

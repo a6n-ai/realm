@@ -1,4 +1,4 @@
-import { NotFoundError, weekdayKey } from "@realm/commons";
+import { NotFoundError, Role, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -12,11 +12,40 @@ import {
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
 import { dietsForPlanKey } from "@/lib/menu/selections.service";
+import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
+import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
+
+// Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
+// only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
+// share one authorization policy (feature-flagged refinements can layer on later).
+const STAFF_ROLES = new Set<string>([Role.ADMIN, Role.MEMBER]);
+
+async function callerIsStaff(): Promise<boolean> {
+  const session = await getSession();
+  return session != null && STAFF_ROLES.has(session.user.role);
+}
+
+// Passes if the caller is staff, or owns the order. Not-owned and not-existent both throw the same
+// NotFoundError — no existence oracle for another customer's data.
+export async function assertCanManageOrder(orderPublicId: string): Promise<void> {
+  if (await callerIsStaff()) return;
+  const userId = await currentUserId();
+  if (userId == null) throw new NotFoundError("Subscription not found");
+  await assertOwnsOrder(userId, orderPublicId);
+}
+
+// Passes if the caller is staff, or owns the delivery's order.
+export async function assertCanManageDelivery(deliveryPublicId: string): Promise<void> {
+  if (await callerIsStaff()) return;
+  const userId = await currentUserId();
+  if (userId == null) throw new NotFoundError("Delivery not found");
+  await assertOwnsDelivery(userId, deliveryPublicId);
+}
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -184,8 +213,10 @@ export type TiffinCounts = {
 // pool" UI needs (last delivery date + plan weekdays). Delivered is derived from the order's
 // delivery rows via the pure tiffin-counts helper; pooled is the stored counter maintained by
 // reconcilePoolFromMisses / scheduleFromPool.
-export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
-  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+//
+// AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requireStaff for
+// /dashboard). Use myTiffinCounts from customer code — it adds the ownership check.
+export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCounts> {
   const [order] = await db
     .select({
       id: orders.id,
@@ -233,6 +264,13 @@ export async function myTiffinCounts(userId: bigint, orderPublicId: string): Pro
     lastDeliveryDate,
     deliveryWeekdays,
   };
+}
+
+// Ownership-checked counts for the customer header. Staff read via orderTiffinCounts directly
+// (the dashboard page already gates with requireStaff).
+export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  return orderTiffinCounts(orderPublicId);
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and

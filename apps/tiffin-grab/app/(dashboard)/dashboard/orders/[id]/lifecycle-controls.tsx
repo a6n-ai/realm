@@ -11,6 +11,7 @@ export function LifecycleControls({ orderId, status }: { orderId: string; status
   const [pending, start] = useTransition();
   const [from, setFrom] = useState("");
   const [until, setUntil] = useState("");
+  const [resumeFrom, setResumeFrom] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const run = (fn: () => Promise<void>) => start(async () => { await fn(); router.refresh(); });
 
@@ -28,7 +29,18 @@ export function LifecycleControls({ orderId, status }: { orderId: string; status
         </div>
       )}
       {status === "paused" && (
-        <Button disabled={pending} onClick={() => run(() => resume(orderId))}>Resume</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-sm">Resume from (optional)</span>
+          <input
+            type="date"
+            value={resumeFrom}
+            onChange={(e) => setResumeFrom(e.target.value)}
+            className="rounded-md border bg-transparent px-2 py-1 text-sm"
+          />
+          <Button disabled={pending} onClick={() => run(() => resume(orderId, resumeFrom || undefined))}>
+            {resumeFrom ? "Resume from date" : "Resume"}
+          </Button>
+        </div>
       )}
       {status !== "cancelled" && (
         <ResponsiveDialog
