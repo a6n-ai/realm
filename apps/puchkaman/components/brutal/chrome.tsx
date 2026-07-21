@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Btn } from "./shared";
+import { PHONE_DISPLAY } from "@/lib/links";
 
 /* [route-name, long label, short label] */
 export const NAV_LINKS: [string, string, string][] = [
@@ -70,25 +71,9 @@ export function ThemeToggle() {
 function Logo() {
   return (
     <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <span
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: "50%",
-          background: "var(--red)",
-          border: "3px solid var(--ink)",
-          display: "grid",
-          placeItems: "center",
-          boxShadow: "3px 3px 0 var(--ink)",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          className="logo-dot"
-          style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--yellow)", border: "2px solid var(--ink)" }}
-        />
-      </span>
-      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo.webp" alt="" style={{ height: 50, width: "auto", display: "block" }} />
+      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--red)" }}>
         PUCHKAMAN
       </span>
     </Link>
@@ -245,9 +230,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
+            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
               Explore
-            </h4>
+            </h2>
             <div style={{ display: "grid", gap: 10 }}>
               {NAV_LINKS.concat([["order", "Order Online", "Order"]]).map(([p, label]) => (
                 <Link key={p} href={hrefFor(p)} style={{ fontWeight: 600, opacity: 0.9 }} className="foot-link">
@@ -258,16 +243,16 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
+            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
               Visit Us
-            </h4>
+            </h2>
             <div style={{ display: "grid", gap: 12, fontWeight: 500 }}>
               <p>
                 📍 3315 Danforth Ave,
                 <br />
                 Scarborough, ON
               </p>
-              <p>📞 (416) 000-0000</p>
+              <p>📞 {PHONE_DISPLAY}</p>
               <p>🕑 Tue–Sun · 12pm – 10pm</p>
               <div className="flex wrap-gap" style={{ marginTop: 4 }}>
                 <Link href="/contact" className="pill pill--yellow">

@@ -27,6 +27,7 @@ export type ProductRow = {
   image: FileDetail | null;
   tags: string[] | null;
   active: boolean;
+  featured: boolean;
   source: "manual" | "uber_eats";
   lastSyncedAt: number | null;
   syncStatus: "none" | "synced" | "update_available";

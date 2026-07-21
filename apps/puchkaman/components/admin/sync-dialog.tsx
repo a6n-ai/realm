@@ -15,6 +15,7 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const [result, setResult] = useState<SyncResult | null>(null);
   const [resolvingDuplicates, setResolvingDuplicates] = useState(false);
   const [redownloadImages, setRedownloadImages] = useState(false);
+  const [optimizeImages, setOptimizeImages] = useState(true);
 
   async function startSync() {
     setBusy(true);
@@ -23,7 +24,7 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       const res = await apiFetch<SyncResult>("/api/products/sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ redownloadImages }),
+        body: JSON.stringify({ redownloadImages, optimizeImages }),
       });
       setResult(res);
       router.refresh();
@@ -70,6 +71,14 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                       onChange={(e) => setRedownloadImages(e.target.checked)}
                     />
                     Re-download all images (re-fetch every photo from Uber Eats — slower)
+                  </label>
+                  <label className="flex center" style={{ gap: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={optimizeImages}
+                      onChange={(e) => setOptimizeImages(e.target.checked)}
+                    />
+                    Optimize images (resize + recompress to WebP)
                   </label>
                   <button type="button" className="btn btn--red" onClick={startSync}>
                     <RefreshCwIcon size={16} /> Start sync

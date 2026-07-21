@@ -1,5 +1,13 @@
+import type { FileDetail } from "@realm/storage/model";
 import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { ProductImage } from "@/components/products/product-image";
+import { productsService } from "@/lib/services/products.service";
+import { TAG_STYLE } from "@/lib/menu-categories";
+
+export const dynamic = "force-dynamic";
+
+type FusionCard = { name: string; desc: string; price: string; badge: string; badgeViral: boolean; image: FileDetail | null };
 
 const FUSION_ITEMS: [string, string, string, string][] = [
   ["Chicken Corn Cheese Puchka", "Creamy corn, melty cheese, juicy chicken. The one that went viral.", "$10", "🔥 Most Viral"],
@@ -17,7 +25,25 @@ const STEPS: [string, string][] = [
   ["One bite, no pause", "Whole thing, all at once. No nibbling. That's the rule."],
 ];
 
-export default function FusionPage() {
+export default async function FusionPage() {
+  // Real fusion-category products with photos; fall back to the static copy when
+  // the menu has none (fresh DB).
+  const fusionProducts = (await productsService.listActive()).filter((p) => p.category === "fusion");
+  const fusionCards: FusionCard[] = fusionProducts.length
+    ? fusionProducts.map((p) => {
+        const tag = (p.tags ?? []).find((t) => TAG_STYLE[t]);
+        return {
+          name: p.name,
+          desc: p.description ?? "",
+          price: `$${Number(p.price).toFixed(0)}`,
+          badge: tag ? TAG_STYLE[tag].label : "",
+          badgeViral: tag === "viral",
+          image: (p.image as FileDetail | null) ?? null,
+        };
+      })
+    : FUSION_ITEMS.map(([name, desc, price, badge]) => ({ name, desc, price, badge, badgeViral: badge.includes("Viral"), image: null }));
+  const videoUrl = (fusionProducts.find((p) => p.image)?.image as FileDetail | null)?.url ?? null;
+
   return (
     <div>
       <PageBanner
@@ -48,7 +74,17 @@ export default function FusionPage() {
               </div>
             </div>
             <div style={{ position: "relative" }}>
-              <Ph label="VIDEO — fusion puchka being assembled" ratio="4 / 4.2" mod="rotate-r" style={{ boxShadow: "var(--sh-lg)" }} />
+              {videoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={videoUrl}
+                  alt="Fusion puchka"
+                  className="rotate-r"
+                  style={{ display: "block", width: "100%", aspectRatio: "4 / 4.2", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)" }}
+                />
+              ) : (
+                <Ph label="VIDEO — fusion puchka being assembled" ratio="4 / 4.2" mod="rotate-r" style={{ boxShadow: "var(--sh-lg)" }} />
+              )}
               <span className="sticker rotate-l" style={{ top: -14, left: -12, background: "var(--ink-bg)", color: "var(--yellow)" }}>
                 ▶ WATCH THE REEL
               </span>
@@ -97,30 +133,32 @@ export default function FusionPage() {
         <div className="wrap">
           <SectionHead kicker="Start Here" title="Best Fusion Puchkas To Try" light sub="New to fusion? These are the crowd-tested winners." />
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-            {FUSION_ITEMS.map(([name, desc, price, badge], i) => (
-              <Reveal key={name} delay={i * 50}>
+            {fusionCards.map((c, i) => (
+              <Reveal key={c.name} delay={i * 50}>
                 <div className="card card--lift" style={{ background: "var(--white)", color: "var(--ink)", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
-                    <Ph label={`${name} photo`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
-                    <span
-                      className="sticker rotate-l"
-                      style={{
-                        top: 10,
-                        left: 10,
-                        fontSize: "0.7rem",
-                        background: badge.includes("Viral") ? "var(--red)" : "var(--yellow)",
-                        color: badge.includes("Viral") ? "#fff" : "var(--ink-deep)",
-                      }}
-                    >
-                      {badge}
-                    </span>
+                    <ProductImage image={c.image} name={c.name} />
+                    {c.badge && (
+                      <span
+                        className="sticker rotate-l"
+                        style={{
+                          top: 10,
+                          left: 10,
+                          fontSize: "0.7rem",
+                          background: c.badgeViral ? "var(--red)" : "var(--yellow)",
+                          color: c.badgeViral ? "#fff" : "var(--ink-deep)",
+                        }}
+                      >
+                        {c.badge}
+                      </span>
+                    )}
                   </div>
                   <div style={{ padding: 18 }}>
                     <div className="flex center between">
-                      <h3 style={{ fontSize: "1.2rem", maxWidth: "75%" }}>{name}</h3>
-                      <span className="display" style={{ fontSize: "1.2rem", color: "var(--red)" }}>{price}</span>
+                      <h3 style={{ fontSize: "1.2rem", maxWidth: "75%" }}>{c.name}</h3>
+                      <span className="display" style={{ fontSize: "1.2rem", color: "var(--red)" }}>{c.price}</span>
                     </div>
-                    <p style={{ fontWeight: 500, opacity: 0.82, marginTop: 8, fontSize: "0.92rem" }}>{desc}</p>
+                    <p style={{ fontWeight: 500, opacity: 0.82, marginTop: 8, fontSize: "0.92rem" }}>{c.desc}</p>
                   </div>
                 </div>
               </Reveal>

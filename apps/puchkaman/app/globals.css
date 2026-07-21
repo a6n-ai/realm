@@ -3,18 +3,22 @@
    Yellow-dominant, balanced: thick ink borders, hard shadows,
    chunky type, warm cream cards. Mobile-first.
    Ported verbatim from the Claude Design project (styles.css).
-   ponytail: kept the Google Fonts @import (one line, works); swap
-   to next/font only if font perf measurably matters.
+   Fonts self-hosted via next/font (layout.tsx) — --font-archivo /
+   --font-space-mono are injected there; removed the render-blocking
+   Google Fonts @import (Lighthouse flagged it, ~310ms).
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
   /* brand */
   --yellow:      #FFD21A;
   --yellow-deep: #F4B500;
-  --red:         #FF3B26;
+  /* --red carries white text everywhere it's used (pills, stickers,
+     ribbon, buttons, red sections) and is used as red text on light.
+     #FF3B26 was only 3.56:1 — darkened to #DE2A1A (4.72:1) so every red
+     surface clears WCAG AA. Dark theme keeps its lifted red below. */
+  --red:         #DE2A1A;
   --red-deep:    #E22A18;
+  --red-btn:     var(--red);
   --ink:         #16140D;
   --cream:       #FFF4DA;
   --paper:       #FFFBF0;
@@ -39,8 +43,8 @@
   --sh-red: 7px 7px 0 var(--red);
 
   --maxw: 1240px;
-  --font: 'Archivo', system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, monospace;
+  --font: var(--font-archivo), 'Archivo', system-ui, sans-serif;
+  --mono: var(--font-space-mono), 'Space Mono', ui-monospace, monospace;
 }
 
 /* ============================================================
@@ -212,7 +216,7 @@ section { position: relative; }
 .btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--sh-c); }
 .btn--white  { --btn-bg: var(--white);  --btn-fg: var(--ink); }
 .btn--yellow { --btn-bg: var(--yellow); --btn-fg: var(--ink); }
-.btn--red    { --btn-bg: var(--red);    --btn-fg: var(--white); }
+.btn--red    { --btn-bg: var(--red-btn); --btn-fg: var(--white); }
 .btn--ink    { --btn-bg: var(--ink);    --btn-fg: var(--yellow); }
 .btn--cream  { --btn-bg: var(--cream);  --btn-fg: var(--ink); }
 .btn--lg     { padding: 18px 28px; font-size: 1.1rem; border-radius: var(--r); }
