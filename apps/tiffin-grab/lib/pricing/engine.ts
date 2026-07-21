@@ -1,3 +1,4 @@
+import type { TaxLine } from "@realm/payments";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 
@@ -7,6 +8,7 @@ export function priceSubscription(
   selections: PricingSelections,
   catalog: PricingCatalog,
   adjustments: PricingLine[] = [],
+  taxes: TaxLine[] = [],
 ): PricingResult {
   assertValidTiers(catalog.tiers);
 
@@ -26,8 +28,20 @@ export function priceSubscription(
     { label: `Tiffins (${tiffinCount} × $${perTiffinPrice.toFixed(2)})`, amount: subtotal },
   ];
 
-  // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; total floored at 0.
-  const total = Math.max(0, round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0)));
+  // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; base floored at 0.
+  const taxableBase = Math.max(0, round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0)));
 
-  return { lineItems, adjustments, tiffinCount, perTiffinPrice, tier, subtotal, total };
+  // Per-method taxes apply to the discounted base; taxTotal is summed from per-line rounding so
+  // it always matches the printed receipt. No taxes ⇒ taxTotal 0 ⇒ total == taxableBase. This
+  // mirrors @realm/payments `computeTax` (the canonical server-side implementation); kept inline
+  // here so the client-bundled pricing engine takes no runtime dependency on that package.
+  const taxLines = taxes.map((t) => ({
+    name: t.name,
+    ratePct: t.ratePct,
+    amount: round2(taxableBase * (t.ratePct / 100)),
+  }));
+  const taxTotal = round2(taxLines.reduce((s, l) => s + l.amount, 0));
+  const total = round2(taxableBase + taxTotal);
+
+  return { lineItems, adjustments, taxLines, taxTotal, tiffinCount, perTiffinPrice, tier, subtotal, total };
 }

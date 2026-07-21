@@ -57,6 +57,13 @@
       "when": 1784663440432,
       "tag": "0007_keen_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784665165583,
+      "tag": "0008_pretty_hulk",
+      "breakpoints": true
     }
   ]
 }

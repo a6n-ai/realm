@@ -1,3 +1,4 @@
+import type { ComputedTaxLine } from "@realm/payments";
 import type { PricingTier } from "./tiers";
 
 export interface PricingSelections {
@@ -25,9 +26,11 @@ export interface PricingLine {
 export interface PricingResult {
   lineItems: PricingLine[];
   adjustments: PricingLine[]; // resolved discount lines (positive magnitudes), subtracted from subtotal
+  taxLines: ComputedTaxLine[]; // per-method tax lines applied to the post-discount base
+  taxTotal: number; // sum of taxLines (rounded per line), added on top of the taxable base
   tiffinCount: number;
   perTiffinPrice: number;
   tier: PricingTier;
   subtotal: number;
-  total: number;
+  total: number; // taxable base (subtotal − discounts, floored at 0) + taxTotal
 }

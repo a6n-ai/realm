@@ -63,6 +63,8 @@ export const coupons = pgTable("coupons", {
   // are just autoApply coupons with a startsAt/expiresAt window — no special kind.
   autoApply: boolean("auto_apply").notNull().default(false),
   planTypes: text("plan_types").array().notNull().default([]),
+  // Payment methods this coupon is valid with (payment_method ids). Empty = all methods.
+  allowedPaymentMethods: text("allowed_payment_methods").array().notNull().default([]),
 
   // validity window (epoch-ms)
   startsAt: bigint("starts_at", { mode: "number" }),

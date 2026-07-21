@@ -27,9 +27,16 @@ function monthLabel(ms: number, timeZone: string): string {
 function paymentLabel(status: CustomerBill["payments"][number]["status"]): string {
   switch (status) {
     case "simulated_paid":
+    case "paid":
       return "Paid";
     case "pending":
       return "Pending";
+    case "awaiting_payment":
+      return "Awaiting payment";
+    case "pending_verification":
+      return "Verifying";
+    case "rejected":
+      return "Rejected";
     case "refunded":
       return "Refunded";
     default: {
