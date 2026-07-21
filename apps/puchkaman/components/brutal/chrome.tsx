@@ -70,9 +70,12 @@ export function ThemeToggle() {
 /* ---------- Logo ---------- */
 function Logo() {
   return (
-    <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center" }}>
+    <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.webp" alt="Puchkaman" style={{ height: 50, width: "auto", display: "block" }} />
+      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--red)" }}>
+        PUCHKAMAN
+      </span>
     </Link>
   );
 }
