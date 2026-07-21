@@ -39,8 +39,16 @@ function normalizeName(name: string): string {
 
 const PRICE_EPSILON = 0.005;
 
+export type SyncOptions = {
+  // Re-download + re-host every synced item's image even when its Uber Eats
+  // source URL is unchanged. Use to migrate existing images onto new storage
+  // (e.g. after pointing FILES_PUBLIC_BASE_URL at the CDN). Heavier: it re-fetches
+  // every source photo. Off = only changed photos are re-hosted (the default).
+  redownloadImages?: boolean;
+};
+
 export class MenuSyncService {
-  async run(source: MenuSource): Promise<SyncResult> {
+  async run(source: MenuSource, opts: SyncOptions = {}): Promise<SyncResult> {
     const items = await source.fetchItems();
     const existingRows = await db.select().from(products);
 
@@ -80,7 +88,7 @@ export class MenuSyncService {
 
         const existing = byExternalId.get(item.externalId);
         if (existing) {
-          await this.diffAndFlag(existing, item, result);
+          await this.diffAndFlag(existing, item, result, opts.redownloadImages ?? false);
           continue;
         }
 
@@ -134,11 +142,13 @@ export class MenuSyncService {
     return row.publicId;
   }
 
-  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult): Promise<void> {
+  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult, redownloadImages: boolean): Promise<void> {
     // Image changes auto-persist to our storage on every sync (no manual Apply)
     // so the public site never renders a volatile Uber Eats source URL. Text and
     // price diffs still queue in pendingSync for admin approval below.
-    const imageChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
+    // redownloadImages forces a re-host even when the source URL is unchanged.
+    const urlChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
+    const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
     const imagePatch: Record<string, unknown> = {};
     if (imageChanged) {
       imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced") : null;

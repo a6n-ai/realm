@@ -14,12 +14,17 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SyncResult | null>(null);
   const [resolvingDuplicates, setResolvingDuplicates] = useState(false);
+  const [redownloadImages, setRedownloadImages] = useState(false);
 
   async function startSync() {
     setBusy(true);
     setResult(null);
     try {
-      const res = await apiFetch<SyncResult>("/api/products/sync", { method: "POST" });
+      const res = await apiFetch<SyncResult>("/api/products/sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ redownloadImages }),
+      });
       setResult(res);
       router.refresh();
     } finally {
@@ -58,6 +63,14 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                     Reads the current Uber Eats menu snapshot, adds anything new, and flags anything that looks
                     changed for your review. Nothing on your live menu is ever overwritten automatically.
                   </p>
+                  <label className="flex center" style={{ gap: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={redownloadImages}
+                      onChange={(e) => setRedownloadImages(e.target.checked)}
+                    />
+                    Re-download all images (re-fetch every photo from Uber Eats — slower)
+                  </label>
                   <button type="button" className="btn btn--red" onClick={startSync}>
                     <RefreshCwIcon size={16} /> Start sync
                   </button>
