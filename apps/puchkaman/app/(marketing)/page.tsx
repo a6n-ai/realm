@@ -36,9 +36,13 @@ const COMBOS = [
 ];
 
 export default async function HomePage() {
+  // Curated "featured" products first; if none are flagged, fall back to real
+  // active products that have a photo (so home shows the actual menu, not empty
+  // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
   const featured = await productsService.featuredProducts(6);
-  const cards: BestSellerCard[] = featured.length
-    ? featured.map((p) => {
+  const picks = featured.length ? featured : (await productsService.listActive()).filter((p) => p.image).slice(0, 6);
+  const cards: BestSellerCard[] = picks.length
+    ? picks.map((p) => {
         const badge = (p.tags ?? []).find((t) => TAG_STYLE[t]);
         return {
           name: p.name,
