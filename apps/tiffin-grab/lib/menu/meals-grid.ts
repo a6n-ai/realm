@@ -1,9 +1,9 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
-import { comingWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
+import { thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { dietsForPlanKey } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
@@ -66,20 +66,8 @@ export async function buildMealsGrid(
   // stored cutoffAt (snapshotted when the delivery schedule was written), not recomputed
   // from settings at read time.
   const { timezone } = settings;
-  const comingMonday = comingWeekStartIso(Date.now(), timezone);
 
-  const [releasedWeek] = await db
-    .select()
-    .from(menuWeeks)
-    .where(and(eq(menuWeeks.status, "released"), eq(menuWeeks.weekStart, comingMonday)))
-    .limit(1);
-  if (!releasedWeek) return { empty: "no-week" };
-
-  const weekStart = releasedWeek.weekStart;
-  const weekEnd = addDaysIso(weekStart, 6);
-  const rows = await visibleDeliveries(order.id, weekStart, weekEnd);
-  if (rows.length === 0) return { empty: "no-dates" };
-
+  // Same Monday key menus are saved under (app-settings timezone) — and scoped by plan type.
   const [planRow] = await db
     .select({ key: plans.key, planType: plans.planType })
     .from(plans)
@@ -87,7 +75,20 @@ export async function buildMealsGrid(
     .limit(1);
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
   const planKey = planRow.key;
+  const planType = planRow.planType as "tiffin" | "healthy";
   const allowedDiets = dietsForPlanKey(planKey);
+
+  const thisMonday = thisWeekStartIso(Date.now(), timezone);
+  const releasedRef = await menuService.getReleasedWeek(planType, thisMonday);
+  if (!releasedRef) return { empty: "no-week" };
+
+  const [releasedWeek] = await db.select().from(menuWeeks).where(eq(menuWeeks.id, releasedRef.id)).limit(1);
+  if (!releasedWeek) return { empty: "no-week" };
+
+  const weekStart = releasedWeek.weekStart;
+  const weekEnd = addDaysIso(weekStart, 6);
+  const rows = await visibleDeliveries(order.id, weekStart, weekEnd);
+  if (rows.length === 0) return { empty: "no-dates" };
 
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];

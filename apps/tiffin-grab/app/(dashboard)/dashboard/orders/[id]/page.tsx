@@ -106,13 +106,13 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} orderStatus={order.status} />
       </SectionCard>
 
-      <SectionCard title="Coming week meals">
+      <SectionCard title="This week's meals">
         {order.status === "cancelled" ? (
           <p className="text-muted-foreground text-sm">This order is cancelled — meal selections are closed.</p>
         ) : grid.empty === "no-week" ? (
-          <p className="text-muted-foreground text-sm">The coming week&apos;s menu hasn&apos;t been published yet.</p>
+          <p className="text-muted-foreground text-sm">This week&apos;s menu hasn&apos;t been published yet.</p>
         ) : grid.empty === "no-dates" ? (
-          <p className="text-muted-foreground text-sm">No deliveries scheduled for the coming week on this order.</p>
+          <p className="text-muted-foreground text-sm">No deliveries scheduled for this week on this order.</p>
         ) : grid.empty === null ? (
           <MealsGrid
             orderId={order.publicId}
@@ -170,7 +170,7 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
         <DeliveriesPanelSkeleton />
       </SectionCard>
 
-      <SectionCard title="Coming week meals">
+      <SectionCard title="This week's meals">
         <SkeletonCardGrid count={6} />
       </SectionCard>
 

@@ -37,10 +37,15 @@ export function subscriptionDeliveryDates(input: {
   return out;
 }
 
-// The Monday starting the week AFTER the current week, in `timezone` (coming service week).
+// Monday of the calendar week containing `nowMs`, in app-settings `timezone`.
+// Menu weeks are stored by this Monday — meal matching must use the same key.
+export function thisWeekStartIso(nowMs: number, timezone: string): string {
+  return mondayOfIso(zonedDateIso(nowMs, timezone));
+}
+
+// The Monday starting the week AFTER the current week, in `timezone`.
 export function comingWeekStartIso(nowMs: number, timezone: string): string {
-  const todayIso = zonedDateIso(nowMs, timezone);
-  const thisMonday = parseIsoDateUtc(mondayOfIso(todayIso));
+  const thisMonday = parseIsoDateUtc(thisWeekStartIso(nowMs, timezone));
   thisMonday.setUTCDate(thisMonday.getUTCDate() + 7);
   return iso(thisMonday);
 }

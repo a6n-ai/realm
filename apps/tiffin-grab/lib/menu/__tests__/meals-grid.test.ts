@@ -7,7 +7,7 @@ import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { comingWeekStartIso } from "@/lib/menu/delivery-dates";
+import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 import type { GridCell } from "../meals-grid";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -16,7 +16,7 @@ const { buildMealsGrid } = await import("../meals-grid");
 const { skipDelivery, pauseRange } = await import("@/lib/services/deliveries.service");
 
 const SETTINGS = { timezone: "UTC", cutoffHour: 23 };
-const COMING_MONDAY = comingWeekStartIso(Date.now(), SETTINGS.timezone);
+const THIS_MONDAY = thisWeekStartIso(Date.now(), SETTINGS.timezone);
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
@@ -24,12 +24,12 @@ async function reset() {
   await db.delete(plans).where(like(plans.key, "veg_no_sabzi_%"));
 }
 
-// A scheduled delivery row for COMING_MONDAY, far from its cutoff — the grid's read path only
+// A scheduled delivery row for THIS_MONDAY, far from its cutoff — the grid's read path only
 // shows dates with a visible ('scheduled') row, so every grid test needs one materialized here
 // (order alone no longer implies a schedule).
 async function seedMondayDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
   const [row] = await db.insert(deliveries).values({
-    orderId, deliveryDate: COMING_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,
+    orderId, deliveryDate: THIS_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,
   }).returning();
   return row;
 }
@@ -40,7 +40,7 @@ async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$infer
   const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);
   const [o] = await db.insert(orders).values({
     userId: u.id, planId, mealSizeId: snap.mealSizes[0].id, frequencyId: freq.id,
-    persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: COMING_MONDAY,
+    persons: 1, mealSlots: ["lunch"], durationWeeks: 1, startDate: THIS_MONDAY,
     // Counts now live on the order snapshot, not the plan — default to the veg shape.
     categoryCounts: { sabzi: 2, rice: 1 },
     tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
@@ -56,7 +56,7 @@ async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$infer
 }
 
 async function makeWeek() {
-  const [w] = await db.insert(menuWeeks).values({ weekStart: COMING_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+  const [w] = await db.insert(menuWeeks).values({ weekStart: THIS_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
   return w;
 }
 
@@ -175,7 +175,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
     if (grid.empty === null) {
-      expect(grid.weekDatesView.some((v) => v.dateIso === COMING_MONDAY)).toBe(false);
+      expect(grid.weekDatesView.some((v) => v.dateIso === THIS_MONDAY)).toBe(false);
     } else {
       expect(grid.empty).toBe("no-dates");
     }
@@ -190,7 +190,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
     if (grid.empty === null) {
-      expect(grid.weekDatesView.some((v) => v.dateIso === COMING_MONDAY)).toBe(false);
+      expect(grid.weekDatesView.some((v) => v.dateIso === THIS_MONDAY)).toBe(false);
     } else {
       expect(grid.empty).toBe("no-dates");
     }
@@ -206,7 +206,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
     // A make-up is a real, independently-scheduled delivery — it must show up in the grid just
     // like any other scheduled row, regardless of makeupForDeliveryId.
     const makeupDateIso = (() => {
-      const d = new Date(`${COMING_MONDAY}T00:00:00.000Z`);
+      const d = new Date(`${THIS_MONDAY}T00:00:00.000Z`);
       d.setUTCDate(d.getUTCDate() + 1);
       return d.toISOString().slice(0, 10);
     })();
@@ -230,7 +230,7 @@ describe("buildMealsGrid reads deliveries rows, not a computed schedule", () => 
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
     if (grid.empty !== null) throw new Error(`expected grid, got empty=${grid.empty}`);
-    const view = grid.weekDatesView.find((v) => v.dateIso === COMING_MONDAY)!;
+    const view = grid.weekDatesView.find((v) => v.dateIso === THIS_MONDAY)!;
     expect(view.lockMs).toBe(d.cutoffAt);
     expect(view.lockMs).toBe(cutoffAt);
   });

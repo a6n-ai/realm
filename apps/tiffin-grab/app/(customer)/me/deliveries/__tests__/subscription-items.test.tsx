@@ -46,6 +46,7 @@ describe("SubscriptionPlanHeader", () => {
         sub={sub}
         allSubscriptions={[sub]}
         categoryLabels={{ sabzi: "Sabzi", dal: "Daal", roti: "Roti" }}
+        today="2030-01-07"
         onSwitch={() => {}}
       />,
     );
@@ -61,6 +62,7 @@ describe("SubscriptionPlanHeader", () => {
         sub={sub}
         allSubscriptions={[sub, other]}
         categoryLabels={{ sabzi: "Sabzi", dal: "Daal", roti: "Roti" }}
+        today="2030-01-07"
         onSwitch={() => {}}
       />,
     );

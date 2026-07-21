@@ -9,7 +9,7 @@ import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, SkeletonListRows } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import type { CustomerDelivery, myPausePanel, Subscription, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
+import type { CustomerDelivery, myPausePanel, Subscription, TiffinCounts, WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { DeliveryCardMeal } from "./meal-chips";
@@ -63,6 +63,7 @@ function TiffinCalendarSection({
   pausePanel,
   calendarDays,
   categoryLabels,
+  counts,
   tz,
   today,
   monthKey,
@@ -74,6 +75,7 @@ function TiffinCalendarSection({
   pausePanel: PausePanel;
   calendarDays: CalendarCell[];
   categoryLabels: Record<string, string>;
+  counts?: TiffinCounts;
   tz: string;
   today: string;
   monthKey: string;
@@ -137,6 +139,8 @@ function TiffinCalendarSection({
         sub={sub}
         allSubscriptions={allSubscriptions}
         categoryLabels={categoryLabels}
+        counts={counts}
+        today={todayIso}
         onSwitch={switchSubscription}
       />
 
@@ -205,6 +209,7 @@ export function DeliveryCalendar({
   monthKey = "",
   waitlisted = [],
   today = "",
+  tiffinCounts,
 }: {
   subscriptions: Subscription[];
   selectedPublicId?: string;
@@ -215,6 +220,7 @@ export function DeliveryCalendar({
   monthKey?: string;
   waitlisted?: WaitlistedSubscription[];
   today?: string;
+  tiffinCounts?: TiffinCounts;
 }) {
   const tz = useTimezone();
   const [vacationOpen, setVacationOpen] = useState(false);
@@ -286,6 +292,7 @@ export function DeliveryCalendar({
         pausePanel={pausePanel}
         calendarDays={calendarCells[selected.publicId] ?? []}
         categoryLabels={categoryLabels}
+        counts={tiffinCounts}
         tz={tz}
         today={today}
         monthKey={monthKey}
