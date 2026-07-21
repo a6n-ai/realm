@@ -9,7 +9,7 @@ export const paymentStatus = pgEnum("payment_status", ["simulated_paid", "pendin
 export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
 export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
-  "skipped", "unskipped", "delivery_address_changed",
+  "skipped", "unskipped", "delivery_address_changed", "pool_scheduled",
 ]);
 
 export const orders = pgTable("orders", {
@@ -28,6 +28,9 @@ export const orders = pgTable("orders", {
   durationWeeks: integer("duration_weeks").notNull(),
   startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
+  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).
+  // Customer schedules these after the last delivery via scheduleFromPool.
+  pooledTiffinCount: integer("pooled_tiffin_count").notNull().default(0),
   perTiffinPrice: numeric("per_tiffin_price", { precision: 10, scale: 2 }).notNull(),
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
