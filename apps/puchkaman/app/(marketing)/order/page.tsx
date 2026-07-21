@@ -1,13 +1,13 @@
 import { Btn, PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
-import { UBER_EATS_URL } from "@/lib/links";
+import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 
 type Channel = { name: string; tag: string; desc: string; cta: string; bg: string; color: string; big?: boolean; soon?: boolean; emoji: string; url?: string };
 
 const CHANNELS: Channel[] = [
   { name: "Pickup Order", tag: "No fees · Best value", desc: "Order direct & skip the delivery app fees. Ready in ~15 min at 3315 Danforth Ave.", cta: "Order Pickup", bg: "var(--red)", color: "#fff", big: true, emoji: "🛍️" },
   { name: "Uber Eats", tag: "Delivery", desc: "Get Puchkaman delivered hot to your door across Scarborough.", cta: "Open Uber Eats", bg: "var(--white)", color: "var(--ink)", emoji: "🛵", url: UBER_EATS_URL },
-  { name: "DoorDash", tag: "Delivery", desc: "Fast delivery with live tracking through DoorDash.", cta: "Open DoorDash", bg: "var(--white)", color: "var(--ink)", emoji: "🚗" },
+  { name: "DoorDash", tag: "Delivery", desc: "Fast delivery with live tracking through DoorDash.", cta: "Open DoorDash", bg: "var(--white)", color: "var(--ink)", emoji: "🚗", url: DOORDASH_URL },
   { name: "SkipTheDishes", tag: "Coming soon", desc: "Skip delivery is launching shortly — check back soon.", cta: "Coming Soon", bg: "var(--cream)", color: "var(--ink)", soon: true, emoji: "⏳" },
 ];
 

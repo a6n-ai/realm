@@ -67,7 +67,11 @@ export default async function HomePage() {
     (withPhoto.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
     photoUrls[0] ??
     null;
-  const fusionUrl = photoUrls.find((u) => u !== heroUrl) ?? heroUrl;
+  // Fusion teaser wants an actual fusion-category dish (not e.g. vada pav).
+  const fusionUrl =
+    (withPhoto.find((p) => p.category === "fusion")?.image as FileDetail | null)?.url ??
+    photoUrls.find((u) => u !== heroUrl) ??
+    heroUrl;
   const galleryUrls = photoUrls.slice(0, 6);
 
   return (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
-import { ADDRESS, MAP_DIRECTIONS_URL, MAP_EMBED_URL } from "@/lib/links";
+import { ADDRESS, MAP_DIRECTIONS_URL, MAP_EMBED_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
 
 const HOURS: [string, string][] = [
   ["Monday", "Closed"],
@@ -50,15 +50,17 @@ export default function ContactPage() {
                 <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📞 Contact</h3>
                 <div style={{ display: "grid", gap: 10 }}>
                   <button
-                    onClick={() => copy("phone", "4160000000")}
+                    onClick={() => copy("phone", PHONE_TEL)}
                     className="flex center between"
                     style={{ background: "var(--cream)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
                   >
-                    <span>📱 (416) 000-0000</span>
+                    <span>📱 {PHONE_DISPLAY}</span>
                     <span className="mono" style={{ fontSize: "0.7rem" }}>{copied === "phone" ? "✓ COPIED" : "TAP TO COPY"}</span>
                   </button>
                   <a
-                    href="#"
+                    href={`https://wa.me/${PHONE_TEL.replace("+", "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex center between"
                     style={{ background: "#25D366", color: "#fff", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
                   >
