@@ -22,11 +22,22 @@ function extensionFor(contentType: string): string {
 // public site only ever renders FileDetail.url from our storage, never the
 // source URL. Called only when an admin actually applies an image (new
 // product creation, or applying a pending sync update), never speculatively.
-export async function rehostImage(sourceUrl: string, prefix: string): Promise<FileDetail> {
+export async function rehostImage(
+  sourceUrl: string,
+  prefix: string,
+  opts: { optimize?: boolean } = {},
+): Promise<FileDetail> {
+  const optimize = opts.optimize ?? true;
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error(`Failed to download image (${res.status}): ${sourceUrl}`);
   const contentType = res.headers.get("content-type") ?? "image/jpeg";
   const bytes = new Uint8Array(await res.arrayBuffer());
+
+  // optimize=false: keep the source bytes as-is (no resize/recompress).
+  if (!optimize) {
+    const key = `${prefix}/${nanoid()}/image.${extensionFor(contentType)}`;
+    return filesService().create(key, bytes, { contentType });
+  }
 
   try {
     const optimized = await sharp(bytes)

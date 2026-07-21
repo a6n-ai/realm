@@ -45,6 +45,9 @@ export type SyncOptions = {
   // (e.g. after pointing FILES_PUBLIC_BASE_URL at the CDN). Heavier: it re-fetches
   // every source photo. Off = only changed photos are re-hosted (the default).
   redownloadImages?: boolean;
+  // Recompress re-hosted images to resized WebP (default). Off keeps the source
+  // bytes as-is. See rehostImage.
+  optimizeImages?: boolean;
 };
 
 export class MenuSyncService {
@@ -88,7 +91,7 @@ export class MenuSyncService {
 
         const existing = byExternalId.get(item.externalId);
         if (existing) {
-          await this.diffAndFlag(existing, item, result, opts.redownloadImages ?? false);
+          await this.diffAndFlag(existing, item, result, opts.redownloadImages ?? false, opts.optimizeImages ?? true);
           continue;
         }
 
@@ -106,7 +109,7 @@ export class MenuSyncService {
           continue;
         }
 
-        const publicId = await this.createFromItem(item, takenSlugs);
+        const publicId = await this.createFromItem(item, takenSlugs, opts.optimizeImages ?? true);
         result.added.push({ publicId, name: item.name });
       } catch (e) {
         result.errors.push({ item: item.name, message: e instanceof Error ? e.message : "Unknown error" });
@@ -117,8 +120,8 @@ export class MenuSyncService {
     return result;
   }
 
-  private async createFromItem(item: MenuSourceItem, takenSlugs: Set<string>): Promise<string> {
-    const image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced") : null;
+  private async createFromItem(item: MenuSourceItem, takenSlugs: Set<string>, optimize: boolean): Promise<string> {
+    const image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
     const slug = uniqueSlug(item.name, takenSlugs);
     takenSlugs.add(slug);
 
@@ -142,7 +145,7 @@ export class MenuSyncService {
     return row.publicId;
   }
 
-  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult, redownloadImages: boolean): Promise<void> {
+  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult, redownloadImages: boolean, optimize: boolean): Promise<void> {
     // Image changes auto-persist to our storage on every sync (no manual Apply)
     // so the public site never renders a volatile Uber Eats source URL. Text and
     // price diffs still queue in pendingSync for admin approval below.
@@ -151,7 +154,7 @@ export class MenuSyncService {
     const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
     const imagePatch: Record<string, unknown> = {};
     if (imageChanged) {
-      imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced") : null;
+      imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
       imagePatch.lastSyncedImageUrl = item.imageUrl ?? null;
       result.imagesUpdated.push({ publicId: existing.publicId, name: existing.name });
     }
@@ -193,7 +196,7 @@ export class MenuSyncService {
       const existingSlugs = new Set(
         (await db.select({ slug: products.slug }).from(products)).map((r) => r.slug).filter((s): s is string => !!s),
       );
-      await this.createFromItem(incoming, existingSlugs);
+      await this.createFromItem(incoming, existingSlugs, true);
       return;
     }
 
