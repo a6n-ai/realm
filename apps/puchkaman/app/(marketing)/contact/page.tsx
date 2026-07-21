@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Btn, Ph, PageBanner } from "@/components/brutal/shared";
+import { Btn, PageBanner } from "@/components/brutal/shared";
+import { ADDRESS, MAP_DIRECTIONS_URL, MAP_EMBED_URL } from "@/lib/links";
 
 const HOURS: [string, string][] = [
   ["Monday", "Closed"],
@@ -95,16 +96,16 @@ export default function ContactPage() {
             {/* map + catering cta */}
             <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
               <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-                <Ph label="GOOGLE MAPS EMBED — 3315 Danforth Ave, Scarborough" ratio="4 / 3.4" mod="ph--yellow" style={{ border: "none", borderRadius: 0, minHeight: 300 }}>
-                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-                    <div className="card" style={{ background: "var(--red)", color: "#fff", padding: "14px 18px", textAlign: "center" }}>
-                      <div style={{ fontSize: 30 }}>📍</div>
-                      <strong>Puchkaman</strong>
-                    </div>
-                  </div>
-                </Ph>
+                <iframe
+                  title={`Puchkaman location — ${ADDRESS}`}
+                  src={MAP_EMBED_URL}
+                  style={{ display: "block", width: "100%", aspectRatio: "4 / 3.4", minHeight: 300, border: "none" }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
                 <div style={{ padding: 16, borderTop: "var(--border)", background: "var(--white)" }}>
-                  <a href="#" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>
+                  <a href={MAP_DIRECTIONS_URL} target="_blank" rel="noopener noreferrer" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>
                 </div>
               </div>
 
