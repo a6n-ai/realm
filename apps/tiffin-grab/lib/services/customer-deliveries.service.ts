@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
+import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,
@@ -171,11 +172,18 @@ export type TiffinCounts = {
   remaining: number;
   /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
   pooled: number;
+  /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
+  persons: number;
+  /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
+  lastDeliveryDate: string | null;
+  /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
+  deliveryWeekdays: string[];
 };
 
-// Delivered/remaining/pooled tiffins for one subscription, for the deliveries plan header.
-// Delivered is derived from the order's delivery rows via the pure tiffin-counts helper; pooled
-// is the stored counter maintained by reconcilePoolFromMisses / scheduleFromPool.
+// Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
+// pool" UI needs (last delivery date + plan weekdays). Delivered is derived from the order's
+// delivery rows via the pure tiffin-counts helper; pooled is the stored counter maintained by
+// reconcilePoolFromMisses / scheduleFromPool.
 export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   const [order] = await db
@@ -184,8 +192,12 @@ export async function myTiffinCounts(userId: bigint, orderPublicId: string): Pro
       tiffinCount: orders.tiffinCount,
       persons: orders.persons,
       pooled: orders.pooledTiffinCount,
+      includeSaturday: orders.includeSaturday,
+      includeSunday: orders.includeSunday,
+      frequencyKey: deliveryFrequencies.key,
     })
     .from(orders)
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
@@ -196,16 +208,30 @@ export async function myTiffinCounts(userId: bigint, orderPublicId: string): Pro
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
       pooledAt: deliveries.pooledAt,
+      deliveryDate: deliveries.deliveryDate,
     })
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
 
   const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
+  const lastDeliveryDate = rows.reduce<string | null>(
+    (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
+    null,
+  );
+  const deliveryWeekdays = orderDeliveryDays({
+    frequencyKey: order.frequencyKey,
+    includeSaturday: order.includeSaturday,
+    includeSunday: order.includeSunday,
+  });
+
   return {
     total: order.tiffinCount,
     delivered,
     remaining: order.tiffinCount - delivered,
     pooled: order.pooled,
+    persons: order.persons,
+    lastDeliveryDate,
+    deliveryWeekdays,
   };
 }
 

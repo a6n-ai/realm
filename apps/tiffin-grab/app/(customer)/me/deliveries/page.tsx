@@ -11,6 +11,7 @@ import {
   myDeliveryMeal,
   myPausePanel,
   myPrimarySubscription,
+  myTiffinCounts,
   myWaitlistedSubscriptions,
 } from "@/lib/services/customer-deliveries.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
@@ -62,10 +63,11 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const selected =
     (subParam ? subscriptions.find((s) => s.publicId === subParam) : null) ?? primary;
 
-  const [rawDeliveries, pausePanel, calendarDays] = await Promise.all([
+  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts] = await Promise.all([
     myDeliveries(userId, from, until),
     myPausePanel(userId, selected.publicId),
     myCalendar(userId, selected.publicId, { from, until }),
+    myTiffinCounts(userId, selected.publicId),
   ]);
 
   const calendarCells: Record<string, CalendarCell[]> = {
@@ -97,6 +99,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
       monthKey={monthKey}
       waitlisted={waitlisted}
       today={today}
+      tiffinCounts={tiffinCounts}
     />
   );
 }

@@ -3,7 +3,7 @@ import { NotFoundError } from "@realm/commons";
 import { revalidatePath } from "next/cache";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertOwnsDelivery, assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
-import { skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress } from "@/lib/services/deliveries.service";
+import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress } from "@/lib/services/deliveries.service";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 
 async function me(): Promise<bigint> {
@@ -53,9 +53,19 @@ export async function pauseMySubscription(
   revalidatePath("/me/deliveries");
 }
 
-export async function resumeMySubscription(orderPublicId: string) {
+// `fromDate` (ISO) resumes a vacation partway: earlier paused days move to the remain pool.
+export async function resumeMySubscription(orderPublicId: string, fromDate?: string) {
   const userId = await me();
   await assertOwnsOrder(userId, orderPublicId);
-  await resumeOrder(orderPublicId);
+  await resumeOrder(orderPublicId, userId, fromDate);
+  revalidatePath("/me/deliveries");
+}
+
+// Turns one pooled tiffin into a real delivery on `dateIso` (must be after the last delivery and
+// a plan weekday — enforced server-side in scheduleFromPool).
+export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: string) {
+  const userId = await me();
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the mutation
+  await scheduleFromPool(orderPublicId, dateIso, userId);
   revalidatePath("/me/deliveries");
 }
