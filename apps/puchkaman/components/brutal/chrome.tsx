@@ -72,7 +72,7 @@ function Logo() {
   return (
     <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.webp" alt="Puchkaman" style={{ height: 50, width: "auto", display: "block" }} />
+      <img src="/logo.webp" alt="" style={{ height: 50, width: "auto", display: "block" }} />
       <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--red)" }}>
         PUCHKAMAN
       </span>
@@ -230,9 +230,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
+            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
               Explore
-            </h4>
+            </h2>
             <div style={{ display: "grid", gap: 10 }}>
               {NAV_LINKS.concat([["order", "Order Online", "Order"]]).map(([p, label]) => (
                 <Link key={p} href={hrefFor(p)} style={{ fontWeight: 600, opacity: 0.9 }} className="foot-link">
@@ -243,9 +243,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
+            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
               Visit Us
-            </h4>
+            </h2>
             <div style={{ display: "grid", gap: 12, fontWeight: 500 }}>
               <p>
                 📍 3315 Danforth Ave,

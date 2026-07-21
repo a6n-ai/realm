@@ -12,12 +12,13 @@
   /* brand */
   --yellow:      #FFD21A;
   --yellow-deep: #F4B500;
-  --red:         #FF3B26;
+  /* --red carries white text everywhere it's used (pills, stickers,
+     ribbon, buttons, red sections) and is used as red text on light.
+     #FF3B26 was only 3.56:1 — darkened to #DE2A1A (4.72:1) so every red
+     surface clears WCAG AA. Dark theme keeps its lifted red below. */
+  --red:         #DE2A1A;
   --red-deep:    #E22A18;
-  /* Filled red buttons carry white text; --red (3.56:1) fails WCAG AA.
-     --red-btn is a darker fill hitting 4.72:1. Button is its own surface,
-     so one value works in both themes (no dark override). */
-  --red-btn:     #DE2A1A;
+  --red-btn:     var(--red);
   --ink:         #16140D;
   --cream:       #FFF4DA;
   --paper:       #FFFBF0;
