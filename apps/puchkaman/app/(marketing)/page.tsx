@@ -40,7 +40,8 @@ export default async function HomePage() {
   // active products that have a photo (so home shows the actual menu, not empty
   // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
   const featured = await productsService.featuredProducts(6);
-  const picks = featured.length ? featured : (await productsService.listActive()).filter((p) => p.image).slice(0, 6);
+  const withPhoto = (await productsService.listActive()).filter((p) => p.image);
+  const picks = featured.length ? featured : withPhoto.slice(0, 6);
   const cards: BestSellerCard[] = picks.length
     ? picks.map((p) => {
         const badge = (p.tags ?? []).find((t) => TAG_STYLE[t]);
@@ -56,13 +57,18 @@ export default async function HomePage() {
       })
     : BEST_SELLERS.map((d) => ({ ...d, image: null }));
 
-  // Hero photo: reuse a real product image (prefer a viral/fusion one) so the
-  // hero isn't a placeholder once the menu has photos. Falls back to the striped
-  // Ph tile when nothing has an image yet.
+  // Reuse real product photos across the home marketing sections (hero, fusion
+  // teaser, Instagram grid) so they aren't striped placeholders once the menu
+  // has images. Each falls back to its Ph tile when no photo is available.
+  const photoUrls = withPhoto
+    .map((p) => (p.image as FileDetail | null)?.url)
+    .filter((u): u is string => !!u);
   const heroUrl =
-    (picks.find((p) => p.image && (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
-    (picks.find((p) => p.image)?.image as FileDetail | null)?.url ??
+    (withPhoto.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
+    photoUrls[0] ??
     null;
+  const fusionUrl = photoUrls.find((u) => u !== heroUrl) ?? heroUrl;
+  const galleryUrls = photoUrls.slice(0, 6);
 
   return (
     <div>
@@ -187,7 +193,17 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
+              {fusionUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fusionUrl}
+                  alt="Fusion puchka close-up"
+                  className="rotate-l"
+                  style={{ display: "block", width: "100%", aspectRatio: "4 / 3.2", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)" }}
+                />
+              ) : (
+                <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
+              )}
               <span className="sticker rotate-r" style={{ top: -14, right: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>NEVER TRIED IT?</span>
             </div>
             <div>
@@ -262,7 +278,18 @@ export default async function HomePage() {
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
             {["Reel · puchka pour", "Reel · cheese pull", "Post · combo box", "Reel · catering setup", "Post · summer drinks", "Reel · kathi roll"].map((l, i) => (
               <div key={i} style={{ position: "relative" }}>
-                <Ph label={l} ratio="1 / 1" className="card--lift" />
+                {galleryUrls[i] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={galleryUrls[i]}
+                    alt={l}
+                    loading="lazy"
+                    className="card--lift"
+                    style={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)" }}
+                  />
+                ) : (
+                  <Ph label={l} ratio="1 / 1" className="card--lift" />
+                )}
                 <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>{l.startsWith("Reel") ? "▶" : "◳"}</span>
               </div>
             ))}
