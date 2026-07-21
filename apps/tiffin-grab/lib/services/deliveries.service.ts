@@ -152,9 +152,9 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  // reconcileMakeups opens its own transaction and takes its own advisory lock — must run
+  // reconcilePoolFromMisses opens its own transaction and takes its own advisory lock — must run
   // after this one commits, never nested inside it.
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
   return updatedCount;
 }
 
@@ -179,7 +179,7 @@ export async function resumeOrder(orderPublicId: string): Promise<number> {
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
   return updatedCount;
 }
 
@@ -201,7 +201,7 @@ export async function skipDelivery(deliveryPublicId: string, actorId: bigint | n
       orderId, deliveryId: row.id, type: "skipped", createdBy: actorId,
     });
   });
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
 }
 
 // Self-join alias used only to test "does a make-up already exist for this row" — a correlated
@@ -210,20 +210,23 @@ export async function skipDelivery(deliveryPublicId: string, actorId: bigint | n
 const existingMakeup = alias(deliveries, "existing_makeup");
 
 /**
- * Append one make-up per missed original. A missed original is an ORIGINAL row
- * (makeup_for_delivery_id IS NULL) whose status is paused|skipped and whose snapshotted cutoff
- * has passed. Make-ups are terminal and are never reconciled.
+ * Move missed originals into the order's remain pool instead of auto-scheduling a make-up date.
+ * A missed original is an ORIGINAL row (makeup_for_delivery_id IS NULL) whose status is
+ * paused|skipped, whose snapshotted cutoff has passed, that has NOT already been pooled
+ * (pooled_at IS NULL) and does NOT already have a make-up child (legacy rows from the old
+ * auto-make-up path keep their date and are left alone).
  *
- * Serialized per order by a TRANSACTION-scoped advisory lock: db/client.ts sets prepare:false
- * for transaction-mode PgBouncer, where a session is not pinned across statements, so
- * pg_advisory_lock (session-scoped) would not hold. Dates are assigned one at a time,
- * re-reading max(delivery_date) after each insert, so two missed rows get distinct slots —
- * UNIQUE(makeup_for_delivery_id) alone would not prevent them colliding on
- * UNIQUE(order_id, delivery_date).
+ * Each pooled miss stamps `pooled_at` and adds `persons` tiffins to orders.pooled_tiffin_count.
+ * The customer later turns a pooled tiffin into a real date via scheduleFromPool, which is what
+ * creates the make-up row — so the miss stays "debt" (miss without make-up) until then, keeping
+ * maybeComplete from completing an order that still owes tiffins.
  *
+ * Idempotent via pooled_at: a second run counts nothing. Returns tiffins added to the pool.
+ *
+ * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
  * NEVER call from a read path: buildMealsGrid runs inside async Server Components.
  */
-export async function reconcileMakeups(orderId: bigint): Promise<number> {
+export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
@@ -231,14 +234,6 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
     // Defense in depth: a correctly-behaving maybeComplete never completes an order with debt,
     // so this should be unreachable — but it bounds the blast radius if that logic regresses.
     if (!order || order.status === "cancelled" || order.status === "completed") return 0;
-
-    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
-      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = new Set(orderDeliveryDays({
-      frequencyKey: freq!.key,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
-    }));
 
     const missed = await tx.select({ id: deliveries.id })
       .from(deliveries)
@@ -248,27 +243,27 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
         isNull(deliveries.makeupForDeliveryId), // make-ups are terminal
         inArray(deliveries.status, ["paused", "skipped"]),
         lte(deliveries.cutoffAt, Date.now()),
-        isNull(existingMakeup.id), // no make-up exists yet for this row
+        isNull(deliveries.pooledAt), // not already pooled
+        isNull(existingMakeup.id), // legacy auto-make-up already covers this miss — leave it
       ))
       .orderBy(asc(deliveries.deliveryDate));
     if (missed.length === 0) return 0;
 
-    const { timezone, cutoffHour } = await getAppSettings();
-    let created = 0;
+    const now = Date.now();
+    let pooledTiffins = 0;
     for (const src of missed) {
-      const [{ max }] = await tx.select({ max: sql<string>`max(${deliveries.deliveryDate})` })
-        .from(deliveries).where(eq(deliveries.orderId, orderId));
-      const nextDate = nextDeliveryDateAfter(max, deliveryDays);
-      const inserted = await tx.insert(deliveries).values({
-        orderId,
-        deliveryDate: nextDate,
-        status: "scheduled",
-        cutoffAt: cutoffMsFor(nextDate, cutoffHour, timezone),
-        makeupForDeliveryId: src.id,
-      }).onConflictDoNothing().returning({ id: deliveries.id });
-      created += inserted.length;
+      const stamped = await tx.update(deliveries).set({ pooledAt: now })
+        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
+        .returning({ id: deliveries.id });
+      if (stamped.length === 0) continue; // lost a race; do not double-count
+      pooledTiffins += order.persons;
     }
-    return created;
+    if (pooledTiffins > 0) {
+      await tx.update(orders)
+        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
+        .where(eq(orders.id, orderId));
+    }
+    return pooledTiffins;
   });
 }
 
@@ -361,7 +356,7 @@ export async function unskipDelivery(deliveryPublicId: string, actorId: bigint |
       orderId, deliveryId: row.id, type: "unskipped", createdBy: actorId,
     });
   });
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
 }
 
 /** Prefix match against delivery_zones.postal_prefixes (active zones only). Rejects an unserviced postal code. */
