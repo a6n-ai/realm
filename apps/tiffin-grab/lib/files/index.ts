@@ -61,6 +61,10 @@ export function filesService(): FileSystemService {
   if (!cached) {
     cached = new FileSystemService(makeStorage(), db, {
       publicBaseUrl: process.env.FILES_PUBLIC_BASE_URL ?? "/api/files",
+      // Static files live under public/* so the files CDN can be scoped there
+      // and never reach secured objects (e.g. ticket attachment originals under
+      // tickets/*). See deployment/cdn/. Existing objects keep their old keys.
+      keyPrefix: "public",
     });
   }
   return cached;

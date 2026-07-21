@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Reusable files CDN for one Realm app: CloudFront (OAC) in front of the app's
+  private S3 files bucket so the bucket stays private and viewers skip the Next
+  /api/files proxy. PriceClass_100 serves Canada (Toronto/Montreal edges).
+
+# Canada is served from the North America edge tier (Toronto + Montreal PoPs) =
+# PriceClass_100, the cheapest class. Origin->CloudFront S3 transfer is free;
+# only edge->viewer is billed, and the account's perpetual free tier (1 TB out +
+# 10M requests/month) covers restaurant-scale traffic.
+#
+# SECURITY — READ BEFORE DEPLOYING
+# This grants CloudFront s3:GetObject on <FilesBucketName>/<PublicKeyPattern>.
+# CloudFront cannot read the file_system.resource_type column, so the ONLY guard
+# against exposing a `secured` object (presigned/token-gated, e.g. ticket
+# attachment originals) is this key pattern. Two safe configurations:
+#
+#   1. Bucket has NO secured objects at all (e.g. puchkaman): PublicKeyPattern=*
+#      is safe — every object is already public-static.
+#   2. Bucket mixes static + secured (e.g. tiffin-grab): the app MUST write all
+#      static/public files under a dedicated `public/` prefix and secured files
+#      elsewhere; deploy with PublicKeyPattern=public/* . NEVER use * here, and
+#      never point the pattern at a prefix that also holds secured objects
+#      (tiffin-grab intermixes thumb-* static and orig-* secured under the same
+#      tickets/<id>/<nanoid>/ folder — that prefix is NOT CDN-safe).
+
+Parameters:
+  AppName:
+    Type: String
+    Description: App slug, used for resource names/comments (e.g. puchkaman, tiffin-grab).
+    AllowedPattern: "[a-z0-9-]+"
+  FilesBucketName:
+    Type: String
+    Description: Existing private files bucket (e.g. puchkaman-files-<acct>-us-east-1-an).
+  PublicKeyPattern:
+    Type: String
+    Default: "public/*"
+    Description: >
+      S3 key pattern CloudFront may read. Use "*" ONLY when the bucket has zero
+      secured objects; otherwise a dedicated public prefix like "public/*".
+  AlternateDomainName:
+    Type: String
+    Default: ""
+    Description: Optional custom domain (e.g. cdn.puchkaman.ca). Empty = use the *.cloudfront.net domain.
+  AcmCertificateArn:
+    Type: String
+    Default: ""
+    Description: Required only with AlternateDomainName. Must be an ACM cert in us-east-1.
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref AlternateDomainName, ""]]
+
+Resources:
+  # OAC replaces the legacy Origin Access Identity. SigV4 "always" so CloudFront
+  # signs every origin request; the bucket policy below trusts only this signature.
+  FilesOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AppName}-files-oac"
+        Description: !Sub "OAC for ${AppName} files CDN"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FilesDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${AppName} files CDN (static ${PublicKeyPattern} from ${FilesBucketName})"
+        PriceClass: PriceClass_100  # US + Canada + Europe edges — cheapest, includes Toronto/Montreal
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - Id: s3-files
+            # REST endpoint (not the website endpoint) is required for OAC.
+            DomainName: !Sub "${FilesBucketName}.s3.${AWS::Region}.amazonaws.com"
+            OriginAccessControlId: !GetAtt FilesOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""  # empty because OAC supersedes OAI
+        DefaultCacheBehavior:
+          TargetOriginId: s3-files
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          # Managed-CachingOptimized (AWS-managed, stable id). Honors the object's
+          # Cache-Control when present; images are content-addressed (nanoid keys)
+          # so long edge TTLs are safe.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        Aliases: !If [HasCustomDomain, [!Ref AlternateDomainName], !Ref "AWS::NoValue"]
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref AcmCertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+
+  # An AWS::S3::BucketPolicy REPLACES the bucket's entire policy, so this stack
+  # OWNS the whole policy. The Realm buckets already carry a DenyInsecureTransport
+  # statement (see deployment/prod/RUNBOOK.md) — it is reproduced here so deploying
+  # this stack does not drop it. The instance-role S3 grant is identity-based (see
+  # <app>-prod.yaml), not a bucket policy, so it is unaffected. If a bucket ever
+  # grows additional bucket-policy statements, add them here too.
+  FilesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FilesBucketName
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${FilesBucketName}"
+              - !Sub "arn:aws:s3:::${FilesBucketName}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+          - Sid: AllowCloudFrontStaticRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${FilesBucketName}/${PublicKeyPattern}"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FilesDistribution}"
+
+Outputs:
+  DistributionId:
+    Value: !Ref FilesDistribution
+  DistributionDomainName:
+    Description: Set FILES_PUBLIC_BASE_URL to https://<this> (or https://<AlternateDomainName>).
+    Value: !GetAtt FilesDistribution.DomainName
+  FilesPublicBaseUrl:
+    Description: Exact value to store in SSM as FILES_PUBLIC_BASE_URL for the app.
+    Value: !If
+      - HasCustomDomain
+      - !Sub "https://${AlternateDomainName}"
+      - !Sub "https://${FilesDistribution.DomainName}"

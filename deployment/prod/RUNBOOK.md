@@ -288,6 +288,80 @@ aws s3 rm "s3://$B/_verify/check.txt" --region us-east-1
 Note `curl localhost:3000` on the box returns nothing — `web` does not publish 3000 to the
 host. Caddy reaches it by container name over the `edge` net; test via the public URL.
 
+## Files CDN (CloudFront) — optional, per app
+
+Puts a CloudFront distribution in front of an app's private files bucket so images
+serve from a Canadian edge (Toronto/Montreal) instead of the Next `/api/files` proxy
+pulling every object through the Node process. Template:
+[`deployment/cdn/cloudfront-files.yaml`](../cdn/cloudfront-files.yaml). One stack per app.
+
+**Why it stays cheap.** `PriceClass_100` (US/Canada/Europe edges) is the cheapest class and
+covers Canada. Origin→CloudFront S3 transfer is free; only edge→viewer is billed, and the
+account's perpetual free tier (**1 TB out + 10M requests/month, shared account-wide**) covers
+restaurant-scale traffic — realistically **$0/mo** for both apps. Past free tier it is
+$0.085/GB (NA) + $0.01/10k requests.
+
+**Why the bucket stays private.** Origin Access Control (OAC) makes CloudFront the only reader;
+Block Public Access stays fully on. This does **not** contradict "one private bucket, not two"
+above — there is still one private bucket. The CDN just replaces the app proxy as the public
+read path for `static` objects.
+
+### The public/secured split — READ THIS BEFORE ADDING A NEW APP
+
+CloudFront cannot read the `file_system.resource_type` column, so the **only** thing keeping a
+`secured` object (presigned, token-gated — e.g. ticket attachment originals) off the public CDN
+is the S3 **key prefix** the policy is scoped to. The rule, enforced in the files package:
+
+- `FileSystemService` takes a `keyPrefix` option. Every **static** `filesService` sets
+  `keyPrefix: "public"`, so static objects are written under `public/*`. Secured services set
+  no prefix (their objects live elsewhere, e.g. `tickets/*`).
+- The CDN + bucket policy are scoped to `PublicKeyPattern` (default `public/*`). A secured
+  object outside `public/*` is unreachable through the CDN even if its key is known.
+
+**When you create a new client app, do this or the CDN is unsafe:**
+1. Give the app's static `filesService` `keyPrefix: "public"` (copy `apps/tiffin-grab/lib/files/index.ts`).
+2. Never write a `secured` object under `public/*`, and never write a `static` object into a
+   prefix that also holds secured objects (tiffin-grab's `tickets/<id>/<nanoid>/` folder mixes
+   `thumb-*` static + `orig-*` secured — the `keyPrefix` split is exactly what separates them:
+   thumbnails become `public/tickets/...`, originals stay `tickets/...`).
+3. Deploy the stack with `PublicKeyPattern=public/*`. Only use `PublicKeyPattern=*` when the
+   bucket has **zero** secured objects (puchkaman today) — and re-scope the day that changes.
+
+Existing objects created before the CDN keep their frozen `/api/files/...` URLs and keep serving
+through the proxy; only new files get CDN URLs. No migration is required, and nothing breaks —
+the two paths coexist. Backfill old URLs only if you want the old images on the edge too.
+
+### Deploy
+
+```bash
+# 1. Stack per app. StaticPrefix: use * only if the bucket has NO secured objects.
+aws cloudformation deploy --region us-east-1 \
+  --stack-name puchkaman-files-cdn \
+  --template-file deployment/cdn/cloudfront-files.yaml \
+  --parameter-overrides AppName=puchkaman \
+    FilesBucketName=puchkaman-files-<acct>-us-east-1-an \
+    PublicKeyPattern='*'
+
+aws cloudformation deploy --region us-east-1 \
+  --stack-name tiffin-grab-files-cdn \
+  --template-file deployment/cdn/cloudfront-files.yaml \
+  --parameter-overrides AppName=tiffin-grab \
+    FilesBucketName=tiffin-grab-files-<acct>-us-east-1-an \
+    PublicKeyPattern='public/*'
+
+# 2. Read the base URL the stack computed and store it as the app's SSM param.
+URL=$(aws cloudformation describe-stacks --region us-east-1 --stack-name puchkaman-files-cdn \
+  --query "Stacks[0].Outputs[?OutputKey=='FilesPublicBaseUrl'].OutputValue" --output text)
+aws ssm put-parameter --region us-east-1 --overwrite --type SecureString \
+  --name /puchkaman/prod/FILES_PUBLIC_BASE_URL --value "$URL"
+
+# 3. Redeploy the app so it picks up the new FILES_PUBLIC_BASE_URL.
+```
+
+Custom domain (e.g. `cdn.puchkaman.ca`) is optional: pass `AlternateDomainName` +
+`AcmCertificateArn` (cert must be in **us-east-1**) and point a DNS CNAME at the distribution.
+Without them the `*.cloudfront.net` domain works immediately, no DNS or cert needed.
+
 ## First deploy: migrate + single admin
 
 Run from the app's folder (`cd ~/realm/deployment/prod/tiffin-grab`). Populate the SSM

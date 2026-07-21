@@ -74,6 +74,18 @@ describe.skipIf(!url)("FileSystemService (integration)", () => {
     expect(await svc.list("does/not/exist")).toEqual([]);
   });
 
+  it("keyPrefix namespaces created objects so static stays CDN-safe apart from secured", async () => {
+    const pub = new FileSystemService(storage, db, { publicBaseUrl: "https://cdn.test", keyPrefix: "public" });
+    const fd = await pub.create("tickets/t1/n1/thumb-a.png", "x", { contentType: "image/png" });
+    // physical key + url both carry the prefix; a "public/*" CDN scope covers it,
+    // while a secured object written elsewhere (e.g. tickets/t1/n1/orig-a.png) does not.
+    expect(fd.filePath).toBe("public/tickets/t1/n1/thumb-a.png");
+    expect(fd.url).toBe("https://cdn.test/public/tickets/t1/n1/thumb-a.png");
+    expect(await storage.head("public/tickets/t1/n1/thumb-a.png")).not.toBeNull();
+    // reads round-trip on the stored (prefixed) path
+    expect((await pub.head("public/tickets/t1/n1/thumb-a.png"))?.filePath).toBe("public/tickets/t1/n1/thumb-a.png");
+  });
+
   it("delete removes the object and the row", async () => {
     await svc.create("x/a.png", "v");
     await svc.delete("x/a.png");
