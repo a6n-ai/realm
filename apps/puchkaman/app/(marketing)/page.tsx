@@ -63,13 +63,19 @@ export default async function HomePage() {
   const photoUrls = withPhoto
     .map((p) => (p.image as FileDetail | null)?.url)
     .filter((u): u is string => !!u);
+  // Hero + fusion teaser both showcase the fusion range (the brand hero product),
+  // preferring a viral-tagged fusion dish, never e.g. vada pav. Pick two distinct
+  // photos when the menu has more than one fusion item.
+  const fusionPhotos = withPhoto.filter((p) => p.category === "fusion");
   const heroUrl =
+    (fusionPhotos.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
+    (fusionPhotos[0]?.image as FileDetail | null)?.url ??
     (withPhoto.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
     photoUrls[0] ??
     null;
-  // Fusion teaser wants an actual fusion-category dish (not e.g. vada pav).
   const fusionUrl =
-    (withPhoto.find((p) => p.category === "fusion")?.image as FileDetail | null)?.url ??
+    (fusionPhotos.find((p) => (p.image as FileDetail | null)?.url !== heroUrl)?.image as FileDetail | null)?.url ??
+    (fusionPhotos[0]?.image as FileDetail | null)?.url ??
     photoUrls.find((u) => u !== heroUrl) ??
     heroUrl;
   const galleryUrls = photoUrls.slice(0, 6);
