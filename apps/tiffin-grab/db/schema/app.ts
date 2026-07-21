@@ -1,5 +1,6 @@
 import { updatableColumns } from "@realm/database";
 import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import type { PaymentConfig } from "@realm/payments";
 import type { DiscountPolicy } from "./coupons";
 
 // The app/tenant entity (formerly app_settings): one row today. Holds currency,
@@ -19,4 +20,6 @@ export const app = pgTable("app", {
   leadAssignment: jsonb("lead_assignment"),
   mealTypes: jsonb("meal_types"),
   discountPolicy: jsonb("discount_policy").$type<DiscountPolicy>(),
+  // Enabled payment methods + per-method tax lines. NULL/empty → simulated mode.
+  paymentConfig: jsonb("payment_config").$type<PaymentConfig>(),
 });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  CreditCardIcon,
   SettingsIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -37,6 +38,13 @@ const SECTIONS = [
     description: "Plan types, dish categories, and menu configuration.",
     icon: UtensilsCrossedIcon,
     href: "/dashboard/settings/meal-types",
+  },
+  {
+    key: "payments",
+    label: "Payments",
+    description: "Payment methods, instructions, and per-method taxes.",
+    icon: CreditCardIcon,
+    href: "/dashboard/settings/payments",
   },
 ] as const;
 

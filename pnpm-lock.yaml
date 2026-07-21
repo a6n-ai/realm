@@ -234,6 +234,9 @@ importers:
       '@realm/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@realm/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
       '@realm/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime

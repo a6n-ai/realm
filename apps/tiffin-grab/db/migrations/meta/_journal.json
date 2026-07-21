@@ -50,6 +50,13 @@
       "when": 1784612011825,
       "tag": "0006_married_red_wolf",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784663440432,
+      "tag": "0007_keen_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

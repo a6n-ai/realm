@@ -1,5 +1,6 @@
 import { UpdatableRepository } from "@realm/database";
 import { cutoffMsFor, tzToDefaultCountry } from "@realm/commons";
+import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@realm/payments";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
@@ -161,6 +162,23 @@ export async function setDiscountPolicy(policy: DiscountPolicy): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { discountPolicy: policy });
   else await appSettingsEntity.create({ ...DEFAULTS, discountPolicy: policy });
+}
+
+// Enabled payment methods + per-method taxes. NULL/garbage → no methods (simulated mode),
+// so the app keeps its current behavior until an admin enables one. Cached like discountPolicy.
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  return settingsCache.getOrSet("paymentConfig", async () => {
+    const [row] = await db.select({ pc: app.paymentConfig }).from(app).limit(1);
+    return parsePaymentConfig(row?.pc ?? undefined);
+  });
+}
+
+export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
+  // parse-then-store: normalizes field defaults and rejects a malformed blob before it lands.
+  const parsed = parsePaymentConfig(cfg);
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
+  else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
 }
 
 export async function getMealTypes(): Promise<MealTypesSettings> {
