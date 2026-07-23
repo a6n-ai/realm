@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
-import { orders } from "@/db/schema";
+import { orders, payments } from "@/db/schema";
 import { Card } from "@realm/ui/card";
 import { Separator } from "@realm/ui/separator";
 
@@ -13,7 +13,15 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
   const [sub] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId)).limit(1);
   if (!sub) notFound();
 
+  const [pay] = await db
+    .select({ status: payments.status, method: payments.method })
+    .from(payments)
+    .where(eq(payments.orderId, sub.id))
+    .limit(1);
+
   const waitlisted = sub.status === "waitlisted";
+  const awaitingPayment =
+    pay?.status === "awaiting_payment" || pay?.status === "pending_verification" || pay?.status === "rejected";
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -22,8 +30,24 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
       <p className="mt-3 text-muted-foreground">
         {waitlisted
           ? "You're on the waitlist for your area — we'll email you when delivery opens."
-          : "Your subscription is active. Welcome to Tiffin Grab!"}
+          : awaitingPayment
+            ? "Your subscription is reserved. Delivery begins once payment is confirmed."
+            : "Your subscription is active. Welcome to Tiffin Grab!"}
       </p>
+
+      {awaitingPayment && !waitlisted && (
+        <Card className="mt-6 p-5 text-left text-sm">
+          <div className="font-medium">Payment pending</div>
+          <p className="mt-1 text-muted-foreground">
+            Send payment using the method you chose at checkout, then mark it as sent from
+            Finances. Until we confirm it, delivery won&apos;t start — you can move upcoming
+            days ahead from Deliveries if you need more time.
+          </p>
+          <a className="mt-2 inline-block text-primary underline" href="/me/wallet?tab=bills">
+            Open Finances →
+          </a>
+        </Card>
+      )}
 
       <Card className="mt-8 p-5 text-left text-sm">
         <div className="font-medium">Check your email</div>

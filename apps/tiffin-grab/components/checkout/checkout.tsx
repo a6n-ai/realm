@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
 import { PhoneInput } from "@realm/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
+import {
+  reprice,
+  validatePostal,
+  type AppliedCoupon,
+  type CheckoutPaymentMethod,
+} from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
@@ -18,6 +23,7 @@ import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { AddressFields } from "@realm/ui/address-fields";
 import { Card } from "@realm/design-system";
+import { cn } from "@realm/ui/cn";
 import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
 
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
@@ -42,6 +48,25 @@ export function Checkout({
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [waitlisted, setWaitlisted] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+
+  const refreshPrice = async (
+    s: WizardSelections,
+    code: string | undefined,
+    methodId: string | null,
+  ) => {
+    const r = await reprice(s, code, s.planKey ?? undefined, methodId);
+    setResult(r.pricing);
+    setApplied(r.appliedCoupons);
+    setPaymentMethods(r.paymentMethods);
+    // Auto-pick the first enabled method when none chosen yet.
+    if (!methodId && r.paymentMethods.length > 0) {
+      setPaymentMethodId(r.paymentMethods[0]!.id);
+      return refreshPrice(s, code, r.paymentMethods[0]!.id);
+    }
+    return r;
+  };
 
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -50,9 +75,7 @@ export function Checkout({
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
-    reprice(s, undefined, s.planKey ?? undefined)
-      .then((r) => { setResult(r.pricing); setApplied(r.appliedCoupons); })
-      .catch(() => setResult(null));
+    refreshPrice(s, undefined, null).catch(() => setResult(null));
   }, [router]);
 
   const checkPostal = async () => {
@@ -80,9 +103,7 @@ export function Checkout({
     if (!selections) return;
     const code = couponCode.trim();
     setCouponState({ status: code ? "checking" : "idle" });
-    const r = await reprice(selections, code || undefined, selections.planKey ?? undefined);
-    setResult(r.pricing);
-    setApplied(r.appliedCoupons);
+    const r = await refreshPrice(selections, code || undefined, paymentMethodId);
     if (!code) {
       setAppliedCode(null);
       setCouponState({ status: "idle" });
@@ -103,8 +124,18 @@ export function Checkout({
     });
   };
 
+  const selectMethod = async (id: string) => {
+    if (!selections) return;
+    setPaymentMethodId(id);
+    await refreshPrice(selections, appliedCode ?? undefined, id);
+  };
+
   const confirm = async () => {
     if (!selections) return;
+    if (paymentMethods.length > 0 && !paymentMethodId) {
+      toast.error("Choose a payment method");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await confirmSubscription({
@@ -112,6 +143,7 @@ export function Checkout({
         planKey: selections.planKey!,
         contact,
         couponCode: appliedCode ?? undefined,
+        paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
       // Out-of-zone: server created a waitlist inquiry, not an order — show the
@@ -133,6 +165,8 @@ export function Checkout({
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
+  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
+  const realPayments = paymentMethods.length > 0;
 
   return (
     <div className="space-y-4">
@@ -228,20 +262,74 @@ export function Checkout({
             <section className="space-y-5">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-balance">Payment</h2>
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <ShieldCheck className="size-4" /> Simulated — no real charge for this MVP.
-                </p>
+                {realPayments ? (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Choose how you&apos;ll pay. Delivery begins once payment is confirmed — if it isn&apos;t,
+                    you can move upcoming deliveries ahead from Deliveries.
+                  </p>
+                ) : (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <ShieldCheck className="size-4" /> Simulated — no real charge for this MVP.
+                  </p>
+                )}
               </div>
-              <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
-                  <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+
+              {realPayments ? (
+                <div className="grid gap-2">
+                  {paymentMethods.map((m) => {
+                    const selected = m.id === paymentMethodId;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => selectMethod(m.id)}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{m.label}</span>
+                          {selected && <Check className="size-4 text-primary" />}
+                        </div>
+                        {selected && (m.payeeHandle || m.instructions) && (
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            {m.payeeHandle && <p>Send to: <span className="font-medium text-foreground">{m.payeeHandle}</span></p>}
+                            {m.instructions && <p className="whitespace-pre-wrap">{m.instructions}</p>}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <div className="grid gap-4">
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+                  </div>
+                </div>
+              )}
+
+              {selectedMethod && (
+                <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                  Your plan is reserved now. Deliveries start after we confirm payment
+                  {selectedMethod.id === "etransfer" ? " (usually within one business day of your e-Transfer)" : ""}.
+                  Need to shift days? Use Deliveries to move them ahead.
+                </p>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                <Button size="lg" className="flex-1 sm:flex-none" disabled={submitting} onClick={confirm}>{submitting ? "Confirming…" : "Confirm Subscription"}</Button>
+                <Button
+                  size="lg"
+                  className="flex-1 sm:flex-none"
+                  disabled={submitting || (realPayments && !paymentMethodId)}
+                  onClick={confirm}
+                >
+                  {submitting ? "Confirming…" : "Confirm Subscription"}
+                </Button>
               </div>
             </section>
           </Card>

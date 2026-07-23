@@ -22,6 +22,8 @@ vi.mock("@/app/(marketing)/contact/actions", () => ({
 const pricing = {
   lineItems: [],
   adjustments: [],
+  taxLines: [],
+  taxTotal: 0,
   tiffinCount: 5,
   perTiffinPrice: 10,
   tier: { minQty: 1, maxQty: null, upliftPct: 0 },
@@ -34,6 +36,7 @@ const pricing = {
 const reprice = vi.fn(async (...args: unknown[]) => ({
   pricing,
   appliedCoupons: [],
+  paymentMethods: [],
   couponError: args[1] ? "That code isn't valid." : undefined,
 }));
 const validatePostal = vi.fn();

@@ -16,6 +16,11 @@ export function Invoice({ result }: { result: PricingResult | null }) {
             <span>{d.label}</span><span className="nums">−${d.amount.toFixed(2)}</span>
           </li>
         ))}
+        {(result.taxLines ?? []).map((t) => (
+          <li key={t.name} className="flex justify-between gap-2 text-muted-foreground">
+            <span>{t.name} ({t.ratePct}%)</span><span className="nums">${t.amount.toFixed(2)}</span>
+          </li>
+        ))}
       </ul>
       <Separator className="my-3" />
       <div className="flex justify-between gap-2 text-muted-foreground">

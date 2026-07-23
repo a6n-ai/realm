@@ -1,11 +1,13 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { enabledMethods, findMethod } from "@realm/payments";
 import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
+import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -20,6 +22,14 @@ export interface AppliedCoupon {
   auto: boolean;
 }
 
+export interface CheckoutPaymentMethod {
+  id: string;
+  label: string;
+  instructions?: string;
+  payeeHandle?: string;
+  requireProof?: boolean;
+}
+
 // reprice always returns a valid PricingResult with the BEST valid combination of
 // auto-apply coupons already folded into adjustments. When the customer also
 // types a code it competes with the auto set (joins if stackable, replaces if
@@ -30,16 +40,41 @@ export interface RepriceResult {
   pricing: PricingResult;
   appliedCoupons: AppliedCoupon[];
   couponError?: string;
+  paymentMethods: CheckoutPaymentMethod[];
+}
+
+export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
+  const cfg = await getPaymentConfig();
+  return enabledMethods(cfg).map((m) => ({
+    id: m.id,
+    label: m.label,
+    instructions: m.instructions,
+    payeeHandle: m.payeeHandle,
+    requireProof: m.requireProof,
+  }));
 }
 
 export async function reprice(
   selections: PricingSelections,
   couponCode?: string,
   planKey?: string,
+  paymentMethodId?: string | null,
 ): Promise<RepriceResult> {
   const snapshot = await loadCatalogSnapshot();
   const catalog = buildPricingCatalog(snapshot, selections);
   const base = priceSubscription(selections, catalog);
+
+  const paymentCfg = await getPaymentConfig();
+  const paymentMethods = enabledMethods(paymentCfg).map((m) => ({
+    id: m.id,
+    label: m.label,
+    instructions: m.instructions,
+    payeeHandle: m.payeeHandle,
+    requireProof: m.requireProof,
+  }));
+  const methodId = paymentMethodId?.trim() || "simulated";
+  const method = methodId !== "simulated" ? findMethod(paymentCfg, methodId) : undefined;
+  const taxes = method?.enabled ? method.taxes : [];
 
   // Resolve the plan's plan_type enum server-side from the catalog snapshot — the
   // client passes a plan KEY, not the plan_type. The optimizer checks
@@ -64,17 +99,18 @@ export async function reprice(
     subtotal: base.subtotal,
     planType,
     userId,
+    paymentMethodId: methodId,
     manualCode: couponCode?.trim() || undefined,
   });
 
-  const pricing = best.lines.length ? priceSubscription(selections, catalog, best.lines) : base;
+  const pricing = priceSubscription(selections, catalog, best.lines, taxes);
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,
     name: r.coupon.name,
     amount: r.amount,
     auto: r.coupon.autoApply,
   }));
-  return { pricing, appliedCoupons, couponError: best.manualError };
+  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods };
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {

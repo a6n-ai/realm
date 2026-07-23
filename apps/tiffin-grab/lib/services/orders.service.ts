@@ -3,6 +3,7 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
+import { enabledMethods, findMethod } from "@realm/payments";
 import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, subscriptionPauses, users } from "@/db/schema";
@@ -10,7 +11,7 @@ import { SessionBaseService, SessionUpdatableService, recordAudit } from "./sess
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
+import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
 import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
@@ -20,6 +21,7 @@ import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
 import { walletService } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
+import { getPaymentConfig } from "./app-settings.service";
 
 const log = createLogger("orders.service");
 
@@ -41,9 +43,9 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentStatusValue = (typeof payments.status.enumValues)[number];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 
-// tx-aware payment recording: writes the payments row AND a matching ledger
-// credit (type 'payment') in the same tx, so every recorded payment makes the
-// customer's totalSpent real. Capture stays manual/simulated (no gateway).
+// tx-aware payment recording: writes the payments row, and (unless creditLedger is
+// false) a matching ledger credit. Real-method checkouts defer the credit until
+// staff verify — they pass creditLedger: false and status: awaiting_payment.
 export async function recordPayment(
   tx: Tx,
   input: {
@@ -54,6 +56,8 @@ export async function recordPayment(
     method?: PaymentMethodValue;
     note?: string | null;
     createdBy?: bigint | null;
+    // Default true (simulated / already-settled). False for awaiting_payment rows.
+    creditLedger?: boolean;
   },
 ): Promise<bigint> {
   const [pay] = await tx
@@ -67,14 +71,16 @@ export async function recordPayment(
       createdBy: input.createdBy ?? null,
     })
     .returning({ id: payments.id });
-  await ledgerService.record(tx, {
-    userId: input.userId,
-    orderId: input.orderId,
-    paymentId: pay.id,
-    direction: "credit",
-    type: "payment",
-    amount: input.amount,
-  });
+  if (input.creditLedger !== false) {
+    await ledgerService.record(tx, {
+      userId: input.userId,
+      orderId: input.orderId,
+      paymentId: pay.id,
+      direction: "credit",
+      type: "payment",
+      amount: input.amount,
+    });
+  }
   return pay.id;
 }
 
@@ -93,6 +99,10 @@ export interface CreateOrderInput {
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
   // arrives without a backing valid rep coupon owned by the actor is rejected.
   repCoupon?: { code: string; requestedAmount: number } | null;
+  // Chosen payment method id (maps to payment_method enum / PaymentMethodConfig.id).
+  // Omitted or "simulated" → today's simulated_paid path (also the fallback when no
+  // methods are enabled). A real method requires it to be enabled in payment_config.
+  paymentMethodId?: string | null;
 }
 
 export interface CreateOrderOptions {
@@ -167,6 +177,30 @@ export async function createOrder(
 
   const deploymentId = generateCode("SUB", 6);
 
+  // Resolve the payment rail before the tx. Empty config / omitted id → simulated
+  // (today's instant-paid path). A real id must be enabled and map to the enum.
+  const paymentCfg = await getPaymentConfig();
+  const requestedMethodId = input.paymentMethodId?.trim() || null;
+  const realMethods = enabledMethods(paymentCfg);
+  const useSimulated =
+    !requestedMethodId ||
+    requestedMethodId === "simulated" ||
+    realMethods.length === 0;
+  let paymentMethodId = "simulated";
+  let methodTaxes: { name: string; ratePct: number }[] = [];
+  if (!useSimulated) {
+    const method = findMethod(paymentCfg, requestedMethodId!);
+    if (!method || !method.enabled) {
+      throw new ValidationError("That payment method is not available");
+    }
+    if (!payments.method.enumValues.includes(method.id as PaymentMethodValue)) {
+      throw new ValidationError(`Unknown payment method: ${method.id}`);
+    }
+    paymentMethodId = method.id;
+    methodTaxes = method.taxes;
+  }
+  const deferSettlement = paymentMethodId !== "simulated";
+
   const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
@@ -190,7 +224,9 @@ export async function createOrder(
 
     // Server-side discount resolution. Both coupon kinds land as a single
     // adjustments[] line; the redemptions (row + ledger debit) are written
-    // in-tx below once the order id exists. The client never sets the amount.
+    // in-tx below once the order id exists — or deferred into the pricing
+    // snapshot when settlement awaits staff verification. The client never sets
+    // the amount.
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
 
@@ -211,18 +247,15 @@ export async function createOrder(
 
     // Customer lane: the best valid combination of auto-apply coupons plus an
     // optional manual code, re-resolved server-side (never trusting a client
-    // amount). resolveBestCoupons returns the winning set + each coupon row to
-    // redeem; rep_daily coupons are excluded from this optimizer entirely.
+    // amount). Method-gated coupons are filtered via paymentMethodId.
     //
     // Rep-aware: when a rep coupon is also applied, an exclusive coupon could never
-    // legally ride alongside it, so we ask for the best STACKABLE-only combo. This
-    // picks the largest stackable discount that can combine with the rep lane,
-    // rather than letting an exclusive win the global optimum and then discarding
-    // it (which would leave the customer with rep + nothing).
+    // legally ride alongside it, so we ask for the best STACKABLE-only combo.
     const best = await couponsService.resolveBestCoupons({
       subtotal: basePricing.subtotal,
       planType: plan.planType,
       userId,
+      paymentMethodId,
       manualCode: input.couponCode,
       stackableOnly: !!input.repCoupon,
     });
@@ -232,23 +265,15 @@ export async function createOrder(
     if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
 
     // Stacking with the rep lane: a customer who *explicitly* typed an exclusive
-    // code alongside a rep discount is always told they cannot combine (preserving
-    // the documented one-rep + one-stackable rule) — regardless of whether that
-    // exclusive would have won the optimizer. The code reaching here is valid +
-    // eligible (an invalid/ineligible one already threw via manualError above), so
-    // a non-stackable resolution means the customer asked for an illegal combo.
+    // code alongside a rep discount is always told they cannot combine.
     if (input.repCoupon && input.couponCode?.trim()) {
       const manualCoupon = await couponsService.findByCode(input.couponCode.trim());
       if (!manualCoupon.stackable) {
         throw new ValidationError("This coupon cannot be combined with another discount");
       }
     }
-    // best.redemptions already excludes exclusives when a rep coupon is present
-    // (stackableOnly), so the kept customer set rides alongside the rep lane.
     // Re-distribute every kept line against the running remaining subtotal so the
-    // summed redemption amounts (and their discount ledger debits) can never exceed
-    // the order subtotal, even though the customer total is independently floored
-    // at 0. Lines that clamp to 0 here are skipped so they don't burn a redemption.
+    // summed redemption amounts can never exceed the order subtotal.
     const customerSet = best.redemptions;
     for (const r of customerSet) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
@@ -259,9 +284,25 @@ export async function createOrder(
       redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
     }
 
-    const pricing = adjustments.length
-      ? priceSubscription(input.selections, pricingCatalog, adjustments)
-      : basePricing;
+    const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, methodTaxes);
+
+    // Snapshot is the immutable receipt. For deferred settlement, pending
+    // redemptions ride along until staff verify — then redeem + clear.
+    const snapshot: OrderPricingSnapshot = {
+      ...pricing,
+      paymentMethodId,
+      planType: plan.planType,
+      ...(deferSettlement && redemptions.length
+        ? {
+            pendingRedemptions: redemptions.map((r) => ({
+              couponPublicId: r.coupon.publicId,
+              code: r.coupon.code,
+              amount: r.amount,
+              redeemedByPublicId: r.redeemedBy != null ? (actorId ?? null) : null,
+            })),
+          }
+        : {}),
+    };
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
@@ -281,7 +322,7 @@ export async function createOrder(
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
-        pricingSnapshot: pricing,
+        pricingSnapshot: snapshot,
         total: pricing.total.toFixed(2),
         status,
         deploymentId,
@@ -295,29 +336,36 @@ export async function createOrder(
       })
       .returning();
 
-    // createOrder never calls activate() — an in-zone customer lands on "active"
-    // directly here, so materialization must be hooked on both paths, not just
-    // the waitlisted→active transition below.
+    // Start immediately: in-zone orders materialize deliveries now, even when
+    // payment is still awaiting. UI tells the customer delivery begins once
+    // payment is confirmed; unpaid days can be moved ahead later.
     if (order.status === "active") await materializeDeliveries(tx, order);
 
-    // Payment + matching ledger credit (the discounted total is what's paid).
-    await recordPayment(tx, { orderId: order.id, userId, amount: pricing.total, createdBy });
+    await recordPayment(tx, {
+      orderId: order.id,
+      userId,
+      amount: pricing.total,
+      createdBy,
+      method: paymentMethodId as PaymentMethodValue,
+      status: deferSettlement ? "awaiting_payment" : "simulated_paid",
+      creditLedger: !deferSettlement,
+    });
 
-    // Redeem each applied coupon: usage row, count bump, and discount ledger debit.
-    for (const r of redemptions) {
-      await couponsService.redeem(tx, {
-        coupon: r.coupon,
-        userId,
-        orderId: order.id,
-        redeemedBy: r.redeemedBy,
-        amountApplied: r.amount,
-        context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
-      });
+    // Simulated path redeems immediately. Real-method path defers until verify
+    // so an abandoned/unpaid order burns no coupon budget.
+    if (!deferSettlement) {
+      for (const r of redemptions) {
+        await couponsService.redeem(tx, {
+          coupon: r.coupon,
+          userId,
+          orderId: order.id,
+          redeemedBy: r.redeemedBy,
+          amountApplied: r.amount,
+          context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
+        });
+      }
     }
 
-    // Seed the activity timeline so the order-detail Activity section isn't empty
-    // until the first lifecycle action. Written in-tx via the raw insert because
-    // createOrder is the documented exception to the audited service layer.
     await tx.insert(orderActivities).values({
       orderId: order.id,
       type: "created",
@@ -325,7 +373,12 @@ export async function createOrder(
       createdBy,
     });
 
-    return { deploymentId, publicId: order.publicId, awardUserId: status === "active" ? userId : null };
+    // Coins also defer on real methods — awarded in verifyPayment.
+    return {
+      deploymentId,
+      publicId: order.publicId,
+      awardUserId: !deferSettlement && status === "active" ? userId : null,
+    };
   });
 
   try {
@@ -337,6 +390,81 @@ export async function createOrder(
   }
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
+}
+
+// Staff settles a real-method payment: credits the ledger, redeems any deferred
+// coupons from the pricing snapshot, awards activation coins, and marks paid.
+// Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
+// pending_verification (after a claim). Idempotent against already-paid rows.
+export async function verifyPayment(
+  paymentPublicId: string,
+  opts: { actorId?: string | null } = {},
+): Promise<void> {
+  const award = await db.transaction(async (tx) => {
+    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+    if (!pay) throw new NotFoundError("Payment not found");
+    if (pay.status === "paid" || pay.status === "simulated_paid") return null;
+    if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification") {
+      throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
+    }
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+    if (!order?.userId) throw new NotFoundError("Order not found");
+
+    const actorInternalId = await resolveUserId(tx, opts.actorId);
+
+    await ledgerService.record(tx, {
+      userId: order.userId,
+      orderId: order.id,
+      paymentId: pay.id,
+      direction: "credit",
+      type: "payment",
+      amount: Number(pay.amount),
+    });
+
+    await tx
+      .update(payments)
+      .set({ status: "paid", capturedAt: Date.now() })
+      .where(eq(payments.id, pay.id));
+
+    const snap = order.pricingSnapshot as OrderPricingSnapshot;
+    const pending = snap.pendingRedemptions ?? [];
+    for (const r of pending) {
+      const [coupon] = await tx.select().from(coupons).where(eq(coupons.publicId, r.couponPublicId)).limit(1);
+      if (!coupon) throw new ValidationError(`Pending coupon ${r.code} no longer exists`);
+      const redeemedBy = r.redeemedByPublicId
+        ? await resolveUserId(tx, r.redeemedByPublicId)
+        : null;
+      await couponsService.redeem(tx, {
+        coupon,
+        userId: order.userId,
+        orderId: order.id,
+        redeemedBy,
+        amountApplied: r.amount,
+        context: { subtotal: snap.subtotal, planType: snap.planType, kind: coupon.kind },
+      });
+    }
+
+    if (pending.length) {
+      const { pendingRedemptions: _drop, ...rest } = snap;
+      await tx
+        .update(orders)
+        .set({ pricingSnapshot: rest, updatedBy: actorInternalId })
+        .where(eq(orders.id, order.id));
+    }
+
+    // Award coins only when the order is (still) active — waitlisted stays deferred
+    // until activateOrder, which has its own award path.
+    return order.status === "active" ? { userId: order.userId, orderPublicId: order.publicId } : null;
+  });
+
+  if (award) {
+    try {
+      await walletService.award(award.userId, "order_activated", { type: "order", id: award.orderPublicId });
+    } catch (e) {
+      log.error({ err: e }, "wallet award on payment verify failed");
+    }
+  }
 }
 
 export type OrderListRow = {
@@ -563,10 +691,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
 
     if (updated.userId != null) {
-      try {
-        await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
-      } catch (e) {
-        log.error({ err: e }, "wallet award on activation failed");
+      // Real-method orders defer coins until payment verify — don't award here if
+      // the payment is still unpaid/unverified.
+      const [pay] = await db
+        .select({ status: payments.status })
+        .from(payments)
+        .where(eq(payments.orderId, updated.id))
+        .limit(1);
+      const settled = !pay || pay.status === "paid" || pay.status === "simulated_paid";
+      if (settled) {
+        try {
+          await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
+        } catch (e) {
+          log.error({ err: e }, "wallet award on activation failed");
+        }
       }
     }
   }
