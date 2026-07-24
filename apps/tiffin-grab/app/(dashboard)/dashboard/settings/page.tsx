@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   CreditCardIcon,
+  PuzzleIcon,
   SettingsIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -40,9 +41,16 @@ const SECTIONS = [
     href: "/dashboard/settings/meal-types",
   },
   {
+    key: "integrations",
+    label: "Integrations",
+    description: "Install and remove plugins (payment methods and more).",
+    icon: PuzzleIcon,
+    href: "/dashboard/settings/integrations",
+  },
+  {
     key: "payments",
-    label: "Payments",
-    description: "Payment methods, instructions, and per-method taxes.",
+    label: "Payment",
+    description: "Configure installed payment plugins — taxes, payee, and enablement.",
     icon: CreditCardIcon,
     href: "/dashboard/settings/payments",
   },

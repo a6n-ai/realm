@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@realm/commons";
 import { paymentConfigSchema, type PaymentConfig } from "@realm/payments";
 import { requireAdmin } from "@/lib/auth/guards";
-import { setPaymentConfig } from "@/lib/services/app-settings.service";
+import { getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
+import { findPaymentPlugin } from "../integrations/registry";
 
 // Saves the whole payment config in one shot (the blob is small). Beyond the schema shape,
 // enforce app-level rules the shared schema can't know: unique method ids and a payee handle
@@ -28,5 +29,37 @@ export async function savePaymentConfig(cfg: PaymentConfig) {
   }
 
   await setPaymentConfig(parsed.data);
-  revalidatePath("/dashboard/settings/payments");
+  revalidatePath("/dashboard/settings/payments", "layout");
+  revalidatePath("/dashboard/settings/integrations");
+}
+
+/** Install a catalog payment plugin (adds its method stub to payment_config). */
+export async function installPaymentPlugin(pluginId: string) {
+  await requireAdmin();
+  const plugin = findPaymentPlugin(pluginId);
+  if (!plugin) throw new ValidationError("Unknown payment plugin");
+
+  const cfg = await getPaymentConfig();
+  if (cfg.methods.some((m) => m.id === plugin.id)) {
+    throw new ValidationError(`${plugin.label} is already installed`);
+  }
+  await setPaymentConfig({ ...cfg, methods: [...cfg.methods, plugin.seed()] });
+  revalidatePath("/dashboard/settings/payments", "layout");
+  revalidatePath("/dashboard/settings/integrations");
+}
+
+/** Uninstall a payment plugin and drop its method config. */
+export async function uninstallPaymentPlugin(pluginId: string) {
+  await requireAdmin();
+  const plugin = findPaymentPlugin(pluginId);
+  if (!plugin) throw new ValidationError("Unknown payment plugin");
+
+  const cfg = await getPaymentConfig();
+  await setPaymentConfig({
+    ...cfg,
+    methods: cfg.methods.filter((m) => m.id !== plugin.id),
+    defaultMethodId: cfg.defaultMethodId === plugin.id ? undefined : cfg.defaultMethodId,
+  });
+  revalidatePath("/dashboard/settings/payments", "layout");
+  revalidatePath("/dashboard/settings/integrations");
 }

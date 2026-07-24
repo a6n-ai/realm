@@ -1,7 +1,8 @@
 "use client";
 
 import { BellIcon } from "lucide-react";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
 import { eventLabel } from "@/components/notifications/template-status";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -40,35 +41,61 @@ const STATUS_STYLE: Record<string, string> = {
   processing: "text-warn",
 };
 
-export function LogsTable({ rows, sort }: { rows: Row[]; sort: SortState<LogSortColumn> }) {
+export function LogsTable({
+  spec,
+  rows,
+  sort,
+  total,
+  page,
+  size,
+}: {
+  spec: FacetDef[];
+  rows: Row[];
+  sort: SortState<LogSortColumn>;
+  total: number;
+  page: number;
+  size: number;
+}) {
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.publicId}
-      sort={sort}
-      search={{ placeholder: "Search notifications…", shortPlaceholder: "Search…", debounceMs: 300 }}
-      emptyIcon={BellIcon}
-      emptyMessage="No notifications have been queued yet."
-      emptySearchMessage="No notifications match your search."
-      renderRow={(r) => (
-        <>
-          <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
-          <TableCell>{eventLabel(r.event)}</TableCell>
-          <TableCell className="text-muted-foreground">{r.channel}</TableCell>
-          <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
-          <TableCell>
-            <span className={STATUS_STYLE[r.status] ?? "text-muted-foreground"}>{r.status}</span>
-            {r.attempts > 1 && <span className="ml-1 text-xs text-muted-foreground">×{r.attempts}</span>}
-          </TableCell>
-          <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
-            {r.lastError ?? r.providerMessageId ?? ""}
-          </TableCell>
-        </>
-      )}
-    />
+    <div className="space-y-4">
+      <DataTable
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.publicId}
+        sort={sort}
+        search={{
+          placeholder: "Search notifications…",
+          shortPlaceholder: "Search…",
+          debounceMs: 300,
+        }}
+        filters={<ReuiFacetFilters spec={spec} />}
+        emptyIcon={BellIcon}
+        emptyMessage="No notifications have been queued yet."
+        emptySearchMessage="No notifications match your search."
+        renderRow={(r) => (
+          <>
+            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+              {fmt(r.createdAt)}
+            </TableCell>
+            <TableCell>{eventLabel(r.event)}</TableCell>
+            <TableCell className="text-muted-foreground">{r.channel}</TableCell>
+            <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
+            <TableCell>
+              <span className={STATUS_STYLE[r.status] ?? "text-muted-foreground"}>{r.status}</span>
+              {r.attempts > 1 && (
+                <span className="ml-1 text-xs text-muted-foreground">×{r.attempts}</span>
+              )}
+            </TableCell>
+            <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
+              {r.lastError ?? r.providerMessageId ?? ""}
+            </TableCell>
+          </>
+        )}
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 

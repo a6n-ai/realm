@@ -11,6 +11,7 @@ import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { CustomerSidebar } from "@/components/customer/customer-sidebar";
 import { CustomerSearch } from "@/components/customer/customer-search";
 import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
+import { AppBrand } from "@/components/app-brand";
 
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -35,6 +36,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     <TimezoneProvider tz={timezone}>
       <CrmShell
         hideSidebarOnMobile
+        brand={<AppBrand href="/me" subtitle="Meals" />}
         sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
         center={<CustomerSearch />}
         actions={

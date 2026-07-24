@@ -147,7 +147,7 @@ export function AppSidebar({
             <UtensilsCrossedIcon className="icon-pop size-4" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold">Tiffin Grab</span>
+            <span className="text-sm font-semibold">TiffinGrab</span>
             <span className="text-muted-foreground text-xs">Operations</span>
           </div>
         </Link>
