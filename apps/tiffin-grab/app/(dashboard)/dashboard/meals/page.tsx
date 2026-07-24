@@ -70,15 +70,15 @@ async function MealsData() {
   if (result.empty !== null) {
     const message =
       result.empty === "no-week"
-        ? "The menu for the coming week hasn't been published yet. Check back soon."
-        : "No deliveries are scheduled for the coming week on your order.";
+        ? "This week's menu hasn't been published yet. Check back soon."
+        : "No deliveries are scheduled for this week on your order.";
     return <EmptyState icon={UtensilsCrossedIcon} message={message} />;
   }
 
   const { releasedWeek, weekDatesView, grid, categories, persons } = result;
 
   return (
-    <SectionCard title={`Coming week — meals for ${releasedWeek.weekStart}`}>
+    <SectionCard title={`This week — meals for ${releasedWeek.weekStart}`}>
       <MealsGrid
         orderId={activeOrder.publicId}
         menuWeekId={releasedWeek.publicId}

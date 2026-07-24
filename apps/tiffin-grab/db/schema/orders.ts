@@ -4,12 +4,16 @@ import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog"
 import { users } from "./auth";
 
 export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused", "completed"]);
-// Additive: 'simulated_paid' stays the default; 'pending' / 'refunded' added for manual capture.
-export const paymentStatus = pgEnum("payment_status", ["simulated_paid", "pending", "refunded"]);
+// Additive: 'simulated_paid' stays the default; 'pending' / 'refunded' from earlier manual capture.
+// The real-payment lifecycle adds: awaiting_payment → pending_verification → paid, plus 'rejected'.
+export const paymentStatus = pgEnum("payment_status", [
+  "simulated_paid", "pending", "refunded",
+  "awaiting_payment", "pending_verification", "paid", "rejected",
+]);
 export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
 export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
-  "skipped", "unskipped", "delivery_address_changed",
+  "skipped", "unskipped", "delivery_address_changed", "pool_scheduled",
 ]);
 
 export const orders = pgTable("orders", {
@@ -28,6 +32,9 @@ export const orders = pgTable("orders", {
   durationWeeks: integer("duration_weeks").notNull(),
   startDate: date("start_date").notNull(),
   tiffinCount: integer("tiffin_count").notNull(),
+  // Tiffins owed but not yet placed on a calendar date (post-cutoff skip/vacation misses).
+  // Customer schedules these after the last delivery via scheduleFromPool.
+  pooledTiffinCount: integer("pooled_tiffin_count").notNull().default(0),
   perTiffinPrice: numeric("per_tiffin_price", { precision: 10, scale: 2 }).notNull(),
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
@@ -45,6 +52,10 @@ export const orders = pgTable("orders", {
   index("orders_current_owner_idx").on(t.currentOwner),
 ]);
 
+// A customer-submitted proof image for a manual payment claim (same shape as ticket
+// attachments): path = secured original, thumbUrl = public inline thumbnail.
+export type PaymentProof = { path: string; thumbUrl: string; name: string };
+
 export const payments = pgTable("payments", {
   ...baseColumns("pay"),
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id),
@@ -52,6 +63,11 @@ export const payments = pgTable("payments", {
   method: paymentMethod("method").notNull().default("simulated"),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   capturedAt: bigint("captured_at", { mode: "number" }),
+  // Manual-claim fields: customer-entered transfer reference and/or an uploaded proof image,
+  // stamped when the claim is submitted (status → pending_verification).
+  reference: text("reference"),
+  proof: jsonb("proof").$type<PaymentProof>(),
+  claimedAt: bigint("claimed_at", { mode: "number" }),
   note: text("note"),
 }, (t) => [
   index("payments_order_idx").on(t.orderId),

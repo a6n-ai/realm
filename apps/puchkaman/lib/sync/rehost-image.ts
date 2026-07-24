@@ -1,6 +1,14 @@
 import { nanoid } from "nanoid";
+import sharp from "sharp";
 import type { FileDetail } from "@realm/storage/model";
+import { createLogger } from "@realm/commons/logger";
 import { filesService } from "@/lib/files";
+
+const log = createLogger("sync-rehost-image");
+
+// Matches tiffin-grab's client-side export target (apps/tiffin-grab/lib/images/export-image.ts).
+const MAX_DIM = 1200;
+const WEBP_QUALITY = 82;
 
 function extensionFor(contentType: string): string {
   if (contentType.includes("png")) return "png";
@@ -14,11 +22,36 @@ function extensionFor(contentType: string): string {
 // public site only ever renders FileDetail.url from our storage, never the
 // source URL. Called only when an admin actually applies an image (new
 // product creation, or applying a pending sync update), never speculatively.
-export async function rehostImage(sourceUrl: string, prefix: string): Promise<FileDetail> {
+export async function rehostImage(
+  sourceUrl: string,
+  prefix: string,
+  opts: { optimize?: boolean } = {},
+): Promise<FileDetail> {
+  const optimize = opts.optimize ?? true;
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error(`Failed to download image (${res.status}): ${sourceUrl}`);
   const contentType = res.headers.get("content-type") ?? "image/jpeg";
   const bytes = new Uint8Array(await res.arrayBuffer());
-  const key = `${prefix}/${nanoid()}/image.${extensionFor(contentType)}`;
-  return filesService().create(key, bytes, { contentType });
+
+  // optimize=false: keep the source bytes as-is (no resize/recompress).
+  if (!optimize) {
+    const key = `${prefix}/${nanoid()}/image.${extensionFor(contentType)}`;
+    return filesService().create(key, bytes, { contentType });
+  }
+
+  try {
+    const optimized = await sharp(bytes)
+      .rotate()
+      .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+    const key = `${prefix}/${nanoid()}/image.webp`;
+    return await filesService().create(key, optimized, { contentType: "image/webp" });
+  } catch (e) {
+    // Corrupt/unsupported source image — don't fail the whole sync over one
+    // bad image, just rehost the raw bytes as-is.
+    log.warn({ sourceUrl, err: e instanceof Error ? e.message : e }, "image optimization failed, falling back to raw bytes");
+    const key = `${prefix}/${nanoid()}/image.${extensionFor(contentType)}`;
+    return filesService().create(key, bytes, { contentType });
+  }
 }

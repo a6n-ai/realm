@@ -5,23 +5,37 @@ import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
 import { PhoneInput } from "@realm/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice, validatePostal, type AppliedCoupon } from "@/app/(public)/subscribe/actions";
+import {
+  reprice,
+  validatePostal,
+  type AppliedCoupon,
+  type CheckoutPaymentMethod,
+} from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@realm/commons";
 import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
+import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
+import { AddressFields } from "@realm/ui/address-fields";
 import { Card } from "@realm/design-system";
+import { cn } from "@realm/ui/cn";
 import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
 
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
-export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
+export function Checkout({
+  defaultCountry,
+  closeHref = "/me",
+}: {
+  defaultCountry: Country;
+  closeHref?: string;
+}) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
   const [result, setResult] = useState<PricingResult | null>(null);
@@ -34,6 +48,25 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [waitlisted, setWaitlisted] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+
+  const refreshPrice = async (
+    s: WizardSelections,
+    code: string | undefined,
+    methodId: string | null,
+  ) => {
+    const r = await reprice(s, code, s.planKey ?? undefined, methodId);
+    setResult(r.pricing);
+    setApplied(r.appliedCoupons);
+    setPaymentMethods(r.paymentMethods);
+    // Auto-pick the first enabled method when none chosen yet.
+    if (!methodId && r.paymentMethods.length > 0) {
+      setPaymentMethodId(r.paymentMethods[0]!.id);
+      return refreshPrice(s, code, r.paymentMethods[0]!.id);
+    }
+    return r;
+  };
 
   useEffect(() => {
     const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -42,9 +75,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
-    reprice(s, undefined, s.planKey ?? undefined)
-      .then((r) => { setResult(r.pricing); setApplied(r.appliedCoupons); })
-      .catch(() => setResult(null));
+    refreshPrice(s, undefined, null).catch(() => setResult(null));
   }, [router]);
 
   const checkPostal = async () => {
@@ -72,9 +103,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
     if (!selections) return;
     const code = couponCode.trim();
     setCouponState({ status: code ? "checking" : "idle" });
-    const r = await reprice(selections, code || undefined, selections.planKey ?? undefined);
-    setResult(r.pricing);
-    setApplied(r.appliedCoupons);
+    const r = await refreshPrice(selections, code || undefined, paymentMethodId);
     if (!code) {
       setAppliedCode(null);
       setCouponState({ status: "idle" });
@@ -95,18 +124,36 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
     });
   };
 
+  const selectMethod = async (id: string) => {
+    if (!selections) return;
+    setPaymentMethodId(id);
+    await refreshPrice(selections, appliedCode ?? undefined, id);
+  };
+
   const confirm = async () => {
     if (!selections) return;
+    if (paymentMethods.length > 0 && !paymentMethodId) {
+      toast.error("Choose a payment method");
+      return;
+    }
     setSubmitting(true);
     try {
-      const { deploymentId } = await confirmSubscription({
+      const res = await confirmSubscription({
         selections,
         planKey: selections.planKey!,
         contact,
         couponCode: appliedCode ?? undefined,
+        paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
-      router.push(`/activate/${deploymentId}`);
+      // Out-of-zone: server created a waitlist inquiry, not an order — show the
+      // waitlist confirmation instead of routing to activation.
+      if (res.waitlisted) {
+        setWaitlisted(true);
+        setStep(1);
+        return;
+      }
+      router.push(`/activate/${res.deploymentId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -118,11 +165,20 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
+  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
+  const realPayments = paymentMethods.length > 0;
 
   return (
+    <div className="space-y-4">
+      <SubscribeChrome
+        closeHref={closeHref}
+        onBack={() => (step > 1 ? setStep(1) : router.push("/subscribe"))}
+        backLabel={step > 1 ? "Back" : "Edit plan"}
+      />
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Checkout</h1>
     <div className="grid gap-6 md:grid-cols-[1fr_360px] md:items-start">
       <div className="space-y-5">
-        <ol className="flex items-center gap-2 text-xs font-medium">
+        <ol className="flex items-center gap-2 overflow-x-auto text-xs font-medium [scrollbar-width:none]">
           {(["Address & contact", "Payment"] as const).map((label, i) => {
             const n = (i + 1) as 1 | 2;
             const done = step > n;
@@ -162,30 +218,39 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
                   <Input id="email" type="email" autoComplete="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
                   {contact.email.trim() && !emailValid && <p className="text-xs text-destructive">Enter a valid email</p>}
                 </div>
-                <div className="grid gap-1.5"><Label htmlFor="addr">Address</Label><Input id="addr" autoComplete="address-line1" value={contact.addressLine} onChange={(e) => set({ addressLine: e.target.value })} /></div>
-                <div className="grid gap-1.5"><Label htmlFor="city">City</Label><Input id="city" autoComplete="address-level2" value={contact.city} onChange={(e) => set({ city: e.target.value })} /></div>
-                <div className="flex items-end gap-2">
-                  <div className="grid flex-1 gap-1.5"><Label htmlFor="postal">Postal code</Label><Input id="postal" autoComplete="postal-code" value={contact.postalCode} onChange={(e) => set({ postalCode: e.target.value })} onBlur={checkPostal} /></div>
-                  <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
-                </div>
-                {zone?.served && (
-                  <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    <MapPin className="mt-0.5 size-4 shrink-0" />
-                    <span>Served — {zone.name}, delivery {zone.slotWindow}.</span>
-                  </div>
-                )}
-                {zone && !zone.served && !waitlisted && (
-                  <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
-                    <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
-                    <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
-                  </div>
-                )}
-                {waitlisted && (
-                  <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    <Check className="mt-0.5 size-4 shrink-0" />
-                    <span>You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</span>
-                  </div>
-                )}
+                <AddressFields
+                  preset="delivery"
+                  idPrefix="checkout"
+                  fields={["addressLine", "city", "postalCode"]}
+                  values={contact}
+                  onChange={set}
+                  onPostalBlur={checkPostal}
+                  postalSlot={
+                    <>
+                      <div className="flex items-end gap-2 pt-1">
+                        <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
+                      </div>
+                      {zone?.served && (
+                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                          <MapPin className="mt-0.5 size-4 shrink-0" />
+                          <span>Served — {zone.name}, delivery {zone.slotWindow}.</span>
+                        </div>
+                      )}
+                      {zone && !zone.served && !waitlisted && (
+                        <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
+                          <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
+                          <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
+                        </div>
+                      )}
+                      {waitlisted && (
+                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                          <Check className="mt-0.5 size-4 shrink-0" />
+                          <span>You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</span>
+                        </div>
+                      )}
+                    </>
+                  }
+                />
               </div>
               <Button size="lg" className="w-full sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
             </section>
@@ -197,20 +262,74 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
             <section className="space-y-5">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-balance">Payment</h2>
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <ShieldCheck className="size-4" /> Simulated — no real charge for this MVP.
-                </p>
+                {realPayments ? (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Choose how you&apos;ll pay. Delivery begins once payment is confirmed — if it isn&apos;t,
+                    you can move upcoming deliveries ahead from Deliveries.
+                  </p>
+                ) : (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <ShieldCheck className="size-4" /> Simulated — no real charge for this MVP.
+                  </p>
+                )}
               </div>
-              <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
-                  <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+
+              {realPayments ? (
+                <div className="grid gap-2">
+                  {paymentMethods.map((m) => {
+                    const selected = m.id === paymentMethodId;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => selectMethod(m.id)}
+                        className={cn(
+                          "rounded-lg border p-3 text-left transition-colors",
+                          selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{m.label}</span>
+                          {selected && <Check className="size-4 text-primary" />}
+                        </div>
+                        {selected && (m.payeeHandle || m.instructions) && (
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            {m.payeeHandle && <p>Send to: <span className="font-medium text-foreground">{m.payeeHandle}</span></p>}
+                            {m.instructions && <p className="whitespace-pre-wrap">{m.instructions}</p>}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <div className="grid gap-4">
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+                  </div>
+                </div>
+              )}
+
+              {selectedMethod && (
+                <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                  Your plan is reserved now. Deliveries start after we confirm payment
+                  {selectedMethod.id === "etransfer" ? " (usually within one business day of your e-Transfer)" : ""}.
+                  Need to shift days? Use Deliveries to move them ahead.
+                </p>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                <Button size="lg" className="flex-1 sm:flex-none" disabled={submitting} onClick={confirm}>{submitting ? "Confirming…" : "Confirm Subscription"}</Button>
+                <Button
+                  size="lg"
+                  className="flex-1 sm:flex-none"
+                  disabled={submitting || (realPayments && !paymentMethodId)}
+                  onClick={confirm}
+                >
+                  {submitting ? "Confirming…" : "Confirm Subscription"}
+                </Button>
               </div>
             </section>
           </Card>
@@ -256,6 +375,7 @@ export function Checkout({ defaultCountry }: { defaultCountry: Country }) {
           {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
         </Card>
       </aside>
+    </div>
     </div>
   );
 }

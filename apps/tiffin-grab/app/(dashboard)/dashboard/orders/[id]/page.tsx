@@ -7,6 +7,7 @@ import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { describeActivity } from "@/lib/services/order-activity-describe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { effectiveAddress, listDeliveries } from "@/lib/services/deliveries.service";
+import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { formatEpoch } from "@/lib/format/datetime";
 import {
@@ -20,6 +21,8 @@ import {
 import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
+import { PoolControls } from "./pool-controls";
+import { PaymentsPanel } from "./payments-panel";
 import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
 import type { DeliveryRow } from "./deliveries-panel-columns";
 
@@ -46,10 +49,11 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [activities, settings, rawDeliveries] = await Promise.all([
+  const [activities, settings, rawDeliveries, tiffinCounts] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     listDeliveries(order.id),
+    orderTiffinCounts(order.publicId),
   ]);
 
   const dateById = new Map(rawDeliveries.map((d) => [d.id, d.deliveryDate]));
@@ -62,6 +66,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       cutoffAt: d.cutoffAt,
       isMakeup: d.makeupForDeliveryId !== null,
       makeupForDate: d.makeupForDeliveryId !== null ? (dateById.get(d.makeupForDeliveryId) ?? null) : null,
+      hasAddressOverride: d.addressLine !== null,
       address: {
         fullName: addr.fullName,
         addressLine: addr.addressLine ?? "",
@@ -94,25 +99,33 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           <p><span className="text-muted-foreground">Plan: </span>{order.planName} · {order.mealSizeName} · {order.frequencyKey}</p>
           <p><span className="text-muted-foreground">Schedule: </span>start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) · {order.mealSlots.join(", ")}</p>
           <p><span className="text-muted-foreground">Address: </span>{order.addressLine}, {order.city} {order.postalCode}</p>
-          <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))} · Payments: {order.payments.map((p) => fmt(Number(p.amount))).join(", ") || "none"}</p>
+          <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))}</p>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Payments">
+        <PaymentsPanel orderId={order.publicId} payments={order.payments} />
       </SectionCard>
 
       <SectionCard title="Lifecycle">
         <LifecycleControls orderId={order.publicId} status={order.status} />
       </SectionCard>
 
+      <SectionCard title="Tiffins">
+        <PoolControls orderId={order.publicId} counts={tiffinCounts} />
+      </SectionCard>
+
       <SectionCard title="Deliveries">
         <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} orderStatus={order.status} />
       </SectionCard>
 
-      <SectionCard title="Coming week meals">
+      <SectionCard title="This week's meals">
         {order.status === "cancelled" ? (
           <p className="text-muted-foreground text-sm">This order is cancelled — meal selections are closed.</p>
         ) : grid.empty === "no-week" ? (
-          <p className="text-muted-foreground text-sm">The coming week&apos;s menu hasn&apos;t been published yet.</p>
+          <p className="text-muted-foreground text-sm">This week&apos;s menu hasn&apos;t been published yet.</p>
         ) : grid.empty === "no-dates" ? (
-          <p className="text-muted-foreground text-sm">No deliveries scheduled for the coming week on this order.</p>
+          <p className="text-muted-foreground text-sm">No deliveries scheduled for this week on this order.</p>
         ) : grid.empty === null ? (
           <MealsGrid
             orderId={order.publicId}
@@ -162,15 +175,27 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Payments">
+        <Skeleton className="h-24 w-full" />
+      </SectionCard>
+
       <SectionCard title="Lifecycle">
         <Skeleton className="h-9 w-48" />
+      </SectionCard>
+
+      <SectionCard title="Tiffins">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
       </SectionCard>
 
       <SectionCard title="Deliveries">
         <DeliveriesPanelSkeleton />
       </SectionCard>
 
-      <SectionCard title="Coming week meals">
+      <SectionCard title="This week's meals">
         <SkeletonCardGrid count={6} />
       </SectionCard>
 

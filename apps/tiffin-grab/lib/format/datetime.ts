@@ -20,7 +20,7 @@ type FormatEpochOpts =
 
 export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
   if (opts.mode === "relative") {
-    const { locale } = opts;
+    const { locale = "en-US" } = opts;
     const diff = ms - Date.now();
     const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
     const mins = Math.round(diff / 60000);
@@ -29,7 +29,13 @@ export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
     if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
     return rtf.format(Math.round(hours / 24), "day");
   }
-  const { mode = "datetime", timeZone, withZone, locale } = opts;
+  // Locale defaults to a fixed "en-US" rather than the runtime's own default: leaving it
+  // undefined lets Intl fall back to the server process's locale during SSR and the browser's
+  // OS/user locale on the client, which can disagree on field order ("Sun, 19 Jul 2026" vs
+  // "Sun, Jul 19, 2026") and trips a hydration mismatch — surfaced by the Tiffin Calendar's
+  // day-detail panel, which (unlike the old card list) renders a formatted date unconditionally
+  // on first paint.
+  const { mode = "datetime", timeZone, withZone, locale = "en-US" } = opts;
   return new Intl.DateTimeFormat(locale, {
     ...PRESETS[mode],
     timeZone,
@@ -60,9 +66,18 @@ export function formatDateOnly(
   iso: string,
   opts: { mode?: keyof typeof DATE_ONLY_PRESETS; locale?: string } = {},
 ): string {
-  const { mode = "long", locale } = opts;
+  // See formatEpoch's comment: a fixed default locale avoids a server-vs-client Intl mismatch.
+  const { mode = "long", locale = "en-US" } = opts;
   return new Intl.DateTimeFormat(locale, {
     ...DATE_ONLY_PRESETS[mode],
     timeZone: "UTC",
   }).format(parseIsoDateUtc(iso));
+}
+
+/** Mon–Sun label for a menu week (`weekStart` is the Monday ISO date). */
+export function formatMenuWeekRange(weekStart: string, locale = "en-US"): string {
+  const end = parseIsoDateUtc(weekStart);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const endIso = end.toISOString().slice(0, 10);
+  return `${formatDateOnly(weekStart, { mode: "short", locale })} – ${formatDateOnly(endIso, { mode: "short", locale })}`;
 }

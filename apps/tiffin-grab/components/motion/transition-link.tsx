@@ -16,14 +16,22 @@ export function TransitionLink({ href, onClick, ...rest }: TransitionLinkProps) 
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     if (typeof href !== "string") return;
     const url = href;
-    const start = (document as unknown as { startViewTransition?: (cb: () => void) => unknown }).startViewTransition;
-    if (reduce || typeof start !== "function") {
-      e.preventDefault();
+    // Must call via `document` — extracting the method loses `this` and throws Illegal invocation.
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => unknown;
+    };
+    e.preventDefault();
+    if (reduce || typeof doc.startViewTransition !== "function") {
       router.push(url);
       return;
     }
-    e.preventDefault();
-    start(() => router.push(url));
+    try {
+      doc.startViewTransition(() => {
+        router.push(url);
+      });
+    } catch {
+      router.push(url);
+    }
   }
 
   return <Link href={href} onClick={handleClick} {...rest} />;

@@ -18,3 +18,4 @@ export * from "./notifications";
 export * from "./email-log";
 export * from "./notification-template";
 export * from "./files";
+export * from "./subscription-pauses";

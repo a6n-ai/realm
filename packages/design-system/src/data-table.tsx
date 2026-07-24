@@ -17,6 +17,7 @@ import {
 } from "@realm/ui/table";
 import { cn } from "@realm/ui/cn";
 import { FilterBar } from "./filter-bar";
+import { SearchInput } from "./search-input";
 import { SortableHeader } from "./sortable-header";
 import { useSortNav } from "./use-sort-nav";
 
@@ -80,6 +81,7 @@ function useSearchQuery(): [string, (v: string) => void] {
       const sp = new URLSearchParams(params.toString());
       if (v === "") sp.delete("q");
       else sp.set("q", v);
+      sp.delete("page"); // search change resets pagination
       const qs = sp.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
@@ -289,6 +291,17 @@ export function DataTable<Row, K extends string>({
   return (
     <div className="space-y-4">
       <FilterBar
+        search={
+          search ? (
+            <SearchInput
+              value={searchValue}
+              onChange={setSearchValue}
+              placeholder={search.placeholder}
+              shortPlaceholder={search.shortPlaceholder}
+              debounceMs={search.debounceMs}
+            />
+          ) : undefined
+        }
         filters={filters}
         sort={sort ? <MobileSort columns={columns} sort={sort} /> : undefined}
         actions={actions}

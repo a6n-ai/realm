@@ -1,9 +1,20 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import type { FileDetail } from "@realm/storage/model";
 import { Btn, Marquee, Ph, Pill, SectionHead, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { ProductImage } from "@/components/products/product-image";
+import { productsService } from "@/lib/services/products.service";
+import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 
-const BEST_SELLERS = [
+// Home reads live products (real photos rehosted to our storage). force-dynamic
+// so newly featured/synced items and their images show without a rebuild.
+export const dynamic = "force-dynamic";
+
+type BestSellerCard = { name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
+
+// Static fallback (no photos) for a fresh DB with nothing marked featured yet.
+const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
   { name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "red" },
   { name: "Dahi Puchka", tag: "Cooling", desc: "Crispy shells loaded with sweet yogurt & chutneys.", price: "$7" },
   { name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "red" },
@@ -24,7 +35,51 @@ const COMBOS = [
   { e: "🎉", t: "Live Catering", d: "Live puchka & chaat stations for any event across the GTA.", cta: "Get a quote", pg: "catering", bg: "var(--white)" },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Curated "featured" products first; if none are flagged, fall back to real
+  // active products that have a photo (so home shows the actual menu, not empty
+  // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
+  const featured = await productsService.featuredProducts(6);
+  const withPhoto = (await productsService.listActive()).filter((p) => p.image);
+  const picks = featured.length ? featured : withPhoto.slice(0, 6);
+  const cards: BestSellerCard[] = picks.length
+    ? picks.map((p) => {
+        const badge = (p.tags ?? []).find((t) => TAG_STYLE[t]);
+        return {
+          name: p.name,
+          tag: CATEGORIES[p.category as CategoryId]?.name ?? p.category,
+          desc: p.description ?? "",
+          price: `$${Number(p.price).toFixed(0)}`,
+          sticker: badge ? TAG_STYLE[badge].label : undefined,
+          sv: badge && TAG_STYLE[badge].variant === "red" ? "red" : undefined,
+          image: (p.image as FileDetail | null) ?? null,
+        };
+      })
+    : BEST_SELLERS.map((d) => ({ ...d, image: null }));
+
+  // Reuse real product photos across the home marketing sections (hero, fusion
+  // teaser, Instagram grid) so they aren't striped placeholders once the menu
+  // has images. Each falls back to its Ph tile when no photo is available.
+  const photoUrls = withPhoto
+    .map((p) => (p.image as FileDetail | null)?.url)
+    .filter((u): u is string => !!u);
+  // Hero + fusion teaser both showcase the fusion range (the brand hero product),
+  // preferring a viral-tagged fusion dish, never e.g. vada pav. Pick two distinct
+  // photos when the menu has more than one fusion item.
+  const fusionPhotos = withPhoto.filter((p) => p.category === "fusion");
+  const heroUrl =
+    (fusionPhotos.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
+    (fusionPhotos[0]?.image as FileDetail | null)?.url ??
+    (withPhoto.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
+    photoUrls[0] ??
+    null;
+  const fusionUrl =
+    (fusionPhotos.find((p) => (p.image as FileDetail | null)?.url !== heroUrl)?.image as FileDetail | null)?.url ??
+    (fusionPhotos[0]?.image as FileDetail | null)?.url ??
+    photoUrls.find((u) => u !== heroUrl) ??
+    heroUrl;
+  const galleryUrls = photoUrls.slice(0, 6);
+
   return (
     <div>
       {/* ===== ANNOUNCEMENT RIBBON ===== */}
@@ -61,7 +116,7 @@ export default function HomePage() {
                 <Btn page="order" variant="ink" size="lg">🚗 Order Delivery</Btn>
               </div>
               <div className="flex wrap-gap anim" style={{ marginTop: 14, "--d": ".38s" } as CSSProperties}>
-                <Btn page="menu" size="lg">📖 View Menu</Btn>
+                <Btn page="eats" size="lg">📖 View Menu</Btn>
                 <Btn page="catering" variant="yellow" size="lg">🎉 Book Catering</Btn>
               </div>
             </div>
@@ -72,7 +127,27 @@ export default function HomePage() {
                 aria-hidden="true"
                 style={{ position: "absolute", inset: 0, transform: "translate(16px, 18px) rotate(3deg)", background: "var(--ink-bg)", border: "var(--border)", borderRadius: "var(--r)" }}
               />
-              <Ph label="HERO SHOT — overflowing plate of fusion puchkas" ratio="4 / 4.3" mod="rotate-r" style={{ position: "relative", boxShadow: "none" }} />
+              {heroUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={heroUrl}
+                  alt="Fusion puchkas — Puchkaman"
+                  fetchPriority="high"
+                  className="rotate-r"
+                  style={{
+                    position: "relative",
+                    display: "block",
+                    width: "100%",
+                    aspectRatio: "4 / 4.3",
+                    objectFit: "cover",
+                    border: "var(--border)",
+                    borderRadius: "var(--r)",
+                    boxShadow: "none",
+                  }}
+                />
+              ) : (
+                <Ph label="HERO SHOT — overflowing plate of fusion puchkas" ratio="4 / 4.3" mod="rotate-r" style={{ position: "relative", boxShadow: "none" }} />
+              )}
               <span className="sticker float-l" style={{ top: -16, left: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>FRESH DAILY</span>
               <span className="sticker float-r" style={{ bottom: 22, right: -14, fontSize: "0.95rem" }}>🔥 NEW: SUMMER DRINKS</span>
               <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
@@ -92,11 +167,11 @@ export default function HomePage() {
         <div className="wrap">
           <SectionHead kicker="Crowd Favourites" title="The Best Sellers" sub="The dishes Scarborough keeps coming back for. Tap any to see the full menu." />
           <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-            {BEST_SELLERS.map((d, i) => (
+            {cards.map((d, i) => (
               <Reveal key={d.name} delay={i * 60}>
-                <Link href="/productsmenu" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
+                <Link href="/eats" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
-                    <Ph label={`${d.name} photo`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
+                    <ProductImage image={d.image} name={d.name} />
                     {d.sticker && (
                       <span
                         className="sticker rotate-l"
@@ -119,7 +194,7 @@ export default function HomePage() {
             ))}
           </div>
           <div className="tac" style={{ marginTop: 40 }}>
-            <Btn page="menu" variant="ink" size="lg">See the Full Menu →</Btn>
+            <Btn page="eats" variant="ink" size="lg">See the Full Menu →</Btn>
           </div>
         </div>
       </section>
@@ -129,7 +204,17 @@ export default function HomePage() {
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
+              {fusionUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fusionUrl}
+                  alt="Fusion puchka close-up"
+                  className="rotate-l"
+                  style={{ display: "block", width: "100%", aspectRatio: "4 / 3.2", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)" }}
+                />
+              ) : (
+                <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
+              )}
               <span className="sticker rotate-r" style={{ top: -14, right: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>NEVER TRIED IT?</span>
             </div>
             <div>
@@ -140,7 +225,7 @@ export default function HomePage() {
               </p>
               <div className="flex wrap-gap" style={{ marginTop: 26 }}>
                 <Btn page="fusion" variant="yellow" size="lg">Learn How To Eat It →</Btn>
-                <Btn page="menu" variant="white" size="lg">See Fusion Menu</Btn>
+                <Btn page="eats" variant="white" size="lg">See Fusion Menu</Btn>
               </div>
             </div>
           </div>
@@ -204,7 +289,18 @@ export default function HomePage() {
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
             {["Reel · puchka pour", "Reel · cheese pull", "Post · combo box", "Reel · catering setup", "Post · summer drinks", "Reel · kathi roll"].map((l, i) => (
               <div key={i} style={{ position: "relative" }}>
-                <Ph label={l} ratio="1 / 1" className="card--lift" />
+                {galleryUrls[i] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={galleryUrls[i]}
+                    alt={l}
+                    loading="lazy"
+                    className="card--lift"
+                    style={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)" }}
+                  />
+                ) : (
+                  <Ph label={l} ratio="1 / 1" className="card--lift" />
+                )}
                 <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>{l.startsWith("Reel") ? "▶" : "◳"}</span>
               </div>
             ))}

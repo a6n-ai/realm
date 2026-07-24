@@ -36,6 +36,7 @@ const fakeCoupon = (over: Partial<Coupon>): Coupon => ({
   stackable: false,
   autoApply: false,
   planTypes: [],
+  allowedPaymentMethods: [],
   startsAt: null,
   expiresAt: null,
   ownerUserId: null,
@@ -169,6 +170,36 @@ describe("couponsService.redeem (integration)", () => {
 
     const [after] = await db.select().from(coupons).where(eq(coupons.id, coupon.id));
     expect(after.redemptionCount).toBe(1);
+  });
+});
+
+describe("couponsService method-gating (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("rejects a manual code whose method list excludes the chosen method", async () => {
+    await db
+      .insert(coupons)
+      .values({ code: "ETONLY", kind: "fixed", name: "e-Transfer only", valueAmount: "10", allowedPaymentMethods: ["etransfer"] });
+
+    const gated = await couponsService.resolveBestCoupons({ subtotal: 100, manualCode: "ETONLY", paymentMethodId: "cash" });
+    expect(gated.manualError).toBeTruthy();
+    expect(gated.redemptions).toHaveLength(0);
+
+    const allowed = await couponsService.resolveBestCoupons({ subtotal: 100, manualCode: "ETONLY", paymentMethodId: "etransfer" });
+    expect(allowed.manualError).toBeUndefined();
+    expect(allowed.redemptions).toHaveLength(1);
+    expect(allowed.redemptions[0].amount).toBe(10);
+  });
+
+  it("an empty method list is valid for any method", async () => {
+    await db
+      .insert(coupons)
+      .values({ code: "ANY", kind: "fixed", name: "Any method", valueAmount: "10", allowedPaymentMethods: [] });
+
+    const r = await couponsService.resolveBestCoupons({ subtotal: 100, manualCode: "ANY", paymentMethodId: "cash" });
+    expect(r.manualError).toBeUndefined();
+    expect(r.redemptions).toHaveLength(1);
   });
 });
 

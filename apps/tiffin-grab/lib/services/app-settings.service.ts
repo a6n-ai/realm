@@ -1,5 +1,6 @@
 import { UpdatableRepository } from "@realm/database";
 import { cutoffMsFor, tzToDefaultCountry } from "@realm/commons";
+import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@realm/payments";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";
@@ -59,7 +60,15 @@ export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: 
   });
 }
 
-export async function setAppSettings(input: { timezone: string; cutoffHour: number; currency?: string; defaultCountry?: CountryCode | null }): Promise<void> {
+export async function setAppSettings(input: {
+  timezone: string;
+  cutoffHour: number;
+  currency?: string;
+  defaultCountry?: CountryCode | null;
+  defaultMaxPauses?: number | null;
+  defaultMaxPauseDaysTotal?: number | null;
+  defaultMaxPauseStretchDays?: number | null;
+}): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId, currency: app.currency }).from(app).limit(1);
   // currency is optional here (the general settings form may not send it yet);
   // preserve the existing value, falling back to the default.
@@ -67,8 +76,11 @@ export async function setAppSettings(input: { timezone: string; cutoffHour: numb
     timezone: input.timezone,
     cutoffHour: input.cutoffHour,
     currency: input.currency ?? row?.currency ?? DEFAULTS.currency,
-    // undefined = leave unchanged; null = clear back to timezone fallback.
+    // undefined = leave unchanged; null = clear (unlimited / timezone fallback).
     ...(input.defaultCountry !== undefined ? { defaultCountry: input.defaultCountry } : {}),
+    ...(input.defaultMaxPauses !== undefined ? { defaultMaxPauses: input.defaultMaxPauses } : {}),
+    ...(input.defaultMaxPauseDaysTotal !== undefined ? { defaultMaxPauseDaysTotal: input.defaultMaxPauseDaysTotal } : {}),
+    ...(input.defaultMaxPauseStretchDays !== undefined ? { defaultMaxPauseStretchDays: input.defaultMaxPauseStretchDays } : {}),
   };
   if (row) {
     await appSettingsEntity.update(row.publicId, patch);
@@ -100,6 +112,28 @@ export async function getDefaultCountrySetting(): Promise<CountryCode | null> {
   return (row?.dc as CountryCode | null) ?? null;
 }
 
+// Raw stored pause-limit defaults for the settings editor: NULL means unlimited
+// (no client-side derivation to hide, unlike defaultCountry).
+export async function getPauseDefaultsSetting(): Promise<{
+  defaultMaxPauses: number | null;
+  defaultMaxPauseDaysTotal: number | null;
+  defaultMaxPauseStretchDays: number | null;
+}> {
+  const [row] = await db
+    .select({
+      defaultMaxPauses: app.defaultMaxPauses,
+      defaultMaxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
+      defaultMaxPauseStretchDays: app.defaultMaxPauseStretchDays,
+    })
+    .from(app)
+    .limit(1);
+  return {
+    defaultMaxPauses: row?.defaultMaxPauses ?? null,
+    defaultMaxPauseDaysTotal: row?.defaultMaxPauseDaysTotal ?? null,
+    defaultMaxPauseStretchDays: row?.defaultMaxPauseStretchDays ?? null,
+  };
+}
+
 export async function getLeadAssignment(): Promise<LeadAssignmentConfig> {
   return settingsCache.getOrSet("assignment", async () => {
     const [row] = await db.select({ la: app.leadAssignment }).from(app).limit(1);
@@ -128,6 +162,23 @@ export async function setDiscountPolicy(policy: DiscountPolicy): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { discountPolicy: policy });
   else await appSettingsEntity.create({ ...DEFAULTS, discountPolicy: policy });
+}
+
+// Enabled payment methods + per-method taxes. NULL/garbage → no methods (simulated mode),
+// so the app keeps its current behavior until an admin enables one. Cached like discountPolicy.
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  return settingsCache.getOrSet("paymentConfig", async () => {
+    const [row] = await db.select({ pc: app.paymentConfig }).from(app).limit(1);
+    return parsePaymentConfig(row?.pc ?? undefined);
+  });
+}
+
+export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
+  // parse-then-store: normalizes field defaults and rejects a malformed blob before it lands.
+  const parsed = parsePaymentConfig(cfg);
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
+  else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
 }
 
 export async function getMealTypes(): Promise<MealTypesSettings> {

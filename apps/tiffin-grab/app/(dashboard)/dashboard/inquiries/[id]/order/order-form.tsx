@@ -18,6 +18,7 @@ import type { ZoneLike } from "@/lib/catalog/postal";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { PostalCombobox } from "../../../_leads/postal-combobox";
+import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -62,8 +63,10 @@ export function OrderForm({
   const form = useForm<OrderFormInput, unknown, OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
-      planKey: catalog.plans[0]?.key ?? "",
-      mealSizeId: catalog.mealSizes[0]?.id ?? "",
+      // Empty until staff picks diet — meal-size pills stay hidden until then.
+      // Prefill (e.g. from inquiry interest) can still set these via `...prefill`.
+      planKey: "",
+      mealSizeId: "",
       frequencyKey: "5_day",
       persons: 1,
       mealSlots: defaultSlots,
@@ -94,6 +97,16 @@ export function OrderForm({
   const city = form.watch("city");
   const postalCode = form.watch("postalCode");
   const email = form.watch("email");
+
+  // Meal sizes belong to a plan (`diet` carries planKey in staff catalog snapshots).
+  const mealsForPlan = catalog.mealSizes.filter((m) => !planKey || m.diet === planKey);
+
+  useEffect(() => {
+    if (!mealSizeId) return;
+    if (mealsForPlan.some((m) => m.id === mealSizeId)) return;
+    form.setValue("mealSizeId", mealsForPlan[0]?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey]);
 
   const buildInput = (v: OrderFormValues): CreateOrderInput => ({
     planKey: v.planKey,
@@ -200,13 +213,8 @@ export function OrderForm({
             control={form.control}
             name="planKey"
             render={({ field }) => (
-              <FormItem className="sm:col-span-2">
-                <FormLabel>Plan <span className="text-destructive">*</span></FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>{catalog.plans.map((p) => <SelectItem key={p.key} value={p.key}>{p.name}</SelectItem>)}</SelectContent>
-                </Select>
-                <FormMessage />
+              <FormItem className="hidden">
+                <FormControl><Input {...field} /></FormControl>
               </FormItem>
             )}
           />
@@ -214,16 +222,21 @@ export function OrderForm({
             control={form.control}
             name="mealSizeId"
             render={({ field }) => (
-              <FormItem className="sm:col-span-2">
-                <FormLabel>Meal size <span className="text-destructive">*</span></FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>{catalog.mealSizes.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.diet})</SelectItem>)}</SelectContent>
-                </Select>
-                <FormMessage />
+              <FormItem className="hidden">
+                <FormControl><Input {...field} /></FormControl>
               </FormItem>
             )}
           />
+          <div className="sm:col-span-2 grid gap-4">
+            <PlanMealPicker
+              catalog={catalog}
+              planKey={planKey}
+              mealSizeId={mealSizeId}
+              planRequired
+              onPlanChange={(key) => form.setValue("planKey", key, { shouldDirty: true, shouldValidate: true })}
+              onMealChange={(id) => form.setValue("mealSizeId", id, { shouldDirty: true, shouldValidate: true })}
+            />
+          </div>
           <FormField
             control={form.control}
             name="frequencyKey"

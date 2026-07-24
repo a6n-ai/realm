@@ -1,6 +1,6 @@
 import { BaseRepository, UpdatableRepository } from "@realm/database";
-import { AuthError, ForbiddenError, Role, ValidationError, type RoleValue } from "@realm/commons";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@realm/commons";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { ticketMessages, tickets, users, type Attachment } from "@/db/schema";
@@ -29,6 +29,8 @@ export type CreateTicketInput = {
   category: TicketCategory;
   body: string;
   orderId?: bigint;
+  /** Optional images on the opening customer message (uploaded after ticket id exists). */
+  attachments?: Attachment[];
 };
 
 // A ticket waiting on staff (open / in_progress) whose last activity is older
@@ -106,8 +108,23 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       category: input.category,
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
-    await this.message(ticket.id, actor.id, "customer", body);
+    await this.message(ticket.id, actor.id, "customer", body, input.attachments);
     return ticket;
+  }
+
+  /** Attach images to the opening customer message (create uploads after the ticket row exists). */
+  async setOpeningAttachments(publicId: string, attachments: Attachment[]): Promise<void> {
+    if (attachments.length === 0) return;
+    const ticket = await this.read(publicId);
+    await this.assertAccess(ticket);
+    const [opening] = await db
+      .select()
+      .from(ticketMessages)
+      .where(and(eq(ticketMessages.ticketId, ticket.id), eq(ticketMessages.authorType, "customer")))
+      .orderBy(asc(ticketMessages.createdAt))
+      .limit(1);
+    if (!opening) throw new NotFoundError("Opening message not found");
+    await db.update(ticketMessages).set({ attachments }).where(eq(ticketMessages.id, opening.id));
   }
 
   async reply(publicId: string, body: string, attachments: Attachment[] = []): Promise<void> {

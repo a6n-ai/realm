@@ -16,6 +16,30 @@ import { poolForSource } from "./inquiry-user-config.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@/lib/list/sort";
 
+const LIVE_ORDER_STATUSES = ["pending", "active", "waitlisted", "paused"] as const;
+
+/** Reject inquiry→order convert when this phone already has a live subscription. */
+async function assertNoLiveOrderForPhone(phone: string): Promise<void> {
+  const trimmed = phone.trim();
+  if (!trimmed) return;
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.phone, trimmed))
+    .limit(1);
+  if (!user) return;
+  const [live] = await db
+    .select({ deploymentId: orders.deploymentId, status: orders.status })
+    .from(orders)
+    .where(and(eq(orders.userId, user.id), inArray(orders.status, [...LIVE_ORDER_STATUSES])))
+    .limit(1);
+  if (live) {
+    throw new ValidationError(
+      `This customer already has a ${live.status} order (${live.deploymentId}). Open that order instead of converting again.`,
+    );
+  }
+}
+
 export type PipelineSortColumn =
   | "name"
   | "owner"
@@ -153,8 +177,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async create(values: Record<string, unknown>) {
     const parsedPhone = phoneSchema().safeParse(values.phone);
     if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-    const parsedEmail = values.email ? emailSchema.safeParse(values.email) : null;
-    if (parsedEmail && !parsedEmail.success) throw new ValidationError("Enter a valid email");
+    // Email is the customer login — required on inquiry create.
+    if (!values.email || typeof values.email !== "string" || !values.email.trim()) {
+      throw new ValidationError("Email is required");
+    }
+    const parsedEmail = emailSchema.safeParse(values.email);
+    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
 
     const { sourceKey, subSourceKey, ...rest } = values as {
       sourceKey: string;
@@ -173,7 +201,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       inq = await super.create({
         ...rest,
         phone: parsedPhone.data,
-        ...(parsedEmail ? { email: parsedEmail.data } : {}),
+        email: parsedEmail.data,
         sourceId,
         subSourceId,
         currentOwner,
@@ -264,9 +292,22 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { previous };
   }
 
-  async convert(publicId: string, orderInput: CreateOrderInput) {
+  async convert(
+    publicId: string,
+    orderInput: CreateOrderInput,
+    opts?: { allowAdditionalOrder?: boolean },
+  ) {
     const inq = await this.read(publicId);
     if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
+
+    // Converting a lead when the phone already has a live subscription usually
+    // means the order was placed another way — reject so staff open that order
+    // instead of minting a duplicate. New Order / New Customer pass
+    // allowAdditionalOrder for intentional second subscriptions.
+    if (!opts?.allowAdditionalOrder) {
+      await assertNoLiveOrderForPhone(inq.phone);
+    }
+
     const actorPublicId = (await getSession())?.user?.id ?? null;
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },

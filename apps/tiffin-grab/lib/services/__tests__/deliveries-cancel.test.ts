@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { activateOrder, cancelOrder, createOrder, ordersService } = await import("../orders.service");
-const { reconcileMakeups, maybeComplete, skipDelivery } = await import("../deliveries.service");
+const { reconcilePoolFromMisses, maybeComplete, skipDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -102,7 +102,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     expect(order.status).toBe("cancelled");
   });
 
-  it("voids make-up debt: reconcileMakeups returns 0 after cancel even with a missed original lacking a make-up", async () => {
+  it("voids make-up debt: reconcilePoolFromMisses returns 0 after cancel even with a missed original lacking a make-up", async () => {
     const o = await makeOrder();
     const rows = await rowsFor(o);
     // A missed original: skipped, past its own cutoff, no make-up row exists for it.
@@ -112,7 +112,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
 
     await cancelOrder(o.publicId);
 
-    await expect(reconcileMakeups(o.id)).resolves.toBe(0);
+    await expect(reconcilePoolFromMisses(o.id)).resolves.toBe(0);
     const after = await rowsFor(o);
     expect(after.length).toBe(rows.length); // still nothing created
   });
@@ -145,7 +145,7 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     expect(order.status).toBe("cancelled"); // never promoted from cancelled
   });
 
-  it("maybeComplete refuses to complete an order with live (future-cutoff) make-up debt, even after those cutoffs pass and reconcileMakeups spawns make-ups", async () => {
+  it("maybeComplete refuses to complete an order with make-up debt, even after cutoffs pass and reconcilePoolFromMisses pools the misses", async () => {
     const o = await makeOrder();
     const rows = await rowsFor(o);
     for (const r of rows) await skipDelivery(r.publicId, 1n); // legal: all cutoffs still future
@@ -154,12 +154,12 @@ describe("cancel() voids rows + debt, completed status, frozen duration/frequenc
     let [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("active");
 
-    // Force every cutoff into the past and let the worker materialize the owed make-ups.
+    // Force every cutoff into the past and let the worker pool the owed tiffins.
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.orderId, o.id));
-    const created = await reconcileMakeups(o.id);
-    expect(created).toBe(rows.length);
+    const pooled = await reconcilePoolFromMisses(o.id);
+    expect(pooled).toBe(rows.length); // persons = 1, so one tiffin per missed day
 
-    // The make-ups are freshly scheduled, future-dated rows: still outstanding.
+    // The pooled misses have no make-up date yet: still debt, so the order stays open.
     await expect(maybeComplete(o.id)).resolves.toBe(false);
     [order] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(order.status).toBe("active");

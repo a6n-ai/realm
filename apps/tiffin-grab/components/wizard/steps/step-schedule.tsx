@@ -3,14 +3,27 @@ import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
 import { Label } from "@realm/ui/label";
 import { Button } from "@realm/ui/button";
+import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
-export function StepSchedule({ catalog, selections, set }: {
+export function StepSchedule({
+  catalog,
+  selections,
+  set,
+  currentPlan = null,
+}: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
+  currentPlan?: CurrentPlanSummary | null;
 }) {
   return (
     <div className="space-y-6">
+      {currentPlan ? (
+        <CurrentPlanHint>
+          Your current plan runs <strong>{currentPlan.daysPerWeek} days/wk</strong>. Set the
+          schedule for this new subscription independently.
+        </CurrentPlanHint>
+      ) : null}
       <div>
         <Label className="text-sm font-medium">Delivery frequency</Label>
         <RadioGroup

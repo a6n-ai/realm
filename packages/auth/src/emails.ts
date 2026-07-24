@@ -27,7 +27,7 @@ async function trySend(
     return;
   }
   try {
-    const rendered = await renderEmailTemplate({ subject, body, vars: {} });
+    const rendered = await renderEmailTemplate({ subject, body, vars: {}, appName: ctx.appName });
     await ctx.provider.send({
       to: { email: to },
       subject: rendered.subject,

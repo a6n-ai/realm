@@ -53,6 +53,7 @@ graphify-out/
 
 # AI tooling / agent context (keep local, never commit)
 .claude/
+.cursor/
 .agents/
 .superpowers/
 .planning/
@@ -62,6 +63,14 @@ skills-lock.json
 docs/
 .vcscore
 
+# playwright mcp session artifacts (console dumps + page snapshots)
+.playwright-mcp/
+
 # openspec scratch + local screenshots (not part of the repo)
 openspec/
 /Screenshot*.png
+*.jpg
+*.jpeg
+*.png
+tiffingrab.ca.txt
+.remember

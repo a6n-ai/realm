@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch } from "../datetime";
+import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange } from "../datetime";
 
 const ms = Date.UTC(2026, 5, 22, 18, 30, 0); // 2026-06-22T18:30:00Z
 
@@ -59,6 +59,12 @@ describe("formatDateOnly", () => {
   it("does not shift across a month boundary", () => {
     expect(formatDateOnly("2026-08-01", { mode: "short", locale: "en-US" })).toBe("Aug 1");
     expect(formatDateOnly("2026-07-31", { mode: "short", locale: "en-US" })).toBe("Jul 31");
+  });
+});
+
+describe("formatMenuWeekRange", () => {
+  it("formats a Mon–Sun menu week range", () => {
+    expect(formatMenuWeekRange("2026-07-20")).toBe("Jul 20 – Jul 26");
   });
 });
 

@@ -15,9 +15,3 @@
 
 	reverse_proxy tiffin-grab-web:3000
 }
-
-# --- puchkaman --- public marketing site (no DB/SSE). www → apex handled by Caddy.
-puchkaman.ca, www.puchkaman.ca {
-	encode zstd gzip
-	reverse_proxy puchkaman-web:3000
-}

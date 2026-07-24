@@ -1,0 +1,10 @@
+{
+	# ACME account email for Let's Encrypt (auto-TLS). Set ACME_EMAIL in .env.production.
+	email {$ACME_EMAIL}
+}
+
+# puchkaman is the ONLY app on this box. www → apex handled by Caddy.
+puchkaman.ca, www.puchkaman.ca {
+	encode zstd gzip
+	reverse_proxy puchkaman-web:3000
+}

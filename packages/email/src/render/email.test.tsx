@@ -7,6 +7,7 @@ describe("render-email", () => {
       subject: "Order {{order.code}}",
       body: "# Hi {{order.customerName}}\n\nYour order **{{order.code}}** is active.",
       vars: { order: { code: "TG-9", customerName: "Sam" } },
+      appName: "Tiffin Grab",
     });
     expect(out.subject).toBe("Order TG-9");
     expect(out.html).toContain("TG-9");

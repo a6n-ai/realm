@@ -19,6 +19,9 @@ export type DuplicateCandidate = {
 export type SyncResult = {
   added: { publicId: string; name: string }[];
   updatesAvailable: { publicId: string; name: string }[];
+  // Items whose photo changed and was auto-rehosted to our storage this sync
+  // (applied immediately, unlike text/price which wait in updatesAvailable).
+  imagesUpdated: { publicId: string; name: string }[];
   unchangedCount: number;
   duplicates: DuplicateCandidate[];
   categoryIssues: { rawCategory: string; items: string[] }[];
@@ -36,8 +39,19 @@ function normalizeName(name: string): string {
 
 const PRICE_EPSILON = 0.005;
 
+export type SyncOptions = {
+  // Re-download + re-host every synced item's image even when its Uber Eats
+  // source URL is unchanged. Use to migrate existing images onto new storage
+  // (e.g. after pointing FILES_PUBLIC_BASE_URL at the CDN). Heavier: it re-fetches
+  // every source photo. Off = only changed photos are re-hosted (the default).
+  redownloadImages?: boolean;
+  // Recompress re-hosted images to resized WebP (default). Off keeps the source
+  // bytes as-is. See rehostImage.
+  optimizeImages?: boolean;
+};
+
 export class MenuSyncService {
-  async run(source: MenuSource): Promise<SyncResult> {
+  async run(source: MenuSource, opts: SyncOptions = {}): Promise<SyncResult> {
     const items = await source.fetchItems();
     const existingRows = await db.select().from(products);
 
@@ -58,6 +72,7 @@ export class MenuSyncService {
     const result: SyncResult = {
       added: [],
       updatesAvailable: [],
+      imagesUpdated: [],
       unchangedCount: 0,
       duplicates: [],
       categoryIssues: [],
@@ -76,7 +91,7 @@ export class MenuSyncService {
 
         const existing = byExternalId.get(item.externalId);
         if (existing) {
-          await this.diffAndFlag(existing, item, result);
+          await this.diffAndFlag(existing, item, result, opts.redownloadImages ?? false, opts.optimizeImages ?? true);
           continue;
         }
 
@@ -94,7 +109,7 @@ export class MenuSyncService {
           continue;
         }
 
-        const publicId = await this.createFromItem(item, takenSlugs);
+        const publicId = await this.createFromItem(item, takenSlugs, opts.optimizeImages ?? true);
         result.added.push({ publicId, name: item.name });
       } catch (e) {
         result.errors.push({ item: item.name, message: e instanceof Error ? e.message : "Unknown error" });
@@ -105,8 +120,8 @@ export class MenuSyncService {
     return result;
   }
 
-  private async createFromItem(item: MenuSourceItem, takenSlugs: Set<string>): Promise<string> {
-    const image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced") : null;
+  private async createFromItem(item: MenuSourceItem, takenSlugs: Set<string>, optimize: boolean): Promise<string> {
+    const image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
     const slug = uniqueSlug(item.name, takenSlugs);
     takenSlugs.add(slug);
 
@@ -130,22 +145,35 @@ export class MenuSyncService {
     return row.publicId;
   }
 
-  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult): Promise<void> {
+  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult, redownloadImages: boolean, optimize: boolean): Promise<void> {
+    // Image changes auto-persist to our storage on every sync (no manual Apply)
+    // so the public site never renders a volatile Uber Eats source URL. Text and
+    // price diffs still queue in pendingSync for admin approval below.
+    // redownloadImages forces a re-host even when the source URL is unchanged.
+    const urlChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
+    const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
+    const imagePatch: Record<string, unknown> = {};
+    if (imageChanged) {
+      imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
+      imagePatch.lastSyncedImageUrl = item.imageUrl ?? null;
+      result.imagesUpdated.push({ publicId: existing.publicId, name: existing.name });
+    }
+
     const pending: Record<string, unknown> = {};
     if (existing.name !== item.name) pending.name = item.name;
     if ((existing.description ?? null) !== (item.description ?? null)) pending.description = item.description;
     if (Math.abs(Number(existing.price) - item.price) > PRICE_EPSILON) pending.price = item.price;
-    if ((existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null)) pending.imageUrl = item.imageUrl;
 
     if (Object.keys(pending).length === 0) {
-      await db.update(products).set({ lastSyncedAt: Date.now(), syncStatus: "synced" }).where(eq(products.id, existing.id));
-      result.unchangedCount++;
+      await db.update(products).set({ ...imagePatch, lastSyncedAt: Date.now(), syncStatus: "synced" }).where(eq(products.id, existing.id));
+      if (!imageChanged) result.unchangedCount++;
       return;
     }
 
     await db
       .update(products)
       .set({
+        ...imagePatch,
         pendingSync: { ...pending, fetchedAt: new Date().toISOString() },
         syncStatus: "update_available",
         lastSyncedAt: Date.now(),
@@ -168,7 +196,7 @@ export class MenuSyncService {
       const existingSlugs = new Set(
         (await db.select({ slug: products.slug }).from(products)).map((r) => r.slug).filter((s): s is string => !!s),
       );
-      await this.createFromItem(incoming, existingSlugs);
+      await this.createFromItem(incoming, existingSlugs, true);
       return;
     }
 

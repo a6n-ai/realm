@@ -10,6 +10,20 @@ export async function findInquiryMatches(phone: string) {
   return inquiriesService.findOpenByPhone(phone);
 }
 
+/** Interest snapshot for order-form prefill when reusing an open inquiry. */
+export async function getInquiryInterestForPrefill(publicId: string) {
+  await requireStaff();
+  const inq = await inquiriesService.read(publicId);
+  return {
+    planInterest: inq.planInterest,
+    mealSizeInterest: inq.mealSizeInterest,
+    personsInterest: inq.personsInterest,
+    preferredStart: inq.preferredStart,
+    postalCode: inq.postalCode,
+    quotedPrice: inq.quotedPrice,
+  };
+}
+
 export type CustomerHit = { publicId: string; fullName: string | null; phone: string | null; email: string | null };
 
 export async function searchCustomers(query: string): Promise<CustomerHit[]> {

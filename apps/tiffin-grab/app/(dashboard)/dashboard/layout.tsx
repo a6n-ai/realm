@@ -18,6 +18,7 @@ import { CrmShell } from "@realm/crm";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
+import { AppBrand } from "@/components/app-brand";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
@@ -72,6 +73,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <TimezoneProvider tz={timezone}>
     <QuickAddProvider>
     <CrmShell
+      hideSidebarOnMobile
+      brand={<AppBrand href="/dashboard" subtitle="Operations" />}
       sidebar={
         <AppSidebar
           user={{ email, role, name: user.name ?? null, image: user.image ?? null }}

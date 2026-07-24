@@ -10,6 +10,7 @@ import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
 import { loadOwnerOptions, loadSourceOptions } from "@/lib/list/facet-options";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import {
@@ -68,7 +69,7 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function loadSheetData() {
-  const [{ defaultCountry }, sourceRows, subRows, zones] = await Promise.all([
+  const [{ defaultCountry }, sourceRows, subRows, zones, catalog] = await Promise.all([
     getAppSettings(),
     db
       .select({ id: leadSources.id, key: leadSources.key, label: leadSources.label, active: leadSources.active })
@@ -90,6 +91,7 @@ async function loadSheetData() {
       })
       .from(deliveryZones)
       .where(eq(deliveryZones.active, true)),
+    loadCatalogSnapshot(),
   ]);
 
   const sources = sourceRows
@@ -102,7 +104,12 @@ async function loadSheetData() {
         .map((sub) => ({ key: sub.key, label: sub.label })),
     }));
 
-  return { defaultCountry, sources, zones };
+  const interestCatalog = {
+    plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
+    mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
+  };
+
+  return { defaultCountry, sources, zones, catalog: interestCatalog };
 }
 
 function newInquiryTrigger() {
@@ -117,13 +124,14 @@ function newInquiryTrigger() {
 async function NewInquiryAction() {
   await requireStaff();
 
-  const { defaultCountry, sources, zones } = await loadSheetData();
+  const { defaultCountry, sources, zones, catalog } = await loadSheetData();
 
   return (
     <AddInquirySheet
       defaultCountry={defaultCountry}
       sources={sources}
       zones={zones}
+      catalog={catalog}
       trigger={newInquiryTrigger()}
     />
   );
@@ -211,6 +219,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
           defaultCountry={sheet.defaultCountry}
           sources={sheet.sources}
           zones={sheet.zones}
+          catalog={sheet.catalog}
           trigger={newInquiryTrigger()}
         />
       }

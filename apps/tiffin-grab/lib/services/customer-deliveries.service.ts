@@ -1,9 +1,51 @@
-import { NotFoundError, weekdayKey } from "@realm/commons";
+import { NotFoundError, Role, weekdayKey } from "@realm/commons";
+import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, mealSizes, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { resolveDeliveryMeal, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
+import { orderDeliveryDays } from "@/lib/menu/delivery-days";
+import {
+  resolveDeliveryMeal,
+  resolveDeliveryMealsForWeek,
+  resolvedMealsWeekKey,
+  type ResolvedCategory,
+} from "@/lib/menu/resolve-delivery-meal";
+import { dietsForPlanKey } from "@/lib/menu/selections.service";
+import { getSession } from "@/lib/auth/session";
+import { dishCategoriesService } from "./dish-categories.service";
+import { menuService } from "./menu.service";
+import { autoResumeIfElapsed } from "./orders.service";
+import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
+import { currentUserId } from "./session-service";
+import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
+
+// Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
+// only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
+// share one authorization policy (feature-flagged refinements can layer on later).
+const STAFF_ROLES = new Set<string>([Role.ADMIN, Role.MEMBER]);
+
+async function callerIsStaff(): Promise<boolean> {
+  const session = await getSession();
+  return session != null && STAFF_ROLES.has(session.user.role);
+}
+
+// Passes if the caller is staff, or owns the order. Not-owned and not-existent both throw the same
+// NotFoundError — no existence oracle for another customer's data.
+export async function assertCanManageOrder(orderPublicId: string): Promise<void> {
+  if (await callerIsStaff()) return;
+  const userId = await currentUserId();
+  if (userId == null) throw new NotFoundError("Subscription not found");
+  await assertOwnsOrder(userId, orderPublicId);
+}
+
+// Passes if the caller is staff, or owns the delivery's order.
+export async function assertCanManageDelivery(deliveryPublicId: string): Promise<void> {
+  if (await callerIsStaff()) return;
+  const userId = await currentUserId();
+  if (userId == null) throw new NotFoundError("Delivery not found");
+  await assertOwnsDelivery(userId, deliveryPublicId);
+}
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & { orderPublicId: string; planName: string; isMakeup: boolean };
@@ -18,12 +60,23 @@ export type Subscription = {
   city: string;
   postalCode: string;
   zoneId: bigint | null;
+  mealSizeName: string;
+  persons: number;
+  /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
+  categoryCounts: Record<string, number>;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
 
 export async function myActiveSubscriptions(userId: bigint): Promise<Subscription[]> {
-  return db
+  // Flip any elapsed pause window back to "active" before reporting status — otherwise a
+  // customer whose pause silently expired keeps seeing "paused" until some other write touches
+  // the order.
+  const pausedOrderIds = await db.select({ id: orders.id }).from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.status, "paused")));
+  await Promise.all(pausedOrderIds.map((o) => autoResumeIfElapsed(o.id)));
+
+  const rows = await db
     .select({
       publicId: orders.publicId,
       planName: plans.name,
@@ -35,10 +88,43 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       city: orders.city,
       postalCode: orders.postalCode,
       zoneId: orders.zoneId,
+      mealSizeName: mealSizes.name,
+      persons: orders.persons,
+      categoryCounts: orders.categoryCounts,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+  return rows.map((r) => ({
+    ...r,
+    categoryCounts: (r.categoryCounts as Record<string, number> | null) ?? {},
+  }));
+}
+
+/**
+ * Customer calendars and home assume one live plan. Prefer `active` over `paused`;
+ * if several exist (legacy), pick the newest by createdAt.
+ */
+export async function myPrimarySubscription(userId: bigint): Promise<Subscription | null> {
+  const all = await myActiveSubscriptions(userId);
+  if (all.length === 0) return null;
+  const active = all.filter((s) => s.status === "active");
+  const pool = active.length > 0 ? active : all;
+  // myActiveSubscriptions has no createdAt — re-query newest publicId among the pool.
+  if (pool.length === 1) return pool[0]!;
+  const ids = pool.map((s) => s.publicId);
+  const [newest] = await db
+    .select({ publicId: orders.publicId })
+    .from(orders)
+    .where(inArray(orders.publicId, ids))
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  return pool.find((s) => s.publicId === newest?.publicId) ?? pool[0]!;
+}
+
+export async function hasLiveSubscription(userId: bigint): Promise<boolean> {
+  return (await myPrimarySubscription(userId)) != null;
 }
 
 // Scoped to orders.userId = userId: a customer only ever sees their own delivery
@@ -106,6 +192,101 @@ export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Pr
   if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
 }
 
+export type TiffinCounts = {
+  /** tiffinCount snapshot from checkout — persons × delivery days over the plan. */
+  total: number;
+  /** Days past cutoff that stayed scheduled (incl. make-ups), × persons. */
+  delivered: number;
+  /** total − delivered. Includes both future scheduled days and pooled tiffins. */
+  remaining: number;
+  /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
+  pooled: number;
+  /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
+  persons: number;
+  /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
+  lastDeliveryDate: string | null;
+  /** Weekday keys (e.g. ["mon","wed","fri"]) a pooled tiffin may land on, per the plan. */
+  deliveryWeekdays: string[];
+};
+
+// Delivered/remaining/pooled tiffins for one subscription, plus the constraints the "schedule from
+// pool" UI needs (last delivery date + plan weekdays). Delivered is derived from the order's
+// delivery rows via the pure tiffin-counts helper; pooled is the stored counter maintained by
+// reconcilePoolFromMisses / scheduleFromPool.
+//
+// AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requireStaff for
+// /dashboard). Use myTiffinCounts from customer code — it adds the ownership check.
+export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCounts> {
+  const [order] = await db
+    .select({
+      id: orders.id,
+      tiffinCount: orders.tiffinCount,
+      persons: orders.persons,
+      pooled: orders.pooledTiffinCount,
+      includeSaturday: orders.includeSaturday,
+      includeSunday: orders.includeSunday,
+      frequencyKey: deliveryFrequencies.key,
+    })
+    .from(orders)
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) throw new NotFoundError("Subscription not found");
+
+  const rows = await db
+    .select({
+      status: deliveries.status,
+      cutoffAt: deliveries.cutoffAt,
+      makeupForDeliveryId: deliveries.makeupForDeliveryId,
+      pooledAt: deliveries.pooledAt,
+      deliveryDate: deliveries.deliveryDate,
+    })
+    .from(deliveries)
+    .where(eq(deliveries.orderId, order.id));
+
+  const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
+  const lastDeliveryDate = rows.reduce<string | null>(
+    (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
+    null,
+  );
+  const deliveryWeekdays = orderDeliveryDays({
+    frequencyKey: order.frequencyKey,
+    includeSaturday: order.includeSaturday,
+    includeSunday: order.includeSunday,
+  });
+
+  return {
+    total: order.tiffinCount,
+    delivered,
+    remaining: order.tiffinCount - delivered,
+    pooled: order.pooled,
+    persons: order.persons,
+    lastDeliveryDate,
+    deliveryWeekdays,
+  };
+}
+
+// Ownership-checked counts for the customer header. Staff read via orderTiffinCounts directly
+// (the dashboard page already gates with requireStaff).
+export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  return orderTiffinCounts(orderPublicId);
+}
+
+// Pause budget for the customer's pause UI: limits (nullable = unlimited) and
+// current usage, so the panel can show "N of M pauses used" before submit.
+export async function myPausePanel(userId: bigint, orderPublicId: string) {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
+  const [row] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Subscription not found");
+  const [limits, usage] = await Promise.all([getPauseLimits(row.id), getPauseUsage(row.id)]);
+  return { limits, usage };
+}
+
 export type WaitlistedSubscription = {
   publicId: string; planName: string; mealSizeName: string;
   daysPerWeek: number; status: "waitlisted" | "pending";
@@ -155,6 +336,7 @@ export type SubSummary = {
   daysPerWeek: number;
   status: string;
   createdAt: number;
+  startDate: string;
 };
 
 // All of a customer's subscriptions across every status, newest first — for the
@@ -163,8 +345,13 @@ export type SubSummary = {
 export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
   return db
     .select({
-      publicId: orders.publicId, planName: plans.name, mealSizeName: mealSizes.name,
-      daysPerWeek: deliveryFrequencies.daysPerWeek, status: orders.status, createdAt: orders.createdAt,
+      publicId: orders.publicId,
+      planName: plans.name,
+      mealSizeName: mealSizes.name,
+      daysPerWeek: deliveryFrequencies.daysPerWeek,
+      status: orders.status,
+      createdAt: orders.createdAt,
+      startDate: orders.startDate,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
@@ -218,15 +405,121 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   if (!order) return { pending: true };
 
   const weekStart = mondayOfIso(d.deliveryDate);
-  const [week] = await db
-    .select({ id: menuWeeks.id })
-    .from(menuWeeks)
-    .where(and(eq(menuWeeks.planType, order.planType), eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
-    .limit(1);
+  // Same exact released-week gate as Menu (`menuService.getReleasedWeek`) — never a parallel query.
+  const week = await menuService.getReleasedWeek(order.planType as "tiffin" | "healthy", weekStart);
   if (!week) return { pending: true };
 
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
   const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
   return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, dayOfWeek, person);
+}
+
+// Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of
+// "what a subscriber receives" (resolveCategoriesForDay), never a parallel type.
+export type ResolvedMeal = ResolvedCategory[];
+export type MealOption = { category: string; dishId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null };
+export type CalendarDay = {
+  date: string;
+  status: "scheduled" | "paused" | "skipped" | "cancelled";
+  locked: boolean;
+  isMakeup: boolean;
+  /** Released menu_week publicId; null when the delivery exists but that week's menu isn't out yet. */
+  menuWeekId: string | null;
+  meal: ResolvedMeal | null;
+  options: MealOption[];
+};
+
+// Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
+// existing reads — myDeliveries for day membership/status/cutoff, resolveDeliveryMealsForWeek for
+// the resolved pick, and the week's own menu_items for the selectable options list. Never calls
+// reconcileMakeups (write-only, run from Server Components — see myPausePanel's sibling comment).
+export async function myCalendar(userId: bigint, orderPublicId: string, range: { from: string; until: string }): Promise<CalendarDay[]> {
+  await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before any read
+
+  const [order] = await db
+    .select({ id: orders.id, planId: orders.planId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) throw new NotFoundError("Subscription not found");
+
+  const rows = (await myDeliveries(userId, range.from, range.until)).filter((r) => r.orderPublicId === orderPublicId);
+  if (rows.length === 0) return [];
+
+  // Only released weeks are ever shown: an unreleased next-week has no menu to resolve against,
+  // so its delivery days are simply absent from the calendar rather than rendered blank.
+  // Uses menuService.getReleasedWeeks — same exact weekStart gate as Menu / myDeliveryMeal.
+  const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
+  const releasedWeeks = await menuService.getReleasedWeeks(order.planType as "tiffin" | "healthy", weekStarts);
+  const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
+
+  const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
+  // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
+  // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
+  const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
+  const allowedDiets = dietsForPlanKey(order.planKey);
+
+  // Per-week caches: myDeliveries can return many days across the same released week, so batch
+  // the resolution and the day's menu items once per week instead of once per delivery row.
+  const resolvedByWeek = new Map<bigint, Awaited<ReturnType<typeof resolveDeliveryMealsForWeek>>>();
+  const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null }[]>();
+
+  const out: CalendarDay[] = [];
+  for (const row of rows) {
+    const week = weekByStart.get(mondayOfIso(row.deliveryDate));
+    if (!week) {
+      // Delivery is scheduled but the week's menu isn't released — still show the day tile.
+      out.push({
+        date: row.deliveryDate,
+        status: row.status as CalendarDay["status"],
+        locked: row.cutoffAt <= Date.now(),
+        isMakeup: row.isMakeup,
+        menuWeekId: null,
+        meal: null,
+        options: [],
+      });
+      continue;
+    }
+
+    let weekResolved = resolvedByWeek.get(week.id);
+    if (!weekResolved) {
+      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, order.persons);
+      resolvedByWeek.set(week.id, weekResolved);
+    }
+    let weekItems = itemsByWeek.get(week.id);
+    if (!weekItems) {
+      weekItems = await db
+        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, diet: dishes.diet, image: dishes.image })
+        .from(menuItems)
+        .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+        .where(eq(menuItems.menuWeekId, week.id))
+        .orderBy(asc(menuItems.position));
+      itemsByWeek.set(week.id, weekItems);
+    }
+
+    // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
+    // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
+    const dayOfWeek = weekdayKey(new Date(`${row.deliveryDate}T00:00:00Z`));
+    const meal = weekResolved.get(resolvedMealsWeekKey(dayOfWeek, 1)) ?? null;
+
+    const dayItems = weekItems.filter((i) => i.dayOfWeek === dayOfWeek);
+    const options: MealOption[] = selectableCats.flatMap((c) =>
+      dayItems
+        .filter((i) => i.slot === c.key && allowedDiets.includes(i.diet))
+        .map((i) => ({ category: c.key, dishId: i.publicId, name: i.name, diet: i.diet, image: i.image ?? null })),
+    );
+
+    out.push({
+      date: row.deliveryDate,
+      status: row.status as CalendarDay["status"],
+      locked: row.cutoffAt <= Date.now(),
+      isMakeup: row.isMakeup,
+      menuWeekId: week.publicId,
+      meal,
+      options,
+    });
+  }
+  return out;
 }

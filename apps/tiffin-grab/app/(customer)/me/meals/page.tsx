@@ -75,11 +75,11 @@ async function MyMealsData() {
 
   if (result.empty !== null) {
     const title =
-      result.empty === "no-week" ? "This week's menu isn't out yet" : "No deliveries are scheduled for the coming week";
+      result.empty === "no-week" ? "This week's menu isn't out yet" : "No deliveries are scheduled for this week";
     const body =
       result.empty === "no-week"
-        ? "Check back soon — the coming week's menu hasn't been published yet."
-        : "There are no deliveries scheduled on your subscription for the coming week.";
+        ? "Check back soon — this week's menu hasn't been published yet."
+        : "There are no deliveries scheduled on your subscription for this week.";
     return <LottieEmptyState animation="empty-box" title={title} body={body} />;
   }
 

@@ -12,4 +12,3 @@ docker network inspect edge >/dev/null 2>&1 || docker network create edge
 
 (cd proxy && docker compose pull && docker compose up -d)
 (cd tiffin-grab && ./deploy.sh)
-(cd puchkaman && ./deploy.sh)

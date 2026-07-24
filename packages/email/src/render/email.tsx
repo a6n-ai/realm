@@ -3,13 +3,13 @@ import { interpolate } from "./interpolate";
 
 const CONTAINER = { fontFamily: "system-ui, sans-serif", color: "#111", maxWidth: "520px", margin: "0 auto", padding: "24px", background: "#fff" };
 
-function BrandedEmail({ markdown }: { markdown: string }) {
+function BrandedEmail({ appName, markdown }: { appName: string; markdown: string }) {
   return (
     <Html lang="en">
       <Head />
       <Body style={{ backgroundColor: "#f6f6f6", margin: 0 }}>
         <Container style={CONTAINER}>
-          <Heading style={{ margin: "0 0 8px" }}>Tiffin Grab</Heading>
+          <Heading style={{ margin: "0 0 8px" }}>{appName}</Heading>
           <Markdown>{markdown}</Markdown>
         </Container>
       </Body>
@@ -22,11 +22,12 @@ export async function renderEmailTemplate(input: {
   subject: string;
   body: string;
   vars: Record<string, unknown>;
+  appName: string;
 }): Promise<{ subject: string; html: string; text: string }> {
   const subject = interpolate(input.subject, input.vars);
   const markdown = interpolate(input.body, input.vars);
-  const html = await render(<BrandedEmail markdown={markdown} />);
-  const text = await render(<BrandedEmail markdown={markdown} />, { plainText: true });
+  const html = await render(<BrandedEmail appName={input.appName} markdown={markdown} />);
+  const text = await render(<BrandedEmail appName={input.appName} markdown={markdown} />, { plainText: true });
   return { subject, html, text };
 }
 

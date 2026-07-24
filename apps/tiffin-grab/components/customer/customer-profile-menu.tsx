@@ -11,7 +11,7 @@ export function CustomerProfileMenu({
   user: { name: string | null; email: string; image: string | null };
 }) {
   return (
-    <TransitionLink href="/me/profile" aria-label="Profile">
+    <TransitionLink href="/me/account" aria-label="Account">
       <Avatar className="size-8">
         <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} />
         <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>

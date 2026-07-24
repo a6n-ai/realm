@@ -87,6 +87,10 @@ export const durationPackages = pgTable("duration_packages", {
   ...updatableColumns("dur"),
   weeks: integer("weeks").notNull().unique(),
   discountPct: integer("discount_pct").notNull().default(0),
+  // Pause allowance for subscriptions on this package. null = fall back to the app-level default.
+  maxPauses: integer("max_pauses"),
+  maxPauseDaysTotal: integer("max_pause_days_total"),
+  maxPauseStretchDays: integer("max_pause_stretch_days"),
   active: boolean("active").notNull().default(true),
 });
 

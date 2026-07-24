@@ -1,9 +1,10 @@
-import { cutoffMsFor, ValidationError } from "@realm/commons";
+import { cutoffMsFor, ValidationError, zonedDateIso } from "@realm/commons";
 import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@realm/database";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, menuItems, menuWeeks } from "@/db/schema";
+import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import type { PlanType } from "@/lib/menu/meal-types";
@@ -14,6 +15,29 @@ const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, 
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
 
 const publishedCache = sharedCache("published-week");
+
+/** Released menu_week identity — shared by Menu poster + Deliveries calendar resolution. */
+export type ReleasedWeekRef = {
+  id: bigint;
+  publicId: string;
+  planType: PlanType;
+  weekStart: string;
+};
+
+async function loadReleasedWeek(planType: PlanType, weekStart: string): Promise<ReleasedWeekRef | null> {
+  const [week] = await db
+    .select({
+      id: menuWeeks.id,
+      publicId: menuWeeks.publicId,
+      planType: menuWeeks.planType,
+      weekStart: menuWeeks.weekStart,
+    })
+    .from(menuWeeks)
+    .where(and(eq(menuWeeks.planType, planType), eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
+    .limit(1);
+  if (!week) return null;
+  return { id: week.id, publicId: week.publicId, planType: week.planType as PlanType, weekStart: week.weekStart };
+}
 
 export const menuService = {
   async upsertWeek(input: { planType: PlanType; weekStart: string }) {
@@ -149,13 +173,62 @@ export const menuService = {
     return { week, items };
   },
 
+  /**
+   * Exact released week for a planType + weekStart (Monday ISO). Same gate Deliveries and
+   * customer Menu use — never falls back to another week.
+   */
+  async getReleasedWeek(planType: PlanType, weekStart: string): Promise<ReleasedWeekRef | null> {
+    return loadReleasedWeek(planType, weekStart);
+  },
+
+  /** Batch of released weeks for calendar ranges; preserves exact weekStart matching. */
+  async getReleasedWeeks(planType: PlanType, weekStarts: string[]): Promise<ReleasedWeekRef[]> {
+    if (weekStarts.length === 0) return [];
+    const rows = await db
+      .select({
+        id: menuWeeks.id,
+        publicId: menuWeeks.publicId,
+        planType: menuWeeks.planType,
+        weekStart: menuWeeks.weekStart,
+      })
+      .from(menuWeeks)
+      .where(and(eq(menuWeeks.planType, planType), inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")));
+    return rows.map((w) => ({
+      id: w.id,
+      publicId: w.publicId,
+      planType: w.planType as PlanType,
+      weekStart: w.weekStart,
+    }));
+  },
+
   async getPublishedWeek(planType: PlanType, weekStart?: string) {
     return publishedCache.getOrSet(`${planType}:${weekStart ?? "current"}`, async () => {
       const base = and(eq(menuWeeks.planType, planType), eq(menuWeeks.status, "released"));
-      const [week] = await db.select().from(menuWeeks)
-        .where(weekStart ? and(base, eq(menuWeeks.weekStart, weekStart)) : base)
-        .orderBy(asc(menuWeeks.weekStart)).limit(1);
-      if (!week) return null;
+      // Explicit weekStart → same exact-match path as getReleasedWeek (Menu/Deliveries agree).
+      // No weekStart → soonest released on/after this Monday (app TZ), else latest released
+      // (marketing/PDF "current poster" only — not customer calendar).
+      let weekId: bigint | undefined;
+      let resolvedWeekStart: string | undefined;
+      if (weekStart) {
+        const ref = await loadReleasedWeek(planType, weekStart);
+        if (!ref) return null;
+        weekId = ref.id;
+        resolvedWeekStart = ref.weekStart;
+      } else {
+        const { timezone } = await getAppSettings();
+        const thisMonday = mondayOfIso(zonedDateIso(Date.now(), timezone));
+        const upcoming = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
+          .where(and(base, gte(menuWeeks.weekStart, thisMonday)))
+          .orderBy(asc(menuWeeks.weekStart)).limit(1);
+        let week = upcoming[0];
+        if (!week) {
+          [week] = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
+            .where(base).orderBy(desc(menuWeeks.weekStart)).limit(1);
+        }
+        if (!week) return null;
+        weekId = week.id;
+        resolvedWeekStart = week.weekStart;
+      }
       const rows = await db
         .select({
           dayOfWeek: menuItems.dayOfWeek,
@@ -167,7 +240,7 @@ export const menuService = {
           dishPublicId: dishes.publicId,
         })
         .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
-        .where(eq(menuItems.menuWeekId, week.id)).orderBy(asc(menuItems.position));
+        .where(eq(menuItems.menuWeekId, weekId)).orderBy(asc(menuItems.position));
       const categories = await dishCategoriesService.forPlanType(planType);
       const cfg = (await getMealTypes())[planType];
       const items: PosterItem[] = rows.map((r) => ({
@@ -179,7 +252,7 @@ export const menuService = {
         image: r.image ?? null,
         dishPublicId: r.dishPublicId,
       }));
-      return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: week.weekStart, slots: categories, items };
+      return { planType, theme: { accent: cfg.accent, titlePrefix: cfg.titlePrefix }, weekStart: resolvedWeekStart!, slots: categories, items };
     });
   },
 };

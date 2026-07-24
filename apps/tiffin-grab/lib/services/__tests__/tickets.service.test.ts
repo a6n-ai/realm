@@ -113,6 +113,21 @@ describe("ticketsService", () => {
     ]);
   });
 
+  it("setOpeningAttachments updates the first customer message", async () => {
+    const customer = await seedUser("Cust Open Img", "user");
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({
+      subject: "With screenshot",
+      category: "order",
+      body: "See attached.",
+    });
+    const att = [{ path: "tickets/y/orig-b.png", thumbUrl: "https://x/thumb-b.png", name: "b.png" }];
+    await ticketsService.setOpeningAttachments(ticket.publicId, att);
+    const messages = await ticketsService.listMessages(ticket.publicId);
+    expect(messages[0]?.authorType).toBe("customer");
+    expect(messages[0]?.attachments).toEqual(att);
+  });
+
   it("changeStatus to resolved writes a system message and sets closedAt", async () => {
     const customer = await seedUser("Cust Resolve", "user");
     const staff = await seedUser("Staff Resolve", "member");

@@ -27,14 +27,34 @@ const FIELDS = [
   { key: "defaultCountry", label: "Default phone country", hint: "Country pre-selected in every phone-number input." },
 ] as const;
 
+// Blank = unlimited (null); a package-level limit (Task 7) overrides these when set.
+const PAUSE_FIELDS = [
+  { key: "defaultMaxPauses", label: "Default max pauses", hint: "Max pauses per subscription when the duration package doesn't set its own limit. Blank = unlimited." },
+  { key: "defaultMaxPauseDaysTotal", label: "Default max pause days (total)", hint: "Total paused days allowed across a subscription. Blank = unlimited." },
+  { key: "defaultMaxPauseStretchDays", label: "Default max pause stretch (days)", hint: "Longest single pause allowed. Blank = unlimited." },
+] as const;
+
+function toNullableInt(v: string): number | null {
+  if (v.trim() === "") return null;
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 export function SettingsForm({
   timezone, cutoffHour, currency, defaultCountry, autoCountry,
-}: { timezone: string; cutoffHour: number; currency: string; defaultCountry: string | null; autoCountry: string }) {
+  defaultMaxPauses, defaultMaxPauseDaysTotal, defaultMaxPauseStretchDays,
+}: {
+  timezone: string; cutoffHour: number; currency: string; defaultCountry: string | null; autoCountry: string;
+  defaultMaxPauses: number | null; defaultMaxPauseDaysTotal: number | null; defaultMaxPauseStretchDays: number | null;
+}) {
   const router = useRouter();
   const [tz, setTz] = useState(timezone);
   const [hour, setHour] = useState(String(cutoffHour));
   const [ccy, setCcy] = useState(currency);
   const [country, setCountry] = useState(defaultCountry ?? AUTO);
+  const [maxPauses, setMaxPauses] = useState(defaultMaxPauses == null ? "" : String(defaultMaxPauses));
+  const [maxPauseDaysTotal, setMaxPauseDaysTotal] = useState(defaultMaxPauseDaysTotal == null ? "" : String(defaultMaxPauseDaysTotal));
+  const [maxPauseStretchDays, setMaxPauseStretchDays] = useState(defaultMaxPauseStretchDays == null ? "" : String(defaultMaxPauseStretchDays));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -47,7 +67,15 @@ export function SettingsForm({
     start(async () => {
       setError(null);
       try {
-        await saveAppSettings({ timezone: tz, cutoffHour: parsed, currency: ccy, defaultCountry: country === AUTO ? null : country });
+        await saveAppSettings({
+          timezone: tz,
+          cutoffHour: parsed,
+          currency: ccy,
+          defaultCountry: country === AUTO ? null : country,
+          defaultMaxPauses: toNullableInt(maxPauses),
+          defaultMaxPauseDaysTotal: toNullableInt(maxPauseDaysTotal),
+          defaultMaxPauseStretchDays: toNullableInt(maxPauseStretchDays),
+        });
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");
@@ -90,6 +118,21 @@ export function SettingsForm({
         </Select>
         <p className="text-muted-foreground mt-1 text-xs">{FIELDS[3].hint}</p>
       </div>
+      <div>
+        <Label>{PAUSE_FIELDS[0].label}</Label>
+        <Input type="number" min={0} step={1} value={maxPauses} onChange={(e) => setMaxPauses(e.target.value)} placeholder="Unlimited" />
+        <p className="text-muted-foreground mt-1 text-xs">{PAUSE_FIELDS[0].hint}</p>
+      </div>
+      <div>
+        <Label>{PAUSE_FIELDS[1].label}</Label>
+        <Input type="number" min={0} step={1} value={maxPauseDaysTotal} onChange={(e) => setMaxPauseDaysTotal(e.target.value)} placeholder="Unlimited" />
+        <p className="text-muted-foreground mt-1 text-xs">{PAUSE_FIELDS[1].hint}</p>
+      </div>
+      <div>
+        <Label>{PAUSE_FIELDS[2].label}</Label>
+        <Input type="number" min={0} step={1} value={maxPauseStretchDays} onChange={(e) => setMaxPauseStretchDays(e.target.value)} placeholder="Unlimited" />
+        <p className="text-muted-foreground mt-1 text-xs">{PAUSE_FIELDS[2].hint}</p>
+      </div>
       <Button onClick={save} disabled={pending} className="w-fit">Save</Button>
     </div>
   );
@@ -98,7 +141,7 @@ export function SettingsForm({
 export function SettingsFormSkeleton() {
   return (
     <div className="grid max-w-md gap-4">
-      {FIELDS.map((f) => (
+      {[...FIELDS, ...PAUSE_FIELDS].map((f) => (
         <div key={f.key}>
           <Label>{f.label}</Label>
           <Skeleton className="mt-1 h-9 w-full" />

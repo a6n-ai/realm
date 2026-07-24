@@ -183,6 +183,26 @@ export function ProductForm({
                 )}
               />
 
+              <Controller
+                control={control}
+                name="featured"
+                render={({ field }) => (
+                  <label
+                    className="flex between center"
+                    style={{ border: "var(--border)", borderRadius: "var(--r-sm)", padding: "12px 14px", cursor: "pointer" }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: "0.92rem" }}>Featured — shown in Best Sellers on the home page</span>
+                    <Switch.Root
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                      className="admin-switch"
+                    >
+                      <Switch.Thumb className="admin-switch-thumb" />
+                    </Switch.Root>
+                  </label>
+                )}
+              />
+
               <div className="flex" style={{ gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
                 <button type="button" className="btn btn--white btn--sm" onClick={() => onOpenChange(false)}>
                   Cancel
@@ -200,7 +220,7 @@ export function ProductForm({
 }
 
 function emptyForm(): FormInput {
-  return { name: "", description: "", category: "trad", price: 0, image: null, tags: [], active: true };
+  return { name: "", description: "", category: "trad", price: 0, image: null, tags: [], active: true, featured: false };
 }
 
 function rowToForm(row: ProductRow): FormInput {
@@ -212,5 +232,6 @@ function rowToForm(row: ProductRow): FormInput {
     image: (row.image as FormInput["image"]) ?? null,
     tags: (row.tags ?? []) as FormInput["tags"],
     active: row.active,
+    featured: row.featured,
   };
 }

@@ -1,0 +1,92 @@
+# Deploy tiffin-grab (Box A) on push to main. Self-contained: builds
+# tiffin-grab-web (runner) + tiffin-grab-tools (build) → GHCR, then the box pulls
+# + restarts. Triggered only when tiffin-grab or shared code changes (see paths);
+# puchkaman has its own workflow (deploy-puchkaman.yml) targeting Box B — the two
+# apps live on separate boxes and deploy fully independently.
+#
+# Required repo secrets: EC2_HOST (Box A), EC2_USER, EC2_SSH_KEY.
+# Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
+name: deploy-tiffin-grab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/tiffin-grab/**"
+      - "packages/**"
+      - "deployment/prod/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy-tiffin-grab.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-tiffin-grab
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # web first: the runner target also builds the shared `build` stage, warming
+      # the cache the tools image reuses.
+      - name: Build + push tiffin-grab-web (runner)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: runner
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/tiffin-grab-web:${{ github.sha }}
+            ghcr.io/a6n-ai/tiffin-grab-web:latest
+          cache-from: type=gha,scope=tiffin-grab
+          cache-to: type=gha,mode=max,scope=tiffin-grab
+
+      - name: Build + push tiffin-grab-tools (build)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: build
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/tiffin-grab-tools:${{ github.sha }}
+            ghcr.io/a6n-ai/tiffin-grab-tools:latest
+          cache-from: type=gha,scope=tiffin-grab
+          cache-to: type=gha,mode=max,scope=tiffin-grab
+
+  deploy:
+    needs: build
+    if: ${{ vars.ENABLE_SSH_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH → deploy tiffin-grab on Box A
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 20m
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+            REPO="${{ vars.DEPLOY_PATH }}"; REPO="${REPO:-$HOME/realm}"
+            git -C "$REPO" pull --ff-only
+            cd "$REPO/deployment/prod"
+            docker network inspect edge >/dev/null 2>&1 || docker network create edge
+            (cd proxy && docker compose pull && docker compose up -d)
+            (cd tiffin-grab && ./deploy.sh)

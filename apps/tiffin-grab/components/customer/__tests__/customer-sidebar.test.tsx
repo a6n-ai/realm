@@ -32,13 +32,24 @@ function renderSidebar() {
 }
 
 describe("CustomerSidebar", () => {
-  it("renders Home, Deliveries, Profile links to the right routes", () => {
+  it("renders Home, Deliveries, and Account links to the right routes", () => {
     renderSidebar();
     expect(screen.getByRole("link", { name: /home/i })).toHaveAttribute("href", "/me");
     expect(screen.getByRole("link", { name: /deliveries/i })).toHaveAttribute("href", "/me/deliveries");
-    expect(screen.getByRole("link", { name: /profile/i })).toHaveAttribute("href", "/me/profile");
+    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/me/account");
   });
 
+  it("groups nav under admin-style section headings", () => {
+    renderSidebar();
+    for (const label of ["Overview", "Meals", "Finances", "Account"]) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("links Support under Account to /me/support", () => {
+    renderSidebar();
+    expect(screen.getByRole("link", { name: /^support$/i })).toHaveAttribute("href", "/me/support");
+  });
   it("marks Home active on exact /me only", () => {
     renderSidebar();
     // Home is active at pathname "/me"; Deliveries is not.

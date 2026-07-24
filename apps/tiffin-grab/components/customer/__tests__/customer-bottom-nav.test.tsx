@@ -35,24 +35,25 @@ describe("CustomerBottomNav", () => {
     expect(screen.getByRole("link", { name: /Menu/i })).toHaveAttribute("href", "/me/menu");
   });
 
-  it("renders a Wallet tab to /me/wallet", () => {
+  it("renders an Account tab to /me/account", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    expect(screen.getByRole("link", { name: /Wallet/i })).toHaveAttribute("href", "/me/wallet");
+    expect(screen.getByRole("link", { name: /Account/i })).toHaveAttribute("href", "/me/account");
   });
 
-  it("renders 4 tabs (Home/Menu/Deliveries/Wallet), not Meals/Profile", () => {
+  it("renders 4 tabs (Home/Menu/Deliveries/Account), not Finances/Profile", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    ["Home", "Menu", "Deliveries", "Wallet"].forEach((t) => expect(screen.getByText(t)).toBeInTheDocument());
+    ["Home", "Menu", "Deliveries", "Account"].forEach((t) => expect(screen.getByText(t)).toBeInTheDocument());
+    expect(screen.queryByText("Finances")).toBeNull();
     expect(screen.queryByText("Profile")).toBeNull();
-    expect(screen.queryByText("Meals")).toBeNull();
   });
 
-  it("Order FAB navigates to /subscribe", () => {
+  it("New plan FAB always navigates to /subscribe", () => {
     mockPathname = "/me";
     render(<CustomerBottomNav />);
-    fireEvent.click(screen.getByRole("button", { name: /Order/i }));
+    expect(screen.getByText("New plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Start a subscription/i }));
     expect(push).toHaveBeenCalledWith("/subscribe");
   });
 });

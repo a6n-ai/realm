@@ -1,62 +1,85 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { zonedDateIso } from "@realm/commons";
+import { parseIsoDateUtc, zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myActiveSubscriptions, myWaitlistedSubscriptions, nextDeliveryByOrder } from "@/lib/services/customer-deliveries.service";
-import { walletService } from "@/lib/services/wallet.service";
+import {
+  myCalendar,
+  myPrimarySubscription,
+  myWaitlistedSubscriptions,
+  nextDeliveryByOrder,
+} from "@/lib/services/customer-deliveries.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
-import { WalletSection, WalletSectionSkeleton } from "@/components/customer/home/wallet-section";
+import {
+  HomeWeekStrip,
+  HomeWeekStripEmpty,
+  HomeWeekStripSkeleton,
+} from "@/components/customer/home/home-week-strip";
+import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { HomeIcon } from "lucide-react";
+import { PageShell, PageHeader } from "@/components/ds";
 import { HOME_SECTIONS } from "./home-sections";
 
-// The consumer-app home: a single scroll of session-scoped sections. Each is its
-// own Suspense island so a slow read never blocks the rest of the page. Tasks
-// 8–12 replace the placeholder <SectionSlot> with each section's real async data
-// component (userId + timezone are already threaded for them).
+const HOME_WEEK_DAYS = 14;
+
 export default async function MePage() {
   const userId = await currentUserId();
-  if (userId == null) redirect("/login"); // defense in depth — the (customer) layout already gates
+  if (userId == null) redirect("/login");
 
   const { timezone } = await getAppSettings();
 
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Home</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Everything for your meals, all in one place.</p>
-      </header>
+    <PageShell>
+      <PageHeader
+        icon={HomeIcon}
+        title="Home"
+        subtitle="Everything for your meals, all in one place."
+      />
 
-      {HOME_SECTIONS.map((section) =>
-        section.key === "subscription" ? (
-          <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
-            <SubscriptionSectionData userId={userId} timezone={timezone} />
-          </Suspense>
-        ) : (
-          <Suspense key={section.key} fallback={<WalletSectionSkeleton />}>
-            <WalletSectionData userId={userId} />
-          </Suspense>
-        ),
-      )}
-    </main>
+      {/* Mobile stacks; desktop uses the width for week + plan side-by-side. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        {HOME_SECTIONS.map((section) => {
+          if (section.key === "week") {
+            return (
+              <Suspense key={section.key} fallback={<HomeWeekStripSkeleton />}>
+                <HomeWeekStripData userId={userId} timezone={timezone} />
+              </Suspense>
+            );
+          }
+          return (
+            <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
+              <SubscriptionSectionData userId={userId} timezone={timezone} />
+            </Suspense>
+          );
+        })}
+      </div>
+    </PageShell>
   );
 }
 
+async function HomeWeekStripData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  const today = zonedDateIso(Date.now(), timezone);
+  const untilDate = parseIsoDateUtc(today);
+  untilDate.setUTCDate(untilDate.getUTCDate() + HOME_WEEK_DAYS);
+  const until = untilDate.toISOString().slice(0, 10);
+
+  const primary = await myPrimarySubscription(userId);
+  if (!primary) return <HomeWeekStripEmpty />;
+
+  const days = await myCalendar(userId, primary.publicId, { from: today, until });
+  const cells: CalendarCell[] = days.map((c) => ({ ...c, menuWeekId: null }));
+  return <HomeWeekStrip cells={cells} todayIso={today} />;
+}
+
 async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; timezone: string }) {
-  const today = zonedDateIso(Date.now(), timezone); // reads only — no reconcile/materialize here
-  const [subs, nextByOrder, waitlisted] = await Promise.all([
-    myActiveSubscriptions(userId),
+  const today = zonedDateIso(Date.now(), timezone);
+  const [primary, nextByOrder, waitlisted] = await Promise.all([
+    myPrimarySubscription(userId),
     nextDeliveryByOrder(userId, today),
     myWaitlistedSubscriptions(userId),
   ]);
-  const subscriptions = subs.map((s) => ({ ...s, nextDelivery: nextByOrder.get(s.publicId) ?? null }));
+  const subscriptions = primary
+    ? [{ ...primary, nextDelivery: nextByOrder.get(primary.publicId) ?? null }]
+    : [];
   return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
-}
-
-// Session-scoped wallet read — userId resolved server-side from currentUserId(), never client input.
-async function WalletSectionData({ userId }: { userId: bigint }) {
-  const [balance, transactions] = await Promise.all([
-    walletService.balance(userId),
-    walletService.recentTransactions(userId, 10),
-  ]);
-  return <WalletSection balance={balance} transactions={transactions} />;
 }

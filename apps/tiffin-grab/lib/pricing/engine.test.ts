@@ -112,3 +112,32 @@ describe("priceSubscription (adjustments)", () => {
     expect(r.total).toBe(0);
   });
 });
+
+describe("priceSubscription (taxes)", () => {
+  it("defaults taxes to [] — no tax lines, total unchanged", () => {
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10));
+    expect(r.taxLines).toEqual([]);
+    expect(r.taxTotal).toBe(0);
+    expect(r.total).toBe(r.subtotal);
+  });
+
+  it("taxes the post-discount base and adds the total", () => {
+    // $200 subtotal − $50 discount = $150 taxable; 5% GST + 7% PST = $7.50 + $10.50 = $18
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10), [{ label: "Coupon", amount: 50 }], [
+      { name: "GST", ratePct: 5 },
+      { name: "PST", ratePct: 7 },
+    ]);
+    expect(r.subtotal).toBe(200);
+    expect(r.taxLines.map((l) => l.amount)).toEqual([7.5, 10.5]);
+    expect(r.taxTotal).toBe(18);
+    expect(r.total).toBe(168);
+  });
+
+  it("charges no tax when discounts zero out the base", () => {
+    const r = priceSubscription(sel({ durationWeeks: 4 }), catalog(10), [{ label: "Huge", amount: 999 }], [
+      { name: "GST", ratePct: 5 },
+    ]);
+    expect(r.taxTotal).toBe(0);
+    expect(r.total).toBe(0);
+  });
+});

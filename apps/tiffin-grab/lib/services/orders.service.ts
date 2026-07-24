@@ -3,24 +3,51 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { and, asc, desc, eq, gt, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, users } from "@/db/schema";
-import { SessionBaseService, SessionUpdatableService } from "./session-service";
+import {
+  coupons,
+  deliveries,
+  deliveryFrequencies,
+  mealSizes,
+  orderActivities,
+  orders,
+  payments,
+  plans,
+  subscriptionPauses,
+  users,
+  type PaymentProof,
+} from "@/db/schema";
+import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { priceSubscription, type PricingLine, type PricingSelections } from "@/lib/pricing";
+import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
 import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
+import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
 import { walletService } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
+import { getPaymentConfig } from "./app-settings.service";
 
 const log = createLogger("orders.service");
+
+// True when a Postgres unique-violation (23505) hit the one-open-pause partial
+// index. drizzle wraps the driver error, so the real PostgresError (with code +
+// constraint_name) sits on .cause; postgres.js names the field constraint_name.
+function isOpenPauseConflict(e: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+  const err = e as PgErr;
+  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("subscription_pauses_one_open_uniq"),
+  );
+}
 
 // A transaction handle (or the base db) — payments + their ledger credit are
 // written inside the same tx as the order they settle.
@@ -28,9 +55,9 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentStatusValue = (typeof payments.status.enumValues)[number];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 
-// tx-aware payment recording: writes the payments row AND a matching ledger
-// credit (type 'payment') in the same tx, so every recorded payment makes the
-// customer's totalSpent real. Capture stays manual/simulated (no gateway).
+// tx-aware payment recording: writes the payments row, and (unless creditLedger is
+// false) a matching ledger credit. Real-method checkouts defer the credit until
+// staff verify — they pass creditLedger: false and status: awaiting_payment.
 export async function recordPayment(
   tx: Tx,
   input: {
@@ -41,6 +68,8 @@ export async function recordPayment(
     method?: PaymentMethodValue;
     note?: string | null;
     createdBy?: bigint | null;
+    // Default true (simulated / already-settled). False for awaiting_payment rows.
+    creditLedger?: boolean;
   },
 ): Promise<bigint> {
   const [pay] = await tx
@@ -54,14 +83,16 @@ export async function recordPayment(
       createdBy: input.createdBy ?? null,
     })
     .returning({ id: payments.id });
-  await ledgerService.record(tx, {
-    userId: input.userId,
-    orderId: input.orderId,
-    paymentId: pay.id,
-    direction: "credit",
-    type: "payment",
-    amount: input.amount,
-  });
+  if (input.creditLedger !== false) {
+    await ledgerService.record(tx, {
+      userId: input.userId,
+      orderId: input.orderId,
+      paymentId: pay.id,
+      direction: "credit",
+      type: "payment",
+      amount: input.amount,
+    });
+  }
   return pay.id;
 }
 
@@ -80,6 +111,10 @@ export interface CreateOrderInput {
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
   // arrives without a backing valid rep coupon owned by the actor is rejected.
   repCoupon?: { code: string; requestedAmount: number } | null;
+  // Chosen payment method id (maps to payment_method enum / PaymentMethodConfig.id).
+  // Omitted or "simulated" → today's simulated_paid path (also the fallback when no
+  // methods are enabled). A real method requires it to be enabled in payment_config.
+  paymentMethodId?: string | null;
 }
 
 export interface CreateOrderOptions {
@@ -154,6 +189,30 @@ export async function createOrder(
 
   const deploymentId = generateCode("SUB", 6);
 
+  // Resolve the payment rail before the tx. Empty config / omitted id → simulated
+  // (today's instant-paid path). A real id must be enabled and map to the enum.
+  const paymentCfg = await getPaymentConfig();
+  const requestedMethodId = input.paymentMethodId?.trim() || null;
+  const realMethods = enabledMethods(paymentCfg);
+  const useSimulated =
+    !requestedMethodId ||
+    requestedMethodId === "simulated" ||
+    realMethods.length === 0;
+  let paymentMethodId = "simulated";
+  let methodTaxes: { name: string; ratePct: number }[] = [];
+  if (!useSimulated) {
+    const method = findMethod(paymentCfg, requestedMethodId!);
+    if (!method || !method.enabled) {
+      throw new ValidationError("That payment method is not available");
+    }
+    if (!payments.method.enumValues.includes(method.id as PaymentMethodValue)) {
+      throw new ValidationError(`Unknown payment method: ${method.id}`);
+    }
+    paymentMethodId = method.id;
+    methodTaxes = method.taxes;
+  }
+  const deferSettlement = paymentMethodId !== "simulated";
+
   const txResult = await db.transaction(async (tx) => {
     // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
@@ -177,7 +236,9 @@ export async function createOrder(
 
     // Server-side discount resolution. Both coupon kinds land as a single
     // adjustments[] line; the redemptions (row + ledger debit) are written
-    // in-tx below once the order id exists. The client never sets the amount.
+    // in-tx below once the order id exists — or deferred into the pricing
+    // snapshot when settlement awaits staff verification. The client never sets
+    // the amount.
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
 
@@ -198,18 +259,15 @@ export async function createOrder(
 
     // Customer lane: the best valid combination of auto-apply coupons plus an
     // optional manual code, re-resolved server-side (never trusting a client
-    // amount). resolveBestCoupons returns the winning set + each coupon row to
-    // redeem; rep_daily coupons are excluded from this optimizer entirely.
+    // amount). Method-gated coupons are filtered via paymentMethodId.
     //
     // Rep-aware: when a rep coupon is also applied, an exclusive coupon could never
-    // legally ride alongside it, so we ask for the best STACKABLE-only combo. This
-    // picks the largest stackable discount that can combine with the rep lane,
-    // rather than letting an exclusive win the global optimum and then discarding
-    // it (which would leave the customer with rep + nothing).
+    // legally ride alongside it, so we ask for the best STACKABLE-only combo.
     const best = await couponsService.resolveBestCoupons({
       subtotal: basePricing.subtotal,
       planType: plan.planType,
       userId,
+      paymentMethodId,
       manualCode: input.couponCode,
       stackableOnly: !!input.repCoupon,
     });
@@ -219,23 +277,15 @@ export async function createOrder(
     if (input.couponCode && best.manualError) throw new ValidationError(best.manualError);
 
     // Stacking with the rep lane: a customer who *explicitly* typed an exclusive
-    // code alongside a rep discount is always told they cannot combine (preserving
-    // the documented one-rep + one-stackable rule) — regardless of whether that
-    // exclusive would have won the optimizer. The code reaching here is valid +
-    // eligible (an invalid/ineligible one already threw via manualError above), so
-    // a non-stackable resolution means the customer asked for an illegal combo.
+    // code alongside a rep discount is always told they cannot combine.
     if (input.repCoupon && input.couponCode?.trim()) {
       const manualCoupon = await couponsService.findByCode(input.couponCode.trim());
       if (!manualCoupon.stackable) {
         throw new ValidationError("This coupon cannot be combined with another discount");
       }
     }
-    // best.redemptions already excludes exclusives when a rep coupon is present
-    // (stackableOnly), so the kept customer set rides alongside the rep lane.
     // Re-distribute every kept line against the running remaining subtotal so the
-    // summed redemption amounts (and their discount ledger debits) can never exceed
-    // the order subtotal, even though the customer total is independently floored
-    // at 0. Lines that clamp to 0 here are skipped so they don't burn a redemption.
+    // summed redemption amounts can never exceed the order subtotal.
     const customerSet = best.redemptions;
     for (const r of customerSet) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
@@ -246,9 +296,25 @@ export async function createOrder(
       redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
     }
 
-    const pricing = adjustments.length
-      ? priceSubscription(input.selections, pricingCatalog, adjustments)
-      : basePricing;
+    const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, methodTaxes);
+
+    // Snapshot is the immutable receipt. For deferred settlement, pending
+    // redemptions ride along until staff verify — then redeem + clear.
+    const snapshot: OrderPricingSnapshot = {
+      ...pricing,
+      paymentMethodId,
+      planType: plan.planType,
+      ...(deferSettlement && redemptions.length
+        ? {
+            pendingRedemptions: redemptions.map((r) => ({
+              couponPublicId: r.coupon.publicId,
+              code: r.coupon.code,
+              amount: r.amount,
+              redeemedByPublicId: r.redeemedBy != null ? (actorId ?? null) : null,
+            })),
+          }
+        : {}),
+    };
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
@@ -268,7 +334,7 @@ export async function createOrder(
         startDate: input.selections.startDate,
         tiffinCount: pricing.tiffinCount,
         perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
-        pricingSnapshot: pricing,
+        pricingSnapshot: snapshot,
         total: pricing.total.toFixed(2),
         status,
         deploymentId,
@@ -282,29 +348,36 @@ export async function createOrder(
       })
       .returning();
 
-    // createOrder never calls activate() — an in-zone customer lands on "active"
-    // directly here, so materialization must be hooked on both paths, not just
-    // the waitlisted→active transition below.
+    // Start immediately: in-zone orders materialize deliveries now, even when
+    // payment is still awaiting. UI tells the customer delivery begins once
+    // payment is confirmed; unpaid days can be moved ahead later.
     if (order.status === "active") await materializeDeliveries(tx, order);
 
-    // Payment + matching ledger credit (the discounted total is what's paid).
-    await recordPayment(tx, { orderId: order.id, userId, amount: pricing.total, createdBy });
+    await recordPayment(tx, {
+      orderId: order.id,
+      userId,
+      amount: pricing.total,
+      createdBy,
+      method: paymentMethodId as PaymentMethodValue,
+      status: deferSettlement ? "awaiting_payment" : "simulated_paid",
+      creditLedger: !deferSettlement,
+    });
 
-    // Redeem each applied coupon: usage row, count bump, and discount ledger debit.
-    for (const r of redemptions) {
-      await couponsService.redeem(tx, {
-        coupon: r.coupon,
-        userId,
-        orderId: order.id,
-        redeemedBy: r.redeemedBy,
-        amountApplied: r.amount,
-        context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
-      });
+    // Simulated path redeems immediately. Real-method path defers until verify
+    // so an abandoned/unpaid order burns no coupon budget.
+    if (!deferSettlement) {
+      for (const r of redemptions) {
+        await couponsService.redeem(tx, {
+          coupon: r.coupon,
+          userId,
+          orderId: order.id,
+          redeemedBy: r.redeemedBy,
+          amountApplied: r.amount,
+          context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
+        });
+      }
     }
 
-    // Seed the activity timeline so the order-detail Activity section isn't empty
-    // until the first lifecycle action. Written in-tx via the raw insert because
-    // createOrder is the documented exception to the audited service layer.
     await tx.insert(orderActivities).values({
       orderId: order.id,
       type: "created",
@@ -312,7 +385,12 @@ export async function createOrder(
       createdBy,
     });
 
-    return { deploymentId, publicId: order.publicId, awardUserId: status === "active" ? userId : null };
+    // Coins also defer on real methods — awarded in verifyPayment.
+    return {
+      deploymentId,
+      publicId: order.publicId,
+      awardUserId: !deferSettlement && status === "active" ? userId : null,
+    };
   });
 
   try {
@@ -324,6 +402,201 @@ export async function createOrder(
   }
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId };
+}
+
+// Staff settles a real-method payment: credits the ledger, redeems any deferred
+// coupons from the pricing snapshot, awards activation coins, and marks paid.
+// Accepts awaiting_payment (e.g. cash confirmed without a customer claim) and
+// pending_verification (after a claim). Idempotent against already-paid rows.
+export async function verifyPayment(
+  paymentPublicId: string,
+  opts: { actorId?: string | null } = {},
+): Promise<void> {
+  const award = await db.transaction(async (tx) => {
+    const [pay] = await tx.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+    if (!pay) throw new NotFoundError("Payment not found");
+    if (pay.status === "paid" || pay.status === "simulated_paid") return null;
+    if (pay.status !== "awaiting_payment" && pay.status !== "pending_verification") {
+      throw new ValidationError(`Payment cannot be verified from status ${pay.status}`);
+    }
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
+    if (!order?.userId) throw new NotFoundError("Order not found");
+
+    const actorInternalId = await resolveUserId(tx, opts.actorId);
+
+    await ledgerService.record(tx, {
+      userId: order.userId,
+      orderId: order.id,
+      paymentId: pay.id,
+      direction: "credit",
+      type: "payment",
+      amount: Number(pay.amount),
+    });
+
+    await tx
+      .update(payments)
+      .set({ status: "paid", capturedAt: Date.now() })
+      .where(eq(payments.id, pay.id));
+
+    const snap = order.pricingSnapshot as OrderPricingSnapshot;
+    const pending = snap.pendingRedemptions ?? [];
+    for (const r of pending) {
+      const [coupon] = await tx.select().from(coupons).where(eq(coupons.publicId, r.couponPublicId)).limit(1);
+      if (!coupon) throw new ValidationError(`Pending coupon ${r.code} no longer exists`);
+      const redeemedBy = r.redeemedByPublicId
+        ? await resolveUserId(tx, r.redeemedByPublicId)
+        : null;
+      await couponsService.redeem(tx, {
+        coupon,
+        userId: order.userId,
+        orderId: order.id,
+        redeemedBy,
+        amountApplied: r.amount,
+        context: { subtotal: snap.subtotal, planType: snap.planType, kind: coupon.kind },
+      });
+    }
+
+    if (pending.length) {
+      const { pendingRedemptions: _drop, ...rest } = snap;
+      await tx
+        .update(orders)
+        .set({ pricingSnapshot: rest, updatedBy: actorInternalId })
+        .where(eq(orders.id, order.id));
+    }
+
+    // Award coins only when the order is (still) active — waitlisted stays deferred
+    // until activateOrder, which has its own award path.
+    return order.status === "active" ? { userId: order.userId, orderPublicId: order.publicId } : null;
+  });
+
+  if (award) {
+    try {
+      await walletService.award(award.userId, "order_activated", { type: "order", id: award.orderPublicId });
+    } catch (e) {
+      log.error({ err: e }, "wallet award on payment verify failed");
+    }
+  }
+}
+
+// Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
+// reference and/or a proof image; requireProof on the method config forces the photo.
+// awaiting_payment | rejected → pending_verification.
+// Callers MUST authorize (assertCanManageOrder) before invoking — kept out of this
+// function to avoid an orders ↔ customer-deliveries import cycle.
+export async function claimPayment(
+  paymentPublicId: string,
+  input: { reference?: string | null; proof?: PaymentProof | null },
+): Promise<void> {
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+
+  // awaiting_payment | rejected (fresh claim) or pending_verification (customer correcting).
+  if (
+    pay.status !== "awaiting_payment" &&
+    pay.status !== "rejected" &&
+    pay.status !== "pending_verification"
+  ) {
+    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
+  }
+  // Shared predicate covers the fresh-claim cases; pending_verification is a re-submit.
+  if (pay.status !== "pending_verification" && !canClaim(pay.status)) {
+    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
+  }
+
+  const cfg = await getPaymentConfig();
+  const method = findMethod(cfg, pay.method);
+  const requireProof = method?.requireProof === true;
+
+  const reference = input.reference?.trim() || null;
+  const proof = input.proof ?? null;
+  if (requireProof && !proof) {
+    throw new ValidationError("A payment screenshot is required for this method");
+  }
+  if (!reference && !proof) {
+    throw new ValidationError("Add a payment reference or upload a screenshot");
+  }
+
+  await db
+    .update(payments)
+    .set({
+      reference,
+      proof,
+      claimedAt: Date.now(),
+      status: "pending_verification",
+      // Clear a prior reject note when re-claiming.
+      note: null,
+    })
+    .where(eq(payments.id, pay.id));
+}
+
+// Staff rejects a submitted claim. pending_verification → rejected with a note;
+// customer may re-claim. Auth lives at the action layer (requireStaff).
+export async function rejectPayment(
+  paymentPublicId: string,
+  note: string,
+): Promise<void> {
+  const reason = note.trim();
+  if (!reason) throw new ValidationError("Add a reason for rejecting this payment");
+
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+  if (pay.status !== "pending_verification" || !canVerify(pay.status)) {
+    throw new ValidationError(`Payment cannot be rejected from status ${pay.status}`);
+  }
+
+  await db
+    .update(payments)
+    .set({
+      status: "rejected",
+      note: reason,
+    })
+    .where(eq(payments.id, pay.id));
+}
+
+// Serializable claim form context for activate / Finances UI.
+export type ClaimPaymentContext = {
+  paymentPublicId: string;
+  orderPublicId: string;
+  deploymentId: string;
+  amount: string;
+  status: (typeof payments.status.enumValues)[number];
+  methodId: string;
+  methodLabel: string;
+  payeeHandle: string | null;
+  instructions: string | null;
+  requireProof: boolean;
+  rejectNote: string | null;
+  // Human-friendly memo the customer should include in the transfer.
+  referenceHint: string;
+};
+
+export async function getClaimPaymentContext(paymentPublicId: string): Promise<ClaimPaymentContext | null> {
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) return null;
+  const [order] = await db
+    .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
+    .from(orders)
+    .where(eq(orders.id, pay.orderId))
+    .limit(1);
+  if (!order) return null;
+
+  const cfg = await getPaymentConfig();
+  const method = findMethod(cfg, pay.method);
+  return {
+    paymentPublicId: pay.publicId,
+    orderPublicId: order.publicId,
+    deploymentId: order.deploymentId,
+    amount: pay.amount,
+    status: pay.status,
+    methodId: pay.method,
+    methodLabel: method?.label ?? pay.method,
+    payeeHandle: method?.payeeHandle ?? null,
+    instructions: method?.instructions ?? null,
+    requireProof: method?.requireProof === true,
+    rejectNote: pay.status === "rejected" ? (pay.note ?? null) : null,
+    referenceHint: order.deploymentId,
+  };
 }
 
 export type OrderListRow = {
@@ -455,12 +728,28 @@ export async function listOrdersPage(
   return { items, page: page.page, size: page.size, total: count };
 }
 
+export type OrderPaymentDetail = {
+  publicId: string;
+  amount: string;
+  status: (typeof payments.status.enumValues)[number];
+  method: (typeof payments.method.enumValues)[number];
+  reference: string | null;
+  proof: PaymentProof | null;
+  claimedAt: number | null;
+  capturedAt: number | null;
+  note: string | null;
+  // Public thumb URL for inline display; null when no proof.
+  proofThumbUrl: string | null;
+  // Token-gated href for the secured original; null when no proof.
+  proofHref: string | null;
+};
+
 export type OrderDetail = typeof orders.$inferSelect & {
   planName: string;
   planKey: string;
   frequencyKey: string;
   mealSizeName: string;
-  payments: { publicId: string; amount: string; status: string }[];
+  payments: OrderPaymentDetail[];
 };
 
 export async function readOrder(publicId: string): Promise<OrderDetail> {
@@ -480,10 +769,43 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
   const pays = await db
-    .select({ publicId: payments.publicId, amount: payments.amount, status: payments.status })
+    .select({
+      publicId: payments.publicId,
+      amount: payments.amount,
+      status: payments.status,
+      method: payments.method,
+      reference: payments.reference,
+      proof: payments.proof,
+      claimedAt: payments.claimedAt,
+      capturedAt: payments.capturedAt,
+      note: payments.note,
+    })
     .from(payments)
     .where(eq(payments.orderId, row.order.id));
-  return { ...row.order, planName: row.planName, planKey: row.planKey, frequencyKey: row.frequencyKey, mealSizeName: row.mealSizeName, payments: pays };
+
+  // Lazy import avoids pulling storage/mint into every orders.service caller path
+  // that doesn't need proof hrefs (createOrder tests, etc.).
+  const { attachmentHref } = await import("./ticket-attachments");
+  const enriched: OrderPaymentDetail[] = await Promise.all(
+    pays.map(async (p) => {
+      const proof = p.proof ?? null;
+      return {
+        ...p,
+        proof,
+        proofThumbUrl: proof?.thumbUrl ?? null,
+        proofHref: proof ? await attachmentHref(proof) : null,
+      };
+    }),
+  );
+
+  return {
+    ...row.order,
+    planName: row.planName,
+    planKey: row.planKey,
+    frequencyKey: row.frequencyKey,
+    mealSizeName: row.mealSizeName,
+    payments: enriched,
+  };
 }
 
 export async function listOrderActivities(orderId: bigint) {
@@ -550,10 +872,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
 
     if (updated.userId != null) {
-      try {
-        await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
-      } catch (e) {
-        log.error({ err: e }, "wallet award on activation failed");
+      // Real-method orders defer coins until payment verify — don't award here if
+      // the payment is still unpaid/unverified.
+      const [pay] = await db
+        .select({ status: payments.status })
+        .from(payments)
+        .where(eq(payments.orderId, updated.id))
+        .limit(1);
+      const settled = !pay || pay.status === "paid" || pay.status === "simulated_paid";
+      if (settled) {
+        try {
+          await walletService.award(updated.userId, "order_activated", { type: "order", id: updated.publicId });
+        } catch (e) {
+          log.error({ err: e }, "wallet award on activation failed");
+        }
       }
     }
   }
@@ -593,10 +925,46 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // locked, cutoff-aware update). The order flips to "paused" only if every future original ended
   // up paused — a window narrower than the subscription leaves the order "active" with some rows
   // paused and others still scheduled.
-  async pause(publicId: string, window: { from: string; until: string }): Promise<void> {
+  // assertPauseAllowed runs BEFORE pauseRange so limit/overlap violations ("already paused",
+  // "pause limit reached", etc.) surface ahead of pauseRange's own date-format/order validation —
+  // both throw ValidationError so callers can't tell the difference, but it keeps the limits check
+  // authoritative over a window that would otherwise be silently accepted.
+  // Indefinite pauses use the order's LAST delivery date as the until-date sentinel (until_date is
+  // NOT NULL in subscription_pauses) — getPauseUsage counts those days toward cumulative usage by design.
+  async pause(publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> {
     const order = await this.read(publicId);
     if (order.status !== "active") throw new ValidationError(`Cannot pause an order that is ${order.status}`);
-    await pauseRange(publicId, window.from, window.until);
+    const actorId = await this.currentUserId();
+
+    let until = window.until;
+    if (window.indefinite) {
+      const [last] = await db.select({ d: sql<string>`max(${deliveries.deliveryDate})` })
+        .from(deliveries).where(eq(deliveries.orderId, order.id));
+      until = last?.d ?? window.from;
+    }
+    // assertPauseAllowed is a fast-path UX check only — it reads-then-writes with no lock, so
+    // two concurrent pause requests can both pass it. The subscription_pauses_one_open_uniq
+    // partial unique index is the real concurrency backstop: it makes a second OPEN pause row
+    // for this order impossible at the DB level. A losing concurrent request surfaces here as a
+    // 23505 unique violation, which we map to the same "already paused" error assertPauseAllowed
+    // would have thrown had it seen the winner's row in time. pauseRange already ran by this
+    // point, but its per-delivery update is a no-op on rows the winner already paused, so the
+    // loser leaves no inconsistent delivery state behind.
+    await assertPauseAllowed(order.id, window.from, until, window.indefinite ?? false);
+    await pauseRange(publicId, window.from, until);
+
+    try {
+      await db.insert(subscriptionPauses).values({
+        orderId: order.id,
+        fromDate: window.from,
+        untilDate: until,
+        isIndefinite: window.indefinite ?? false,
+        createdBy: actorId,
+      });
+    } catch (e) {
+      if (isOpenPauseConflict(e)) throw new ValidationError("already paused — resume first");
+      throw e;
+    }
 
     const [remaining] = await db.select({ id: deliveries.id }).from(deliveries)
       .where(and(
@@ -618,12 +986,40 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   // Delegates to resumeOrderDeliveries (reverts future paused rows to scheduled) then always flips
-  // the order back to "active" — the guard above already requires the order to be "paused".
-  async resume(publicId: string): Promise<void> {
+  // the order back to "active" — the guard above already requires the order to be "paused". Stamps
+  // the open pause row (resumedAt IS NULL) closed in the same flow so the one-active-pause guard
+  // releases and a new pause becomes legal again.
+  //
+  // The status flip is a CONDITIONAL update (WHERE status = 'paused'), not the usual this.update().
+  // autoResumeIfElapsed runs on the read path (myActiveSubscriptions) with no lock, so two
+  // concurrent renders can both read status="paused" and both call resume(). Only the request whose
+  // UPDATE actually matches a row (i.e. the one that wins the race) proceeds to revert deliveries,
+  // close the pause row, and log the "resumed" activity — the loser gets zero rows back and returns
+  // as a no-op instead of writing a duplicate activity / redundant delivery revert.
+  // `fromDate` (ISO) resumes a vacation partway: only paused days on/after it come back; earlier
+  // paused days move to the remain pool (see resumeOrderDeliveries). Omit for a full resume.
+  async resume(publicId: string, actorId?: bigint, fromDate?: string): Promise<void> {
     const order = await this.read(publicId);
     if (order.status !== "paused") throw new ValidationError(`Cannot resume an order that is ${order.status}`);
-    await resumeOrderDeliveries(publicId);
-    await this.update(publicId, { status: "active" });
+    const resolvedActorId = actorId ?? (await this.currentUserId()) ?? null;
+
+    const [flipped] = await db.update(orders)
+      .set({ status: "active", updatedBy: resolvedActorId })
+      .where(and(eq(orders.publicId, publicId), eq(orders.status, "paused")))
+      .returning({ id: orders.id });
+    if (!flipped) return;
+
+    await recordAudit({
+      entity: this.repo.tableName,
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { status: { from: order.status, to: "active" } },
+      createdBy: resolvedActorId,
+    });
+    await resumeOrderDeliveries(publicId, fromDate);
+    await db.update(subscriptionPauses)
+      .set({ resumedAt: new Date(), resumedBy: resolvedActorId })
+      .where(and(eq(subscriptionPauses.orderId, order.id), isNull(subscriptionPauses.resumedAt)));
     await this.activities.create({
       orderId: order.id,
       type: "resumed",
@@ -643,8 +1039,33 @@ export const ordersService = new OrdersService(new UpdatableRepository(db, order
 
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
-export const pauseOrder = (publicId: string, window: { from: string; until: string }): Promise<void> =>
+export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>
   ordersService.pause(publicId, window);
-export const resumeOrder = (publicId: string): Promise<void> => ordersService.resume(publicId);
+export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: string): Promise<void> =>
+  ordersService.resume(publicId, actorId, fromDate);
 export const reassignOrder = (publicId: string, ownerId: string): Promise<void> =>
   ordersService.reassign(publicId, ownerId);
+
+// Flips a fully-paused order back to "active" once its open (non-indefinite) pause window has
+// elapsed. No-op if there's no open pause, the pause is indefinite, or untilDate hasn't passed yet.
+// Called from myActiveSubscriptions before it reports order status to the customer.
+export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const [open] = await db.select({ untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
+    .from(subscriptionPauses)
+    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)))
+    .limit(1);
+  if (!open || open.isIndefinite || open.untilDate >= today) return;
+  const [ord] = await db.select({ publicId: orders.publicId, status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (ord?.status === "paused") {
+    await ordersService.resume(ord.publicId);
+    return;
+  }
+  // Partial pause: the order never fully paused (some deliveries stayed scheduled), so status is
+  // still "active" and resume()'s status guard doesn't apply — close the elapsed open row directly
+  // so getPauseUsage().hasOpenPause releases and a new pause becomes legal again. resumedBy stays
+  // null (system auto-close, not an actor); no order-status change means no activity row.
+  await db.update(subscriptionPauses)
+    .set({ resumedAt: new Date() })
+    .where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
+}

@@ -1,5 +1,5 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@realm/commons";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
@@ -152,35 +152,92 @@ export async function pauseRange(orderPublicId: string, from: string, until: str
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  // reconcileMakeups opens its own transaction and takes its own advisory lock — must run
+  // reconcilePoolFromMisses opens its own transaction and takes its own advisory lock — must run
   // after this one commits, never nested inside it.
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
   return updatedCount;
 }
 
 /**
- * Reverts every future paused row to scheduled. Deletes nothing, and ignores 'skipped' rows by
- * design — skip is a deliberate single-delivery act that only an explicit unskip undoes. A paused
- * row already past its cutoff is a terminal miss backed by a make-up and is left untouched.
+ * Reverts paused rows to scheduled. Ignores 'skipped' rows by design — skip is a deliberate
+ * single-delivery act that only an explicit unskip undoes.
+ *
+ * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back; a paused
+ * row already past its cutoff is a terminal miss and is left for reconcilePoolFromMisses to pool.
+ *
+ * Resume-from (`fromDate`): only paused days on/after `fromDate` (with a future cutoff) come back.
+ * Every earlier paused day — and any whose cutoff already passed — is abandoned to the remain pool,
+ * so the customer reschedules those tiffins after their last delivery.
  */
-export async function resumeOrder(orderPublicId: string): Promise<number> {
+export async function resumeOrder(orderPublicId: string, fromDate?: string): Promise<number> {
+  if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+    throw new ValidationError("Resume date must be ISO YYYY-MM-DD");
+  }
   let orderId: bigint;
   const updatedCount = await db.transaction(async (tx) => {
     orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
+    const conds = [
+      eq(deliveries.orderId, orderId),
+      eq(deliveries.status, "paused"),
+      gt(deliveries.cutoffAt, Date.now()),
+    ];
+    if (fromDate) conds.push(gte(deliveries.deliveryDate, fromDate));
+
     const updated = await tx.update(deliveries)
       .set({ status: "scheduled" })
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        eq(deliveries.status, "paused"),
-        gt(deliveries.cutoffAt, Date.now()),
-      ))
+      .where(and(...conds))
       .returning({ id: deliveries.id });
     return updated.length;
   });
-  await reconcileMakeups(orderId!);
+  // Resume-from deliberately leaves earlier/expired paused days behind — pool ALL of them (any
+  // cutoff), not just the past-cutoff ones reconcilePoolFromMisses would catch.
+  if (fromDate) await poolAllPausedMisses(orderId!);
+  await reconcilePoolFromMisses(orderId!);
   return updatedCount;
+}
+
+/**
+ * Pools every still-paused ORIGINAL (any cutoff) not yet pooled and without a make-up child — used
+ * by resume-from, where the days before the chosen resume date are abandoned on purpose. Same
+ * pooled_at + pooled_tiffin_count bookkeeping as reconcilePoolFromMisses, minus the cutoff gate.
+ */
+async function poolAllPausedMisses(orderId: bigint): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") return 0;
+
+    const missed = await tx.select({ id: deliveries.id })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId),
+        eq(deliveries.status, "paused"),
+        isNull(deliveries.pooledAt),
+        isNull(existingMakeup.id),
+      ));
+    if (missed.length === 0) return 0;
+
+    const now = Date.now();
+    let pooledTiffins = 0;
+    for (const src of missed) {
+      const stamped = await tx.update(deliveries).set({ pooledAt: now })
+        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
+        .returning({ id: deliveries.id });
+      if (stamped.length === 0) continue;
+      pooledTiffins += order.persons;
+    }
+    if (pooledTiffins > 0) {
+      await tx.update(orders)
+        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
+        .where(eq(orders.id, orderId));
+    }
+    return pooledTiffins;
+  });
 }
 
 export async function skipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
@@ -201,7 +258,7 @@ export async function skipDelivery(deliveryPublicId: string, actorId: bigint | n
       orderId, deliveryId: row.id, type: "skipped", createdBy: actorId,
     });
   });
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
 }
 
 // Self-join alias used only to test "does a make-up already exist for this row" — a correlated
@@ -210,20 +267,23 @@ export async function skipDelivery(deliveryPublicId: string, actorId: bigint | n
 const existingMakeup = alias(deliveries, "existing_makeup");
 
 /**
- * Append one make-up per missed original. A missed original is an ORIGINAL row
- * (makeup_for_delivery_id IS NULL) whose status is paused|skipped and whose snapshotted cutoff
- * has passed. Make-ups are terminal and are never reconciled.
+ * Move missed originals into the order's remain pool instead of auto-scheduling a make-up date.
+ * A missed original is an ORIGINAL row (makeup_for_delivery_id IS NULL) whose status is
+ * paused|skipped, whose snapshotted cutoff has passed, that has NOT already been pooled
+ * (pooled_at IS NULL) and does NOT already have a make-up child (legacy rows from the old
+ * auto-make-up path keep their date and are left alone).
  *
- * Serialized per order by a TRANSACTION-scoped advisory lock: db/client.ts sets prepare:false
- * for transaction-mode PgBouncer, where a session is not pinned across statements, so
- * pg_advisory_lock (session-scoped) would not hold. Dates are assigned one at a time,
- * re-reading max(delivery_date) after each insert, so two missed rows get distinct slots —
- * UNIQUE(makeup_for_delivery_id) alone would not prevent them colliding on
- * UNIQUE(order_id, delivery_date).
+ * Each pooled miss stamps `pooled_at` and adds `persons` tiffins to orders.pooled_tiffin_count.
+ * The customer later turns a pooled tiffin into a real date via scheduleFromPool, which is what
+ * creates the make-up row — so the miss stays "debt" (miss without make-up) until then, keeping
+ * maybeComplete from completing an order that still owes tiffins.
  *
+ * Idempotent via pooled_at: a second run counts nothing. Returns tiffins added to the pool.
+ *
+ * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
  * NEVER call from a read path: buildMealsGrid runs inside async Server Components.
  */
-export async function reconcileMakeups(orderId: bigint): Promise<number> {
+export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
 
@@ -231,14 +291,6 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
     // Defense in depth: a correctly-behaving maybeComplete never completes an order with debt,
     // so this should be unreachable — but it bounds the blast radius if that logic regresses.
     if (!order || order.status === "cancelled" || order.status === "completed") return 0;
-
-    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
-      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
-    const deliveryDays = new Set(orderDeliveryDays({
-      frequencyKey: freq!.key,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
-    }));
 
     const missed = await tx.select({ id: deliveries.id })
       .from(deliveries)
@@ -248,27 +300,27 @@ export async function reconcileMakeups(orderId: bigint): Promise<number> {
         isNull(deliveries.makeupForDeliveryId), // make-ups are terminal
         inArray(deliveries.status, ["paused", "skipped"]),
         lte(deliveries.cutoffAt, Date.now()),
-        isNull(existingMakeup.id), // no make-up exists yet for this row
+        isNull(deliveries.pooledAt), // not already pooled
+        isNull(existingMakeup.id), // legacy auto-make-up already covers this miss — leave it
       ))
       .orderBy(asc(deliveries.deliveryDate));
     if (missed.length === 0) return 0;
 
-    const { timezone, cutoffHour } = await getAppSettings();
-    let created = 0;
+    const now = Date.now();
+    let pooledTiffins = 0;
     for (const src of missed) {
-      const [{ max }] = await tx.select({ max: sql<string>`max(${deliveries.deliveryDate})` })
-        .from(deliveries).where(eq(deliveries.orderId, orderId));
-      const nextDate = nextDeliveryDateAfter(max, deliveryDays);
-      const inserted = await tx.insert(deliveries).values({
-        orderId,
-        deliveryDate: nextDate,
-        status: "scheduled",
-        cutoffAt: cutoffMsFor(nextDate, cutoffHour, timezone),
-        makeupForDeliveryId: src.id,
-      }).onConflictDoNothing().returning({ id: deliveries.id });
-      created += inserted.length;
+      const stamped = await tx.update(deliveries).set({ pooledAt: now })
+        .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
+        .returning({ id: deliveries.id });
+      if (stamped.length === 0) continue; // lost a race; do not double-count
+      pooledTiffins += order.persons;
     }
-    return created;
+    if (pooledTiffins > 0) {
+      await tx.update(orders)
+        .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} + ${pooledTiffins}` })
+        .where(eq(orders.id, orderId));
+    }
+    return pooledTiffins;
   });
 }
 
@@ -330,6 +382,81 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
   });
 }
 
+/**
+ * Turn one pooled tiffin into a real delivery date the customer picked. The date must be strictly
+ * after the order's current last delivery and land on a plan weekday. Creates a make-up row linked
+ * to the oldest pooled miss lacking a make-up (so maybeComplete's debt anti-join clears), and
+ * decrements orders.pooled_tiffin_count by `persons`.
+ *
+ * Serialized per order by a TRANSACTION-scoped advisory lock (see db/client.ts prepare:false note).
+ */
+export async function scheduleFromPool(
+  orderPublicId: string,
+  dateIso: string,
+  actorId: bigint | null,
+): Promise<{ deliveryPublicId: string }> {
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDateRegex.test(dateIso)) throw new ValidationError("Schedule date must be ISO YYYY-MM-DD");
+
+  return db.transaction(async (tx) => {
+    const orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") {
+      throw new ValidationError("This subscription can no longer be scheduled");
+    }
+    if (order.pooledTiffinCount < order.persons) throw new ValidationError("No tiffins left to schedule");
+
+    const [{ max }] = await tx.select({ max: sql<string | null>`max(${deliveries.deliveryDate})` })
+      .from(deliveries).where(eq(deliveries.orderId, orderId));
+    if (max && dateIso <= max) throw new ValidationError("Date must be after your last delivery");
+
+    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = new Set(orderDeliveryDays({
+      frequencyKey: freq!.key,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+    }));
+    if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
+      throw new ValidationError("That day isn't on your plan");
+    }
+
+    // Oldest pooled miss without a make-up yet — links this new date back to what it makes up for.
+    const [miss] = await tx.select({ id: deliveries.id })
+      .from(deliveries)
+      .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
+      .where(and(
+        eq(deliveries.orderId, orderId),
+        isNull(deliveries.makeupForDeliveryId),
+        isNotNull(deliveries.pooledAt),
+        inArray(deliveries.status, ["paused", "skipped"]),
+        isNull(existingMakeup.id),
+      ))
+      .orderBy(asc(deliveries.deliveryDate))
+      .limit(1);
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const [inserted] = await tx.insert(deliveries).values({
+      orderId,
+      deliveryDate: dateIso,
+      status: "scheduled",
+      cutoffAt: cutoffMsFor(dateIso, cutoffHour, timezone),
+      makeupForDeliveryId: miss?.id ?? null,
+    }).returning({ id: deliveries.id, publicId: deliveries.publicId });
+
+    await tx.update(orders)
+      .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${order.persons}` })
+      .where(eq(orders.id, orderId));
+
+    await tx.insert(orderActivities).values({
+      orderId, deliveryId: inserted.id, type: "pool_scheduled", createdBy: actorId,
+    });
+    return { deliveryPublicId: inserted.publicId };
+  });
+}
+
 /** First ISO date strictly after `afterIso` whose weekday is in `deliveryDays`. */
 export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string>): string {
   const d = parseIsoDateUtc(afterIso);
@@ -361,7 +488,7 @@ export async function unskipDelivery(deliveryPublicId: string, actorId: bigint |
       orderId, deliveryId: row.id, type: "unskipped", createdBy: actorId,
     });
   });
-  await reconcileMakeups(orderId!);
+  await reconcilePoolFromMisses(orderId!);
 }
 
 /** Prefix match against delivery_zones.postal_prefixes (active zones only). Rejects an unserviced postal code. */

@@ -1,6 +1,6 @@
 {
-  "id": "a7721704-31fa-4661-98e4-4ed4c08e6fa9",
-  "prevId": "55d72e75-d63f-4c9e-a722-9c579dda8430",
+  "id": "81cb1021-2911-4672-be37-a703b8ecbe8c",
+  "prevId": "5a328491-1d53-49f9-b57b-72308fce4a6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -414,6 +414,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'user'"
+        },
+        "password_set": {
+          "name": "password_set",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "bauth_created_at": {
           "name": "bauth_created_at",
@@ -877,6 +884,12 @@
         "pending_sync": {
           "name": "pending_sync",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_synced_image_url": {
+          "name": "last_synced_image_url",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }

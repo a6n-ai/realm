@@ -36,6 +36,10 @@ export function filesService(): FileSystemService {
   if (!cached) {
     cached = new FileSystemService(makeStorage(), db, {
       publicBaseUrl: process.env.FILES_PUBLIC_BASE_URL ?? "/api/files",
+      // Static files live under public/* to match the shared CDN convention
+      // (deployment/cdn/). Puchkaman has no secured files today, so its CDN can
+      // also serve legacy catalog/* keys, but new files land under public/*.
+      keyPrefix: "public",
     });
   }
   return cached;

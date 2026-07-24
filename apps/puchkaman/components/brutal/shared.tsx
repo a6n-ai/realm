@@ -4,7 +4,7 @@ import { useId, type CSSProperties, type MouseEventHandler, type ReactNode } fro
 /* Route map — the design's hash-router `page` names → real Next routes. */
 export const ROUTE: Record<string, string> = {
   home: "/",
-  menu: "/productsmenu",
+  eats: "/eats",
   fusion: "/fusion",
   catering: "/catering",
   events: "/events",
@@ -143,7 +143,7 @@ export function Stars({ value = 5, size = 18 }: { value?: number; size?: number 
   const full = Math.floor(value);
   const half = value - full >= 0.5;
   return (
-    <span className="stars" aria-label={value + " stars"}>
+    <span className="stars" role="img" aria-label={value + " stars"}>
       {[0, 1, 2, 3, 4].map((i) => {
         const fill = i < full ? 1 : i === full && half ? 0.5 : 0;
         return <Star key={i} fill={fill} size={size} />;

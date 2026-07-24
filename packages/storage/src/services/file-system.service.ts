@@ -11,6 +11,12 @@ export interface FileSystemServiceOptions {
   resourceType?: ResourceType;
   publicBaseUrl?: string;
   signedUrlTtlSeconds?: number;
+  // Physical key namespace prepended to every created object, e.g. "public".
+  // Keeps CDN-served static files under one prefix so a CloudFront/bucket-policy
+  // scope like "public/*" can never reach a `secured` object that lives outside
+  // it (see deployment/cdn/). Applied at create() only; reads use the stored
+  // path, so existing objects are unaffected.
+  keyPrefix?: string;
 }
 
 // Storage key = path without a leading slash.
@@ -21,6 +27,7 @@ export class FileSystemService {
   private readonly resourceType: ResourceType;
   private readonly publicBaseUrl?: string;
   private readonly ttl: number;
+  private readonly keyPrefix: string;
 
   constructor(
     private readonly storage: StorageProvider,
@@ -31,10 +38,12 @@ export class FileSystemService {
     this.resourceType = opts.resourceType ?? "static";
     this.publicBaseUrl = opts.publicBaseUrl;
     this.ttl = opts.signedUrlTtlSeconds ?? 3600;
+    this.keyPrefix = (opts.keyPrefix ?? "").replace(/^\/+|\/+$/g, "");
   }
 
   async create(path: string, body: Uint8Array | string, opts?: { contentType?: string }): Promise<FileDetail> {
-    const key = toKey(path);
+    const base = toKey(path);
+    const key = this.keyPrefix ? `${this.keyPrefix}/${base}` : base;
     const segments = key.split("/");
     const name = segments.pop()!;
     const parentId = await this.ensureDirectory(segments);

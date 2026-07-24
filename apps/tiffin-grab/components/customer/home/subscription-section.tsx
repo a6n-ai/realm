@@ -128,7 +128,7 @@ export function SubscriptionSection({
   waitlisted?: WaitlistedSubscription[];
 }) {
   return (
-    <SectionCard title="Your subscription">
+    <SectionCard title="Your subscription" subtitle="Plan status, next delivery, and vacation pause.">
       {subscriptions.length > 0 ? (
         <div className="space-y-3">
           {subscriptions.map((sub) => (
@@ -160,7 +160,7 @@ export function SubscriptionSection({
 // cannot dot into this "use client" module's export (the /dashboard/orders bug).
 export function SubscriptionSectionSkeleton() {
   return (
-    <SectionCard title="Your subscription">
+    <SectionCard title="Your subscription" subtitle="Plan status, next delivery, and vacation pause.">
       <div className="space-y-3">
         <Skeleton className="h-52 w-full rounded-lg" />
       </div>

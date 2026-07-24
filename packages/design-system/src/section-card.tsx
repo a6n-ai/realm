@@ -15,12 +15,19 @@ export function SectionCard({
 }) {
   return (
     <Card variant={variant} className={cn("p-5", bleed && "max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none")}>
-      <div className="flex items-center justify-between">
-        <TitleTag className="text-base font-semibold text-balance">{title}</TitleTag>
-        {action}
-      </div>
-      {subtitle && <p className="text-muted-foreground mb-3 text-sm text-pretty">{subtitle}</p>}
-      <div className={subtitle ? undefined : "mt-3"}>{children}</div>
+      {/* Heading + subheading as one header block; action aligns to the title row on desktop. */}
+      <header className="mb-3 flex items-start justify-between gap-3 md:mb-4">
+        <div className="min-w-0 space-y-0.5 md:space-y-1">
+          <TitleTag className="text-base font-semibold tracking-tight text-balance md:text-lg">
+            {title}
+          </TitleTag>
+          {subtitle ? (
+            <p className="text-muted-foreground text-sm text-pretty md:max-w-prose">{subtitle}</p>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0 pt-0.5">{action}</div> : null}
+      </header>
+      {children}
     </Card>
   );
 }

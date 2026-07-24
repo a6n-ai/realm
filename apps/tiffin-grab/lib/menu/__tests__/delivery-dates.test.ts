@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comingWeekStartIso, mondayOfIso, subscriptionDeliveryDates } from "../delivery-dates";
+import { comingWeekStartIso, mondayOfIso, subscriptionDeliveryDates, thisWeekStartIso } from "../delivery-dates";
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 
@@ -32,6 +32,14 @@ describe("subscriptionDeliveryDates", () => {
   it("is deterministic across repeated calls with the same input", () => {
     const r = subscriptionDeliveryDates({ startDate: "2026-06-22", durationWeeks: 1, deliveryDays: ["mon", "wed", "fri"] });
     expect(r.map((d) => d.dateIso)).toEqual(["2026-06-22", "2026-06-24", "2026-06-26"]);
+  });
+});
+
+describe("thisWeekStartIso", () => {
+  it("returns this week's Monday relative to 'now' in the zone", () => {
+    // Wed 2026-06-24 12:00 UTC, Toronto → current week Mon = 06-22
+    const now = Date.UTC(2026, 5, 24, 16); // ~noon Toronto
+    expect(thisWeekStartIso(now, "America/Toronto")).toBe("2026-06-22");
   });
 });
 

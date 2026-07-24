@@ -3,18 +3,31 @@ import type { WizardSelections } from "../selections";
 import { Card } from "@realm/ui/card";
 import { Badge } from "@realm/ui/badge";
 import { MealSizeItems } from "../meal-size-items";
+import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 
-export function StepBundle({ catalog, selections, set }: {
+export function StepBundle({
+  catalog,
+  selections,
+  set,
+  currentPlan = null,
+}: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
   set: (patch: Partial<WizardSelections>) => void;
+  currentPlan?: CurrentPlanSummary | null;
 }) {
   const meals = catalog.mealSizes.filter((m) => m.planKey === selections.planKey && !m.trial);
 
   return (
     <div className="space-y-4">
+      {currentPlan ? (
+        <CurrentPlanHint>
+          You&apos;re on <strong>{currentPlan.planName}</strong> · {currentPlan.mealSizeName} ·{" "}
+          {currentPlan.daysPerWeek} days/wk. Choose a meal size for the <strong>new</strong> plan.
+        </CurrentPlanHint>
+      ) : null}
       {TIERS.map((tier) => {
         const tierMeals = meals.filter((m) => m.tier === tier);
         if (tierMeals.length === 0) return null;

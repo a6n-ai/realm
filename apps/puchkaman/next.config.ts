@@ -8,10 +8,14 @@ const nextConfig: NextConfig = {
   // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
-  transpilePackages: ["@realm/commons", "@realm/database", "@realm/routes", "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm", "@realm/realtime"],
+  transpilePackages: ["@realm/commons", "@realm/database", "@realm/routes", "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm", "@realm/realtime", "@realm/auth-ui"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
+  // /productsmenu was the live public URL before the rename — keep indexed links alive.
+  async redirects() {
+    return [{ source: "/productsmenu", destination: "/eats", permanent: true }];
+  },
 };
 
 export default nextConfig;
