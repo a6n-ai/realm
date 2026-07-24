@@ -1,13 +1,9 @@
 "use client";
 
-import { CalendarIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Calendar } from "@realm/ui/calendar";
+import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
-import { cn } from "@realm/ui/cn";
-import { formatDateOnly } from "@/lib/format/datetime";
-import { toIsoLocal } from "./calendar-constants";
 
+/** Native date input — no calendar popup; used for vacation and pool scheduling. */
 export function VacationDateField({
   id,
   label,
@@ -16,9 +12,7 @@ export function VacationDateField({
   onChange,
   today,
   minDate,
-  isDisabledDay,
-  open,
-  onOpenChange,
+  maxDate,
 }: {
   id: string;
   label: string;
@@ -27,24 +21,9 @@ export function VacationDateField({
   onChange: (iso: string) => void;
   today: string;
   minDate?: string;
-  isDisabledDay: (date: Date) => boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  maxDate?: string;
 }) {
-  const selected = value ? new Date(`${value}T00:00:00`) : undefined;
   const min = minDate ?? today;
-
-  function handleSelect(date: Date | undefined) {
-    if (!date) return;
-    const iso = toIsoLocal(date);
-    if (iso < min) return;
-    onChange(iso);
-    onOpenChange(false);
-  }
-
-  const display = value
-    ? formatDateOnly(value, { mode: "short" })
-    : "Select date";
 
   return (
     <div className="space-y-1.5">
@@ -54,35 +33,15 @@ export function VacationDateField({
           <span className="text-muted-foreground font-normal">{optionalHint}</span>
         ) : null}
       </Label>
-      <Button
+      <Input
         id={id}
-        type="button"
-        variant="outline"
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        onClick={() => onOpenChange(!open)}
-        className={cn(
-          "h-11 w-full justify-start gap-2.5 font-normal tabular-nums transition-transform active:scale-[0.99]",
-          !value && "text-muted-foreground",
-          open && "border-primary ring-primary/20 ring-2",
-        )}
-      >
-        <CalendarIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="truncate">{display}</span>
-      </Button>
-      {open ? (
-        <div className="animate-in fade-in-0 slide-in-from-top-1 overflow-hidden rounded-xl border bg-card p-1 duration-200 motion-reduce:animate-none">
-          <Calendar
-            mode="single"
-            today={new Date(`${today}T00:00:00`)}
-            selected={selected}
-            defaultMonth={selected ?? new Date(`${today}T00:00:00`)}
-            disabled={isDisabledDay}
-            onSelect={handleSelect}
-            className="mx-auto"
-          />
-        </div>
-      ) : null}
+        type="date"
+        value={value}
+        min={min}
+        max={maxDate}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 w-full tabular-nums"
+      />
     </div>
   );
 }

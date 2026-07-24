@@ -72,6 +72,8 @@ function TiffinCountRow({
         <Stat label="Total" value={counts.total} />
         <Stat label="Delivered" value={counts.delivered} />
         <Stat label="Remaining" value={counts.remaining} emphasis />
+        {counts.skippedDays > 0 && <Stat label="On hold" value={counts.skippedDays} />}
+        {counts.skipCount > 0 && <Stat label="Skips done" value={counts.skipCount} />}
         {counts.pooled > 0 && <Stat label="To schedule" value={counts.pooled} emphasis />}
       </dl>
       {counts.pooled > 0 && (

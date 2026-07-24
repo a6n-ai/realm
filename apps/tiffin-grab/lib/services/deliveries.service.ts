@@ -467,6 +467,76 @@ export function nextDeliveryDateAfter(afterIso: string, deliveryDays: Set<string
   throw new ValidationError("Could not find a make-up slot within 30 days");
 }
 
+export async function rescheduleDelivery(
+  deliveryPublicId: string,
+  newDateIso: string,
+  actorId: bigint | null,
+): Promise<void> {
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!isoDateRegex.test(newDateIso)) throw new ValidationError("Reschedule date must be ISO YYYY-MM-DD");
+
+  let orderId: bigint;
+  await db.transaction(async (tx) => {
+    orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
+    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+
+    const row = await loadByPublicId(tx, deliveryPublicId);
+    assertOriginal(row);
+    assertMutable(row);
+    if (row.status !== "scheduled") throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+    if (newDateIso === row.deliveryDate) throw new ValidationError("Pick a different day");
+
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order || order.status === "cancelled" || order.status === "completed") {
+      throw new ValidationError("This subscription can no longer be rescheduled");
+    }
+
+    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+    const deliveryDays = new Set(orderDeliveryDays({
+      frequencyKey: freq!.key,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+    }));
+    if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(newDateIso)))) {
+      throw new ValidationError("That day isn't on your plan");
+    }
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const today = zonedDateIso(Date.now(), timezone);
+    if (newDateIso < today) throw new ValidationError("Reschedule date cannot be in the past");
+    const newCutoff = cutoffMsFor(newDateIso, cutoffHour, timezone);
+    if (Date.now() > newCutoff) throw new ValidationError("That day's cutoff has already passed");
+
+    const [collision] = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(and(eq(deliveries.orderId, orderId), eq(deliveries.deliveryDate, newDateIso)))
+      .limit(1);
+    if (collision) throw new ValidationError("You already have a delivery on that day");
+
+    const [existingMakeup] = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
+    if (existingMakeup) throw new ValidationError("This delivery has already been rescheduled");
+
+    const skipped = await tx.update(deliveries).set({ status: "skipped" })
+      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+      .returning({ id: deliveries.id });
+    if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+
+    const [inserted] = await tx.insert(deliveries).values({
+      orderId,
+      deliveryDate: newDateIso,
+      status: "scheduled",
+      cutoffAt: newCutoff,
+      makeupForDeliveryId: row.id,
+    }).returning({ id: deliveries.id });
+
+    await tx.insert(orderActivities).values([
+      { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled to ${newDateIso}`, createdBy: actorId },
+      { orderId, deliveryId: inserted.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate}`, createdBy: actorId },
+    ]);
+  });
+}
+
 export async function unskipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
   let orderId: bigint;
   await db.transaction(async (tx) => {
@@ -477,6 +547,9 @@ export async function unskipDelivery(deliveryPublicId: string, actorId: bigint |
     assertOriginal(row);
     assertMutable(row);
     if (row.status !== "skipped") throw new ValidationError(`Cannot un-skip a ${row.status} delivery`);
+    if (row.pooledAt != null) {
+      throw new ValidationError("This skip is in your remain pool — schedule it on a day instead of un-skipping");
+    }
     const [mk] = await tx.select({ id: deliveries.id }).from(deliveries)
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (mk) throw new ValidationError("This delivery has already been replaced by a make-up");

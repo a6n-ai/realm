@@ -7,16 +7,8 @@ import { Button } from "@realm/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { TiffinCounts } from "@/lib/services/customer-deliveries.service";
-import { toIsoLocal } from "./calendar-constants";
 import { VacationDateField } from "./vacation-date-field";
 import { scheduleMyPooledTiffin } from "./actions";
-
-const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
-
-// delivery_date is a calendar date; parse as UTC so the weekday never shifts across timezones.
-function isoWeekdayKey(iso: string): string {
-  return WEEKDAY_KEYS[new Date(`${iso}T00:00:00Z`).getUTCDay()]!;
-}
 
 /**
  * Lets a customer place a pooled tiffin on a real date. Only days strictly after the last delivery
@@ -34,24 +26,14 @@ export function SchedulePoolControl({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [date, setDate] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const weekdays = new Set(counts.deliveryWeekdays);
   const last = counts.lastDeliveryDate;
-
-  function isDisabledDay(d: Date): boolean {
-    const iso = toIsoLocal(d);
-    if (iso < today) return true;
-    if (last && iso <= last) return true; // strictly after the last delivery
-    return !weekdays.has(isoWeekdayKey(iso));
-  }
 
   function reset() {
     setDate("");
-    setPickerOpen(false);
     setError(null);
   }
 
@@ -86,12 +68,12 @@ export function SchedulePoolControl({
       title="Schedule a tiffin"
       description="Place one of your unscheduled tiffins on a delivery day."
     >
-      <div className="space-y-4 px-4 pb-4 sm:px-0 sm:pb-0">
+      <div className="space-y-4">
         <p className="text-muted-foreground text-sm">
           You have <span className="text-foreground font-medium">{counts.pooled}</span> tiffin
           {counts.pooled > 1 ? "s" : ""} to schedule. Pick a delivery day after
           {last ? ` ${formatDateOnly(last, { mode: "short" })}` : " your last delivery"} — it must
-          fall on one of your plan's delivery days.
+          fall on one of your plan&apos;s delivery days.
         </p>
         <VacationDateField
           id="schedule-pool-date"
@@ -100,9 +82,6 @@ export function SchedulePoolControl({
           onChange={setDate}
           today={today}
           minDate={last ?? today}
-          isDisabledDay={isDisabledDay}
-          open={pickerOpen}
-          onOpenChange={setPickerOpen}
         />
         {date && (
           <p className="text-muted-foreground text-sm">

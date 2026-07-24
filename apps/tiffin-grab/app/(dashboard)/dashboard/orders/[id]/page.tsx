@@ -6,37 +6,30 @@ import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@realm/commons"
 import { eq } from "drizzle-orm";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
-import { describeActivity } from "@/lib/services/order-activity-describe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { effectiveAddress } from "@/lib/services/deliveries.service";
+import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
 import {
-  myCalendar,
-  myDeliveries,
-  myDeliveryMeal,
-  myPausePanel,
-  myTiffinCounts,
   myWaitlistedSubscriptions,
   type Subscription,
 } from "@/lib/services/customer-deliveries.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
-import { formatEpoch } from "@/lib/format/datetime";
 import { db } from "@/db/client";
 import { plans, users } from "@/db/schema";
 import {
   PageShell,
   PageHeader,
   SectionCard,
-  ListRow,
   OrderStatusBadge,
   SkeletonCardGrid,
 } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
-import { DeliveryCalendar, DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
-import { monthFetchRange, parseMonthParam, type CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
+import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { AdminOrderDeliveries } from "./admin-order-deliveries";
 import { PaymentsPanel } from "./payments-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
+import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
 
 type SearchParams = Promise<{ month?: string }>;
 
@@ -124,22 +117,10 @@ async function OrderDetail({
         ).filter((s) => s.publicId === order.publicId)
       : [];
 
-  let deliveries: {
-    deliveries: Awaited<ReturnType<typeof loadOrderDeliveries>>["deliveries"];
-    pausePanels: Awaited<ReturnType<typeof loadOrderDeliveries>>["pausePanels"];
-    calendarCells: Awaited<ReturnType<typeof loadOrderDeliveries>>["calendarCells"];
-    categoryLabels: Record<string, string>;
-    tiffinCounts: Awaited<ReturnType<typeof loadOrderDeliveries>>["tiffinCounts"] | undefined;
-  } = {
-    deliveries: [],
-    pausePanels: {},
-    calendarCells: {},
-    categoryLabels: {},
-    tiffinCounts: undefined,
-  };
+  let deliveriesBundle: Awaited<ReturnType<typeof loadOrderDeliveriesBundle>> | null = null;
 
   if (subscription && order.userId != null) {
-    deliveries = await loadOrderDeliveries(order.userId, subscription, from, until);
+    deliveriesBundle = await loadOrderDeliveriesBundle(order.userId, subscription, from, until);
   }
 
   const grid = await buildMealsGrid(
@@ -166,7 +147,7 @@ async function OrderDetail({
       <PageHeader
         icon={PackageIcon}
         title={order.fullName}
-        subtitle={`${order.deploymentId} · ${order.planName} · ${order.mealSizeName}`}
+        subtitle={order.deploymentId}
         actions={<ActivateCancelControls orderId={order.publicId} status={order.status} />}
       />
 
@@ -174,7 +155,6 @@ async function OrderDetail({
         <div className="space-y-2 text-sm">
           <div className="flex flex-wrap items-center gap-3">
             <OrderStatusBadge status={order.status} />
-            <span className="text-muted-foreground">{order.deploymentId}</span>
             {customer && (
               <Link
                 href={`/dashboard/customers/${customer.publicId}`}
@@ -185,13 +165,9 @@ async function OrderDetail({
             )}
           </div>
           <p>
-            <span className="text-muted-foreground">Plan: </span>
-            {order.planName} · {order.mealSizeName} · {order.frequencyKey}
-          </p>
-          <p>
             <span className="text-muted-foreground">Schedule: </span>
-            start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) ·{" "}
-            {order.mealSlots.join(", ")}
+            start {order.startDate} · {order.durationWeeks} weeks · {order.frequencyKey} ·{" "}
+            {order.persons} person(s) · {order.mealSlots.join(", ")}
           </p>
           <p>
             <span className="text-muted-foreground">Address: </span>
@@ -213,22 +189,16 @@ async function OrderDetail({
       </SectionCard>
 
       <SectionCard title="Deliveries">
-        <DeliveryCalendar
-          subscriptions={subscription ? [subscription] : []}
-          selectedPublicId={subscription?.publicId}
-          deliveries={deliveries.deliveries}
-          pausePanels={deliveries.pausePanels}
-          calendarCells={deliveries.calendarCells}
-          categoryLabels={deliveries.categoryLabels}
-          monthKey={monthKey}
-          waitlisted={waitlisted}
-          today={today}
-          tiffinCounts={deliveries.tiffinCounts}
-          basePath={basePath}
-          title="Deliveries"
-          subtitle="Same calendar, vacation, skip, and pool controls the customer sees."
-          showBrowsePlans={false}
-        />
+        {subscription && deliveriesBundle ? (
+          <AdminOrderDeliveries
+            initial={{ ...deliveriesBundle, monthKey, today }}
+            subscription={subscription}
+            waitlisted={waitlisted}
+            basePath={basePath}
+          />
+        ) : (
+          <DeliveryCalendarSkeleton />
+        )}
       </SectionCard>
 
       <SectionCard title="This week's meals">
@@ -252,57 +222,10 @@ async function OrderDetail({
       </SectionCard>
 
       <SectionCard title="Activity">
-        {activities.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No activity yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {activities.map((a) => (
-              <ListRow
-                key={a.publicId}
-                title={describeActivity(a)}
-                meta={formatEpoch(a.createdAt, { mode: "datetime", timeZone: settings.timezone })}
-              />
-            ))}
-          </div>
-        )}
+        <OrderActivityLog activities={activities} />
       </SectionCard>
     </>
   );
-}
-
-async function loadOrderDeliveries(userId: bigint, selected: Subscription, from: string, until: string) {
-  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts] = await Promise.all([
-    myDeliveries(userId, from, until),
-    myPausePanel(userId, selected.publicId),
-    myCalendar(userId, selected.publicId, { from, until }),
-    myTiffinCounts(userId, selected.publicId),
-  ]);
-
-  const calendarCells: Record<string, CalendarCell[]> = {
-    [selected.publicId]: calendarDays,
-  };
-
-  const categoryRows = await dishCategoriesService.forPlanType(selected.planType);
-  const categoryLabels: Record<string, string> = {};
-  for (const r of categoryRows) categoryLabels[r.key] = r.label;
-
-  const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
-  const deliveries = await Promise.all(
-    selectedDeliveries.map(async (d) => {
-      const meal = await myDeliveryMeal(d);
-      const hasAddressOverride = d.addressLine !== null;
-      const address = effectiveAddress(d, selected);
-      return { ...d, meal, address, hasAddressOverride };
-    }),
-  );
-
-  return {
-    deliveries,
-    pausePanels: { [selected.publicId]: pausePanel },
-    calendarCells,
-    categoryLabels,
-    tiffinCounts,
-  };
 }
 
 OrderDetail.Skeleton = function OrderDetailSkeleton() {
@@ -336,11 +259,7 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
       </SectionCard>
 
       <SectionCard title="Activity">
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ListRow key={i} title={<Skeleton className="h-4 w-40" />} meta={<Skeleton className="h-3 w-24" />} />
-          ))}
-        </div>
+        <OrderActivityLogSkeleton />
       </SectionCard>
     </>
   );

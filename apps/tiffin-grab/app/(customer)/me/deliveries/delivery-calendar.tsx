@@ -52,6 +52,7 @@ export type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
+  hasMakeupScheduled: boolean;
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;
@@ -74,6 +75,8 @@ function TiffinCalendarSection({
   monthKey,
   basePath,
   onVacationClick,
+  onMonthChangeOverride,
+  onChangedOverride,
 }: {
   sub: Subscription;
   allSubscriptions: Subscription[];
@@ -87,6 +90,8 @@ function TiffinCalendarSection({
   monthKey: string;
   basePath: string;
   onVacationClick: () => void;
+  onMonthChangeOverride?: (monthKey: string) => void;
+  onChangedOverride?: () => void;
 }) {
   const router = useRouter();
   const todayIso = today || toIsoLocal(new Date());
@@ -116,7 +121,8 @@ function TiffinCalendarSection({
   const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
 
   function onChanged() {
-    router.refresh();
+    if (onChangedOverride) onChangedOverride();
+    else router.refresh();
   }
 
   const includeSub = basePath === "/me/deliveries";
@@ -126,6 +132,10 @@ function TiffinCalendarSection({
   }
 
   function changeMonth(nextMonth: string) {
+    if (onMonthChangeOverride) {
+      onMonthChangeOverride(nextMonth);
+      return;
+    }
     router.push(deliveriesHref(basePath, nextMonth, sub.publicId, includeSub));
   }
 
@@ -176,6 +186,8 @@ function TiffinCalendarSection({
           categoryLabels={categoryLabels}
           categoryCounts={sub.categoryCounts}
           tz={tz}
+          today={todayIso}
+          tiffinCounts={counts}
           onChanged={onChanged}
         />
       </div>
@@ -198,6 +210,8 @@ function TiffinCalendarSection({
                 categoryLabels={categoryLabels}
                 categoryCounts={sub.categoryCounts}
                 tz={tz}
+                today={todayIso}
+                tiffinCounts={counts}
                 onChanged={onChanged}
               />
             </CardContent>
@@ -223,6 +237,8 @@ export function DeliveryCalendar({
   title = "My deliveries",
   subtitle = "Month calendar, day details, and vacation pause for your plan.",
   showBrowsePlans = true,
+  onMonthChange,
+  onDeliveriesChanged,
 }: {
   subscriptions: Subscription[];
   selectedPublicId?: string;
@@ -239,6 +255,10 @@ export function DeliveryCalendar({
   title?: string;
   subtitle?: string;
   showBrowsePlans?: boolean;
+  /** When set, month arrows call this instead of router navigation (admin order detail). */
+  onMonthChange?: (monthKey: string) => void;
+  /** When set, delivery mutations refresh via this callback. */
+  onDeliveriesChanged?: () => void;
 }) {
   const tz = useTimezone();
   const [vacationOpen, setVacationOpen] = useState(false);
@@ -318,6 +338,8 @@ export function DeliveryCalendar({
         monthKey={monthKey}
         basePath={basePath}
         onVacationClick={() => setVacationOpen(true)}
+        onMonthChangeOverride={onMonthChange}
+        onChangedOverride={onDeliveriesChanged}
       />
     </div>
   );

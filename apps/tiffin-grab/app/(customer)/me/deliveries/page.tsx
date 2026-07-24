@@ -13,6 +13,7 @@ import {
   myPrimarySubscription,
   myTiffinCounts,
   myWaitlistedSubscriptions,
+  makeupSourceIdsForOrder,
 } from "@/lib/services/customer-deliveries.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { monthFetchRange, parseMonthParam, type CalendarCell } from "./calendar-constants";
@@ -63,11 +64,12 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const selected =
     (subParam ? subscriptions.find((s) => s.publicId === subParam) : null) ?? primary;
 
-  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts] = await Promise.all([
+  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts, makeupSources] = await Promise.all([
     myDeliveries(userId, from, until),
     myPausePanel(userId, selected.publicId),
     myCalendar(userId, selected.publicId, { from, until }),
     myTiffinCounts(userId, selected.publicId),
+    makeupSourceIdsForOrder(selected.publicId),
   ]);
 
   const calendarCells: Record<string, CalendarCell[]> = {
@@ -84,7 +86,13 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
       const meal = await myDeliveryMeal(d);
       const hasAddressOverride = d.addressLine !== null;
       const address = effectiveAddress(d, selected);
-      return { ...d, meal, address, hasAddressOverride };
+      return {
+        ...d,
+        meal,
+        address,
+        hasAddressOverride,
+        hasMakeupScheduled: makeupSources.has(d.id.toString()),
+      };
     }),
   );
 

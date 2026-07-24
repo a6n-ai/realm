@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
-import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress } from "@/lib/services/deliveries.service";
+import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
@@ -85,4 +85,12 @@ export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: str
   await assertCanManageOrder(orderPublicId);
   await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
   await revalidateDeliverySurfaces(orderPublicId);
+}
+
+export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string) {
+  await assertCanManageDelivery(deliveryPublicId);
+  await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+  if (orderId) await revalidateDeliverySurfaces(orderId);
+  else revalidatePath("/me/deliveries");
 }

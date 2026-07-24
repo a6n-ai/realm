@@ -8,7 +8,6 @@ import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
 import type { PausePanel } from "./delivery-calendar";
-import { toIsoLocal } from "./calendar-constants";
 import { pauseMySubscription, resumeMySubscription } from "./actions";
 import {
   buildVacationPauseRequest,
@@ -41,7 +40,6 @@ export function cutoffByDateFromDeliveries(deliveries: CustomerDelivery[]): Map<
 }
 
 type VacationStep = "form" | "confirm";
-type ActiveDatePicker = "start" | "end" | null;
 
 export function VacationControl({
   sub,
@@ -67,13 +65,11 @@ export function VacationControl({
   const [step, setStep] = useState<VacationStep>("form");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [activePicker, setActivePicker] = useState<ActiveDatePicker>(null);
   const [pausePending, startPauseTransition] = useTransition();
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [resumePending, startResumeTransition] = useTransition();
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [resumeFromDate, setResumeFromDate] = useState("");
-  const [resumePickerOpen, setResumePickerOpen] = useState(false);
 
   const onVacation = pausePanel.usage.hasOpenPause || sub.status === "paused";
   const { limits, usage } = pausePanel;
@@ -85,7 +81,6 @@ export function VacationControl({
     setStep("form");
     setStartDate("");
     setEndDate("");
-    setActivePicker(null);
     setPauseError(null);
   }
 
@@ -166,17 +161,12 @@ export function VacationControl({
     });
   }
 
-  function isDisabledDay(date: Date): boolean {
-    const iso = toIsoLocal(date);
-    return isLockedDate(iso);
-  }
-
-  const endMin = startDate || today;
-
   function selectStartDate(iso: string) {
     setStartDate(iso);
     if (endDate && iso > endDate) setEndDate("");
   }
+
+  const endMin = startDate || today;
   const dialogTitle = onVacation
     ? "Resume deliveries"
     : step === "confirm"
@@ -205,7 +195,7 @@ export function VacationControl({
       title={dialogTitle}
       description={sub.planName}
     >
-      <div className="space-y-4 px-4 pb-4 sm:px-0 sm:pb-0">
+      <div className="space-y-4">
         {onVacation ? (
           <div className="space-y-3">
             <p className="text-muted-foreground text-sm">
@@ -219,9 +209,7 @@ export function VacationControl({
               value={resumeFromDate}
               onChange={setResumeFromDate}
               today={today}
-              isDisabledDay={isDisabledDay}
-              open={resumePickerOpen}
-              onOpenChange={setResumePickerOpen}
+              minDate={today}
             />
             {resumeFromDate && (
               <p className="text-muted-foreground text-sm">
@@ -251,9 +239,7 @@ export function VacationControl({
                 value={startDate}
                 onChange={selectStartDate}
                 today={today}
-                isDisabledDay={isDisabledDay}
-                open={activePicker === "start"}
-                onOpenChange={(next) => setActivePicker(next ? "start" : null)}
+                minDate={today}
               />
               <VacationDateField
                 id="vacation-end"
@@ -263,9 +249,6 @@ export function VacationControl({
                 onChange={setEndDate}
                 today={today}
                 minDate={endMin}
-                isDisabledDay={isDisabledDay}
-                open={activePicker === "end"}
-                onOpenChange={(next) => setActivePicker(next ? "end" : null)}
               />
             </div>
             {startDate && (
