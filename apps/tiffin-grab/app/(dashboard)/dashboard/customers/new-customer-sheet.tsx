@@ -91,7 +91,11 @@ export function NewCustomerSheet({
   // Advisory only — we still save any number they give; deliverability is the PIN's job.
   const phoneValid = isValidPhone(phone);
   const existingCustomer = useExistingCustomer(phone, email, pickedCustomerId);
-  const contactReady = fullName.trim().length > 0 && phone.trim().length > 0 && !existingCustomer;
+  const contactReady =
+    fullName.trim().length > 0 &&
+    phone.trim().length > 0 &&
+    email.trim().length > 0 &&
+    !existingCustomer;
 
   function reset() {
     setStep(1);
@@ -127,7 +131,8 @@ export function NewCustomerSheet({
   }
 
   const source = { sourceKey, subSourceKey: subSourceKey || undefined };
-  const contact = { fullName, phone, email: email.trim() || undefined };
+  // Email is required — customers log in with it.
+  const contact = { fullName, phone, email: email.trim() };
 
   async function onSaveOnly() {
     setError(null);
@@ -162,7 +167,7 @@ export function NewCustomerSheet({
   }
 
   const prefill: Partial<OrderFormInput> = {
-    ...(email.trim() ? { email: email.trim() } : {}),
+    email: email.trim(),
   };
 
   return (
@@ -268,8 +273,16 @@ export function NewCustomerSheet({
                   )}
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>Email <span className="text-muted-foreground font-normal">optional</span></Label>
-                  <Input type="email" placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Label>
+                    Email <Req />
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="name@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                  />
                 </div>
                 <InquiryMatch phone={phone} sourceKey={sourceKey} pickedId={pickedId} onPick={onPick} />
                 {existingCustomer && (
