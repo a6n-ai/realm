@@ -15,6 +15,15 @@ export default defineConfig({
     // Pre-run wallet-FK cleanup (setup) + post-run reseed of the LOCAL dev DB
     // only (teardown) — guarded by isLocalDb() so it never seeds prod on main/CI.
     globalSetup: ["./vitest.teardown.ts"],
+    // Playwright lives under e2e/*.spec.ts — only Vitest files there are e2e/__tests__.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**",
+      "e2e/**/*.spec.ts",
+      "e2e/auth.setup*.ts",
+      "skeleton-audit/**",
+    ],
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin",
       // Dedicated Redis DB (index 15) for tests — vitest.setup flushes it between

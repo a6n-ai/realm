@@ -335,6 +335,7 @@ export function NewOrderSheet({
                     order,
                   })
                 }
+                onCreated={() => resetAndClose(false)}
               />
             </div>
           )}

@@ -34,11 +34,16 @@ function DesktopDayStatusLegend() {
   );
 }
 
-function deliveriesHref(monthKey: string, selectedPublicId?: string) {
+function deliveriesHref(
+  basePath: string,
+  monthKey: string,
+  selectedPublicId?: string,
+  includeSub = true,
+) {
   const params = new URLSearchParams();
   params.set("month", monthKey);
-  if (selectedPublicId) params.set("sub", selectedPublicId);
-  return `/me/deliveries?${params.toString()}`;
+  if (includeSub && selectedPublicId) params.set("sub", selectedPublicId);
+  return `${basePath}?${params.toString()}`;
 }
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
@@ -67,6 +72,7 @@ function TiffinCalendarSection({
   tz,
   today,
   monthKey,
+  basePath,
   onVacationClick,
 }: {
   sub: Subscription;
@@ -79,6 +85,7 @@ function TiffinCalendarSection({
   tz: string;
   today: string;
   monthKey: string;
+  basePath: string;
   onVacationClick: () => void;
 }) {
   const router = useRouter();
@@ -112,12 +119,14 @@ function TiffinCalendarSection({
     router.refresh();
   }
 
+  const includeSub = basePath === "/me/deliveries";
+
   function switchSubscription(publicId: string) {
-    router.push(deliveriesHref(monthKey, publicId));
+    router.push(deliveriesHref(basePath, monthKey, publicId, includeSub));
   }
 
   function changeMonth(nextMonth: string) {
-    router.push(deliveriesHref(nextMonth, sub.publicId));
+    router.push(deliveriesHref(basePath, nextMonth, sub.publicId, includeSub));
   }
 
   const monthCalendarProps = {
@@ -210,6 +219,10 @@ export function DeliveryCalendar({
   waitlisted = [],
   today = "",
   tiffinCounts,
+  basePath = "/me/deliveries",
+  title = "My deliveries",
+  subtitle = "Month calendar, day details, and vacation pause for your plan.",
+  showBrowsePlans = true,
 }: {
   subscriptions: Subscription[];
   selectedPublicId?: string;
@@ -221,6 +234,11 @@ export function DeliveryCalendar({
   waitlisted?: WaitlistedSubscription[];
   today?: string;
   tiffinCounts?: TiffinCounts;
+  /** Month navigation base (customer `/me/deliveries` or admin `/dashboard/orders/{id}`). */
+  basePath?: string;
+  title?: string;
+  subtitle?: string;
+  showBrowsePlans?: boolean;
 }) {
   const tz = useTimezone();
   const [vacationOpen, setVacationOpen] = useState(false);
@@ -236,9 +254,11 @@ export function DeliveryCalendar({
               icon={CalendarDaysIcon}
               message="No active subscriptions yet."
               action={
-                <Button asChild size="sm">
-                  <Link href="/subscribe">Browse plans</Link>
-                </Button>
+                showBrowsePlans ? (
+                  <Button asChild size="sm">
+                    <Link href="/subscribe">Browse plans</Link>
+                  </Button>
+                ) : undefined
               }
             />
           )}
@@ -257,8 +277,8 @@ export function DeliveryCalendar({
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
         icon={CalendarDaysIcon}
-        title="My deliveries"
-        subtitle="Month calendar, day details, and vacation pause for your plan."
+        title={title}
+        subtitle={subtitle}
         actions={
           <Button
             type="button"
@@ -296,6 +316,7 @@ export function DeliveryCalendar({
         tz={tz}
         today={today}
         monthKey={monthKey}
+        basePath={basePath}
         onVacationClick={() => setVacationOpen(true)}
       />
     </div>

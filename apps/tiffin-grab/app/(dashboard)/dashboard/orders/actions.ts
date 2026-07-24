@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/services/inquiries.service";
@@ -23,7 +22,7 @@ export async function createOrderFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
   order: CreateOrderInput;
-}): Promise<void> {
+}): Promise<{ publicId: string; deploymentId: string }> {
   await requireStaff();
   const email = input.contact.email?.trim();
   if (!email) throw new Error("Email is required");
@@ -34,7 +33,7 @@ export async function createOrderFlow(input: {
     interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
     pickedId: input.pickedInquiryId,
   });
-  const { deploymentId } = await inquiriesService.convert(
+  const result = await inquiriesService.convert(
     inquiryId,
     {
       ...input.order,
@@ -46,7 +45,7 @@ export async function createOrderFlow(input: {
   );
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard/inquiries");
-  redirect(`/activate/${deploymentId}`);
+  return result;
 }
 
 export async function reassignOrderAction(orderId: string, ownerId: string): Promise<void> {

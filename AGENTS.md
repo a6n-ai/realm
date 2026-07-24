@@ -54,8 +54,8 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 
 ## Learned User Preferences
 
-- Prefer customer Finances as a hub at `/me/wallet` (tabs), not a bottom-nav item; keep money billing (monthly bills/transactions) under Finances, not Deliveries History; mobile bottom nav uses Account, with wallet and theme controls in the header.
-- When matching the customer deliveries calendar to reference screenshots, prioritize the mobile viewport and avoid selected-day fills that clash with status legend colors (use brand primary, not green/`bg-ok`).
+- Prefer customer Finances as a hub at `/me/wallet` (tabs), not a bottom-nav item; keep money billing (monthly bills/transactions) under Finances, not Deliveries History; mobile bottom nav uses Account, with wallet and theme controls in the header; on mobile admin/customer shells prefer top-left brand and More/bottom nav over a persistent sidebar.
+- Prefer admin inquiry and order create forms stay aligned (catalog plan/interest pills, not free-text meals; optional sub-source pills; hide meal sizes until veg/non-veg/healthy; email required as the login path; Vaul top drawer on mobile) so inquiry can convert to order later; reject convert when an active order already exists for that inquiry.
 - Prefer mobile-first subscribe/checkout UX with clear back/close; the customer Order FAB should make its subscribe/order purpose obvious.
 - When a logged-in customer starts another subscription, show soft per-step current-plan context (meals, weeks already covered) rather than blocking a second subscription.
 - Customer home and deliveries calendars should default the selected day to today on mount.
@@ -64,7 +64,7 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Prefer one shared commons address form for checkout, profile, and per-delivery address entry (Google Places can plug in later).
 - Split account/profile by concern with role gating: Profile = basic info; Security = password/PIN; Address, Notifications, Dietary, and Support on their own pages (dietary is customer-only; Support at `/me/support`); desktop uses tabs like Finances; mobile uses the account hub sections.
 - Deliveries should show total and remaining tiffins (count tiffins, not days); hold/skip/vacation misses after cutoff go to a remaining pool for makeup only after the current last delivery, adhering to the plan's delivery-day pattern; vacation resume appends undelivered days after that last day.
-- Prefer admin-configurable payment methods (e-Transfer, Stripe, etc.) with per-method taxes and method-gated coupons; offline methods should let customers submit payment details or a proof photo; defer coupon/coin awards until payment verification; allow starting deliveries immediately while messaging that fulfillment begins only after payment is confirmed (and shift dates ahead if it never is).
+- Prefer Settings → Integrations (plugin cards) separate from Settings → Payments (method tabs like Finances/wallet); payment method settings appear only after a plugin is added; support e-Transfer/Stripe-style methods with per-method taxes and method-gated coupons; offline methods should allow payment details or proof photo; defer coupon/coin awards until payment verification; allow starting deliveries immediately while messaging fulfillment waits on confirmation (shift dates if never confirmed).
 - Admin should be able to view and change customer subscriptions/orders with the same capabilities customers have (reuse the same APIs; authorize owner or admin role for now; finer permission flags later).
 
 ## Learned Workspace Facts
@@ -79,5 +79,5 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - Deliveries vacation/pause is per subscription via `VacationControl` and `subscription_pauses` (start required; optional end; confirmation before pause/resume); UI “On Hold” maps to `skipped`, vacation to `paused`; makeup for missed tiffins appends after `max(delivery_date)` on plan weekdays.
 - Dashboard account sections are role-gated by `ACCOUNT_NAV` (staff: profile + security; customers also get address, dietary, delivery notes, notifications, support); customer account hub lives at `/me/account`, Support at `/me/support` — avoid dumping every profile subsection onto a single `/me/profile` page.
 - Cross-app support ticket/chat UI belongs in `@realm/design-system` (composed UI), not `@realm/ui`.
-- Payment methods are a general platform concern for apps with payments/orders (admin settings; not client-only): support methods like e-Transfer and Stripe, per-method taxes, method-scoped coupons, and customer payment proof upload; coupon/coin settlement waits on payment verification.
-- Checkout may create deliveries immediately while payment is still pending confirmation; unconfirmed payment can push the delivery schedule forward.
+- Admin Settings splits Integrations (plugins) from Payments (per-method tabs after plugins are enabled); payment config still lives under `@realm/payments` / settings payments UI with per-method taxes, method-scoped coupons, and proof upload; coupon/coin settlement waits on payment verification; checkout may create deliveries while payment is pending and can shift the schedule if unconfirmed.
+- Admin inquiry/order create share lead UX (`_leads/plan-interest-fields`, source/sub-source pills); interest uses catalog plans/meal sizes (not free-text); email is required; mobile sheets use Vaul top drawer via `@realm/design-system` `responsive-dialog`.

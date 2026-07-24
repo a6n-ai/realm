@@ -120,6 +120,7 @@ export function ConvertSheet({
           enabledSlots={enabledSlots}
           zones={zones}
           prefill={prefill}
+          onCreated={() => onOpenChange?.(false)}
         />
       </div>
     </ResponsiveDialog>

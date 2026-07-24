@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@realm/commons";
 import { Button } from "@realm/ui/button";
@@ -50,21 +51,34 @@ function methodLabel(method: OrderPaymentDetail["method"]): string {
   }
 }
 
+function customerPayUrl(deploymentId: string): string {
+  const path = `/activate/${deploymentId}`;
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
+}
+
 function PaymentRow({
   orderId,
+  deploymentId,
   payment,
 }: {
   orderId: string;
+  deploymentId: string;
   payment: OrderPaymentDetail;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const canVerify =
     payment.status === "pending_verification" || payment.status === "awaiting_payment";
   const canReject = payment.status === "pending_verification";
+  const canShareLink =
+    payment.status === "awaiting_payment" ||
+    payment.status === "pending_verification" ||
+    payment.status === "rejected";
 
   function verify() {
     start(async () => {
@@ -96,6 +110,17 @@ function PaymentRow({
     });
   }
 
+  async function copyPayLink() {
+    try {
+      await navigator.clipboard.writeText(customerPayUrl(deploymentId));
+      setCopied(true);
+      toast.success("Customer payment link copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link");
+    }
+  }
+
   return (
     <div className="space-y-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -117,6 +142,24 @@ function PaymentRow({
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          {canShareLink && (
+            <>
+              <Button size="sm" variant="outline" onClick={copyPayLink}>
+                {copied ? (
+                  <CheckIcon data-icon="inline-start" />
+                ) : (
+                  <CopyIcon data-icon="inline-start" />
+                )}
+                {copied ? "Copied" : "Copy pay link"}
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <a href={`/activate/${deploymentId}`} target="_blank" rel="noreferrer">
+                  <ExternalLinkIcon data-icon="inline-start" />
+                  Open
+                </a>
+              </Button>
+            </>
+          )}
           {canVerify && (
             <Button size="sm" disabled={pending} onClick={verify}>
               Verify
@@ -176,9 +219,11 @@ function PaymentRow({
 
 export function PaymentsPanel({
   orderId,
+  deploymentId,
   payments,
 }: {
   orderId: string;
+  deploymentId: string;
   payments: OrderPaymentDetail[];
 }) {
   if (payments.length === 0) {
@@ -188,7 +233,12 @@ export function PaymentsPanel({
   return (
     <div className="space-y-3">
       {payments.map((p) => (
-        <PaymentRow key={p.publicId} orderId={orderId} payment={p} />
+        <PaymentRow
+          key={p.publicId}
+          orderId={orderId}
+          deploymentId={deploymentId}
+          payment={p}
+        />
       ))}
     </div>
   );

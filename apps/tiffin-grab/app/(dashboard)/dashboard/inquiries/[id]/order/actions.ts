@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
@@ -113,8 +113,14 @@ export async function previewPrice(
   }
 }
 
-export async function convertInquiry(inquiryId: string, input: CreateOrderInput): Promise<void> {
+export async function convertInquiry(
+  inquiryId: string,
+  input: CreateOrderInput,
+): Promise<{ publicId: string; deploymentId: string }> {
   await requireStaff();
-  const { deploymentId } = await inquiriesService.convert(inquiryId, input);
-  redirect(`/activate/${deploymentId}`);
+  const result = await inquiriesService.convert(inquiryId, input);
+  revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard/inquiries");
+  revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+  return result;
 }

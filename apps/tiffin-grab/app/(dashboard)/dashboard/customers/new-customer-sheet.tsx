@@ -2,6 +2,7 @@
 
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
+import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
@@ -186,10 +187,12 @@ export function NewCustomerSheet({
         sources.length > 0 && step === 1 ? (
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" disabled={!contactReady || saving} onClick={onSaveOnly} className="min-h-11 sm:min-h-9">
-              Save
+              {saving ? <Loader2Icon className="size-4 animate-spin" /> : null}
+              {saving ? "Saving…" : "Save"}
             </Button>
             <Button disabled={!contactReady || saving} onClick={onSaveAndOrder} className="min-h-11 sm:min-h-9">
-              Save &amp; add order →
+              {saving ? <Loader2Icon className="size-4 animate-spin" /> : null}
+              {saving ? "Saving…" : "Save & add order →"}
             </Button>
           </div>
         ) : undefined
@@ -201,7 +204,20 @@ export function NewCustomerSheet({
         sources.length === 0 ? (
           <NoSources noun="customer" />
         ) : (
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          <div className="relative min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5">
+            {saving && (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Loader2Icon className="text-primary size-8 animate-spin" />
+                <div className="text-center">
+                  <p className="text-sm font-medium">Saving customer…</p>
+                  <p className="text-muted-foreground text-xs">Creating the profile — this can take a few seconds.</p>
+                </div>
+              </div>
+            )}
             <CustomerSearch onPick={pickCustomer} />
               {/* Source */}
               <section
@@ -331,6 +347,9 @@ export function NewCustomerSheet({
                     order,
                   })
                 }
+                onCreated={() => {
+                  onOpenChange(false);
+                }}
               />
             </section>
         </div>

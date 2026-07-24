@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
-import { assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { selectionsService } from "@/lib/menu/selections.service";
 
 async function me(): Promise<bigint> {
@@ -20,8 +20,8 @@ export async function pickMyDish(input: {
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
   slot: string; personIndex: number; pickIndex?: number; dishId: string;
 }): Promise<void> {
-  const userId = await me();
-  await assertOwnsOrder(userId, input.orderId); // IDOR gate before the mutation
+  await me();
+  await assertCanManageOrder(input.orderId); // owner OR staff
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
   const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
@@ -31,13 +31,15 @@ export async function pickMyDish(input: {
     personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
   });
   revalidatePath("/me/meals");
+  revalidatePath("/me/deliveries");
+  revalidatePath(`/dashboard/orders/${input.orderId}`);
 }
 
 export async function applyMyDishToWeek(input: {
   orderId: string; menuWeekId: string; slot: string; personIndex: number; pickIndex?: number; dishId: string;
 }): Promise<{ applied: number; skipped: string[] }> {
-  const userId = await me();
-  await assertOwnsOrder(userId, input.orderId);
+  await me();
+  await assertCanManageOrder(input.orderId);
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
   const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
@@ -47,6 +49,8 @@ export async function applyMyDishToWeek(input: {
     pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
   });
   revalidatePath("/me/meals");
+  revalidatePath("/me/deliveries");
+  revalidatePath(`/dashboard/orders/${input.orderId}`);
   // selectionsService.applyToWeek's skipped entries are { dateIso, reason }; the
   // interface here declares skipped: string[] — flatten to the date so callers
   // get a simple list without depending on the service's internal shape.
