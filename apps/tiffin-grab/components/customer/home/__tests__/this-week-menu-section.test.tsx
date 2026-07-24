@@ -10,15 +10,43 @@ vi.mock("@/components/motion", () => ({
 }));
 
 import { ThisWeekMenuSection } from "../this-week-menu-section";
+import type { menuService } from "@/lib/services/menu.service";
 
-const week = { planType: "tiffin", theme: { accent: "#f60", titlePrefix: "Tiffin" }, weekStart: "2026-07-13", slots: [], items: [
-  { dayOfWeek: "mon", slot: "sabzi", position: 0, dishName: "Paneer", diet: "veg", image: null, dishPublicId: "dsh_1" },
-] } as never;
+type Week = NonNullable<Awaited<ReturnType<typeof menuService.getPublishedWeek>>>;
 
-const weekWithWeekend = { ...week, items: [
-  ...week.items,
-  { dayOfWeek: "sat", slot: "sabzi", position: 0, dishName: "Weekend Biryani", diet: "nonveg", image: null, dishPublicId: "dsh_2" },
-] } as never;
+const week = {
+  planType: "tiffin",
+  theme: { accent: "#f60", titlePrefix: "Tiffin" },
+  weekStart: "2026-07-13",
+  slots: [],
+  items: [
+    {
+      dayOfWeek: "mon",
+      slot: "sabzi",
+      position: 0,
+      dishName: "Paneer",
+      diet: "veg",
+      image: null,
+      dishPublicId: "dsh_1",
+    },
+  ],
+} as Week;
+
+const weekWithWeekend = {
+  ...week,
+  items: [
+    ...week.items,
+    {
+      dayOfWeek: "sat",
+      slot: "sabzi",
+      position: 0,
+      dishName: "Weekend Biryani",
+      diet: "nonveg",
+      image: null,
+      dishPublicId: "dsh_2",
+    },
+  ],
+} as Week;
 
 afterEach(cleanup);
 
