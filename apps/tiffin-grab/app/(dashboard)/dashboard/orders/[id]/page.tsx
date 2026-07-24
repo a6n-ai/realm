@@ -104,7 +104,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       </SectionCard>
 
       <SectionCard title="Payments">
-        <PaymentsPanel orderId={order.publicId} payments={order.payments} currencyFmt={fmt} />
+        <PaymentsPanel orderId={order.publicId} payments={order.payments} />
       </SectionCard>
 
       <SectionCard title="Lifecycle">

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { formatMoney } from "@realm/commons";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
 import { Input } from "@realm/ui/input";
@@ -52,11 +53,9 @@ function methodLabel(method: OrderPaymentDetail["method"]): string {
 function PaymentRow({
   orderId,
   payment,
-  currencyFmt,
 }: {
   orderId: string;
   payment: OrderPaymentDetail;
-  currencyFmt: (n: number) => string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -102,7 +101,7 @@ function PaymentRow({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium tabular-nums">{currencyFmt(Number(payment.amount))}</span>
+            <span className="font-medium tabular-nums">{formatMoney(Number(payment.amount))}</span>
             <Badge variant="secondary">{statusLabel(payment.status)}</Badge>
             <span className="text-muted-foreground text-xs uppercase tracking-wide">
               {methodLabel(payment.method)}
@@ -178,11 +177,9 @@ function PaymentRow({
 export function PaymentsPanel({
   orderId,
   payments,
-  currencyFmt,
 }: {
   orderId: string;
   payments: OrderPaymentDetail[];
-  currencyFmt: (n: number) => string;
 }) {
   if (payments.length === 0) {
     return <p className="text-muted-foreground text-sm">No payments recorded.</p>;
@@ -191,7 +188,7 @@ export function PaymentsPanel({
   return (
     <div className="space-y-3">
       {payments.map((p) => (
-        <PaymentRow key={p.publicId} orderId={orderId} payment={p} currencyFmt={currencyFmt} />
+        <PaymentRow key={p.publicId} orderId={orderId} payment={p} />
       ))}
     </div>
   );
