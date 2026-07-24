@@ -116,7 +116,7 @@ export default async function HomePage() {
                 <Btn page="order" variant="ink" size="lg">🚗 Order Delivery</Btn>
               </div>
               <div className="flex wrap-gap anim" style={{ marginTop: 14, "--d": ".38s" } as CSSProperties}>
-                <Btn page="menu" size="lg">📖 View Menu</Btn>
+                <Btn page="eats" size="lg">📖 View Menu</Btn>
                 <Btn page="catering" variant="yellow" size="lg">🎉 Book Catering</Btn>
               </div>
             </div>
@@ -169,7 +169,7 @@ export default async function HomePage() {
           <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {cards.map((d, i) => (
               <Reveal key={d.name} delay={i * 60}>
-                <Link href="/productsmenu" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
+                <Link href="/eats" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
                     <ProductImage image={d.image} name={d.name} />
                     {d.sticker && (
@@ -194,7 +194,7 @@ export default async function HomePage() {
             ))}
           </div>
           <div className="tac" style={{ marginTop: 40 }}>
-            <Btn page="menu" variant="ink" size="lg">See the Full Menu →</Btn>
+            <Btn page="eats" variant="ink" size="lg">See the Full Menu →</Btn>
           </div>
         </div>
       </section>
@@ -225,7 +225,7 @@ export default async function HomePage() {
               </p>
               <div className="flex wrap-gap" style={{ marginTop: 26 }}>
                 <Btn page="fusion" variant="yellow" size="lg">Learn How To Eat It →</Btn>
-                <Btn page="menu" variant="white" size="lg">See Fusion Menu</Btn>
+                <Btn page="eats" variant="white" size="lg">See Fusion Menu</Btn>
               </div>
             </div>
           </div>

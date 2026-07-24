@@ -6,7 +6,7 @@ import { Btn, Ph, PageBanner } from "@/components/brutal/shared";
 import { ProductImage } from "@/components/products/product-image";
 import { TAG_STYLE } from "@/lib/menu-categories";
 
-export type MenuItem = {
+export type EatsItem = {
   publicId: string;
   name: string;
   description: string | null;
@@ -15,15 +15,15 @@ export type MenuItem = {
   tags: string[];
 };
 
-export type MenuCategory = {
+export type EatsCategory = {
   id: string;
   name: string;
   emoji: string;
   note: string;
-  items: MenuItem[];
+  items: EatsItem[];
 };
 
-export function MenuView({ categories }: { categories: MenuCategory[] }) {
+export function EatsView({ categories }: { categories: EatsCategory[] }) {
   const [active, setActive] = useState(categories[0]?.id ?? "");
   const railRef = useRef<HTMLDivElement>(null);
 

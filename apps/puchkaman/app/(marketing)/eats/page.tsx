@@ -1,11 +1,11 @@
 import type { FileDetail } from "@realm/storage/model";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
 import { productsService } from "@/lib/services/products.service";
-import { MenuView, type MenuCategory } from "./menu-view";
+import { EatsView, type EatsCategory } from "./eats-view";
 
 export const dynamic = "force-dynamic";
 
-async function getMenu(): Promise<MenuCategory[]> {
+async function getEats(): Promise<EatsCategory[]> {
   const rows = await productsService.listActive();
   const byCategory = new Map<string, typeof rows>();
   for (const row of rows) {
@@ -27,7 +27,7 @@ async function getMenu(): Promise<MenuCategory[]> {
   }));
 }
 
-export default async function MenuPage() {
-  const categories = await getMenu();
-  return <MenuView categories={categories} />;
+export default async function EatsPage() {
+  const categories = await getEats();
+  return <EatsView categories={categories} />;
 }

@@ -176,7 +176,7 @@ export default async function FusionPage() {
           </p>
           <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
             <Btn page="order" variant="red" size="lg">🛵 Order Now</Btn>
-            <Btn page="menu" variant="ink" size="lg">See Full Menu</Btn>
+            <Btn page="eats" variant="ink" size="lg">See Full Menu</Btn>
           </div>
         </div>
       </section>

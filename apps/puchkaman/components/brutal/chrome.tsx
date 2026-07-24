@@ -9,7 +9,7 @@ import { PHONE_DISPLAY } from "@/lib/links";
 /* [route-name, long label, short label] */
 export const NAV_LINKS: [string, string, string][] = [
   ["home", "Home", "Home"],
-  ["productsmenu", "Menu", "Menu"],
+  ["eats", "Eats", "Eats"],
   ["fusion", "Fusion Puchkas", "Fusion"],
   ["catering", "Catering", "Catering"],
   ["events", "Watch Parties", "Events"],

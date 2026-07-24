@@ -115,7 +115,7 @@ function CateringForm() {
           >
             Submit Another
           </Btn>
-          <Btn page="menu" variant="red">Browse Menu</Btn>
+          <Btn page="eats" variant="red">Browse Menu</Btn>
         </div>
       </div>
     );

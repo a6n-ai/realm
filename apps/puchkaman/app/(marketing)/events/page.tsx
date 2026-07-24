@@ -184,7 +184,7 @@ export default function EventsPage() {
                 time.
               </p>
               <div className="flex wrap-gap" style={{ marginTop: 22 }}>
-                <Btn page="menu" variant="red" size="lg">See Combo Boxes →</Btn>
+                <Btn page="eats" variant="red" size="lg">See Combo Boxes →</Btn>
               </div>
             </div>
             <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>

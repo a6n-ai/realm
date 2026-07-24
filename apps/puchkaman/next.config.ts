@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
+  // /productsmenu was the live public URL before the rename — keep indexed links alive.
+  async redirects() {
+    return [{ source: "/productsmenu", destination: "/eats", permanent: true }];
+  },
 };
 
 export default nextConfig;
