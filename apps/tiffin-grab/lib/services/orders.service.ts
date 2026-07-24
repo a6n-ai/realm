@@ -3,7 +3,7 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { canClaim, enabledMethods, findMethod } from "@realm/payments";
+import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
 import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -530,6 +530,30 @@ export async function claimPayment(
     .where(eq(payments.id, pay.id));
 }
 
+// Staff rejects a submitted claim. pending_verification → rejected with a note;
+// customer may re-claim. Auth lives at the action layer (requireStaff).
+export async function rejectPayment(
+  paymentPublicId: string,
+  note: string,
+): Promise<void> {
+  const reason = note.trim();
+  if (!reason) throw new ValidationError("Add a reason for rejecting this payment");
+
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+  if (pay.status !== "pending_verification" || !canVerify(pay.status)) {
+    throw new ValidationError(`Payment cannot be rejected from status ${pay.status}`);
+  }
+
+  await db
+    .update(payments)
+    .set({
+      status: "rejected",
+      note: reason,
+    })
+    .where(eq(payments.id, pay.id));
+}
+
 // Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
@@ -704,12 +728,28 @@ export async function listOrdersPage(
   return { items, page: page.page, size: page.size, total: count };
 }
 
+export type OrderPaymentDetail = {
+  publicId: string;
+  amount: string;
+  status: (typeof payments.status.enumValues)[number];
+  method: (typeof payments.method.enumValues)[number];
+  reference: string | null;
+  proof: PaymentProof | null;
+  claimedAt: number | null;
+  capturedAt: number | null;
+  note: string | null;
+  // Public thumb URL for inline display; null when no proof.
+  proofThumbUrl: string | null;
+  // Token-gated href for the secured original; null when no proof.
+  proofHref: string | null;
+};
+
 export type OrderDetail = typeof orders.$inferSelect & {
   planName: string;
   planKey: string;
   frequencyKey: string;
   mealSizeName: string;
-  payments: { publicId: string; amount: string; status: string }[];
+  payments: OrderPaymentDetail[];
 };
 
 export async function readOrder(publicId: string): Promise<OrderDetail> {
@@ -729,10 +769,43 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
   const pays = await db
-    .select({ publicId: payments.publicId, amount: payments.amount, status: payments.status })
+    .select({
+      publicId: payments.publicId,
+      amount: payments.amount,
+      status: payments.status,
+      method: payments.method,
+      reference: payments.reference,
+      proof: payments.proof,
+      claimedAt: payments.claimedAt,
+      capturedAt: payments.capturedAt,
+      note: payments.note,
+    })
     .from(payments)
     .where(eq(payments.orderId, row.order.id));
-  return { ...row.order, planName: row.planName, planKey: row.planKey, frequencyKey: row.frequencyKey, mealSizeName: row.mealSizeName, payments: pays };
+
+  // Lazy import avoids pulling storage/mint into every orders.service caller path
+  // that doesn't need proof hrefs (createOrder tests, etc.).
+  const { attachmentHref } = await import("./ticket-attachments");
+  const enriched: OrderPaymentDetail[] = await Promise.all(
+    pays.map(async (p) => {
+      const proof = p.proof ?? null;
+      return {
+        ...p,
+        proof,
+        proofThumbUrl: proof?.thumbUrl ?? null,
+        proofHref: proof ? await attachmentHref(proof) : null,
+      };
+    }),
+  );
+
+  return {
+    ...row.order,
+    planName: row.planName,
+    planKey: row.planKey,
+    frequencyKey: row.frequencyKey,
+    mealSizeName: row.mealSizeName,
+    payments: enriched,
+  };
 }
 
 export async function listOrderActivities(orderId: bigint) {

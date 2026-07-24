@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
-import { activateOrder, cancelOrder, pauseOrder, readOrder, resumeOrder } from "@/lib/services/orders.service";
+import { activateOrder, cancelOrder, pauseOrder, readOrder, rejectPayment, resumeOrder, verifyPayment } from "@/lib/services/orders.service";
+import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
 import {
   clearDeliveryAddress,
@@ -103,4 +104,19 @@ export async function resumeDeliveryRangeAction(orderId: string, fromDate?: stri
   const order = await readOrder(orderId);
   await maybeComplete(order.id);
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function verifyPaymentAction(orderId: string, paymentPublicId: string) {
+  await requireStaff();
+  const session = await getSession();
+  await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/me/wallet");
+}
+
+export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string) {
+  await requireStaff();
+  await rejectPayment(paymentPublicId, note);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/me/wallet");
 }

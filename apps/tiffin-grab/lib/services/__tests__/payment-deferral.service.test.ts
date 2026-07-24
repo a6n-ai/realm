@@ -267,4 +267,50 @@ describe("createOrder payment deferral", () => {
     expect(after!.note).toBeNull();
     expect(after!.reference).toBe("CASH-OK");
   });
+
+  it("rejectPayment then re-claim; verify from pending_verification settles ledger", async () => {
+    const { rejectPayment } = await import("../orders.service");
+    await setPaymentConfig({
+      methods: [
+        {
+          id: "etransfer",
+          kind: "manual",
+          enabled: true,
+          label: "Interac e-Transfer",
+          payeeHandle: "pay@test.ca",
+          taxes: [],
+        },
+      ],
+    });
+    await sharedCache("app-settings").evictAll();
+
+    const { deploymentId } = await createOrder(
+      await baseInput({ paymentMethodId: "etransfer", phone: "+16475550444" }),
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+
+    await claimPayment(pay!.publicId, { reference: "BAD" });
+    await rejectPayment(pay!.publicId, "No matching transfer");
+    const [rejected] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(rejected!.status).toBe("rejected");
+    expect(rejected!.note).toBe("No matching transfer");
+
+    await expect(rejectPayment(pay!.publicId, "again")).rejects.toThrow(/cannot be rejected/i);
+
+    await claimPayment(pay!.publicId, { reference: "GOOD-456" });
+    const [reclaimed] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(reclaimed!.status).toBe("pending_verification");
+    expect(reclaimed!.note).toBeNull();
+
+    await verifyPayment(pay!.publicId);
+    const [paid] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(paid!.status).toBe("paid");
+
+    const paymentLed = await db
+      .select()
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.orderId, order!.id), eq(ledgerEntries.type, "payment")));
+    expect(paymentLed).toHaveLength(1);
+  });
 });

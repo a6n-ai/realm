@@ -22,6 +22,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
 import { LifecycleControls } from "./lifecycle-controls";
 import { PoolControls } from "./pool-controls";
+import { PaymentsPanel } from "./payments-panel";
 import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
 import type { DeliveryRow } from "./deliveries-panel-columns";
 
@@ -98,8 +99,12 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           <p><span className="text-muted-foreground">Plan: </span>{order.planName} · {order.mealSizeName} · {order.frequencyKey}</p>
           <p><span className="text-muted-foreground">Schedule: </span>start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) · {order.mealSlots.join(", ")}</p>
           <p><span className="text-muted-foreground">Address: </span>{order.addressLine}, {order.city} {order.postalCode}</p>
-          <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))} · Payments: {order.payments.map((p) => fmt(Number(p.amount))).join(", ") || "none"}</p>
+          <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))}</p>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Payments">
+        <PaymentsPanel orderId={order.publicId} payments={order.payments} currencyFmt={fmt} />
       </SectionCard>
 
       <SectionCard title="Lifecycle">
@@ -168,6 +173,10 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
             <Skeleton key={i} className="h-4 w-full max-w-md" />
           ))}
         </div>
+      </SectionCard>
+
+      <SectionCard title="Payments">
+        <Skeleton className="h-24 w-full" />
       </SectionCard>
 
       <SectionCard title="Lifecycle">
