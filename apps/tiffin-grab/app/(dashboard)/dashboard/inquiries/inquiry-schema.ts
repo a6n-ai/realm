@@ -1,3 +1,4 @@
+import { emailSchema } from "@realm/commons";
 import { z } from "zod";
 
 export const inquiryFormSchema = z.object({
@@ -5,7 +6,8 @@ export const inquiryFormSchema = z.object({
   // Lead capture takes whatever number they give — deliverability is judged by
   // postal/zone later, not by phone shape. Only require that something is entered.
   phone: z.string().min(1, "Phone is required"),
-  email: z.string().optional(),
+  // Email is the customer login identifier — required on create.
+  email: emailSchema,
   sourceKey: z.string().min(1),
   subSourceKey: z.string().optional(),
   planInterest: z.string().optional(),

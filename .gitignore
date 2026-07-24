@@ -63,6 +63,9 @@ skills-lock.json
 docs/
 .vcscore
 
+# playwright mcp session artifacts (console dumps + page snapshots)
+.playwright-mcp/
+
 # openspec scratch + local screenshots (not part of the repo)
 openspec/
 /Screenshot*.png

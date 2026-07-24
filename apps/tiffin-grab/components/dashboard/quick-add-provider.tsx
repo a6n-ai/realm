@@ -69,6 +69,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
             defaultCountry={data.defaultCountry}
             sources={data.sources}
             zones={data.zones}
+            catalog={data.catalog}
           />
           <NewCustomerSheet
             open={which === "customer"}

@@ -11,19 +11,31 @@ const base = {
 };
 
 describe("interestToPrefill", () => {
-  it("matches plan/meal-size by name (case-insensitive)", () => {
+  it("matches plan key and meal publicId from catalog selects", () => {
+    const { prefill, unmatched } = interestToPrefill(
+      { ...base, planInterest: "veg_weekly", mealSizeInterest: "ms_1" },
+      catalog,
+    );
+    expect(prefill.planKey).toBe("veg_weekly");
+    expect(prefill.mealSizeId).toBe("ms_1");
+    expect(unmatched).toEqual([]);
+  });
+
+  it("matches plan/meal-size by name (case-insensitive) for legacy free-text", () => {
     const { prefill, unmatched } = interestToPrefill(
       { ...base, planInterest: "veg weekly", mealSizeInterest: "LARGE" }, catalog);
     expect(prefill.planKey).toBe("veg_weekly");
     expect(prefill.mealSizeId).toBe("ms_1");
     expect(unmatched).toEqual([]);
   });
+
   it("pushes unmatched free-text to unmatched, leaves keys unset", () => {
     const { prefill, unmatched } = interestToPrefill(
       { ...base, planInterest: "keto deluxe" }, catalog);
     expect(prefill.planKey).toBeUndefined();
     expect(unmatched).toContain("Plan: keto deluxe");
   });
+
   it("passes through persons, start, postal; surfaces quoted price", () => {
     const { prefill, unmatched } = interestToPrefill(
       { ...base, personsInterest: 3, preferredStart: "2026-07-10", postalCode: "400001", quotedPrice: "4500.00" }, catalog);

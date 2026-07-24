@@ -190,7 +190,7 @@ export function NewCustomerSheet({
         ) : undefined
       }
     >
-      {sources.length > 0 && <StepHeader step={step} steps={["Customer", "Order"]} />}
+      {sources.length > 0 && <StepHeader step={step} steps={["Contact", "Order"]} />}
 
       {step === 1 ? (
         sources.length === 0 ? (
@@ -307,6 +307,13 @@ export function NewCustomerSheet({
                   createOrderFlow({
                     source,
                     contact,
+                    interest: {
+                      planInterest: order.planKey,
+                      mealSizeInterest: order.selections.mealSizeId,
+                      personsInterest: order.selections.persons,
+                      postalCode: order.contact.postalCode,
+                      preferredStart: order.selections.startDate,
+                    },
                     pickedInquiryId: inquiryId ?? undefined,
                     order,
                   })

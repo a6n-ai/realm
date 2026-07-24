@@ -7,7 +7,7 @@ import { inquiriesService } from "@/lib/services/inquiries.service";
 import { reassignOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 
 type Source = { sourceKey: string; subSourceKey?: string };
-type Contact = { fullName: string; phone: string; email?: string };
+type Contact = { fullName: string; phone: string; email: string };
 type Interest = {
   planInterest?: string;
   mealSizeInterest?: string;
@@ -25,14 +25,25 @@ export async function createOrderFlow(input: {
   order: CreateOrderInput;
 }): Promise<void> {
   await requireStaff();
+  const email = input.contact.email?.trim();
+  if (!email) throw new Error("Email is required");
   const inquiryId = await inquiriesService.resolveForSource({
     phone: input.contact.phone,
     sourceKey: input.source.sourceKey,
-    contact: { fullName: input.contact.fullName, email: input.contact.email },
+    contact: { fullName: input.contact.fullName, email },
     interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
     pickedId: input.pickedInquiryId,
   });
-  const { deploymentId } = await inquiriesService.convert(inquiryId, input.order);
+  const { deploymentId } = await inquiriesService.convert(
+    inquiryId,
+    {
+      ...input.order,
+      contact: { ...input.order.contact, email },
+    },
+    {
+      allowAdditionalOrder: true,
+    },
+  );
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard/inquiries");
   redirect(`/activate/${deploymentId}`);

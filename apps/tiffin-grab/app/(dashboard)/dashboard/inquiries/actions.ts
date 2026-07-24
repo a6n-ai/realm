@@ -12,7 +12,7 @@ import {
 export async function createInquiry(input: {
   fullName: string;
   phone: string;
-  email?: string;
+  email: string;
   sourceKey: string;
   subSourceKey?: string;
   planInterest?: string;

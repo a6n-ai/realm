@@ -97,9 +97,18 @@ export function InquiryDetailClient({
     }
   }
 
+  const planLabel =
+    catalog.plans.find((p) => p.key === interest.planInterest)?.name ??
+    catalog.plans.find((p) => p.name.toLowerCase() === interest.planInterest?.trim().toLowerCase())?.name ??
+    interest.planInterest;
+  const mealLabel =
+    catalog.mealSizes.find((m) => m.id === interest.mealSizeInterest)?.name ??
+    catalog.mealSizes.find((m) => m.name.toLowerCase() === interest.mealSizeInterest?.trim().toLowerCase())?.name ??
+    interest.mealSizeInterest;
+
   const interestChips: { label: string; value: string }[] = [];
-  if (interest.planInterest) interestChips.push({ label: "Plan", value: interest.planInterest });
-  if (interest.mealSizeInterest) interestChips.push({ label: "Meal size", value: interest.mealSizeInterest });
+  if (planLabel) interestChips.push({ label: "Plan", value: planLabel });
+  if (mealLabel) interestChips.push({ label: "Meal size", value: mealLabel });
   if (interest.personsInterest != null) interestChips.push({ label: "Persons", value: String(interest.personsInterest) });
   if (interest.preferredStart) interestChips.push({ label: "Start", value: interest.preferredStart });
   if (interest.postalCode) interestChips.push({ label: "Postal", value: interest.postalCode });
