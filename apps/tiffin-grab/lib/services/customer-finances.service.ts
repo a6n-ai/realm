@@ -8,7 +8,9 @@ import { ledgerEntries, orders, payments, plans } from "@/db/schema";
 export type BillPaymentSummary = {
   publicId: string;
   status: (typeof payments.status.enumValues)[number];
+  method: (typeof payments.method.enumValues)[number];
   amount: string;
+  note: string | null;
 };
 
 export type CustomerBill = {
@@ -66,7 +68,9 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
       orderId: payments.orderId,
       publicId: payments.publicId,
       status: payments.status,
+      method: payments.method,
       amount: payments.amount,
+      note: payments.note,
     })
     .from(payments)
     .where(inArray(payments.orderId, orderIds));
@@ -74,7 +78,13 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
   const paysByOrder = new Map<bigint, BillPaymentSummary[]>();
   for (const p of payRows) {
     const list = paysByOrder.get(p.orderId) ?? [];
-    list.push({ publicId: p.publicId, status: p.status, amount: p.amount });
+    list.push({
+      publicId: p.publicId,
+      status: p.status,
+      method: p.method,
+      amount: p.amount,
+      note: p.note,
+    });
     paysByOrder.set(p.orderId, list);
   }
 

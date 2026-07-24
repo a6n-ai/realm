@@ -30,6 +30,11 @@ vi.mock("@/components/providers/timezone-provider", () => ({
   useTimezone: () => "America/Toronto",
 }));
 
+vi.mock("@/app/(customer)/me/wallet/actions", () => ({
+  loadClaimPaymentContext: vi.fn(),
+  claimPaymentAction: vi.fn(),
+}));
+
 import { BillsList } from "../bills-list";
 import { TransactionsList } from "../transactions-list";
 import { FinancesTabs } from "../finances-tabs";
@@ -82,7 +87,7 @@ describe("BillsList empty state", () => {
         status: "active",
         total: "120.00",
         createdAt: Date.UTC(2026, 6, 10),
-        payments: [{ publicId: "pay_1", status: "simulated_paid", amount: "120.00" }],
+        payments: [{ publicId: "pay_1", status: "simulated_paid", method: "simulated", amount: "120.00", note: null }],
       },
       {
         publicId: "ord_2",
@@ -91,7 +96,7 @@ describe("BillsList empty state", () => {
         status: "completed",
         total: "200.00",
         createdAt: Date.UTC(2026, 5, 5),
-        payments: [{ publicId: "pay_2", status: "pending", amount: "200.00" }],
+        payments: [{ publicId: "pay_2", status: "pending", method: "cash", amount: "200.00", note: null }],
       },
     ];
     render(<BillsList items={items} page={0} size={25} total={2} currency="CAD" />);

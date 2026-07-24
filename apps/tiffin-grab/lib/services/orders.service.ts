@@ -3,10 +3,22 @@ import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { enabledMethods, findMethod } from "@realm/payments";
+import { canClaim, enabledMethods, findMethod } from "@realm/payments";
 import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { coupons, deliveries, deliveryFrequencies, mealSizes, orderActivities, orders, payments, plans, subscriptionPauses, users } from "@/db/schema";
+import {
+  coupons,
+  deliveries,
+  deliveryFrequencies,
+  mealSizes,
+  orderActivities,
+  orders,
+  payments,
+  plans,
+  subscriptionPauses,
+  users,
+  type PaymentProof,
+} from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -465,6 +477,102 @@ export async function verifyPayment(
       log.error({ err: e }, "wallet award on payment verify failed");
     }
   }
+}
+
+// Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
+// reference and/or a proof image; requireProof on the method config forces the photo.
+// awaiting_payment | rejected → pending_verification.
+// Callers MUST authorize (assertCanManageOrder) before invoking — kept out of this
+// function to avoid an orders ↔ customer-deliveries import cycle.
+export async function claimPayment(
+  paymentPublicId: string,
+  input: { reference?: string | null; proof?: PaymentProof | null },
+): Promise<void> {
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) throw new NotFoundError("Payment not found");
+
+  // awaiting_payment | rejected (fresh claim) or pending_verification (customer correcting).
+  if (
+    pay.status !== "awaiting_payment" &&
+    pay.status !== "rejected" &&
+    pay.status !== "pending_verification"
+  ) {
+    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
+  }
+  // Shared predicate covers the fresh-claim cases; pending_verification is a re-submit.
+  if (pay.status !== "pending_verification" && !canClaim(pay.status)) {
+    throw new ValidationError(`Payment cannot be claimed from status ${pay.status}`);
+  }
+
+  const cfg = await getPaymentConfig();
+  const method = findMethod(cfg, pay.method);
+  const requireProof = method?.requireProof === true;
+
+  const reference = input.reference?.trim() || null;
+  const proof = input.proof ?? null;
+  if (requireProof && !proof) {
+    throw new ValidationError("A payment screenshot is required for this method");
+  }
+  if (!reference && !proof) {
+    throw new ValidationError("Add a payment reference or upload a screenshot");
+  }
+
+  await db
+    .update(payments)
+    .set({
+      reference,
+      proof,
+      claimedAt: Date.now(),
+      status: "pending_verification",
+      // Clear a prior reject note when re-claiming.
+      note: null,
+    })
+    .where(eq(payments.id, pay.id));
+}
+
+// Serializable claim form context for activate / Finances UI.
+export type ClaimPaymentContext = {
+  paymentPublicId: string;
+  orderPublicId: string;
+  deploymentId: string;
+  amount: string;
+  status: (typeof payments.status.enumValues)[number];
+  methodId: string;
+  methodLabel: string;
+  payeeHandle: string | null;
+  instructions: string | null;
+  requireProof: boolean;
+  rejectNote: string | null;
+  // Human-friendly memo the customer should include in the transfer.
+  referenceHint: string;
+};
+
+export async function getClaimPaymentContext(paymentPublicId: string): Promise<ClaimPaymentContext | null> {
+  const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
+  if (!pay) return null;
+  const [order] = await db
+    .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
+    .from(orders)
+    .where(eq(orders.id, pay.orderId))
+    .limit(1);
+  if (!order) return null;
+
+  const cfg = await getPaymentConfig();
+  const method = findMethod(cfg, pay.method);
+  return {
+    paymentPublicId: pay.publicId,
+    orderPublicId: order.publicId,
+    deploymentId: order.deploymentId,
+    amount: pay.amount,
+    status: pay.status,
+    methodId: pay.method,
+    methodLabel: method?.label ?? pay.method,
+    payeeHandle: method?.payeeHandle ?? null,
+    instructions: method?.instructions ?? null,
+    requireProof: method?.requireProof === true,
+    rejectNote: pay.status === "rejected" ? (pay.note ?? null) : null,
+    referenceHint: order.deploymentId,
+  };
 }
 
 export type OrderListRow = {

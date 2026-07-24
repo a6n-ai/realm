@@ -1,12 +1,23 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@realm/ui/dialog";
 import { ListPagination, OrderStatusBadge } from "@/components/ds";
 import { Reveal, LottieEmptyState } from "@/components/motion";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
+import type { ClaimPaymentContext } from "@/lib/services/orders.service";
+import { loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
+import { ClaimPayment } from "./claim-payment";
 
 function formatDollars(amount: string, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -46,8 +57,22 @@ function paymentLabel(status: CustomerBill["payments"][number]["status"]): strin
   }
 }
 
-function BillRow({ bill, currency }: { bill: CustomerBill; currency: string }) {
+function isClaimable(status: CustomerBill["payments"][number]["status"]): boolean {
+  return status === "awaiting_payment" || status === "rejected" || status === "pending_verification";
+}
+
+function BillRow({
+  bill,
+  currency,
+  onClaim,
+}: {
+  bill: CustomerBill;
+  currency: string;
+  onClaim: (paymentPublicId: string) => void;
+}) {
   const tz = useTimezone();
+  const claimable = bill.payments.find((p) => isClaimable(p.status));
+
   return (
     <Reveal className="flex items-start justify-between gap-3 py-3">
       <div className="min-w-0 space-y-1">
@@ -64,6 +89,17 @@ function BillRow({ bill, currency }: { bill: CustomerBill; currency: string }) {
               {paymentLabel(p.status)}
             </Badge>
           ))}
+          {claimable && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => onClaim(claimable.publicId)}
+            >
+              {claimable.status === "pending_verification" ? "Update claim" : "I've sent it"}
+            </Button>
+          )}
         </div>
       </div>
       <span className="shrink-0 text-sm font-semibold tabular-nums">
@@ -87,6 +123,23 @@ export function BillsList({
   currency: string;
 }) {
   const tz = useTimezone();
+  const [claimCtx, setClaimCtx] = useState<ClaimPaymentContext | null>(null);
+  const [open, setOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  function openClaim(paymentPublicId: string) {
+    setLoadError(null);
+    start(async () => {
+      try {
+        const ctx = await loadClaimPaymentContext(paymentPublicId);
+        setClaimCtx(ctx);
+        setOpen(true);
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Could not open payment claim");
+      }
+    });
+  }
 
   if (items.length === 0) {
     return (
@@ -111,6 +164,7 @@ export function BillsList({
 
   return (
     <div className="space-y-6">
+      {loadError && <p className="text-destructive text-sm">{loadError}</p>}
       {groups.map((g) => (
         <section key={g.key} className="space-y-1">
           <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
@@ -118,12 +172,29 @@ export function BillsList({
           </h2>
           <Reveal.Group className="divide-y">
             {g.bills.map((bill) => (
-              <BillRow key={bill.publicId} bill={bill} currency={currency} />
+              <BillRow key={bill.publicId} bill={bill} currency={currency} onClaim={openClaim} />
             ))}
           </Reveal.Group>
         </section>
       ))}
       <ListPagination page={page} size={size} total={total} />
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm payment</DialogTitle>
+          </DialogHeader>
+          {pending && !claimCtx ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : claimCtx ? (
+            <ClaimPayment
+              ctx={claimCtx}
+              currency={currency}
+              onDone={() => setOpen(false)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

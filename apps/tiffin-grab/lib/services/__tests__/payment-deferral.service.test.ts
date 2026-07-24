@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { couponRedemptions, coupons, deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
-const { createOrder, verifyPayment } = await import("../orders.service");
+const { createOrder, verifyPayment, claimPayment } = await import("../orders.service");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
@@ -167,5 +167,104 @@ describe("createOrder payment deferral", () => {
     const [afterOrder] = await db.select().from(orders).where(eq(orders.id, order!.id));
     const afterSnap = afterOrder!.pricingSnapshot as Snapshot;
     expect(afterSnap.pendingRedemptions).toBeUndefined();
+  });
+
+  it("claimPayment: reference alone → pending_verification; requireProof forces screenshot", async () => {
+    await setPaymentConfig({
+      methods: [
+        {
+          id: "etransfer",
+          kind: "manual",
+          enabled: true,
+          label: "Interac e-Transfer",
+          payeeHandle: "pay@test.ca",
+          requireProof: false,
+          taxes: [],
+        },
+      ],
+    });
+    await sharedCache("app-settings").evictAll();
+
+    const { deploymentId } = await createOrder(
+      await baseInput({ paymentMethodId: "etransfer", phone: "+16475550777" }),
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+
+    await expect(claimPayment(pay!.publicId, {})).rejects.toThrow(/reference or upload/i);
+
+    await claimPayment(pay!.publicId, { reference: "INTERAC-123" });
+    const [claimed] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(claimed!.status).toBe("pending_verification");
+    expect(claimed!.reference).toBe("INTERAC-123");
+    expect(claimed!.claimedAt).toBeTypeOf("number");
+
+    // requireProof method rejects a reference-only claim.
+    await setPaymentConfig({
+      methods: [
+        {
+          id: "etransfer",
+          kind: "manual",
+          enabled: true,
+          label: "Interac e-Transfer",
+          payeeHandle: "pay@test.ca",
+          requireProof: true,
+          taxes: [],
+        },
+      ],
+    });
+    await sharedCache("app-settings").evictAll();
+
+    const { deploymentId: d2 } = await createOrder(
+      await baseInput({ paymentMethodId: "etransfer", phone: "+16475550666" }),
+    );
+    const [o2] = await db.select().from(orders).where(eq(orders.deploymentId, d2));
+    const [p2] = await db.select().from(payments).where(eq(payments.orderId, o2!.id));
+    await expect(claimPayment(p2!.publicId, { reference: "X" })).rejects.toThrow(/screenshot is required/i);
+
+    await claimPayment(p2!.publicId, {
+      reference: "X",
+      proof: { path: "payments/x/orig.png", thumbUrl: "https://x/thumb.png", name: "shot.png" },
+    });
+    const [p2After] = await db.select().from(payments).where(eq(payments.id, p2!.id));
+    expect(p2After!.status).toBe("pending_verification");
+    expect(p2After!.proof).toEqual({
+      path: "payments/x/orig.png",
+      thumbUrl: "https://x/thumb.png",
+      name: "shot.png",
+    });
+  });
+
+  it("rejected → re-claim clears the reject note", async () => {
+    await setPaymentConfig({
+      methods: [
+        {
+          id: "cash",
+          kind: "manual",
+          enabled: true,
+          label: "Cash",
+          payeeHandle: "driver",
+          taxes: [],
+        },
+      ],
+    });
+    await sharedCache("app-settings").evictAll();
+
+    const { deploymentId } = await createOrder(
+      await baseInput({ paymentMethodId: "cash", phone: "+16475550555" }),
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+
+    await db
+      .update(payments)
+      .set({ status: "rejected", note: "Wrong amount" })
+      .where(eq(payments.id, pay!.id));
+
+    await claimPayment(pay!.publicId, { reference: "CASH-OK" });
+    const [after] = await db.select().from(payments).where(eq(payments.id, pay!.id));
+    expect(after!.status).toBe("pending_verification");
+    expect(after!.note).toBeNull();
+    expect(after!.reference).toBe("CASH-OK");
   });
 });

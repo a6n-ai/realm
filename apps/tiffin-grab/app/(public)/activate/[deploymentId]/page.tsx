@@ -1,9 +1,13 @@
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db } from "@/db/client";
-import { orders, payments } from "@/db/schema";
+import { orders, payments, users } from "@/db/schema";
 import { Card } from "@realm/ui/card";
 import { Separator } from "@realm/ui/separator";
+import { getSession } from "@/lib/auth/session";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getClaimPaymentContext } from "@/lib/services/orders.service";
+import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 
 // Looks up an order by deploymentId — render per request, never prerender.
 export const dynamic = "force-dynamic";
@@ -14,14 +18,32 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
   if (!sub) notFound();
 
   const [pay] = await db
-    .select({ status: payments.status, method: payments.method })
+    .select({ publicId: payments.publicId, status: payments.status })
     .from(payments)
     .where(eq(payments.orderId, sub.id))
     .limit(1);
 
   const waitlisted = sub.status === "waitlisted";
-  const awaitingPayment =
-    pay?.status === "awaiting_payment" || pay?.status === "pending_verification" || pay?.status === "rejected";
+  const claimable =
+    pay != null &&
+    (pay.status === "awaiting_payment" ||
+      pay.status === "pending_verification" ||
+      pay.status === "rejected");
+
+  const session = await getSession();
+  let ownsOrder = false;
+  if (session?.user?.id && sub.userId != null) {
+    const [u] = await db
+      .select({ publicId: users.publicId })
+      .from(users)
+      .where(eq(users.id, sub.userId))
+      .limit(1);
+    ownsOrder = u?.publicId === session.user.id;
+  }
+
+  const { currency } = await getAppSettings();
+  const claimCtx =
+    claimable && ownsOrder && pay ? await getClaimPaymentContext(pay.publicId) : null;
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -30,22 +52,28 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
       <p className="mt-3 text-muted-foreground">
         {waitlisted
           ? "You're on the waitlist for your area — we'll email you when delivery opens."
-          : awaitingPayment
+          : claimable
             ? "Your subscription is reserved. Delivery begins once payment is confirmed."
             : "Your subscription is active. Welcome to Tiffin Grab!"}
       </p>
 
-      {awaitingPayment && !waitlisted && (
+      {claimable && !waitlisted && (
         <Card className="mt-6 p-5 text-left text-sm">
-          <div className="font-medium">Payment pending</div>
-          <p className="mt-1 text-muted-foreground">
-            Send payment using the method you chose at checkout, then mark it as sent from
-            Finances. Until we confirm it, delivery won&apos;t start — you can move upcoming
-            days ahead from Deliveries if you need more time.
-          </p>
-          <a className="mt-2 inline-block text-primary underline" href="/me/wallet?tab=bills">
-            Open Finances →
-          </a>
+          {claimCtx ? (
+            <ClaimPayment ctx={claimCtx} currency={currency} />
+          ) : (
+            <>
+              <div className="font-medium">Payment pending</div>
+              <p className="mt-1 text-muted-foreground">
+                Send payment using the method you chose at checkout, then mark it as sent from
+                Finances. Until we confirm it, delivery won&apos;t start — you can move upcoming
+                days ahead from Deliveries if you need more time.
+              </p>
+              <a className="mt-2 inline-block text-primary underline" href="/me/wallet?tab=bills">
+                Open Finances →
+              </a>
+            </>
+          )}
         </Card>
       )}
 
