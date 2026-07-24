@@ -19,6 +19,26 @@ type CForm = { name: string; phone: string; email: string; date: string; locatio
 const EMPTY: CForm = { name: "", phone: "", email: "", date: "", location: "", guests: "", type: "", message: "" };
 const REQUIRED: (keyof CForm)[] = ["name", "phone", "email", "date", "location", "guests", "type"];
 
+// The business's WhatsApp number — there's no WhatsApp Business API account
+// wired up (that needs Meta/Twilio credentials), so this sends the request
+// straight from the customer's own WhatsApp app instead of via any backend.
+const CATERING_WHATSAPP_NUMBER = "14167383833";
+
+function whatsAppUrlFor(form: CForm): string {
+  const lines = [
+    "New catering quote request",
+    `Name: ${form.name}`,
+    `Phone: ${form.phone}`,
+    `Email: ${form.email}`,
+    `Event date: ${form.date}`,
+    `Location: ${form.location}`,
+    `Guests: ${form.guests}`,
+    `Type: ${form.type}`,
+    form.message.trim() && `Message: ${form.message.trim()}`,
+  ].filter(Boolean);
+  return `https://wa.me/${CATERING_WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+}
+
 // Hoisted out of the form component so React keeps the input mounted across
 // re-renders (a Field defined inside render drops focus on every keystroke).
 function Field({
@@ -91,6 +111,9 @@ function CateringForm() {
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (validate()) {
+      // Opened synchronously inside this click-triggered handler so browsers
+      // don't treat it as an unsolicited popup.
+      window.open(whatsAppUrlFor(form), "_blank", "noopener,noreferrer");
       setSent(true);
       window.scrollTo({ top: e.currentTarget.getBoundingClientRect().top + window.scrollY - 120, behavior: "smooth" });
     }
@@ -100,12 +123,16 @@ function CateringForm() {
     return (
       <div className="card card--ink surface-ink" style={{ color: "var(--cream)", padding: "clamp(28px,5vw,52px)", textAlign: "center" }}>
         <div style={{ fontSize: 56, marginBottom: 10 }}>🎉</div>
-        <h3 className="display" style={{ fontSize: "clamp(1.8rem,5vw,2.8rem)", color: "var(--yellow)" }}>Quote Request Sent!</h3>
+        <h3 className="display" style={{ fontSize: "clamp(1.8rem,5vw,2.8rem)", color: "var(--yellow)" }}>Almost done!</h3>
         <p style={{ fontWeight: 500, margin: "14px auto 0", maxWidth: 420, fontSize: "1.05rem" }}>
-          Thanks {form.name.split(" ")[0]} — we&apos;ll text you at <strong>{form.phone}</strong> within 24 hours with a custom quote for your{" "}
-          {form.guests}-guest {form.type.toLowerCase()}.
+          We&apos;ve opened WhatsApp in a new tab with your {form.guests}-guest {form.type.toLowerCase()} details filled in — just hit{" "}
+          <strong>send</strong>
+          {" "}to reach our team. If it didn&apos;t open, tap the button below.
         </p>
         <div className="flex wrap-gap" style={{ justifyContent: "center", marginTop: 24 }}>
+          <Btn onClick={() => window.open(whatsAppUrlFor(form), "_blank", "noopener,noreferrer")} variant="white">
+            💬 Open WhatsApp
+          </Btn>
           <Btn
             onClick={() => {
               setSent(false);
