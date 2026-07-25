@@ -12,7 +12,6 @@ export const NAV_LINKS: [string, string, string][] = [
   ["eats", "Eats", "Eats"],
   ["fusion", "Fusion Puchkas", "Fusion"],
   ["catering", "Catering", "Catering"],
-  ["events", "Watch Parties", "Events"],
   ["about", "About", "About"],
   ["contact", "Contact", "Contact"],
 ];

@@ -12,9 +12,13 @@ const nextConfig: NextConfig = {
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
-  // /productsmenu was the live public URL before the rename — keep indexed links alive.
+  // /menu and /productsmenu were both live public URLs before the rename to
+  // /eats — keep indexed/bookmarked links alive.
   async redirects() {
-    return [{ source: "/productsmenu", destination: "/eats", permanent: true }];
+    return [
+      { source: "/menu", destination: "/eats", permanent: true },
+      { source: "/productsmenu", destination: "/eats", permanent: true },
+    ];
   },
 };
 
