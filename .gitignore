@@ -80,3 +80,7 @@ openspec/
 *.png
 tiffingrab.ca.txt
 .remember
+
+# real static assets, not scratch screenshots — allowlisted against the
+# blanket image ignore above
+!apps/puchkaman/public/instagram/*.jpg

@@ -29,17 +29,18 @@ const REVIEWS = [
   { n: "Aisha K.", t: "Booked them for my daughter's birthday — live puchka station was the hit of the party!", r: 5 },
 ];
 
-// Real reels from @puchkamancanada, picked by hand. Instagram has no public
-// API for this and gates thumbnails behind login for logged-out visitors, so
-// tiles reuse our own product photos as thumbnails but link out to the actual
-// reel; clicking plays the real video on Instagram.
-const INSTAGRAM_REELS = [
-  "https://www.instagram.com/reel/DX7gkx6OSGS/",
-  "https://www.instagram.com/reel/DXbuVG8kezT/",
-  "https://www.instagram.com/reel/DXIU0CHEQBj/",
-  "https://www.instagram.com/reel/DV1qr9VE3zA/",
-  "https://www.instagram.com/reel/DTikLkokYyX/",
-  "https://www.instagram.com/reel/DYAWaeouRci/",
+// Real reels from @puchkamancanada, picked by hand, each with its actual cover
+// frame (the reel's public og:image, downloaded once into public/instagram/
+// rather than hotlinked — Instagram has no public API for this and gates
+// thumbnails behind login for logged-out visitors). Every tile links out to
+// the real reel — clicking plays the real video on Instagram.
+const INSTAGRAM_REELS: { url: string; thumbnail?: string }[] = [
+  { url: "https://www.instagram.com/reel/DX7gkx6OSGS/", thumbnail: "/instagram/reel-DX7gkx6OSGS.jpg" },
+  { url: "https://www.instagram.com/reel/DXbuVG8kezT/", thumbnail: "/instagram/reel-DXbuVG8kezT.jpg" },
+  { url: "https://www.instagram.com/reel/DXIU0CHEQBj/", thumbnail: "/instagram/reel-DXIU0CHEQBj.jpg" },
+  { url: "https://www.instagram.com/reel/DV1qr9VE3zA/", thumbnail: "/instagram/reel-DV1qr9VE3zA.jpg" },
+  { url: "https://www.instagram.com/reel/DTikLkokYyX/", thumbnail: "/instagram/reel-DTikLkokYyX.jpg" },
+  { url: "https://www.instagram.com/reel/DYAWaeouRci/", thumbnail: "/instagram/reel-DYAWaeouRci.jpg" },
 ];
 
 const COMBOS = [
@@ -300,30 +301,33 @@ export default async function HomePage() {
             <Btn href="https://www.instagram.com/puchkamancanada/" variant="red" size="lg">Follow Us ↗</Btn>
           </div>
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
-            {INSTAGRAM_REELS.map((url, i) => (
-              <a
-                key={url}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Watch reel on Instagram (opens in a new tab)"
-                style={{ position: "relative", display: "block" }}
-              >
-                {galleryUrls[i] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={galleryUrls[i]}
-                    alt="Puchkaman on Instagram"
-                    loading="lazy"
-                    className="card--lift"
-                    style={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)" }}
-                  />
-                ) : (
-                  <Ph label="Reel" ratio="1 / 1" className="card--lift" />
-                )}
-                <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>▶</span>
-              </a>
-            ))}
+            {INSTAGRAM_REELS.map((reel, i) => {
+              const thumbnail = reel.thumbnail ?? galleryUrls[i];
+              return (
+                <a
+                  key={reel.url}
+                  href={reel.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Watch reel on Instagram (opens in a new tab)"
+                  style={{ position: "relative", display: "block" }}
+                >
+                  {thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnail}
+                      alt="Puchkaman on Instagram"
+                      loading="lazy"
+                      className="card--lift"
+                      style={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)" }}
+                    />
+                  ) : (
+                    <Ph label="Reel" ratio="1 / 1" className="card--lift" />
+                  )}
+                  <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>▶</span>
+                </a>
+              );
+            })}
           </div>
         </div>
       </section>
