@@ -15,7 +15,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import type { DeliveryCardMeal } from "./meal-chips";
 import { VacationControl, cutoffByDateFromDeliveries } from "./vacation-control";
 import { MonthCalendar } from "./month-calendar";
-import { DayDetail } from "./day-detail";
+import { DayDetail, holdDeliveriesFrom } from "./day-detail";
 import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
 import { SubscriptionPlanHeader } from "./subscription-items";
 import { toIsoLocal, type CalendarCell } from "./calendar-constants";
@@ -119,6 +119,7 @@ function TiffinCalendarSection({
 
   const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
   const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
+  const holdDeliveries = useMemo(() => holdDeliveriesFrom(deliveries), [deliveries]);
 
   function onChanged() {
     if (onChangedOverride) onChangedOverride();
@@ -188,6 +189,7 @@ function TiffinCalendarSection({
           tz={tz}
           today={todayIso}
           tiffinCounts={counts}
+          holdDeliveries={holdDeliveries}
           onChanged={onChanged}
         />
       </div>
@@ -212,6 +214,7 @@ function TiffinCalendarSection({
                 tz={tz}
                 today={todayIso}
                 tiffinCounts={counts}
+                holdDeliveries={holdDeliveries}
                 onChanged={onChanged}
               />
             </CardContent>

@@ -8,6 +8,8 @@ vi.mock("../actions", () => ({
   unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(),
   clearMyDeliveryAddress: vi.fn(),
+  rescheduleMyDelivery: vi.fn(),
+  scheduleMyPooledTiffin: vi.fn(),
 }));
 
 vi.mock("../meals/actions", () => ({
@@ -135,7 +137,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
   });
 
-  it("shows Un-skip, not Skip or Change address, for a skipped day", () => {
+  it("shows Un-skip and Reschedule, not Skip or Change address, for a skipped day", () => {
     render(
       <DayDetail
         dateIso="2026-07-20"
@@ -149,8 +151,26 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /Un-skip/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change address/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Reschedule for a paused hold day", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell({ status: "paused" })}
+        delivery={makeDelivery({ status: "paused" })}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
   });
 
   it("does not offer Skip for a make-up delivery", () => {

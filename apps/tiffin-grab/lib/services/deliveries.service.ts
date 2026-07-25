@@ -482,9 +482,15 @@ export async function rescheduleDelivery(
 
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
-    assertMutable(row);
-    if (row.status !== "scheduled") throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
     if (newDateIso === row.deliveryDate) throw new ValidationError("Pick a different day");
+
+    const mutableStatuses = ["scheduled", "skipped", "paused"] as const;
+    if (!mutableStatuses.includes(row.status as (typeof mutableStatuses)[number])) {
+      throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+    }
+    if (row.status === "scheduled") {
+      assertMutable(row);
+    }
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order || order.status === "cancelled" || order.status === "completed") {
@@ -517,10 +523,12 @@ export async function rescheduleDelivery(
       .where(eq(deliveries.makeupForDeliveryId, row.id)).limit(1);
     if (existingMakeup) throw new ValidationError("This delivery has already been rescheduled");
 
-    const skipped = await tx.update(deliveries).set({ status: "skipped" })
-      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
-      .returning({ id: deliveries.id });
-    if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+    if (row.status === "scheduled") {
+      const skipped = await tx.update(deliveries).set({ status: "skipped" })
+        .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
+        .returning({ id: deliveries.id });
+      if (skipped.length === 0) throw new ValidationError(`Cannot reschedule a ${row.status} delivery`);
+    }
 
     const [inserted] = await tx.insert(deliveries).values({
       orderId,
@@ -530,10 +538,16 @@ export async function rescheduleDelivery(
       makeupForDeliveryId: row.id,
     }).returning({ id: deliveries.id });
 
-    await tx.insert(orderActivities).values([
-      { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled to ${newDateIso}`, createdBy: actorId },
-      { orderId, deliveryId: inserted.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate}`, createdBy: actorId },
-    ]);
+    await tx.insert(orderActivities).values(
+      row.status === "scheduled"
+        ? [
+            { orderId, deliveryId: row.id, type: "skipped", note: `Rescheduled to ${newDateIso}`, createdBy: actorId },
+            { orderId, deliveryId: inserted.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate}`, createdBy: actorId },
+          ]
+        : [
+            { orderId, deliveryId: inserted.id, type: "pool_scheduled", note: `Make-up for ${row.deliveryDate} (${row.status})`, createdBy: actorId },
+          ],
+    );
   });
 }
 

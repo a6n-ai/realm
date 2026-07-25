@@ -1,6 +1,6 @@
 import { NotFoundError, Role, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -201,10 +201,8 @@ export type TiffinCounts = {
   remaining: number;
   /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
   pooled: number;
-  /** Lifetime skip actions logged on this order. */
-  skipCount: number;
-  /** Original delivery days currently on hold (status skipped, not yet replaced). */
-  skippedDays: number;
+  /** Skipped or paused originals not yet replaced by a make-up (pre-cutoff). */
+  holdDays: number;
   /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
   persons: number;
   /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
@@ -239,6 +237,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 
   const rows = await db
     .select({
+      id: deliveries.id,
       status: deliveries.status,
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
@@ -248,13 +247,18 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
 
-  const [skipActivity] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(orderActivities)
-    .where(and(eq(orderActivities.orderId, order.id), eq(orderActivities.type, "skipped")));
+  const makeupSources = await db
+    .select({ src: deliveries.makeupForDeliveryId })
+    .from(deliveries)
+    .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
 
-  const skippedDays = rows.filter(
-    (r) => r.makeupForDeliveryId === null && r.status === "skipped",
+  const replaced = new Set(makeupSources.map((r) => r.src!.toString()));
+  const holdDays = rows.filter(
+    (r) =>
+      r.makeupForDeliveryId === null &&
+      (r.status === "skipped" || r.status === "paused") &&
+      r.pooledAt == null &&
+      !replaced.has(r.id.toString()),
   ).length;
 
   const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
@@ -273,8 +277,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     delivered,
     remaining: order.tiffinCount - delivered,
     pooled: order.pooled,
-    skipCount: skipActivity?.count ?? 0,
-    skippedDays,
+    holdDays,
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,

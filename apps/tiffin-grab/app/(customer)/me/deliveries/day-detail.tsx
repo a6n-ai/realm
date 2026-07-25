@@ -45,8 +45,11 @@ import {
   skipMyDelivery,
   unskipMyDelivery,
 } from "./actions";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@realm/ui/select";
 import { VacationDateField } from "./vacation-date-field";
-import { isPoolScheduleDateEligible } from "./pool-date-eligibility";
+import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
 
 type Address = DeliveryAddressValues;
 type DeliveryCardData = CustomerDelivery & {
@@ -55,6 +58,34 @@ type DeliveryCardData = CustomerDelivery & {
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
 };
+type HoldDeliveryOption = {
+  publicId: string;
+  deliveryDate: string;
+  status: "skipped" | "paused";
+};
+
+export function holdDeliveriesFrom(deliveries: DeliveryCardData[]): HoldDeliveryOption[] {
+  return deliveries
+    .filter(
+      (d) =>
+        !d.isMakeup &&
+        (d.status === "skipped" || d.status === "paused") &&
+        !d.hasMakeupScheduled &&
+        d.pooledAt == null,
+    )
+    .map((d) => ({
+      publicId: d.publicId,
+      deliveryDate: d.deliveryDate,
+      status: d.status as "skipped" | "paused",
+    }))
+    .sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
+}
+
+function isRescheduleTargetOccupied(delivery: DeliveryCardData | undefined): boolean {
+  if (!delivery) return false;
+  if (delivery.isMakeup) return true;
+  return delivery.status === "scheduled";
+}
 
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   deliveryPublicId: string;
@@ -144,10 +175,12 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
 function RescheduleDialog({
   deliveryPublicId,
   today,
+  sourceDateIso,
   onSaved,
 }: {
   deliveryPublicId: string;
   today: string;
+  sourceDateIso?: string;
   onSaved: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -198,8 +231,9 @@ function RescheduleDialog({
     >
       <div className="space-y-4">
         <p className="text-muted-foreground text-sm">
-          Pick the day you want this delivery moved to. Your original day will be skipped and a new
-          delivery will be added on the date you choose.
+          {sourceDateIso
+            ? `Move your ${formatDateOnly(sourceDateIso, { mode: "short" })} hold day to another delivery day, or tap a date on the calendar and use “Reschedule hold day here”.`
+            : "Pick the day you want this delivery moved to. Your original day will be skipped and a new delivery will be added on the date you choose."}
         </p>
         <VacationDateField
           id={`reschedule-${deliveryPublicId}`}
@@ -210,6 +244,97 @@ function RescheduleDialog({
           minDate={today}
         />
         {error && <p className="text-bad text-xs">{error}</p>}
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+function ScheduleHoldDayAction({
+  holdDeliveries,
+  dateIso,
+  counts,
+  today,
+  targetOccupied,
+  onChanged,
+}: {
+  holdDeliveries: HoldDeliveryOption[];
+  dateIso: string;
+  counts: TiffinCounts;
+  today: string;
+  targetOccupied: boolean;
+  onChanged: () => void;
+}) {
+  const movable = holdDeliveries.filter((h) => h.deliveryDate !== dateIso);
+  const [open, setOpen] = useState(false);
+  const [holdPublicId, setHoldPublicId] = useState(movable[0]?.publicId ?? "");
+  const [pending, start] = useTransition();
+
+  if (movable.length === 0 || targetOccupied) return null;
+  if (!isRescheduleTargetDateEligible(dateIso, counts, today)) return null;
+
+  function run(publicId: string) {
+    start(async () => {
+      try {
+        await rescheduleMyDelivery(publicId, dateIso);
+        setOpen(false);
+        onChanged();
+        toast.success("Hold day rescheduled");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not reschedule that day");
+      }
+    });
+  }
+
+  if (movable.length === 1) {
+    const hold = movable[0]!;
+    return (
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(hold.publicId)}>
+        <CalendarClockIcon data-icon="inline-start" />
+        Reschedule hold day here
+      </Button>
+    );
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button variant="outline" size="sm">
+          <CalendarClockIcon data-icon="inline-start" />
+          Reschedule hold day here
+        </Button>
+      }
+      title="Reschedule a hold day"
+      footer={
+        <div className="flex w-full justify-end gap-2">
+          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
+            {pending ? "Saving…" : "Confirm"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-muted-foreground text-sm">
+          Move a hold day to {formatDateOnly(dateIso, { mode: "long" })}.
+        </p>
+        <div className="space-y-2">
+          <label htmlFor="hold-day-pick" className="text-sm font-medium">Hold day to move</label>
+          <Select value={holdPublicId} onValueChange={setHoldPublicId}>
+            <SelectTrigger id="hold-day-pick" className="w-full">
+              <SelectValue placeholder="Choose a hold day" />
+            </SelectTrigger>
+            <SelectContent>
+              {movable.map((h) => (
+                <SelectItem key={h.publicId} value={h.publicId}>
+                  {formatDateOnly(h.deliveryDate, { mode: "short" })}
+                  {h.status === "paused" ? " (paused)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </ResponsiveDialog>
   );
@@ -284,16 +409,31 @@ function DeliveryDayActions({
     });
   }
 
-  if (locked) return null;
+  if (locked) {
+    const isHoldOriginal =
+      !delivery.isMakeup &&
+      (delivery.status === "skipped" || delivery.status === "paused") &&
+      delivery.pooledAt == null &&
+      !delivery.hasMakeupScheduled;
+    if (!isHoldOriginal) return null;
+  }
 
-  const showSkip = !delivery.isMakeup && delivery.status === "scheduled";
-  const showReschedule = showSkip;
+  const isHoldOriginal =
+    !delivery.isMakeup &&
+    (delivery.status === "skipped" || delivery.status === "paused") &&
+    delivery.pooledAt == null &&
+    !delivery.hasMakeupScheduled;
+
+  const showSkip = !delivery.isMakeup && delivery.status === "scheduled" && !locked;
+  const showReschedule =
+    (!delivery.isMakeup && delivery.status === "scheduled" && !locked) || isHoldOriginal;
   const showUnskip =
+    !locked &&
     !delivery.isMakeup &&
     delivery.status === "skipped" &&
     delivery.pooledAt == null &&
     !delivery.hasMakeupScheduled;
-  const showAddress = delivery.status === "scheduled";
+  const showAddress = !locked && delivery.status === "scheduled";
 
   if (!showSkip && !showReschedule && !showUnskip && !showAddress) return null;
 
@@ -317,7 +457,12 @@ function DeliveryDayActions({
         </Button>
       )}
       {showReschedule && (
-        <RescheduleDialog deliveryPublicId={delivery.publicId} today={today} onSaved={onChanged} />
+        <RescheduleDialog
+          deliveryPublicId={delivery.publicId}
+          today={today}
+          sourceDateIso={isHoldOriginal ? delivery.deliveryDate : undefined}
+          onSaved={onChanged}
+        />
       )}
       {showSkip && (
         <Button
@@ -360,6 +505,7 @@ export function DayDetail({
   tz,
   today,
   tiffinCounts,
+  holdDeliveries = [],
   onChanged,
   variant = "full",
 }: {
@@ -372,6 +518,7 @@ export function DayDetail({
   tz: string;
   today: string;
   tiffinCounts?: TiffinCounts;
+  holdDeliveries?: HoldDeliveryOption[];
   onChanged: () => void;
   variant?: "full" | "picker";
 }) {
@@ -452,6 +599,17 @@ export function DayDetail({
           dateIso={dateIso}
           counts={tiffinCounts}
           today={today}
+          onChanged={onChanged}
+        />
+      )}
+
+      {tiffinCounts && holdDeliveries.length > 0 && (
+        <ScheduleHoldDayAction
+          holdDeliveries={holdDeliveries}
+          dateIso={dateIso}
+          counts={tiffinCounts}
+          today={today}
+          targetOccupied={isRescheduleTargetOccupied(delivery)}
           onChanged={onChanged}
         />
       )}

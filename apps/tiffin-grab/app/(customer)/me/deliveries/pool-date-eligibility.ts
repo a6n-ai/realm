@@ -1,6 +1,4 @@
 import type { TiffinCounts } from "@/lib/services/customer-deliveries.service";
-import { weekdayKey } from "@realm/commons";
-import { toIsoLocal } from "./calendar-constants";
 
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -20,10 +18,10 @@ export function isPoolScheduleDateEligible(
   return counts.deliveryWeekdays.includes(isoWeekdayKey(iso));
 }
 
-export function isPoolScheduleDateEligibleFromDate(
-  date: Date,
+export function isRescheduleTargetDateEligible(
+  iso: string,
   counts: TiffinCounts,
   today: string,
 ): boolean {
-  return isPoolScheduleDateEligible(toIsoLocal(date), counts, today);
+  return isPoolScheduleDateEligible(iso, counts, today);
 }

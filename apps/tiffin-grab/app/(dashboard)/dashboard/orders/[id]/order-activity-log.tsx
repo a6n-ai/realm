@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ScrollTextIcon } from "lucide-react";
 import { Badge } from "@realm/ui/badge";
 import {
@@ -11,7 +12,7 @@ import {
   SelectValue,
 } from "@realm/ui/select";
 import { TableCell } from "@realm/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import {
@@ -88,9 +89,29 @@ function ActorBadge({ kind, label }: { kind: ViewRow["actorKind"]; label: string
   );
 }
 
+function activityPagination(sp: URLSearchParams) {
+  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
+  const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
+  const size = (PAGE_SIZES as readonly number[]).includes(rawSize) ? rawSize : DEFAULT_SIZE;
+  return { page, size };
+}
+
 export function OrderActivityLog({ activities }: { activities: OrderActivityLogRow[] }) {
   const tz = useTimezone();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const [filter, setFilter] = useState<ActivityFilter>("all");
+  const { page, size } = activityPagination(params);
+
+  const pushParams = (patch: Record<string, string | null>) => {
+    const sp = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(patch)) {
+      if (v == null || v === "") sp.delete(k);
+      else sp.set(k, v);
+    }
+    router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+  };
 
   const rows = useMemo(() => {
     const view = toViewRows(activities);
@@ -113,7 +134,13 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
         keys: ["action", "actorLabel", "actorEmail", "note", "type"],
       }}
       filters={
-        <Select value={filter} onValueChange={(v) => setFilter(v as ActivityFilter)}>
+        <Select
+          value={filter}
+          onValueChange={(v) => {
+            setFilter(v as ActivityFilter);
+            pushParams({ page: "0" });
+          }}
+        >
           <SelectTrigger className="h-9 w-[11rem]" size="sm">
             <SelectValue />
           </SelectTrigger>
@@ -126,6 +153,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
           </SelectContent>
         </Select>
       }
+      pagination={{ page, size }}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No activity yet."
       emptySearchMessage="No activity matches your search."
