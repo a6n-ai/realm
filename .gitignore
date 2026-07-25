@@ -84,3 +84,4 @@ tiffingrab.ca.txt
 # real static assets, not scratch screenshots — allowlisted against the
 # blanket image ignore above
 !apps/puchkaman/public/instagram/*.jpg
+!apps/puchkaman/public/about/*.jpg

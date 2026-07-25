@@ -1,4 +1,4 @@
-import { Btn, Ph, PageBanner, SectionHead } from "@/components/brutal/shared";
+import { Btn, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 
 const TIMELINE: [string, string][] = [
@@ -29,7 +29,21 @@ export default function AboutPage() {
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              <Ph label="Founders / kitchen portrait" ratio="4 / 4.2" mod="rotate-l" style={{ boxShadow: "var(--sh-lg)" }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/about/storefront.jpg"
+                alt="Puchkaman Street Food Cafe storefront on Danforth Ave, Scarborough"
+                className="rotate-l"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  aspectRatio: "4 / 4.2",
+                  objectFit: "cover",
+                  border: "var(--border)",
+                  borderRadius: "var(--r)",
+                  boxShadow: "var(--sh-lg)",
+                }}
+              />
               <span className="sticker rotate-r" style={{ bottom: -14, right: -10, background: "var(--ink-bg)", color: "var(--yellow)" }}>
                 EST. SCARBOROUGH
               </span>
