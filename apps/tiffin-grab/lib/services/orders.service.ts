@@ -737,6 +737,7 @@ export type OrderPaymentDetail = {
   proof: PaymentProof | null;
   claimedAt: number | null;
   capturedAt: number | null;
+  createdAt: number;
   note: string | null;
   // Public thumb URL for inline display; null when no proof.
   proofThumbUrl: string | null;
@@ -778,6 +779,7 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
       proof: payments.proof,
       claimedAt: payments.claimedAt,
       capturedAt: payments.capturedAt,
+      createdAt: payments.createdAt,
       note: payments.note,
     })
     .from(payments)

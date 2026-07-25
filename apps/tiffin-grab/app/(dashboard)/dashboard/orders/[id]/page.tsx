@@ -1,12 +1,13 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@realm/commons";
+import { NotFoundError, zonedDateIso } from "@realm/commons";
 import { eq } from "drizzle-orm";
+import { findMethod } from "@realm/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
 import {
   myWaitlistedSubscriptions,
@@ -19,7 +20,6 @@ import {
   PageShell,
   PageHeader,
   SectionCard,
-  OrderStatusBadge,
   SkeletonCardGrid,
 } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
@@ -28,6 +28,7 @@ import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/deliver
 import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 import { AdminOrderDeliveries } from "./admin-order-deliveries";
 import { PaymentsPanel } from "./payments-panel";
+import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
 
@@ -70,7 +71,7 @@ async function OrderDetail({
     throw e;
   }
 
-  const [activities, settings, planRow, customer] = await Promise.all([
+  const [activities, settings, planRow, customer, paymentCfg] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     db.select({ planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
@@ -82,6 +83,7 @@ async function OrderDetail({
           .limit(1)
           .then((r) => r[0] ?? null)
       : Promise.resolve(null),
+    getPaymentConfig(),
   ]);
 
   const today = zonedDateIso(Date.now(), settings.timezone);
@@ -90,6 +92,12 @@ async function OrderDetail({
 
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
+  const categoryRows = await dishCategoriesService.forPlanType(planType);
+  const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
+  const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
+  const checkoutMethodLabel = checkoutMethodId
+    ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
+    : null;
 
   const subscription: Subscription | null =
     order.status === "active" || order.status === "paused"
@@ -151,42 +159,30 @@ async function OrderDetail({
         actions={<ActivateCancelControls orderId={order.publicId} status={order.status} />}
       />
 
-      <SectionCard title="Summary">
-        <div className="space-y-2 text-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <OrderStatusBadge status={order.status} />
-            {customer && (
-              <Link
-                href={`/dashboard/customers/${customer.publicId}`}
-                className="text-primary text-sm underline-offset-2 hover:underline"
-              >
-                Customer profile
-              </Link>
-            )}
-          </div>
-          <p>
-            <span className="text-muted-foreground">Schedule: </span>
-            start {order.startDate} · {order.durationWeeks} weeks · {order.frequencyKey} ·{" "}
-            {order.persons} person(s) · {order.mealSlots.join(", ")}
-          </p>
-          <p>
-            <span className="text-muted-foreground">Address: </span>
-            {order.addressLine}, {order.city} {order.postalCode}
-          </p>
-          <p>
-            <span className="text-muted-foreground">Total: </span>
-            {fmt(Number(order.total))}
-          </p>
-        </div>
-      </SectionCard>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <SectionCard title="Summary">
+          <OrderSummaryPanel
+            order={order}
+            customer={customer}
+            timezone={settings.timezone}
+            currency={settings.currency}
+            categoryLabels={categoryLabels}
+          />
+        </SectionCard>
 
-      <SectionCard title="Payments">
-        <PaymentsPanel
-          orderId={order.publicId}
-          deploymentId={order.deploymentId}
-          payments={order.payments}
-        />
-      </SectionCard>
+        <SectionCard title="Payment">
+          <PaymentsPanel
+            orderId={order.publicId}
+            deploymentId={order.deploymentId}
+            orderTotal={Number(order.total)}
+            currency={settings.currency}
+            timezone={settings.timezone}
+            checkoutMethodLabel={checkoutMethodLabel}
+            pricingSnapshot={order.pricingSnapshot}
+            payments={order.payments}
+          />
+        </SectionCard>
+      </div>
 
       <SectionCard title="Deliveries">
         {subscription && deliveriesBundle ? (
@@ -238,17 +234,19 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
         </div>
       </div>
 
-      <SectionCard title="Summary">
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-4 w-full max-w-md" />
-          ))}
-        </div>
-      </SectionCard>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <SectionCard title="Summary">
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-4 w-full max-w-md" />
+            ))}
+          </div>
+        </SectionCard>
 
-      <SectionCard title="Payments">
-        <Skeleton className="h-24 w-full" />
-      </SectionCard>
+        <SectionCard title="Payment">
+          <Skeleton className="h-32 w-full" />
+        </SectionCard>
+      </div>
 
       <SectionCard title="Deliveries">
         <DeliveryCalendarSkeleton />
