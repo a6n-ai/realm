@@ -319,10 +319,18 @@ export default async function HomePage() {
                       alt="Puchkaman on Instagram"
                       loading="lazy"
                       className="card--lift"
-                      style={{ display: "block", width: "100%", aspectRatio: "1 / 1", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)" }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        aspectRatio: "4 / 5",
+                        objectFit: "cover",
+                        objectPosition: "center 25%",
+                        border: "var(--border)",
+                        borderRadius: "var(--r)",
+                      }}
                     />
                   ) : (
-                    <Ph label="Reel" ratio="1 / 1" className="card--lift" />
+                    <Ph label="Reel" ratio="4 / 5" className="card--lift" />
                   )}
                   <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>▶</span>
                 </a>
