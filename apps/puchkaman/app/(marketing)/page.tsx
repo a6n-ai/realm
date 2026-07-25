@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { FileDetail } from "@realm/storage/model";
 import { Btn, Marquee, Ph, Pill, SectionHead, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { HeroVideo } from "@/components/brutal/hero-video";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
@@ -141,12 +142,9 @@ export default async function HomePage() {
                 aria-hidden="true"
                 style={{ position: "absolute", inset: 0, transform: "translate(16px, 18px) rotate(3deg)", background: "var(--ink-bg)", border: "var(--border)", borderRadius: "var(--r)" }}
               />
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-label="Chocolate puchkas — Puchkaman"
+              <HeroVideo
+                src="/hero/chocolate-puchka.mp4"
+                ariaLabel="Chocolate puchkas — Puchkaman"
                 className="rotate-r"
                 style={{
                   position: "relative",
@@ -158,9 +156,7 @@ export default async function HomePage() {
                   borderRadius: "var(--r)",
                   boxShadow: "none",
                 }}
-              >
-                <source src="/hero/chocolate-puchka.mp4" type="video/mp4" />
-              </video>
+              />
               <span className="sticker float-l" style={{ top: -16, left: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>FRESH DAILY</span>
               <span className="sticker float-r" style={{ bottom: 22, right: -14, fontSize: "0.95rem" }}>🔥 NEW: SUMMER DRINKS</span>
               <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
