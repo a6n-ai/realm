@@ -141,27 +141,26 @@ export default async function HomePage() {
                 aria-hidden="true"
                 style={{ position: "absolute", inset: 0, transform: "translate(16px, 18px) rotate(3deg)", background: "var(--ink-bg)", border: "var(--border)", borderRadius: "var(--r)" }}
               />
-              {heroUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={heroUrl}
-                  alt="Fusion puchkas — Puchkaman"
-                  fetchPriority="high"
-                  className="rotate-r"
-                  style={{
-                    position: "relative",
-                    display: "block",
-                    width: "100%",
-                    aspectRatio: "4 / 4.3",
-                    objectFit: "cover",
-                    border: "var(--border)",
-                    borderRadius: "var(--r)",
-                    boxShadow: "none",
-                  }}
-                />
-              ) : (
-                <Ph label="HERO SHOT — overflowing plate of fusion puchkas" ratio="4 / 4.3" mod="rotate-r" style={{ position: "relative", boxShadow: "none" }} />
-              )}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                aria-label="Chocolate puchkas — Puchkaman"
+                className="rotate-r"
+                style={{
+                  position: "relative",
+                  display: "block",
+                  width: "100%",
+                  aspectRatio: "4 / 4.3",
+                  objectFit: "cover",
+                  border: "var(--border)",
+                  borderRadius: "var(--r)",
+                  boxShadow: "none",
+                }}
+              >
+                <source src="/hero/chocolate-puchka.mp4" type="video/mp4" />
+              </video>
               <span className="sticker float-l" style={{ top: -16, left: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>FRESH DAILY</span>
               <span className="sticker float-r" style={{ bottom: 22, right: -14, fontSize: "0.95rem" }}>🔥 NEW: SUMMER DRINKS</span>
               <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
