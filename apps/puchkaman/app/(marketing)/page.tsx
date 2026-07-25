@@ -144,6 +144,7 @@ export default async function HomePage() {
               />
               <HeroVideo
                 src="/hero/chocolate-puchka.mp4"
+                poster="/hero/chocolate-puchka-poster.jpg"
                 ariaLabel="Chocolate puchkas — Puchkaman"
                 className="rotate-r"
                 style={{

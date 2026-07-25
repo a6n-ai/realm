@@ -85,3 +85,4 @@ tiffingrab.ca.txt
 # blanket image ignore above
 !apps/puchkaman/public/instagram/*.jpg
 !apps/puchkaman/public/about/*.jpg
+!apps/puchkaman/public/hero/*.jpg
