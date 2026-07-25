@@ -22,7 +22,7 @@ const REQUIRED: (keyof CForm)[] = ["name", "phone", "email", "date", "location",
 // The business's WhatsApp number — there's no WhatsApp Business API account
 // wired up (that needs Meta/Twilio credentials), so this sends the request
 // straight from the customer's own WhatsApp app instead of via any backend.
-const CATERING_WHATSAPP_NUMBER = "14167383833";
+const CATERING_WHATSAPP_NUMBER = "16472449813";
 
 function whatsAppUrlFor(form: CForm): string {
   const lines = [
@@ -114,6 +114,14 @@ function CateringForm() {
       // Opened synchronously inside this click-triggered handler so browsers
       // don't treat it as an unsolicited popup.
       window.open(whatsAppUrlFor(form), "_blank", "noopener,noreferrer");
+      // Fire-and-forget: email is a best-effort second channel. A failure here
+      // (logged server-side) never blocks the form or alarms the customer —
+      // the WhatsApp message above is the one guaranteed delivery.
+      fetch("/api/catering-inquiries", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+      }).catch(() => {});
       setSent(true);
       window.scrollTo({ top: e.currentTarget.getBoundingClientRect().top + window.scrollY - 120, behavior: "smooth" });
     }

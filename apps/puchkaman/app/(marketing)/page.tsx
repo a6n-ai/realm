@@ -331,28 +331,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ===== EVENTS TEASER / CTA ===== */}
-      <section className="section-pad" style={{ background: "var(--page-bg)" }}>
-        <div className="wrap">
-          <div className="card card--ink surface-ink" style={{ color: "var(--cream)", padding: "clamp(28px, 5vw, 56px)", overflow: "hidden", position: "relative" }}>
-            <div className="hero-grid" style={{ display: "grid", gap: 30, alignItems: "center" }}>
-              <div>
-                <span className="tape kicker" style={{ background: "var(--red)", color: "#fff" }}>Scarborough&apos;s Fan Hub</span>
-                <h2 className="display" style={{ fontSize: "clamp(2rem, 5.5vw, 3.4rem)", color: "var(--yellow)", marginTop: 16 }}>Watch Parties & Game Nights</h2>
-                <p style={{ fontWeight: 500, fontSize: "1.08rem", marginTop: 14, maxWidth: 460 }}>
-                  Cricket, football & big-match nights with limited seating (30–35), event combos and live puchkas. Reserve your spot before it&apos;s gone.
-                </p>
-                <div className="flex wrap-gap" style={{ marginTop: 24 }}>
-                  <Btn page="events" variant="red" size="lg">Reserve Your Spot →</Btn>
-                  <Btn page="events" variant="yellow" size="lg">See Upcoming</Btn>
-                </div>
-              </div>
-              <Ph label="Past watch party — packed house" ratio="4 / 3" mod="rotate-r" style={{ boxShadow: "8px 8px 0 var(--red)" }} />
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
