@@ -102,17 +102,74 @@ test.describe("admin order revamp (desktop)", () => {
     await detail.expectDeliveriesCalendar();
   });
 
-  test("order detail payments can expose copy pay link", async ({ page }) => {
+  test("order detail shows Summary and Payment cards with pricing context", async ({ page }) => {
     test.skip(!createdOrderUrl, "Requires create-order test to run first");
     await page.goto(createdOrderUrl!);
 
-    await expect(new OrderDetailPage(page).section("Payments")).toBeVisible();
-    const copyLink = page.getByRole("button", { name: /copy pay link/i });
+    const detail = new OrderDetailPage(page);
+    await detail.expectSummaryAndPaymentCards();
+    await expect(detail.summaryCard().getByText(/SUB-/)).toBeVisible();
+    await expect(detail.paymentCard().getByText(/\$\d|CAD|₹|order total/i).first()).toBeVisible();
+  });
+
+  test("order detail payment panel exposes copy pay link or settled row", async ({ page }) => {
+    test.skip(!createdOrderUrl, "Requires create-order test to run first");
+    await page.goto(createdOrderUrl!);
+
+    const detail = new OrderDetailPage(page);
+    await expect(detail.section("Payment")).toBeVisible();
+    const copyLink = detail.copyPayLink();
     if ((await copyLink.count()) > 0) {
       await expect(copyLink.first()).toBeVisible();
     } else {
-      // Simulated/settled payments hide the link — panel should still list the row.
-      await expect(page.getByText(/\$\d|paid|awaiting|simulated/i).first()).toBeVisible();
+      await expect(detail.paymentCard().getByText(/\$\d|paid|awaiting|simulated|pending/i).first()).toBeVisible();
     }
+  });
+
+  test("order detail activity log has search, facet filters, and pagination", async ({ page }) => {
+    test.skip(!createdOrderUrl, "Requires create-order test to run first");
+    await page.goto(createdOrderUrl!);
+
+    const detail = new OrderDetailPage(page);
+    await detail.expectActivityFilters();
+    await expect(detail.activityPaginationRange()).toBeVisible();
+
+    const search = detail.activitySection().getByPlaceholder(/search activity/i);
+    await search.fill("created");
+    await expect(detail.activitySection().getByText(/order created|created/i).first()).toBeVisible();
+    await search.fill("");
+  });
+
+  test("order detail activity URL category filter applies", async ({ page }) => {
+    test.skip(!createdOrderUrl, "Requires create-order test to run first");
+    const url = new URL(createdOrderUrl!);
+    url.searchParams.set("category", "lifecycle");
+    await page.goto(url.toString());
+
+    const detail = new OrderDetailPage(page);
+    await expect(detail.activitySection().getByText(/order created|activated|created/i).first()).toBeVisible();
+    await expect(detail.activitySection().getByText(/delivery skipped|meal pick/i)).toHaveCount(0);
+  });
+
+  test("orders list uses facet filters like activity log", async ({ page, expectHealthy }) => {
+    await page.goto("/dashboard/orders");
+    await expectHealthy(page, /orders/i);
+    await expect(page.getByRole("button", { name: /filter|add filter/i }).first()).toBeVisible();
+    await expect(page.getByPlaceholder(/search/i).first()).toBeVisible();
+    await expect(page.getByText(/\d+–\d+ of \d+|per page/i).first()).toBeVisible();
+  });
+
+  test("admin deliveries day detail shows skip, reschedule, or menu state", async ({ page }) => {
+    test.skip(!createdOrderUrl, "Requires create-order test to run first");
+    await page.goto(createdOrderUrl!);
+
+    const calendarDay = page.getByRole("button", { name: /scheduled|today/i }).first();
+    if (await calendarDay.count()) {
+      await calendarDay.click();
+    }
+
+    await expect(
+      page.getByText(/skip this day|reschedule|menu for|not scheduled this day/i).first(),
+    ).toBeAttached({ timeout: 15_000 });
   });
 });

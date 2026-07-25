@@ -1,24 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { ScrollTextIcon } from "lucide-react";
 import { Badge } from "@realm/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@realm/ui/select";
 import { TableCell } from "@realm/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import {
   describeActivity,
   describeActivityActor,
 } from "@/lib/services/order-activity-describe";
+import { filterActivityRows, ORDER_ACTIVITY_FACETS } from "./activity-facets";
 
 export type OrderActivityLogRow = {
   publicId: string;
@@ -31,23 +26,6 @@ export type OrderActivityLogRow = {
   actorName: string | null;
   actorEmail: string | null;
   actorRole: string | null;
-};
-
-type ActivityFilter = "all" | "deliveries" | "lifecycle" | "meals" | "notes";
-
-const FILTER_OPTIONS: { value: ActivityFilter; label: string }[] = [
-  { value: "all", label: "All activity" },
-  { value: "deliveries", label: "Deliveries" },
-  { value: "lifecycle", label: "Lifecycle" },
-  { value: "meals", label: "Meals" },
-  { value: "notes", label: "Notes" },
-];
-
-const FILTER_TYPES: Record<Exclude<ActivityFilter, "all">, string[]> = {
-  deliveries: ["skipped", "unskipped", "delivery_address_changed", "pool_scheduled"],
-  lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
-  meals: ["meal_pick"],
-  notes: ["note"],
 };
 
 type ViewRow = OrderActivityLogRow & {
@@ -98,27 +76,13 @@ function activityPagination(sp: URLSearchParams) {
 
 export function OrderActivityLog({ activities }: { activities: OrderActivityLogRow[] }) {
   const tz = useTimezone();
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
-  const [filter, setFilter] = useState<ActivityFilter>("all");
   const { page, size } = activityPagination(params);
-
-  const pushParams = (patch: Record<string, string | null>) => {
-    const sp = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(patch)) {
-      if (v == null || v === "") sp.delete(k);
-      else sp.set(k, v);
-    }
-    router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
-  };
 
   const rows = useMemo(() => {
     const view = toViewRows(activities);
-    if (filter === "all") return view;
-    const allowed = new Set(FILTER_TYPES[filter]);
-    return view.filter((row) => allowed.has(row.type));
-  }, [activities, filter]);
+    return filterActivityRows(view, params);
+  }, [activities, params]);
 
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
 
@@ -133,26 +97,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
         shortPlaceholder: "Search…",
         keys: ["action", "actorLabel", "actorEmail", "note", "type"],
       }}
-      filters={
-        <Select
-          value={filter}
-          onValueChange={(v) => {
-            setFilter(v as ActivityFilter);
-            pushParams({ page: "0" });
-          }}
-        >
-          <SelectTrigger className="h-9 w-[11rem]" size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FILTER_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      }
+      filters={<ReuiFacetFilters spec={ORDER_ACTIVITY_FACETS} />}
       pagination={{ page, size }}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No activity yet."
