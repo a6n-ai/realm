@@ -20,6 +20,7 @@ import { FilterBar } from "./filter-bar";
 import { SearchInput } from "./search-input";
 import { SortableHeader } from "./sortable-header";
 import { useSortNav } from "./use-sort-nav";
+import { ListPagination } from "./list-pagination";
 
 export type SortDir = "asc" | "desc";
 export type SortState<K extends string = string> = { column: K; dir: SortDir };
@@ -64,6 +65,8 @@ export type DataTableProps<Row, K extends string> = {
   emptyMessage: string;
   emptySearchMessage?: string;
   emptyAction?: ReactNode;
+  /** Client-side pagination over filtered rows; page/size sync via URL (see ListPagination). */
+  pagination?: { page: number; size: number };
 };
 
 const alignClass = (align?: "right" | "center") =>
@@ -271,6 +274,7 @@ export function DataTable<Row, K extends string>({
   sort, serial = true, idAccessor, idHref, idLabel = "ID",
   search, filters, actions,
   emptyIcon: EmptyIcon, emptyMessage, emptySearchMessage, emptyAction,
+  pagination,
 }: DataTableProps<Row, K>) {
   const [searchValue, setSearchValue] = useSearchQuery();
   const router = useRouter();
@@ -287,6 +291,14 @@ export function DataTable<Row, K extends string>({
         return search.keys!.some((k) => String(r[k] ?? "").toLowerCase().includes(q));
       })
     : rows;
+
+  const total = filtered.length;
+  const pageCount = pagination ? Math.max(1, Math.ceil(total / pagination.size)) : 1;
+  const safePage = pagination ? Math.min(Math.max(0, pagination.page), pageCount - 1) : 0;
+  const displayRows = pagination
+    ? filtered.slice(safePage * pagination.size, (safePage + 1) * pagination.size)
+    : filtered;
+  const serialOffset = pagination ? safePage * pagination.size : 0;
 
   return (
     <div className="space-y-4">
@@ -312,8 +324,8 @@ export function DataTable<Row, K extends string>({
             <HeaderRow columns={columns} sort={sort} serial={serial} hasId={hasId} idLabel={idLabel} />
           </TableHeader>
           <TableBody>
-            {filtered.length ? (
-              filtered.map((r, i) => (
+            {displayRows.length ? (
+              displayRows.map((r, i) => (
                 <TableRow
                   key={rowKey(r)}
                   className={cn(idHref && "cursor-pointer", rowClassName?.(r))}
@@ -334,7 +346,7 @@ export function DataTable<Row, K extends string>({
                   }
                 >
                   {serial && (
-                    <TableCell className="text-muted-foreground text-right tabular-nums">{i + 1}</TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">{serialOffset + i + 1}</TableCell>
                   )}
                   {hasId && (
                     <TableCell className="font-mono text-xs">
@@ -375,8 +387,8 @@ export function DataTable<Row, K extends string>({
         </Table>
       </div>
       <div className="space-y-3 md:hidden">
-        {filtered.length ? (
-          filtered.map((r) => (
+        {displayRows.length ? (
+          displayRows.map((r) => (
             <MobileCard
               key={rowKey(r)}
               row={r}
@@ -404,6 +416,9 @@ export function DataTable<Row, K extends string>({
           </div>
         )}
       </div>
+      {pagination && total > 0 && (
+        <ListPagination page={safePage} size={pagination.size} total={total} />
+      )}
     </div>
   );
 }

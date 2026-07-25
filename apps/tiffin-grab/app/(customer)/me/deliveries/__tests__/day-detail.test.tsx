@@ -8,6 +8,8 @@ vi.mock("../actions", () => ({
   unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(),
   clearMyDeliveryAddress: vi.fn(),
+  rescheduleMyDelivery: vi.fn(),
+  scheduleMyPooledTiffin: vi.fn(),
 }));
 
 vi.mock("../meals/actions", () => ({
@@ -23,7 +25,12 @@ import type { DeliveryCardMeal } from "../meal-chips";
 afterEach(cleanup);
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
-type DeliveryCardData = CustomerDelivery & { meal: DeliveryCardMeal; address: Address; hasAddressOverride: boolean };
+type DeliveryCardData = CustomerDelivery & {
+  meal: DeliveryCardMeal;
+  address: Address;
+  hasAddressOverride: boolean;
+  hasMakeupScheduled: boolean;
+};
 
 const address: Address = { fullName: "A", addressLine: "1 St", city: "City", postalCode: "00000" };
 
@@ -40,6 +47,7 @@ function makeDelivery(overrides: Partial<DeliveryCardData> = {}): DeliveryCardDa
     meal: [],
     address,
     hasAddressOverride: false,
+    hasMakeupScheduled: false,
     ...overrides,
   } as unknown as DeliveryCardData;
 }
@@ -62,7 +70,7 @@ const noop = () => undefined;
 describe("DayDetail — off-day (no cell, no delivery)", () => {
   it("shows the inert 'Not scheduled' state, never Locked/Sealed", () => {
     render(
-      <DayDetail dateIso="2026-07-25" cell={undefined} delivery={undefined} orderPublicId="ord_1" categoryLabels={{}} tz="UTC" onChanged={noop} />,
+      <DayDetail dateIso="2026-07-25" cell={undefined} delivery={undefined} orderPublicId="ord_1" categoryLabels={{}} tz="UTC" today="2026-07-20" onChanged={noop} />,
     );
     expect(screen.getByText("Not scheduled")).toBeInTheDocument();
     expect(screen.getByText("Not scheduled this day.")).toBeInTheDocument();
@@ -82,6 +90,7 @@ describe("DayDetail — unreleased week (delivery, no cell)", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );
@@ -102,6 +111,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );
@@ -118,6 +128,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );
@@ -126,7 +137,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
   });
 
-  it("shows Un-skip, not Skip or Change address, for a skipped day", () => {
+  it("shows Un-skip and Reschedule, not Skip or Change address, for a skipped day", () => {
     render(
       <DayDetail
         dateIso="2026-07-20"
@@ -135,12 +146,31 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );
     expect(screen.getByRole("button", { name: /Un-skip/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change address/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Reschedule for a paused hold day", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell({ status: "paused" })}
+        delivery={makeDelivery({ status: "paused" })}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
   });
 
   it("does not offer Skip for a make-up delivery", () => {
@@ -152,6 +182,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );
@@ -170,6 +201,7 @@ describe("DayDetail — locked (past cutoff) cell", () => {
         orderPublicId="ord_1"
         categoryLabels={{}}
         tz="UTC"
+        today="2026-07-20"
         onChanged={noop}
       />,
     );

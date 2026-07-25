@@ -9,6 +9,13 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test -c e2e/playwright.config.ts --ui",
+    "test:e2e:admin": "playwright test -c e2e/playwright.config.ts --project=admin",
+    "test:e2e:admin:order-revamp": "playwright test -c e2e/playwright.config.ts --project=admin e2e/admin/order-revamp.spec.ts",
+    "test:e2e:features": "playwright test -c e2e/playwright.config.ts --project=admin e2e/admin/order-revamp.spec.ts && playwright test -c e2e/playwright.config.ts --project=customer e2e/customer/deliveries-ux.spec.ts",
+    "test:e2e:public": "playwright test -c e2e/playwright.config.ts --project=public",
+    "test:e2e:customer": "playwright test -c e2e/playwright.config.ts --project=customer",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "audit:skeletons": "playwright test skeleton-audit/capture.ts"

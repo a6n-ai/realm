@@ -1,6 +1,6 @@
 import { NotFoundError, Role, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
-import { and, asc, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
@@ -201,6 +201,8 @@ export type TiffinCounts = {
   remaining: number;
   /** Tiffins owed but not yet placed on a date (schedulable after the last delivery). */
   pooled: number;
+  /** Skipped or paused originals not yet replaced by a make-up (pre-cutoff). */
+  holdDays: number;
   /** Tiffins per delivery day = persons; a pooled day the customer schedules costs this many. */
   persons: number;
   /** Latest delivery_date on any row — pooled tiffins may only be scheduled strictly after it. */
@@ -235,6 +237,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 
   const rows = await db
     .select({
+      id: deliveries.id,
       status: deliveries.status,
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
@@ -243,6 +246,20 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     })
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
+
+  const makeupSources = await db
+    .select({ src: deliveries.makeupForDeliveryId })
+    .from(deliveries)
+    .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
+
+  const replaced = new Set(makeupSources.map((r) => r.src!.toString()));
+  const holdDays = rows.filter(
+    (r) =>
+      r.makeupForDeliveryId === null &&
+      (r.status === "skipped" || r.status === "paused") &&
+      r.pooledAt == null &&
+      !replaced.has(r.id.toString()),
+  ).length;
 
   const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
   const lastDeliveryDate = rows.reduce<string | null>(
@@ -260,6 +277,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     delivered,
     remaining: order.tiffinCount - delivered,
     pooled: order.pooled,
+    holdDays,
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,
@@ -271,6 +289,21 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   return orderTiffinCounts(orderPublicId);
+}
+
+/** Original delivery ids that already have a make-up row (reschedule / pool schedule). */
+export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Set<string>> {
+  const [order] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  if (!order) return new Set();
+  const rows = await db
+    .select({ src: deliveries.makeupForDeliveryId })
+    .from(deliveries)
+    .where(and(eq(deliveries.orderId, order.id), isNotNull(deliveries.makeupForDeliveryId)));
+  return new Set(rows.map((r) => r.src!.toString()));
 }
 
 // Pause budget for the customer's pause UI: limits (nullable = unlimited) and

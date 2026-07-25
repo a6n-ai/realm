@@ -15,7 +15,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import type { DeliveryCardMeal } from "./meal-chips";
 import { VacationControl, cutoffByDateFromDeliveries } from "./vacation-control";
 import { MonthCalendar } from "./month-calendar";
-import { DayDetail } from "./day-detail";
+import { DayDetail, holdDeliveriesFrom } from "./day-detail";
 import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
 import { SubscriptionPlanHeader } from "./subscription-items";
 import { toIsoLocal, type CalendarCell } from "./calendar-constants";
@@ -34,11 +34,16 @@ function DesktopDayStatusLegend() {
   );
 }
 
-function deliveriesHref(monthKey: string, selectedPublicId?: string) {
+function deliveriesHref(
+  basePath: string,
+  monthKey: string,
+  selectedPublicId?: string,
+  includeSub = true,
+) {
   const params = new URLSearchParams();
   params.set("month", monthKey);
-  if (selectedPublicId) params.set("sub", selectedPublicId);
-  return `/me/deliveries?${params.toString()}`;
+  if (includeSub && selectedPublicId) params.set("sub", selectedPublicId);
+  return `${basePath}?${params.toString()}`;
 }
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
@@ -47,6 +52,7 @@ export type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
+  hasMakeupScheduled: boolean;
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;
@@ -67,7 +73,10 @@ function TiffinCalendarSection({
   tz,
   today,
   monthKey,
+  basePath,
   onVacationClick,
+  onMonthChangeOverride,
+  onChangedOverride,
 }: {
   sub: Subscription;
   allSubscriptions: Subscription[];
@@ -79,7 +88,10 @@ function TiffinCalendarSection({
   tz: string;
   today: string;
   monthKey: string;
+  basePath: string;
   onVacationClick: () => void;
+  onMonthChangeOverride?: (monthKey: string) => void;
+  onChangedOverride?: () => void;
 }) {
   const router = useRouter();
   const todayIso = today || toIsoLocal(new Date());
@@ -107,17 +119,25 @@ function TiffinCalendarSection({
 
   const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
   const deliveryByDate = useMemo(() => new Map(deliveries.map((d) => [d.deliveryDate, d])), [deliveries]);
+  const holdDeliveries = useMemo(() => holdDeliveriesFrom(deliveries), [deliveries]);
 
   function onChanged() {
-    router.refresh();
+    if (onChangedOverride) onChangedOverride();
+    else router.refresh();
   }
 
+  const includeSub = basePath === "/me/deliveries";
+
   function switchSubscription(publicId: string) {
-    router.push(deliveriesHref(monthKey, publicId));
+    router.push(deliveriesHref(basePath, monthKey, publicId, includeSub));
   }
 
   function changeMonth(nextMonth: string) {
-    router.push(deliveriesHref(nextMonth, sub.publicId));
+    if (onMonthChangeOverride) {
+      onMonthChangeOverride(nextMonth);
+      return;
+    }
+    router.push(deliveriesHref(basePath, nextMonth, sub.publicId, includeSub));
   }
 
   const monthCalendarProps = {
@@ -167,6 +187,9 @@ function TiffinCalendarSection({
           categoryLabels={categoryLabels}
           categoryCounts={sub.categoryCounts}
           tz={tz}
+          today={todayIso}
+          tiffinCounts={counts}
+          holdDeliveries={holdDeliveries}
           onChanged={onChanged}
         />
       </div>
@@ -189,6 +212,9 @@ function TiffinCalendarSection({
                 categoryLabels={categoryLabels}
                 categoryCounts={sub.categoryCounts}
                 tz={tz}
+                today={todayIso}
+                tiffinCounts={counts}
+                holdDeliveries={holdDeliveries}
                 onChanged={onChanged}
               />
             </CardContent>
@@ -210,6 +236,12 @@ export function DeliveryCalendar({
   waitlisted = [],
   today = "",
   tiffinCounts,
+  basePath = "/me/deliveries",
+  title = "My deliveries",
+  subtitle = "Month calendar, day details, and vacation pause for your plan.",
+  showBrowsePlans = true,
+  onMonthChange,
+  onDeliveriesChanged,
 }: {
   subscriptions: Subscription[];
   selectedPublicId?: string;
@@ -221,6 +253,15 @@ export function DeliveryCalendar({
   waitlisted?: WaitlistedSubscription[];
   today?: string;
   tiffinCounts?: TiffinCounts;
+  /** Month navigation base (customer `/me/deliveries` or admin `/dashboard/orders/{id}`). */
+  basePath?: string;
+  title?: string;
+  subtitle?: string;
+  showBrowsePlans?: boolean;
+  /** When set, month arrows call this instead of router navigation (admin order detail). */
+  onMonthChange?: (monthKey: string) => void;
+  /** When set, delivery mutations refresh via this callback. */
+  onDeliveriesChanged?: () => void;
 }) {
   const tz = useTimezone();
   const [vacationOpen, setVacationOpen] = useState(false);
@@ -236,9 +277,11 @@ export function DeliveryCalendar({
               icon={CalendarDaysIcon}
               message="No active subscriptions yet."
               action={
-                <Button asChild size="sm">
-                  <Link href="/subscribe">Browse plans</Link>
-                </Button>
+                showBrowsePlans ? (
+                  <Button asChild size="sm">
+                    <Link href="/subscribe">Browse plans</Link>
+                  </Button>
+                ) : undefined
               }
             />
           )}
@@ -257,8 +300,8 @@ export function DeliveryCalendar({
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
         icon={CalendarDaysIcon}
-        title="My deliveries"
-        subtitle="Month calendar, day details, and vacation pause for your plan."
+        title={title}
+        subtitle={subtitle}
         actions={
           <Button
             type="button"
@@ -296,7 +339,10 @@ export function DeliveryCalendar({
         tz={tz}
         today={today}
         monthKey={monthKey}
+        basePath={basePath}
         onVacationClick={() => setVacationOpen(true)}
+        onMonthChangeOverride={onMonthChange}
+        onChangedOverride={onDeliveriesChanged}
       />
     </div>
   );

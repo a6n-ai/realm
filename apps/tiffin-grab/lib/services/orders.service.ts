@@ -737,6 +737,7 @@ export type OrderPaymentDetail = {
   proof: PaymentProof | null;
   claimedAt: number | null;
   capturedAt: number | null;
+  createdAt: number;
   note: string | null;
   // Public thumb URL for inline display; null when no proof.
   proofThumbUrl: string | null;
@@ -778,6 +779,7 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
       proof: payments.proof,
       claimedAt: payments.claimedAt,
       capturedAt: payments.capturedAt,
+      createdAt: payments.createdAt,
       note: payments.note,
     })
     .from(payments)
@@ -809,7 +811,25 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
 }
 
 export async function listOrderActivities(orderId: bigint) {
-  return db.select().from(orderActivities).where(eq(orderActivities.orderId, orderId)).orderBy(desc(orderActivities.createdAt));
+  const rows = await db
+    .select({
+      publicId: orderActivities.publicId,
+      type: orderActivities.type,
+      note: orderActivities.note,
+      fromStatus: orderActivities.fromStatus,
+      toStatus: orderActivities.toStatus,
+      deliveryId: orderActivities.deliveryId,
+      createdAt: orderActivities.createdAt,
+      createdBy: orderActivities.createdBy,
+      actorName: users.name,
+      actorEmail: users.email,
+      actorRole: users.role,
+    })
+    .from(orderActivities)
+    .leftJoin(users, eq(orderActivities.createdBy, users.id))
+    .where(eq(orderActivities.orderId, orderId))
+    .orderBy(desc(orderActivities.createdAt));
+  return rows;
 }
 
 type OrderStatusValue = (typeof orders.status.enumValues)[number];

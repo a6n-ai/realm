@@ -205,7 +205,20 @@ export function AddInquirySheet({
         <NoSources noun="inquiry" />
       ) : (
         <Form {...form}>
-          <form id="new-inquiry-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+          <form id="new-inquiry-form" onSubmit={form.handleSubmit(onSubmit)} className="relative flex min-h-0 flex-1 flex-col">
+            {submitting && (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Loader2Icon className="text-primary size-8 animate-spin" />
+                <div className="text-center">
+                  <p className="text-sm font-medium">Adding inquiry…</p>
+                  <p className="text-muted-foreground text-xs">Saving the lead — this can take a few seconds.</p>
+                </div>
+              </div>
+            )}
             <StepHeader step={step} steps={["Contact", "Interest"]} />
             <div className="space-y-6 px-5 py-5">
               {step === 1 ? (

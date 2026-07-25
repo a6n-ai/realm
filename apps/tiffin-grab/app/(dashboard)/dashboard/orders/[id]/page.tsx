@@ -1,44 +1,65 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError, formatMoney as fmt } from "@realm/commons";
+import { NotFoundError, zonedDateIso } from "@realm/commons";
+import { eq } from "drizzle-orm";
+import { findMethod } from "@realm/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
-import { describeActivity } from "@/lib/services/order-activity-describe";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { effectiveAddress, listDeliveries } from "@/lib/services/deliveries.service";
-import { orderTiffinCounts } from "@/lib/services/customer-deliveries.service";
+import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
+import {
+  myWaitlistedSubscriptions,
+  type Subscription,
+} from "@/lib/services/customer-deliveries.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
-import { formatEpoch } from "@/lib/format/datetime";
+import { db } from "@/db/client";
+import { plans, users } from "@/db/schema";
 import {
   PageShell,
   PageHeader,
   SectionCard,
-  ListRow,
-  OrderStatusBadge,
   SkeletonCardGrid,
 } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 import { MealsGrid } from "../../meals/meals-grid";
-import { LifecycleControls } from "./lifecycle-controls";
-import { PoolControls } from "./pool-controls";
+import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
+import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { AdminOrderDeliveries } from "./admin-order-deliveries";
 import { PaymentsPanel } from "./payments-panel";
-import { DeliveriesPanel, DeliveriesPanelSkeleton } from "./deliveries-panel";
-import type { DeliveryRow } from "./deliveries-panel-columns";
+import { OrderSummaryPanel } from "./order-summary-panel";
+import { ActivateCancelControls } from "./activate-cancel-controls";
+import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<{ month?: string }>;
+
+export default function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   return (
     <PageShell>
       <Suspense fallback={<OrderDetail.Skeleton />}>
-        <OrderDetail params={params} />
+        <OrderDetail params={params} searchParams={searchParams} />
       </Suspense>
     </PageShell>
   );
 }
 
-async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
+async function OrderDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   await requireStaff();
   const { id } = await params;
+  const { month: monthParam } = await searchParams;
 
   const settingsP = getAppSettings();
   let order;
@@ -49,74 +70,131 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [activities, settings, rawDeliveries, tiffinCounts] = await Promise.all([
+
+  const [activities, settings, planRow, customer, paymentCfg] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
-    listDeliveries(order.id),
-    orderTiffinCounts(order.publicId),
+    db.select({ planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
+    order.userId != null
+      ? db
+          .select({ publicId: users.publicId })
+          .from(users)
+          .where(eq(users.id, order.userId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : Promise.resolve(null),
+    getPaymentConfig(),
   ]);
 
-  const dateById = new Map(rawDeliveries.map((d) => [d.id, d.deliveryDate]));
-  const deliveryRows: DeliveryRow[] = rawDeliveries.map((d) => {
-    const addr = effectiveAddress(d, order);
-    return {
-      publicId: d.publicId,
-      deliveryDate: d.deliveryDate,
-      status: d.status,
-      cutoffAt: d.cutoffAt,
-      isMakeup: d.makeupForDeliveryId !== null,
-      makeupForDate: d.makeupForDeliveryId !== null ? (dateById.get(d.makeupForDeliveryId) ?? null) : null,
-      hasAddressOverride: d.addressLine !== null,
-      address: {
-        fullName: addr.fullName,
-        addressLine: addr.addressLine ?? "",
-        city: addr.city,
-        postalCode: addr.postalCode ?? "",
-      },
-    };
-  });
+  const today = zonedDateIso(Date.now(), settings.timezone);
+  const monthKey = parseMonthParam(monthParam, today);
+  const { from, until } = monthFetchRange(monthKey, today);
+
+  const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
+  const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
+  const categoryRows = await dishCategoriesService.forPlanType(planType);
+  const categoryLabels = Object.fromEntries(categoryRows.map((c) => [c.key, c.label]));
+  const checkoutMethodId = (order.pricingSnapshot as { paymentMethodId?: string } | null)?.paymentMethodId;
+  const checkoutMethodLabel = checkoutMethodId
+    ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
+    : null;
+
+  const subscription: Subscription | null =
+    order.status === "active" || order.status === "paused"
+      ? {
+          publicId: order.publicId,
+          planName: order.planName,
+          planType,
+          planKey: order.planKey,
+          status: order.status,
+          fullName: order.fullName,
+          addressLine: order.addressLine,
+          city: order.city,
+          postalCode: order.postalCode,
+          zoneId: order.zoneId,
+          mealSizeName: order.mealSizeName,
+          persons: order.persons,
+          categoryCounts,
+        }
+      : null;
+
+  const waitlisted =
+    order.userId != null && (order.status === "waitlisted" || order.status === "pending")
+      ? (
+          await myWaitlistedSubscriptions(order.userId)
+        ).filter((s) => s.publicId === order.publicId)
+      : [];
+
+  let deliveriesBundle: Awaited<ReturnType<typeof loadOrderDeliveriesBundle>> | null = null;
+
+  if (subscription && order.userId != null) {
+    deliveriesBundle = await loadOrderDeliveriesBundle(order.userId, subscription, from, until);
+  }
 
   const grid = await buildMealsGrid(
     {
-      id: order.id, publicId: order.publicId, planId: order.planId, persons: order.persons,
-      categoryCounts: order.categoryCounts,
-      mealSlots: order.mealSlots, includeSaturday: order.includeSaturday, includeSunday: order.includeSunday,
-      startDate: order.startDate, durationWeeks: order.durationWeeks, frequencyKey: order.frequencyKey,
+      id: order.id,
+      publicId: order.publicId,
+      planId: order.planId,
+      persons: order.persons,
+      categoryCounts,
+      mealSlots: order.mealSlots,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+      startDate: order.startDate,
+      durationWeeks: order.durationWeeks,
+      frequencyKey: order.frequencyKey,
     },
     settings,
   );
 
+  const basePath = `/dashboard/orders/${order.publicId}`;
+
   return (
     <>
-      <PageHeader icon={PackageIcon} title={order.fullName} />
+      <PageHeader
+        icon={PackageIcon}
+        title={order.fullName}
+        subtitle={order.deploymentId}
+        actions={<ActivateCancelControls orderId={order.publicId} status={order.status} />}
+      />
 
-      <SectionCard title="Summary">
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-3">
-            <OrderStatusBadge status={order.status} />
-            <span className="text-muted-foreground">{order.deploymentId}</span>
-          </div>
-          <p><span className="text-muted-foreground">Plan: </span>{order.planName} · {order.mealSizeName} · {order.frequencyKey}</p>
-          <p><span className="text-muted-foreground">Schedule: </span>start {order.startDate} · {order.durationWeeks} weeks · {order.persons} person(s) · {order.mealSlots.join(", ")}</p>
-          <p><span className="text-muted-foreground">Address: </span>{order.addressLine}, {order.city} {order.postalCode}</p>
-          <p><span className="text-muted-foreground">Total: </span>{fmt(Number(order.total))}</p>
-        </div>
-      </SectionCard>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <SectionCard title="Summary">
+          <OrderSummaryPanel
+            order={order}
+            customer={customer}
+            timezone={settings.timezone}
+            currency={settings.currency}
+            categoryLabels={categoryLabels}
+          />
+        </SectionCard>
 
-      <SectionCard title="Payments">
-        <PaymentsPanel orderId={order.publicId} payments={order.payments} />
-      </SectionCard>
-
-      <SectionCard title="Lifecycle">
-        <LifecycleControls orderId={order.publicId} status={order.status} />
-      </SectionCard>
-
-      <SectionCard title="Tiffins">
-        <PoolControls orderId={order.publicId} counts={tiffinCounts} />
-      </SectionCard>
+        <SectionCard title="Payment">
+          <PaymentsPanel
+            orderId={order.publicId}
+            deploymentId={order.deploymentId}
+            orderTotal={Number(order.total)}
+            currency={settings.currency}
+            timezone={settings.timezone}
+            checkoutMethodLabel={checkoutMethodLabel}
+            pricingSnapshot={order.pricingSnapshot}
+            payments={order.payments}
+          />
+        </SectionCard>
+      </div>
 
       <SectionCard title="Deliveries">
-        <DeliveriesPanel orderId={order.publicId} deliveries={deliveryRows} orderStatus={order.status} />
+        {subscription && deliveriesBundle ? (
+          <AdminOrderDeliveries
+            initial={{ ...deliveriesBundle, monthKey, today }}
+            subscription={subscription}
+            waitlisted={waitlisted}
+            basePath={basePath}
+          />
+        ) : (
+          <DeliveryCalendarSkeleton />
+        )}
       </SectionCard>
 
       <SectionCard title="This week's meals">
@@ -140,23 +218,12 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
       </SectionCard>
 
       <SectionCard title="Activity">
-        {activities.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No activity yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {activities.map((a) => (
-              <ListRow key={a.publicId} title={describeActivity(a)} meta={formatEpoch(a.createdAt, { mode: "datetime", timeZone: settings.timezone })} />
-            ))}
-          </div>
-        )}
+        <OrderActivityLog activities={activities} />
       </SectionCard>
     </>
   );
 }
 
-// Exact loading twin: reuses OrderDetail's own PageHeader/SectionCard/ListRow
-// layout with grey blocks where data goes, so the fallback stays in sync with
-// the real render by construction.
 OrderDetail.Skeleton = function OrderDetailSkeleton() {
   return (
     <>
@@ -167,32 +234,22 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
         </div>
       </div>
 
-      <SectionCard title="Summary">
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-4 w-full max-w-md" />
-          ))}
-        </div>
-      </SectionCard>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <SectionCard title="Summary">
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-4 w-full max-w-md" />
+            ))}
+          </div>
+        </SectionCard>
 
-      <SectionCard title="Payments">
-        <Skeleton className="h-24 w-full" />
-      </SectionCard>
-
-      <SectionCard title="Lifecycle">
-        <Skeleton className="h-9 w-48" />
-      </SectionCard>
-
-      <SectionCard title="Tiffins">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
-        </div>
-      </SectionCard>
+        <SectionCard title="Payment">
+          <Skeleton className="h-32 w-full" />
+        </SectionCard>
+      </div>
 
       <SectionCard title="Deliveries">
-        <DeliveriesPanelSkeleton />
+        <DeliveryCalendarSkeleton />
       </SectionCard>
 
       <SectionCard title="This week's meals">
@@ -200,11 +257,7 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
       </SectionCard>
 
       <SectionCard title="Activity">
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ListRow key={i} title={<Skeleton className="h-4 w-40" />} meta={<Skeleton className="h-3 w-24" />} />
-          ))}
-        </div>
+        <OrderActivityLogSkeleton />
       </SectionCard>
     </>
   );

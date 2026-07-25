@@ -21,7 +21,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, CalendarClockIcon, CalendarPlusIcon } from "lucide-react";
 import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
@@ -35,12 +35,57 @@ import { DAY_STATUS_BAR_CLASS, DAY_STATUS_LABEL, calendarDayStatus, type DayStat
 import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
-import type { CustomerDelivery } from "@/lib/services/customer-deliveries.service";
+import type { CustomerDelivery, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardMeal } from "./meal-chips";
-import { clearMyDeliveryAddress, setMyDeliveryAddress, skipMyDelivery, unskipMyDelivery } from "./actions";
+import {
+  clearMyDeliveryAddress,
+  rescheduleMyDelivery,
+  scheduleMyPooledTiffin,
+  setMyDeliveryAddress,
+  skipMyDelivery,
+  unskipMyDelivery,
+} from "./actions";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@realm/ui/select";
+import { VacationDateField } from "./vacation-date-field";
+import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
 
 type Address = DeliveryAddressValues;
-type DeliveryCardData = CustomerDelivery & { meal: DeliveryCardMeal; address: Address; hasAddressOverride: boolean };
+type DeliveryCardData = CustomerDelivery & {
+  meal: DeliveryCardMeal;
+  address: Address;
+  hasAddressOverride: boolean;
+  hasMakeupScheduled: boolean;
+};
+type HoldDeliveryOption = {
+  publicId: string;
+  deliveryDate: string;
+  status: "skipped" | "paused";
+};
+
+export function holdDeliveriesFrom(deliveries: DeliveryCardData[]): HoldDeliveryOption[] {
+  return deliveries
+    .filter(
+      (d) =>
+        !d.isMakeup &&
+        (d.status === "skipped" || d.status === "paused") &&
+        !d.hasMakeupScheduled &&
+        d.pooledAt == null,
+    )
+    .map((d) => ({
+      publicId: d.publicId,
+      deliveryDate: d.deliveryDate,
+      status: d.status as "skipped" | "paused",
+    }))
+    .sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
+}
+
+function isRescheduleTargetOccupied(delivery: DeliveryCardData | undefined): boolean {
+  if (!delivery) return false;
+  if (delivery.isMakeup) return true;
+  return delivery.status === "scheduled";
+}
 
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   deliveryPublicId: string;
@@ -127,13 +172,227 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   );
 }
 
+function RescheduleDialog({
+  deliveryPublicId,
+  today,
+  sourceDateIso,
+  onSaved,
+}: {
+  deliveryPublicId: string;
+  today: string;
+  sourceDateIso?: string;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setDate("");
+    setError(null);
+  }
+
+  function submit() {
+    if (!date) return;
+    setError(null);
+    start(async () => {
+      try {
+        await rescheduleMyDelivery(deliveryPublicId, date);
+        setOpen(false);
+        reset();
+        onSaved();
+        toast.success("Delivery rescheduled");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not reschedule");
+      }
+    });
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) reset();
+      }}
+      trigger={
+        <Button variant="outline" size="sm">
+          <CalendarClockIcon data-icon="inline-start" /> Reschedule
+        </Button>
+      }
+      title="Reschedule delivery"
+      footer={
+        <div className="flex w-full justify-end gap-2">
+          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-muted-foreground text-sm">
+          {sourceDateIso
+            ? `Move your ${formatDateOnly(sourceDateIso, { mode: "short" })} hold day to another delivery day, or tap a date on the calendar and use “Reschedule hold day here”.`
+            : "Pick the day you want this delivery moved to. Your original day will be skipped and a new delivery will be added on the date you choose."}
+        </p>
+        <VacationDateField
+          id={`reschedule-${deliveryPublicId}`}
+          label="New delivery day"
+          value={date}
+          onChange={setDate}
+          today={today}
+          minDate={today}
+        />
+        {error && <p className="text-bad text-xs">{error}</p>}
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+function ScheduleHoldDayAction({
+  holdDeliveries,
+  dateIso,
+  counts,
+  today,
+  targetOccupied,
+  onChanged,
+}: {
+  holdDeliveries: HoldDeliveryOption[];
+  dateIso: string;
+  counts: TiffinCounts;
+  today: string;
+  targetOccupied: boolean;
+  onChanged: () => void;
+}) {
+  const movable = holdDeliveries.filter((h) => h.deliveryDate !== dateIso);
+  const [open, setOpen] = useState(false);
+  const [holdPublicId, setHoldPublicId] = useState(movable[0]?.publicId ?? "");
+  const [pending, start] = useTransition();
+
+  if (movable.length === 0 || targetOccupied) return null;
+  if (!isRescheduleTargetDateEligible(dateIso, counts, today)) return null;
+
+  function run(publicId: string) {
+    start(async () => {
+      try {
+        await rescheduleMyDelivery(publicId, dateIso);
+        setOpen(false);
+        onChanged();
+        toast.success("Hold day rescheduled");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not reschedule that day");
+      }
+    });
+  }
+
+  if (movable.length === 1) {
+    const hold = movable[0]!;
+    return (
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(hold.publicId)}>
+        <CalendarClockIcon data-icon="inline-start" />
+        Reschedule hold day here
+      </Button>
+    );
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button variant="outline" size="sm">
+          <CalendarClockIcon data-icon="inline-start" />
+          Reschedule hold day here
+        </Button>
+      }
+      title="Reschedule a hold day"
+      footer={
+        <div className="flex w-full justify-end gap-2">
+          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
+            {pending ? "Saving…" : "Confirm"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-muted-foreground text-sm">
+          Move a hold day to {formatDateOnly(dateIso, { mode: "long" })}.
+        </p>
+        <div className="space-y-2">
+          <label htmlFor="hold-day-pick" className="text-sm font-medium">Hold day to move</label>
+          <Select value={holdPublicId} onValueChange={setHoldPublicId}>
+            <SelectTrigger id="hold-day-pick" className="w-full">
+              <SelectValue placeholder="Choose a hold day" />
+            </SelectTrigger>
+            <SelectContent>
+              {movable.map((h) => (
+                <SelectItem key={h.publicId} value={h.publicId}>
+                  {formatDateOnly(h.deliveryDate, { mode: "short" })}
+                  {h.status === "paused" ? " (paused)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+function SchedulePoolDayAction({
+  orderPublicId,
+  dateIso,
+  counts,
+  today,
+  onChanged,
+}: {
+  orderPublicId: string;
+  dateIso: string;
+  counts: TiffinCounts;
+  today: string;
+  onChanged: () => void;
+}) {
+  const [pending, start] = useTransition();
+
+  if (!isPoolScheduleDateEligible(dateIso, counts, today)) return null;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={pending}
+      onClick={() => {
+        start(async () => {
+          try {
+            await scheduleMyPooledTiffin(orderPublicId, dateIso);
+            onChanged();
+            toast.success("Skipped tiffin scheduled");
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Could not schedule that day");
+          }
+        });
+      }}
+    >
+      <CalendarPlusIcon data-icon="inline-start" />
+      Schedule skipped tiffin here
+    </Button>
+  );
+}
+
 // Skip/Un-skip toggle + Change-address, scoped to a pre-cutoff, non-make-up SCHEDULED (or
 // SKIPPED, for un-skip) day. Recovered from the pre-redesign delivery-calendar.tsx's
 // DeliveryCard actions row — this is the same server-action wiring, just relocated into the
 // per-day drawer/panel instead of a per-delivery list card.
-function DeliveryDayActions({ delivery, locked, onChanged }: {
+function DeliveryDayActions({
+  delivery,
+  locked,
+  today,
+  onChanged,
+}: {
   delivery: DeliveryCardData;
   locked: boolean;
+  today: string;
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -150,13 +409,33 @@ function DeliveryDayActions({ delivery, locked, onChanged }: {
     });
   }
 
-  if (locked) return null;
+  if (locked) {
+    const isHoldOriginal =
+      !delivery.isMakeup &&
+      (delivery.status === "skipped" || delivery.status === "paused") &&
+      delivery.pooledAt == null &&
+      !delivery.hasMakeupScheduled;
+    if (!isHoldOriginal) return null;
+  }
 
-  const showSkip = !delivery.isMakeup && delivery.status === "scheduled";
-  const showUnskip = !delivery.isMakeup && delivery.status === "skipped";
-  const showAddress = delivery.status === "scheduled";
+  const isHoldOriginal =
+    !delivery.isMakeup &&
+    (delivery.status === "skipped" || delivery.status === "paused") &&
+    delivery.pooledAt == null &&
+    !delivery.hasMakeupScheduled;
 
-  if (!showSkip && !showUnskip && !showAddress) return null;
+  const showSkip = !delivery.isMakeup && delivery.status === "scheduled" && !locked;
+  const showReschedule =
+    (!delivery.isMakeup && delivery.status === "scheduled" && !locked) || isHoldOriginal;
+  const showUnskip =
+    !locked &&
+    !delivery.isMakeup &&
+    delivery.status === "skipped" &&
+    delivery.pooledAt == null &&
+    !delivery.hasMakeupScheduled;
+  const showAddress = !locked && delivery.status === "scheduled";
+
+  if (!showSkip && !showReschedule && !showUnskip && !showAddress) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -176,6 +455,14 @@ function DeliveryDayActions({ delivery, locked, onChanged }: {
         >
           Use default
         </Button>
+      )}
+      {showReschedule && (
+        <RescheduleDialog
+          deliveryPublicId={delivery.publicId}
+          today={today}
+          sourceDateIso={isHoldOriginal ? delivery.deliveryDate : undefined}
+          onSaved={onChanged}
+        />
       )}
       {showSkip && (
         <Button
@@ -197,13 +484,29 @@ function DeliveryDayActions({ delivery, locked, onChanged }: {
           Un-skip
         </Button>
       )}
+      {!showUnskip && delivery.status === "skipped" && (delivery.pooledAt != null || delivery.hasMakeupScheduled) && (
+        <p className="text-muted-foreground text-xs">
+          {delivery.hasMakeupScheduled
+            ? "This skip was rescheduled — un-skip is not available."
+            : "This skip is in your remain pool — schedule it on a delivery day."}
+        </p>
+      )}
     </div>
   );
 }
 
 export function DayDetail({
-  dateIso, cell, delivery, orderPublicId, categoryLabels, categoryCounts = {}, tz, onChanged,
-  // "picker" hides the status summary banner — mobile already shows MobileDayOrderCard above.
+  dateIso,
+  cell,
+  delivery,
+  orderPublicId,
+  categoryLabels,
+  categoryCounts = {},
+  tz,
+  today,
+  tiffinCounts,
+  holdDeliveries = [],
+  onChanged,
   variant = "full",
 }: {
   dateIso: string;
@@ -211,9 +514,11 @@ export function DayDetail({
   delivery: DeliveryCardData | undefined;
   orderPublicId: string;
   categoryLabels: Record<string, string>;
-  /** Plan composition qty per category — drives how many picks the day picker shows. */
   categoryCounts?: Record<string, number>;
   tz: string;
+  today: string;
+  tiffinCounts?: TiffinCounts;
+  holdDeliveries?: HoldDeliveryOption[];
   onChanged: () => void;
   variant?: "full" | "picker";
 }) {
@@ -280,7 +585,33 @@ export function DayDetail({
       ) : null}
 
       {kind === "cell" && delivery && (
-        <DeliveryDayActions delivery={delivery} locked={status === "locked"} onChanged={onChanged} />
+        <DeliveryDayActions
+          delivery={delivery}
+          locked={status === "locked"}
+          today={today}
+          onChanged={onChanged}
+        />
+      )}
+
+      {kind === "off" && tiffinCounts && tiffinCounts.pooled > 0 && (
+        <SchedulePoolDayAction
+          orderPublicId={orderPublicId}
+          dateIso={dateIso}
+          counts={tiffinCounts}
+          today={today}
+          onChanged={onChanged}
+        />
+      )}
+
+      {tiffinCounts && holdDeliveries.length > 0 && (
+        <ScheduleHoldDayAction
+          holdDeliveries={holdDeliveries}
+          dateIso={dateIso}
+          counts={tiffinCounts}
+          today={today}
+          targetOccupied={isRescheduleTargetOccupied(delivery)}
+          onChanged={onChanged}
+        />
       )}
     </div>
   );

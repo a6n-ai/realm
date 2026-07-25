@@ -66,6 +66,12 @@ docs/
 # playwright mcp session artifacts (console dumps + page snapshots)
 .playwright-mcp/
 
+# playwright e2e (tiffin-grab)
+apps/tiffin-grab/e2e/.auth/
+apps/tiffin-grab/e2e/test-results/
+apps/tiffin-grab/e2e/playwright-report/
+apps/tiffin-grab/e2e/blob-report/
+
 # openspec scratch + local screenshots (not part of the repo)
 openspec/
 /Screenshot*.png
