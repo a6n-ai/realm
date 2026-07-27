@@ -12,7 +12,7 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
       <PageHeader
         icon={BanknoteIcon}
         title="Finance"
-        subtitle="Clover website order payments and money ledger."
+        subtitle="Order payments and money ledger."
       />
       <FinanceTabs />
       <div className="min-w-0">{children}</div>

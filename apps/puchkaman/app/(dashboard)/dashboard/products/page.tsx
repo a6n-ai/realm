@@ -90,7 +90,12 @@ export default function ProductsPage({ searchParams }: { searchParams: SearchPar
 
 async function ProductsHeaderLoader() {
   const clover = await getCloverConnection(integrationsConfigStore);
-  return <ProductsHeaderActions cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
+  return (
+    <ProductsHeaderActions
+      cloverEnabled={Boolean(clover.installed)}
+      cloverConnected={Boolean(clover.connected && clover.merchantId)}
+    />
+  );
 }
 
 async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
@@ -100,7 +105,10 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
   const sort = parseSort(sp, PRODUCT_SORT_COLUMNS, { column: "category", dir: "asc" });
   const { condition, page } = parseFilterState(SPEC, sp);
 
-  const result = await productsService.queryProducts(condition, page, sort);
+  const [result, clover] = await Promise.all([
+    productsService.queryProducts(condition, page, sort),
+    getCloverConnection(integrationsConfigStore),
+  ]);
   const rows = result.items.map((r) => ({
     ...r,
     price: Number(r.price),
@@ -116,6 +124,7 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
       page={page.page}
       size={page.size}
       sort={sort}
+      cloverEnabled={Boolean(clover.installed)}
     />
   );
 }

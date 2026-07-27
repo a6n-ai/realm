@@ -41,10 +41,15 @@ async function ProductDetailLoader({ params }: { params: Promise<{ id: string }>
       <PageHeader
         icon={PackageIcon}
         title={product.name}
-        subtitle="Product detail · Clover inventory fields"
+        subtitle={
+          clover.installed
+            ? "Product detail · Clover inventory fields"
+            : "Product detail"
+        }
       />
       <ProductDetail
         product={product}
+        cloverEnabled={Boolean(clover.installed)}
         cloverConnected={Boolean(clover.connected && clover.merchantId)}
       />
     </>
@@ -60,14 +65,6 @@ function ProductDetailSkeleton() {
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-3/4" />
           <Skeleton className="h-24 w-full" />
-        </div>
-      </SectionCard>
-      <SectionCard title="Clover inventory">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
         </div>
       </SectionCard>
     </>

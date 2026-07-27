@@ -85,6 +85,7 @@ export function ProductsTable({
   page,
   size,
   sort,
+  cloverEnabled = false,
 }: {
   spec: FacetDef[];
   products: ProductRow[];
@@ -92,6 +93,8 @@ export function ProductsTable({
   page: number;
   size: number;
   sort: SortState<ProductSortColumn>;
+  /** Plugin installed — gates Link/Unlink Clover actions. */
+  cloverEnabled?: boolean;
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -191,7 +194,7 @@ export function ProductsTable({
                 ) : (
                   <span>Manual</span>
                 )}
-                {row.cloverItemId ? (
+                {cloverEnabled && row.cloverItemId ? (
                   <Badge variant="outline" className="w-fit text-[10px]">
                     Clover
                   </Badge>
@@ -199,25 +202,31 @@ export function ProductsTable({
               </div>
             </TableCell>
             <TableCell className="text-muted-foreground text-right font-mono text-xs tabular-nums">
-              {relativeTime(row.cloverLastSyncedAt ?? row.lastSyncedAt)}
+              {relativeTime(
+                cloverEnabled ? (row.cloverLastSyncedAt ?? row.lastSyncedAt) : row.lastSyncedAt,
+              )}
             </TableCell>
             <TableCell className="text-right">
               <div className="flex justify-end gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCloverLinking(row);
-                  }}
-                  aria-label={
-                    row.cloverItemId ? `Unlink ${row.name} from Clover` : `Link ${row.name} to Clover`
-                  }
-                >
-                  <LinkIcon className="size-3.5" />
-                </Button>
+                {cloverEnabled ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCloverLinking(row);
+                    }}
+                    aria-label={
+                      row.cloverItemId
+                        ? `Unlink ${row.name} from Clover`
+                        : `Link ${row.name} to Clover`
+                    }
+                  >
+                    <LinkIcon className="size-3.5" />
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   variant="ghost"
@@ -266,19 +275,21 @@ export function ProductsTable({
         product={reviewing}
         onOpenChange={(open) => !open && setReviewing(null)}
       />
-      <CloverLinkDialog
-        open={!!cloverLinking}
-        onOpenChange={(open) => !open && setCloverLinking(null)}
-        product={
-          cloverLinking
-            ? {
-                publicId: cloverLinking.publicId,
-                name: cloverLinking.name,
-                cloverItemId: cloverLinking.cloverItemId,
-              }
-            : null
-        }
-      />
+      {cloverEnabled ? (
+        <CloverLinkDialog
+          open={!!cloverLinking}
+          onOpenChange={(open) => !open && setCloverLinking(null)}
+          product={
+            cloverLinking
+              ? {
+                  publicId: cloverLinking.publicId,
+                  name: cloverLinking.name,
+                  cloverItemId: cloverLinking.cloverItemId,
+                }
+              : null
+          }
+        />
+      ) : null}
     </div>
   );
 }

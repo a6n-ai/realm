@@ -3,19 +3,25 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, UserIcon } from "lucide-react";
+import { Badge } from "@realm/ui/badge";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
 import { signOut } from "@/lib/auth/client";
-import { SECTIONS } from "./app-sidebar";
+import { getNavSections } from "./app-sidebar";
 
 /** Full mobile navigation from the bottom bar's More tab. */
 export function MoreDrawer({
   open,
   onOpenChange,
+  cloverInstalled = false,
+  cloverConnected = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cloverInstalled?: boolean;
+  cloverConnected?: boolean;
 }) {
   const router = useRouter();
+  const sections = getNavSections({ cloverInstalled, cloverConnected });
   const rowClass =
     "hover:bg-accent flex min-h-11 items-center gap-3 rounded-md px-2 text-left text-sm transition-colors";
 
@@ -26,7 +32,7 @@ export function MoreDrawer({
           <DrawerTitle>Menu</DrawerTitle>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <div key={section.label} className="py-2">
               <p className="text-muted-foreground/80 px-1 pb-1 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
                 {section.label}
@@ -41,6 +47,14 @@ export function MoreDrawer({
                   >
                     <item.icon className="text-muted-foreground size-5" />
                     <span>{item.title}</span>
+                    {item.badge ? (
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground ml-auto h-5 px-1.5 text-[10px] font-normal"
+                      >
+                        {item.badge}
+                      </Badge>
+                    ) : null}
                   </Link>
                 ))}
               </div>

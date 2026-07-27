@@ -12,7 +12,13 @@ const TABS = [
 ] as const;
 
 /** Mobile bottom nav — sidebar is desktop-only (CrmShell hideSidebarOnMobile). */
-export function AppBottomNav() {
+export function AppBottomNav({
+  cloverInstalled = false,
+  cloverConnected = false,
+}: {
+  cloverInstalled?: boolean;
+  cloverConnected?: boolean;
+}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -29,7 +35,12 @@ export function AppBottomNav() {
   return (
     <>
       <BottomNav items={items} />
-      <MoreDrawer open={moreOpen} onOpenChange={setMoreOpen} />
+      <MoreDrawer
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        cloverInstalled={cloverInstalled}
+        cloverConnected={cloverConnected}
+      />
     </>
   );
 }

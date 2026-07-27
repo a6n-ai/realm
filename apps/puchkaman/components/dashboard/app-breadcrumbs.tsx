@@ -5,6 +5,10 @@ import { Breadcrumbs } from "@realm/design-system";
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   products: "Products",
+  orders: "Orders",
+  finance: "Finance",
+  transactions: "Transactions",
+  ledger: "Ledger",
   account: "Account",
   settings: "Settings",
   integrations: "Integrations",

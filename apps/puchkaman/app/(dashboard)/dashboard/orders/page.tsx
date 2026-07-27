@@ -73,7 +73,7 @@ export default function OrdersPage({ searchParams }: { searchParams: SearchParam
       <PageHeader
         icon={PackageIcon}
         title="Orders"
-        subtitle="Pickup orders settled via Clover."
+        subtitle="Pickup orders."
       />
       <SectionCard title="All orders">
         <Suspense fallback={<OrdersTableSkeleton />}>

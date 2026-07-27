@@ -88,9 +88,12 @@ function relativeTime(ms: number | null): string {
 
 export function ProductDetail({
   product,
+  cloverEnabled,
   cloverConnected,
 }: {
   product: ProductDetailData;
+  /** Plugin installed — gates all Clover sync/link chrome and inventory fields. */
+  cloverEnabled: boolean;
   cloverConnected: boolean;
 }) {
   const router = useRouter();
@@ -112,7 +115,7 @@ export function ProductDetail({
       const hidden = values.cloverHidden ?? false;
       const available = values.cloverAvailable ?? true;
       const active =
-        values.cloverHidden != null || values.cloverAvailable != null
+        cloverEnabled && (values.cloverHidden != null || values.cloverAvailable != null)
           ? available && !hidden
           : (values.active ?? true);
 
@@ -121,8 +124,12 @@ export function ProductDetail({
         body: JSON.stringify({
           ...values,
           active,
-          cloverHidden: values.cloverHidden ?? !active,
-          cloverAvailable: values.cloverAvailable ?? active,
+          ...(cloverEnabled
+            ? {
+                cloverHidden: values.cloverHidden ?? !active,
+                cloverAvailable: values.cloverAvailable ?? active,
+              }
+            : {}),
         }),
       });
       router.refresh();
@@ -166,61 +173,65 @@ export function ProductDetail({
           </Button>
           <Badge variant={product.active ? "secondary" : "outline"}>{statusLabel}</Badge>
           {product.source === "uber_eats" ? <Badge variant="outline">Uber Eats</Badge> : null}
-          {linked ? (
+          {cloverEnabled && linked ? (
             <Badge variant="outline">Clover linked</Badge>
-          ) : (
+          ) : cloverEnabled ? (
             <Badge variant="outline" className="text-muted-foreground">
               Not linked
             </Badge>
-          )}
-          {product.cloverLastSyncedAt ? (
+          ) : null}
+          {cloverEnabled && product.cloverLastSyncedAt ? (
             <span className="text-muted-foreground text-xs">
               Last Clover sync {relativeTime(product.cloverLastSyncedAt)}
             </span>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={!cloverConnected}
-            onClick={() => setLinkOpen(true)}
-          >
-            <LinkIcon className="size-3.5" />
-            {linked ? "Unlink" : "Link"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={!cloverConnected || !linked || syncBusy !== null}
-            onClick={() => void sync("pull")}
-          >
-            {syncBusy === "pull" ? (
-              <Loader2Icon className="size-3.5 animate-spin" />
-            ) : (
-              <CloudDownloadIcon className="size-3.5" />
-            )}
-            Sync from Clover
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={!cloverConnected || syncBusy !== null}
-            onClick={() => void sync("push")}
-          >
-            {syncBusy === "push" ? (
-              <Loader2Icon className="size-3.5 animate-spin" />
-            ) : (
-              <CloudUploadIcon className="size-3.5" />
-            )}
-            Push to Clover
-          </Button>
+          {cloverEnabled ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!cloverConnected}
+                onClick={() => setLinkOpen(true)}
+              >
+                <LinkIcon className="size-3.5" />
+                {linked ? "Unlink" : "Link"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!cloverConnected || !linked || syncBusy !== null}
+                onClick={() => void sync("pull")}
+              >
+                {syncBusy === "pull" ? (
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                ) : (
+                  <CloudDownloadIcon className="size-3.5" />
+                )}
+                Sync from Clover
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!cloverConnected || syncBusy !== null}
+                onClick={() => void sync("push")}
+              >
+                {syncBusy === "push" ? (
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                ) : (
+                  <CloudUploadIcon className="size-3.5" />
+                )}
+                Push to Clover
+              </Button>
+            </>
+          ) : null}
           <Button
             type="submit"
             form="product-detail-form"
@@ -232,7 +243,7 @@ export function ProductDetail({
         </div>
       </div>
 
-      {linked && product.cloverItemId ? (
+      {cloverEnabled && linked && product.cloverItemId ? (
         <p className="text-muted-foreground font-mono text-xs">
           Clover item id: {product.cloverItemId}
         </p>
@@ -387,8 +398,10 @@ export function ProductDetail({
                       checked={field.value ?? true}
                       onCheckedChange={(v) => {
                         field.onChange(v);
-                        form.setValue("cloverHidden", !v);
-                        form.setValue("cloverAvailable", v);
+                        if (cloverEnabled) {
+                          form.setValue("cloverHidden", !v);
+                          form.setValue("cloverAvailable", v);
+                        }
                       }}
                     />
                   </label>
@@ -410,6 +423,7 @@ export function ProductDetail({
             </div>
           </SectionCard>
 
+          {cloverEnabled ? (
           <SectionCard title="Clover inventory">
             <p className="text-muted-foreground mb-4 text-sm">
               Mirrored from Clover when linked. Push sends these fields to Clover; Sync from Clover
@@ -604,21 +618,24 @@ export function ProductDetail({
                     />
                   </label>
                 )}
-              />
+                />
             </div>
           </SectionCard>
+          ) : null}
         </form>
       </Form>
 
-      <CloverLinkDialog
-        open={linkOpen}
-        onOpenChange={setLinkOpen}
-        product={{
-          publicId: product.publicId,
-          name: product.name,
-          cloverItemId: product.cloverItemId,
-        }}
-      />
+      {cloverEnabled ? (
+        <CloverLinkDialog
+          open={linkOpen}
+          onOpenChange={setLinkOpen}
+          product={{
+            publicId: product.publicId,
+            name: product.name,
+            cloverItemId: product.cloverItemId,
+          }}
+        />
+      ) : null}
     </div>
   );
 }

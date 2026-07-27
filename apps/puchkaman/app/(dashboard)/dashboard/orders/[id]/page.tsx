@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, PackageIcon } from "lucide-react";
 import { formatMoney } from "@realm/commons";
+import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { requireAdmin } from "@/lib/auth/guards";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { ordersService } from "@/lib/services/orders.service";
 
 type Params = Promise<{ id: string }>;
@@ -14,14 +16,18 @@ type Params = Promise<{ id: string }>;
 export default async function OrderDetailPage({ params }: { params: Params }) {
   await requireAdmin();
   const { id } = await params;
-  let detail;
-  try {
-    detail = await ordersService.getAdminDetail(id);
-  } catch {
-    notFound();
-  }
-  const { order, items, payments } = detail;
-  const canCheckStatus = Boolean(order.cloverOrderId || payments.some((p) => p.cloverChargeId));
+  const [detailResult, clover] = await Promise.all([
+    ordersService.getAdminDetail(id).then(
+      (d) => ({ ok: true as const, d }),
+      () => ({ ok: false as const }),
+    ),
+    getCloverConnection(integrationsConfigStore),
+  ]);
+  if (!detailResult.ok) notFound();
+  const { order, items, payments } = detailResult.d;
+  const cloverEnabled = Boolean(clover.installed);
+  const canCheckStatus =
+    cloverEnabled && Boolean(order.cloverOrderId || payments.some((p) => p.cloverChargeId));
 
   return (
     <PageShell>
@@ -65,10 +71,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <dt className="text-muted-foreground">Phone</dt>
               <dd>{order.customerPhone ?? "—"}</dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Clover order</dt>
-              <dd className="font-mono text-xs">{order.cloverOrderId ?? "—"}</dd>
-            </div>
+            {cloverEnabled && order.cloverOrderId ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Clover order</dt>
+                <dd className="font-mono text-xs">{order.cloverOrderId}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Subtotal</dt>
               <dd className="tabular-nums">{formatMoney(Number(order.subtotal))}</dd>
@@ -103,7 +111,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                   </div>
                   <div className="text-muted-foreground mt-2 space-y-1 text-xs">
                     <div>Method: {p.method}</div>
-                    <div className="font-mono">Charge: {p.cloverChargeId ?? "—"}</div>
+                    {cloverEnabled && p.cloverChargeId ? (
+                      <div className="font-mono">Charge: {p.cloverChargeId}</div>
+                    ) : null}
                     <div>Id: {p.publicId}</div>
                   </div>
                 </li>
@@ -121,7 +131,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 <div className="font-medium">
                   {it.quantity}× {it.name}
                 </div>
-                <div className="text-muted-foreground font-mono text-xs">{it.cloverItemId}</div>
+                {cloverEnabled && it.cloverItemId ? (
+                  <div className="text-muted-foreground font-mono text-xs">{it.cloverItemId}</div>
+                ) : null}
               </div>
               <div className="text-right tabular-nums">
                 <div>{formatMoney(Number(it.lineTotal))}</div>
