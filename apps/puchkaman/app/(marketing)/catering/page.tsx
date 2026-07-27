@@ -6,10 +6,10 @@ import { Reveal } from "@/components/brutal/reveal";
 
 const EVENT_TYPES = ["Birthday Party", "Office Event", "Wedding", "Private Party", "Community Event", "Watch Party", "Other"];
 
-const STATIONS: [string, string, string][] = [
-  ["💧", "Live Puchka Station", "A server assembling fresh puchkas to order — the showstopper at any event."],
-  ["🥗", "Live Chaat Station", "Bhel, sev puri, dahi bhalla made fresh in front of your guests."],
-  ["🌯", "Kathi Roll / Street Food", "Rolls, vada pav, momos & more cooked on-site."],
+const STATIONS: [string, string, string, string?][] = [
+  ["💧", "Live Puchka Station", "A server assembling fresh puchkas to order — the showstopper at any event.", "/catering/live-puchka-station.png"],
+  ["🥗", "Live Chaat Station", "Bhel, sev puri, dahi bhalla made fresh in front of your guests.", "/catering/live-chaat-station.png"],
+  ["🌯", "Kathi Roll / Street Food", "Rolls, vada pav, momos & more cooked on-site.", "/catering/kathi-roll-station.png"],
 ];
 
 const OCCASIONS = ["Birthday Parties", "Office Events", "Weddings", "Private Parties", "Community Events", "Watch Parties"];
@@ -209,10 +209,26 @@ export default function CateringPage() {
         <div className="wrap">
           <SectionHead kicker="The Experience" title="Live Stations That Steal The Show" />
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-            {STATIONS.map(([e, t, d], i) => (
+            {STATIONS.map(([e, t, d, img], i) => (
               <Reveal key={t} delay={i * 60}>
                 <div className="card card--lift" style={{ overflow: "hidden", height: "100%" }}>
-                  <Ph label={`${t} setup`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
+                  {img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={img}
+                      alt={`${t} setup`}
+                      loading="lazy"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        aspectRatio: "4 / 3",
+                        objectFit: "cover",
+                        borderBottom: "var(--border)",
+                      }}
+                    />
+                  ) : (
+                    <Ph label={`${t} setup`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
+                  )}
                   <div style={{ padding: 22 }}>
                     <div style={{ fontSize: 32, marginBottom: 8 }}>{e}</div>
                     <h3 style={{ fontSize: "1.35rem", marginBottom: 8 }}>{t}</h3>
