@@ -1,13 +1,18 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
+import { createLogger } from "@realm/commons/logger";
 import { Role } from "@realm/commons";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
+import { recordAudit } from "@/lib/services/session-service";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp } from "./security-events";
 
+const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 export const auth = betterAuth({
@@ -51,4 +56,67 @@ export const auth = betterAuth({
     }),
     nextCookies(),
   ],
+  // Audit: session delete → logout (sign-out, revoke-on-password-reset, etc.).
+  databaseHooks: {
+    session: {
+      delete: {
+        after: async (sess) => {
+          try {
+            const [user] = await db
+              .select({ publicId: users.publicId })
+              .from(users)
+              .where(eq(users.id, BigInt(sess.userId as string)))
+              .limit(1);
+            await recordAudit({
+              entity: "auth",
+              entityPublicId: user?.publicId ?? String(sess.userId),
+              operation: "logout",
+              changes: null,
+              createdBy: null,
+            });
+          } catch (e) {
+            log.error({ err: e }, "audit logout hook failed");
+          }
+        },
+      },
+    },
+  },
+  // Audit: login success / login_failed on email sign-in.
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+
+      const newSession = ctx.context.newSession;
+      if (newSession) {
+        try {
+          const publicId = (newSession.user as Record<string, unknown>).publicId as string | undefined;
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: publicId ?? newSession.user.id,
+            operation: "login",
+            changes: { method: "email" },
+            createdBy: null,
+          });
+        } catch (e) {
+          log.error({ err: e }, "audit login hook failed");
+        }
+        return;
+      }
+
+      if (ctx.context.returned instanceof APIError) {
+        try {
+          const body = ctx.body as { email?: string } | undefined;
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: body?.email ?? "unknown",
+            operation: "login_failed",
+            changes: { method: "email" },
+            createdBy: null,
+          });
+        } catch (e) {
+          log.error({ err: e }, "audit login_failed hook failed");
+        }
+      }
+    }),
+  },
 });

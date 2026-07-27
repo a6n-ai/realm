@@ -10,7 +10,7 @@ import {
   type CloverWebhookUpdate,
   type MappedCloverPaymentStatus,
 } from "@realm/clover";
-import { UpdatableService, columnResolver, conditionToSql } from "@realm/database";
+import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { employees, orders, payments, products } from "@/db/schema";
@@ -33,6 +33,7 @@ import {
   type OrdersRepository,
   type PaymentRow,
 } from "./orders.repository";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 export type { OrderListRow, OrderSortColumn } from "./orders.repository";
 
@@ -110,9 +111,10 @@ function money(n: number): string {
 
 /**
  * Pickup orders + Clover Ecommerce settlement.
- * Extends UpdatableService for order row updates; create/pay are transactional.
+ * Extends SessionUpdatableService for order row updates (+ audit_log);
+ * create/pay are transactional.
  */
-class OrdersService extends UpdatableService<typeof orders> {
+class OrdersService extends SessionUpdatableService<typeof orders> {
   constructor(private readonly ordersRepo: OrdersRepository) {
     super(ordersRepo);
   }
@@ -227,6 +229,19 @@ class OrdersService extends UpdatableService<typeof orders> {
         syncedToClover = true;
       }
     }
+
+    await recordAudit({
+      entity: "orders",
+      entityPublicId: order.publicId,
+      operation: "update",
+      changes: {
+        _action: "order_assign_employee",
+        employeePublicId: employee?.publicId ?? null,
+        employeeName: employee?.name ?? null,
+        syncedToClover,
+      },
+      createdBy: await currentUserId(),
+    });
 
     return {
       orderPublicId: order.publicId,
@@ -538,6 +553,20 @@ class OrdersService extends UpdatableService<typeof orders> {
       refreshedPays.find((p) => p.status === "failed") ??
       refreshedPays[0] ??
       null;
+
+    await recordAudit({
+      entity: "orders",
+      entityPublicId: order.publicId,
+      operation: "update",
+      changes: {
+        _action: "payment_check_status",
+        cloverStatus,
+        changed: applied.changed,
+        source,
+        cloverChargeId: refreshedPrimary?.cloverChargeId ?? chargeId,
+      },
+      createdBy: await currentUserId(),
+    });
 
     return {
       orderPublicId: order.publicId,

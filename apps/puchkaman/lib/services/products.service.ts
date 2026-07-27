@@ -1,12 +1,11 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
-import { UpdatableService, columnResolver, conditionToSql } from "@realm/database";
+import { columnResolver, conditionToSql } from "@realm/database";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { products, users } from "@/db/schema";
+import { products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
-import { getSession } from "@/lib/auth/session";
 import type { SortState } from "@/lib/list/sort";
 import { productSchema } from "@/lib/products/schema";
 import {
@@ -30,6 +29,7 @@ import {
   type ProductRow,
   ProductsRepository,
 } from "./products.repository";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 export type ProductListRow = ProductRow;
 
@@ -128,30 +128,14 @@ function resolveProductFacet(f: FilterCondition) {
   })(f);
 }
 
-async function sessionActorId(): Promise<bigint | null> {
-  try {
-    const session = await getSession();
-    const publicId = session?.user?.id;
-    if (!publicId) return null;
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    return row?.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Products domain service.
- * Extends {@link UpdatableService}; DAO is {@link ProductsRepository}
- * (extends {@link UpdatableRepository}).
+ * Extends {@link SessionUpdatableService} (CRUD → audit_log); DAO is
+ * {@link ProductsRepository} (extends {@link UpdatableRepository}).
  */
-class ProductsService extends UpdatableService<typeof products> {
+class ProductsService extends SessionUpdatableService<typeof products> {
   constructor(protected readonly repo: ProductsRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async create(values: Record<string, unknown>) {
@@ -282,6 +266,13 @@ class ProductsService extends UpdatableService<typeof products> {
 
     if (direction === "pull") {
       const result = await cloverInventorySyncService.pullOne(client, publicId);
+      await recordAudit({
+        entity: "products",
+        entityPublicId: publicId,
+        operation: "update",
+        changes: { _action: "clover_sync_one_pull", result },
+        createdBy: await currentUserId(),
+      });
       return { direction, result };
     }
 
@@ -289,6 +280,13 @@ class ProductsService extends UpdatableService<typeof products> {
     if (result.errors.length > 0 && result.created.length === 0 && result.updated.length === 0) {
       throw new ValidationError(result.errors[0]?.message ?? "Push failed");
     }
+    await recordAudit({
+      entity: "products",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "clover_sync_one_push", result },
+      createdBy: await currentUserId(),
+    });
     return { direction, result };
   }
 
@@ -299,12 +297,25 @@ class ProductsService extends UpdatableService<typeof products> {
   ): Promise<{ direction: "pull" | "push"; result: CloverPullResult | CloverPushResult }> {
     const client = await this.requireCloverClient();
     if (direction === "pull") {
-      return { direction, result: await cloverInventorySyncService.pull(client) };
+      const result = await cloverInventorySyncService.pull(client);
+      await recordAudit({
+        entity: "products",
+        entityPublicId: "bulk",
+        operation: "update",
+        changes: { _action: "clover_sync_pull", result },
+        createdBy: await currentUserId(),
+      });
+      return { direction, result };
     }
-    return {
-      direction,
-      result: await cloverInventorySyncService.push(client, { publicIds }),
-    };
+    const result = await cloverInventorySyncService.push(client, { publicIds });
+    await recordAudit({
+      entity: "products",
+      entityPublicId: "bulk",
+      operation: "update",
+      changes: { _action: "clover_sync_push", publicIds: publicIds ?? null, result },
+      createdBy: await currentUserId(),
+    });
+    return { direction, result };
   }
 
   async linkClover(
@@ -323,12 +334,30 @@ class ProductsService extends UpdatableService<typeof products> {
       adoptInventory: opts.adoptInventory,
       incoming,
     });
+    await recordAudit({
+      entity: "products",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: {
+        _action: "clover_link",
+        cloverItemId,
+        adoptInventory: opts.adoptInventory ?? false,
+      },
+      createdBy: await currentUserId(),
+    });
     return { ok: true, cloverItemId };
   }
 
   async unlinkClover(publicId: string): Promise<{ ok: true; cloverItemId: null }> {
     await this.read(publicId);
     await cloverInventorySyncService.unlinkProduct(publicId);
+    await recordAudit({
+      entity: "products",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "clover_unlink" },
+      createdBy: await currentUserId(),
+    });
     return { ok: true, cloverItemId: null };
   }
 
@@ -348,12 +377,32 @@ class ProductsService extends UpdatableService<typeof products> {
       if (!row) throw new NotFoundError(`Not found: ${existingPublicId}`);
     }
     await cloverInventorySyncService.resolveAmbiguous(action, incoming, existingPublicId);
+    await recordAudit({
+      entity: "products",
+      entityPublicId: existingPublicId ?? incoming.cloverItemId ?? "bulk",
+      operation: "update",
+      changes: {
+        _action: "clover_resolve_ambiguous",
+        action,
+        cloverItemId: incoming.cloverItemId ?? null,
+        existingPublicId: existingPublicId ?? null,
+      },
+      createdBy: await currentUserId(),
+    });
   }
 
   // ── Uber Eats image enrichment (route → this service → ProductsRepository)
 
   async syncUberImages(opts: SyncOptions = {}): Promise<SyncResult> {
-    return menuSyncService.run(new UberEatsSnapshotSource(), opts);
+    const result = await menuSyncService.run(new UberEatsSnapshotSource(), opts);
+    await recordAudit({
+      entity: "products",
+      entityPublicId: "bulk",
+      operation: "update",
+      changes: { _action: "uber_images_sync", result },
+      createdBy: await currentUserId(),
+    });
+    return result;
   }
 
   async resolveUberDuplicate(
@@ -363,6 +412,17 @@ class ProductsService extends UpdatableService<typeof products> {
   ): Promise<{ ok: true }> {
     if (action !== "skip") await this.read(existingPublicId);
     await menuSyncService.resolveDuplicate(existingPublicId, action, incoming);
+    await recordAudit({
+      entity: "products",
+      entityPublicId: existingPublicId,
+      operation: "update",
+      changes: {
+        _action: "uber_resolve_duplicate",
+        action,
+        incomingName: incoming.name ?? null,
+      },
+      createdBy: await currentUserId(),
+    });
     return { ok: true };
   }
 
@@ -378,6 +438,13 @@ class ProductsService extends UpdatableService<typeof products> {
   ): Promise<{ ok: true }> {
     await this.read(publicId);
     await menuSyncService.applyPending(publicId, action);
+    await recordAudit({
+      entity: "products",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "uber_apply_pending", action },
+      createdBy: await currentUserId(),
+    });
     return { ok: true };
   }
 }

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import {
   buildCloverAuthorizeUrl,
+  cloverOAuthRedirectUri,
+  createCloverOAuthState,
   disconnectClover,
   getCloverConnection,
   installCloverPlugin,
@@ -11,8 +13,7 @@ import {
 } from "@realm/clover";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { createCloverOAuthState } from "@/lib/clover/oauth-state";
-import { cloverOAuthRedirectUri } from "@/lib/clover/redirect-uri";
+import { currentUserId, recordAudit } from "@/lib/services/session-service";
 
 function revalidateCloverPaths() {
   revalidatePath("/dashboard/settings/integrations");
@@ -23,18 +24,39 @@ function revalidateCloverPaths() {
 export async function installCloverAction(): Promise<void> {
   await requireAdmin();
   await installCloverPlugin(integrationsConfigStore);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "create",
+    changes: { _action: "clover_install" },
+    createdBy: await currentUserId(),
+  });
   revalidateCloverPaths();
 }
 
 export async function uninstallCloverAction(): Promise<void> {
   await requireAdmin();
   await uninstallCloverPlugin(integrationsConfigStore);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "delete",
+    changes: { _action: "clover_uninstall" },
+    createdBy: await currentUserId(),
+  });
   revalidateCloverPaths();
 }
 
 export async function disconnectCloverAction(): Promise<void> {
   await requireAdmin();
   await disconnectClover(integrationsConfigStore);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "update",
+    changes: { _action: "clover_disconnect" },
+    createdBy: await currentUserId(),
+  });
   revalidateCloverPaths();
 }
 
@@ -51,6 +73,13 @@ export async function startCloverConnectAction(): Promise<string> {
   const conn = await getCloverConnection(integrationsConfigStore);
   if (!conn.installed) {
     await installCloverPlugin(integrationsConfigStore);
+    await recordAudit({
+      entity: "integrations",
+      entityPublicId: "clover",
+      operation: "create",
+      changes: { _action: "clover_install" },
+      createdBy: await currentUserId(),
+    });
   }
 
   const state = await createCloverOAuthState();

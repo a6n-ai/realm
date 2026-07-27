@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@realm/crm": "workspace:*",
     "@realm/design-system": "workspace:*",
     "@realm/ui": "workspace:*",
     "lucide-react": "^1.20.0",

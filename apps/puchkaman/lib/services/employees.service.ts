@@ -1,10 +1,6 @@
 import { ValidationError } from "@realm/commons";
-import { UpdatableService } from "@realm/database";
-import { eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { employees, users } from "@/db/schema";
+import { employees } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
-import { getSession } from "@/lib/auth/session";
 import {
   cloverEmployeesSyncService,
   type CloverEmployeesPullResult,
@@ -13,30 +9,15 @@ import {
   employeesRepository,
   type EmployeeRow,
 } from "./employees.repository";
-
-async function sessionActorId(): Promise<bigint | null> {
-  try {
-    const session = await getSession();
-    const publicId = session?.user?.id;
-    if (!publicId) return null;
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    return row?.id ?? null;
-  } catch {
-    return null;
-  }
-}
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 /**
- * Clover employees — UpdatableService over EmployeesRepository.
+ * Clover employees — SessionUpdatableService over EmployeesRepository.
  * Pull sync is SoT; local edits are not pushed in this pass.
  */
-class EmployeesService extends UpdatableService<typeof employees> {
+class EmployeesService extends SessionUpdatableService<typeof employees> {
   constructor(protected readonly repo: typeof employeesRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async listAll(): Promise<EmployeeRow[]> {
@@ -64,7 +45,15 @@ class EmployeesService extends UpdatableService<typeof employees> {
         "Clover is not connected. Install the plugin under Settings → Integrations, then connect a merchant under Settings → Clover.",
       );
     }
-    return cloverEmployeesSyncService.pull(client);
+    const result = await cloverEmployeesSyncService.pull(client);
+    await recordAudit({
+      entity: "employees",
+      entityPublicId: "bulk",
+      operation: "update",
+      changes: { _action: "clover_employees_pull", result },
+      createdBy: await currentUserId(),
+    });
+    return result;
   }
 }
 

@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   finance: "Finance",
   transactions: "Transactions",
   ledger: "Ledger",
+  logs: "Logs",
   account: "Account",
   settings: "Settings",
   integrations: "Integrations",

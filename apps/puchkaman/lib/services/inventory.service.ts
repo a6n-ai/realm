@@ -1,5 +1,4 @@
 import { ValidationError } from "@realm/commons";
-import { UpdatableService } from "@realm/database";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -9,10 +8,8 @@ import {
   modifierGroups,
   modifiers,
   productCategories,
-  users,
 } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
-import { getSession } from "@/lib/auth/session";
 import {
   cloverCatalogSyncService,
   type CloverCatalogPullResult,
@@ -32,26 +29,11 @@ import {
   type ModifierRow,
   type ProductCategoryRow,
 } from "./inventory.repository";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
-async function sessionActorId(): Promise<bigint | null> {
-  try {
-    const session = await getSession();
-    const publicId = session?.user?.id;
-    if (!publicId) return null;
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
-    return row?.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
-class ProductCategoriesService extends UpdatableService<typeof productCategories> {
+class ProductCategoriesService extends SessionUpdatableService<typeof productCategories> {
   constructor(protected readonly repo: typeof productCategoriesRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async listAll(): Promise<ProductCategoryRow[]> {
@@ -71,13 +53,9 @@ class ProductCategoriesService extends UpdatableService<typeof productCategories
   }
 }
 
-class ModifierGroupsService extends UpdatableService<typeof modifierGroups> {
+class ModifierGroupsService extends SessionUpdatableService<typeof modifierGroups> {
   constructor(protected readonly repo: typeof modifierGroupsRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async listAll(): Promise<ModifierGroupRow[]> {
@@ -107,23 +85,15 @@ class ModifierGroupsService extends UpdatableService<typeof modifierGroups> {
   }
 }
 
-class ModifiersService extends UpdatableService<typeof modifiers> {
+class ModifiersService extends SessionUpdatableService<typeof modifiers> {
   constructor(protected readonly repo: typeof modifiersRepository) {
     super(repo);
   }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
-  }
 }
 
-class DiscountsService extends UpdatableService<typeof discounts> {
+class DiscountsService extends SessionUpdatableService<typeof discounts> {
   constructor(protected readonly repo: typeof discountsRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async listAll(): Promise<DiscountRow[]> {
@@ -131,13 +101,9 @@ class DiscountsService extends UpdatableService<typeof discounts> {
   }
 }
 
-class MenusService extends UpdatableService<typeof menus> {
+class MenusService extends SessionUpdatableService<typeof menus> {
   constructor(protected readonly repo: typeof menusRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 
   async listAll(): Promise<MenuRow[]> {
@@ -173,19 +139,15 @@ class MenusService extends UpdatableService<typeof menus> {
   }
 }
 
-class MenuSectionsService extends UpdatableService<typeof menuSections> {
+class MenuSectionsService extends SessionUpdatableService<typeof menuSections> {
   constructor(protected readonly repo: typeof menuSectionsRepository) {
     super(repo);
-  }
-
-  protected currentUserId(): Promise<bigint | null> {
-    return sessionActorId();
   }
 }
 
 /**
  * Facade for Clover catalog entities (categories, modifiers, menus, discounts).
- * All writes go through UpdatableService → UpdatableRepository.
+ * All writes go through SessionUpdatableService → UpdatableRepository (+ audit_log).
  */
 class InventoryCatalogService {
   readonly categories = new ProductCategoriesService(productCategoriesRepository);
@@ -208,13 +170,33 @@ class InventoryCatalogService {
   /** Pull categories, modifier groups, discounts, and Register menu layout from Clover. */
   async pullFromClover(): Promise<CloverCatalogPullResult> {
     const client = await this.requireCloverClient();
-    return cloverCatalogSyncService.pull(client);
+    const result = await cloverCatalogSyncService.pull(client);
+    await recordAudit({
+      entity: "inventory",
+      entityPublicId: "bulk",
+      operation: "update",
+      changes: { _action: "clover_catalog_pull", result },
+      createdBy: await currentUserId(),
+    });
+    return result;
   }
 
   /** Push linked categories to Clover (create/update). */
   async pushCategories(publicIds?: string[]): Promise<CloverCategoryPushResult> {
     const client = await this.requireCloverClient();
-    return cloverCatalogSyncService.pushCategories(client, { publicIds });
+    const result = await cloverCatalogSyncService.pushCategories(client, { publicIds });
+    await recordAudit({
+      entity: "inventory",
+      entityPublicId: "bulk",
+      operation: "update",
+      changes: {
+        _action: "clover_catalog_push",
+        publicIds: publicIds ?? null,
+        result,
+      },
+      createdBy: await currentUserId(),
+    });
+    return result;
   }
 }
 

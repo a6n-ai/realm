@@ -37,6 +37,7 @@ import {
 import { Switch } from "@realm/ui/switch";
 import { cn } from "@realm/ui/cn";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
+import { SyncLoadingOverlay } from "@/components/admin/sync-loading-overlay";
 import { ImageUploader } from "@/components/files/image-uploader";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
@@ -162,8 +163,16 @@ export function ProductDetail({
       ? "Out of stock"
       : "Archived";
 
+  const syncOverlayLabel =
+    syncBusy === "pull"
+      ? "Syncing product from Clover…"
+      : syncBusy === "push"
+        ? "Pushing product to Clover…"
+        : "Syncing…";
+
   return (
     <div className="space-y-4">
+      <SyncLoadingOverlay open={syncBusy !== null} label={syncOverlayLabel} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="ghost" size="sm" className="gap-1.5" asChild>

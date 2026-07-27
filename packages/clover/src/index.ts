@@ -43,6 +43,17 @@ export {
   type RefreshTokensInput,
 } from "./oauth";
 
+export { cloverOAuthRedirectUri } from "./redirect-uri";
+
+export {
+  createCloverOAuthState,
+  consumeCloverOAuthState,
+} from "./oauth-state";
+
+export { persistCloverOAuthConnection } from "./complete-oauth";
+
+export { createCloverClient } from "./create-client";
+
 export {
   CloverApiClient,
   CLOVER_WEBHOOK_NOTES,

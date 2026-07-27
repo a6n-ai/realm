@@ -1,31 +1,9 @@
-import {
-  CloverApiClient,
-  getCloverConnection,
-  loadCloverAppCredentialsFromEnv,
-  setCloverConnection,
-} from "@realm/clover";
+import { createCloverClient as createFromStore } from "@realm/clover";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 /**
- * Authenticated Clover client with token persistence into integrations_config.
- * Returns null when credentials or merchant connection are missing.
+ * App-bound Clover client — package factory + puchkaman integrations store.
  */
-export async function createCloverClient(): Promise<CloverApiClient | null> {
-  const credentials = loadCloverAppCredentialsFromEnv();
-  if (!credentials) return null;
-  const connection = await getCloverConnection(integrationsConfigStore);
-  if (!connection.connected || !connection.merchantId || !connection.tokens) return null;
-
-  return new CloverApiClient({
-    credentials,
-    connection,
-    onTokensRefreshed: async (tokens) => {
-      const latest = await getCloverConnection(integrationsConfigStore);
-      await setCloverConnection(integrationsConfigStore, {
-        ...latest,
-        tokens,
-        connected: true,
-      });
-    },
-  });
+export function createCloverClient() {
+  return createFromStore(integrationsConfigStore);
 }

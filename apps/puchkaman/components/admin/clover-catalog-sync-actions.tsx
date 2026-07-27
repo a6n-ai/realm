@@ -5,6 +5,7 @@ import { Loader2Icon, RefreshCwIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
+import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 type SyncResponse = {
   direction: string;
@@ -61,39 +62,49 @@ export function CloverCatalogSyncActions({
     }
   }
 
+  const overlayLabel =
+    busy === "pull"
+      ? "Syncing catalog from Clover…"
+      : busy === "push"
+        ? "Pushing categories to Clover…"
+        : "Syncing…";
+
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={!cloverConnected || !!busy}
-        onClick={() => void run("pull")}
-      >
-        {busy === "pull" ? (
-          <Loader2Icon className="size-4 animate-spin" />
-        ) : (
-          <RefreshCwIcon className="size-4" />
-        )}
-        Sync from Clover
-      </Button>
-      {showPushCategories ? (
+    <>
+      <SyncLoadingOverlay open={busy !== null} label={overlayLabel} />
+      <div className="flex flex-wrap gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
           disabled={!cloverConnected || !!busy}
-          onClick={() => void run("push_categories")}
+          onClick={() => void run("pull")}
         >
-          {busy === "push" ? (
+          {busy === "pull" ? (
             <Loader2Icon className="size-4 animate-spin" />
           ) : (
-            <UploadIcon className="size-4" />
+            <RefreshCwIcon className="size-4" />
           )}
-          Push categories
+          Sync from Clover
         </Button>
-      ) : null}
-    </div>
+        {showPushCategories ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!cloverConnected || !!busy}
+            onClick={() => void run("push_categories")}
+          >
+            {busy === "push" ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <UploadIcon className="size-4" />
+            )}
+            Push categories
+          </Button>
+        ) : null}
+      </div>
+    </>
   );
 }
 

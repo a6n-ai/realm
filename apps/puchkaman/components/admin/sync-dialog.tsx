@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/http/api-fetch";
 import type { SyncResult } from "@/lib/sync/menu-sync.service";
 import { SyncSummary } from "./sync-summary";
 import { DuplicateDialog } from "./duplicate-dialog";
+import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 export function SyncDialog({
   open,
@@ -43,6 +44,7 @@ export function SyncDialog({
   }
 
   function handleClose(next: boolean) {
+    if (busy) return;
     if (!next) {
       setResult(null);
       router.refresh();
@@ -52,6 +54,7 @@ export function SyncDialog({
 
   return (
     <>
+      <SyncLoadingOverlay open={busy} label="Syncing images from Uber Eats…" />
       <ResponsiveDialog
         open={open}
         onOpenChange={handleClose}
