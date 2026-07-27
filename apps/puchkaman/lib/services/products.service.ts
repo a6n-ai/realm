@@ -1,13 +1,16 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { getCloverConnection } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import type { SortState } from "@/lib/list/sort";
+import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { productSchema } from "@/lib/products/schema";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   cloverInventorySyncService,
   cloverItemToIncoming,
@@ -394,7 +397,11 @@ class ProductsService extends SessionUpdatableService<typeof products> {
   // ── Uber Eats image enrichment (route → this service → ProductsRepository)
 
   async syncUberImages(opts: SyncOptions = {}): Promise<SyncResult> {
-    const result = await menuSyncService.run(new UberEatsSnapshotSource(), opts);
+    const clover = await getCloverConnection(integrationsConfigStore);
+    const result = await menuSyncService.run(new UberEatsSnapshotSource(), {
+      ...opts,
+      cloverConnected: isCloverInventoryConnected(clover),
+    });
     await recordAudit({
       entity: "products",
       entityPublicId: "bulk",
@@ -411,7 +418,10 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     incoming: MenuSourceItem,
   ): Promise<{ ok: true }> {
     if (action !== "skip") await this.read(existingPublicId);
-    await menuSyncService.resolveDuplicate(existingPublicId, action, incoming);
+    const clover = await getCloverConnection(integrationsConfigStore);
+    await menuSyncService.resolveDuplicate(existingPublicId, action, incoming, {
+      cloverConnected: isCloverInventoryConnected(clover),
+    });
     await recordAudit({
       entity: "products",
       entityPublicId: existingPublicId,

@@ -46,6 +46,13 @@ export type SyncOptions = {
   // Recompress re-hosted images to resized WebP (default). Off keeps the source
   // bytes as-is. See rehostImage.
   optimizeImages?: boolean;
+  /**
+   * When true, new Uber-only rows start OOS until linked to Clover (inventory SoT).
+   * When false/omitted, force Uber-only rows active so the website is sellable —
+   * Clover SoT OOS rules must not apply before a merchant is connected.
+   * Temporary until Uber sync is replaced entirely.
+   */
+  cloverConnected?: boolean;
 };
 
 /**
@@ -59,6 +66,19 @@ export class MenuSyncService {
   async run(source: MenuSource, opts: SyncOptions = {}): Promise<SyncResult> {
     const items = await source.fetchItems();
     const existingRows = await this.products.findAll();
+    const cloverConnected = opts.cloverConnected ?? false;
+
+    // Before Clover is connected, reactivate Uber-only OOS rows so the website
+    // shows them available (not stuck inactive from Clover-linking bootstrap).
+    // Temporary until Uber sync is replaced entirely.
+    if (!cloverConnected) {
+      for (const row of existingRows) {
+        if (row.source === "uber_eats" && !row.cloverItemId && !row.active) {
+          await this.products.updateByInternalId(row.id, { active: true });
+          row.active = true;
+        }
+      }
+    }
 
     const byExternalId = new Map<string, ProductRow>();
     for (const row of existingRows) {
@@ -120,7 +140,12 @@ export class MenuSyncService {
           continue;
         }
 
-        const publicId = await this.createFromItem(item, takenSlugs, opts.optimizeImages ?? true);
+        const publicId = await this.createFromItem(
+          item,
+          takenSlugs,
+          opts.optimizeImages ?? true,
+          cloverConnected,
+        );
         result.added.push({ publicId, name: item.name });
       } catch (e) {
         result.errors.push({ item: item.name, message: e instanceof Error ? e.message : "Unknown error" });
@@ -138,9 +163,11 @@ export class MenuSyncService {
     item: MenuSourceItem,
     takenSlugs: Set<string>,
     optimize: boolean,
+    cloverConnected: boolean,
   ): Promise<string> {
-    // Uber bootstrap: keep the entity + image, but start OOS until linked to Clover
-    // (inventory SoT). Clover pull will mark unlinked Uber rows OOS as well.
+    // When Clover is connected, Uber bootstrap starts OOS until linked (inventory SoT).
+    // Without a connected merchant, start active — do not apply Clover OOS or Uber
+    // available flags (Uber is image-only; temporary until that sync is removed).
     const image = item.imageUrl
       ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize })
       : null;
@@ -153,7 +180,7 @@ export class MenuSyncService {
       category: item.category as string,
       price: item.price.toFixed(2),
       image,
-      active: false,
+      active: !cloverConnected,
       slug,
       source: "uber_eats",
       externalId: item.externalId,
@@ -172,10 +199,13 @@ export class MenuSyncService {
     optimize: boolean,
   ): Promise<void> {
     // Uber Eats is image enrichment only. Inventory (name/price/availability)
-    // is owned by Clover — never queue Uber name/price/description as pending
-    // inventory updates, especially when the row is already Clover-linked.
+    // is owned by Clover when connected — never queue Uber name/price/description
+    // as pending inventory updates, especially when the row is already Clover-linked.
+    // Do not re-apply Uber `available` here: when Clover is disconnected the heal
+    // above already forced Uber-only rows active; writing Uber OOS would undo that.
     const urlChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
     const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
+
     if (imageChanged) {
       await this.products.updateByInternalId(existing.id, {
         image: item.imageUrl
@@ -204,13 +234,15 @@ export class MenuSyncService {
     existingPublicId: string,
     action: "replace" | "keep" | "skip",
     incoming: MenuSourceItem,
+    opts: { cloverConnected?: boolean } = {},
   ): Promise<void> {
+    const cloverConnected = opts.cloverConnected ?? false;
     if (action === "skip") {
       // "Unrelated" means exactly that — the Uber Eats item is a genuinely
       // different product and gets created on its own, not silently dropped.
       if (!incoming.category) return;
       const existingSlugs = new Set(await this.products.listSlugs());
-      await this.createFromItem(incoming, existingSlugs, true);
+      await this.createFromItem(incoming, existingSlugs, true, cloverConnected);
       return;
     }
 
@@ -240,7 +272,8 @@ export class MenuSyncService {
         : {
             name: incoming.name,
             price: incoming.price.toFixed(2),
-            active: incoming.available,
+            // Clover connected + unlinked → OOS until linked; otherwise active for website.
+            active: !cloverConnected,
           }),
       description: incoming.description,
       image,

@@ -14,6 +14,8 @@ const LABELS: Record<string, string> = {
   settings: "Settings",
   integrations: "Integrations",
   clover: "Clover",
+  menus: "Menus",
+  categories: "Categories",
 };
 
 export function AppBreadcrumbs() {

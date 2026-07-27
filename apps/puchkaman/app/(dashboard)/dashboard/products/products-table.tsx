@@ -30,6 +30,7 @@ import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { SortState } from "@/lib/list/sort";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
+import { isEffectivelyAvailable } from "@/lib/products/availability";
 import type { ProductSortColumn } from "@/lib/services/products.service";
 import { ProductForm } from "./product-form";
 
@@ -88,6 +89,7 @@ export function ProductsTable({
   size,
   sort,
   cloverEnabled = false,
+  cloverConnected = false,
 }: {
   spec: FacetDef[];
   products: ProductRow[];
@@ -97,6 +99,8 @@ export function ProductsTable({
   sort: SortState<ProductSortColumn>;
   /** Plugin installed — gates Link/Unlink Clover actions. */
   cloverEnabled?: boolean;
+  /** Merchant OAuth connected — Clover SoT OOS labels only apply when true. */
+  cloverConnected?: boolean;
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -169,8 +173,8 @@ export function ProductsTable({
               ${row.price.toFixed(2)}
             </TableCell>
             <TableCell>
-              <Badge variant={row.active ? "secondary" : "outline"}>
-                {row.active
+              <Badge variant={isEffectivelyAvailable(row, cloverConnected) ? "secondary" : "outline"}>
+                {isEffectivelyAvailable(row, cloverConnected)
                   ? "Active"
                   : row.cloverItemId || row.source === "uber_eats"
                     ? "Out of stock"

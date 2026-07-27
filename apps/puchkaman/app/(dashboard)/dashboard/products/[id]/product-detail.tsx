@@ -42,6 +42,7 @@ import { ImageUploader } from "@/components/files/image-uploader";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
+import { isEffectivelyAvailable } from "@/lib/products/availability";
 import { productSchema } from "@/lib/products/schema";
 
 const TAG_OPTIONS = ["best", "viral", "new"] as const;
@@ -157,7 +158,8 @@ export function ProductDetail({
   }
 
   const linked = Boolean(product.cloverItemId);
-  const statusLabel = product.active
+  const effectivelyAvailable = isEffectivelyAvailable(product, cloverConnected);
+  const statusLabel = effectivelyAvailable
     ? "Active"
     : linked || product.source === "uber_eats"
       ? "Out of stock"
@@ -181,7 +183,7 @@ export function ProductDetail({
               Products
             </Link>
           </Button>
-          <Badge variant={product.active ? "secondary" : "outline"}>{statusLabel}</Badge>
+          <Badge variant={effectivelyAvailable ? "secondary" : "outline"}>{statusLabel}</Badge>
           <CloverColorSwatch color={product.cloverColorCode} size={14} />
           {product.source === "uber_eats" ? <Badge variant="outline">Uber Eats</Badge> : null}
           {cloverEnabled && linked ? (
