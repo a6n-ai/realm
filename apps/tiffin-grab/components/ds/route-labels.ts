@@ -16,6 +16,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   "meal-types": "Meal types & categories",
   integrations: "Integrations",
   payments: "Payment",
+  clover: "Clover",
   plugins: "Plugins",
   discounts: "Discounts",
   coupons: "Coupons",

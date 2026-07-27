@@ -1,5 +1,6 @@
 import { updatableColumns } from "@realm/database";
 import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import type { IntegrationsConfig } from "@realm/clover";
 import type { PaymentConfig } from "@realm/payments";
 import type { DiscountPolicy } from "./coupons";
 
@@ -22,4 +23,6 @@ export const app = pgTable("app", {
   discountPolicy: jsonb("discount_policy").$type<DiscountPolicy>(),
   // Enabled payment methods + per-method tax lines. NULL/empty → simulated mode.
   paymentConfig: jsonb("payment_config").$type<PaymentConfig>(),
+  // Non-payment plugins (Clover, …). NULL/empty → nothing installed.
+  integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),
 });

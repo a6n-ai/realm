@@ -5,7 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { z } from "zod";
+import { CodeOtp } from "@realm/auth-ui";
+import { Button } from "@realm/ui/button";
+import { Card, CardContent } from "@realm/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 
 const schema = z.object({
@@ -18,63 +31,30 @@ type FormValues = z.infer<typeof schema>;
 const otpEmailSchema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email"),
 });
-const otpCodeSchema = z.object({
-  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
-});
 
 type Mode = "password" | "email-otp";
 
-function Logo() {
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-      <span
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          background: "var(--red)",
-          border: "3px solid var(--ink)",
-          display: "grid",
-          placeItems: "center",
-          boxShadow: "3px 3px 0 var(--ink)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--yellow)", border: "2px solid var(--ink)" }} />
-      </span>
-      <span className="display" style={{ fontSize: "1.4rem", letterSpacing: "-0.04em" }}>
-        PUCHKAMAN
-      </span>
-    </div>
-  );
-}
-
+/** Admin login — same Card split composition as tiffin-grab; accents via crm.css. */
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
 
   return (
-    <div className="hero-bg" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}>
-      <div className="card" style={{ width: "100%", maxWidth: 400, padding: "clamp(28px,4vw,40px)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <Logo />
-          <Link href="/" className="btn btn--sm btn--white" style={{ flexShrink: 0 }}>
-            Home
-          </Link>
-        </div>
-
-        <p className="kicker" style={{ opacity: 0.6, marginBottom: 4 }}>
-          Admin
-        </p>
-        <h1 className="display" style={{ fontSize: "1.7rem", marginBottom: 26 }}>
-          Sign in to the menu
-        </h1>
-
-        {mode === "password" ? (
-          <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
-        ) : (
-          <EmailOtpPanel onUsePassword={() => setMode("password")} />
-        )}
-      </div>
+    <div className="flex flex-col gap-6">
+      <Card className="overflow-hidden p-0">
+        <CardContent className="grid p-0 md:grid-cols-2">
+          <div className="p-6 md:p-8">
+            {mode === "password" ? (
+              <PasswordPanel onUseEmailOtp={() => setMode("email-otp")} />
+            ) : (
+              <EmailOtpPanel onUsePassword={() => setMode("password")} />
+            )}
+          </div>
+          <div className="bg-primary text-primary-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
+            <span className="text-destructive text-2xl font-bold">Puchkaman</span>
+            <p className="text-balance text-center text-sm opacity-80">Operations console for staff.</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -83,19 +63,15 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
+  const [showPassword, setShowPassword] = useState(false);
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "" },
+  });
 
   async function onSubmit(values: FormValues) {
     setError(null);
-    setBusy(true);
     const result = await signIn.email({ email: values.email, password: values.password });
-    setBusy(false);
     if (result?.error) {
       setError("Invalid email or password");
       return;
@@ -105,49 +81,80 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: "grid", gap: 18 }}>
-      <div className={`field ${errors.email ? "field--err" : ""}`}>
-        <label htmlFor="email">Email</label>
-        <input id="email" type="email" autoComplete="email" className="input" {...register("email")} />
-        {errors.email && <span className="err-msg">{errors.email.message}</span>}
-      </div>
-
-      <div className={`field ${errors.password ? "field--err" : ""}`}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <label htmlFor="password">Password</label>
-          <Link href="/forgot-password" className="kicker" style={{ fontSize: "0.78rem", opacity: 0.7 }}>
-            Forgot password?
-          </Link>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col items-center text-center">
+            <h1 className="text-2xl font-bold">Welcome back</h1>
+            <p className="text-muted-foreground text-balance">Sign in to the operations console</p>
+          </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center">
+                  <FormLabel>Password</FormLabel>
+                  <Link
+                    href="/forgot-password"
+                    className="ml-auto text-sm underline-offset-2 hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="pr-10"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-pressed={showPassword}
+                      className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                    >
+                      {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          {error ? (
+            <p className="text-destructive text-sm" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            Sign in
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={onUseEmailOtp}>
+            Email me a sign-in code instead
+          </Button>
         </div>
-        <input id="password" type="password" autoComplete="current-password" className="input" {...register("password")} />
-        {errors.password && <span className="err-msg">{errors.password.message}</span>}
-      </div>
-
-      {error && (
-        <p className="err-msg" role="alert" style={{ fontSize: "0.82rem" }}>
-          {error}
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={busy}
-        className="btn btn--red btn--block"
-        style={busy ? { opacity: 0.7, pointerEvents: "none" } : undefined}
-      >
-        {busy ? "Signing in…" : "Sign in"}
-      </button>
-
-      <button type="button" onClick={onUseEmailOtp} className="btn btn--white btn--block">
-        Email me a sign-in code instead
-      </button>
-    </form>
+      </form>
+    </Form>
   );
 }
 
-// Passwordless sign-in: email a 6-digit code, then sign in with it. Never
-// reveals whether an address exists — the flow advances to the code step
-// regardless of the send result.
 function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -155,14 +162,11 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState("");
 
   const emailForm = useForm<z.infer<typeof otpEmailSchema>>({
     resolver: zodResolver(otpEmailSchema),
     defaultValues: { email: "" },
-  });
-  const codeForm = useForm<z.infer<typeof otpCodeSchema>>({
-    resolver: zodResolver(otpCodeSchema),
-    defaultValues: { code: "" },
   });
 
   async function sendCode(values: z.infer<typeof otpEmailSchema>) {
@@ -174,10 +178,10 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
     setStep("code");
   }
 
-  async function verify(values: z.infer<typeof otpCodeSchema>) {
+  async function verify(otp: string) {
     setError(null);
     setBusy(true);
-    const result = await signIn.emailOtp({ email, otp: values.code });
+    const result = await signIn.emailOtp({ email, otp });
     setBusy(false);
     if (result?.error) {
       setError("Invalid or expired code");
@@ -189,80 +193,75 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
 
   if (step === "email") {
     return (
-      <form onSubmit={emailForm.handleSubmit(sendCode)} noValidate style={{ display: "grid", gap: 18 }}>
-        <div className={`field ${emailForm.formState.errors.email ? "field--err" : ""}`}>
-          <label htmlFor="otp-email">Email</label>
-          <input id="otp-email" type="email" autoComplete="email" className="input" {...emailForm.register("email")} />
-          {emailForm.formState.errors.email && <span className="err-msg">{emailForm.formState.errors.email.message}</span>}
-        </div>
-
-        {error && (
-          <p className="err-msg" role="alert" style={{ fontSize: "0.82rem" }}>
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="btn btn--red btn--block"
-          style={busy ? { opacity: 0.7, pointerEvents: "none" } : undefined}
-        >
-          {busy ? "Sending…" : "Email me a code"}
-        </button>
-
-        <button type="button" onClick={onUsePassword} className="btn btn--white btn--block">
-          Sign in with a password instead
-        </button>
-      </form>
+      <Form {...emailForm}>
+        <form onSubmit={emailForm.handleSubmit(sendCode)}>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col items-center text-center">
+              <h1 className="text-2xl font-bold">Email sign-in code</h1>
+              <p className="text-muted-foreground text-balance">We&apos;ll email a one-time code</p>
+            </div>
+            <FormField
+              control={emailForm.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {error ? (
+              <p className="text-destructive text-sm" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? "Sending…" : "Email me a code"}
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={onUsePassword}>
+              Sign in with a password instead
+            </Button>
+          </div>
+        </form>
+      </Form>
     );
   }
 
   return (
-    <form onSubmit={codeForm.handleSubmit(verify)} noValidate style={{ display: "grid", gap: 18 }}>
-      <p className="kicker" style={{ opacity: 0.7 }}>
-        We emailed a code to {email}
-      </p>
-
-      <div className={`field ${codeForm.formState.errors.code ? "field--err" : ""}`}>
-        <label htmlFor="otp-code">Verification code</label>
-        <input
-          id="otp-code"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          className="input"
-          {...codeForm.register("code")}
-        />
-        {codeForm.formState.errors.code && <span className="err-msg">{codeForm.formState.errors.code.message}</span>}
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col items-center text-center">
+        <h1 className="text-2xl font-bold">Enter code</h1>
+        <p className="text-muted-foreground text-balance">We emailed a code to {email}</p>
       </div>
-
-      {error && (
-        <p className="err-msg" role="alert" style={{ fontSize: "0.82rem" }}>
+      <CodeOtp
+        value={code}
+        onChange={setCode}
+        onComplete={(value) => {
+          void verify(value);
+        }}
+        disabled={busy}
+        autoFocus
+      />
+      {error ? (
+        <p className="text-destructive text-sm" role="alert">
           {error}
         </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={busy}
-        className="btn btn--red btn--block"
-        style={busy ? { opacity: 0.7, pointerEvents: "none" } : undefined}
-      >
-        {busy ? "Signing in…" : "Sign in"}
-      </button>
-
-      <button
+      ) : null}
+      <Button
         type="button"
+        variant="ghost"
+        className="w-full"
         onClick={() => {
           setStep("email");
+          setCode("");
           setError(null);
         }}
-        className="btn btn--white btn--block"
       >
         Use a different email
-      </button>
-    </form>
+      </Button>
+    </div>
   );
 }

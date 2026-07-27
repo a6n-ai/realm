@@ -5,9 +5,28 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import { Dialog, Switch } from "radix-ui";
-import { XIcon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
+import { ResponsiveDialog } from "@realm/design-system";
+import { Button } from "@realm/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@realm/ui/form";
+import { Input } from "@realm/ui/input";
+import { Textarea } from "@realm/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@realm/ui/select";
+import { Switch } from "@realm/ui/switch";
+import { cn } from "@realm/ui/cn";
 import { ImageUploader } from "@/components/files/image-uploader";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
@@ -35,24 +54,24 @@ export function ProductForm({
   const router = useRouter();
   const isNew = !product;
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<FormInput, unknown, FormValues>({ resolver: zodResolver(productSchema), defaultValues: emptyForm() });
+  const form = useForm<FormInput, unknown, FormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: emptyForm(),
+  });
 
   useEffect(() => {
-    if (open) reset(product ? rowToForm(product) : emptyForm());
-  }, [open, product, reset]);
+    if (open) form.reset(product ? rowToForm(product) : emptyForm());
+  }, [open, product, form]);
 
   async function onSubmit(values: FormValues) {
     try {
       if (isNew) {
         await apiFetch("/api/products", { method: "POST", body: JSON.stringify(values) });
       } else {
-        await apiFetch(`/api/products/${product.publicId}`, { method: "PUT", body: JSON.stringify(values) });
+        await apiFetch(`/api/products/${product.publicId}`, {
+          method: "PUT",
+          body: JSON.stringify(values),
+        });
       }
       onOpenChange(false);
       router.refresh();
@@ -62,165 +81,199 @@ export function ProductForm({
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(22,20,13,.55)",
-            zIndex: 60,
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-            overflowY: "auto",
-          }}
-        >
-          <Dialog.Content
-            className="card"
-            style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", background: "var(--white)", padding: "clamp(20px,3vw,30px)" }}
-            onClick={(e) => e.stopPropagation()}
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isNew ? "Add product" : "Edit product"}
+      contentClassName="sm:max-w-lg"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="product-form"
+            disabled={form.formState.isSubmitting}
           >
-            <div className="flex between center" style={{ marginBottom: 20 }}>
-              <Dialog.Title className="display" style={{ fontSize: "1.35rem" }}>
-                {isNew ? "Add product" : "Edit product"}
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button className="icon-btn" aria-label="Close">
-                  <XIcon size={16} />
-                </button>
-              </Dialog.Close>
-            </div>
+            {form.formState.isSubmitting ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      }
+    >
+      <Form {...form}>
+        <form
+          id="product-form"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="grid gap-4 px-4 py-4"
+        >
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <form onSubmit={handleSubmit(onSubmit)} style={{ display: "grid", gap: 16 }}>
-              <div className={`field ${errors.name ? "field--err" : ""}`}>
-                <label htmlFor="pf-name">Name</label>
-                <input id="pf-name" className="input" {...register("name")} />
-                {errors.name && <span className="err-msg">{errors.name.message}</span>}
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORY_IDS.map((id) => (
+                        <SelectItem key={id} value={id}>
+                          {CATEGORIES[id].emoji} {CATEGORIES[id].name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price ($)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={field.value === undefined || field.value === null ? "" : String(field.value)}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <div className={`field ${errors.category ? "field--err" : ""}`}>
-                  <label htmlFor="pf-category">Category</label>
-                  <select id="pf-category" className="select" {...register("category")}>
-                    {CATEGORY_IDS.map((id) => (
-                      <option key={id} value={id}>
-                        {CATEGORIES[id].emoji} {CATEGORIES[id].name}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.category && <span className="err-msg">{errors.category.message as string}</span>}
-                </div>
-                <div className={`field ${errors.price ? "field--err" : ""}`}>
-                  <label htmlFor="pf-price">Price ($)</label>
-                  <input id="pf-price" className="input" type="number" step="0.01" min="0" {...register("price")} />
-                  {errors.price && <span className="err-msg">{errors.price.message as string}</span>}
-                </div>
-              </div>
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea rows={3} {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-              <div className="field">
-                <label htmlFor="pf-description">Description</label>
-                <textarea id="pf-description" className="textarea" rows={3} {...register("description")} />
-              </div>
+          <FormItem>
+            <FormLabel>Badges</FormLabel>
+            <Controller
+              control={form.control}
+              name="tags"
+              render={({ field }) => {
+                const selected = field.value ?? [];
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {TAG_OPTIONS.map((tag) => {
+                      const active = selected.includes(tag);
+                      return (
+                        <Button
+                          key={tag}
+                          type="button"
+                          size="sm"
+                          variant={active ? "default" : "outline"}
+                          className="uppercase"
+                          onClick={() =>
+                            field.onChange(
+                              active ? selected.filter((t) => t !== tag) : [...selected, tag],
+                            )
+                          }
+                        >
+                          {tag}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                );
+              }}
+            />
+          </FormItem>
 
-              <div className="field">
-                <label>Badges</label>
-                <Controller
-                  control={control}
-                  name="tags"
-                  render={({ field }) => {
-                    const selected = field.value ?? [];
-                    return (
-                      <div className="flex" style={{ gap: 8 }}>
-                        {TAG_OPTIONS.map((tag) => {
-                          const active = selected.includes(tag);
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              className={`pill ${active ? "pill--red" : ""}`}
-                              style={{ cursor: "pointer", textTransform: "uppercase" }}
-                              onClick={() => field.onChange(active ? selected.filter((t) => t !== tag) : [...selected, tag])}
-                            >
-                              {tag}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  }}
+          <FormItem>
+            <FormLabel>Image</FormLabel>
+            <Controller
+              control={form.control}
+              name="image"
+              render={({ field }) => (
+                <ImageUploader
+                  value={(field.value as FileDetail | null) ?? null}
+                  onChange={field.onChange}
+                  prefix="catalog/products"
                 />
-              </div>
+              )}
+            />
+          </FormItem>
 
-              <div className="field">
-                <label>Image</label>
-                <Controller
-                  control={control}
-                  name="image"
-                  render={({ field }) => (
-                    <ImageUploader value={(field.value as FileDetail | null) ?? null} onChange={field.onChange} prefix="catalog/products" />
-                  )}
-                />
-              </div>
-
-              <Controller
-                control={control}
-                name="active"
-                render={({ field }) => (
-                  <label
-                    className="flex between center"
-                    style={{ border: "var(--border)", borderRadius: "var(--r-sm)", padding: "12px 14px", cursor: "pointer" }}
-                  >
-                    <span style={{ fontWeight: 700, fontSize: "0.92rem" }}>Active — shown on the public menu</span>
-                    <Switch.Root
-                      checked={field.value ?? true}
-                      onCheckedChange={field.onChange}
-                      className="admin-switch"
-                    >
-                      <Switch.Thumb className="admin-switch-thumb" />
-                    </Switch.Root>
-                  </label>
+          <Controller
+            control={form.control}
+            name="active"
+            render={({ field }) => (
+              <label
+                className={cn(
+                  "flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3",
                 )}
-              />
+              >
+                <span className="text-sm font-medium">Active — shown on the public menu</span>
+                <Switch checked={field.value ?? true} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
 
-              <Controller
-                control={control}
-                name="featured"
-                render={({ field }) => (
-                  <label
-                    className="flex between center"
-                    style={{ border: "var(--border)", borderRadius: "var(--r-sm)", padding: "12px 14px", cursor: "pointer" }}
-                  >
-                    <span style={{ fontWeight: 700, fontSize: "0.92rem" }}>Featured — shown in Best Sellers on the home page</span>
-                    <Switch.Root
-                      checked={field.value ?? false}
-                      onCheckedChange={field.onChange}
-                      className="admin-switch"
-                    >
-                      <Switch.Thumb className="admin-switch-thumb" />
-                    </Switch.Root>
-                  </label>
-                )}
-              />
-
-              <div className="flex" style={{ gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-                <button type="button" className="btn btn--white btn--sm" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn--red btn--sm" disabled={isSubmitting} style={isSubmitting ? { opacity: 0.7, pointerEvents: "none" } : undefined}>
-                  {isSubmitting ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
+          <Controller
+            control={form.control}
+            name="featured"
+            render={({ field }) => (
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
+                <span className="text-sm font-medium">
+                  Featured — shown in Best Sellers on the home page
+                </span>
+                <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
+        </form>
+      </Form>
+    </ResponsiveDialog>
   );
 }
 
 function emptyForm(): FormInput {
-  return { name: "", description: "", category: "trad", price: 0, image: null, tags: [], active: true, featured: false };
+  return {
+    name: "",
+    description: "",
+    category: "trad",
+    price: 0,
+    image: null,
+    tags: [],
+    active: true,
+    featured: false,
+  };
 }
 
 function rowToForm(row: ProductRow): FormInput {

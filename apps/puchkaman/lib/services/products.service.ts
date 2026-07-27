@@ -5,9 +5,29 @@ import { UpdatableRepository, UpdatableService, columnResolver, conditionToSql }
 import { db } from "@/db/client";
 import { products, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import type { SortState } from "@/lib/list/sort";
 import { productSchema } from "@/lib/products/schema";
 
 export type ProductListRow = typeof products.$inferSelect;
+
+// Keys match DataTable column keys (see products-table.tsx). "status" sorts by
+// active (Active/Archived); "lastSynced" by last_synced_at.
+export type ProductSortColumn =
+  | "name"
+  | "category"
+  | "price"
+  | "status"
+  | "source"
+  | "lastSynced";
+
+const PRODUCT_SORT_COL = {
+  name: products.name,
+  category: products.category,
+  price: products.price,
+  status: products.active,
+  source: products.source,
+  lastSynced: products.lastSyncedAt,
+} as const;
 
 // Every filterable facet (category/source/syncStatus/featured/name/slug) lives
 // on the base `products` table, so a plain columnResolver suffices — except
@@ -72,23 +92,25 @@ class ProductsService extends UpdatableService<typeof products> {
     return db.select().from(products).orderBy(asc(products.category), asc(products.name));
   }
 
-  // Server-side faceted filtering + offset pagination for the admin table —
-  // mirrors tiffin-grab's listOrdersPage. Named `queryProducts` (not `list`):
-  // `list` is already taken by the base UpdatableService method. Every facet
-  // resolves against the base `products` table directly (no FK, so no join
-  // that could inflate/deflate the count).
+  // Server-side faceted filtering + offset pagination + column sort for the
+  // admin table — mirrors tiffin-grab's listOrdersPage. Named `queryProducts`
+  // (not `list`): `list` is already taken by the base UpdatableService method.
+  // Every facet resolves against the base `products` table directly (no FK, so
+  // no join that could inflate/deflate the count).
   async queryProducts(
     condition: Condition | undefined,
     page: PageRequest,
+    sort: SortState<ProductSortColumn> = { column: "category", dir: "asc" },
   ): Promise<Page<ProductListRow>> {
     const where = conditionToSql(condition, resolveProductFacet);
+    const col = PRODUCT_SORT_COL[sort.column] ?? products.category;
 
     const [items, [{ count }]] = await Promise.all([
       db
         .select()
         .from(products)
         .where(where)
-        .orderBy(asc(products.category), asc(products.name))
+        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
         .limit(page.size)
         .offset(page.page * page.size),
       db

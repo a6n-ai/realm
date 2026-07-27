@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@realm/auth": "workspace:*",
     "@realm/auth-ui": "workspace:*",
+    "@realm/clover": "workspace:*",
     "@realm/commons": "workspace:*",
     "@realm/crm": "workspace:*",
     "@realm/database": "workspace:*",

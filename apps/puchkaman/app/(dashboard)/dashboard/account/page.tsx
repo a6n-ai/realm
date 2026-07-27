@@ -1,5 +1,8 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
+import { UserIcon } from "lucide-react";
+import { PageHeader, PageShell, SectionCard, SkeletonFormCard } from "@realm/design-system";
+import { Skeleton } from "@realm/ui/skeleton";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -9,20 +12,12 @@ import { ChangeEmailForm } from "./change-email-form";
 
 export default function AccountPage() {
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      <div>
-        <p className="kicker" style={{ opacity: 0.55, marginBottom: 4 }}>
-          Settings
-        </p>
-        <h1 className="display" style={{ fontSize: "1.8rem" }}>
-          Account
-        </h1>
-        <p style={{ opacity: 0.7, fontWeight: 500, marginTop: 4 }}>Your profile and password.</p>
-      </div>
+    <PageShell>
+      <PageHeader icon={UserIcon} title="Account" subtitle="Your profile and password." />
       <Suspense fallback={<AccountSkeleton />}>
         <AccountData />
       </Suspense>
-    </div>
+    </PageShell>
   );
 }
 
@@ -31,64 +26,64 @@ async function AccountData() {
   const session = await getSession();
   if (!session?.user) return null;
 
-  const [u] = await db.select({ name: users.name }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
+  const [u] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.publicId, session.user.id))
+    .limit(1);
 
   return (
-    <div style={{ display: "grid", gap: 20, maxWidth: 480 }}>
-      <section className="card" style={{ padding: "clamp(20px,3vw,28px)" }}>
-        <p className="kicker" style={{ opacity: 0.55, marginBottom: 14 }}>
-          Profile
-        </p>
-        <div style={{ display: "grid", gap: 14 }}>
-          <div className="field">
-            <label>Name</label>
-            <p style={{ fontWeight: 600 }}>{u?.name?.trim() || "—"}</p>
+    <div className="grid max-w-2xl gap-4">
+      <SectionCard title="Profile">
+        <div className="grid gap-3 text-sm">
+          <div>
+            <p className="text-muted-foreground">Name</p>
+            <p className="font-medium">{u?.name?.trim() || "—"}</p>
           </div>
-          <div className="field">
-            <label>Email</label>
-            <p style={{ fontWeight: 600 }}>{session.user.email}</p>
+          <div>
+            <p className="text-muted-foreground">Email</p>
+            <p className="font-medium">{session.user.email}</p>
           </div>
-          <div className="field">
-            <label>Role</label>
-            <p style={{ fontWeight: 600, textTransform: "capitalize" }}>{session.user.role}</p>
+          <div>
+            <p className="text-muted-foreground">Role</p>
+            <p className="font-medium capitalize">{session.user.role}</p>
           </div>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="card" style={{ padding: "clamp(20px,3vw,28px)" }}>
-        <p className="kicker" style={{ opacity: 0.55, marginBottom: 4 }}>
-          Password
-        </p>
-        <p style={{ opacity: 0.7, fontWeight: 500, marginBottom: 18, fontSize: "0.92rem" }}>
-          Change your password. This signs you out on other devices.
-        </p>
+      <SectionCard
+        title="Password"
+        subtitle="Change your password. This signs you out on other devices."
+      >
         <ChangePasswordForm />
-      </section>
+      </SectionCard>
 
-      <section className="card" style={{ padding: "clamp(20px,3vw,28px)" }}>
-        <p className="kicker" style={{ opacity: 0.55, marginBottom: 4 }}>
-          Email
-        </p>
-        <p style={{ opacity: 0.7, fontWeight: 500, marginBottom: 18, fontSize: "0.92rem" }}>
-          Change your email. We&apos;ll send a code to your current email ({session.user.email}) first, then a
-          second code to the new address.
-        </p>
+      <SectionCard
+        title="Email"
+        subtitle={`Change your email. We'll send a code to your current email (${session.user.email}) first, then a second code to the new address.`}
+      >
         <ChangeEmailForm currentEmail={session.user.email} />
-      </section>
+      </SectionCard>
     </div>
   );
 }
 
 function AccountSkeleton() {
   return (
-    <div style={{ display: "grid", gap: 20, maxWidth: 480 }}>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="card" style={{ padding: "clamp(20px,3vw,28px)", display: "grid", gap: 14 }}>
-          <div style={{ height: 14, width: 90, background: "var(--paper, rgba(0,0,0,.08))", borderRadius: 4 }} />
-          <div style={{ height: 18, width: "70%", background: "var(--paper, rgba(0,0,0,.06))", borderRadius: 4 }} />
-          <div style={{ height: 18, width: "50%", background: "var(--paper, rgba(0,0,0,.06))", borderRadius: 4 }} />
+    <div className="grid max-w-2xl gap-4">
+      <div className="bg-card space-y-3 rounded-xl border p-5 shadow-sm">
+        <Skeleton className="h-5 w-24" />
+        <div className="grid gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="grid gap-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
+      <SkeletonFormCard fields={2} />
+      <SkeletonFormCard fields={2} />
     </div>
   );
 }

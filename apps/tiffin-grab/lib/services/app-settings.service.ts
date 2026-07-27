@@ -1,5 +1,10 @@
 import { UpdatableRepository } from "@realm/database";
 import { cutoffMsFor, tzToDefaultCountry } from "@realm/commons";
+import {
+  parseIntegrationsConfig,
+  type IntegrationsConfig,
+  type IntegrationsConfigStore,
+} from "@realm/clover";
 import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@realm/payments";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
@@ -180,6 +185,26 @@ export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
   if (row) await appSettingsEntity.update(row.publicId, { paymentConfig: parsed });
   else await appSettingsEntity.create({ ...DEFAULTS, paymentConfig: parsed });
 }
+
+/** Non-payment plugins (Clover, …) — same JSONB singleton pattern as payment_config. */
+export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
+  return settingsCache.getOrSet("integrationsConfig", async () => {
+    const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
+    return parseIntegrationsConfig(row?.cfg ?? undefined);
+  });
+}
+
+export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<void> {
+  const parsed = parseIntegrationsConfig(cfg);
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { integrationsConfig: parsed });
+  else await appSettingsEntity.create({ ...DEFAULTS, integrationsConfig: parsed });
+}
+
+export const integrationsConfigStore: IntegrationsConfigStore = {
+  get: getIntegrationsConfig,
+  set: setIntegrationsConfig,
+};
 
 export async function getMealTypes(): Promise<MealTypesSettings> {
   return settingsCache.getOrSet("mealTypes", async () => {

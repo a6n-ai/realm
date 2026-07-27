@@ -1,6 +1,10 @@
 import { Suspense } from "react";
+import { getCloverConnection, toPublicCloverConnection } from "@realm/clover";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import {
+  getPaymentConfig,
+  integrationsConfigStore,
+} from "@/lib/services/app-settings.service";
 import { PluginsCatalog, PluginsCatalogSkeleton } from "./plugins-catalog";
 
 export default async function IntegrationsPage() {
@@ -13,6 +17,14 @@ export default async function IntegrationsPage() {
 }
 
 async function PluginsCatalogLoader() {
-  const cfg = await getPaymentConfig();
-  return <PluginsCatalog installedIds={cfg.methods.map((m) => m.id)} />;
+  const [cfg, connection] = await Promise.all([
+    getPaymentConfig(),
+    getCloverConnection(integrationsConfigStore),
+  ]);
+  return (
+    <PluginsCatalog
+      installedIds={cfg.methods.map((m) => m.id)}
+      clover={toPublicCloverConnection(connection)}
+    />
+  );
 }

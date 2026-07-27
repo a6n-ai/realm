@@ -1,19 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { PackageSearchIcon, PencilIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import {
+  PackageSearchIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
+import {
+  DataTable,
+  ListPagination,
+  SkeletonFilterBar,
+  type Column,
+  type FacetDef,
+} from "@realm/design-system";
+import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
+import { TableCell } from "@realm/ui/table";
 import type { PendingSync } from "@/db/schema/products";
-import type { FacetDef } from "@realm/design-system";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
-import { SyncDialog } from "@/components/admin/sync-dialog";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { apiFetch } from "@/lib/http/api-fetch";
+import type { SortState } from "@/lib/list/sort";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
+import type { ProductSortColumn } from "@/lib/services/products.service";
 import { ProductForm } from "./product-form";
-import { ProductFilters } from "./product-filters";
-import { ProductPagination } from "./product-pagination";
 
 export type ProductRow = {
   id: bigint;
@@ -34,6 +48,20 @@ export type ProductRow = {
   pendingSync: PendingSync | null;
 };
 
+// Sortable keys must match ProductSortColumn / PRODUCT_SORT_COL. "actions" is
+// UI-only and never a server sort key.
+type ProductCol = ProductSortColumn | "actions";
+
+const COLUMNS: readonly Column<ProductCol>[] = [
+  { key: "name", label: "Name", sortable: true },
+  { key: "category", label: "Category", sortable: true },
+  { key: "price", label: "Price", sortable: true, align: "right" },
+  { key: "status", label: "Status", sortable: true },
+  { key: "source", label: "Source", sortable: true },
+  { key: "lastSynced", label: "Last synced", sortable: true, align: "right" },
+  { key: "actions", label: "", align: "right", width: "w-24" },
+];
+
 function relativeTime(ms: number | null): string {
   if (!ms) return "—";
   const diff = Date.now() - ms;
@@ -51,24 +79,20 @@ export function ProductsTable({
   total,
   page,
   size,
+  sort,
 }: {
   spec: FacetDef[];
   products: ProductRow[];
   total: number;
   page: number;
   size: number;
+  sort: SortState<ProductSortColumn>;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [removing, setRemoving] = useState<ProductRow | null>(null);
-  const [syncOpen, setSyncOpen] = useState(false);
   const [reviewing, setReviewing] = useState<ProductRow | null>(null);
-
-  function openNew() {
-    setEditing(null);
-    setFormOpen(true);
-  }
 
   function openEdit(row: ProductRow) {
     setEditing(row);
@@ -81,125 +105,112 @@ export function ProductsTable({
     router.refresh();
   }
 
+  const emptyAction: ReactNode =
+    total === 0 ? (
+      <Button type="button" size="sm" className="gap-1.5" onClick={() => {
+        setEditing(null);
+        setFormOpen(true);
+      }}>
+        <PlusIcon className="size-3.5" />
+        Add product
+      </Button>
+    ) : undefined;
+
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div className="flex wrap-gap between" style={{ alignItems: "center" }}>
-        <ProductFilters spec={spec} />
-        <div className="flex" style={{ gap: 8 }}>
-          <button className="btn btn--white btn--sm" onClick={() => setSyncOpen(true)}>
-            <RefreshCwIcon size={16} /> Sync from Uber Eats
-          </button>
-          <button className="btn btn--red btn--sm" onClick={openNew}>
-            <PlusIcon size={16} /> Add product
-          </button>
-        </div>
-      </div>
-
-      {products.length === 0 ? (
-        <div
-          className="flex center"
-          style={{
-            flexDirection: "column",
-            gap: 10,
-            padding: "48px 16px",
-            border: "var(--bd) solid var(--ink)",
-            borderRadius: "var(--r-sm)",
-            background: "var(--white)",
-          }}
-        >
-          <PackageSearchIcon size={28} style={{ opacity: 0.4 }} />
-          <p style={{ fontWeight: 700, opacity: 0.7 }}>
-            {total === 0 ? "No products yet." : "No products match your filters."}
-          </p>
-        </div>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th style={{ textAlign: "right" }}>Price</th>
-                <th>Status</th>
-                <th>Source</th>
-                <th>Last synced</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((row) => (
-                <tr key={row.publicId}>
-                  <td>
-                    <div className="flex center" style={{ gap: 10 }}>
-                      {row.image?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={row.image.url}
-                          alt={row.name}
-                          loading="lazy"
-                          style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 6,
-                            background: "var(--cream)",
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <span style={{ fontWeight: 700 }}>{row.name}</span>
-                    </div>
-                  </td>
-                  <td>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</td>
-                  <td className="mono" style={{ textAlign: "right" }}>
-                    ${row.price.toFixed(2)}
-                  </td>
-                  <td>{row.active ? "Active" : "Archived"}</td>
-                  <td>
-                    {row.source === "uber_eats" ? (
-                      row.syncStatus === "update_available" ? (
-                        <button
-                          className="status-pill status-pill--danger"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => setReviewing(row)}
-                        >
-                          Update available
-                        </button>
-                      ) : (
-                        "Uber Eats"
-                      )
-                    ) : (
-                      "Manual"
-                    )}
-                  </td>
-                  <td className="mono" style={{ fontSize: "0.78rem", whiteSpace: "nowrap", opacity: 0.7 }}>
-                    {relativeTime(row.lastSyncedAt)}
-                  </td>
-                  <td>
-                    <div className="flex" style={{ gap: 6, justifyContent: "flex-end" }}>
-                      <button className="icon-btn" onClick={() => openEdit(row)} aria-label={`Edit ${row.name}`}>
-                        <PencilIcon size={15} />
-                      </button>
-                      <button
-                        className="icon-btn icon-btn--danger"
-                        onClick={() => setRemoving(row)}
-                        aria-label={`Remove ${row.name}`}
-                      >
-                        <Trash2Icon size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <ProductPagination page={page} size={size} total={total} />
+    <div className="space-y-4">
+      <DataTable
+        columns={COLUMNS}
+        rows={products}
+        rowKey={(r) => r.publicId}
+        serial={false}
+        sort={sort}
+        search={{
+          placeholder: "Search name or slug…",
+          shortPlaceholder: "Search…",
+          debounceMs: 250,
+        }}
+        filters={<ReuiFacetFilters spec={spec} />}
+        emptyIcon={PackageSearchIcon}
+        emptyMessage="No products yet."
+        emptySearchMessage="No products match your filters."
+        emptyAction={emptyAction}
+        renderRow={(row) => (
+          <>
+            <TableCell>
+              <div className="flex items-center gap-2.5">
+                {row.image?.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={row.image.url}
+                    alt=""
+                    loading="lazy"
+                    className="size-8 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="bg-muted size-8 shrink-0 rounded-md" />
+                )}
+                <span className="font-medium">{row.name}</span>
+              </div>
+            </TableCell>
+            <TableCell>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</TableCell>
+            <TableCell className="text-right font-mono text-sm tabular-nums">
+              ${row.price.toFixed(2)}
+            </TableCell>
+            <TableCell>
+              <Badge variant={row.active ? "secondary" : "outline"}>
+                {row.active ? "Active" : "Archived"}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              {row.source === "uber_eats" ? (
+                row.syncStatus === "update_available" ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setReviewing(row)}
+                  >
+                    Update available
+                  </Button>
+                ) : (
+                  "Uber Eats"
+                )
+              ) : (
+                "Manual"
+              )}
+            </TableCell>
+            <TableCell className="text-muted-foreground text-right font-mono text-xs tabular-nums">
+              {relativeTime(row.lastSyncedAt)}
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="flex justify-end gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => openEdit(row)}
+                  aria-label={`Edit ${row.name}`}
+                >
+                  <PencilIcon className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive size-8"
+                  onClick={() => setRemoving(row)}
+                  aria-label={`Remove ${row.name}`}
+                >
+                  <Trash2Icon className="size-3.5" />
+                </Button>
+              </div>
+            </TableCell>
+          </>
+        )}
+      />
+      <ListPagination page={page} size={size} total={total} />
 
       <ProductForm open={formOpen} onOpenChange={setFormOpen} product={editing} />
 
@@ -212,8 +223,20 @@ export function ProductsTable({
         danger
         onConfirm={confirmRemove}
       />
-      <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
-      <PendingSyncReviewDialog product={reviewing} onOpenChange={(open) => !open && setReviewing(null)} />
+      <PendingSyncReviewDialog
+        product={reviewing}
+        onOpenChange={(open) => !open && setReviewing(null)}
+      />
+    </div>
+  );
+}
+
+// FilterBar twin + table twin — mirrors live search + ReuiFacetFilters chrome.
+export function ProductsTableSkeleton() {
+  return (
+    <div className="space-y-4">
+      <SkeletonFilterBar dropdown />
+      <DataTable.Skeleton columns={COLUMNS} serial={false} />
     </div>
   );
 }

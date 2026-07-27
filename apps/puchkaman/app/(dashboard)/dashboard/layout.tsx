@@ -1,10 +1,17 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { Toaster } from "@realm/ui/sonner";
+import { TooltipProvider } from "@realm/ui/tooltip";
+import { CrmShell } from "@realm/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { AdminShell } from "@/components/admin/admin-shell";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
+import { AppBrand } from "@/components/dashboard/app-brand";
+import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -14,12 +21,30 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // its own before it can reach anything under /dashboard. /set-password sits
   // outside this layout so it can't trap the user.
   const [u] = await db
-    .select({ passwordSet: users.passwordSet })
+    .select({ passwordSet: users.passwordSet, name: users.name })
     .from(users)
     .where(eq(users.publicId, session.user.id))
     .limit(1);
   if (!u) redirect("/login");
   if (!u.passwordSet) redirect("/set-password");
 
-  return <AdminShell user={{ email: session.user.email }}>{children}</AdminShell>;
+  return (
+    <div className="crm-app">
+      <TooltipProvider>
+        <CrmShell
+          hideSidebarOnMobile
+          brand={<AppBrand href="/dashboard" />}
+          sidebar={
+            <AppSidebar user={{ email: session.user.email, name: u.name ?? null }} />
+          }
+          breadcrumbs={<AppBreadcrumbs />}
+          actions={<ModeToggle />}
+          bottomNav={<AppBottomNav />}
+        >
+          {children}
+        </CrmShell>
+        <Toaster position="top-right" />
+      </TooltipProvider>
+    </div>
+  );
 }

@@ -4,11 +4,20 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import type { CloverConnectionPublic } from "@realm/clover";
+import { CloverIntegrationsCard } from "@realm/clover/ui";
 import { Button } from "@realm/ui/button";
 import { PAYMENT_PLUGIN_CATALOG } from "./registry";
 import { installPaymentPlugin, uninstallPaymentPlugin } from "../payments/actions";
+import { installCloverAction, uninstallCloverAction } from "./clover-actions";
 
-export function PluginsCatalog({ installedIds }: { installedIds: string[] }) {
+export function PluginsCatalog({
+  installedIds,
+  clover,
+}: {
+  installedIds: string[];
+  clover: CloverConnectionPublic;
+}) {
   const installed = new Set(installedIds);
 
   return (
@@ -41,6 +50,12 @@ export function PluginsCatalog({ installedIds }: { installedIds: string[] }) {
           </div>
         );
       })}
+      <CloverIntegrationsCard
+        clover={clover}
+        settingsHref="/dashboard/settings/clover"
+        onInstall={installCloverAction}
+        onUninstall={uninstallCloverAction}
+      />
     </div>
   );
 }
@@ -103,7 +118,7 @@ function PluginAction({
 export function PluginsCatalogSkeleton() {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="h-36 animate-pulse rounded-xl border bg-muted/30" />
       ))}
     </div>

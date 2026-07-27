@@ -1,0 +1,176 @@
+/* CRM / admin shell — shared @realm/ui + design-system structure.
+   Light mode reuses public brand tokens (yellow + red + cream/paper/ink)
+   from globals.css — warm cream surfaces, yellow primary, red accents —
+   not a white + yellow-only look. Public site keeps brutalist globals.css. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@source "../../../packages/ui/src";
+@source "../../../packages/design-system/src";
+@source "../../../packages/crm/src";
+@source "../../../packages/auth-ui/src";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-crm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-crm-mono), ui-monospace, monospace;
+  --font-heading: var(--font-crm-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  /* Same radius scale as tiffin-grab — buttons/inputs/filters use these tokens. */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Radius must live on :root (like tiffin-grab). Portaled popovers/dialogs/
+   selects render under <body>, outside .crm-app — scoping --radius only to
+   .crm-app made rounded-* utilities resolve to 0 and look brutalist/square. */
+:root {
+  --radius: 0.625rem;
+}
+
+/* Hoist CRM semantic tokens to <body> while a CRM shell is mounted so Radix
+   portals (filters, dialogs, selects) inherit the same colors/radius.
+   Hex sources (globals.css :root): --yellow #FFD21A, --red #DE2A1A,
+   --ink #16140D, --cream #FFF4DA, --paper #FFFBF0, soft red #ffd9d2. */
+body:has(.crm-app) {
+  /* Yellow primary + red accent on warm cream/paper — public brand light. */
+  --brand: oklch(0.877 0.176 92.7); /* --yellow #FFD21A */
+  --brand-foreground: oklch(0.191 0.014 94); /* --ink */
+  --background: oklch(0.988 0.015 90.2); /* --paper */
+  --foreground: oklch(0.191 0.014 94); /* --ink */
+  --card: oklch(1 0.008 90);
+  --card-foreground: oklch(0.191 0.014 94);
+  --popover: oklch(1 0.008 90);
+  --popover-foreground: oklch(0.191 0.014 94);
+  --primary: oklch(0.877 0.176 92.7); /* --yellow */
+  --primary-foreground: oklch(0.191 0.014 94); /* --ink on yellow */
+  --secondary: oklch(0.969 0.036 87.8); /* --cream */
+  --secondary-foreground: oklch(0.191 0.014 94);
+  --muted: oklch(0.969 0.036 87.8); /* --cream page / panel wash */
+  --muted-foreground: oklch(0.45 0.02 90);
+  --accent: oklch(0.915 0.044 30.2); /* soft red #ffd9d2 — red in hover/selected */
+  --accent-foreground: oklch(0.42 0.16 30); /* deep red text on soft red */
+  --destructive: oklch(0.582 0.216 30); /* --red #DE2A1A */
+  --border: oklch(0.88 0.04 90); /* warm yellow-tinted, not gray */
+  --input: oklch(0.88 0.04 90);
+  --ring: oklch(0.81 0.166 83.2); /* --yellow-deep */
+  --radius: 0.625rem;
+  --sidebar: oklch(0.969 0.036 87.8); /* --cream */
+  --sidebar-foreground: oklch(0.191 0.014 94);
+  --sidebar-primary: oklch(0.877 0.176 92.7); /* --yellow */
+  --sidebar-primary-foreground: oklch(0.191 0.014 94);
+  --sidebar-accent: oklch(0.915 0.044 30.2); /* soft red hover */
+  --sidebar-accent-foreground: oklch(0.42 0.16 30);
+  --sidebar-border: oklch(0.88 0.04 90);
+  --sidebar-ring: oklch(0.81 0.166 83.2);
+  --ok: oklch(0.739 0.145 168.7); /* --mint */
+  --warn: oklch(0.81 0.166 83.2); /* --yellow-deep */
+  --bad: oklch(0.582 0.216 30); /* --red */
+}
+
+.crm-app {
+  min-height: 100svh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-crm-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ThemeProvider toggles .dark on <html> (and data-theme for public CSS).
+   Dark stays readable; yellow primary + lifted brand red (public dark --red). */
+html.dark body:has(.crm-app) {
+  --brand: oklch(0.877 0.176 92.7); /* --yellow */
+  --brand-foreground: oklch(0.191 0.014 94);
+  --background: oklch(0.191 0.02 70); /* warm espresso-ish, not pure black */
+  --foreground: oklch(0.97 0.02 90);
+  --card: oklch(0.24 0.025 70);
+  --card-foreground: oklch(0.97 0.02 90);
+  --popover: oklch(0.24 0.025 70);
+  --popover-foreground: oklch(0.97 0.02 90);
+  --primary: oklch(0.877 0.176 92.7);
+  --primary-foreground: oklch(0.191 0.014 94);
+  --secondary: oklch(0.3 0.03 70);
+  --secondary-foreground: oklch(0.97 0.02 90);
+  --muted: oklch(0.3 0.03 70);
+  --muted-foreground: oklch(0.75 0.03 90);
+  --accent: oklch(0.35 0.08 30); /* muted red wash */
+  --accent-foreground: oklch(0.93 0.05 30);
+  --destructive: oklch(0.68 0.19 30); /* public dark --red #FF5B43 family */
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.81 0.14 90);
+  --sidebar: oklch(0.22 0.025 70);
+  --sidebar-foreground: oklch(0.97 0.02 90);
+  --sidebar-primary: oklch(0.877 0.176 92.7);
+  --sidebar-primary-foreground: oklch(0.191 0.014 94);
+  --sidebar-accent: oklch(0.35 0.08 30);
+  --sidebar-accent-foreground: oklch(0.93 0.05 30);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.81 0.14 90);
+  --ok: oklch(0.74 0.14 168);
+  --warn: oklch(0.82 0.14 90);
+  --bad: oklch(0.68 0.19 30);
+}
+
+.crm-app *,
+.crm-app *::before,
+.crm-app *::after {
+  border-color: var(--border);
+}
+
+.crm-app .hover-lift {
+  transition:
+    transform 300ms ease-out,
+    box-shadow 300ms ease-out;
+}
+.crm-app .hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+}
+
+/* Soft ring for design-system Card default ("glow") — same idea as tiffin-grab.
+   Portaled dialogs (sync summary) also need this on body while CRM is mounted. */
+body:has(.crm-app) .card-glow {
+  transition: box-shadow 300ms;
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+body:has(.crm-app) .card-glow:hover {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent),
+    0 8px 30px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
+}

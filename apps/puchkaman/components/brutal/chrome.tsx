@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTheme } from "@realm/themes";
 import { Btn } from "./shared";
 import { PHONE_DISPLAY } from "@/lib/links";
 
@@ -24,27 +25,16 @@ function usePageName() {
 }
 
 /* ---------- Theme toggle (sun / moon) ---------- */
+/** Public marketing toggle — shares @realm/themes preference with admin auth/CRM. */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<string>("light");
-  useEffect(() => {
-    setTheme(document.documentElement.getAttribute("data-theme") || "light");
-  }, []);
-  const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    try {
-      localStorage.setItem("puchkaman-theme", next);
-    } catch {
-      /* private mode / storage blocked — theme still applies for this session */
-    }
-  };
+  const { resolvedTheme, setTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
   return (
     <button
-      onClick={toggle}
+      onClick={() => setTheme(dark ? "light" : "dark")}
       className="theme-toggle"
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={theme === "dark" ? "Light mode" : "Dark mode"}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      title={dark ? "Light mode" : "Dark mode"}
     >
       <svg
         className="icon-sun"

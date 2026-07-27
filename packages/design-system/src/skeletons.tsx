@@ -51,17 +51,27 @@ export function SkeletonStatCards({ count, className = "md:grid-cols-2 lg:grid-c
   );
 }
 
-export function SkeletonFilterBar({ pills = 0, dropdown = false }: { pills?: number; dropdown?: boolean }) {
+export function SkeletonFilterBar({
+  pills = 0,
+  dropdown = false,
+  search = true,
+}: {
+  pills?: number;
+  /** ReUI / select Filter control twin (button-sized). */
+  dropdown?: boolean;
+  /** When false, omit the search input twin (filter-only bars). */
+  search?: boolean;
+}) {
   return (
     <FilterBar
-      search={<Skeleton className="h-9 w-full" />}
+      search={search ? <Skeleton className="h-9 w-full" /> : undefined}
       filters={
         pills > 0 || dropdown ? (
           <>
             {Array.from({ length: pills }).map((_, i) => (
               <Skeleton key={i} className="h-8 w-16 rounded-full" />
             ))}
-            {dropdown && <Skeleton className="h-9 w-40" />}
+            {dropdown && <Skeleton className="h-9 w-20" />}
           </>
         ) : undefined
       }
