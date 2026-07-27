@@ -55,6 +55,9 @@ export {
   cloverCentsToDollars,
   normalizeCloverItem,
   normalizeCloverCategory,
+  normalizeCloverModifierGroup,
+  normalizeCloverModifier,
+  normalizeCloverDiscount,
   primaryCategoryName,
   type CloverPriceType,
   type CloverCategoryRef,
@@ -63,9 +66,31 @@ export {
   type CloverItemCreateInput,
   type CloverItemUpdateInput,
   type CloverCategory,
+  type CloverCategoryCreateInput,
+  type CloverCategoryUpdateInput,
+  type CloverModifierGroupRef,
+  type CloverModifierGroup,
+  type CloverModifierGroupCreateInput,
+  type CloverModifierGroupUpdateInput,
+  type CloverModifier,
+  type CloverModifierCreateInput,
+  type CloverModifierUpdateInput,
+  type CloverDiscount,
+  type CloverDiscountCreateInput,
+  type CloverDiscountUpdateInput,
   type CloverElements,
   type ListItemsParams,
+  type ListInventoryParams,
 } from "./inventory";
+
+export {
+  normalizeCloverEmployee,
+  type CloverEmployeeRole,
+  type CloverEmployee,
+  type CloverEmployeeCreateInput,
+  type CloverEmployeeUpdateInput,
+  type ListEmployeesParams,
+} from "./employees";
 
 export {
   expandAtomicLineItems,

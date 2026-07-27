@@ -7,7 +7,9 @@ import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
+import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
 import { requireAdmin } from "@/lib/auth/guards";
+import { employeesService } from "@/lib/services/employees.service";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { ordersService } from "@/lib/services/orders.service";
 
@@ -16,15 +18,16 @@ type Params = Promise<{ id: string }>;
 export default async function OrderDetailPage({ params }: { params: Params }) {
   await requireAdmin();
   const { id } = await params;
-  const [detailResult, clover] = await Promise.all([
+  const [detailResult, clover, assignable] = await Promise.all([
     ordersService.getAdminDetail(id).then(
       (d) => ({ ok: true as const, d }),
       () => ({ ok: false as const }),
     ),
     getCloverConnection(integrationsConfigStore),
+    employeesService.listAssignable().catch(() => []),
   ]);
   if (!detailResult.ok) notFound();
-  const { order, items, payments } = detailResult.d;
+  const { order, items, payments, assignedEmployee } = detailResult.d;
   const cloverEnabled = Boolean(clover.installed);
   const canCheckStatus =
     cloverEnabled && Boolean(order.cloverOrderId || payments.some((p) => p.cloverChargeId));
@@ -75,6 +78,23 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Clover order</dt>
                 <dd className="font-mono text-xs">{order.cloverOrderId}</dd>
+              </div>
+            ) : null}
+            {cloverEnabled ? (
+              <div className="flex items-start justify-between gap-4 pt-1">
+                <dt className="text-muted-foreground pt-1.5">Assigned employee</dt>
+                <dd>
+                  <OrderEmployeeAssign
+                    orderPublicId={order.publicId}
+                    employees={assignable.map((e) => ({
+                      publicId: e.publicId,
+                      name: e.name,
+                      role: e.role,
+                    }))}
+                    currentEmployeePublicId={assignedEmployee?.publicId ?? null}
+                    hasCloverOrder={Boolean(order.cloverOrderId)}
+                  />
+                </dd>
               </div>
             ) : null}
             <div className="flex justify-between gap-4">

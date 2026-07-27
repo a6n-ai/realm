@@ -4,13 +4,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BanknoteIcon,
+  BookOpenIcon,
   CreditCardIcon,
+  FolderTreeIcon,
   LayoutDashboardIcon,
+  LayersIcon,
   LogOutIcon,
   PackageIcon,
+  PercentIcon,
   PuzzleIcon,
   SettingsIcon,
   UserIcon,
+  UsersIcon,
   UtensilsCrossedIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -37,60 +42,47 @@ import {
   DropdownMenuTrigger,
 } from "@realm/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@realm/ui/avatar";
-import { Badge } from "@realm/ui/badge";
 
 export type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
-  /** Subtle integration tag on overall ops items (not a Clover-only page). */
-  badge?: string;
 };
 export type NavSection = { label: string; items: NavItem[] };
 
+const COMMERCE_ITEMS: NavItem[] = [
+  { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon },
+  { title: "Orders", href: "/dashboard/orders", icon: PackageIcon },
+  { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon },
+];
+
+const CLOVER_CATALOG_ITEMS: NavItem[] = [
+  { title: "Categories", href: "/dashboard/clover/categories", icon: FolderTreeIcon },
+  {
+    title: "Modifier groups",
+    href: "/dashboard/clover/modifier-groups",
+    icon: LayersIcon,
+  },
+  { title: "Menus", href: "/dashboard/clover/menus", icon: BookOpenIcon },
+  { title: "Discounts", href: "/dashboard/clover/discounts", icon: PercentIcon },
+  { title: "Employees", href: "/dashboard/clover/employees", icon: UsersIcon },
+];
+
 /**
  * Build sidebar/more-drawer sections.
- * Clover group only appears after the plugin is installed (same gate as Settings hub).
- * Ops items keep overall labels; optional Clover badge when merchant is connected.
+ * When Clover is installed, Products / Orders / Finance live under the Clover
+ * group (puchkaman commerce is Clover-centric). Catalog tools + Connection
+ * join that group. Before install, commerce stays under Operations.
  */
 export function getNavSections(opts: {
   cloverInstalled: boolean;
-  cloverConnected: boolean;
+  /** Reserved — connection status no longer drives nav badges. */
+  cloverConnected?: boolean;
 }): NavSection[] {
-  const cloverBadge = opts.cloverConnected ? "Clover" : undefined;
-
   const sections: NavSection[] = [
     {
       label: "Overview",
       items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon }],
-    },
-    {
-      label: "Operations",
-      items: [
-        {
-          title: "Orders",
-          href: "/dashboard/orders",
-          icon: PackageIcon,
-          badge: cloverBadge,
-        },
-        {
-          title: "Products",
-          href: "/dashboard/products",
-          icon: UtensilsCrossedIcon,
-          badge: cloverBadge,
-        },
-      ],
-    },
-    {
-      label: "Finance",
-      items: [
-        {
-          title: "Finance",
-          href: "/dashboard/finance",
-          icon: BanknoteIcon,
-          badge: cloverBadge,
-        },
-      ],
     },
   ];
 
@@ -98,12 +90,19 @@ export function getNavSections(opts: {
     sections.push({
       label: "Clover",
       items: [
+        ...COMMERCE_ITEMS,
+        ...CLOVER_CATALOG_ITEMS,
         {
           title: "Connection",
           href: "/dashboard/settings/clover",
           icon: CreditCardIcon,
         },
       ],
+    });
+  } else {
+    sections.push({
+      label: "Operations",
+      items: COMMERCE_ITEMS,
     });
   }
 
@@ -139,8 +138,14 @@ export function AppSidebar({
   const label = user.name?.trim() || user.email;
   const initials = label.slice(0, 2).toUpperCase();
   const sections = getNavSections({ cloverInstalled, cloverConnected });
-  const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === href;
+    // Avoid Settings lighting up while on Connection (/dashboard/settings/clover).
+    if (href === "/dashboard/settings") {
+      return pathname === href || pathname === "/dashboard/settings/";
+    }
+    return pathname.startsWith(href);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -167,14 +172,6 @@ export function AppSidebar({
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
-                      {item.badge ? (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground ml-auto h-5 px-1.5 text-[10px] font-normal group-data-[collapsible=icon]:hidden"
-                        >
-                          {item.badge}
-                        </Badge>
-                      ) : null}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -1,33 +1,68 @@
 import type { FileDetail } from "@realm/storage/model";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
+import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
 import { EatsView, type EatsCategory } from "./eats-view";
 
 export const dynamic = "force-dynamic";
 
-async function getEats(): Promise<EatsCategory[]> {
-  const rows = await productsService.listActive();
+async function getEats(): Promise<{ categories: EatsCategory[]; totalProducts: number }> {
+  const [rows, orderable] = await Promise.all([
+    productsService.listForPublicMenu(),
+    ordersService.listOrderableCatalog(),
+  ]);
+  const orderableIds = new Set(orderable.map((o) => o.publicId));
+
   const byCategory = new Map<string, typeof rows>();
   for (const row of rows) {
     const list = byCategory.get(row.category) ?? [];
     list.push(row);
     byCategory.set(row.category, list);
   }
-  return CATEGORY_IDS.filter((id) => byCategory.has(id)).map((id: CategoryId) => ({
-    id,
-    ...CATEGORIES[id],
-    items: (byCategory.get(id) ?? []).map((row) => ({
-      publicId: row.publicId,
-      name: row.name,
-      description: row.description,
-      price: Number(row.price),
-      image: (row.image as FileDetail | null) ?? null,
-      tags: row.tags ?? [],
+
+  const known = CATEGORY_IDS.filter((id) => byCategory.has(id));
+  // Catch any products whose category is not in the fixed list so they still appear.
+  const extras = [...byCategory.keys()].filter((id) => !CATEGORY_IDS.includes(id as CategoryId));
+
+  const categories: EatsCategory[] = [
+    ...known.map((id: CategoryId) => ({
+      id,
+      ...CATEGORIES[id],
+      items: (byCategory.get(id) ?? []).map((row) => ({
+        publicId: row.publicId,
+        name: row.name,
+        description: row.description,
+        price: Number(row.price),
+        image: (row.image as FileDetail | null) ?? null,
+        tags: row.tags ?? [],
+        orderable: orderableIds.has(row.publicId),
+        category: row.category,
+        cloverColorCode: row.cloverColorCode ?? null,
+      })),
     })),
-  }));
+    ...extras.map((id) => ({
+      id,
+      name: id.charAt(0).toUpperCase() + id.slice(1),
+      emoji: "🍽️",
+      note: "More from the kitchen.",
+      items: (byCategory.get(id) ?? []).map((row) => ({
+        publicId: row.publicId,
+        name: row.name,
+        description: row.description,
+        price: Number(row.price),
+        image: (row.image as FileDetail | null) ?? null,
+        tags: row.tags ?? [],
+        orderable: orderableIds.has(row.publicId),
+        category: row.category,
+        cloverColorCode: row.cloverColorCode ?? null,
+      })),
+    })),
+  ];
+
+  return { categories, totalProducts: rows.length };
 }
 
 export default async function EatsPage() {
-  const categories = await getEats();
-  return <EatsView categories={categories} />;
+  const { categories, totalProducts } = await getEats();
+  return <EatsView categories={categories} totalProducts={totalProducts} />;
 }

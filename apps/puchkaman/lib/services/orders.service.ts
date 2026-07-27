@@ -13,7 +13,7 @@ import {
 import { UpdatableService, columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orders, payments, products } from "@/db/schema";
+import { employees, orders, payments, products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   createCheckoutSchema,
@@ -22,6 +22,7 @@ import {
   type PayCheckoutInput,
 } from "@/lib/orders/checkout-schema";
 import type { SortState } from "@/lib/list/sort";
+import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
   ordersRepository,
@@ -173,7 +174,71 @@ class OrdersService extends UpdatableService<typeof orders> {
     if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
     const items = await this.ordersRepo.findItemsByOrderId(order.id);
     const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
-    return { order, items, payments: pays };
+    let assignedEmployee: EmployeeRow | null = null;
+    if (order.assignedEmployeeId) {
+      const [row] = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.id, order.assignedEmployeeId))
+        .limit(1);
+      assignedEmployee = row ?? null;
+    }
+    return { order, items, payments: pays, assignedEmployee };
+  }
+
+  /**
+   * Assign (or clear) the Clover employee who owns this order on Register.
+   * Updates local `assignedEmployeeId`, then Platform `employee` when linked.
+   */
+  async assignEmployee(
+    orderPublicId: string,
+    employeePublicId: string | null,
+  ): Promise<{
+    orderPublicId: string;
+    assignedEmployee: { publicId: string; name: string; cloverEmployeeId: string } | null;
+    syncedToClover: boolean;
+  }> {
+    const order = await this.ordersRepo.findByPublicId(orderPublicId);
+    if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
+
+    let employee: EmployeeRow | null = null;
+    if (employeePublicId != null) {
+      employee = await employeesRepository.findByPublicId(employeePublicId);
+      if (!employee || !employee.active) {
+        throw new ValidationError("Employee not found or inactive");
+      }
+      if (!employee.cloverEmployeeId) {
+        throw new ValidationError("Employee is not linked to Clover — sync employees first");
+      }
+    }
+
+    await this.ordersRepo.updateByPublicId(order.publicId, {
+      assignedEmployeeId: employee?.id ?? null,
+    });
+
+    let syncedToClover = false;
+    if (order.cloverOrderId) {
+      const client = await createCloverClient();
+      if (client) {
+        await client.updatePlatformOrderEmployee(
+          order.cloverOrderId,
+          employee?.cloverEmployeeId ?? null,
+        );
+        syncedToClover = true;
+      }
+    }
+
+    return {
+      orderPublicId: order.publicId,
+      assignedEmployee: employee
+        ? {
+            publicId: employee.publicId,
+            name: employee.name,
+            cloverEmployeeId: employee.cloverEmployeeId!,
+          }
+        : null,
+      syncedToClover,
+    };
   }
 
   /**

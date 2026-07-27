@@ -9,6 +9,8 @@ export const ROUTE: Record<string, string> = {
   catering: "/catering",
   events: "/events",
   order: "/order",
+  cart: "/cart",
+  checkout: "/checkout",
   about: "/about",
   contact: "/contact",
 };
@@ -34,6 +36,9 @@ export function Btn({
   onClick,
   className = "",
   style,
+  disabled,
+  type = "button",
+  "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   variant?: Variant;
@@ -44,12 +49,16 @@ export function Btn({
   onClick?: MouseEventHandler;
   className?: string;
   style?: CSSProperties;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
+  "aria-label"?: string;
 }) {
   const cls = [
     "btn",
     FILLS[variant] ?? "btn--white",
     size === "lg" ? "btn--lg" : size === "sm" ? "btn--sm" : "",
     block ? "btn--block" : "",
+    disabled ? "btn--disabled" : "",
     className,
   ]
     .filter(Boolean)
@@ -59,7 +68,14 @@ export function Btn({
   // No destination → a real action button (onClick only, no navigation).
   if (!to) {
     return (
-      <button type="button" className={cls} style={style} onClick={onClick}>
+      <button
+        type={type}
+        className={cls}
+        style={style}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={ariaLabel}
+      >
         {children}
       </button>
     );
@@ -67,13 +83,27 @@ export function Btn({
   // External / anchor links stay <a>; internal routes use <Link>.
   if (/^(https?:|#|mailto:|tel:)/.test(to)) {
     return (
-      <a href={to} className={cls} style={style} onClick={onClick}>
+      <a
+        href={disabled ? undefined : to}
+        className={cls}
+        style={{ ...style, pointerEvents: disabled ? "none" : undefined }}
+        onClick={onClick}
+        aria-label={ariaLabel}
+        aria-disabled={disabled || undefined}
+      >
         {children}
       </a>
     );
   }
+  if (disabled) {
+    return (
+      <span className={cls} style={style} aria-label={ariaLabel} aria-disabled="true">
+        {children}
+      </span>
+    );
+  }
   return (
-    <Link href={to} className={cls} style={style} onClick={onClick}>
+    <Link href={to} className={cls} style={style} onClick={onClick} aria-label={ariaLabel}>
       {children}
     </Link>
   );

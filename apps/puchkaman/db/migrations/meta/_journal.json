@@ -43,6 +43,20 @@
       "when": 1784500000003,
       "tag": "0005_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784500000004,
+      "tag": "0006_clover_inventory_entities",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784500000005,
+      "tag": "0007_clover_employees",
+      "breakpoints": true
     }
   ]
 }
