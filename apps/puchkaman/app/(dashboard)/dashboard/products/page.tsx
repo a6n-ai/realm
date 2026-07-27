@@ -1,16 +1,30 @@
 import { Suspense } from "react";
+import { PackageIcon } from "lucide-react";
+import { getCloverConnection } from "@realm/clover";
+import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
-import { productsService } from "@/lib/services/products.service";
-import { SkeletonRows } from "@/components/admin/skeleton-rows";
+import { parseSort } from "@/lib/list/sort";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { productsService, type ProductSortColumn } from "@/lib/services/products.service";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
-import { parseFilterState, type FacetDef } from "@realm/design-system";
-import { ProductsTable } from "./products-table";
+import { ProductsHeaderActions } from "./products-header-actions";
+import { ProductsTable, ProductsTableSkeleton } from "./products-table";
+
+const PRODUCT_SORT_COLUMNS = [
+  "name",
+  "category",
+  "price",
+  "status",
+  "source",
+  "lastSynced",
+] as const satisfies readonly ProductSortColumn[];
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// Facet spec — server-authored so parseFilterState (server) and FacetFilters
+// Facet spec — server-authored so parseFilterState (server) and ReuiFacetFilters
 // (client) stay in lockstep. Fields match the products schema's camelCase
 // property names (see db/schema/products.ts) since the service resolves them
 // straight off that table.
@@ -41,7 +55,7 @@ const SPEC: FacetDef[] = [
     ],
   },
   {
-    kind: "select",
+    kind: "pills",
     field: "featured",
     label: "Featured",
     options: [
@@ -54,20 +68,33 @@ const SPEC: FacetDef[] = [
 
 export default function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div style={{ display: "grid", gap: 20 }}>
-      <div>
-        <p className="kicker" style={{ opacity: 0.55, marginBottom: 4 }}>
-          Catalog
-        </p>
-        <h1 className="display" style={{ fontSize: "1.8rem" }}>
-          Products
-        </h1>
-        <p style={{ opacity: 0.7, fontWeight: 500, marginTop: 4 }}>Manage what shows on the public menu.</p>
-      </div>
-      <Suspense fallback={<SkeletonRows />}>
-        <ProductsData searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <PageShell>
+      <PageHeader
+        icon={PackageIcon}
+        title="Products"
+        subtitle="Manage what shows on the public menu."
+        actions={
+          <Suspense fallback={<Skeleton className="h-9 w-40" />}>
+            <ProductsHeaderLoader />
+          </Suspense>
+        }
+      />
+      <SectionCard title="All products">
+        <Suspense fallback={<ProductsTableSkeleton />}>
+          <ProductsData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+async function ProductsHeaderLoader() {
+  const clover = await getCloverConnection(integrationsConfigStore);
+  return (
+    <ProductsHeaderActions
+      cloverEnabled={Boolean(clover.installed)}
+      cloverConnected={Boolean(clover.connected && clover.merchantId)}
+    />
   );
 }
 
@@ -75,10 +102,29 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
   const sp = await searchParams;
+  const sort = parseSort(sp, PRODUCT_SORT_COLUMNS, { column: "category", dir: "asc" });
   const { condition, page } = parseFilterState(SPEC, sp);
 
-  const result = await productsService.queryProducts(condition, page);
-  const rows = result.items.map((r) => ({ ...r, price: Number(r.price) }));
+  const [result, clover] = await Promise.all([
+    productsService.queryProducts(condition, page, sort),
+    getCloverConnection(integrationsConfigStore),
+  ]);
+  const rows = result.items.map((r) => ({
+    ...r,
+    price: Number(r.price),
+    cloverItemId: r.cloverItemId ?? null,
+    cloverLastSyncedAt: r.cloverLastSyncedAt ?? null,
+  }));
 
-  return <ProductsTable spec={SPEC} products={rows} total={result.total} page={page.page} size={page.size} />;
+  return (
+    <ProductsTable
+      spec={SPEC}
+      products={rows}
+      total={result.total}
+      page={page.page}
+      size={page.size}
+      sort={sort}
+      cloverEnabled={Boolean(clover.installed)}
+    />
+  );
 }

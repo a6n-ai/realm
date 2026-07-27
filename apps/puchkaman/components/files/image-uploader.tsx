@@ -3,6 +3,8 @@
 import { useRef, useState, type DragEvent } from "react";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
+import { Button } from "@realm/ui/button";
+import { cn } from "@realm/ui/cn";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -58,48 +60,60 @@ export function ImageUploader({
 
   if (value?.url) {
     return (
-      <div className="flex center" style={{ gap: 12 }}>
+      <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={value.url}
           alt={value.fileName ?? "image"}
-          style={{ width: 64, height: 64, borderRadius: "var(--r-sm)", border: "var(--border)", objectFit: "cover" }}
+          className="size-16 rounded-md border object-cover"
         />
-        <button type="button" className="btn btn--white btn--sm" disabled={disabled} onClick={() => onChange(null)}>
-          <XIcon size={14} /> Remove
-        </button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={disabled}
+          onClick={() => onChange(null)}
+        >
+          <XIcon className="size-3.5" />
+          Remove
+        </Button>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 6 }}>
+    <div className="grid gap-1.5">
       <div
-        className="ph"
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
+        onClick={() => !disabled && !busy && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        style={{
-          cursor: disabled || busy ? "default" : "pointer",
-          minHeight: 140,
-          flexDirection: "column",
-          gap: 10,
-          opacity: busy ? 0.6 : 1,
-          borderColor: dragOver ? "var(--red)" : undefined,
-        }}
+        className={cn(
+          "bg-muted/30 flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center transition-colors",
+          dragOver && "border-primary bg-primary/5",
+          (disabled || busy) && "pointer-events-none opacity-60",
+        )}
       >
-        {busy ? <Loader2Icon size={22} className="admin-spin" /> : <UploadIcon size={22} />}
-        <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>{busy ? "Uploading…" : "Drop an image or click to upload"}</span>
-        <span className="btn btn--white btn--sm" style={{ pointerEvents: "none" }}>
+        {busy ? (
+          <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
+        ) : (
+          <UploadIcon className="text-muted-foreground size-5" />
+        )}
+        <p className="text-sm font-medium">
+          {busy ? "Uploading…" : "Drop an image or click to upload"}
+        </p>
+        <Button type="button" variant="outline" size="sm" className="pointer-events-none">
           Choose image
-        </span>
+        </Button>
         <input
           ref={inputRef}
           type="file"
@@ -110,10 +124,14 @@ export function ImageUploader({
             if (file) void upload(file);
             e.target.value = "";
           }}
-          style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+          className="sr-only"
         />
       </div>
-      {error && <span className="err-msg">{error}</span>}
+      {error ? (
+        <p className="text-destructive text-xs" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

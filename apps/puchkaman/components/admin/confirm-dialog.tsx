@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog } from "radix-ui";
 import { TriangleAlertIcon } from "lucide-react";
+import { ResponsiveDialog } from "@realm/design-system";
+import { Button } from "@realm/ui/button";
 
 export function ConfirmDialog({
   open,
@@ -34,56 +35,39 @@ export function ConfirmDialog({
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay
-          style={{ position: "fixed", inset: 0, background: "rgba(22,20,13,.55)", zIndex: 70, display: "grid", placeItems: "center", padding: 20 }}
-        >
-          <Dialog.Content
-            className="card"
-            style={{ width: "100%", maxWidth: 400, padding: 26, background: "var(--white)" }}
-            onClick={(e) => e.stopPropagation()}
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      contentClassName="sm:max-w-md"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant={danger ? "destructive" : "default"}
+            onClick={() => void handleConfirm()}
+            disabled={busy}
           >
-            <div className="flex center" style={{ gap: 12, marginBottom: 14 }}>
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: danger ? "var(--red)" : "var(--yellow)",
-                  border: "2.5px solid var(--ink)",
-                  display: "grid",
-                  placeItems: "center",
-                  color: danger ? "#fff" : "var(--ink)",
-                  flexShrink: 0,
-                }}
-              >
-                <TriangleAlertIcon size={20} />
-              </span>
-              <Dialog.Title className="display" style={{ fontSize: "1.15rem" }}>
-                {title}
-              </Dialog.Title>
-            </div>
-            <Dialog.Description style={{ fontWeight: 500, opacity: 0.85, marginBottom: 22 }}>{description}</Dialog.Description>
-            <div className="flex" style={{ gap: 10, justifyContent: "flex-end" }}>
-              <Dialog.Close asChild>
-                <button type="button" className="btn btn--white btn--sm">
-                  Cancel
-                </button>
-              </Dialog.Close>
-              <button
-                type="button"
-                className={`btn btn--sm ${danger ? "btn--red" : "btn--ink"}`}
-                onClick={handleConfirm}
-                disabled={busy}
-                style={busy ? { opacity: 0.7, pointerEvents: "none" } : undefined}
-              >
-                {busy ? "Working…" : confirmLabel}
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
+            {busy ? "Working…" : confirmLabel}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex items-center gap-3 px-4 py-2">
+        <span
+          className={
+            danger
+              ? "bg-destructive/10 text-destructive flex size-10 shrink-0 items-center justify-center rounded-full"
+              : "bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full"
+          }
+        >
+          <TriangleAlertIcon className="size-5" />
+        </span>
+      </div>
+    </ResponsiveDialog>
   );
 }

@@ -2,14 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog } from "radix-ui";
-import { Loader2Icon, RefreshCwIcon, XIcon } from "lucide-react";
+import { Loader2Icon, RefreshCwIcon } from "lucide-react";
+import { ResponsiveDialog } from "@realm/design-system";
+import { Button } from "@realm/ui/button";
+import { Label } from "@realm/ui/label";
+import { Switch } from "@realm/ui/switch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { SyncResult } from "@/lib/sync/menu-sync.service";
 import { SyncSummary } from "./sync-summary";
 import { DuplicateDialog } from "./duplicate-dialog";
 
-export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function SyncDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SyncResult | null>(null);
@@ -43,86 +52,103 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
   return (
     <>
-      <Dialog.Root open={open} onOpenChange={handleClose}>
-        <Dialog.Portal>
-          <Dialog.Overlay style={{ position: "fixed", inset: 0, background: "rgba(22,20,13,.55)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 }}>
-            <Dialog.Content className="card" style={{ width: "100%", maxWidth: 640, maxHeight: "90vh", overflowY: "auto", background: "var(--white)", padding: "clamp(20px,3vw,30px)" }}>
-              <div className="flex between center" style={{ marginBottom: 8 }}>
-                <Dialog.Title className="display" style={{ fontSize: "1.35rem" }}>
-                  Sync menu from Uber Eats
-                </Dialog.Title>
-                <Dialog.Close asChild>
-                  <button className="icon-btn" aria-label="Close">
-                    <XIcon size={16} />
-                  </button>
-                </Dialog.Close>
-              </div>
-
-              {!result && !busy && (
-                <div style={{ display: "grid", gap: 16 }}>
-                  <p style={{ fontWeight: 500, opacity: 0.8 }}>
-                    Reads the current Uber Eats menu snapshot, adds anything new, and flags anything that looks
-                    changed for your review. Nothing on your live menu is ever overwritten automatically.
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={handleClose}
+        title="Sync images from Uber Eats"
+        description="Uber Eats is an image source only. Inventory (name, price, availability) comes from Clover."
+        contentClassName="sm:max-w-xl"
+        footer={
+          result && !busy ? (
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => void startSync()}>
+                Sync again
+              </Button>
+              <Button type="button" onClick={() => handleClose(false)}>
+                Done
+              </Button>
+            </div>
+          ) : !result && !busy ? (
+            <div className="flex justify-end">
+              <Button type="button" className="gap-1.5" onClick={() => void startSync()}>
+                <RefreshCwIcon className="size-3.5" />
+                Start sync
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        <div className="grid gap-4 px-4 py-4">
+          {!result && !busy ? (
+            <>
+              <p className="text-muted-foreground text-sm">
+                Refreshes product photos from the Uber Eats snapshot. New Uber-only items are
+                kept in the catalog as out of stock until linked to Clover. Inventory fields are
+                never overwritten from Uber.
+              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 space-y-0.5">
+                  <Label htmlFor="sync-redownload" className="font-medium">
+                    Re-download all images
+                  </Label>
+                  <p className="text-muted-foreground text-xs">
+                    Re-fetch every photo from Uber Eats — slower
                   </p>
-                  <label className="flex center" style={{ gap: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={redownloadImages}
-                      onChange={(e) => setRedownloadImages(e.target.checked)}
-                    />
-                    Re-download all images (re-fetch every photo from Uber Eats — slower)
-                  </label>
-                  <label className="flex center" style={{ gap: 8, fontWeight: 600, fontSize: "0.9rem", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={optimizeImages}
-                      onChange={(e) => setOptimizeImages(e.target.checked)}
-                    />
-                    Optimize images (resize + recompress to WebP)
-                  </label>
-                  <button type="button" className="btn btn--red" onClick={startSync}>
-                    <RefreshCwIcon size={16} /> Start sync
-                  </button>
                 </div>
-              )}
-
-              {busy && (
-                <div className="flex center" style={{ gap: 10, padding: "30px 0", justifyContent: "center" }}>
-                  <Loader2Icon size={20} className="admin-spin" />
-                  <span style={{ fontWeight: 700 }}>Syncing your menu…</span>
+                <Switch
+                  id="sync-redownload"
+                  checked={redownloadImages}
+                  onCheckedChange={setRedownloadImages}
+                />
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 space-y-0.5">
+                  <Label htmlFor="sync-optimize" className="font-medium">
+                    Optimize images
+                  </Label>
+                  <p className="text-muted-foreground text-xs">Resize + recompress to WebP</p>
                 </div>
-              )}
+                <Switch
+                  id="sync-optimize"
+                  checked={optimizeImages}
+                  onCheckedChange={setOptimizeImages}
+                />
+              </div>
+            </>
+          ) : null}
 
-              {result && !busy && (
-                <div style={{ display: "grid", gap: 16 }}>
-                  <SyncSummary result={result} />
-                  {result.duplicates.length > 0 && (
-                    <div className="card" style={{ padding: 14, background: "var(--cream)" }}>
-                      <p style={{ fontWeight: 700, marginBottom: 8 }}>
-                        {result.duplicates.length} item{result.duplicates.length === 1 ? "" : "s"} look like products you
-                        already have.
-                      </p>
-                      <button type="button" className="btn btn--yellow btn--sm" onClick={() => setResolvingDuplicates(true)}>
-                        Review duplicates
-                      </button>
-                    </div>
-                  )}
-                  <div className="flex" style={{ gap: 10, justifyContent: "flex-end" }}>
-                    <button type="button" className="btn btn--white btn--sm" onClick={startSync}>
-                      Sync again
-                    </button>
-                    <button type="button" className="btn btn--red btn--sm" onClick={() => handleClose(false)}>
-                      Done
-                    </button>
-                  </div>
+          {busy ? (
+            <div className="text-muted-foreground flex items-center justify-center gap-2 py-10 text-sm font-medium">
+              <Loader2Icon className="size-5 animate-spin" />
+              Syncing your menu…
+            </div>
+          ) : null}
+
+          {result && !busy ? (
+            <div className="grid gap-4">
+              <SyncSummary result={result} />
+              {result.duplicates.length > 0 ? (
+                <div className="bg-muted/40 rounded-lg border p-3">
+                  <p className="mb-2 text-sm font-medium">
+                    {result.duplicates.length} item
+                    {result.duplicates.length === 1 ? "" : "s"} look like products you already have.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setResolvingDuplicates(true)}
+                  >
+                    Review duplicates
+                  </Button>
                 </div>
-              )}
-            </Dialog.Content>
-          </Dialog.Overlay>
-        </Dialog.Portal>
-      </Dialog.Root>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </ResponsiveDialog>
 
-      {resolvingDuplicates && result && (
+      {resolvingDuplicates && result ? (
         <DuplicateDialog
           queue={result.duplicates}
           onDone={() => {
@@ -131,7 +157,7 @@ export function SyncDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             router.refresh();
           }}
         />
-      )}
+      ) : null}
     </>
   );
 }

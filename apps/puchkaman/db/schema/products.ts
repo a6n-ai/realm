@@ -43,4 +43,24 @@ export const products = pgTable("products", {
   // display; the public site and admin always render `image.url` (our own
   // storage), not this.
   lastSyncedImageUrl: text("last_synced_image_url"),
+  // Clover Inventory link (independent of Uber Eats source/externalId).
+  // Clover is inventory SoT for linked items; local catalog fields + the
+  // clover* mirror columns below are pushed/pulled together.
+  cloverItemId: text("clover_item_id").unique(),
+  cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  cloverSku: text("clover_sku"),
+  cloverCode: text("clover_code"),
+  cloverAlternateName: text("clover_alternate_name"),
+  /** FIXED | VARIABLE | PER_UNIT (Clover priceType). */
+  cloverPriceType: text("clover_price_type"),
+  cloverHidden: boolean("clover_hidden"),
+  cloverAvailable: boolean("clover_available"),
+  cloverAutoManage: boolean("clover_auto_manage"),
+  /** Merchant cost in dollars (Clover stores cents). */
+  cloverCost: numeric("clover_cost", { precision: 10, scale: 2 }),
+  cloverUnitName: text("clover_unit_name"),
+  /** Hex color from Clover Register, e.g. #FF0080. */
+  cloverColorCode: text("clover_color_code"),
+  /** Stock quantity from Clover itemStock expansion. */
+  cloverStockQty: numeric("clover_stock_qty", { precision: 12, scale: 3 }),
 });

@@ -12,6 +12,19 @@ const fileDetail = z
 // before .optional()/.nullable() are consulted, so a blank price would silently
 // become 0. Preprocess the blank away first so it round-trips as an error/absent.
 const reqNum = <T extends z.ZodTypeAny>(inner: T) => z.preprocess((v) => (v === "" ? undefined : v), inner);
+// Blank/absent → null; field itself is optional so create modal need not send it.
+const optNum = <T extends z.ZodTypeAny>(inner: T) =>
+  z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : v),
+    inner.nullable(),
+  ).optional();
+
+const optText = z
+  .string()
+  .trim()
+  .transform((s) => (s === "" ? null : s))
+  .nullable()
+  .optional();
 
 export const productSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -23,6 +36,18 @@ export const productSchema = z.object({
   active: z.boolean().optional(),
   featured: z.boolean().optional(),
   displayOrder: reqNum(z.coerce.number().int()).optional(),
+  // Clover inventory mirror — optional; public menu ignores these.
+  cloverSku: optText,
+  cloverCode: optText,
+  cloverAlternateName: optText,
+  cloverPriceType: z.enum(["FIXED", "VARIABLE", "PER_UNIT"]).nullable().optional(),
+  cloverHidden: z.boolean().nullable().optional(),
+  cloverAvailable: z.boolean().nullable().optional(),
+  cloverAutoManage: z.boolean().nullable().optional(),
+  cloverCost: optNum(z.coerce.number().nonnegative()),
+  cloverUnitName: optText,
+  cloverColorCode: optText,
+  cloverStockQty: optNum(z.coerce.number()),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;

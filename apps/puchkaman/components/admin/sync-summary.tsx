@@ -1,79 +1,134 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
+import { Card } from "@realm/design-system";
+import { Button } from "@realm/ui/button";
+import { cn } from "@realm/ui/cn";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@realm/ui/collapsible";
 import type { SyncResult } from "@/lib/sync/menu-sync.service";
 
-const STAT_STYLE: Record<string, { bg: string; label: string }> = {
-  added: { bg: "var(--mint)", label: "Added" },
-  updatesAvailable: { bg: "var(--yellow)", label: "Updates available" },
-  imagesUpdated: { bg: "var(--mint)", label: "Photos updated" },
-  unchanged: { bg: "var(--cream)", label: "Unchanged" },
-  duplicates: { bg: "var(--pink)", label: "Duplicates to resolve" },
-  categoryIssues: { bg: "var(--red)", label: "Category issues" },
-  errors: { bg: "var(--red)", label: "Errors" },
+type Tone = "ok" | "warn" | "bad" | "muted";
+
+const STAT_META: Record<string, { label: string; tone: Tone }> = {
+  added: { label: "Added", tone: "ok" },
+  updatesAvailable: { label: "Updates available", tone: "warn" },
+  imagesUpdated: { label: "Photos updated", tone: "ok" },
+  unchanged: { label: "Unchanged", tone: "muted" },
+  duplicates: { label: "Duplicates to resolve", tone: "warn" },
+  categoryIssues: { label: "Category issues", tone: "bad" },
+  errors: { label: "Errors", tone: "bad" },
+};
+
+const toneValue: Record<Tone, string> = {
+  ok: "text-ok",
+  warn: "text-warn",
+  bad: "text-bad",
+  muted: "text-foreground",
 };
 
 export function SyncSummary({ result }: { result: SyncResult }) {
   const stats: { key: string; count: number; items: string[] }[] = [
     { key: "added", count: result.added.length, items: result.added.map((i) => i.name) },
-    { key: "updatesAvailable", count: result.updatesAvailable.length, items: result.updatesAvailable.map((i) => i.name) },
-    { key: "imagesUpdated", count: result.imagesUpdated.length, items: result.imagesUpdated.map((i) => i.name) },
+    {
+      key: "updatesAvailable",
+      count: result.updatesAvailable.length,
+      items: result.updatesAvailable.map((i) => i.name),
+    },
+    {
+      key: "imagesUpdated",
+      count: result.imagesUpdated.length,
+      items: result.imagesUpdated.map((i) => i.name),
+    },
     { key: "unchanged", count: result.unchangedCount, items: [] },
-    { key: "duplicates", count: result.duplicates.length, items: result.duplicates.map((d) => d.incoming.name) },
+    {
+      key: "duplicates",
+      count: result.duplicates.length,
+      items: result.duplicates.map((d) => d.incoming.name),
+    },
     {
       key: "categoryIssues",
       count: result.categoryIssues.reduce((n, c) => n + c.items.length, 0),
-      items: result.categoryIssues.flatMap((c) => c.items.map((name) => `${name} (${c.rawCategory})`)),
+      items: result.categoryIssues.flatMap((c) =>
+        c.items.map((name) => `${name} (${c.rawCategory})`),
+      ),
     },
-    { key: "errors", count: result.errors.length, items: result.errors.map((e) => `${e.item}: ${e.message}`) },
+    {
+      key: "errors",
+      count: result.errors.length,
+      items: result.errors.map((e) => `${e.item}: ${e.message}`),
+    },
   ];
 
   return (
-    <div style={{ display: "grid", gap: 10 }}>
-      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-        {stats.map((s) => (
-          <StatCard key={s.key} label={STAT_STYLE[s.key].label} bg={STAT_STYLE[s.key].bg} count={s.count} items={s.items} />
-        ))}
-      </div>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {stats.map((s) => (
+        <StatRow
+          key={s.key}
+          label={STAT_META[s.key].label}
+          tone={STAT_META[s.key].tone}
+          count={s.count}
+          items={s.items}
+        />
+      ))}
     </div>
   );
 }
 
-function StatCard({ label, bg, count, items }: { label: string; bg: string; count: number; items: string[] }) {
+function StatRow({
+  label,
+  tone,
+  count,
+  items,
+}: {
+  label: string;
+  tone: Tone;
+  count: number;
+  items: string[];
+}) {
   const [open, setOpen] = useState(false);
+  const expandable = items.length > 0;
+
   return (
-    <div className="card" style={{ padding: 14, background: "var(--white)" }}>
-      <div className="flex between center">
-        <span className="display" style={{ fontSize: "1.6rem" }}>
-          {count}
-        </span>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", background: bg, border: "2px solid var(--ink)" }} />
-      </div>
-      <p className="mono" style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, marginTop: 4 }}>
-        {label}
+    <Card className="gap-0 p-3 sm:p-4">
+      <p className="text-muted-foreground text-sm">{label}</p>
+      <p
+        className={cn(
+          "nums mt-2 text-xl font-semibold tabular-nums sm:text-2xl",
+          count > 0 && toneValue[tone],
+        )}
+      >
+        {count}
       </p>
-      {items.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            className="flex center"
-            style={{ gap: 4, marginTop: 8, fontSize: "0.72rem", fontWeight: 700, opacity: 0.75 }}
-          >
-            {open ? "Hide" : "Show"} {open ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
-          </button>
-          {open && (
-            <ul style={{ marginTop: 6, display: "grid", gap: 3, maxHeight: 140, overflowY: "auto" }}>
+
+      {expandable ? (
+        <Collapsible open={open} onOpenChange={setOpen} className="mt-2">
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-7 w-full justify-between px-0"
+            >
+              {open ? "Hide items" : `Show ${items.length} item${items.length === 1 ? "" : "s"}`}
+              <ChevronDownIcon
+                className={cn("size-3.5 transition-transform", open && "rotate-180")}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="mt-1 max-h-36 space-y-1 overflow-y-auto rounded-md border bg-muted/30 p-2 text-xs">
               {items.map((item, i) => (
-                <li key={i} style={{ fontSize: "0.78rem", fontWeight: 500 }}>
-                  {item}
-                </li>
+                <li key={i}>{item}</li>
               ))}
             </ul>
-          )}
-        </>
-      )}
-    </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </Card>
   );
 }

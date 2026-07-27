@@ -39,6 +39,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const next = resolve(theme);
       setResolvedTheme(next);
       document.documentElement.classList.toggle("dark", next === "dark");
+      // Keep data-theme in lockstep for attribute-based public CSS (puchkaman).
+      document.documentElement.setAttribute("data-theme", next);
     };
     apply();
     if (theme !== "system") return;

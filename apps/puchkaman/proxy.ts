@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
-const PUBLIC_API = ["/api/auth"];
+const PUBLIC_API = [
+  "/api/auth",
+  "/api/checkout",
+  "/api/catering-inquiries",
+  "/api/integrations/clover/webhook",
+];
 
 function unauthorized(): NextResponse {
   const body = { type: "about:blank", title: "Unauthorized", status: 401, detail: "Authentication required" };

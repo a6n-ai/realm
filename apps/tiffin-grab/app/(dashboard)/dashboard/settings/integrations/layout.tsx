@@ -8,7 +8,7 @@ export default function IntegrationsLayout({ children }: { children: ReactNode }
       <PageHeader
         icon={PuzzleIcon}
         title="Integrations"
-        subtitle="Install plugins here. Configure payment plugins under Settings → Payment."
+        subtitle="Install plugins here. Configure payment plugins under Settings → Payment, and Clover under Settings → Clover."
       />
       <div className="min-w-0">{children}</div>
     </div>
