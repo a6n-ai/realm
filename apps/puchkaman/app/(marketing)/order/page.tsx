@@ -1,6 +1,6 @@
 import { Btn, PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
-import { PickupOrderClient } from "@/components/order/pickup-order-client";
+import { OrderPickupCta } from "@/components/order/order-pickup-cta";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 
 type Channel = {
@@ -60,7 +60,7 @@ export default function OrderPage() {
       <PageBanner
         kicker="Order Online"
         title="Get Your Puchka Fix"
-        sub="Pickup is the move — pay on the site, we fire it to the POS. Delivery apps still here too."
+        sub="Build a pickup cart from the menu, pay on-site, we fire it to the POS. Delivery apps still here too."
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
@@ -69,34 +69,7 @@ export default function OrderPage() {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ maxWidth: 960 }}>
           <Reveal>
-            <div
-              className="card card--green surface-green"
-              style={{
-                color: "#fff",
-                padding: "clamp(22px,3.5vw,36px)",
-                marginBottom: 24,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <span
-                className="sticker rotate-r"
-                style={{ top: 16, right: 16, background: "var(--yellow)", color: "var(--ink-deep)" }}
-              >
-                💳 PAY HERE
-              </span>
-              <div style={{ fontSize: 44, marginBottom: 8 }}>🛍️</div>
-              <h2 className="display" style={{ fontSize: "clamp(2rem,5.5vw,3.2rem)" }}>
-                Order Pickup
-              </h2>
-              <p style={{ fontWeight: 500, fontSize: "1.1rem", margin: "12px 0 0", maxWidth: 480 }}>
-                Cart → card → kitchen. Linked Clover inventory only, totals priced server-side.
-              </p>
-            </div>
-          </Reveal>
-
-          <Reveal>
-            <PickupOrderClient />
+            <OrderPickupCta />
           </Reveal>
 
           <div
@@ -116,7 +89,9 @@ export default function OrderPage() {
                   }}
                 >
                   <div className="flex center between" style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 34 }}>{c.emoji}</div>
+                    <div style={{ fontSize: 34 }} aria-hidden="true">
+                      {c.emoji}
+                    </div>
                     <Pill variant={c.soon ? "ink" : "green"}>{c.tag}</Pill>
                   </div>
                   <h3 style={{ fontSize: "1.5rem", marginBottom: 8 }}>{c.name}</h3>
@@ -159,7 +134,9 @@ export default function OrderPage() {
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 18 }}>
               {WHY.map(([e, t, d]) => (
                 <div key={t}>
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>{e}</div>
+                  <div style={{ fontSize: 28, marginBottom: 6 }} aria-hidden="true">
+                    {e}
+                  </div>
                   <h4 style={{ fontSize: "1.05rem", marginBottom: 4 }}>{t}</h4>
                   <p style={{ fontWeight: 500, opacity: 0.8, fontSize: "0.9rem" }}>{d}</p>
                 </div>

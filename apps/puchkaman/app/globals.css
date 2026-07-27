@@ -127,6 +127,11 @@ body:not(:has(.crm-app)) a {
   color: inherit;
   text-decoration: none;
 }
+/* `.btn` color must win over `a { color: inherit }` — otherwise ink/red
+   Link buttons inherit page ink and look blank until :hover. */
+body:not(:has(.crm-app)) a.btn {
+  color: var(--btn-fg);
+}
 
 ::selection { background: var(--ink); color: var(--yellow); }
 
@@ -252,8 +257,18 @@ section { position: relative; }
 .btn--white  { --btn-bg: var(--white);  --btn-fg: var(--ink); }
 .btn--yellow { --btn-bg: var(--yellow); --btn-fg: var(--ink); }
 .btn--green  { --btn-bg: var(--green); --btn-fg: var(--white); }
-.btn--ink    { --btn-bg: var(--ink);    --btn-fg: var(--yellow); }
+/* Ink/black fills need light text (not ink-on-ink / invisible default). */
+.btn--ink    { --btn-bg: var(--ink);    --btn-fg: #fff; }
 .btn--cream  { --btn-bg: var(--cream);  --btn-fg: var(--ink); }
+/* Keep fg locked through interaction (never blank → white only on hover). */
+.btn--ink:hover,
+.btn--ink:active,
+.btn--ink:focus-visible,
+.btn--green:hover,
+.btn--green:active,
+.btn--green:focus-visible {
+  color: var(--btn-fg);
+}
 .btn--lg     { padding: 18px 28px; font-size: 1.1rem; border-radius: var(--r); }
 .btn--block  { width: 100%; }
 .btn--sm     { padding: 9px 14px; font-size: 0.82rem; box-shadow: 3px 3px 0 var(--sh-c); }
@@ -438,6 +453,11 @@ section { position: relative; }
   .marquee__track, .ribbon__track { animation: none; }
   .anim { opacity: 1 !important; animation: none !important; }
   .hero-art, .float-l, .float-r, .logo-dot { animation: none !important; }
+  .cart-drawer, .cart-drawer-backdrop, .nav-cart--pulse .nav-cart__badge {
+    transition: none !important;
+    animation: none !important;
+  }
+  .cart-drawer-root.is-open .cart-drawer { transform: none; }
 }
 
 /* ---------- helpers ---------- */
@@ -532,7 +552,7 @@ section { position: relative; }
 }
 [data-theme="dark"] .btn--ink {
   --btn-bg: var(--ink-bg);
-  --btn-fg: var(--yellow);
+  --btn-fg: #fff;
 }
 [data-theme="dark"] .pill--ink {
   background: var(--ink-bg);
@@ -901,4 +921,188 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   text-align: center;
   padding: 64px 24px;
   gap: 8px;
+}
+
+/* ---------- public cart drawer + nav badge ---------- */
+.btn--disabled,
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 2px 2px 0 var(--sh-c) !important;
+  pointer-events: none;
+}
+
+.nav-cart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease;
+}
+.nav-cart:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.nav-cart:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.nav-cart__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--green);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.nav-cart--pulse .nav-cart__badge {
+  animation: cart-badge-pop 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes cart-badge-pop {
+  0% { transform: scale(0.7); }
+  55% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.cart-drawer-root {
+  pointer-events: none;
+}
+.cart-drawer-root.is-open {
+  pointer-events: auto;
+}
+.cart-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  cursor: pointer;
+}
+.cart-drawer-root.is-open .cart-drawer-backdrop {
+  opacity: 1;
+}
+.cart-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 61;
+  width: min(100vw, 420px);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-left: var(--border);
+  box-shadow: -8px 0 0 var(--ink);
+  transform: translate3d(104%, 0, 0);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cart-drawer-root.is-open .cart-drawer {
+  transform: translate3d(0, 0, 0);
+}
+.cart-drawer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: var(--border);
+  background: var(--yellow);
+}
+.cart-drawer__close {
+  width: 44px;
+  height: 44px;
+  border: var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: 3px 3px 0 var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+.cart-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+.cart-drawer__foot {
+  padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: var(--border);
+  background: var(--cream);
+}
+.cart-remove {
+  background: none;
+  border: none;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--red);
+  cursor: pointer;
+  min-height: 44px;
+  padding: 8px 4px;
+  touch-action: manipulation;
+}
+.checkout-grid {
+  display: grid;
+  gap: 18px;
+}
+@media (min-width: 860px) {
+  .checkout-grid {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: start;
+  }
+}
+.checkout-fields {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 560px) {
+  .checkout-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.checkout-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.checkout-label .input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  min-height: 48px;
+}
+.eats-card {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (hover: hover) {
+  .eats-card:hover {
+    transform: translate(-2px, -2px);
+  }
 }

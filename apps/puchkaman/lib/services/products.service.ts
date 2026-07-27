@@ -181,6 +181,14 @@ class ProductsService extends UpdatableService<typeof products> {
       .orderBy(asc(products.category), asc(products.name));
   }
 
+  /** Full catalog for the public menu — includes inactive / OOS rows for browse. */
+  async listForPublicMenu() {
+    return db
+      .select()
+      .from(products)
+      .orderBy(asc(products.category), asc(products.displayOrder), asc(products.name));
+  }
+
   async listAll() {
     return this.repo.findAll().then((rows) =>
       [...rows].sort((a, b) =>

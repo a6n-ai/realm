@@ -44,6 +44,17 @@ describe("buildAtomicOrderBody", () => {
   it("rejects empty carts", () => {
     expect(() => buildAtomicOrderBody({ lineItems: [] })).toThrow(/at least one/);
   });
+
+  it("includes employee when provided", () => {
+    const body = buildAtomicOrderBody({
+      lineItems: [{ itemId: "ITEM1", name: "Puchka", price: 599 }],
+      employeeId: "EMP1",
+    });
+    expect(body).toMatchObject({
+      orderCart: expect.any(Object),
+      employee: { id: "EMP1" },
+    });
+  });
 });
 
 describe("normalize helpers", () => {

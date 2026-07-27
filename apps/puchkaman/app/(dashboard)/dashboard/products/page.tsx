@@ -114,6 +114,7 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
     price: Number(r.price),
     cloverItemId: r.cloverItemId ?? null,
     cloverLastSyncedAt: r.cloverLastSyncedAt ?? null,
+    cloverColorCode: r.cloverColorCode ?? null,
   }));
 
   return (

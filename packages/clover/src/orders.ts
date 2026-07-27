@@ -23,6 +23,11 @@ export type CloverAtomicOrderInput = {
   /** Merchant order type id (pickup/online). Optional for first slice. */
   orderTypeId?: string;
   note?: string;
+  /**
+   * Clover employee id to own/create the order (Register assignment).
+   * Requires Read employees permission on the app.
+   */
+  employeeId?: string;
 };
 
 export type CloverAtomicOrderResult = {
@@ -115,7 +120,9 @@ export function buildAtomicOrderBody(input: CloverAtomicOrderInput): Record<stri
   };
   if (input.orderTypeId) orderCart.orderType = { id: input.orderTypeId };
   if (input.note) orderCart.note = input.note;
-  return { orderCart };
+  const body: Record<string, unknown> = { orderCart };
+  if (input.employeeId) body.employee = { id: input.employeeId };
+  return body;
 }
 
 export function normalizeAtomicOrderResult(raw: unknown): CloverAtomicOrderResult {

@@ -1,6 +1,7 @@
 import { baseColumns, updatableColumns } from "@realm/database";
 import { bigint, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { employees } from "./employees";
 import { products } from "./products";
 
 /** Pickup order lifecycle (simpler than tiffin subscription orders). */
@@ -71,12 +72,20 @@ export const orders = pgTable(
     pricingSnapshot: jsonb("pricing_snapshot").$type<OrderPricingSnapshot>().notNull(),
     /** Platform / atomic order id — POS-visible once created. */
     cloverOrderId: text("clover_order_id").unique(),
+    /**
+     * Local employee assigned to own this order on Clover Register.
+     * Synced to Platform `employee: { id }` when `cloverOrderId` is set.
+     */
+    assignedEmployeeId: bigint("assigned_employee_id", { mode: "bigint" }).references(
+      () => employees.id,
+    ),
     paidAt: bigint("paid_at", { mode: "number" }),
   },
   (t) => [
     index("orders_status_created_idx").on(t.status, t.createdAt),
     index("orders_email_created_idx").on(t.customerEmail, t.createdAt),
     index("orders_user_created_idx").on(t.userId, t.createdAt),
+    index("orders_assigned_employee_idx").on(t.assignedEmployeeId),
   ],
 );
 

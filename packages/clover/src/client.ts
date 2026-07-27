@@ -4,13 +4,35 @@ import {
   refreshCloverTokens,
 } from "./oauth";
 import {
+  normalizeCloverEmployee,
+  type CloverEmployee,
+  type CloverEmployeeCreateInput,
+  type CloverEmployeeUpdateInput,
+  type ListEmployeesParams,
+} from "./employees";
+import {
   normalizeCloverCategory,
+  normalizeCloverDiscount,
   normalizeCloverItem,
+  normalizeCloverModifier,
+  normalizeCloverModifierGroup,
   type CloverCategory,
+  type CloverCategoryCreateInput,
+  type CloverCategoryUpdateInput,
+  type CloverDiscount,
+  type CloverDiscountCreateInput,
+  type CloverDiscountUpdateInput,
   type CloverElements,
   type CloverItem,
   type CloverItemCreateInput,
   type CloverItemUpdateInput,
+  type CloverModifier,
+  type CloverModifierCreateInput,
+  type CloverModifierGroup,
+  type CloverModifierGroupCreateInput,
+  type CloverModifierGroupUpdateInput,
+  type CloverModifierUpdateInput,
+  type ListInventoryParams,
   type ListItemsParams,
 } from "./inventory";
 import {
@@ -171,6 +193,31 @@ export class CloverApiClient {
     return `/v3/merchants/${encodeURIComponent(this.merchantId)}${s}`;
   }
 
+  private inventoryQuery(params: ListInventoryParams | ListItemsParams): string {
+    const q = new URLSearchParams();
+    if (params.limit != null) q.set("limit", String(params.limit));
+    if (params.offset != null) q.set("offset", String(params.offset));
+    if (params.expand) q.set("expand", params.expand);
+    if (params.filter) q.set("filter", params.filter);
+    const qs = q.toString();
+    return qs ? `?${qs}` : "";
+  }
+
+  private async paginateInventory<T>(
+    fetchPage: (p: { limit: number; offset: number }) => Promise<CloverElements<T>>,
+  ): Promise<T[]> {
+    const limit = 100;
+    let offset = 0;
+    const all: T[] = [];
+    for (;;) {
+      const page = await fetchPage({ limit, offset });
+      all.push(...page.elements);
+      if (page.elements.length < limit) break;
+      offset += limit;
+    }
+    return all;
+  }
+
   /** Merchant display fields for Settings cards — never returns tokens. */
   async getMerchant(): Promise<CloverMerchantSummary> {
     const data = await this.get<{ id?: string; name?: string }>(this.merchantPath(""));
@@ -183,14 +230,9 @@ export class CloverApiClient {
   // ── Inventory: items ──────────────────────────────────────────────────────
 
   async listItems(params: ListItemsParams = {}): Promise<CloverElements<CloverItem>> {
-    const q = new URLSearchParams();
-    if (params.limit != null) q.set("limit", String(params.limit));
-    if (params.offset != null) q.set("offset", String(params.offset));
-    if (params.expand) q.set("expand", params.expand);
-    if (params.filter) q.set("filter", params.filter);
-    const qs = q.toString();
-    const path = this.merchantPath(`items${qs ? `?${qs}` : ""}`);
-    const data = await this.get<{ elements?: unknown[] }>(path);
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`items${this.inventoryQuery(params)}`),
+    );
     const elements = Array.isArray(data.elements)
       ? data.elements.map((el) => normalizeCloverItem(el))
       : [];
@@ -199,16 +241,7 @@ export class CloverApiClient {
 
   /** Paginate through all items (limit 100 per page). */
   async listAllItems(params: Omit<ListItemsParams, "limit" | "offset"> = {}): Promise<CloverItem[]> {
-    const limit = 100;
-    let offset = 0;
-    const all: CloverItem[] = [];
-    for (;;) {
-      const page = await this.listItems({ ...params, limit, offset });
-      all.push(...page.elements);
-      if (page.elements.length < limit) break;
-      offset += limit;
-    }
-    return all;
+    return this.paginateInventory((p) => this.listItems({ ...params, ...p }));
   }
 
   async getItem(itemId: string, expand?: string): Promise<CloverItem> {
@@ -252,15 +285,9 @@ export class CloverApiClient {
 
   // ── Inventory: categories ─────────────────────────────────────────────────
 
-  async listCategories(params: { limit?: number; offset?: number } = {}): Promise<
-    CloverElements<CloverCategory>
-  > {
-    const q = new URLSearchParams();
-    if (params.limit != null) q.set("limit", String(params.limit));
-    if (params.offset != null) q.set("offset", String(params.offset));
-    const qs = q.toString();
+  async listCategories(params: ListInventoryParams = {}): Promise<CloverElements<CloverCategory>> {
     const data = await this.get<{ elements?: unknown[] }>(
-      this.merchantPath(`categories${qs ? `?${qs}` : ""}`),
+      this.merchantPath(`categories${this.inventoryQuery(params)}`),
     );
     const elements = Array.isArray(data.elements)
       ? data.elements.map((el) => normalizeCloverCategory(el))
@@ -268,22 +295,40 @@ export class CloverApiClient {
     return { elements };
   }
 
-  async listAllCategories(): Promise<CloverCategory[]> {
-    const limit = 100;
-    let offset = 0;
-    const all: CloverCategory[] = [];
-    for (;;) {
-      const page = await this.listCategories({ limit, offset });
-      all.push(...page.elements);
-      if (page.elements.length < limit) break;
-      offset += limit;
-    }
-    return all;
+  async listAllCategories(
+    params: Omit<ListInventoryParams, "limit" | "offset"> = {},
+  ): Promise<CloverCategory[]> {
+    return this.paginateInventory((p) => this.listCategories({ ...params, ...p }));
   }
 
-  async createCategory(name: string): Promise<CloverCategory> {
-    const data = await this.post(this.merchantPath("categories"), { name });
+  async getCategory(categoryId: string, expand?: string): Promise<CloverCategory> {
+    const q = expand ? `?expand=${encodeURIComponent(expand)}` : "";
+    const data = await this.get(
+      this.merchantPath(`categories/${encodeURIComponent(categoryId)}${q}`),
+    );
     return normalizeCloverCategory(data);
+  }
+
+  async createCategory(input: CloverCategoryCreateInput | string): Promise<CloverCategory> {
+    const body = typeof input === "string" ? { name: input } : cloverCategoryBody(input);
+    const data = await this.post(this.merchantPath("categories"), body);
+    return normalizeCloverCategory(data);
+  }
+
+  /** Update via POST …/categories/{categoryId}. */
+  async updateCategory(
+    categoryId: string,
+    input: CloverCategoryUpdateInput,
+  ): Promise<CloverCategory> {
+    const data = await this.post(
+      this.merchantPath(`categories/${encodeURIComponent(categoryId)}`),
+      cloverCategoryBody(input, { requireName: false }),
+    );
+    return normalizeCloverCategory(data);
+  }
+
+  async deleteCategory(categoryId: string): Promise<void> {
+    await this.delete(this.merchantPath(`categories/${encodeURIComponent(categoryId)}`));
   }
 
   /** Associate item ↔ category (many-to-many). */
@@ -298,6 +343,171 @@ export class CloverApiClient {
     await this.post(this.merchantPath("category_items?delete=true"), {
       elements: [{ category: { id: categoryId }, item: { id: itemId } }],
     });
+  }
+
+  // ── Inventory: modifier groups + modifiers ────────────────────────────────
+
+  async listModifierGroups(
+    params: ListInventoryParams = {},
+  ): Promise<CloverElements<CloverModifierGroup>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`modifier_groups${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverModifierGroup(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllModifierGroups(
+    params: Omit<ListInventoryParams, "limit" | "offset"> = {},
+  ): Promise<CloverModifierGroup[]> {
+    return this.paginateInventory((p) => this.listModifierGroups({ ...params, ...p }));
+  }
+
+  async getModifierGroup(modGroupId: string, expand?: string): Promise<CloverModifierGroup> {
+    const q = expand ? `?expand=${encodeURIComponent(expand)}` : "";
+    const data = await this.get(
+      this.merchantPath(`modifier_groups/${encodeURIComponent(modGroupId)}${q}`),
+    );
+    return normalizeCloverModifierGroup(data);
+  }
+
+  async createModifierGroup(input: CloverModifierGroupCreateInput): Promise<CloverModifierGroup> {
+    const data = await this.post(this.merchantPath("modifier_groups"), cloverModifierGroupBody(input));
+    return normalizeCloverModifierGroup(data);
+  }
+
+  async updateModifierGroup(
+    modGroupId: string,
+    input: CloverModifierGroupUpdateInput,
+  ): Promise<CloverModifierGroup> {
+    const data = await this.post(
+      this.merchantPath(`modifier_groups/${encodeURIComponent(modGroupId)}`),
+      cloverModifierGroupBody(input, { requireName: false }),
+    );
+    return normalizeCloverModifierGroup(data);
+  }
+
+  async createModifier(input: CloverModifierCreateInput): Promise<CloverModifier> {
+    const data = await this.post(this.merchantPath("modifiers"), cloverModifierBody(input));
+    return normalizeCloverModifier(data);
+  }
+
+  async updateModifier(modifierId: string, input: CloverModifierUpdateInput): Promise<CloverModifier> {
+    const data = await this.post(
+      this.merchantPath(`modifiers/${encodeURIComponent(modifierId)}`),
+      cloverModifierBody(input, { requireNameGroup: false }),
+    );
+    return normalizeCloverModifier(data);
+  }
+
+  /** Associate item ↔ modifier group. */
+  async associateItemModifierGroup(modifierGroupId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("item_modifier_groups"), {
+      elements: [{ modifierGroup: { id: modifierGroupId }, item: { id: itemId } }],
+    });
+  }
+
+  /** Remove item ↔ modifier group association. */
+  async dissociateItemModifierGroup(modifierGroupId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("item_modifier_groups?delete=true"), {
+      elements: [{ modifierGroup: { id: modifierGroupId }, item: { id: itemId } }],
+    });
+  }
+
+  // ── Inventory: discounts ──────────────────────────────────────────────────
+
+  async listDiscounts(params: ListInventoryParams = {}): Promise<CloverElements<CloverDiscount>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`discounts${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverDiscount(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllDiscounts(
+    params: Omit<ListInventoryParams, "limit" | "offset"> = {},
+  ): Promise<CloverDiscount[]> {
+    return this.paginateInventory((p) => this.listDiscounts({ ...params, ...p }));
+  }
+
+  async getDiscount(discountId: string): Promise<CloverDiscount> {
+    const data = await this.get(
+      this.merchantPath(`discounts/${encodeURIComponent(discountId)}`),
+    );
+    return normalizeCloverDiscount(data);
+  }
+
+  async createDiscount(input: CloverDiscountCreateInput): Promise<CloverDiscount> {
+    const data = await this.post(this.merchantPath("discounts"), cloverDiscountBody(input));
+    return normalizeCloverDiscount(data);
+  }
+
+  async updateDiscount(
+    discountId: string,
+    input: CloverDiscountUpdateInput,
+  ): Promise<CloverDiscount> {
+    const data = await this.post(
+      this.merchantPath(`discounts/${encodeURIComponent(discountId)}`),
+      cloverDiscountBody(input, { requireName: false }),
+    );
+    return normalizeCloverDiscount(data);
+  }
+
+  async deleteDiscount(discountId: string): Promise<void> {
+    await this.delete(this.merchantPath(`discounts/${encodeURIComponent(discountId)}`));
+  }
+
+  // ── Employees ─────────────────────────────────────────────────────────────
+
+  async listEmployees(
+    params: ListEmployeesParams = {},
+  ): Promise<CloverElements<CloverEmployee>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`employees${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverEmployee(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllEmployees(
+    params: Omit<ListEmployeesParams, "limit" | "offset"> = {},
+  ): Promise<CloverEmployee[]> {
+    return this.paginateInventory((p) => this.listEmployees({ ...params, ...p }));
+  }
+
+  async getEmployee(employeeId: string, expand?: string): Promise<CloverEmployee> {
+    const q = expand ? `?expand=${encodeURIComponent(expand)}` : "";
+    const data = await this.get(
+      this.merchantPath(`employees/${encodeURIComponent(employeeId)}${q}`),
+    );
+    return normalizeCloverEmployee(data);
+  }
+
+  async createEmployee(input: CloverEmployeeCreateInput): Promise<CloverEmployee> {
+    const data = await this.post(this.merchantPath("employees"), cloverEmployeeBody(input));
+    return normalizeCloverEmployee(data);
+  }
+
+  /** Update via POST …/employees/{empId}. */
+  async updateEmployee(
+    employeeId: string,
+    input: CloverEmployeeUpdateInput,
+  ): Promise<CloverEmployee> {
+    const data = await this.post(
+      this.merchantPath(`employees/${encodeURIComponent(employeeId)}`),
+      cloverEmployeeBody(input, { requireName: false }),
+    );
+    return normalizeCloverEmployee(data);
+  }
+
+  async deleteEmployee(employeeId: string): Promise<void> {
+    await this.delete(this.merchantPath(`employees/${encodeURIComponent(employeeId)}`));
   }
 
   // ── Orders (Platform atomic) ──────────────────────────────────────────────
@@ -414,6 +624,25 @@ export class CloverApiClient {
     );
     return normalizePlatformOrder(data);
   }
+
+  /**
+   * Assign (or clear) the employee who owns a Platform order.
+   * POST /v3/merchants/{mId}/orders/{orderId}
+   */
+  async updatePlatformOrderEmployee(
+    orderId: string,
+    employeeId: string | null,
+  ): Promise<CloverPlatformOrderResult> {
+    const body =
+      employeeId == null
+        ? { employee: null }
+        : { employee: { id: employeeId } };
+    const data = await this.post(
+      this.merchantPath(`orders/${encodeURIComponent(orderId)}`),
+      body,
+    );
+    return normalizePlatformOrder(data);
+  }
 }
 
 export type CloverMerchantSummary = {
@@ -445,6 +674,95 @@ function cloverItemBody(
   if (input.cost !== undefined) body.cost = input.cost;
   if (input.unitName !== undefined) body.unitName = input.unitName;
   if (input.colorCode !== undefined) body.colorCode = input.colorCode;
+  return body;
+}
+
+function cloverCategoryBody(
+  input: CloverCategoryCreateInput | CloverCategoryUpdateInput,
+  opts: { requireName?: boolean } = {},
+): Record<string, unknown> {
+  const requireName = opts.requireName !== false;
+  const body: Record<string, unknown> = {};
+  if (requireName) {
+    body.name = (input as CloverCategoryCreateInput).name;
+  } else if (input.name != null) {
+    body.name = input.name;
+  }
+  if (input.sortOrder != null) body.sortOrder = input.sortOrder;
+  if (input.colorCode !== undefined) body.colorCode = input.colorCode;
+  return body;
+}
+
+function cloverModifierGroupBody(
+  input: CloverModifierGroupCreateInput | CloverModifierGroupUpdateInput,
+  opts: { requireName?: boolean } = {},
+): Record<string, unknown> {
+  const requireName = opts.requireName !== false;
+  const body: Record<string, unknown> = {};
+  if (requireName) {
+    body.name = (input as CloverModifierGroupCreateInput).name;
+  } else if (input.name != null) {
+    body.name = input.name;
+  }
+  if (input.alternateName !== undefined) body.alternateName = input.alternateName;
+  if (input.minRequired !== undefined) body.minRequired = input.minRequired;
+  if (input.maxAllowed !== undefined) body.maxAllowed = input.maxAllowed;
+  if (input.showByDefault != null) body.showByDefault = input.showByDefault;
+  if (input.sortOrder != null) body.sortOrder = input.sortOrder;
+  return body;
+}
+
+function cloverModifierBody(
+  input: CloverModifierCreateInput | CloverModifierUpdateInput,
+  opts: { requireNameGroup?: boolean } = {},
+): Record<string, unknown> {
+  const requireNameGroup = opts.requireNameGroup !== false;
+  const body: Record<string, unknown> = {};
+  if (requireNameGroup) {
+    body.name = (input as CloverModifierCreateInput).name;
+    body.modifierGroup = (input as CloverModifierCreateInput).modifierGroup;
+  } else {
+    if (input.name != null) body.name = input.name;
+    if (input.modifierGroup != null) body.modifierGroup = input.modifierGroup;
+  }
+  if (input.alternateName !== undefined) body.alternateName = input.alternateName;
+  if (input.price != null) body.price = input.price;
+  if (input.available != null) body.available = input.available;
+  return body;
+}
+
+function cloverDiscountBody(
+  input: CloverDiscountCreateInput | CloverDiscountUpdateInput,
+  opts: { requireName?: boolean } = {},
+): Record<string, unknown> {
+  const requireName = opts.requireName !== false;
+  const body: Record<string, unknown> = {};
+  if (requireName) {
+    body.name = (input as CloverDiscountCreateInput).name;
+  } else if (input.name != null) {
+    body.name = input.name;
+  }
+  if (input.amount !== undefined) body.amount = input.amount;
+  if (input.percentage !== undefined) body.percentage = input.percentage;
+  return body;
+}
+
+function cloverEmployeeBody(
+  input: CloverEmployeeCreateInput | CloverEmployeeUpdateInput,
+  opts: { requireName?: boolean } = {},
+): Record<string, unknown> {
+  const requireName = opts.requireName !== false;
+  const body: Record<string, unknown> = {};
+  if (requireName) {
+    body.name = (input as CloverEmployeeCreateInput).name;
+  } else if (input.name != null) {
+    body.name = input.name;
+  }
+  if (input.nickname !== undefined) body.nickname = input.nickname;
+  if (input.customId !== undefined) body.customId = input.customId;
+  if (input.email !== undefined) body.email = input.email;
+  if (input.role != null) body.role = input.role;
+  if (input.pin != null) body.pin = input.pin;
   return body;
 }
 

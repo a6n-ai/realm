@@ -26,6 +26,7 @@ import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { SortState } from "@/lib/list/sort";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
@@ -51,6 +52,7 @@ export type ProductRow = {
   pendingSync: PendingSync | null;
   cloverItemId: string | null;
   cloverLastSyncedAt: number | null;
+  cloverColorCode: string | null;
 };
 
 // Sortable keys must match ProductSortColumn / PRODUCT_SORT_COL. "actions" is
@@ -150,13 +152,16 @@ export function ProductsTable({
                 ) : (
                   <div className="bg-muted size-8 shrink-0 rounded-md" />
                 )}
-                <Link
-                  href={`/dashboard/products/${row.publicId}`}
-                  className="hover:text-foreground font-medium hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {row.name}
-                </Link>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <CloverColorSwatch color={row.cloverColorCode} size={12} />
+                  <Link
+                    href={`/dashboard/products/${row.publicId}`}
+                    className="hover:text-foreground truncate font-medium hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {row.name}
+                  </Link>
+                </div>
               </div>
             </TableCell>
             <TableCell>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</TableCell>

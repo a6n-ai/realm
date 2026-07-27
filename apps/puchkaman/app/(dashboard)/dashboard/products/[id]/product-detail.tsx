@@ -38,6 +38,7 @@ import { Switch } from "@realm/ui/switch";
 import { cn } from "@realm/ui/cn";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { ImageUploader } from "@/components/files/image-uploader";
+import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
 import { productSchema } from "@/lib/products/schema";
@@ -172,6 +173,7 @@ export function ProductDetail({
             </Link>
           </Button>
           <Badge variant={product.active ? "secondary" : "outline"}>{statusLabel}</Badge>
+          <CloverColorSwatch color={product.cloverColorCode} size={14} />
           {product.source === "uber_eats" ? <Badge variant="outline">Uber Eats</Badge> : null}
           {cloverEnabled && linked ? (
             <Badge variant="outline">Clover linked</Badge>
@@ -560,9 +562,17 @@ export function ProductDetail({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Color code</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} placeholder="#FF0080" />
-                    </FormControl>
+                    <div className="flex items-center gap-2">
+                      <CloverColorSwatch color={field.value} size={16} />
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="#FF0080"
+                          className="flex-1"
+                        />
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

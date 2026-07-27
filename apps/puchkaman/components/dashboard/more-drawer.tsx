@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, UserIcon } from "lucide-react";
-import { Badge } from "@realm/ui/badge";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
 import { signOut } from "@/lib/auth/client";
 import { getNavSections } from "./app-sidebar";
@@ -47,14 +46,6 @@ export function MoreDrawer({
                   >
                     <item.icon className="text-muted-foreground size-5" />
                     <span>{item.title}</span>
-                    {item.badge ? (
-                      <Badge
-                        variant="outline"
-                        className="text-muted-foreground ml-auto h-5 px-1.5 text-[10px] font-normal"
-                      >
-                        {item.badge}
-                      </Badge>
-                    ) : null}
                   </Link>
                 ))}
               </div>

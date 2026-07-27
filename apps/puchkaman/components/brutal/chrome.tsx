@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "@realm/themes";
+import { NavCartButton } from "@/components/cart/nav-cart-button";
 import { Btn } from "./shared";
 import { PHONE_DISPLAY } from "@/lib/links";
 
@@ -111,15 +112,18 @@ export function Nav() {
               </Link>
             ))}
           </nav>
-          <div className="flex center" style={{ gap: 10 }}>
+          <div className="flex center" style={{ gap: 8 }}>
             <ThemeToggle />
+            <NavCartButton />
             <Btn page="order" variant="green" size="sm" className="nav-order">
               🛵 Order Now
             </Btn>
             <button
+              type="button"
               className="burger"
               onClick={() => setOpen(!open)}
-              aria-label="Menu"
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
               style={{
                 display: "grid",
                 placeItems: "center",
@@ -131,7 +135,9 @@ export function Nav() {
                 boxShadow: "3px 3px 0 var(--ink)",
               }}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{open ? "✕" : "☰"}</span>
+              <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">
+                {open ? "✕" : "☰"}
+              </span>
             </button>
           </div>
         </div>
@@ -170,7 +176,13 @@ export function Nav() {
                 {label} <span style={{ opacity: 0.5 }}>→</span>
               </Link>
             ))}
-            <Btn page="order" variant="green" size="lg" block style={{ marginTop: 8 }}>
+            <Btn page="eats" variant="yellow" size="lg" block style={{ marginTop: 8 }}>
+              Browse menu
+            </Btn>
+            <Btn page="cart" variant="cream" size="lg" block>
+              Cart
+            </Btn>
+            <Btn page="order" variant="green" size="lg" block>
               🛵 Order Now
             </Btn>
           </div>
