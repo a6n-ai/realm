@@ -1,5 +1,6 @@
 "use client";
 
+import { IconCart } from "@/components/brutal/icons";
 import { useCart } from "@/components/cart/cart-provider";
 
 export function NavCartButton() {
@@ -13,9 +14,7 @@ export function NavCartButton() {
       onClick={openDrawer}
       aria-label={label}
     >
-      <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>
-        🛒
-      </span>
+      <IconCart />
       {hydrated && count > 0 ? (
         <span className="nav-cart__badge" aria-hidden="true">
           {count > 99 ? "99+" : count}

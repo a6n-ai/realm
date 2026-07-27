@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "@realm/themes";
 import { NavCartButton } from "@/components/cart/nav-cart-button";
+import { IconBike } from "./icons";
 import { Btn } from "./shared";
 import { PHONE_DISPLAY } from "@/lib/links";
 
@@ -58,12 +59,31 @@ export function ThemeToggle() {
 }
 
 /* ---------- Logo ---------- */
-function Logo() {
+/** Circular brand mark with brutalist 3D bevel (mirrors .btn--sm).
+ *  Colors live in `.logo-mark` CSS: red accents on yellow/cream
+ *  surfaces (no yellow-on-yellow); yellow accents inside `.surface-ink`. */
+function Logo({
+  size = 50,
+  wordmarkColor = "var(--green)",
+  wordmarkSize = "1.35rem",
+}: {
+  size?: number;
+  wordmarkColor?: string;
+  wordmarkSize?: string;
+} = {}) {
   return (
     <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.webp" alt="" style={{ height: 50, width: "auto", display: "block" }} />
-      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--green)" }}>
+      <span className="logo-mark" style={{ width: size, height: size }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.webp"
+          alt=""
+          width={size}
+          height={size}
+          className="logo-mark__img"
+        />
+      </span>
+      <span className="display" style={{ fontSize: wordmarkSize, letterSpacing: "-0.04em", color: wordmarkColor }}>
         PUCHKAMAN
       </span>
     </Link>
@@ -116,7 +136,8 @@ export function Nav() {
             <ThemeToggle />
             <NavCartButton />
             <Btn page="order" variant="green" size="sm" className="nav-order">
-              🛵 Order Now
+              <IconBike />
+              Order Now
             </Btn>
             <button
               type="button"
@@ -183,7 +204,8 @@ export function Nav() {
               Cart
             </Btn>
             <Btn page="order" variant="green" size="lg" block>
-              🛵 Order Now
+              <IconBike />
+              Order Now
             </Btn>
           </div>
         </div>
@@ -199,23 +221,8 @@ export function Footer() {
       <div className="wrap" style={{ padding: "54px 20px 30px" }}>
         <div className="footer-grid" style={{ display: "grid", gap: 36 }}>
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <span
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: "50%",
-                  background: "var(--green)",
-                  border: "3px solid var(--yellow)",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--yellow)" }} />
-              </span>
-              <span className="display" style={{ fontSize: "1.5rem", color: "var(--yellow)" }}>
-                PUCHKAMAN
-              </span>
+            <div style={{ marginBottom: 16 }}>
+              <Logo size={42} wordmarkColor="var(--yellow)" wordmarkSize="1.5rem" />
             </div>
             <p style={{ maxWidth: 320, fontWeight: 500, opacity: 0.85, lineHeight: 1.5 }}>
               Toronto&apos;s first fusion puchka spot. Kolkata street food, reimagined in Scarborough.
