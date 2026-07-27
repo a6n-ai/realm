@@ -102,7 +102,7 @@ export function EatsView({ categories }: { categories: EatsCategory[] }) {
                   border: "2.5px solid var(--ink)",
                   background: active === c.id ? "var(--ink-bg)" : "var(--cream)",
                   color: active === c.id ? "var(--yellow)" : "var(--ink)",
-                  boxShadow: active === c.id ? "3px 3px 0 var(--red)" : "none",
+                  boxShadow: active === c.id ? "3px 3px 0 var(--green)" : "none",
                   flexShrink: 0,
                   transition: "all .12s ease",
                 }}
@@ -144,7 +144,7 @@ export function EatsView({ categories }: { categories: EatsCategory[] }) {
                                 padding: "4px 8px",
                                 borderWidth: 2,
                                 boxShadow: "2px 2px 0 var(--ink)",
-                                background: t === "viral" ? "var(--red)" : t === "new" ? "var(--mint)" : "var(--yellow)",
+                                background: t === "viral" ? "var(--green)" : t === "new" ? "var(--mint)" : "var(--yellow)",
                                 color: t === "viral" || t === "new" ? "#fff" : "var(--ink-deep)",
                               }}
                             >
@@ -157,7 +157,7 @@ export function EatsView({ categories }: { categories: EatsCategory[] }) {
                     <div style={{ padding: "14px 15px 16px", flex: 1, display: "flex", flexDirection: "column" }}>
                       <div className="flex" style={{ justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
                         <h3 style={{ fontSize: "1.08rem", lineHeight: 1.05 }}>{item.name}</h3>
-                        <span className="display" style={{ fontSize: "1.12rem", color: "var(--red)", flexShrink: 0 }}>${item.price.toFixed(0)}</span>
+                        <span className="display" style={{ fontSize: "1.12rem", color: "var(--green)", flexShrink: 0 }}>${item.price.toFixed(0)}</span>
                       </div>
                       <p className="clamp-2" style={{ fontSize: "0.85rem", fontWeight: 500, opacity: 0.8, minHeight: "2.4em" }}>{item.description}</p>
                     </div>
@@ -172,7 +172,7 @@ export function EatsView({ categories }: { categories: EatsCategory[] }) {
             <h2 className="display" style={{ fontSize: "clamp(1.8rem,5vw,3rem)", color: "var(--yellow)" }}>Hungry Yet?</h2>
             <p style={{ fontWeight: 500, margin: "12px 0 22px" }}>Order pickup to skip the delivery fees, or get it delivered to your door.</p>
             <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
-              <Btn page="order" variant="red" size="lg">🛵 Order Pickup</Btn>
+              <Btn page="order" variant="green" size="lg">🛵 Order Pickup</Btn>
               <Btn page="order" variant="yellow" size="lg">🚗 Order Delivery</Btn>
             </div>
           </div>

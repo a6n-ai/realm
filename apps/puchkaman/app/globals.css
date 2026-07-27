@@ -9,16 +9,22 @@
    ============================================================ */
 
 :root {
-  /* brand */
-  --yellow:      #FFD21A;
-  --yellow-deep: #F4B500;
-  /* --red carries white text everywhere it's used (pills, stickers,
-     ribbon, buttons, red sections) and is used as red text on light.
-     #FF3B26 was only 3.56:1 — darkened to #DE2A1A (4.72:1) so every red
-     surface clears WCAG AA. Dark theme keeps its lifted red below. */
+  /* brand — sourced from the Puchka Man logo artwork. */
+  --yellow:      #FCD807;
+  --yellow-deep: #F0C400;
+  /* --green carries white text everywhere it's used (pills, stickers,
+     ribbon, buttons, green sections) and is used as green text on light.
+     The logo's green (~#349D45) only hit 3.4:1 with white text — darkened
+     to #1F7A34 (5.4:1) so every green surface clears WCAG AA, same
+     reasoning the old accent red used. Dark theme keeps a lifted pop
+     green below. */
+  --green:       #1F7A34;
+  --green-deep:  #17612A;
+  /* Status red — errors, "Closed", required-field markers. Not a brand
+     accent (that's --green now); kept separate so validation states
+     still read as red. */
   --red:         #DE2A1A;
   --red-deep:    #E22A18;
-  --red-btn:     var(--red);
   --ink:         #16140D;
   --cream:       #FFF4DA;
   --paper:       #FFFBF0;
@@ -40,7 +46,7 @@
   --sh: 7px 7px 0 var(--ink);
   --sh-sm: 4px 4px 0 var(--ink);
   --sh-lg: 12px 12px 0 var(--ink);
-  --sh-red: 7px 7px 0 var(--red);
+  --sh-green: 7px 7px 0 var(--green);
 
   --maxw: 1240px;
   --font: var(--font-archivo), 'Archivo', system-ui, sans-serif;
@@ -50,7 +56,7 @@
 /* ============================================================
    DARK MODE
    Toggled via <html data-theme="dark">. Strategy:
-   - Brand accents (yellow, red) stay.
+   - Brand accents (yellow, green) stay.
    - --ink flips to a warm light cream so all text/borders/shadows
      that reference it remain visible on the dark page.
    - Card/surface vars (--white, --cream, --paper) flip to dark.
@@ -61,11 +67,13 @@
 [data-theme="dark"] {
   color-scheme: dark;
   /* Warm "dark espresso" base — NOT black. The brand reads as a
-     toasted-chocolate room with the yellow & red glowing on top,
+     toasted-chocolate room with the yellow & green glowing on top,
      so it still feels like Puchkaman after dark, not a void. */
   --yellow:      #FFCE12;   /* a hair richer so it pops on brown */
   --yellow-deep: #F4B500;
-  --red:         #FF5B43;   /* lifted so it stays vivid on dark */
+  --green:       #3ECC5A;   /* lifted so it stays vivid on dark */
+  --green-deep:  #2FAE49;
+  --red:         #FF5B43;   /* status red — lifted so it stays vivid on dark */
   --red-deep:    #E83A24;
   --ink:         #FCEFCF;   /* warm cream — text/borders/shadows on dark */
   --cream:       #322615;   /* warm card surface (toffee) */
@@ -154,7 +162,7 @@ section { position: relative; }
 /* ============================================================
    Shadow / border / fill SYSTEM
    ─────────────────────────────────────────────────────────────
-   Brand palette (5): yellow, red, ink, cream, white.
+   Brand palette (5): yellow, green, ink, cream, white.
    Surfaces are containers; fills are buttons/cards/divs that
    sit on them. Two hard rules:
      1. shadow color  ≠  the element's own fill
@@ -164,13 +172,13 @@ section { position: relative; }
 
    USAGE
      • Tag a container with one of:
-         .surface-yellow .surface-red .surface-ink
+         .surface-yellow .surface-green .surface-ink
          .surface-cream  .surface-white
        (Body defaults to yellow — only tag if the container's
         bg differs from its parent's surface.)
      • Give buttons & cards a fill variant:
-         .btn--yellow .btn--red .btn--ink .btn--cream .btn--white
-         .card--yellow .card--red .card--ink .card--cream .card--white
+         .btn--yellow .btn--green .btn--ink .btn--cream .btn--white
+         .card--yellow .card--green .card--ink .card--cream .card--white
        The right shadow + border is chosen automatically by
        cascade — authors never pick a shadow color by hand.
    ============================================================ */
@@ -179,7 +187,7 @@ section { position: relative; }
    Surfaces (light) all use ink border; ink surface flips to yellow. */
 :root,
 .surface-yellow,
-.surface-red,
+.surface-green,
 .surface-cream,
 .surface-white { --bd-c: var(--ink); }
 .surface-ink   { --bd-c: var(--yellow); }
@@ -189,8 +197,8 @@ section { position: relative; }
    override only the combos that conflict with that surface. */
 .btn--white,  .card--white  { --sh-c: var(--ink); }
 .btn--yellow, .card--yellow { --sh-c: var(--ink); }
-.btn--red,    .card--red    { --sh-c: var(--ink); }
-.btn--ink,    .card--ink    { --sh-c: var(--red); }   /* ink shadow would be invisible on ink fill */
+.btn--green,  .card--green  { --sh-c: var(--ink); }
+.btn--ink,    .card--ink    { --sh-c: var(--green); }   /* ink shadow would be invisible on ink fill */
 .btn--cream,  .card--cream  { --sh-c: var(--ink); }
 /* root fallback if no fill class is present (e.g. .card alone) */
 :root { --sh-c: var(--ink); }
@@ -201,26 +209,26 @@ section { position: relative; }
    `.btn` / `.card` baseline is declared first (it covers default
    white fill) and per-color modifier rules override it below. */
 
-/* surface red — only ink fill conflicts */
-.surface-red .btn,       .surface-red .card       { --sh-c: var(--ink); }
-.surface-red .btn--ink,  .surface-red .card--ink  { --sh-c: var(--yellow); }
+/* surface green — only ink fill conflicts */
+.surface-green .btn,       .surface-green .card       { --sh-c: var(--ink); }
+.surface-green .btn--ink,  .surface-green .card--ink  { --sh-c: var(--yellow); }
 
 /* surface ink — default ink shadow always conflicts with ink surface */
 .surface-ink .btn,         .surface-ink .card         { --sh-c: var(--yellow); }
-.surface-ink .btn--yellow, .surface-ink .card--yellow { --sh-c: var(--red); }
-.surface-ink .btn--cream,  .surface-ink .card--cream  { --sh-c: var(--red); }
+.surface-ink .btn--yellow, .surface-ink .card--yellow { --sh-c: var(--green); }
+.surface-ink .btn--cream,  .surface-ink .card--cream  { --sh-c: var(--green); }
 .surface-ink .btn--ink,    .surface-ink .card--ink    { --sh-c: var(--yellow); }
-.surface-ink .btn--red,    .surface-ink .card--red    { --sh-c: var(--yellow); }
+.surface-ink .btn--green,  .surface-ink .card--green  { --sh-c: var(--yellow); }
 .surface-ink .btn--white,  .surface-ink .card--white  { --sh-c: var(--yellow); }
 
 /* Backward-compat aliases for older markup */
 .on-dark { --bd-c: var(--yellow); }
 .on-dark .btn--white,  .on-dark .card--white  { --sh-c: var(--yellow); }
-.on-dark .btn--yellow, .on-dark .card--yellow { --sh-c: var(--red); }
-.on-dark .btn--red,    .on-dark .card--red    { --sh-c: var(--yellow); }
+.on-dark .btn--yellow, .on-dark .card--yellow { --sh-c: var(--green); }
+.on-dark .btn--green,  .on-dark .card--green  { --sh-c: var(--yellow); }
 .on-dark .btn--ink,    .on-dark .card--ink    { --sh-c: var(--yellow); }
-.on-dark .btn--cream,  .on-dark .card--cream  { --sh-c: var(--red); }
-.on-red  .btn--ink,    .on-red  .card--ink    { --sh-c: var(--yellow); }
+.on-dark .btn--cream,  .on-dark .card--cream  { --sh-c: var(--green); }
+.on-green .btn--ink,   .on-green .card--ink   { --sh-c: var(--yellow); }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -243,7 +251,7 @@ section { position: relative; }
 .btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--sh-c); }
 .btn--white  { --btn-bg: var(--white);  --btn-fg: var(--ink); }
 .btn--yellow { --btn-bg: var(--yellow); --btn-fg: var(--ink); }
-.btn--red    { --btn-bg: var(--red-btn); --btn-fg: var(--white); }
+.btn--green  { --btn-bg: var(--green); --btn-fg: var(--white); }
 .btn--ink    { --btn-bg: var(--ink);    --btn-fg: var(--yellow); }
 .btn--cream  { --btn-bg: var(--cream);  --btn-fg: var(--ink); }
 .btn--lg     { padding: 18px 28px; font-size: 1.1rem; border-radius: var(--r); }
@@ -262,7 +270,7 @@ section { position: relative; }
 }
 .card--white  { --card-bg: var(--white); }
 .card--yellow { --card-bg: var(--yellow); }
-.card--red    { --card-bg: var(--red);   color: #fff; }
+.card--green  { --card-bg: var(--green); color: #fff; }
 .card--ink    { --card-bg: var(--ink);   color: var(--cream); }
 .card--cream  { --card-bg: var(--cream); }
 .card--lift { transition: transform .12s ease, box-shadow .12s ease; }
@@ -285,7 +293,7 @@ section { position: relative; }
   border-radius: 999px;
   background: var(--white);
 }
-.pill--red   { background: var(--red); color: #fff; }
+.pill--green { background: var(--green); color: #fff; }
 .pill--yellow{ background: var(--yellow); }
 .pill--ink   { background: var(--ink); color: var(--yellow); }
 .pill--mint  { background: var(--mint); color: #fff; }
@@ -297,7 +305,7 @@ section { position: relative; }
   padding: 9px 13px;
   border: var(--border);
   border-radius: 999px;
-  background: var(--red); color: #fff;
+  background: var(--green); color: #fff;
   box-shadow: var(--sh-sm);
   z-index: 3;
   white-space: nowrap;
@@ -324,7 +332,7 @@ section { position: relative; }
   text-align: center; max-width: 80%;
 }
 .ph--yellow { background-color: var(--yellow); }
-.ph--red { background-color: #ffd9d2; }
+.ph--green { background-color: #d7f2da; }
 
 /* ---------- marquee ---------- */
 .marquee {
@@ -469,7 +477,7 @@ section { position: relative; }
 
 /* announcement ribbon */
 .ribbon {
-  background: var(--red);
+  background: var(--green);
   color: #fff;
   border-bottom: var(--border);
   font-family: var(--mono);
@@ -490,7 +498,7 @@ section { position: relative; }
 /* highlighter marker behind a word */
 .marker {
   display: inline-block;
-  background: var(--red);
+  background: var(--green);
   color: #fff;
   border: var(--border);
   border-radius: 10px;
@@ -575,7 +583,7 @@ section { position: relative; }
   color: var(--ink);
 }
 
-/* ribbon stays red+white in both modes — no change needed */
+/* ribbon stays green+white in both modes — no change needed */
 
 /* ---------- Theme toggle button ---------- */
 .theme-toggle {

@@ -70,7 +70,7 @@ export default function OrderPage() {
         <div className="wrap" style={{ maxWidth: 960 }}>
           <Reveal>
             <div
-              className="card card--red surface-red"
+              className="card card--green surface-green"
               style={{
                 color: "#fff",
                 padding: "clamp(22px,3.5vw,36px)",
@@ -117,7 +117,7 @@ export default function OrderPage() {
                 >
                   <div className="flex center between" style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 34 }}>{c.emoji}</div>
-                    <Pill variant={c.soon ? "ink" : "red"}>{c.tag}</Pill>
+                    <Pill variant={c.soon ? "ink" : "green"}>{c.tag}</Pill>
                   </div>
                   <h3 style={{ fontSize: "1.5rem", marginBottom: 8 }}>{c.name}</h3>
                   <p style={{ fontWeight: 500, opacity: 0.82, marginBottom: 20 }}>{c.desc}</p>

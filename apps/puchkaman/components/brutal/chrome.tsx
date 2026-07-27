@@ -62,7 +62,7 @@ function Logo() {
     <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.webp" alt="" style={{ height: 50, width: "auto", display: "block" }} />
-      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--red)" }}>
+      <span className="display" style={{ fontSize: "1.35rem", letterSpacing: "-0.04em", color: "var(--green)" }}>
         PUCHKAMAN
       </span>
     </Link>
@@ -113,7 +113,7 @@ export function Nav() {
           </nav>
           <div className="flex center" style={{ gap: 10 }}>
             <ThemeToggle />
-            <Btn page="order" variant="red" size="sm" className="nav-order">
+            <Btn page="order" variant="green" size="sm" className="nav-order">
               🛵 Order Now
             </Btn>
             <button
@@ -170,7 +170,7 @@ export function Nav() {
                 {label} <span style={{ opacity: 0.5 }}>→</span>
               </Link>
             ))}
-            <Btn page="order" variant="red" size="lg" block style={{ marginTop: 8 }}>
+            <Btn page="order" variant="green" size="lg" block style={{ marginTop: 8 }}>
               🛵 Order Now
             </Btn>
           </div>
@@ -193,7 +193,7 @@ export function Footer() {
                   width: 34,
                   height: 34,
                   borderRadius: "50%",
-                  background: "var(--red)",
+                  background: "var(--green)",
                   border: "3px solid var(--yellow)",
                   display: "grid",
                   placeItems: "center",
@@ -209,7 +209,7 @@ export function Footer() {
               Toronto&apos;s first fusion puchka spot. Kolkata street food, reimagined in Scarborough.
             </p>
             <div className="flex wrap-gap" style={{ marginTop: 18 }}>
-              <Btn page="order" variant="red" size="sm">
+              <Btn page="order" variant="green" size="sm">
                 Order Now
               </Btn>
               <Btn page="catering" variant="yellow" size="sm">

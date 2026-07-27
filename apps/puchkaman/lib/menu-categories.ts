@@ -60,6 +60,6 @@ export const CATEGORIES: Record<CategoryId, { name: string; emoji: string; note:
 
 export const TAG_STYLE: Record<string, { label: string; variant: string }> = {
   best: { label: "★ Best Seller", variant: "yellow" },
-  viral: { label: "🔥 Viral", variant: "red" },
+  viral: { label: "🔥 Viral", variant: "green" },
   new: { label: "New", variant: "mint" },
 };

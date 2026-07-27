@@ -116,7 +116,7 @@ export default function ContactPage() {
                 <p style={{ fontWeight: 500, opacity: 0.88, marginBottom: 18 }}>
                   Live puchka & chaat catering across the GTA — birthdays, offices, weddings & watch parties.
                 </p>
-                <Btn page="catering" variant="red" size="lg" block>Request a Catering Quote →</Btn>
+                <Btn page="catering" variant="green" size="lg" block>Request a Catering Quote →</Btn>
               </div>
             </div>
           </div>

@@ -13,12 +13,12 @@ export const ROUTE: Record<string, string> = {
   contact: "/contact",
 };
 
-type Variant = "white" | "yellow" | "red" | "ink" | "cream";
+type Variant = "white" | "yellow" | "green" | "ink" | "cream";
 
 const FILLS: Record<Variant, string> = {
   white: "btn--white",
   yellow: "btn--yellow",
-  red: "btn--red",
+  green: "btn--green",
   ink: "btn--ink",
   cream: "btn--cream",
 };
@@ -110,7 +110,7 @@ export function Pill({
   className = "",
 }: {
   children: ReactNode;
-  variant?: "" | "red" | "yellow" | "ink" | "mint";
+  variant?: "" | "green" | "yellow" | "ink" | "mint";
   className?: string;
 }) {
   const v = variant ? `pill--${variant}` : "";
@@ -182,7 +182,7 @@ export function SectionHead({
           <span
             className="tape kicker"
             style={{
-              background: light ? "var(--red)" : "var(--yellow)",
+              background: light ? "var(--green)" : "var(--yellow)",
               color: light ? "#fff" : "var(--ink)",
             }}
           >
@@ -224,7 +224,7 @@ export function Marquee({ items, variant = "" }: { items: string[]; variant?: st
     <span>
       {items.map((it, i) => (
         <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 34 }}>
-          {it} <span style={{ color: "var(--red)" }}>✦</span>
+          {it} <span style={{ color: "var(--green)" }}>✦</span>
         </span>
       ))}
     </span>
@@ -244,7 +244,7 @@ export function PageBanner({
   kicker,
   title,
   sub,
-  bg = "var(--red)",
+  bg = "var(--green)",
   color = "#fff",
   surface,
 }: {
@@ -257,8 +257,8 @@ export function PageBanner({
 }) {
   const auto = bg.includes("--ink")
     ? "surface-ink"
-    : bg.includes("--red")
-      ? "surface-red"
+    : bg.includes("--green")
+      ? "surface-green"
       : bg.includes("--yellow")
         ? "surface-yellow"
         : bg.includes("--cream")

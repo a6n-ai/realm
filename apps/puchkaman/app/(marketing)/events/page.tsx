@@ -38,7 +38,7 @@ function RSVPForm({ preselect }: { preselect?: string }) {
 
   if (sent) {
     return (
-      <div className="card card--red surface-red" style={{ color: "#fff", padding: "clamp(26px,5vw,46px)", textAlign: "center" }}>
+      <div className="card card--green surface-green" style={{ color: "#fff", padding: "clamp(26px,5vw,46px)", textAlign: "center" }}>
         <div style={{ fontSize: 50, marginBottom: 8 }}>📺🎉</div>
         <h3 className="display" style={{ fontSize: "clamp(1.7rem,5vw,2.6rem)" }}>Spot Reserved!</h3>
         <p style={{ fontWeight: 500, margin: "12px auto 0", maxWidth: 400 }}>
@@ -132,7 +132,7 @@ export default function EventsPage() {
                   <div className="flex" style={{ borderBottom: "var(--border)" }}>
                     <div
                       style={{
-                        background: ev.full ? "var(--ink)" : "var(--red)",
+                        background: ev.full ? "var(--ink)" : "var(--green)",
                         color: "#fff",
                         padding: "16px 18px",
                         textAlign: "center",
@@ -144,7 +144,7 @@ export default function EventsPage() {
                       <div className="display" style={{ fontSize: "1.4rem", lineHeight: 1 }}>{ev.date}</div>
                     </div>
                     <div className="flex center" style={{ padding: "0 16px", flex: 1, justifyContent: "space-between" }}>
-                      <Pill variant={ev.tag === "Cricket" ? "mint" : "red"}>
+                      <Pill variant={ev.tag === "Cricket" ? "mint" : "green"}>
                         {ev.tag === "Cricket" ? "🏏" : "⚽"} {ev.tag}
                       </Pill>
                       {ev.full ? <Pill variant="ink">Sold Out</Pill> : <Pill variant="yellow">{ev.spots} spots left</Pill>}
@@ -159,7 +159,7 @@ export default function EventsPage() {
                           Sold Out
                         </span>
                       ) : (
-                        <button type="button" onClick={scrollToRsvp} className="btn btn--red btn--block">
+                        <button type="button" onClick={scrollToRsvp} className="btn btn--green btn--block">
                           Reserve →
                         </button>
                       )}
@@ -184,7 +184,7 @@ export default function EventsPage() {
                 time.
               </p>
               <div className="flex wrap-gap" style={{ marginTop: 22 }}>
-                <Btn page="eats" variant="red" size="lg">See Combo Boxes →</Btn>
+                <Btn page="eats" variant="green" size="lg">See Combo Boxes →</Btn>
               </div>
             </div>
             <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -198,7 +198,7 @@ export default function EventsPage() {
       </section>
 
       {/* RSVP */}
-      <section id="rsvp" className="section-pad surface-red" style={{ background: "var(--red)", scrollMarginTop: 100 }}>
+      <section id="rsvp" className="section-pad surface-green" style={{ background: "var(--green)", scrollMarginTop: 100 }}>
         <div className="wrap" style={{ maxWidth: 760 }}>
           <div style={{ textAlign: "center", color: "#fff", marginBottom: 26 }}>
             <span className="tape kicker" style={{ background: "var(--ink)", color: "var(--yellow)" }}>RSVP</span>

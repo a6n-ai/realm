@@ -150,7 +150,7 @@ function CateringForm() {
           >
             Submit Another
           </Btn>
-          <Btn page="eats" variant="red">Browse Menu</Btn>
+          <Btn page="eats" variant="green">Browse Menu</Btn>
         </div>
       </div>
     );
@@ -170,7 +170,7 @@ function CateringForm() {
         <Field k="type" label="Type of Event" options={EVENT_TYPES} value={form.type} onChange={set("type")} error={errors.type} />
         <Field k="message" label="Message" type="textarea" placeholder="Stations you want, dietary needs, timing…" full value={form.message} onChange={set("message")} error={errors.message} />
       </div>
-      <button type="submit" className="btn btn--red btn--lg btn--block" style={{ marginTop: 22 }}>
+      <button type="submit" className="btn btn--green btn--lg btn--block" style={{ marginTop: 22 }}>
         Request Catering Quote →
       </button>
     </form>
@@ -184,7 +184,7 @@ export default function CateringPage() {
         kicker="Catering · GTA-Wide"
         title="Live Puchka & Chaat Catering in the GTA"
         sub="Bring the street-food show to your event. Live stations, bold flavours, unforgettable energy."
-        bg="var(--red)"
+        bg="var(--green)"
       />
 
       {/* occasions */}

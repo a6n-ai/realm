@@ -16,9 +16,9 @@ type BestSellerCard = { name: string; tag: string; desc: string; price: string; 
 
 // Static fallback (no photos) for a fresh DB with nothing marked featured yet.
 const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
-  { name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "red" },
+  { name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "green" },
   { name: "Dahi Puchka", tag: "Cooling", desc: "Crispy shells loaded with sweet yogurt & chutneys.", price: "$7" },
-  { name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "red" },
+  { name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "green" },
   { name: "Vada Pav", tag: "Bombay", desc: "Mumbai's spicy potato slider with garlic chutney.", price: "$6" },
   { name: "Pav Bhaji", tag: "Buttery", desc: "Mashed veg curry, toasted buttery pav, lime.", price: "$10" },
   { name: "Kathi Rolls", tag: "Wrapped", desc: "Flaky paratha rolled with smoky fillings.", price: "$9" },
@@ -66,7 +66,7 @@ export default async function HomePage() {
           desc: p.description ?? "",
           price: `$${Number(p.price).toFixed(0)}`,
           sticker: badge ? TAG_STYLE[badge].label : undefined,
-          sv: badge && TAG_STYLE[badge].variant === "red" ? "red" : undefined,
+          sv: badge && TAG_STYLE[badge].variant === "green" ? "green" : undefined,
           image: (p.image as FileDetail | null) ?? null,
         };
       })
@@ -117,7 +117,7 @@ export default async function HomePage() {
           <div className="hero-grid" style={{ display: "grid", gap: 48, alignItems: "center" }}>
             <div>
               <div className="flex wrap-gap anim" style={{ marginBottom: 22, "--d": ".05s" } as CSSProperties}>
-                <Pill variant="red">★ 4.8 · 119+ Google Reviews</Pill>
+                <Pill variant="green">★ 4.8 · 119+ Google Reviews</Pill>
                 <Pill variant="ink">Scarborough · GTA</Pill>
               </div>
               <h1 className="display anim" style={{ fontSize: "clamp(2.6rem, 8vw, 5rem)", "--d": ".13s" } as CSSProperties}>
@@ -127,7 +127,7 @@ export default async function HomePage() {
                 Fusion puchkas, Kolkata street food, kathi rolls, chaats, summer drinks & more — made fresh in Scarborough.
               </p>
               <div className="flex wrap-gap anim" style={{ marginTop: 30, "--d": ".3s" } as CSSProperties}>
-                <Btn page="order" variant="red" size="lg">🛵 Order Pickup</Btn>
+                <Btn page="order" variant="green" size="lg">🛵 Order Pickup</Btn>
                 <Btn page="order" variant="ink" size="lg">🚗 Order Delivery</Btn>
               </div>
               <div className="flex wrap-gap anim" style={{ marginTop: 14, "--d": ".38s" } as CSSProperties}>
@@ -185,7 +185,7 @@ export default async function HomePage() {
                     {d.sticker && (
                       <span
                         className="sticker rotate-l"
-                        style={{ top: 12, left: 12, background: d.sv === "red" ? "var(--red)" : "var(--yellow)", color: d.sv === "red" ? "#fff" : "var(--ink-deep)" }}
+                        style={{ top: 12, left: 12, background: d.sv === "green" ? "var(--green)" : "var(--yellow)", color: d.sv === "green" ? "#fff" : "var(--ink-deep)" }}
                       >
                         {d.sticker}
                       </span>
@@ -194,7 +194,7 @@ export default async function HomePage() {
                   <div style={{ padding: "18px 18px 20px" }}>
                     <div className="flex center between" style={{ marginBottom: 8 }}>
                       <Pill>{d.tag}</Pill>
-                      <span className="display" style={{ fontSize: "1.4rem", color: "var(--red)" }}>{d.price}</span>
+                      <span className="display" style={{ fontSize: "1.4rem", color: "var(--green)" }}>{d.price}</span>
                     </div>
                     <h3 style={{ fontSize: "1.5rem", marginBottom: 6 }}>{d.name}</h3>
                     <p style={{ fontWeight: 500, opacity: 0.82, fontSize: "0.96rem" }}>{d.desc}</p>
@@ -210,7 +210,7 @@ export default async function HomePage() {
       </section>
 
       {/* ===== FUSION TEASER ===== */}
-      <section className="section-pad surface-red" style={{ background: "var(--red)", color: "#fff", borderBottom: "var(--border)" }}>
+      <section className="section-pad surface-green" style={{ background: "var(--green)", color: "#fff", borderBottom: "var(--border)" }}>
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
@@ -294,7 +294,7 @@ export default async function HomePage() {
               <span className="tape kicker">@puchkamancanada</span>
               <h2 className="display" style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", marginTop: 12 }}>Straight From The &apos;Gram</h2>
             </div>
-            <Btn href="https://www.instagram.com/puchkamancanada/" variant="red" size="lg">Follow Us ↗</Btn>
+            <Btn href="https://www.instagram.com/puchkamancanada/" variant="green" size="lg">Follow Us ↗</Btn>
           </div>
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
             {INSTAGRAM_REELS.map((reel, i) => {

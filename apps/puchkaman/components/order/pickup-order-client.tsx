@@ -189,7 +189,7 @@ export function PickupOrderClient() {
 
   if (step === "done") {
     return (
-      <div className="card card--red surface-red" style={{ color: "#fff", padding: 28 }}>
+      <div className="card card--green surface-green" style={{ color: "#fff", padding: 28 }}>
         <Pill variant="yellow">PAID</Pill>
         <h2 className="display" style={{ fontSize: "2rem", margin: "12px 0" }}>
           Order locked in
@@ -304,7 +304,7 @@ export function PickupOrderClient() {
                 />
               </label>
             </div>
-            <Btn variant="red" size="lg" block onClick={() => void startCheckout()} className={busy ? "opacity-70" : ""}>
+            <Btn variant="green" size="lg" block onClick={() => void startCheckout()} className={busy ? "opacity-70" : ""}>
               {busy ? "Creating order…" : "Continue to payment →"}
             </Btn>
           </>
@@ -320,7 +320,7 @@ export function PickupOrderClient() {
               onReady={onCardReady}
             />
             <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
-              <Btn variant="red" size="lg" block onClick={() => void pay()} className={busy ? "opacity-70" : ""}>
+              <Btn variant="green" size="lg" block onClick={() => void pay()} className={busy ? "opacity-70" : ""}>
                 {busy ? "Processing…" : `Pay ${money(session.total)}`}
               </Btn>
               <Btn

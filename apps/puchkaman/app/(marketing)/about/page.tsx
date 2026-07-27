@@ -21,7 +21,7 @@ export default function AboutPage() {
         kicker="Our Story"
         title="From Kolkata Streets To Scarborough"
         sub="We didn't want another Indian restaurant. We wanted the street, the crunch, and the chaos — done right."
-        bg="var(--red)"
+        bg="var(--green)"
       />
 
       {/* intro */}
@@ -77,7 +77,7 @@ export default function AboutPage() {
                       height: 50,
                       flexShrink: 0,
                       borderRadius: "50%",
-                      background: "var(--red)",
+                      background: "var(--green)",
                       color: "#fff",
                       border: "var(--border)",
                       display: "grid",
@@ -126,7 +126,7 @@ export default function AboutPage() {
             Pull up to Danforth Ave or order in — either way, the streets are calling.
           </p>
           <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
-            <Btn page="order" variant="red" size="lg">Order Now</Btn>
+            <Btn page="order" variant="green" size="lg">Order Now</Btn>
             <Btn page="contact" variant="ink" size="lg">Find Us</Btn>
           </div>
         </div>

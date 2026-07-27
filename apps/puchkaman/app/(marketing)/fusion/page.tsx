@@ -50,7 +50,7 @@ export default async function FusionPage() {
         kicker="The Hero Product"
         title="Fusion Puchkas, Explained"
         sub="Crispy puchka shells, stuffed with bold global flavours. If you've never had one — start here."
-        bg="var(--red)"
+        bg="var(--green)"
       />
 
       {/* What is it */}
@@ -68,7 +68,7 @@ export default async function FusionPage() {
                 Think chicken corn cheese, schezwan paneer, or a momo packed inside the shell. Same crunch — totally new hit.
               </p>
               <div className="flex wrap-gap" style={{ marginTop: 24 }}>
-                <Pill variant="red">100% Made Fresh</Pill>
+                <Pill variant="green">100% Made Fresh</Pill>
                 <Pill variant="ink">Veg & Non-Veg</Pill>
                 <Pill>One-Bite Rule</Pill>
               </div>
@@ -106,7 +106,7 @@ export default async function FusionPage() {
                       width: 52,
                       height: 52,
                       borderRadius: "50%",
-                      background: "var(--red)",
+                      background: "var(--green)",
                       color: "#fff",
                       border: "var(--border)",
                       display: "grid",
@@ -145,7 +145,7 @@ export default async function FusionPage() {
                           top: 10,
                           left: 10,
                           fontSize: "0.7rem",
-                          background: c.badgeViral ? "var(--red)" : "var(--yellow)",
+                          background: c.badgeViral ? "var(--green)" : "var(--yellow)",
                           color: c.badgeViral ? "#fff" : "var(--ink-deep)",
                         }}
                       >
@@ -156,7 +156,7 @@ export default async function FusionPage() {
                   <div style={{ padding: 18 }}>
                     <div className="flex center between">
                       <h3 style={{ fontSize: "1.2rem", maxWidth: "75%" }}>{c.name}</h3>
-                      <span className="display" style={{ fontSize: "1.2rem", color: "var(--red)" }}>{c.price}</span>
+                      <span className="display" style={{ fontSize: "1.2rem", color: "var(--green)" }}>{c.price}</span>
                     </div>
                     <p style={{ fontWeight: 500, opacity: 0.82, marginTop: 8, fontSize: "0.92rem" }}>{c.desc}</p>
                   </div>
@@ -175,7 +175,7 @@ export default async function FusionPage() {
             Pickup in Scarborough or get them delivered. One bite and you&apos;ll get it.
           </p>
           <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
-            <Btn page="order" variant="red" size="lg">🛵 Order Now</Btn>
+            <Btn page="order" variant="green" size="lg">🛵 Order Now</Btn>
             <Btn page="eats" variant="ink" size="lg">See Full Menu</Btn>
           </div>
         </div>
