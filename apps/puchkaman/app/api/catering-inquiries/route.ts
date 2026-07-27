@@ -28,6 +28,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     ["Location", inquiry.location],
     ["Guests", inquiry.guests],
     ["Type", inquiry.type],
+    ...(inquiry.allergies ? ([["Food allergies", inquiry.allergies]] as [string, string][]) : []),
     ...(inquiry.message ? ([["Message", inquiry.message]] as [string, string][]) : []),
   ];
 

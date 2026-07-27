@@ -5,10 +5,8 @@ import { Btn, PageBanner } from "@/components/brutal/shared";
 import { ADDRESS, MAP_DIRECTIONS_URL, MAP_EMBED_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
 
 const HOURS: [string, string][] = [
-  ["Monday", "Closed"],
-  ["Tue – Thu", "12:00pm – 10:00pm"],
-  ["Fri – Sat", "12:00pm – 11:30pm"],
-  ["Sunday", "12:00pm – 10:00pm"],
+  ["Sun – Thu", "3:00pm – 2:00am"],
+  ["Fri – Sat", "3:00pm – 3:00am"],
 ];
 
 export default function ContactPage() {

@@ -15,8 +15,8 @@ const STATIONS: [string, string, string, string?][] = [
 const OCCASIONS = ["Birthday Parties", "Office Events", "Weddings", "Private Parties", "Community Events", "Watch Parties"];
 const OCCASION_EMOJI = ["🎂", "💼", "💍", "🎊", "🤝", "📺"];
 
-type CForm = { name: string; phone: string; email: string; date: string; location: string; guests: string; type: string; message: string };
-const EMPTY: CForm = { name: "", phone: "", email: "", date: "", location: "", guests: "", type: "", message: "" };
+type CForm = { name: string; phone: string; email: string; date: string; location: string; guests: string; type: string; allergies: string; message: string };
+const EMPTY: CForm = { name: "", phone: "", email: "", date: "", location: "", guests: "", type: "", allergies: "", message: "" };
 const REQUIRED: (keyof CForm)[] = ["name", "phone", "email", "date", "location", "guests", "type"];
 
 // The business's WhatsApp number — there's no WhatsApp Business API account
@@ -34,6 +34,7 @@ function whatsAppUrlFor(form: CForm): string {
     `Location: ${form.location}`,
     `Guests: ${form.guests}`,
     `Type: ${form.type}`,
+    form.allergies.trim() && `Food allergies: ${form.allergies.trim()}`,
     form.message.trim() && `Message: ${form.message.trim()}`,
   ].filter(Boolean);
   return `https://wa.me/${CATERING_WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -168,7 +169,8 @@ function CateringForm() {
         <Field k="location" label="Event Location" placeholder="Venue / address in the GTA" value={form.location} onChange={set("location")} error={errors.location} />
         <Field k="guests" label="Number of Guests" type="number" placeholder="e.g. 50" value={form.guests} onChange={set("guests")} error={errors.guests} />
         <Field k="type" label="Type of Event" options={EVENT_TYPES} value={form.type} onChange={set("type")} error={errors.type} />
-        <Field k="message" label="Message" type="textarea" placeholder="Stations you want, dietary needs, timing…" full value={form.message} onChange={set("message")} error={errors.message} />
+        <Field k="allergies" label="Food Allergies" placeholder="Any allergies or dietary restrictions? (e.g. nuts, dairy)" value={form.allergies} onChange={set("allergies")} error={errors.allergies} />
+        <Field k="message" label="Message" type="textarea" placeholder="Stations you want, timing…" full value={form.message} onChange={set("message")} error={errors.message} />
       </div>
       <button type="submit" className="btn btn--green btn--lg btn--block" style={{ marginTop: 22 }}>
         Request Catering Quote →

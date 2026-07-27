@@ -10,6 +10,7 @@ export const cateringInquirySchema = z.object({
   location: z.string().trim().min(1, "Event location is required"),
   guests: z.string().trim().min(1, "Number of guests is required"),
   type: z.string().trim().min(1, "Event type is required"),
+  allergies: z.string().trim().optional(),
   message: z.string().trim().optional(),
 });
 
