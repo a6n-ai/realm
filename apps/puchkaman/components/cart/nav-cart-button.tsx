@@ -4,7 +4,9 @@ import { IconCart } from "@/components/brutal/icons";
 import { useCart } from "@/components/cart/cart-provider";
 
 export function NavCartButton() {
-  const { count, openDrawer, badgePulse, hydrated } = useCart();
+  const { count, openDrawer, badgePulse, hydrated, orderingEnabled } = useCart();
+  if (!orderingEnabled) return null;
+
   const label = !hydrated || count === 0 ? "Open cart" : `Open cart, ${count} items`;
 
   return (

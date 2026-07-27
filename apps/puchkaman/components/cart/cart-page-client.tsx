@@ -3,13 +3,18 @@
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
 import { money } from "@/lib/cart/types";
 
 export function CartPageClient() {
-  const { items, count, subtotal, hydrated, clear } = useCart();
+  const { items, count, subtotal, hydrated, clear, orderingEnabled } = useCart();
 
   if (!hydrated) {
     return <p style={{ fontWeight: 600 }}>Loading cart…</p>;
+  }
+
+  if (!orderingEnabled) {
+    return <OrderingUnavailableNotice title="Cart coming soon" />;
   }
 
   return (

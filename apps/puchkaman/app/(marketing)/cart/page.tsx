@@ -1,14 +1,21 @@
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { CartPageClient } from "@/components/cart/cart-page-client";
+import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 
-export default function CartPage() {
+export default async function CartPage() {
+  const orderingEnabled = await isPublicOrderingEnabled();
+
   return (
     <div>
       <PageBanner
         kicker="Your bag"
         title="Pickup Cart"
-        sub="Tweak quantities, then checkout. Totals are confirmed server-side — never trust the browser alone."
+        sub={
+          orderingEnabled
+            ? "Tweak quantities, then checkout. Totals are confirmed server-side — never trust the browser alone."
+            : "Online pickup cart is coming soon — browse the menu for now."
+        }
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"

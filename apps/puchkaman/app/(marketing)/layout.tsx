@@ -2,15 +2,18 @@ import { AnimReady } from "@/components/brutal/anim-ready";
 import { Footer, Nav } from "@/components/brutal/chrome";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartProvider } from "@/components/cart/cart-provider";
+import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  const orderingEnabled = await isPublicOrderingEnabled();
+
   return (
-    <CartProvider>
+    <CartProvider orderingEnabled={orderingEnabled}>
       <AnimReady />
       <Nav />
       <main id="main">{children}</main>
       <Footer />
-      <CartDrawer />
+      {orderingEnabled ? <CartDrawer /> : null}
     </CartProvider>
   );
 }

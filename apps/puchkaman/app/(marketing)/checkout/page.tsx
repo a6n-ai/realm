@@ -1,14 +1,22 @@
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { CheckoutClient } from "@/components/order/checkout-client";
+import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
+import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  const orderingEnabled = await isPublicOrderingEnabled();
+
   return (
     <div>
       <PageBanner
         kicker="Checkout"
         title="Pay & Pickup"
-        sub="Contact details, then Clover card pay. Only active Clover-linked in-stock items go through."
+        sub={
+          orderingEnabled
+            ? "Contact details, then Clover card pay. Only active Clover-linked in-stock items go through."
+            : "Online pickup checkout is coming soon."
+        }
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
@@ -16,12 +24,18 @@ export default function CheckoutPage() {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ maxWidth: 960 }}>
           <Reveal>
-            <CheckoutClient />
+            {orderingEnabled ? <CheckoutClient /> : <OrderingUnavailableNotice title="Checkout coming soon" />}
           </Reveal>
           <div style={{ marginTop: 20 }}>
-            <Btn page="cart" variant="cream">
-              ← Cart
-            </Btn>
+            {orderingEnabled ? (
+              <Btn page="cart" variant="cream">
+                ← Cart
+              </Btn>
+            ) : (
+              <Btn page="eats" variant="cream">
+                ← Menu
+              </Btn>
+            )}
           </div>
         </div>
       </section>

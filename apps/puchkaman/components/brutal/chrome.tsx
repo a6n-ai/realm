@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "@realm/themes";
 import { NavCartButton } from "@/components/cart/nav-cart-button";
+import { useCart } from "@/components/cart/cart-provider";
 import { IconBike } from "./icons";
 import { Btn } from "./shared";
 import { PHONE_DISPLAY } from "@/lib/links";
@@ -24,6 +25,16 @@ const hrefFor = (p: string) => (p === "home" ? "/" : `/${p}`);
 function usePageName() {
   const pathname = usePathname();
   return pathname === "/" ? "home" : pathname.split("/")[1];
+}
+
+function MobileCartLink() {
+  const { orderingEnabled } = useCart();
+  if (!orderingEnabled) return null;
+  return (
+    <Btn page="cart" variant="cream" size="lg" block>
+      Cart
+    </Btn>
+  );
 }
 
 /* ---------- Theme toggle (sun / moon) ---------- */
@@ -200,9 +211,7 @@ export function Nav() {
             <Btn page="eats" variant="yellow" size="lg" block style={{ marginTop: 8 }}>
               Browse menu
             </Btn>
-            <Btn page="cart" variant="cream" size="lg" block>
-              Cart
-            </Btn>
+            <MobileCartLink />
             <Btn page="order" variant="green" size="lg" block>
               <IconBike />
               Order Now

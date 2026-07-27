@@ -1,4 +1,5 @@
 import type { FileDetail } from "@realm/storage/model";
+import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
@@ -6,10 +7,15 @@ import { EatsView, type EatsCategory } from "./eats-view";
 
 export const dynamic = "force-dynamic";
 
-async function getEats(): Promise<{ categories: EatsCategory[]; totalProducts: number }> {
-  const [rows, orderable] = await Promise.all([
+async function getEats(): Promise<{
+  categories: EatsCategory[];
+  totalProducts: number;
+  orderingEnabled: boolean;
+}> {
+  const [rows, orderable, orderingEnabled] = await Promise.all([
     productsService.listForPublicMenu(),
     ordersService.listOrderableCatalog(),
+    isPublicOrderingEnabled(),
   ]);
   const orderableIds = new Set(orderable.map((o) => o.publicId));
 
@@ -35,7 +41,7 @@ async function getEats(): Promise<{ categories: EatsCategory[]; totalProducts: n
         price: Number(row.price),
         image: (row.image as FileDetail | null) ?? null,
         tags: row.tags ?? [],
-        orderable: orderableIds.has(row.publicId),
+        orderable: orderingEnabled && orderableIds.has(row.publicId),
         category: row.category,
         cloverColorCode: row.cloverColorCode ?? null,
       })),
@@ -52,17 +58,23 @@ async function getEats(): Promise<{ categories: EatsCategory[]; totalProducts: n
         price: Number(row.price),
         image: (row.image as FileDetail | null) ?? null,
         tags: row.tags ?? [],
-        orderable: orderableIds.has(row.publicId),
+        orderable: orderingEnabled && orderableIds.has(row.publicId),
         category: row.category,
         cloverColorCode: row.cloverColorCode ?? null,
       })),
     })),
   ];
 
-  return { categories, totalProducts: rows.length };
+  return { categories, totalProducts: rows.length, orderingEnabled };
 }
 
 export default async function EatsPage() {
-  const { categories, totalProducts } = await getEats();
-  return <EatsView categories={categories} totalProducts={totalProducts} />;
+  const { categories, totalProducts, orderingEnabled } = await getEats();
+  return (
+    <EatsView
+      categories={categories}
+      totalProducts={totalProducts}
+      orderingEnabled={orderingEnabled}
+    />
+  );
 }

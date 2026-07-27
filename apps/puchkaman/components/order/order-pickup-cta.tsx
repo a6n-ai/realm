@@ -2,11 +2,38 @@
 
 import { Btn, Pill } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
+import { PUBLIC_ORDERING_UNAVAILABLE_MESSAGE } from "@/lib/clover/public-ordering-copy";
 import { money } from "@/lib/cart/types";
 
 /** Brutalist hub card — menu → cart → checkout with live bag summary. */
 export function OrderPickupCta() {
-  const { count, subtotal, openDrawer, hydrated } = useCart();
+  const { count, subtotal, openDrawer, hydrated, orderingEnabled } = useCart();
+
+  if (!orderingEnabled) {
+    return (
+      <div
+        className="card card--cream order-pickup-cta"
+        style={{
+          padding: "clamp(22px,3.5vw,36px)",
+          marginBottom: 8,
+          opacity: 0.96,
+        }}
+      >
+        <Pill variant="ink">Coming soon</Pill>
+        <h2 className="display" style={{ fontSize: "clamp(2rem,5.5vw,3.2rem)", margin: "12px 0 8px" }}>
+          Pickup ordering soon
+        </h2>
+        <p style={{ fontWeight: 500, fontSize: "1.1rem", margin: "0 0 18px", maxWidth: 480 }}>
+          {PUBLIC_ORDERING_UNAVAILABLE_MESSAGE}
+        </p>
+        <div className="flex wrap-gap" style={{ gap: 10 }}>
+          <Btn page="eats" variant="green" size="lg">
+            Browse menu
+          </Btn>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

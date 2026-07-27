@@ -26,6 +26,8 @@ type CartContextValue = {
   subtotal: number;
   drawerOpen: boolean;
   badgePulse: boolean;
+  /** False until Clover is client-ready for public pickup checkout. */
+  orderingEnabled: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
   addItem: (input: CartAddInput) => void;
@@ -40,7 +42,13 @@ function clampQty(n: number) {
   return Math.max(0, Math.min(CART_MAX_QTY, Math.floor(n)));
 }
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({
+  children,
+  orderingEnabled = true,
+}: {
+  children: ReactNode;
+  orderingEnabled?: boolean;
+}) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -90,36 +98,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  const addItem = useCallback((input: CartAddInput) => {
-    const addQty = clampQty(input.quantity ?? 1) || 1;
-    setItems((prev) => {
-      const idx = prev.findIndex((i) => i.productPublicId === input.productPublicId);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = {
-          ...next[idx],
-          name: input.name,
-          price: input.price,
-          category: input.category,
-          quantity: clampQty(next[idx].quantity + addQty),
-        };
-        return next;
-      }
-      if (prev.length >= CART_MAX_LINES) return prev;
-      return [
-        ...prev,
-        {
-          productPublicId: input.productPublicId,
-          name: input.name,
-          price: input.price,
-          category: input.category,
-          quantity: addQty,
-        },
-      ];
-    });
-    setBadgePulse(true);
-    setDrawerOpen(true);
-  }, []);
+  const addItem = useCallback(
+    (input: CartAddInput) => {
+      if (!orderingEnabled) return;
+      const addQty = clampQty(input.quantity ?? 1) || 1;
+      setItems((prev) => {
+        const idx = prev.findIndex((i) => i.productPublicId === input.productPublicId);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = {
+            ...next[idx],
+            name: input.name,
+            price: input.price,
+            category: input.category,
+            quantity: clampQty(next[idx].quantity + addQty),
+          };
+          return next;
+        }
+        if (prev.length >= CART_MAX_LINES) return prev;
+        return [
+          ...prev,
+          {
+            productPublicId: input.productPublicId,
+            name: input.name,
+            price: input.price,
+            category: input.category,
+            quantity: addQty,
+          },
+        ];
+      });
+      setBadgePulse(true);
+      setDrawerOpen(true);
+    },
+    [orderingEnabled],
+  );
 
   const setQty = useCallback((productPublicId: string, quantity: number) => {
     const q = clampQty(quantity);
@@ -143,6 +155,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       subtotal: cartSubtotal(items),
       drawerOpen,
       badgePulse,
+      orderingEnabled,
       openDrawer,
       closeDrawer,
       addItem,
@@ -155,6 +168,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       hydrated,
       drawerOpen,
       badgePulse,
+      orderingEnabled,
       openDrawer,
       closeDrawer,
       addItem,

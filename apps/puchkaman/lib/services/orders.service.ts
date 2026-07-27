@@ -17,6 +17,10 @@ import { db } from "@/db/client";
 import { employees, orders, payments, products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import {
+  isPublicOrderingEnabled,
+  PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
+} from "@/lib/clover/public-ordering";
+import {
   createCheckoutSchema,
   payCheckoutSchema,
   type CreateCheckoutInput,
@@ -122,8 +126,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     super(ordersRepo);
   }
 
-  /** Active products available for pickup. Clover link/stock rules apply only when connected. */
+  /** Active products available for pickup. Empty until Clover client-ready; then SoT rules apply. */
   async listOrderableCatalog() {
+    if (!(await isPublicOrderingEnabled())) {
+      return [];
+    }
+
     const clover = await getCloverConnection(integrationsConfigStore);
     const cloverConnected = isCloverInventoryConnected(clover);
 
@@ -282,7 +290,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const parsed = createCheckoutSchema.parse(input);
     const client = await createCloverClient();
     if (!client) {
-      throw new ValidationError("Clover is not connected. Connect Clover in Settings first.");
+      throw new ValidationError(PUBLIC_ORDERING_UNAVAILABLE_MESSAGE);
     }
     // Fail fast if Ecommerce / PAKMS isn't permitted before writing a local order.
     const pakms = await client.getPakmsApiKey();
@@ -423,7 +431,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const parsed = payCheckoutSchema.parse(input);
     const client = await createCloverClient();
     if (!client) {
-      throw new ValidationError("Clover is not connected");
+      throw new ValidationError(PUBLIC_ORDERING_UNAVAILABLE_MESSAGE);
     }
 
     const order = await this.ordersRepo.findByPublicId(parsed.orderPublicId);

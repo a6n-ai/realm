@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { FileDetail } from "@realm/storage/model";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
-import { Btn, Ph, PageBanner } from "@/components/brutal/shared";
+import { Btn, Ph, PageBanner, Pill } from "@/components/brutal/shared";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { ProductImage } from "@/components/products/product-image";
+import { PUBLIC_ORDERING_UNAVAILABLE_MESSAGE } from "@/lib/clover/public-ordering-copy";
 import { TAG_STYLE } from "@/lib/menu-categories";
 
 export type EatsItem = {
@@ -32,9 +33,12 @@ export type EatsCategory = {
 export function EatsView({
   categories,
   totalProducts,
+  orderingEnabled,
 }: {
   categories: EatsCategory[];
   totalProducts: number;
+  /** When false, browse-only: no Add to cart / Available / Out of stock CTAs. */
+  orderingEnabled: boolean;
 }) {
   const [active, setActive] = useState(categories[0]?.id ?? "");
   const railRef = useRef<HTMLDivElement>(null);
@@ -103,11 +107,31 @@ export function EatsView({
       <PageBanner
         kicker="Eat The Streets"
         title="The Full Menu"
-        sub="Tap a category to jump. Add available items to your pickup cart."
+        sub={
+          orderingEnabled
+            ? "Tap a category to jump. Add available items to your pickup cart."
+            : "Browse the menu. Online pickup ordering is coming soon — delivery apps are live."
+        }
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
       />
+
+      {!orderingEnabled ? (
+        <div style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
+          <div className="wrap" style={{ padding: "18px 20px" }}>
+            <div className="card card--cream" style={{ padding: "16px 18px", opacity: 0.96 }}>
+              <div className="flex center wrap-gap" style={{ gap: 10, marginBottom: 8 }}>
+                <Pill variant="ink">Coming soon</Pill>
+                <span style={{ fontWeight: 800, fontSize: "0.95rem" }}>Pickup ordering soon</span>
+              </div>
+              <p style={{ fontWeight: 500, opacity: 0.85, margin: 0, fontSize: "0.9rem" }}>
+                {PUBLIC_ORDERING_UNAVAILABLE_MESSAGE}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div style={{ position: "sticky", top: 70, zIndex: 30, background: "var(--white)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ overflowX: "auto" }} ref={railRef}>
@@ -177,7 +201,7 @@ export function EatsView({
                       display: "flex",
                       flexDirection: "column",
                       background: item.tags.includes("viral") ? "var(--cream)" : "var(--white)",
-                      opacity: item.orderable ? 1 : 0.92,
+                      opacity: orderingEnabled && !item.orderable ? 0.92 : 1,
                     }}
                   >
                     <div style={{ position: "relative" }}>
@@ -186,19 +210,21 @@ export function EatsView({
                         className="flex"
                         style={{ position: "absolute", top: 9, left: 9, gap: 5, flexWrap: "wrap", maxWidth: "88%" }}
                       >
-                        <span
-                          className="pill"
-                          style={{
-                            fontSize: "0.6rem",
-                            padding: "4px 8px",
-                            borderWidth: 2,
-                            boxShadow: "2px 2px 0 var(--ink)",
-                            background: item.orderable ? "var(--mint)" : "var(--cream)",
-                            color: item.orderable ? "#fff" : "var(--ink-deep)",
-                          }}
-                        >
-                          {item.orderable ? "Available" : "Out of stock"}
-                        </span>
+                        {orderingEnabled ? (
+                          <span
+                            className="pill"
+                            style={{
+                              fontSize: "0.6rem",
+                              padding: "4px 8px",
+                              borderWidth: 2,
+                              boxShadow: "2px 2px 0 var(--ink)",
+                              background: item.orderable ? "var(--mint)" : "var(--cream)",
+                              color: item.orderable ? "#fff" : "var(--ink-deep)",
+                            }}
+                          >
+                            {item.orderable ? "Available" : "Out of stock"}
+                          </span>
+                        ) : null}
                         {item.tags.map((t) => (
                           <span
                             key={t}
@@ -244,29 +270,31 @@ export function EatsView({
                       >
                         {item.description}
                       </p>
-                      <div style={{ marginTop: 12 }}>
-                        {item.orderable ? (
-                          <AddToCartButton
-                            block
-                            item={{
-                              productPublicId: item.publicId,
-                              name: item.name,
-                              price: item.price,
-                              category: item.category,
-                            }}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn--ink btn--block btn--sm btn--disabled"
-                            disabled
-                            aria-disabled="true"
-                            aria-label={`${item.name} out of stock`}
-                          >
-                            Out of stock
-                          </button>
-                        )}
-                      </div>
+                      {orderingEnabled ? (
+                        <div style={{ marginTop: 12 }}>
+                          {item.orderable ? (
+                            <AddToCartButton
+                              block
+                              item={{
+                                productPublicId: item.publicId,
+                                name: item.name,
+                                price: item.price,
+                                category: item.category,
+                              }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn--ink btn--block btn--sm btn--disabled"
+                              disabled
+                              aria-disabled="true"
+                              aria-label={`${item.name} out of stock`}
+                            >
+                              Out of stock
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -282,12 +310,16 @@ export function EatsView({
               Hungry Yet?
             </h2>
             <p style={{ fontWeight: 500, margin: "12px 0 22px" }}>
-              Checkout pickup when your cart is ready, or order delivery through the apps.
+              {orderingEnabled
+                ? "Checkout pickup when your cart is ready, or order delivery through the apps."
+                : "Online pickup is coming soon — order delivery through the apps for now."}
             </p>
             <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
-              <Btn page="cart" variant="green" size="lg">
-                View cart →
-              </Btn>
+              {orderingEnabled ? (
+                <Btn page="cart" variant="green" size="lg">
+                  View cart →
+                </Btn>
+              ) : null}
               <Btn page="order" variant="yellow" size="lg">
                 Delivery apps
               </Btn>
