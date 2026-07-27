@@ -3,17 +3,20 @@ import {
   type IntegrationsConfig,
   type IntegrationsConfigStore,
 } from "@realm/clover";
-import { UpdatableRepository, UpdatableService } from "@realm/database";
+import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
 import { app } from "@/db/schema";
+import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", currency: "CAD" } as const;
 
 /**
- * App singleton service — extends {@link UpdatableService} over
+ * App singleton service — extends {@link SessionUpdatableService} over
  * {@link UpdatableRepository} for the `app` row (same pattern as tiffin-grab).
+ * `app` is in AUDIT_UPDATE_SKIP (token-bearing integrations_config); clover
+ * install/connect/disconnect write explicit recordAudit summaries instead.
  */
-class AppService extends UpdatableService<typeof app> {}
+class AppService extends SessionUpdatableService<typeof app> {}
 
 const appRepository = new UpdatableRepository(db, app, app.publicId, app.id);
 const appService = new AppService(appRepository);

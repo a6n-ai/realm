@@ -5,13 +5,14 @@ import {
   cloverCheckoutSdkUrl,
   dollarsToCloverCents,
   expandAtomicLineItems,
+  getCloverConnection,
   mapCloverRemoteToPaymentStatus,
   parseCloverWebhookObjectId,
   type CloverWebhookUpdate,
   type MappedCloverPaymentStatus,
 } from "@realm/clover";
-import { UpdatableService, columnResolver, conditionToSql } from "@realm/database";
-import { and, asc, eq, exists, inArray, isNotNull, sql } from "drizzle-orm";
+import { columnResolver, conditionToSql } from "@realm/database";
+import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { employees, orders, payments, products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
@@ -22,6 +23,8 @@ import {
   type PayCheckoutInput,
 } from "@/lib/orders/checkout-schema";
 import type { SortState } from "@/lib/list/sort";
+import { isCloverInventoryConnected } from "@/lib/products/availability";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
@@ -33,6 +36,7 @@ import {
   type OrdersRepository,
   type PaymentRow,
 } from "./orders.repository";
+import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 export type { OrderListRow, OrderSortColumn } from "./orders.repository";
 
@@ -110,15 +114,19 @@ function money(n: number): string {
 
 /**
  * Pickup orders + Clover Ecommerce settlement.
- * Extends UpdatableService for order row updates; create/pay are transactional.
+ * Extends SessionUpdatableService for order row updates (+ audit_log);
+ * create/pay are transactional.
  */
-class OrdersService extends UpdatableService<typeof orders> {
+class OrdersService extends SessionUpdatableService<typeof orders> {
   constructor(private readonly ordersRepo: OrdersRepository) {
     super(ordersRepo);
   }
 
-  /** Active, Clover-linked products available for pickup order. */
+  /** Active products available for pickup. Clover link/stock rules apply only when connected. */
   async listOrderableCatalog() {
+    const clover = await getCloverConnection(integrationsConfigStore);
+    const cloverConnected = isCloverInventoryConnected(clover);
+
     const rows = await db
       .select({
         publicId: products.publicId,
@@ -128,17 +136,29 @@ class OrdersService extends UpdatableService<typeof orders> {
         price: products.price,
         image: products.image,
         tags: products.tags,
+        source: products.source,
         cloverItemId: products.cloverItemId,
         cloverStockQty: products.cloverStockQty,
         cloverAvailable: products.cloverAvailable,
       })
       .from(products)
-      .where(and(eq(products.active, true), isNotNull(products.cloverItemId)))
+      .where(
+        cloverConnected
+          ? and(eq(products.active, true), isNotNull(products.cloverItemId))
+          : or(
+              eq(products.active, true),
+              and(eq(products.source, "uber_eats"), isNull(products.cloverItemId)),
+            ),
+      )
       .orderBy(asc(products.displayOrder), asc(products.name));
 
     return rows
-      .filter((r) => r.cloverAvailable !== false)
       .filter((r) => {
+        if (!cloverConnected) return true;
+        return r.cloverAvailable !== false;
+      })
+      .filter((r) => {
+        if (!cloverConnected) return true;
         if (r.cloverStockQty == null) return true;
         return Number(r.cloverStockQty) > 0;
       })
@@ -150,7 +170,7 @@ class OrdersService extends UpdatableService<typeof orders> {
         price: Number(r.price),
         image: r.image,
         tags: r.tags,
-        cloverItemId: r.cloverItemId!,
+        cloverItemId: r.cloverItemId,
         stockQty: r.cloverStockQty != null ? Number(r.cloverStockQty) : null,
       }));
   }
@@ -227,6 +247,19 @@ class OrdersService extends UpdatableService<typeof orders> {
         syncedToClover = true;
       }
     }
+
+    await recordAudit({
+      entity: "orders",
+      entityPublicId: order.publicId,
+      operation: "update",
+      changes: {
+        _action: "order_assign_employee",
+        employeePublicId: employee?.publicId ?? null,
+        employeeName: employee?.name ?? null,
+        syncedToClover,
+      },
+      createdBy: await currentUserId(),
+    });
 
     return {
       orderPublicId: order.publicId,
@@ -538,6 +571,20 @@ class OrdersService extends UpdatableService<typeof orders> {
       refreshedPays.find((p) => p.status === "failed") ??
       refreshedPays[0] ??
       null;
+
+    await recordAudit({
+      entity: "orders",
+      entityPublicId: order.publicId,
+      operation: "update",
+      changes: {
+        _action: "payment_check_status",
+        cloverStatus,
+        changed: applied.changed,
+        source,
+        cloverChargeId: refreshedPrimary?.cloverChargeId ?? chargeId,
+      },
+      createdBy: await currentUserId(),
+    });
 
     return {
       orderPublicId: order.publicId,

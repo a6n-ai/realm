@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/http/api-fetch";
 import type { SyncResult } from "@/lib/sync/menu-sync.service";
 import { SyncSummary } from "./sync-summary";
 import { DuplicateDialog } from "./duplicate-dialog";
+import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 export function SyncDialog({
   open,
@@ -43,6 +44,7 @@ export function SyncDialog({
   }
 
   function handleClose(next: boolean) {
+    if (busy) return;
     if (!next) {
       setResult(null);
       router.refresh();
@@ -52,6 +54,7 @@ export function SyncDialog({
 
   return (
     <>
+      <SyncLoadingOverlay open={busy} label="Syncing images from Uber Eats…" />
       <ResponsiveDialog
         open={open}
         onOpenChange={handleClose}
@@ -82,9 +85,10 @@ export function SyncDialog({
           {!result && !busy ? (
             <>
               <p className="text-muted-foreground text-sm">
-                Refreshes product photos from the Uber Eats snapshot. New Uber-only items are
-                kept in the catalog as out of stock until linked to Clover. Inventory fields are
-                never overwritten from Uber.
+                Refreshes product photos from the Uber Eats snapshot. When Clover is connected,
+                new Uber-only items start out of stock until linked; without Clover, Uber-only
+                products are reactivated so the website shows them available. Inventory fields
+                are never overwritten from Uber.
               </p>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 space-y-0.5">

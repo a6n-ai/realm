@@ -9,10 +9,13 @@ const LABELS: Record<string, string> = {
   finance: "Finance",
   transactions: "Transactions",
   ledger: "Ledger",
+  logs: "Logs",
   account: "Account",
   settings: "Settings",
   integrations: "Integrations",
   clover: "Clover",
+  menus: "Menus",
+  categories: "Categories",
 };
 
 export function AppBreadcrumbs() {

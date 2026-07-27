@@ -57,6 +57,13 @@
       "when": 1784500000005,
       "tag": "0007_clover_employees",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785171565700,
+      "tag": "0008_fuzzy_true_believers",
+      "breakpoints": true
     }
   ]
 }

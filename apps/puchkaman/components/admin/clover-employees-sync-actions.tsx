@@ -5,6 +5,7 @@ import { Loader2Icon, RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
+import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 type SyncResponse = {
   direction: string;
@@ -50,19 +51,22 @@ export function CloverEmployeesSyncActions({
   }
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={!cloverConnected || busy}
-      onClick={() => void run()}
-    >
-      {busy ? (
-        <Loader2Icon className="size-4 animate-spin" />
-      ) : (
-        <RefreshCwIcon className="size-4" />
-      )}
-      Sync from Clover
-    </Button>
+    <>
+      <SyncLoadingOverlay open={busy} label="Syncing employees from Clover…" />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!cloverConnected || busy}
+        onClick={() => void run()}
+      >
+        {busy ? (
+          <Loader2Icon className="size-4 animate-spin" />
+        ) : (
+          <RefreshCwIcon className="size-4" />
+        )}
+        Sync from Clover
+      </Button>
+    </>
   );
 }

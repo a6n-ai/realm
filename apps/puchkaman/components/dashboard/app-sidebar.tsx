@@ -13,6 +13,7 @@ import {
   PackageIcon,
   PercentIcon,
   PuzzleIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UserIcon,
   UsersIcon,
@@ -109,6 +110,7 @@ export function getNavSections(opts: {
   sections.push({
     label: "Administration",
     items: [
+      { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
       { title: "Integrations", href: "/dashboard/settings/integrations", icon: PuzzleIcon },
       { title: "Account", href: "/dashboard/account", icon: UserIcon },

@@ -12,6 +12,7 @@ import type {
   CloverPushResult,
 } from "@/lib/sync/clover-inventory-sync.service";
 import { CloverAmbiguousDialog } from "./clover-ambiguous-dialog";
+import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 type Direction = "pull" | "push";
 
@@ -57,6 +58,7 @@ export function CloverInventorySyncDialog({
   }
 
   function handleClose(next: boolean) {
+    if (busy) return;
     if (!next) {
       setResponse(null);
       setError(null);
@@ -65,8 +67,16 @@ export function CloverInventorySyncDialog({
     onOpenChange(next);
   }
 
+  const overlayLabel =
+    busy === "pull"
+      ? "Pulling inventory from Clover…"
+      : busy === "push"
+        ? "Pushing products to Clover…"
+        : "Syncing…";
+
   return (
     <>
+      <SyncLoadingOverlay open={busy !== null} label={overlayLabel} />
       <ResponsiveDialog
         open={open}
         onOpenChange={handleClose}

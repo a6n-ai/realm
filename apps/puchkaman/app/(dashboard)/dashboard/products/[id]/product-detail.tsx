@@ -37,10 +37,12 @@ import {
 import { Switch } from "@realm/ui/switch";
 import { cn } from "@realm/ui/cn";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
+import { SyncLoadingOverlay } from "@/components/admin/sync-loading-overlay";
 import { ImageUploader } from "@/components/files/image-uploader";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
+import { isEffectivelyAvailable } from "@/lib/products/availability";
 import { productSchema } from "@/lib/products/schema";
 
 const TAG_OPTIONS = ["best", "viral", "new"] as const;
@@ -156,14 +158,23 @@ export function ProductDetail({
   }
 
   const linked = Boolean(product.cloverItemId);
-  const statusLabel = product.active
+  const effectivelyAvailable = isEffectivelyAvailable(product, cloverConnected);
+  const statusLabel = effectivelyAvailable
     ? "Active"
     : linked || product.source === "uber_eats"
       ? "Out of stock"
       : "Archived";
 
+  const syncOverlayLabel =
+    syncBusy === "pull"
+      ? "Syncing product from Clover…"
+      : syncBusy === "push"
+        ? "Pushing product to Clover…"
+        : "Syncing…";
+
   return (
     <div className="space-y-4">
+      <SyncLoadingOverlay open={syncBusy !== null} label={syncOverlayLabel} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="ghost" size="sm" className="gap-1.5" asChild>
@@ -172,7 +183,7 @@ export function ProductDetail({
               Products
             </Link>
           </Button>
-          <Badge variant={product.active ? "secondary" : "outline"}>{statusLabel}</Badge>
+          <Badge variant={effectivelyAvailable ? "secondary" : "outline"}>{statusLabel}</Badge>
           <CloverColorSwatch color={product.cloverColorCode} size={14} />
           {product.source === "uber_eats" ? <Badge variant="outline">Uber Eats</Badge> : null}
           {cloverEnabled && linked ? (

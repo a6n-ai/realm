@@ -126,6 +126,7 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
       size={page.size}
       sort={sort}
       cloverEnabled={Boolean(clover.installed)}
+      cloverConnected={Boolean(clover.connected && clover.merchantId)}
     />
   );
 }

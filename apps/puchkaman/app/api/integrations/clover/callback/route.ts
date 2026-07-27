@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import {
+  consumeCloverOAuthState,
   exchangeCloverAuthorizationCode,
-  getCloverConnection,
   loadCloverAppCredentialsFromEnv,
   parseCloverOAuthCallback,
-  setCloverConnection,
+  persistCloverOAuthConnection,
 } from "@realm/clover";
 import { getSession } from "@/lib/auth/session";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { consumeCloverOAuthState } from "@/lib/clover/oauth-state";
+import { currentUserId, recordAudit } from "@/lib/services/session-service";
 
 function settingsRedirect(request: Request, query: Record<string, string>) {
   const url = new URL("/dashboard/settings/clover", request.url);
@@ -49,16 +49,17 @@ export async function GET(request: Request) {
       credentials,
       code: cb.code,
     });
-    const current = await getCloverConnection(integrationsConfigStore);
-    await setCloverConnection(integrationsConfigStore, {
-      ...current,
-      installed: true,
-      connected: true,
+    await persistCloverOAuthConnection(integrationsConfigStore, {
+      credentials,
       merchantId: cb.merchantId,
-      environment: credentials.environment,
-      region: credentials.region,
       tokens,
-      connectedAt: new Date().toISOString(),
+    });
+    await recordAudit({
+      entity: "integrations",
+      entityPublicId: "clover",
+      operation: "update",
+      changes: { _action: "clover_connect", merchantId: cb.merchantId },
+      createdBy: await currentUserId(),
     });
     return settingsRedirect(request, { clover: "connected" });
   } catch (err) {
