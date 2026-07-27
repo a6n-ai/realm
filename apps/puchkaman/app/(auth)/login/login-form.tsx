@@ -34,7 +34,7 @@ const otpEmailSchema = z.object({
 
 type Mode = "password" | "email-otp";
 
-/** Admin login — same Card split composition as tiffin-grab; accents via crm.css. */
+/** Admin login — same Card split as tiffin-grab; yellow panel + green CTAs, red wordmark. */
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
 
@@ -49,8 +49,9 @@ export function LoginForm() {
               <EmailOtpPanel onUsePassword={() => setMode("password")} />
             )}
           </div>
-          <div className="bg-primary text-primary-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-destructive text-2xl font-bold">Puchkaman</span>
+          {/* Yellow brand panel + green CTAs (crm primary); wordmark stays red. */}
+          <div className="relative hidden flex-col items-center justify-center gap-2 border-l border-[var(--green)] bg-[var(--yellow)] p-8 text-[var(--ink)] md:flex">
+            <span className="text-2xl font-bold text-[var(--red)]">Puchkaman</span>
             <p className="text-balance text-center text-sm opacity-80">Operations console for staff.</p>
           </div>
         </CardContent>

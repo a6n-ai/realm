@@ -27,9 +27,9 @@ export function ForgotForm() {
               </Link>
             </div>
           </div>
-          <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-foreground text-2xl font-bold">Puchkaman</span>
-            <p className="text-balance text-center text-sm">Operations console for staff.</p>
+          <div className="relative hidden flex-col items-center justify-center gap-2 border-l border-[var(--green)] bg-[var(--yellow)] p-8 text-[var(--ink)] md:flex">
+            <span className="text-2xl font-bold text-[var(--red)]">Puchkaman</span>
+            <p className="text-balance text-center text-sm opacity-80">Operations console for staff.</p>
           </div>
         </CardContent>
       </Card>
