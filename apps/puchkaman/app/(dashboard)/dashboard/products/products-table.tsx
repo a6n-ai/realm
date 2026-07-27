@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   PackageSearchIcon,
   PencilIcon,
   PlusIcon,
+  LinkIcon,
   Trash2Icon,
 } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
@@ -21,6 +23,7 @@ import { Button } from "@realm/ui/button";
 import { TableCell } from "@realm/ui/table";
 import type { PendingSync } from "@/db/schema/products";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
+import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { apiFetch } from "@/lib/http/api-fetch";
@@ -46,6 +49,8 @@ export type ProductRow = {
   lastSyncedAt: number | null;
   syncStatus: "none" | "synced" | "update_available";
   pendingSync: PendingSync | null;
+  cloverItemId: string | null;
+  cloverLastSyncedAt: number | null;
 };
 
 // Sortable keys must match ProductSortColumn / PRODUCT_SORT_COL. "actions" is
@@ -89,15 +94,10 @@ export function ProductsTable({
   sort: SortState<ProductSortColumn>;
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<ProductRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [removing, setRemoving] = useState<ProductRow | null>(null);
   const [reviewing, setReviewing] = useState<ProductRow | null>(null);
-
-  function openEdit(row: ProductRow) {
-    setEditing(row);
-    setFormOpen(true);
-  }
+  const [cloverLinking, setCloverLinking] = useState<ProductRow | null>(null);
 
   async function confirmRemove() {
     if (!removing) return;
@@ -107,10 +107,7 @@ export function ProductsTable({
 
   const emptyAction: ReactNode =
     total === 0 ? (
-      <Button type="button" size="sm" className="gap-1.5" onClick={() => {
-        setEditing(null);
-        setFormOpen(true);
-      }}>
+      <Button type="button" size="sm" className="gap-1.5" onClick={() => setFormOpen(true)}>
         <PlusIcon className="size-3.5" />
         Add product
       </Button>
@@ -124,6 +121,7 @@ export function ProductsTable({
         rowKey={(r) => r.publicId}
         serial={false}
         sort={sort}
+        idHref={(r) => `/dashboard/products/${r.publicId}`}
         search={{
           placeholder: "Search name or slug…",
           shortPlaceholder: "Search…",
@@ -149,7 +147,13 @@ export function ProductsTable({
                 ) : (
                   <div className="bg-muted size-8 shrink-0 rounded-md" />
                 )}
-                <span className="font-medium">{row.name}</span>
+                <Link
+                  href={`/dashboard/products/${row.publicId}`}
+                  className="hover:text-foreground font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {row.name}
+                </Link>
               </div>
             </TableCell>
             <TableCell>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</TableCell>
@@ -158,30 +162,44 @@ export function ProductsTable({
             </TableCell>
             <TableCell>
               <Badge variant={row.active ? "secondary" : "outline"}>
-                {row.active ? "Active" : "Archived"}
+                {row.active
+                  ? "Active"
+                  : row.cloverItemId || row.source === "uber_eats"
+                    ? "Out of stock"
+                    : "Archived"}
               </Badge>
             </TableCell>
             <TableCell>
-              {row.source === "uber_eats" ? (
-                row.syncStatus === "update_available" ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setReviewing(row)}
-                  >
-                    Update available
-                  </Button>
+              <div className="flex flex-col gap-1">
+                {row.source === "uber_eats" ? (
+                  row.syncStatus === "update_available" ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReviewing(row);
+                      }}
+                    >
+                      Update available
+                    </Button>
+                  ) : (
+                    <span>Uber Eats</span>
+                  )
                 ) : (
-                  "Uber Eats"
-                )
-              ) : (
-                "Manual"
-              )}
+                  <span>Manual</span>
+                )}
+                {row.cloverItemId ? (
+                  <Badge variant="outline" className="w-fit text-[10px]">
+                    Clover
+                  </Badge>
+                ) : null}
+              </div>
             </TableCell>
             <TableCell className="text-muted-foreground text-right font-mono text-xs tabular-nums">
-              {relativeTime(row.lastSyncedAt)}
+              {relativeTime(row.cloverLastSyncedAt ?? row.lastSyncedAt)}
             </TableCell>
             <TableCell className="text-right">
               <div className="flex justify-end gap-1">
@@ -190,8 +208,26 @@ export function ProductsTable({
                   variant="ghost"
                   size="icon"
                   className="size-8"
-                  onClick={() => openEdit(row)}
-                  aria-label={`Edit ${row.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCloverLinking(row);
+                  }}
+                  aria-label={
+                    row.cloverItemId ? `Unlink ${row.name} from Clover` : `Link ${row.name} to Clover`
+                  }
+                >
+                  <LinkIcon className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/dashboard/products/${row.publicId}`);
+                  }}
+                  aria-label={`Open ${row.name}`}
                 >
                   <PencilIcon className="size-3.5" />
                 </Button>
@@ -200,7 +236,10 @@ export function ProductsTable({
                   variant="ghost"
                   size="icon"
                   className="text-destructive hover:text-destructive size-8"
-                  onClick={() => setRemoving(row)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRemoving(row);
+                  }}
                   aria-label={`Remove ${row.name}`}
                 >
                   <Trash2Icon className="size-3.5" />
@@ -212,13 +251,13 @@ export function ProductsTable({
       />
       <ListPagination page={page} size={size} total={total} />
 
-      <ProductForm open={formOpen} onOpenChange={setFormOpen} product={editing} />
+      <ProductForm open={formOpen} onOpenChange={setFormOpen} product={null} />
 
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(open) => !open && setRemoving(null)}
         title="Remove this product?"
-        description={`"${removing?.name}" will be hidden from the public menu. You can bring it back later from the edit form.`}
+        description={`"${removing?.name}" will be hidden from the public menu. You can bring it back later from the product page.`}
         confirmLabel="Remove"
         danger
         onConfirm={confirmRemove}
@@ -226,6 +265,19 @@ export function ProductsTable({
       <PendingSyncReviewDialog
         product={reviewing}
         onOpenChange={(open) => !open && setReviewing(null)}
+      />
+      <CloverLinkDialog
+        open={!!cloverLinking}
+        onOpenChange={(open) => !open && setCloverLinking(null)}
+        product={
+          cloverLinking
+            ? {
+                publicId: cloverLinking.publicId,
+                name: cloverLinking.name,
+                cloverItemId: cloverLinking.cloverItemId,
+              }
+            : null
+        }
       />
     </div>
   );

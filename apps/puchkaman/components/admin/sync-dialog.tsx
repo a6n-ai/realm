@@ -55,8 +55,8 @@ export function SyncDialog({
       <ResponsiveDialog
         open={open}
         onOpenChange={handleClose}
-        title="Sync menu from Uber Eats"
-        description="Adds new items and flags changes for review. Live menu is never overwritten automatically."
+        title="Sync images from Uber Eats"
+        description="Uber Eats is an image source only. Inventory (name, price, availability) comes from Clover."
         contentClassName="sm:max-w-xl"
         footer={
           result && !busy ? (
@@ -82,8 +82,9 @@ export function SyncDialog({
           {!result && !busy ? (
             <>
               <p className="text-muted-foreground text-sm">
-                Reads the current Uber Eats menu snapshot, adds anything new, and flags anything that
-                looks changed for your review.
+                Refreshes product photos from the Uber Eats snapshot. New Uber-only items are
+                kept in the catalog as out of stock until linked to Clover. Inventory fields are
+                never overwritten from Uber.
               </p>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 space-y-0.5">

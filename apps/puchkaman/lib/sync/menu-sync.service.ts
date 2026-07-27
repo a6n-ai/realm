@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { products } from "@/db/schema";
-import { uniqueSlug } from "@/lib/products/slug";
 import type { MenuSource, MenuSourceItem } from "@/lib/sync/menu-source";
 import { rehostImage } from "@/lib/sync/rehost-image";
-
-type ProductRow = typeof products.$inferSelect;
+import { uniqueSlug } from "@/lib/products/slug";
+import {
+  productsRepository,
+  type ProductRow,
+  type ProductsRepository,
+} from "@/lib/services/products.repository";
 
 export type DuplicateCandidate = {
   existingPublicId: string;
@@ -37,8 +37,6 @@ function normalizeName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
-const PRICE_EPSILON = 0.005;
-
 export type SyncOptions = {
   // Re-download + re-host every synced item's image even when its Uber Eats
   // source URL is unchanged. Use to migrate existing images onto new storage
@@ -50,10 +48,17 @@ export type SyncOptions = {
   optimizeImages?: boolean;
 };
 
+/**
+ * Uber Eats image enrichment sync.
+ * All product persistence goes through {@link ProductsRepository} (DAO).
+ * Orchestrated from ProductsService for HTTP routes.
+ */
 export class MenuSyncService {
+  constructor(private readonly products: ProductsRepository) {}
+
   async run(source: MenuSource, opts: SyncOptions = {}): Promise<SyncResult> {
     const items = await source.fetchItems();
-    const existingRows = await db.select().from(products);
+    const existingRows = await this.products.findAll();
 
     const byExternalId = new Map<string, ProductRow>();
     for (const row of existingRows) {
@@ -91,7 +96,13 @@ export class MenuSyncService {
 
         const existing = byExternalId.get(item.externalId);
         if (existing) {
-          await this.diffAndFlag(existing, item, result, opts.redownloadImages ?? false, opts.optimizeImages ?? true);
+          await this.diffAndFlag(
+            existing,
+            item,
+            result,
+            opts.redownloadImages ?? false,
+            opts.optimizeImages ?? true,
+          );
           continue;
         }
 
@@ -116,74 +127,79 @@ export class MenuSyncService {
       }
     }
 
-    result.categoryIssues = Array.from(categoryIssueMap, ([rawCategory, list]) => ({ rawCategory, items: list }));
+    result.categoryIssues = Array.from(categoryIssueMap, ([rawCategory, list]) => ({
+      rawCategory,
+      items: list,
+    }));
     return result;
   }
 
-  private async createFromItem(item: MenuSourceItem, takenSlugs: Set<string>, optimize: boolean): Promise<string> {
-    const image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
+  private async createFromItem(
+    item: MenuSourceItem,
+    takenSlugs: Set<string>,
+    optimize: boolean,
+  ): Promise<string> {
+    // Uber bootstrap: keep the entity + image, but start OOS until linked to Clover
+    // (inventory SoT). Clover pull will mark unlinked Uber rows OOS as well.
+    const image = item.imageUrl
+      ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize })
+      : null;
     const slug = uniqueSlug(item.name, takenSlugs);
     takenSlugs.add(slug);
 
-    const [row] = await db
-      .insert(products)
-      .values({
-        name: item.name,
-        description: item.description,
-        category: item.category as string,
-        price: item.price.toFixed(2),
-        image,
-        active: item.available,
-        slug,
-        source: "uber_eats",
-        externalId: item.externalId,
-        lastSyncedAt: Date.now(),
-        syncStatus: "synced",
-        lastSyncedImageUrl: item.imageUrl,
-      })
-      .returning({ publicId: products.publicId });
+    const row = await this.products.create({
+      name: item.name,
+      description: item.description,
+      category: item.category as string,
+      price: item.price.toFixed(2),
+      image,
+      active: false,
+      slug,
+      source: "uber_eats",
+      externalId: item.externalId,
+      lastSyncedAt: Date.now(),
+      syncStatus: "synced",
+      lastSyncedImageUrl: item.imageUrl,
+    });
     return row.publicId;
   }
 
-  private async diffAndFlag(existing: ProductRow, item: MenuSourceItem, result: SyncResult, redownloadImages: boolean, optimize: boolean): Promise<void> {
-    // Image changes auto-persist to our storage on every sync (no manual Apply)
-    // so the public site never renders a volatile Uber Eats source URL. Text and
-    // price diffs still queue in pendingSync for admin approval below.
-    // redownloadImages forces a re-host even when the source URL is unchanged.
+  private async diffAndFlag(
+    existing: ProductRow,
+    item: MenuSourceItem,
+    result: SyncResult,
+    redownloadImages: boolean,
+    optimize: boolean,
+  ): Promise<void> {
+    // Uber Eats is image enrichment only. Inventory (name/price/availability)
+    // is owned by Clover — never queue Uber name/price/description as pending
+    // inventory updates, especially when the row is already Clover-linked.
     const urlChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
     const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
-    const imagePatch: Record<string, unknown> = {};
     if (imageChanged) {
-      imagePatch.image = item.imageUrl ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize }) : null;
-      imagePatch.lastSyncedImageUrl = item.imageUrl ?? null;
+      await this.products.updateByInternalId(existing.id, {
+        image: item.imageUrl
+          ? await rehostImage(item.imageUrl, "catalog/products/synced", { optimize })
+          : null,
+        lastSyncedImageUrl: item.imageUrl ?? null,
+        lastSyncedAt: Date.now(),
+        ...(existing.cloverItemId
+          ? { pendingSync: null, syncStatus: "synced" as const }
+          : { syncStatus: "synced" as const }),
+      });
       result.imagesUpdated.push({ publicId: existing.publicId, name: existing.name });
-    }
-
-    const pending: Record<string, unknown> = {};
-    if (existing.name !== item.name) pending.name = item.name;
-    if ((existing.description ?? null) !== (item.description ?? null)) pending.description = item.description;
-    if (Math.abs(Number(existing.price) - item.price) > PRICE_EPSILON) pending.price = item.price;
-
-    if (Object.keys(pending).length === 0) {
-      await db.update(products).set({ ...imagePatch, lastSyncedAt: Date.now(), syncStatus: "synced" }).where(eq(products.id, existing.id));
-      if (!imageChanged) result.unchangedCount++;
       return;
     }
 
-    await db
-      .update(products)
-      .set({
-        ...imagePatch,
-        pendingSync: { ...pending, fetchedAt: new Date().toISOString() },
-        syncStatus: "update_available",
-        lastSyncedAt: Date.now(),
-      })
-      .where(eq(products.id, existing.id));
-    result.updatesAvailable.push({ publicId: existing.publicId, name: existing.name });
+    await this.products.updateByInternalId(existing.id, {
+      lastSyncedAt: Date.now(),
+      ...(existing.cloverItemId
+        ? { pendingSync: null, syncStatus: "synced" as const }
+        : { syncStatus: "synced" as const }),
+    });
+    result.unchangedCount++;
   }
 
-  // Duplicate resolution — called from the review dialog once the admin
-  // picks Replace / Keep / Skip for a name+category match found during run().
   async resolveDuplicate(
     existingPublicId: string,
     action: "replace" | "keep" | "skip",
@@ -193,53 +209,69 @@ export class MenuSyncService {
       // "Unrelated" means exactly that — the Uber Eats item is a genuinely
       // different product and gets created on its own, not silently dropped.
       if (!incoming.category) return;
-      const existingSlugs = new Set(
-        (await db.select({ slug: products.slug }).from(products)).map((r) => r.slug).filter((s): s is string => !!s),
-      );
+      const existingSlugs = new Set(await this.products.listSlugs());
       await this.createFromItem(incoming, existingSlugs, true);
       return;
     }
 
     if (action === "keep") {
-      await db
-        .update(products)
-        .set({ source: "uber_eats", externalId: incoming.externalId, syncStatus: "synced", lastSyncedAt: Date.now() })
-        .where(eq(products.publicId, existingPublicId));
-      return;
-    }
-
-    // replace: adopt the incoming item's data onto the existing row.
-    const image = incoming.imageUrl ? await rehostImage(incoming.imageUrl, "catalog/products/synced") : null;
-    await db
-      .update(products)
-      .set({
-        name: incoming.name,
-        description: incoming.description,
-        price: incoming.price.toFixed(2),
-        image,
-        active: incoming.available,
+      // Link Uber external id for image sync only — do not overwrite inventory.
+      await this.products.updateByPublicId(existingPublicId, {
         source: "uber_eats",
         externalId: incoming.externalId,
         syncStatus: "synced",
         lastSyncedAt: Date.now(),
-        lastSyncedImageUrl: incoming.imageUrl,
-        pendingSync: null,
-      })
-      .where(eq(products.publicId, existingPublicId));
+      });
+      return;
+    }
+
+    // replace: adopt Uber image (+ description) onto the existing row.
+    // When Clover-linked, leave name/price/active alone — Clover is inventory SoT.
+    const existing = await this.products.findByPublicId(existingPublicId);
+    if (!existing) return;
+
+    const image = incoming.imageUrl
+      ? await rehostImage(incoming.imageUrl, "catalog/products/synced")
+      : null;
+    const cloverLinked = Boolean(existing.cloverItemId);
+    await this.products.updateByPublicId(existingPublicId, {
+      ...(cloverLinked
+        ? {}
+        : {
+            name: incoming.name,
+            price: incoming.price.toFixed(2),
+            active: incoming.available,
+          }),
+      description: incoming.description,
+      image,
+      source: "uber_eats",
+      externalId: incoming.externalId,
+      syncStatus: "synced",
+      lastSyncedAt: Date.now(),
+      lastSyncedImageUrl: incoming.imageUrl,
+      pendingSync: null,
+    });
   }
 
-  // Applies some or all of a product's pendingSync candidate onto the live
-  // row — the only place pendingSync values ever become real column values.
   async applyPending(
     productId: string,
-    action: "apply_name" | "apply_description" | "apply_price" | "apply_image" | "apply_all" | "ignore",
+    action:
+      | "apply_name"
+      | "apply_description"
+      | "apply_price"
+      | "apply_image"
+      | "apply_all"
+      | "ignore",
   ): Promise<void> {
-    const [row] = await db.select().from(products).where(eq(products.publicId, productId)).limit(1);
+    const row = await this.products.findByPublicId(productId);
     if (!row?.pendingSync) return;
     const pending = row.pendingSync;
 
     if (action === "ignore") {
-      await db.update(products).set({ pendingSync: null, syncStatus: "synced" }).where(eq(products.id, row.id));
+      await this.products.updateByInternalId(row.id, {
+        pendingSync: null,
+        syncStatus: "synced",
+      });
       return;
     }
 
@@ -253,12 +285,12 @@ export class MenuSyncService {
     if (wantsDescription && "description" in pending) patch.description = pending.description;
     if (wantsPrice && pending.price !== undefined) patch.price = pending.price.toFixed(2);
     if (wantsImage && "imageUrl" in pending) {
-      patch.image = pending.imageUrl ? await rehostImage(pending.imageUrl, "catalog/products/synced") : null;
+      patch.image = pending.imageUrl
+        ? await rehostImage(pending.imageUrl, "catalog/products/synced")
+        : null;
       patch.lastSyncedImageUrl = pending.imageUrl ?? null;
     }
 
-    // Clear only the fields being applied from pendingSync; leave the rest
-    // (e.g. applying just the image keeps a pending price change queued).
     const remaining: Record<string, unknown> = { ...pending };
     if (wantsName) delete remaining.name;
     if (wantsDescription) delete remaining.description;
@@ -266,15 +298,12 @@ export class MenuSyncService {
     if (wantsImage) delete remaining.imageUrl;
     const stillPending = Object.keys(remaining).some((k) => k !== "fetchedAt");
 
-    await db
-      .update(products)
-      .set({
-        ...patch,
-        pendingSync: stillPending ? (remaining as never) : null,
-        syncStatus: stillPending ? "update_available" : "synced",
-      })
-      .where(eq(products.id, row.id));
+    await this.products.updateByInternalId(row.id, {
+      ...patch,
+      pendingSync: stillPending ? remaining : null,
+      syncStatus: stillPending ? "update_available" : "synced",
+    });
   }
 }
 
-export const menuSyncService = new MenuSyncService();
+export const menuSyncService = new MenuSyncService(productsRepository);

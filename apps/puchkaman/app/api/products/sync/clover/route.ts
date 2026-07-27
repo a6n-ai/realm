@@ -1,0 +1,24 @@
+import { ValidationError } from "@realm/commons";
+import { handler, json } from "@realm/routes";
+import { requireAdmin } from "@/lib/auth/guards";
+import { productsService } from "@/lib/services/products.service";
+
+/** Bulk Clover pull/push — route → ProductsService. */
+export const POST = handler(async (request: Request): Promise<Response> => {
+  await requireAdmin();
+  const body = (await request.json().catch(() => ({}))) as {
+    direction?: unknown;
+    publicIds?: unknown;
+  };
+
+  const direction = body.direction === "push" ? "push" : body.direction === "pull" ? "pull" : null;
+  if (!direction) {
+    throw new ValidationError('direction must be "pull" or "push"');
+  }
+
+  const publicIds = Array.isArray(body.publicIds)
+    ? body.publicIds.filter((id): id is string => typeof id === "string")
+    : undefined;
+
+  return json(await productsService.syncCloverBulk(direction, publicIds));
+});

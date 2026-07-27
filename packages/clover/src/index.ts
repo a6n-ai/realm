@@ -1,8 +1,8 @@
 /**
- * @realm/clover — Clover Platform integration (Phase 1: setup + OAuth).
+ * @realm/clover — Clover Platform + Ecommerce integration.
  *
- * Server-only. App secret and tokens must never reach the client.
- * Later phases: Ecommerce charges, inventory sync, orders, webhooks.
+ * Server-only. App secret and OAuth tokens must never reach the client.
+ * PAKMS `apiAccessKey` is safe for the browser iframe SDK.
  */
 
 export {
@@ -49,6 +49,62 @@ export {
   type CloverApiClientOptions,
   type CloverMerchantSummary,
 } from "./client";
+
+export {
+  dollarsToCloverCents,
+  cloverCentsToDollars,
+  normalizeCloverItem,
+  normalizeCloverCategory,
+  primaryCategoryName,
+  type CloverPriceType,
+  type CloverCategoryRef,
+  type CloverItemStock,
+  type CloverItem,
+  type CloverItemCreateInput,
+  type CloverItemUpdateInput,
+  type CloverCategory,
+  type CloverElements,
+  type ListItemsParams,
+} from "./inventory";
+
+export {
+  expandAtomicLineItems,
+  buildAtomicOrderBody,
+  normalizeAtomicOrderResult,
+  normalizePayOrderResult,
+  normalizePakmsKey,
+  normalizeChargeResult,
+  normalizePlatformPayment,
+  normalizeEcommerceOrder,
+  normalizePlatformOrder,
+  mapCloverRemoteToPaymentStatus,
+  cloverCheckoutSdkUrl,
+  type CloverAtomicLineItemInput,
+  type CloverAtomicOrderInput,
+  type CloverAtomicOrderResult,
+  type CloverPayOrderInput,
+  type CloverPayOrderResult,
+  type CloverPakmsKey,
+  type CloverChargeInput,
+  type CloverChargeResult,
+  type CloverPlatformPaymentResult,
+  type CloverEcommerceOrderResult,
+  type CloverPlatformOrderResult,
+  type MappedCloverPaymentStatus,
+} from "./orders";
+
+export {
+  safeEqualString,
+  verifyCloverWebhookAuth,
+  parseCloverWebhookObjectId,
+  parseCloverWebhookBody,
+  loadCloverWebhookAuthFromEnv,
+  type CloverWebhookUpdateType,
+  type CloverWebhookUpdate,
+  type CloverWebhookEventKind,
+  type ParsedCloverObjectId,
+  type CloverWebhookParseResult,
+} from "./webhooks";
 
 export {
   getCloverConnection,

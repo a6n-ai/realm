@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { PackageIcon } from "lucide-react";
+import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { productsService, type ProductSortColumn } from "@/lib/services/products.service";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
 import { ProductsHeaderActions } from "./products-header-actions";
@@ -73,7 +75,7 @@ export default function ProductsPage({ searchParams }: { searchParams: SearchPar
         subtitle="Manage what shows on the public menu."
         actions={
           <Suspense fallback={<Skeleton className="h-9 w-40" />}>
-            <ProductsHeaderActions />
+            <ProductsHeaderLoader />
           </Suspense>
         }
       />
@@ -86,6 +88,11 @@ export default function ProductsPage({ searchParams }: { searchParams: SearchPar
   );
 }
 
+async function ProductsHeaderLoader() {
+  const clover = await getCloverConnection(integrationsConfigStore);
+  return <ProductsHeaderActions cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
+}
+
 async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
@@ -94,7 +101,12 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(SPEC, sp);
 
   const result = await productsService.queryProducts(condition, page, sort);
-  const rows = result.items.map((r) => ({ ...r, price: Number(r.price) }));
+  const rows = result.items.map((r) => ({
+    ...r,
+    price: Number(r.price),
+    cloverItemId: r.cloverItemId ?? null,
+    cloverLastSyncedAt: r.cloverLastSyncedAt ?? null,
+  }));
 
   return (
     <ProductsTable

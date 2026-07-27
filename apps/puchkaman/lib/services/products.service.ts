@@ -1,14 +1,102 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
-import { UpdatableRepository, UpdatableService, columnResolver, conditionToSql } from "@realm/database";
+import { UpdatableService, columnResolver, conditionToSql } from "@realm/database";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { products, users } from "@/db/schema";
+import { createCloverClient } from "@/lib/clover/client";
 import { getSession } from "@/lib/auth/session";
 import type { SortState } from "@/lib/list/sort";
 import { productSchema } from "@/lib/products/schema";
+import {
+  cloverInventorySyncService,
+  cloverItemToIncoming,
+  type CloverMatchIncoming,
+  type CloverPullOneResult,
+  type CloverPullResult,
+  type CloverPushResult,
+  type CloverUnlinkedItem,
+} from "@/lib/sync/clover-inventory-sync.service";
+import {
+  menuSyncService,
+  type SyncOptions,
+  type SyncResult,
+} from "@/lib/sync/menu-sync.service";
+import type { MenuSourceItem } from "@/lib/sync/menu-source";
+import { UberEatsSnapshotSource } from "@/lib/sync/sources/uber-eats-snapshot-source";
+import {
+  productsRepository,
+  type ProductRow,
+  ProductsRepository,
+} from "./products.repository";
 
-export type ProductListRow = typeof products.$inferSelect;
+export type ProductListRow = ProductRow;
+
+function normalizeProductWrite(values: Record<string, unknown>) {
+  const next = { ...values };
+  if (typeof next.price === "number") next.price = String(next.price);
+  if (typeof next.cloverCost === "number") next.cloverCost = String(next.cloverCost);
+  if (typeof next.cloverStockQty === "number") next.cloverStockQty = String(next.cloverStockQty);
+  return next;
+}
+
+/** Admin product detail DTO (numbers coerced for forms). */
+export type ProductDetailDto = {
+  publicId: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  image: ProductRow["image"];
+  tags: string[] | null;
+  active: boolean;
+  featured: boolean;
+  source: ProductRow["source"];
+  syncStatus: ProductRow["syncStatus"];
+  cloverItemId: string | null;
+  cloverLastSyncedAt: number | null;
+  cloverSku: string | null;
+  cloverCode: string | null;
+  cloverAlternateName: string | null;
+  cloverPriceType: string | null;
+  cloverHidden: boolean | null;
+  cloverAvailable: boolean | null;
+  cloverAutoManage: boolean | null;
+  cloverCost: number | null;
+  cloverUnitName: string | null;
+  cloverColorCode: string | null;
+  cloverStockQty: number | null;
+};
+
+export function toProductDetailDto(row: ProductRow): ProductDetailDto {
+  return {
+    publicId: row.publicId,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    price: Number(row.price),
+    image: row.image,
+    tags: row.tags,
+    active: row.active,
+    featured: row.featured,
+    source: row.source,
+    syncStatus: row.syncStatus,
+    cloverItemId: row.cloverItemId ?? null,
+    cloverLastSyncedAt: row.cloverLastSyncedAt ?? null,
+    cloverSku: row.cloverSku ?? null,
+    cloverCode: row.cloverCode ?? null,
+    cloverAlternateName: row.cloverAlternateName ?? null,
+    cloverPriceType: row.cloverPriceType ?? null,
+    cloverHidden: row.cloverHidden ?? null,
+    cloverAvailable: row.cloverAvailable ?? null,
+    cloverAutoManage: row.cloverAutoManage ?? null,
+    cloverCost: row.cloverCost != null ? Number(row.cloverCost) : null,
+    cloverUnitName: row.cloverUnitName ?? null,
+    cloverColorCode: row.cloverColorCode ?? null,
+    cloverStockQty: row.cloverStockQty != null ? Number(row.cloverStockQty) : null,
+  };
+}
 
 // Keys match DataTable column keys (see products-table.tsx). "status" sorts by
 // active (Active/Archived); "lastSynced" by last_synced_at.
@@ -29,10 +117,6 @@ const PRODUCT_SORT_COL = {
   lastSynced: products.lastSyncedAt,
 } as const;
 
-// Every filterable facet (category/source/syncStatus/featured/name/slug) lives
-// on the base `products` table, so a plain columnResolver suffices — except
-// `featured`, whose URL value arrives as the string "true"/"false" (same as
-// every other facet) but needs a real boolean to match the column.
 function resolveProductFacet(f: FilterCondition) {
   if (f.field === "featured") return eq(products.featured, f.value === "true");
   return columnResolver({
@@ -44,9 +128,6 @@ function resolveProductFacet(f: FilterCondition) {
   })(f);
 }
 
-// session.user.id is the acting user's public_id (usr_…); audit columns are
-// bigint. Resolve it to the internal id once per call so create/update stamp
-// createdBy/updatedBy correctly (null if no session, e.g. seed scripts).
 async function sessionActorId(): Promise<bigint | null> {
   try {
     const session = await getSession();
@@ -59,24 +140,37 @@ async function sessionActorId(): Promise<bigint | null> {
   }
 }
 
+/**
+ * Products domain service.
+ * Extends {@link UpdatableService}; DAO is {@link ProductsRepository}
+ * (extends {@link UpdatableRepository}).
+ */
 class ProductsService extends UpdatableService<typeof products> {
+  constructor(protected readonly repo: ProductsRepository) {
+    super(repo);
+  }
+
   protected currentUserId(): Promise<bigint | null> {
     return sessionActorId();
   }
 
   async create(values: Record<string, unknown>) {
-    return super.create(productSchema.parse(values));
+    return super.create(normalizeProductWrite(productSchema.parse(values)));
   }
 
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, productSchema.partial().parse(patch));
+    return super.update(id, normalizeProductWrite(productSchema.partial().parse(patch)));
   }
 
-  // Soft delete: keep the row (order/audit history elsewhere may reference it
-  // later) but drop it off the public menu.
+  // Soft delete: keep the row but drop it off the public menu.
   async delete(id: string): Promise<number> {
     await this.update(id, { active: false });
     return 1;
+  }
+
+  /** Detail page load — NotFoundError when missing. */
+  async getDetail(publicId: string): Promise<ProductDetailDto> {
+    return toProductDetailDto(await this.read(publicId));
   }
 
   async listActive() {
@@ -87,16 +181,14 @@ class ProductsService extends UpdatableService<typeof products> {
       .orderBy(asc(products.category), asc(products.name));
   }
 
-  // Admin table view: every product, active or not.
   async listAll() {
-    return db.select().from(products).orderBy(asc(products.category), asc(products.name));
+    return this.repo.findAll().then((rows) =>
+      [...rows].sort((a, b) =>
+        a.category === b.category ? a.name.localeCompare(b.name) : a.category.localeCompare(b.category),
+      ),
+    );
   }
 
-  // Server-side faceted filtering + offset pagination + column sort for the
-  // admin table — mirrors tiffin-grab's listOrdersPage. Named `queryProducts`
-  // (not `list`): `list` is already taken by the base UpdatableService method.
-  // Every facet resolves against the base `products` table directly (no FK, so
-  // no join that could inflate/deflate the count).
   async queryProducts(
     condition: Condition | undefined,
     page: PageRequest,
@@ -122,9 +214,6 @@ class ProductsService extends UpdatableService<typeof products> {
     return { items, page: page.page, size: page.size, total: count };
   }
 
-  // Dashboard-home aggregates: total/featured/category/pending-sync counts,
-  // plus the small recent/featured lists. All server-side COUNTs — no client
-  // filters, nothing computed off client-submitted data.
   async productStats(): Promise<{
     total: number;
     featured: number;
@@ -159,7 +248,130 @@ class ProductsService extends UpdatableService<typeof products> {
       .orderBy(desc(products.createdAt))
       .limit(limit);
   }
+
+  // ── Clover inventory (route → this service → ProductsRepository + Clover client)
+
+  private async requireCloverClient() {
+    const client = await createCloverClient();
+    if (!client) {
+      throw new ValidationError(
+        "Clover is not connected. Install the plugin under Settings → Integrations, then connect a merchant under Settings → Clover.",
+      );
+    }
+    return client;
+  }
+
+  /** Single-product pull or push. */
+  async syncCloverOne(
+    publicId: string,
+    direction: "pull" | "push",
+  ): Promise<
+    | { direction: "pull"; result: CloverPullOneResult }
+    | { direction: "push"; result: CloverPushResult }
+  > {
+    await this.read(publicId);
+    const client = await this.requireCloverClient();
+
+    if (direction === "pull") {
+      const result = await cloverInventorySyncService.pullOne(client, publicId);
+      return { direction, result };
+    }
+
+    const result = await cloverInventorySyncService.push(client, { publicIds: [publicId] });
+    if (result.errors.length > 0 && result.created.length === 0 && result.updated.length === 0) {
+      throw new ValidationError(result.errors[0]?.message ?? "Push failed");
+    }
+    return { direction, result };
+  }
+
+  /** Bulk pull/push (products list Sync Clover dialog). */
+  async syncCloverBulk(
+    direction: "pull" | "push",
+    publicIds?: string[],
+  ): Promise<{ direction: "pull" | "push"; result: CloverPullResult | CloverPushResult }> {
+    const client = await this.requireCloverClient();
+    if (direction === "pull") {
+      return { direction, result: await cloverInventorySyncService.pull(client) };
+    }
+    return {
+      direction,
+      result: await cloverInventorySyncService.push(client, { publicIds }),
+    };
+  }
+
+  async linkClover(
+    publicId: string,
+    cloverItemId: string,
+    opts: { adoptInventory?: boolean } = {},
+  ): Promise<{ ok: true; cloverItemId: string }> {
+    await this.read(publicId);
+    let incoming: CloverMatchIncoming | undefined;
+    if (opts.adoptInventory) {
+      const client = await this.requireCloverClient();
+      const item = await client.getItem(cloverItemId, "categories,itemStock");
+      incoming = cloverItemToIncoming(item);
+    }
+    await cloverInventorySyncService.linkProduct(publicId, cloverItemId, {
+      adoptInventory: opts.adoptInventory,
+      incoming,
+    });
+    return { ok: true, cloverItemId };
+  }
+
+  async unlinkClover(publicId: string): Promise<{ ok: true; cloverItemId: null }> {
+    await this.read(publicId);
+    await cloverInventorySyncService.unlinkProduct(publicId);
+    return { ok: true, cloverItemId: null };
+  }
+
+  async listUnlinkedCloverItems(): Promise<CloverUnlinkedItem[]> {
+    const client = await this.requireCloverClient();
+    return cloverInventorySyncService.listUnlinkedCloverItems(client);
+  }
+
+  async resolveCloverAmbiguous(
+    action: "link" | "link_adopt" | "create" | "skip",
+    incoming: CloverMatchIncoming,
+    existingPublicId?: string,
+  ): Promise<void> {
+    if (action === "link" || action === "link_adopt") {
+      if (!existingPublicId) throw new ValidationError("existingPublicId required to link");
+      const row = await this.repo.findByPublicId(existingPublicId);
+      if (!row) throw new NotFoundError(`Not found: ${existingPublicId}`);
+    }
+    await cloverInventorySyncService.resolveAmbiguous(action, incoming, existingPublicId);
+  }
+
+  // ── Uber Eats image enrichment (route → this service → ProductsRepository)
+
+  async syncUberImages(opts: SyncOptions = {}): Promise<SyncResult> {
+    return menuSyncService.run(new UberEatsSnapshotSource(), opts);
+  }
+
+  async resolveUberDuplicate(
+    existingPublicId: string,
+    action: "replace" | "keep" | "skip",
+    incoming: MenuSourceItem,
+  ): Promise<{ ok: true }> {
+    if (action !== "skip") await this.read(existingPublicId);
+    await menuSyncService.resolveDuplicate(existingPublicId, action, incoming);
+    return { ok: true };
+  }
+
+  async applyUberPending(
+    publicId: string,
+    action:
+      | "apply_name"
+      | "apply_description"
+      | "apply_price"
+      | "apply_image"
+      | "apply_all"
+      | "ignore",
+  ): Promise<{ ok: true }> {
+    await this.read(publicId);
+    await menuSyncService.applyPending(publicId, action);
+    return { ok: true };
+  }
 }
 
-const repo = new UpdatableRepository(db, products, products.publicId, products.id);
-export const productsService = new ProductsService(repo);
+export const productsService = new ProductsService(productsRepository);

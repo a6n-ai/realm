@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BanknoteIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  PackageIcon,
   PuzzleIcon,
   SettingsIcon,
   UserIcon,
@@ -44,8 +46,15 @@ export const SECTIONS: NavSection[] = [
     items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon }],
   },
   {
-    label: "Catalog",
-    items: [{ title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon }],
+    label: "Operations",
+    items: [
+      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon },
+      { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [{ title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon }],
   },
   {
     label: "Administration",

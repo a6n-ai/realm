@@ -22,6 +22,27 @@
       "when": 1784499999999,
       "tag": "0002_clover_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784500000001,
+      "tag": "0003_clover_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784500000002,
+      "tag": "0004_clover_product_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784500000003,
+      "tag": "0005_orders",
+      "breakpoints": true
     }
   ]
 }
