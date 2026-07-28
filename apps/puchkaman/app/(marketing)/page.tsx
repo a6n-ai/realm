@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { FileDetail } from "@realm/storage/model";
@@ -8,9 +9,10 @@ import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 
-// Home reads live products (real photos rehosted to our storage). force-dynamic
-// so newly featured/synced items and their images show without a rebuild.
-export const dynamic = "force-dynamic";
+// Home reads live products (real photos rehosted to our storage). ISR instead of
+// force-dynamic — most visitors get a cached response (no DB round-trip), and
+// admin/sync changes still show up within a minute without a rebuild.
+export const revalidate = 60;
 
 type BestSellerCard = { name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
 
@@ -54,8 +56,11 @@ export default async function HomePage() {
   // Curated "featured" products first; if none are flagged, fall back to real
   // active products that have a photo (so home shows the actual menu, not empty
   // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
-  const featured = await productsService.featuredProducts(6);
-  const withPhoto = (await productsService.listActive()).filter((p) => p.image);
+  const [featured, active] = await Promise.all([
+    productsService.featuredProducts(6),
+    productsService.listActive(),
+  ]);
+  const withPhoto = active.filter((p) => p.image);
   const picks = featured.length ? featured : withPhoto.slice(0, 6);
   const cards: BestSellerCard[] = picks.length
     ? picks.map((p) => {
@@ -215,13 +220,15 @@ export default async function HomePage() {
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
               {fusionUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={fusionUrl}
-                  alt="Fusion puchka close-up"
-                  className="rotate-l"
-                  style={{ display: "block", width: "100%", aspectRatio: "4 / 3.2", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)" }}
-                />
+                <div className="rotate-l" style={{ position: "relative", width: "100%", aspectRatio: "4 / 3.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)", overflow: "hidden" }}>
+                  <Image
+                    src={fusionUrl}
+                    alt="Fusion puchka close-up"
+                    fill
+                    sizes="(min-width: 880px) 45vw, 90vw"
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
               ) : (
                 <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
               )}
@@ -309,22 +316,25 @@ export default async function HomePage() {
                   style={{ position: "relative", display: "block" }}
                 >
                   {thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumbnail}
-                      alt="Puchkaman on Instagram"
-                      loading="lazy"
+                    <div
                       className="card--lift"
                       style={{
-                        display: "block",
+                        position: "relative",
                         width: "100%",
                         aspectRatio: "4 / 5",
-                        objectFit: "cover",
-                        objectPosition: "center 25%",
                         border: "var(--border)",
                         borderRadius: "var(--r)",
+                        overflow: "hidden",
                       }}
-                    />
+                    >
+                      <Image
+                        src={thumbnail}
+                        alt="Puchkaman on Instagram"
+                        fill
+                        sizes="(min-width: 1024px) 16vw, (min-width: 640px) 30vw, 45vw"
+                        style={{ objectFit: "cover", objectPosition: "center 25%" }}
+                      />
+                    </div>
                   ) : (
                     <Ph label="Reel" ratio="4 / 5" className="card--lift" />
                   )}

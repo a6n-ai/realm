@@ -5,7 +5,9 @@ import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
 import { EatsView, type EatsCategory } from "./eats-view";
 
-export const dynamic = "force-dynamic";
+// ISR instead of force-dynamic — cached response for most visitors, still picks
+// up admin/sync catalog changes (and Clover connect/disconnect) within a minute.
+export const revalidate = 60;
 
 async function getEats(): Promise<{
   categories: EatsCategory[];

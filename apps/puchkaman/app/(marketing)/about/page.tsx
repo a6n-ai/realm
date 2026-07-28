@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Btn, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 
@@ -29,21 +30,16 @@ export default function AboutPage() {
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/about/storefront.jpg"
-                alt="Puchkaman Street Food Cafe storefront on Danforth Ave, Scarborough"
-                className="rotate-l"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  aspectRatio: "4 / 4.2",
-                  objectFit: "cover",
-                  border: "var(--border)",
-                  borderRadius: "var(--r)",
-                  boxShadow: "var(--sh-lg)",
-                }}
-              />
+              <div className="rotate-l" style={{ position: "relative", width: "100%", aspectRatio: "4 / 4.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)", overflow: "hidden" }}>
+                <Image
+                  src="/about/storefront.jpg"
+                  alt="Puchkaman Street Food Cafe storefront on Danforth Ave, Scarborough"
+                  fill
+                  sizes="(min-width: 880px) 45vw, 90vw"
+                  priority
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
               <span className="sticker rotate-r" style={{ bottom: -14, right: -10, background: "var(--ink-bg)", color: "var(--yellow)" }}>
                 EST. SCARBOROUGH
               </span>

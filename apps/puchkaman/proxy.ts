@@ -8,6 +8,10 @@ const PUBLIC_API = [
   "/api/catering-inquiries",
   "/api/integrations/clover/webhook",
   "/api/delivery/check-address",
+  // GET is intentionally public (product photos load for anonymous visitors —
+  // see app/api/files/[...key]/route.ts); POST /upload still enforces
+  // requireAdmin() inside the handler itself, so this doesn't weaken it.
+  "/api/files",
 ];
 
 function unauthorized(): NextResponse {
