@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { FileDetail } from "@realm/storage/model";
 import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
@@ -5,6 +6,10 @@ import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
 
+// Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
+// no real DB at build time and Next tries to prerender ISR/static pages during
+// `next build`, which crashed the build. Reverted to force-dynamic until the
+// build pipeline has a real build-time Postgres.
 export const dynamic = "force-dynamic";
 
 type FusionCard = { name: string; desc: string; price: string; badge: string; badgeViral: boolean; image: FileDetail | null };
@@ -75,13 +80,16 @@ export default async function FusionPage() {
             </div>
             <div style={{ position: "relative" }}>
               {videoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={videoUrl}
-                  alt="Fusion puchka"
-                  className="rotate-r"
-                  style={{ display: "block", width: "100%", aspectRatio: "4 / 4.2", objectFit: "cover", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)" }}
-                />
+                <div className="rotate-r" style={{ position: "relative", width: "100%", aspectRatio: "4 / 4.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)", overflow: "hidden" }}>
+                  <Image
+                    src={videoUrl}
+                    alt="Fusion puchka"
+                    fill
+                    sizes="(min-width: 880px) 45vw, 90vw"
+                    priority
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
               ) : (
                 <Ph label="VIDEO — fusion puchka being assembled" ratio="4 / 4.2" mod="rotate-r" style={{ boxShadow: "var(--sh-lg)" }} />
               )}

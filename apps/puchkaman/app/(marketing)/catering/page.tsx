@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
+import Image from "next/image";
 import { Btn, Ph, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 
@@ -215,19 +216,9 @@ export default function CateringPage() {
               <Reveal key={t} delay={i * 60}>
                 <div className="card card--lift" style={{ overflow: "hidden", height: "100%" }}>
                   {img ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={img}
-                      alt={`${t} setup`}
-                      loading="lazy"
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        aspectRatio: "4 / 3",
-                        objectFit: "cover",
-                        borderBottom: "var(--border)",
-                      }}
-                    />
+                    <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 3", borderBottom: "var(--border)" }}>
+                      <Image src={img} alt={`${t} setup`} fill sizes="(min-width: 880px) 33vw, 90vw" style={{ objectFit: "cover" }} />
+                    </div>
                   ) : (
                     <Ph label={`${t} setup`} ratio="4 / 3" style={{ border: "none", borderBottom: "var(--border)", borderRadius: 0 }} />
                   )}

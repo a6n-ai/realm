@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@realm/commons", "@realm/database", "@realm/routes", "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm", "@realm/realtime", "@realm/auth-ui", "@realm/clover"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
+  // Product photos are rehosted via S3 + CloudFront (FILES_PUBLIC_BASE_URL) — when
+  // unset, files fall back to same-origin /api/files, which next/image handles
+  // natively without remotePatterns.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "*.cloudfront.net" }],
+  },
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
   // /menu and /productsmenu were both live public URLs before the rename to
   // /eats — keep indexed/bookmarked links alive.

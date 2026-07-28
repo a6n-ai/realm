@@ -5,6 +5,10 @@ import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
 import { EatsView, type EatsCategory } from "./eats-view";
 
+// Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
+// no real DB at build time and Next tries to prerender ISR/static pages during
+// `next build`, which crashed the build. Reverted to force-dynamic until the
+// build pipeline has a real build-time Postgres.
 export const dynamic = "force-dynamic";
 
 async function getEats(): Promise<{

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -77,20 +78,22 @@ function Logo({
   size = 50,
   wordmarkColor = "var(--green)",
   wordmarkSize = "1.35rem",
+  priority = false,
 }: {
   size?: number;
   wordmarkColor?: string;
   wordmarkSize?: string;
+  priority?: boolean;
 } = {}) {
   return (
     <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
       <span className="logo-mark" style={{ width: size, height: size }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/logo.webp"
           alt=""
           width={size}
           height={size}
+          priority={priority}
           className="logo-mark__img"
         />
       </span>
@@ -120,7 +123,7 @@ export function Nav() {
     <header style={{ position: "sticky", top: 0, zIndex: 50 }}>
       <div style={{ background: "var(--page-bg)", borderBottom: "var(--border)" }}>
         <div className="wrap flex center between" style={{ height: 70 }}>
-          <Logo />
+          <Logo priority />
           <nav className="nav-desk" style={{ display: "none", alignItems: "center", gap: 2 }}>
             {NAV_LINKS.map(([p, label, short]) => (
               <Link
