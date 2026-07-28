@@ -2,8 +2,12 @@
  * Human-readable labels for audit_log rows.
  * Custom admin actions stash `_action` in `changes`; CRUD uses operation + entity.
  */
+import { AUTH_AUDIT_LABELS } from "@realm/auth";
 
 const ACTION_LABELS: Record<string, string> = {
+  // Auth security events, shared with tiffin-grab via @realm/auth so both apps
+  // label the same vocabulary identically.
+  ...AUTH_AUDIT_LABELS,
   clover_install: "Installed Clover plugin",
   clover_uninstall: "Uninstalled Clover plugin",
   clover_connect: "Connected Clover merchant",

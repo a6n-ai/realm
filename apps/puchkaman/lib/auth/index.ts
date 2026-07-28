@@ -4,6 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
 import { createLogger } from "@realm/commons/logger";
+import { authAuditAction } from "@realm/auth";
 import { Role } from "@realm/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -121,6 +122,29 @@ export const auth = betterAuth({
   // Audit: login success / login_failed on email sign-in.
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
+      // Security audit: every mapped auth event lands in the SAME append-only
+      // audit_log as the rest of the app, via the shared vocabulary in
+      // @realm/auth. Sign-in keeps its dedicated operation below; this covers
+      // password changes, resets, verification, revocations, deletion.
+      const auditAction = authAuditAction(ctx.path);
+      if (auditAction && !(ctx.context.returned instanceof APIError)) {
+        try {
+          const body = ctx.body as { email?: string } | undefined;
+          const sessionUser = (
+            ctx.context as { session?: { user?: { email?: string; publicId?: string } } }
+          ).session?.user;
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: sessionUser?.publicId ?? body?.email ?? sessionUser?.email ?? "unknown",
+            operation: "update",
+            changes: { _action: auditAction },
+            createdBy: null,
+          });
+        } catch (e) {
+          log.error({ err: e, action: auditAction }, "auth audit hook failed");
+        }
+      }
+
       if (ctx.path !== "/sign-in/email") return;
 
       const newSession = ctx.context.newSession;

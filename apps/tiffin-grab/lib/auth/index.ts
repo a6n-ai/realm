@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { phoneNumber, username, anonymous, emailOTP } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
+import { authAuditAction } from "@realm/auth";
 import { Role } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
@@ -172,6 +173,30 @@ export const auth = betterAuth({
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
       const failed = ctx.context.returned instanceof APIError;
+
+      // Security audit: every mapped auth event lands in the SAME append-only
+      // audit_log as the rest of the app, via the shared vocabulary in
+      // @realm/auth. Sign-in/out keep their dedicated operations below; this
+      // covers password changes, resets, verification, revocations, deletion.
+      // Placed before the early returns so nothing downstream can skip it.
+      const auditAction = authAuditAction(ctx.path);
+      if (auditAction && !failed) {
+        try {
+          const body = ctx.body as { email?: string } | undefined;
+          const sessionUser = (
+            ctx.context as { session?: { user?: { email?: string; publicId?: string } } }
+          ).session?.user;
+          await recordAudit({
+            entity: "auth",
+            entityPublicId: sessionUser?.publicId ?? body?.email ?? sessionUser?.email ?? "unknown",
+            operation: "update",
+            changes: { _action: auditAction },
+            createdBy: null,
+          });
+        } catch (e) {
+          log.error({ err: e, action: auditAction }, "auth audit hook failed");
+        }
+      }
 
       // Password changed — OTP reset (body carries email) or authenticated change
       // (email from the session). Fire the security alert on success only.
