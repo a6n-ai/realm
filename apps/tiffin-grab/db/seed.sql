@@ -395,10 +395,13 @@ FROM new_week nw
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- STAFF LOGINS (moved here from db/seed-staff.ts). Two credential accounts.
--- Passwords are bcrypt(rounds=10) hashes — admin=Admin123!, sales=Member123! —
--- precomputed because SQL can't hash. To change a password: hash the new value
--- with bcryptjs (rounds 10) and replace the string below. password_set defaults
--- true so these log in immediately. Idempotent via NOT EXISTS on email.
+-- DEV/QA ONLY — never seeded into production, which gets its admin from
+-- db/seed-admin.ts with an operator-supplied password.
+-- Passwords are scrypt hashes — admin=AdminDev123!, sales=SalesDev123! —
+-- precomputed because SQL can't hash. To change one:
+--   node -e "import('better-auth/crypto').then(m=>m.hashPassword('NEW')).then(console.log)"
+-- and replace the string below. password_set defaults true so these log in
+-- immediately. Idempotent via NOT EXISTS on email.
 -- ─────────────────────────────────────────────────────────────────────────────
 WITH new_admin AS (
     INSERT INTO users (public_id, name, email, role, created_at, updated_at)
@@ -409,7 +412,7 @@ WITH new_admin AS (
 )
 INSERT INTO account (public_id, account_id, provider_id, user_id, password)
 SELECT 'act_seed_admin', id::text, 'credential', id,
-       '$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm'
+       '15a5f1872be519cf9b058cce1641d00f:bf09821001f57b0442409f3a5ed7105a29a9552c952130a55d13138c2b1c058d0bbf8ca96be67c3ba59a0121194015343639d28cdcb01ba4fa4594d2158ac2c9'
 FROM new_admin;
 
 WITH new_sales AS (
@@ -421,7 +424,7 @@ WITH new_sales AS (
 )
 INSERT INTO account (public_id, account_id, provider_id, user_id, password)
 SELECT 'act_seed_sales', id::text, 'credential', id,
-       '$2b$10$Slod73d6U3ztgMGId8zwBO9CEKJA3H/U3Rnvq28Antb9w2.FHSxWy'
+       '71075d775d0735058c9d0392e6be6235:dcd35089514ff4a9c87ae5d0a6142f49cb9c9ed4f97dfd8c12428c465c9222f18ed4c82ec4d1010929be5db9191016cb9e5e01b6e8e661ca04799cde0f5177ef'
 FROM new_sales;
 
 COMMIT;

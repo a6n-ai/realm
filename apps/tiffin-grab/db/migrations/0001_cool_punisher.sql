@@ -1,1 +1,0 @@
-ALTER TABLE "app" ADD COLUMN "default_country" text;

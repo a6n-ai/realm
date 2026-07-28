@@ -1,5 +1,5 @@
 {
-  "id": "7a699757-df1a-45fb-9cd9-b6eafb9463e3",
+  "id": "5ad239cf-f7e5-4511-b8a2-f1beb54ef8c3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -461,6 +461,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'user'"
+        },
+        "status": {
+          "name": "status",
+          "type": "user_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
         },
         "pin_hash": {
           "name": "pin_hash",
@@ -1333,6 +1341,24 @@
           "notNull": true,
           "default": 0
         },
+        "max_pauses": {
+          "name": "max_pauses",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_pause_days_total": {
+          "name": "max_pause_days_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_pause_stretch_days": {
+          "name": "max_pause_stretch_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -2123,6 +2149,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "pooled_tiffin_count": {
+          "name": "pooled_tiffin_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "per_tiffin_price": {
           "name": "per_tiffin_price",
           "type": "numeric(10, 2)",
@@ -2395,6 +2428,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proof": {
+          "name": "proof",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "note": {
           "name": "note",
           "type": "text",
@@ -2524,6 +2575,12 @@
         },
         "makeup_for_delivery_id": {
           "name": "makeup_for_delivery_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pooled_at": {
+          "name": "pooled_at",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
@@ -2999,6 +3056,13 @@
         },
         "plan_types": {
           "name": "plan_types",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "allowed_payment_methods": {
+          "name": "allowed_payment_methods",
           "type": "text[]",
           "primaryKey": false,
           "notNull": true,
@@ -5240,12 +5304,36 @@
           "notNull": true,
           "default": 18
         },
+        "default_max_pauses": {
+          "name": "default_max_pauses",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_max_pause_days_total": {
+          "name": "default_max_pause_days_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_max_pause_stretch_days": {
+          "name": "default_max_pause_stretch_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "currency": {
           "name": "currency",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "'INR'"
+        },
+        "default_country": {
+          "name": "default_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "lead_assignment": {
           "name": "lead_assignment",
@@ -5261,6 +5349,18 @@
         },
         "discount_policy": {
           "name": "discount_policy",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_config": {
+          "name": "payment_config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "integrations_config": {
+          "name": "integrations_config",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -6160,6 +6260,106 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.email_log": {
+      "name": "email_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient": {
+          "name": "recipient",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "email_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_message_id": {
+          "name": "provider_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "email_log_created_idx": {
+          "name": "email_log_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "email_log_public_id_unique": {
+          "name": "email_log_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.notification_template": {
       "name": "notification_template",
       "schema": "",
@@ -6691,6 +6891,155 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.subscription_pauses": {
+      "name": "subscription_pauses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_date": {
+          "name": "from_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "until_date": {
+          "name": "until_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_indefinite": {
+          "name": "is_indefinite",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "resumed_at": {
+          "name": "resumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resumed_by": {
+          "name": "resumed_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "subscription_pauses_order_idx": {
+          "name": "subscription_pauses_order_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "subscription_pauses_one_open_uniq": {
+          "name": "subscription_pauses_one_open_uniq",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "resumed_at is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "subscription_pauses_order_id_orders_id_fk": {
+          "name": "subscription_pauses_order_id_orders_id_fk",
+          "tableFrom": "subscription_pauses",
+          "tableTo": "orders",
+          "columnsFrom": [
+            "order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "subscription_pauses_resumed_by_users_id_fk": {
+          "name": "subscription_pauses_resumed_by_users_id_fk",
+          "tableFrom": "subscription_pauses",
+          "tableTo": "users",
+          "columnsFrom": [
+            "resumed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "subscription_pauses_public_id_unique": {
+          "name": "subscription_pauses_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -6709,6 +7058,16 @@
         "admin",
         "member",
         "user"
+      ]
+    },
+    "public.user_status": {
+      "name": "user_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "inactive",
+        "suspended",
+        "deleted"
       ]
     },
     "public.dish_diet": {
@@ -6760,7 +7119,8 @@
         "note",
         "skipped",
         "unskipped",
-        "delivery_address_changed"
+        "delivery_address_changed",
+        "pool_scheduled"
       ]
     },
     "public.order_status": {
@@ -6791,7 +7151,11 @@
       "values": [
         "simulated_paid",
         "pending",
-        "refunded"
+        "refunded",
+        "awaiting_payment",
+        "pending_verification",
+        "paid",
+        "rejected"
       ]
     },
     "public.delivery_status": {
@@ -6998,6 +7362,14 @@
       "values": [
         "pending",
         "processing",
+        "sent",
+        "failed"
+      ]
+    },
+    "public.email_status": {
+      "name": "email_status",
+      "schema": "public",
+      "values": [
         "sent",
         "failed"
       ]

@@ -1,1 +1,0 @@
-ALTER TABLE "users" ADD COLUMN "password_set" boolean DEFAULT false NOT NULL;

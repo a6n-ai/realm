@@ -11,7 +11,6 @@ import { account, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp } from "./security-events";
-import { upgradeLegacyPasswordHash } from "./password-upgrade";
 
 const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
@@ -126,11 +125,6 @@ export const auth = betterAuth({
 
       const newSession = ctx.context.newSession;
       if (newSession) {
-        // Opportunistic bcrypt → scrypt upgrade. This is the only point where a
-        // correct plaintext and a DB handle coexist; see password-upgrade.ts.
-        const pw = (ctx.body as { password?: string } | undefined)?.password;
-        if (pw) await upgradeLegacyPasswordHash(String(newSession.session.userId), pw);
-
         try {
           const publicId = (newSession.user as Record<string, unknown>).publicId as string | undefined;
           await recordAudit({

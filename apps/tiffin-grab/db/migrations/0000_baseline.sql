@@ -12,15 +12,15 @@ $fn$;--> statement-breakpoint
 CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE AS $fn$ SELECT NULL::bigint $fn$;--> statement-breakpoint
 CREATE TYPE "public"."locale" AS ENUM('en', 'fr');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'member', 'user');--> statement-breakpoint
+CREATE TYPE "public"."user_status" AS ENUM('active', 'inactive', 'suspended', 'deleted');--> statement-breakpoint
 CREATE TYPE "public"."dish_diet" AS ENUM('veg', 'nonveg');--> statement-breakpoint
-CREATE TYPE "public"."meal_diet" AS ENUM('veg', 'nonveg', 'both');--> statement-breakpoint
 CREATE TYPE "public"."meal_tier" AS ENUM('budget', 'medium', 'premium');--> statement-breakpoint
 CREATE TYPE "public"."plan_type" AS ENUM('tiffin', 'healthy');--> statement-breakpoint
 CREATE TYPE "public"."weight_unit" AS ENUM('oz', 'g', 'ml', 'piece');--> statement-breakpoint
-CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note', 'skipped', 'unskipped', 'delivery_address_changed');--> statement-breakpoint
+CREATE TYPE "public"."order_activity_type" AS ENUM('created', 'status_change', 'paused', 'resumed', 'cancelled', 'activated', 'meal_pick', 'note', 'skipped', 'unskipped', 'delivery_address_changed', 'pool_scheduled');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('pending', 'active', 'waitlisted', 'cancelled', 'paused', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."payment_method" AS ENUM('simulated', 'cash', 'etransfer', 'manual');--> statement-breakpoint
-CREATE TYPE "public"."payment_status" AS ENUM('simulated_paid', 'pending', 'refunded');--> statement-breakpoint
+CREATE TYPE "public"."payment_status" AS ENUM('simulated_paid', 'pending', 'refunded', 'awaiting_payment', 'pending_verification', 'paid', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."delivery_status" AS ENUM('scheduled', 'paused', 'skipped', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."coupon_kind" AS ENUM('percentage', 'fixed', 'free_delivery', 'first_order', 'rep_daily');--> statement-breakpoint
 CREATE TYPE "public"."ledger_direction" AS ENUM('debit', 'credit');--> statement-breakpoint
@@ -39,6 +39,7 @@ CREATE TYPE "public"."audit_operation" AS ENUM('create', 'update', 'delete', 're
 CREATE TYPE "public"."app_event" AS ENUM('order_created', 'order_activated', 'order_completed', 'order_cancelled', 'order_paused', 'payment_received', 'refund_issued', 'menu_released', 'wallet_credited', 'wallet_redeemed', 'inquiry_created', 'inquiry_follow_up', 'inquiry_converted', 'ticket_created', 'ticket_reply', 'ticket_resolved', 'signup', 'manual_adjustment');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel" AS ENUM('email', 'in_app', 'sms', 'whatsapp');--> statement-breakpoint
 CREATE TYPE "public"."notification_outbox_status" AS ENUM('pending', 'processing', 'sent', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."email_status" AS ENUM('sent', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."file_resource_type" AS ENUM('static', 'secured');--> statement-breakpoint
 CREATE TYPE "public"."file_system_node_type" AS ENUM('file', 'directory');--> statement-breakpoint
 CREATE TABLE "feature_flags" (
@@ -106,6 +107,7 @@ CREATE TABLE "users" (
 	"image" text,
 	"phone" text,
 	"role" "user_role" DEFAULT 'user' NOT NULL,
+	"status" "user_status" DEFAULT 'active' NOT NULL,
 	"pin_hash" text,
 	"pin_attempts" integer DEFAULT 0 NOT NULL,
 	"password_set" boolean DEFAULT true NOT NULL,
@@ -218,6 +220,7 @@ CREATE TABLE "dishes" (
 	"description" text,
 	"diet" "dish_diet" NOT NULL,
 	"image" jsonb,
+	"category" text,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "dishes_public_id_unique" UNIQUE("public_id")
 );
@@ -232,6 +235,9 @@ CREATE TABLE "duration_packages" (
 	"updated_by" bigint,
 	"weeks" integer NOT NULL,
 	"discount_pct" integer DEFAULT 0 NOT NULL,
+	"max_pauses" integer,
+	"max_pause_days_total" integer,
+	"max_pause_stretch_days" integer,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "duration_packages_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "duration_packages_weeks_unique" UNIQUE("weeks")
@@ -247,6 +253,8 @@ CREATE TABLE "meal_size_items" (
 	"updated_by" bigint,
 	"meal_size_id" bigint NOT NULL,
 	"name" text NOT NULL,
+	"category" text NOT NULL,
+	"label" text,
 	"qty" integer DEFAULT 1 NOT NULL,
 	"weight_value" numeric(6, 2),
 	"weight_unit" "weight_unit",
@@ -264,8 +272,8 @@ CREATE TABLE "meal_sizes" (
 	"updated_by" bigint,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
+	"plan_id" bigint NOT NULL,
 	"tier" "meal_tier" NOT NULL,
-	"diet" "meal_diet" NOT NULL,
 	"components" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"kcal_min" integer NOT NULL,
 	"kcal_max" integer NOT NULL,
@@ -291,9 +299,7 @@ CREATE TABLE "plans" (
 	"name" text NOT NULL,
 	"description" text,
 	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
-	"offered_slots" text[] DEFAULT '{}' NOT NULL,
 	"allowed_start_days" text[] DEFAULT '{"mon","tue","wed","thu","fri"}' NOT NULL,
-	"category_counts" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "plans_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "plans_key_unique" UNIQUE("key")
@@ -344,11 +350,13 @@ CREATE TABLE "orders" (
 	"frequency_id" bigint NOT NULL,
 	"persons" integer DEFAULT 1 NOT NULL,
 	"meal_slots" text[] DEFAULT '{"lunch"}' NOT NULL,
+	"category_counts" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"include_saturday" boolean DEFAULT false NOT NULL,
 	"include_sunday" boolean DEFAULT false NOT NULL,
 	"duration_weeks" integer NOT NULL,
 	"start_date" date NOT NULL,
 	"tiffin_count" integer NOT NULL,
+	"pooled_tiffin_count" integer DEFAULT 0 NOT NULL,
 	"per_tiffin_price" numeric(10, 2) NOT NULL,
 	"pricing_snapshot" jsonb NOT NULL,
 	"total" numeric(10, 2) NOT NULL,
@@ -374,6 +382,9 @@ CREATE TABLE "payments" (
 	"method" "payment_method" DEFAULT 'simulated' NOT NULL,
 	"amount" numeric(10, 2) NOT NULL,
 	"captured_at" bigint,
+	"reference" text,
+	"proof" jsonb,
+	"claimed_at" bigint,
 	"note" text,
 	CONSTRAINT "payments_public_id_unique" UNIQUE("public_id")
 );
@@ -391,6 +402,7 @@ CREATE TABLE "deliveries" (
 	"status" "delivery_status" DEFAULT 'scheduled' NOT NULL,
 	"cutoff_at" bigint NOT NULL,
 	"makeup_for_delivery_id" bigint,
+	"pooled_at" bigint,
 	"full_name" text,
 	"address_line" text,
 	"city" text,
@@ -437,6 +449,7 @@ CREATE TABLE "coupons" (
 	"stackable" boolean DEFAULT false NOT NULL,
 	"auto_apply" boolean DEFAULT false NOT NULL,
 	"plan_types" text[] DEFAULT '{}' NOT NULL,
+	"allowed_payment_methods" text[] DEFAULT '{}' NOT NULL,
 	"starts_at" bigint,
 	"expires_at" bigint,
 	"owner_user_id" bigint,
@@ -677,10 +690,16 @@ CREATE TABLE "app" (
 	"updated_by" bigint,
 	"timezone" text DEFAULT 'America/Toronto' NOT NULL,
 	"cutoff_hour" integer DEFAULT 18 NOT NULL,
+	"default_max_pauses" integer,
+	"default_max_pause_days_total" integer,
+	"default_max_pause_stretch_days" integer,
 	"currency" text DEFAULT 'INR' NOT NULL,
+	"default_country" text,
 	"lead_assignment" jsonb,
 	"meal_types" jsonb,
 	"discount_policy" jsonb,
+	"payment_config" jsonb,
+	"integrations_config" jsonb,
 	CONSTRAINT "app_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
@@ -792,6 +811,20 @@ CREATE TABLE "notifications" (
 	CONSTRAINT "notifications_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
+CREATE TABLE "email_log" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"recipient" text NOT NULL,
+	"subject" text NOT NULL,
+	"status" "email_status" NOT NULL,
+	"provider_message_id" text,
+	"error" text,
+	CONSTRAINT "email_log_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
 CREATE TABLE "notification_template" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -861,11 +894,27 @@ CREATE TABLE "files_secured_access_key" (
 	CONSTRAINT "files_secured_access_key_access_key_unique" UNIQUE("access_key")
 );
 --> statement-breakpoint
+CREATE TABLE "subscription_pauses" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"order_id" bigint NOT NULL,
+	"from_date" date NOT NULL,
+	"until_date" date NOT NULL,
+	"is_indefinite" boolean DEFAULT false NOT NULL,
+	"resumed_at" timestamp with time zone,
+	"resumed_by" bigint,
+	CONSTRAINT "subscription_pauses_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_flag_id_feature_flags_id_fk" FOREIGN KEY ("flag_id") REFERENCES "public"."feature_flags"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_size_items" ADD CONSTRAINT "meal_size_items_meal_size_id_meal_sizes_id_fk" FOREIGN KEY ("meal_size_id") REFERENCES "public"."meal_sizes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "meal_sizes" ADD CONSTRAINT "meal_sizes_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_activities" ADD CONSTRAINT "order_activities_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_current_owner_users_id_fk" FOREIGN KEY ("current_owner") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -911,6 +960,8 @@ ALTER TABLE "notification_outbox" ADD CONSTRAINT "notification_outbox_recipient_
 ALTER TABLE "notification_prefs" ADD CONSTRAINT "notification_prefs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "files_file_system" ADD CONSTRAINT "files_file_system_parent_id_files_file_system_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."files_file_system"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "subscription_pauses" ADD CONSTRAINT "subscription_pauses_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "subscription_pauses" ADD CONSTRAINT "subscription_pauses_resumed_by_users_id_fk" FOREIGN KEY ("resumed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email") WHERE "users"."email" is not null;--> statement-breakpoint
@@ -956,46 +1007,35 @@ CREATE INDEX "notification_outbox_due_idx" ON "notification_outbox" USING btree 
 CREATE UNIQUE INDEX "notification_outbox_dedupe_idx" ON "notification_outbox" USING btree ("dedupe_key");--> statement-breakpoint
 CREATE UNIQUE INDEX "notification_prefs_user_channel_idx" ON "notification_prefs" USING btree ("user_id","channel");--> statement-breakpoint
 CREATE INDEX "notifications_user_created_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "email_log_created_idx" ON "email_log" USING btree ("created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "notification_template_key_idx" ON "notification_template" USING btree ("event","channel","locale");--> statement-breakpoint
 CREATE INDEX "idx_fs_rtype_ftype_parent" ON "files_file_system" USING btree ("resource_type","file_type","parent_id");--> statement-breakpoint
 CREATE INDEX "idx_fs_rtype_ftype" ON "files_file_system" USING btree ("resource_type","file_type");--> statement-breakpoint
-CREATE INDEX "idx_fs_path" ON "files_file_system" USING btree ("path");
---> statement-breakpoint
+CREATE INDEX "idx_fs_path" ON "files_file_system" USING btree ("path");--> statement-breakpoint
+CREATE INDEX "subscription_pauses_order_idx" ON "subscription_pauses" USING btree ("order_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "subscription_pauses_one_open_uniq" ON "subscription_pauses" USING btree ("order_id") WHERE resumed_at is null;--> statement-breakpoint
 -- Real singleton resolver (app table now exists).
 CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE AS $fn$ SELECT id FROM app ORDER BY id LIMIT 1 $fn$;--> statement-breakpoint
 -- app_id FK on every table (appId has no .references in schema to avoid an import cycle).
+-- Skips any table without an app_id column so this stays correct for both apps.
 DO $do$
 DECLARE t text;
 BEGIN
-  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename LOOP
+  FOR t IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind = 'r'
+      AND EXISTS (
+        SELECT 1 FROM pg_attribute a
+        WHERE a.attrelid = c.oid AND a.attname = 'app_id' AND a.attnum > 0 AND NOT a.attisdropped
+      )
+    ORDER BY c.relname
+  LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_' || t || '_app') THEN
       EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (app_id) REFERENCES app(id)', t, 'fk_' || t || '_app');
     END IF;
   END LOOP;
 END
 $do$;
-
---> statement-breakpoint
--- M8: meal_size_items.category is NOT NULL with no default, so this ADD COLUMN
--- fails on any DB that already holds meal_size_items rows. This delta therefore
--- requires a rebuild-from-empty: migrate runs before seed on a fresh DB, and the
--- seed DELETEs+reinserts meal_size_items. Safe here — pre-launch, no seeded orders.
-ALTER TABLE "dishes" ADD COLUMN "category" text;--> statement-breakpoint
-ALTER TABLE "meal_size_items" ADD COLUMN "category" text NOT NULL;--> statement-breakpoint
-ALTER TABLE "meal_size_items" ADD COLUMN "label" text;--> statement-breakpoint
-ALTER TABLE "meal_sizes" ADD COLUMN "plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL;--> statement-breakpoint
-ALTER TABLE "orders" ADD COLUMN "category_counts" jsonb DEFAULT '{}'::jsonb NOT NULL;
---> statement-breakpoint
-ALTER TABLE "plans" DROP COLUMN "offered_slots";--> statement-breakpoint
-ALTER TABLE "plans" DROP COLUMN "category_counts";
---> statement-breakpoint
--- meal_sizes.plan_id is NOT NULL with no default, so this ADD COLUMN fails on any
--- DB that already holds meal_sizes rows. This delta therefore requires a
--- rebuild-from-empty: migrate runs before seed on a fresh DB, and the seed
--- populates plan_id per row via a plans-key subquery. Safe here — pre-launch, no
--- seeded orders. plan_type + diet (and the now-orphaned meal_diet enum) are dropped.
-ALTER TABLE "meal_sizes" ADD COLUMN "plan_id" bigint NOT NULL;--> statement-breakpoint
-ALTER TABLE "meal_sizes" ADD CONSTRAINT "meal_sizes_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "meal_sizes" DROP COLUMN "plan_type";--> statement-breakpoint
-ALTER TABLE "meal_sizes" DROP COLUMN "diet";--> statement-breakpoint
-DROP TYPE "public"."meal_diet";

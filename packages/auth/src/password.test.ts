@@ -1,34 +1,20 @@
 import { describe, expect, it } from "vitest";
-import bcrypt from "bcryptjs";
-import { hashPassword, isLegacyHash, verifyPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 const PLAIN = "correct-horse-battery-staple";
 
-describe("password hashing (bcrypt → scrypt cutover)", () => {
-  it("writes new hashes as scrypt, not bcrypt", async () => {
+describe("password hashing (scrypt)", () => {
+  it("hashes to scrypt, never plaintext or bcrypt", async () => {
     const hash = await hashPassword(PLAIN);
-    expect(hash.startsWith("$2")).toBe(false);
-    expect(isLegacyHash(hash)).toBe(false);
+    expect(hash).not.toBe(PLAIN);
+    expect(hash).toMatch(/^[0-9a-f]+:[0-9a-f]+$/);
+    expect(hash).not.toMatch(/^\$2[aby]\$/);
+  });
+
+  it("round-trips the correct password and rejects a wrong one", async () => {
+    const hash = await hashPassword(PLAIN);
     expect(await verifyPassword(PLAIN, hash)).toBe(true);
     expect(await verifyPassword("wrong", hash)).toBe(false);
-  });
-
-  // The whole point of the dual-format verify: every account hashed before the
-  // cutover must still be able to sign in. If this breaks, so does every
-  // existing user at once.
-  it("still verifies pre-cutover bcrypt hashes", async () => {
-    const legacy = await bcrypt.hash(PLAIN, 10);
-    expect(isLegacyHash(legacy)).toBe(true);
-    expect(await verifyPassword(PLAIN, legacy)).toBe(true);
-    expect(await verifyPassword("wrong", legacy)).toBe(false);
-  });
-
-  it("recognises every bcrypt variant as legacy", () => {
-    for (const h of ["$2a$10$abc", "$2b$10$abc", "$2y$12$abc"]) {
-      expect(isLegacyHash(h)).toBe(true);
-    }
-    // scrypt is "<salt-hex>:<hash-hex>" — no leading $
-    expect(isLegacyHash("deadbeef:cafebabe")).toBe(false);
   });
 
   it("salts: the same password hashes differently every time", async () => {
@@ -36,5 +22,11 @@ describe("password hashing (bcrypt → scrypt cutover)", () => {
     expect(a).not.toBe(b);
     expect(await verifyPassword(PLAIN, a)).toBe(true);
     expect(await verifyPassword(PLAIN, b)).toBe(true);
+  });
+
+  // bcrypt support is gone; a stale hash must fail closed rather than throw.
+  it("rejects a legacy bcrypt hash instead of crashing", async () => {
+    const legacy = "$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm";
+    await expect(verifyPassword(PLAIN, legacy)).resolves.toBe(false);
   });
 });
