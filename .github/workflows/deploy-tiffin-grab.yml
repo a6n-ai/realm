@@ -88,5 +88,11 @@ jobs:
             git -C "$REPO" pull --ff-only
             cd "$REPO/deployment/prod"
             docker network inspect edge >/dev/null 2>&1 || docker network create edge
-            (cd proxy && docker compose pull && docker compose up -d)
+            (cd proxy && docker compose pull && docker compose up -d --wait)
+            # Caddy reads its config only at startup, and the Caddyfile is a bind
+            # mount — `up -d` does NOT recreate the container when only the file
+            # content changed, so proxy config edits would silently never apply.
+            # Reload explicitly; an invalid config fails the deploy here rather
+            # than leaving the old one serving.
+            (cd proxy && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile)
             (cd tiffin-grab && ./deploy.sh)
