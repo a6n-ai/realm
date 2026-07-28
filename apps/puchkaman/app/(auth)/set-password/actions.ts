@@ -10,14 +10,37 @@ import { getSession } from "@/lib/auth/session";
 // First-login: the signed-in user sets their own password, replacing the issued
 // default. No current-password prompt (they authenticated with the temp one
 // already). Scoped to the session's own id — never a client-supplied user.
+//
+// Because there is no current-password prompt, this must refuse for anyone who
+// has already chosen their own password: otherwise a stolen session could
+// replace it without knowing it. Established users change a password through
+// better-auth (/change-password) or the email OTP reset.
+//
+// "Already chosen" is passwordSet AND a credential existing — not either alone.
+// A seeded/invited account has a credential while passwordSet is still false,
+// and setting its own password is exactly what this action is for. Mirrors
+// tiffin-grab's usersService.setOwnPassword; keep the two in step.
 export async function setInitialPassword(newPassword: string): Promise<{ ok: true } | { error: string }> {
   const session = await getSession();
   if (!session?.user) return { error: "Your session has expired. Please sign in again." };
   const parsed = passwordSchema.safeParse(newPassword);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid password" };
 
-  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
+  const [u] = await db
+    .select({ id: users.id, passwordSet: users.passwordSet })
+    .from(users)
+    .where(eq(users.publicId, session.user.id))
+    .limit(1);
   if (!u) return { error: "Your session has expired. Please sign in again." };
+
+  if (u.passwordSet) {
+    const [acct] = await db
+      .select({ id: account.id })
+      .from(account)
+      .where(and(eq(account.userId, u.id), eq(account.providerId, "credential")))
+      .limit(1);
+    if (acct) return { error: "You already have a password. Change it from account settings." };
+  }
 
   const hash = await hashPassword(parsed.data);
   await db.transaction(async (tx) => {

@@ -69,8 +69,27 @@ describe("first-login password flow (integration)", () => {
     );
     await usersService.setOwnPassword(publicId, "first-pass99");
     await expect(usersService.setOwnPassword(publicId, "attacker-pass9")).rejects.toThrow();
-    const row = await rowByPublicId(publicId);
-    expect(await verifyPassword("first-pass99", (await credentialPassword(row.id))!)).toBe(true);
+    const kept = await rowByPublicId(publicId);
+    expect(await verifyPassword("first-pass99", (await credentialPassword(kept.id))!)).toBe(true);
+  });
+
+  // Regression: an earlier guard refused whenever ANY credential existed, which
+  // broke the seeded/invited admin — it holds an operator-issued password with
+  // passwordSet still false, and setting its own is the whole point of the flow.
+  // That shipped as an opaque 500 on /set-password.
+  it("setOwnPassword ALLOWS an account still on an issued password", async () => {
+    const staff = await usersService.create({ email: "rep@example.com", role: "member", name: "Rep" });
+    // Simulate seed-admin: credential written, passwordSet left false.
+    await usersService.setOwnPassword(staff.publicId, "issued-pass123");
+    await db.update(users).set({ passwordSet: false }).where(eq(users.publicId, staff.publicId));
+
+    await expect(
+      usersService.setOwnPassword(staff.publicId, "chosen-pass4567"),
+    ).resolves.toBeUndefined();
+
+    const row = await rowByPublicId(staff.publicId);
+    expect(row.passwordSet).toBe(true);
+    expect(await verifyPassword("chosen-pass4567", (await credentialPassword(row.id))!)).toBe(true);
   });
 
   it("admin reset resolves a staff email and never touches the credential", async () => {

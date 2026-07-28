@@ -313,16 +313,28 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   // First-login flow: a signed-in user who has no password yet chooses one.
-  // There is no current-password prompt, so this MUST refuse once a password
-  // exists — otherwise a stolen session could overwrite the real password
-  // without knowing it. Changing an existing password goes through better-auth
-  // (/change-password) or the email OTP reset.
+  // There is no current-password prompt here, so this must refuse for anyone who
+  // has already chosen their own password — otherwise a stolen session could
+  // replace it without knowing it. Those users change a password through
+  // better-auth (/change-password) or the email OTP reset.
+  //
+  // "Already chosen" is passwordSet AND a credential existing — not either alone.
+  // Both of the legitimate callers would be blocked by a looser test:
+  //   passwordSet=false, credential present -> seeded/invited account still on an
+  //     operator-issued password; setting their own is the entire point.
+  //   passwordSet=true, no credential       -> customer provisioned at checkout;
+  //     the column defaults true and provisioning writes no credential.
+  // This mirrors the gate on the /set-password page exactly; keep them in step.
   async setOwnPassword(userId: string, newPassword: string): Promise<void> {
-    if (await this.hasPassword(userId)) {
+    const [u] = await db
+      .select({ id: users.id, passwordSet: users.passwordSet })
+      .from(users)
+      .where(eq(users.publicId, userId))
+      .limit(1);
+    if (!u) throw new ValidationError("User not found");
+    if (u.passwordSet && (await this.hasPassword(userId))) {
       throw new ValidationError("You already have a password. Change it from account settings.");
     }
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
-    if (!u) throw new ValidationError("User not found");
     const hash = await hashPassword(newPassword);
     await db.transaction(async (tx) => {
       await this.writeCredentialPassword(tx, u.id, hash);
