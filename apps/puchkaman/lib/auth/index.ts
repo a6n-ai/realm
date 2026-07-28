@@ -23,7 +23,18 @@ export const auth = betterAuth({
     provider: "pg",
     schema: { user: users, account, session, verification },
   }),
-  advanced: { database: { generateId: false } },
+  advanced: {
+    database: { generateId: false },
+    // Trust ONLY x-real-ip, which Caddy overwrites with the real socket peer
+    // (`header_up X-Real-IP {remote_host}`). The default is x-forwarded-for,
+    // whose leftmost token better-auth takes verbatim — and Caddy *appends* to
+    // that header, so a client can prepend any value and pick its own bucket,
+    // defeating every rate limit (sign-in 3/10s, OTP 3/60s) that keys off it.
+    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+  },
+  // ponytail: default in-memory rate-limit store. Correct for one instance;
+  // counters reset on deploy. Move to `storage: "database"` (needs a rateLimit
+  // table migration) if this app is ever scaled past a single process.
   session: { expiresIn: SESSION_MAX_AGE_S },
   emailAndPassword: {
     enabled: true,

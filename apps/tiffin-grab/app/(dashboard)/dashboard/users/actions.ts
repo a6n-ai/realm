@@ -3,6 +3,7 @@
 import type { RoleValue } from "@realm/commons";
 import { ValidationError } from "@realm/commons";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
@@ -40,12 +41,13 @@ export async function setUserFlag(userId: string, flagId: string, enabled: boole
   revalidatePath("/dashboard/users");
 }
 
-// Reset a staff member to the shared default password; they are forced to set
-// their own on next login. Returns the temp password for the admin to share
-// out-of-band (no email/SMS wired yet).
-export async function resetStaffPassword(userId: string): Promise<{ tempPassword: string }> {
+// Admin-initiated password reset for a staff member: mails them the normal
+// 6-digit OTP reset code. The admin never sees or issues a password — nothing
+// is shared out-of-band, and the existing password stays valid until the user
+// completes the reset (so a failed delivery can't lock them out).
+export async function resetStaffPassword(userId: string): Promise<{ email: string }> {
   await requireAdmin();
-  const { tempPassword } = await usersService.resetToDefaultPassword(userId);
-  revalidatePath("/dashboard/users");
-  return { tempPassword };
+  const email = await usersService.assertStaffEmail(userId);
+  await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
+  return { email };
 }

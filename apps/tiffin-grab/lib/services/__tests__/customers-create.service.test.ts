@@ -28,13 +28,14 @@ describe("createCustomer", () => {
   beforeEach(cleanup);
   afterAll(cleanup);
 
-  it("provisions a user + credential account and returns a publicId", async () => {
+  it("provisions a user with no credential account and returns a publicId", async () => {
     const { publicId } = await createCustomer({ fullName: "Walk In", phone: PHONE }, {});
     expect(publicId).toMatch(/^usr_/);
     const [u] = await db.select().from(users).where(eq(users.publicId, publicId));
     expect(u.role).toBe("user");
-    const [acc] = await db.select().from(account).where(eq(account.userId, u.id));
-    expect(acc.providerId).toBe("credential");
+    // Provisioning never issues a password — the customer sets their own.
+    const accts = await db.select().from(account).where(eq(account.userId, u.id));
+    expect(accts).toHaveLength(0);
   });
 
   it("is idempotent by phone — second call returns the same customer", async () => {

@@ -8,11 +8,15 @@
 :80 {
 	encode zstd gzip
 
-	# SSE — stream events immediately, no response buffering (matches prod).
+	# X-Real-IP overwritten with the real socket peer (matches prod) — better-auth
+	# trusts only this header for rate limiting and session IPs.
 	@sse path /api/notifications/stream
 	reverse_proxy @sse web:3000 {
 		flush_interval -1
+		header_up X-Real-IP {remote_host}
 	}
 
-	reverse_proxy web:3000
+	reverse_proxy web:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 }

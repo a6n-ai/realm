@@ -7,11 +7,19 @@
 {$TG_DOMAIN} {
 	encode zstd gzip
 
+	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
+	# client cannot choose it. better-auth trusts only this header for rate
+	# limiting and session IPs — see advanced.ipAddress in lib/auth/index.ts.
+	# Do not drop this without changing that config too.
+
 	# SSE — stream events immediately, no response buffering.
 	@sse path /api/notifications/stream
 	reverse_proxy @sse tiffin-grab-web:3000 {
 		flush_interval -1
+		header_up X-Real-IP {remote_host}
 	}
 
-	reverse_proxy tiffin-grab-web:3000
+	reverse_proxy tiffin-grab-web:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 }

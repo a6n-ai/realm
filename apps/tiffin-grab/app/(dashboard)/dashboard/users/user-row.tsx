@@ -77,9 +77,8 @@ export function FlagToggles({ id, flags }: { id: string; flags: FlagState[] }) {
   );
 }
 
-// Admin-only: reset a staff member to the shared default password. They are
-// forced to set their own on next login; the temp password is shown once here
-// for the admin to relay (no email/SMS wired yet). Staff rows only.
+// Admin-only: mail a staff member the OTP reset code. Nothing is shown to the
+// admin — the code goes to the user's inbox. Staff rows only.
 export function ResetPasswordButton({ id, role }: { id: string; role: RoleValue }) {
   const [pending, start] = useTransition();
   if (role === Role.USER) return null;
@@ -91,13 +90,13 @@ export function ResetPasswordButton({ id, role }: { id: string; role: RoleValue 
       onClick={() =>
         start(async () => {
           try {
-            const { tempPassword } = await resetStaffPassword(id);
-            toast.success(`Temporary password: ${tempPassword}`, {
-              description: "Share it with the user — they'll set their own on next login.",
-              duration: 12000,
+            const { email } = await resetStaffPassword(id);
+            toast.success("Reset code sent", {
+              description: `They'll get a 6-digit code at ${email} to set a new password.`,
+              duration: 8000,
             });
           } catch {
-            toast.error("Could not reset password.");
+            toast.error("Could not send the reset code.");
           }
         })
       }
