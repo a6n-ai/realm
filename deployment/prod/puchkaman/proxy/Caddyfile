@@ -6,5 +6,12 @@
 # puchkaman is the ONLY app on this box. www → apex handled by Caddy.
 puchkaman.ca, www.puchkaman.ca {
 	encode zstd gzip
-	reverse_proxy puchkaman-web:3000
+
+	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
+	# client cannot choose it. better-auth trusts only this header for rate
+	# limiting, and /api/checkout/pay forwards it to Clover for fraud scoring.
+	# Do not drop this without changing lib/auth/index.ts too.
+	reverse_proxy puchkaman-web:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 }
