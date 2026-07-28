@@ -394,7 +394,10 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     });
   }
 
-  // ── Uber Eats image enrichment (route → this service → ProductsRepository)
+  // ── Uber Eats catalogue sync (route → this service → ProductsRepository).
+  // Full product sync (name/description/price/category + photo) while no Clover
+  // merchant is connected; photo-only once Clover owns inventory. The
+  // cloverConnected flag below is what selects between the two.
 
   async syncUberImages(opts: SyncOptions = {}): Promise<SyncResult> {
     const clover = await getCloverConnection(integrationsConfigStore);

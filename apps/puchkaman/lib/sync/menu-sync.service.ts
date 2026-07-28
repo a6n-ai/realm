@@ -22,6 +22,10 @@ export type SyncResult = {
   // Items whose photo changed and was auto-rehosted to our storage this sync
   // (applied immediately, unlike text/price which wait in updatesAvailable).
   imagesUpdated: { publicId: string; name: string }[];
+  // Items whose name/description/price/category/availability were applied from
+  // the source this sync. Only populated while Uber owns inventory, i.e. for
+  // rows not linked to Clover — see diffAndFlag.
+  fieldsUpdated: { publicId: string; name: string; changed: string[] }[];
   unchangedCount: number;
   duplicates: DuplicateCandidate[];
   categoryIssues: { rawCategory: string; items: string[] }[];
@@ -56,7 +60,14 @@ export type SyncOptions = {
 };
 
 /**
- * Uber Eats image enrichment sync.
+ * Uber Eats catalogue sync.
+ *
+ * Scope depends on who owns inventory. With no Clover merchant connected, Uber
+ * is the only catalogue there is, so it owns the full product record —
+ * name, description, price, category and photo. Once a row is linked to Clover
+ * (or a merchant is connected), Clover becomes the source of truth and Uber
+ * contributes the photo only.
+ *
  * All product persistence goes through {@link ProductsRepository} (DAO).
  * Orchestrated from ProductsService for HTTP routes.
  */
@@ -98,6 +109,7 @@ export class MenuSyncService {
       added: [],
       updatesAvailable: [],
       imagesUpdated: [],
+      fieldsUpdated: [],
       unchangedCount: 0,
       duplicates: [],
       categoryIssues: [],
@@ -122,6 +134,7 @@ export class MenuSyncService {
             result,
             opts.redownloadImages ?? false,
             opts.optimizeImages ?? true,
+            cloverConnected,
           );
           continue;
         }
@@ -197,12 +210,48 @@ export class MenuSyncService {
     result: SyncResult,
     redownloadImages: boolean,
     optimize: boolean,
+    cloverConnected: boolean,
   ): Promise<void> {
-    // Uber Eats is image enrichment only. Inventory (name/price/availability)
-    // is owned by Clover when connected — never queue Uber name/price/description
-    // as pending inventory updates, especially when the row is already Clover-linked.
-    // Do not re-apply Uber `available` here: when Clover is disconnected the heal
-    // above already forced Uber-only rows active; writing Uber OOS would undo that.
+    // Who owns this row's inventory fields?
+    //   Clover-linked, or Clover connected → Clover is SoT, Uber contributes the
+    //     photo only. Never overwrite name/price/availability from Uber there.
+    //   Otherwise → Uber is the only catalogue we have, so it owns everything.
+    // Availability deliberately stays out of the Uber-owned set: run() has
+    // already force-activated Uber-only rows so the site is sellable, and
+    // writing Uber's `available` back would undo that on the same pass.
+    const uberOwnsFields = !cloverConnected && !existing.cloverItemId;
+
+    if (uberOwnsFields) {
+      const changed: string[] = [];
+      const patch: Record<string, unknown> = {};
+      if (item.name !== existing.name) {
+        patch.name = item.name;
+        changed.push("name");
+      }
+      if ((item.description ?? null) !== (existing.description ?? null)) {
+        patch.description = item.description;
+        changed.push("description");
+      }
+      // price is numeric(10,2) → compare as a fixed string, not float.
+      const incomingPrice = item.price.toFixed(2);
+      if (incomingPrice !== String(existing.price)) {
+        patch.price = incomingPrice;
+        changed.push("price");
+      }
+      if (item.category && item.category !== existing.category) {
+        patch.category = item.category;
+        changed.push("category");
+      }
+      if (Object.keys(patch).length > 0) {
+        await this.products.updateByInternalId(existing.id, patch);
+        result.fieldsUpdated.push({
+          publicId: existing.publicId,
+          name: item.name,
+          changed,
+        });
+      }
+    }
+
     const urlChanged = (existing.lastSyncedImageUrl ?? null) !== (item.imageUrl ?? null);
     const imageChanged = urlChanged || (redownloadImages && !!item.imageUrl);
 
@@ -227,7 +276,11 @@ export class MenuSyncService {
         ? { pendingSync: null, syncStatus: "synced" as const }
         : { syncStatus: "synced" as const }),
     });
-    result.unchangedCount++;
+    // Only "unchanged" if the field pass above didn't write anything either —
+    // otherwise a name/price change with an unchanged photo would report as a
+    // no-op sync.
+    const wroteFields = result.fieldsUpdated.some((f) => f.publicId === existing.publicId);
+    if (!wroteFields) result.unchangedCount++;
   }
 
   async resolveDuplicate(

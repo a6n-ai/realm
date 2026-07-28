@@ -18,6 +18,7 @@ const STAT_META: Record<string, { label: string; tone: Tone }> = {
   added: { label: "Added", tone: "ok" },
   updatesAvailable: { label: "Updates available", tone: "warn" },
   imagesUpdated: { label: "Photos updated", tone: "ok" },
+  fieldsUpdated: { label: "Details updated", tone: "ok" },
   unchanged: { label: "Unchanged", tone: "muted" },
   duplicates: { label: "Duplicates to resolve", tone: "warn" },
   categoryIssues: { label: "Category issues", tone: "bad" },
@@ -43,6 +44,13 @@ export function SyncSummary({ result }: { result: SyncResult }) {
       key: "imagesUpdated",
       count: result.imagesUpdated.length,
       items: result.imagesUpdated.map((i) => i.name),
+    },
+    {
+      key: "fieldsUpdated",
+      count: result.fieldsUpdated.length,
+      // Name the fields that moved — "Butter Chicken (price, description)" is
+      // reviewable in a way that a bare count is not.
+      items: result.fieldsUpdated.map((i) => `${i.name} (${i.changed.join(", ")})`),
     },
     { key: "unchanged", count: result.unchangedCount, items: [] },
     {
