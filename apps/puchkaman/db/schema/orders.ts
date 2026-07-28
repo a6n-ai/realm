@@ -13,7 +13,11 @@ export const orderStatus = pgEnum("order_status", [
   "failed",
 ]);
 
-export const orderFulfillment = pgEnum("order_fulfillment", ["pickup"]);
+export const orderFulfillment = pgEnum("order_fulfillment", [
+  "pickup",
+  "delivery_instant",
+  "delivery_scheduled",
+]);
 
 /**
  * Mirrors tiffin-grab payment_status (subset) + @realm/payments lifecycle.
@@ -51,6 +55,9 @@ export type OrderPricingSnapshot = {
   }[];
   subtotal: number;
   tax: number;
+  /** Instant "from us" delivery discount (15% off) — omitted when no discount applies. */
+  discountPct?: number;
+  discountAmount?: number;
   total: number;
 };
 
@@ -66,6 +73,13 @@ export const orders = pgTable(
     customerEmail: text("customer_email").notNull(),
     customerPhone: text("customer_phone"),
     note: text("note"),
+    /** Delivery-only fields — null for pickup orders. */
+    deliveryAddress: text("delivery_address"),
+    deliveryLat: numeric("delivery_lat", { precision: 9, scale: 6 }),
+    deliveryLng: numeric("delivery_lng", { precision: 9, scale: 6 }),
+    deliveryDistanceKm: numeric("delivery_distance_km", { precision: 6, scale: 2 }),
+    /** Only set for delivery_scheduled orders — the customer-picked delivery time (ms). */
+    scheduledFor: bigint("scheduled_for", { mode: "number" }),
     subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),
     tax: numeric("tax", { precision: 10, scale: 2 }).notNull().default("0"),
     total: numeric("total", { precision: 10, scale: 2 }).notNull(),

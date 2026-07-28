@@ -270,7 +270,7 @@ export function Footer() {
                 Scarborough, ON
               </p>
               <p>📞 {PHONE_DISPLAY}</p>
-              <p>🕑 Tue–Sun · 12pm – 10pm</p>
+              <p>🕑 Sun–Thu 3pm–2am · Fri–Sat 3pm–3am</p>
               <div className="flex wrap-gap" style={{ marginTop: 4 }}>
                 <Link href="/contact" className="pill pill--yellow">
                   Instagram ↗

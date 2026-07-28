@@ -60,7 +60,7 @@ export default function OrderPage() {
       <PageBanner
         kicker="Order Online"
         title="Get Your Puchka Fix"
-        sub="Build a pickup cart from the menu, pay on-site, we fire it to the POS. Delivery apps still here too."
+        sub="Pickup, instant delivery within 7km, or scheduled delivery beyond that — all with real Clover checkout."
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
@@ -72,9 +72,15 @@ export default function OrderPage() {
             <OrderPickupCta />
           </Reveal>
 
+          <h2 className="display" style={{ fontSize: "1.6rem", margin: "36px 0 4px" }}>
+            Instant Delivery
+          </h2>
+          <p style={{ fontWeight: 500, opacity: 0.75, marginBottom: 18, fontSize: "0.92rem" }}>
+            Within 7km of the store — pick your channel.
+          </p>
           <div
             className="grid"
-            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", marginTop: 28 }}
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))" }}
           >
             {CHANNELS.map((c, i) => (
               <Reveal key={c.name} delay={i * 60}>
@@ -125,11 +131,52 @@ export default function OrderPage() {
                 </div>
               </Reveal>
             ))}
+
+            <Reveal delay={CHANNELS.length * 60}>
+              <div className="card card--green surface-green" style={{ color: "#fff", padding: 26, height: "100%" }}>
+                <div className="flex center between" style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 34 }} aria-hidden="true">
+                    🛵
+                  </div>
+                  <Pill variant="yellow">15% off</Pill>
+                </div>
+                <h3 style={{ fontSize: "1.5rem", marginBottom: 8 }}>From Us</h3>
+                <p style={{ fontWeight: 500, opacity: 0.92, marginBottom: 20 }}>
+                  Skip the app fees — order direct and we deliver it ourselves, 15% cheaper.
+                </p>
+                <Btn page="checkout" variant="yellow" block>
+                  Order Direct →
+                </Btn>
+              </div>
+            </Reveal>
+          </div>
+
+          <h2 className="display" style={{ fontSize: "1.6rem", margin: "36px 0 4px" }}>
+            Scheduled Delivery
+          </h2>
+          <p style={{ fontWeight: 500, opacity: 0.75, marginBottom: 18, fontSize: "0.92rem" }}>
+            Beyond 7km — direct from us only, by appointment.
+          </p>
+          <div className="card" style={{ padding: 26, background: "var(--white)" }}>
+            <div className="flex center between wrap-gap" style={{ marginBottom: 12, gap: 10 }}>
+              <div style={{ fontSize: 34 }} aria-hidden="true">
+                📅
+              </div>
+              <Pill variant="ink">$35 minimum</Pill>
+            </div>
+            <h3 style={{ fontSize: "1.5rem", marginBottom: 8 }}>Book a Delivery Time</h3>
+            <p style={{ fontWeight: 500, opacity: 0.82, marginBottom: 20, maxWidth: 560 }}>
+              Outside our instant-delivery zone? Order ahead and pick a time — same real checkout,
+              you&apos;ll just choose a slot instead of ~15 min pickup.
+            </p>
+            <Btn page="checkout" variant="ink" block>
+              Schedule Delivery →
+            </Btn>
           </div>
 
           <div className="card card--cream" style={{ padding: "clamp(22px,3vw,32px)", marginTop: 28 }}>
             <h3 className="display" style={{ fontSize: "1.5rem", marginBottom: 18 }}>
-              Why Order Pickup?
+              Why Order Direct?
             </h3>
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 18 }}>
               {WHY.map(([e, t, d]) => (

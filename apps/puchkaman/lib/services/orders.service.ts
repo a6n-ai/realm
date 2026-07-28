@@ -21,6 +21,13 @@ import {
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
 import {
+  distanceFromStoreKm,
+  INSTANT_DELIVERY_DISCOUNT_PCT,
+  INSTANT_DELIVERY_RADIUS_KM,
+  SCHEDULED_DELIVERY_MIN_SUBTOTAL,
+} from "@/lib/delivery/distance";
+import { geocodeAddress } from "@/lib/delivery/geocode";
+import {
   createCheckoutSchema,
   payCheckoutSchema,
   type CreateCheckoutInput,
@@ -83,6 +90,9 @@ export type CheckoutCreateResult = {
   pakmsKey: string;
   checkoutSdkUrl: string;
   environment: "sandbox" | "production";
+  fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled";
+  discountAmount?: number;
+  scheduledFor?: string;
 };
 
 export type CheckoutPayResult = {
@@ -335,7 +345,49 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     const subtotal = Number(money(lines.reduce((s, l) => s + l.lineTotal, 0)));
     const tax = 0;
-    const total = Number(money(subtotal + tax));
+
+    // Delivery is resolved server-side from a fresh geocode — the client only ever
+    // supplies the typed address, never the tier or discount (see checkout-schema.ts).
+    let fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled" = "pickup";
+    let deliveryAddress: string | null = null;
+    let deliveryLat: number | null = null;
+    let deliveryLng: number | null = null;
+    let deliveryDistanceKm: number | null = null;
+    let scheduledForMs: number | null = null;
+    let discountAmount = 0;
+
+    if (parsed.fulfillment.type === "delivery") {
+      const point = await geocodeAddress(parsed.fulfillment.address);
+      if (!point) {
+        throw new ValidationError("Couldn't find that delivery address — try adding city and postal code.");
+      }
+      deliveryAddress = parsed.fulfillment.address;
+      deliveryLat = point.lat;
+      deliveryLng = point.lng;
+      deliveryDistanceKm = Number(distanceFromStoreKm(point.lat, point.lng).toFixed(2));
+
+      if (deliveryDistanceKm <= INSTANT_DELIVERY_RADIUS_KM) {
+        fulfillment = "delivery_instant";
+        discountAmount = Number(money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT));
+      } else {
+        fulfillment = "delivery_scheduled";
+        if (subtotal < SCHEDULED_DELIVERY_MIN_SUBTOTAL) {
+          throw new ValidationError(
+            `Orders over $${SCHEDULED_DELIVERY_MIN_SUBTOTAL} required for delivery outside ${INSTANT_DELIVERY_RADIUS_KM}km.`,
+          );
+        }
+        if (!parsed.fulfillment.scheduledFor) {
+          throw new ValidationError("Pick a delivery time — you're outside our instant-delivery zone.");
+        }
+        const scheduled = new Date(parsed.fulfillment.scheduledFor);
+        if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
+          throw new ValidationError("Pick a delivery time in the future.");
+        }
+        scheduledForMs = scheduled.getTime();
+      }
+    }
+
+    const total = Number(money(subtotal - discountAmount + tax));
     if (total <= 0) throw new ValidationError("Order total must be greater than zero");
 
     const snapshot: OrderPricingSnapshot = {
@@ -343,6 +395,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       lines,
       subtotal,
       tax,
+      ...(discountAmount > 0 ? { discountPct: INSTANT_DELIVERY_DISCOUNT_PCT, discountAmount } : {}),
       total,
     };
 
@@ -351,11 +404,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .insert(orders)
         .values({
           status: "pending",
-          fulfillment: "pickup",
+          fulfillment,
           customerName: parsed.contact.name,
           customerEmail: parsed.contact.email.toLowerCase(),
           customerPhone: parsed.contact.phone ?? null,
           note: parsed.contact.note ?? null,
+          deliveryAddress,
+          deliveryLat: deliveryLat != null ? deliveryLat.toFixed(6) : null,
+          deliveryLng: deliveryLng != null ? deliveryLng.toFixed(6) : null,
+          deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
+          scheduledFor: scheduledForMs,
           subtotal: money(subtotal),
           tax: money(tax),
           total: money(total),
@@ -379,15 +437,38 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         }),
       );
 
-      await tx.insert(payments).values({
-        orderId: row.id,
-        status: "awaiting_payment",
-        method: "clover",
-        amount: money(total),
-      });
+      const [pay] = await tx
+        .insert(payments)
+        .values({
+          orderId: row.id,
+          status: "awaiting_payment",
+          method: "clover",
+          amount: money(total),
+        })
+        .returning();
+
+      if (discountAmount > 0) {
+        await ledgerService.record(tx, {
+          orderId: row.id,
+          paymentId: pay.id,
+          direction: "debit",
+          type: "discount",
+          amount: discountAmount,
+          memo: `${(INSTANT_DELIVERY_DISCOUNT_PCT * 100).toFixed(0)}% instant delivery discount`,
+        });
+      }
 
       return row;
     });
+
+    // Kitchen-visible note — delivery orders have no Clover order-type config, so this
+    // is how staff on Register see it's not a walk-in pickup.
+    const note =
+      fulfillment === "delivery_instant"
+        ? `Web delivery (instant) · ${parsed.contact.name} · ${deliveryAddress}`
+        : fulfillment === "delivery_scheduled"
+          ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddress}`
+          : `Web pickup · ${parsed.contact.name}`;
 
     // Push to Clover after local commit so we can fail the order if POS create fails.
     let cloverOrderId: string;
@@ -401,7 +482,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             priceCents: dollarsToCloverCents(l.unitPrice),
           })),
         ),
-        note: `Web pickup · ${parsed.contact.name}`,
+        note,
       });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
@@ -420,6 +501,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       pakmsKey: pakms.apiAccessKey,
       checkoutSdkUrl: cloverCheckoutSdkUrl(environment),
       environment,
+      fulfillment,
+      ...(discountAmount > 0 ? { discountAmount } : {}),
+      ...(scheduledForMs != null ? { scheduledFor: new Date(scheduledForMs).toISOString() } : {}),
     };
   }
 

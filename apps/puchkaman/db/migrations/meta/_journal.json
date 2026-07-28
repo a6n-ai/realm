@@ -64,6 +64,13 @@
       "when": 1785171565700,
       "tag": "0008_fuzzy_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785222979727,
+      "tag": "0009_solid_gorgon",
+      "breakpoints": true
     }
   ]
 }

@@ -12,9 +12,24 @@ const contactSchema = z.object({
   note: z.string().trim().max(500).optional().nullable(),
 });
 
+// Instant vs. scheduled delivery is derived server-side from a fresh geocode of
+// `address`, not asserted by the client — see orders.service.ts createCheckout().
+const fulfillmentSchema = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("pickup") }),
+    z.object({
+      type: z.literal("delivery"),
+      address: z.string().trim().min(5).max(300),
+      /** Required once the server determines the address is outside the instant radius. */
+      scheduledFor: z.string().datetime().optional(),
+    }),
+  ])
+  .default({ type: "pickup" });
+
 export const createCheckoutSchema = z.object({
   items: z.array(cartLineSchema).min(1).max(40),
   contact: contactSchema,
+  fulfillment: fulfillmentSchema,
 });
 
 export const payCheckoutSchema = z.object({

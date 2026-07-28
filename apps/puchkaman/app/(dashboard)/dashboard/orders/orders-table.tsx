@@ -16,12 +16,13 @@ import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.servic
 
 type Row = OrderListRow & { totalLabel: string };
 
-// Sortable keys must match OrderSortColumn. "clover" / "payment" are display-only.
-type OrderCol = OrderSortColumn | "clover" | "payment";
+// Sortable keys must match OrderSortColumn. "clover" / "payment" / "fulfillment" are display-only.
+type OrderCol = OrderSortColumn | "clover" | "payment" | "fulfillment";
 
 const COLUMNS: readonly Column<OrderCol>[] = [
   { key: "customer", label: "Customer", sortable: true },
   { key: "status", label: "Status", sortable: true },
+  { key: "fulfillment", label: "Fulfillment", sortable: false },
   { key: "payment", label: "Payment", sortable: false },
   { key: "clover", label: "Clover", sortable: false },
   { key: "total", label: "Total", sortable: true, align: "right" },
@@ -102,6 +103,11 @@ export function OrdersTable({
             </TableCell>
             <TableCell>
               <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant={r.fulfillment === "pickup" ? "outline" : "secondary"}>
+                {formatLabel(r.fulfillment)}
+              </Badge>
             </TableCell>
             <TableCell>
               <div className="flex flex-col gap-0.5">

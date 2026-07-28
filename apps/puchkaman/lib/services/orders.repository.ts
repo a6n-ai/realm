@@ -15,6 +15,7 @@ export type OrderListRow = {
   customerName: string;
   customerEmail: string;
   status: OrderRow["status"];
+  fulfillment: OrderRow["fulfillment"];
   total: string;
   cloverOrderId: string | null;
   createdAt: number;
@@ -64,6 +65,7 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
           customerName: orders.customerName,
           customerEmail: orders.customerEmail,
           status: orders.status,
+          fulfillment: orders.fulfillment,
           total: orders.total,
           cloverOrderId: orders.cloverOrderId,
           createdAt: orders.createdAt,
@@ -89,6 +91,7 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
         customerName: r.customerName,
         customerEmail: r.customerEmail,
         status: r.status,
+        fulfillment: r.fulfillment,
         total: r.total,
         cloverOrderId: r.cloverOrderId,
         createdAt: r.createdAt,

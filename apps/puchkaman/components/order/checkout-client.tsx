@@ -6,6 +6,7 @@ import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import { money } from "@/lib/cart/types";
+import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 
 type CheckoutSession = {
   orderPublicId: string;
@@ -16,9 +17,16 @@ type CheckoutSession = {
   pakmsKey: string;
   checkoutSdkUrl: string;
   environment: "sandbox" | "production";
+  fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled";
+  discountAmount?: number;
+  scheduledFor?: string;
 };
 
 type Step = "review" | "pay" | "done";
+type Fulfillment = "pickup" | "delivery";
+type AddressCheck =
+  | { eligible: true; tier: "instant" | "scheduled"; distanceKm: number; minSubtotal?: number }
+  | { eligible: false; reason: string };
 
 export function CheckoutClient() {
   const { items, subtotal, clear, hydrated } = useCart();
@@ -26,12 +34,38 @@ export function CheckoutClient() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
+  const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
+  const [address, setAddress] = useState("");
+  const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
+  const [addressChecking, setAddressChecking] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [minScheduledFor] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16));
   const [step, setStep] = useState<Step>("review");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
+
+  async function checkAddress() {
+    if (!address.trim()) return;
+    setAddressChecking(true);
+    setAddressCheck(null);
+    setScheduledFor("");
+    try {
+      const res = await fetch("/api/delivery/check-address", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: address.trim() }),
+      });
+      const data = (await res.json().catch(() => null)) as AddressCheck | null;
+      setAddressCheck(data ?? { eligible: false, reason: "Couldn't check that address — try again." });
+    } catch {
+      setAddressCheck({ eligible: false, reason: "Couldn't check that address — try again." });
+    } finally {
+      setAddressChecking(false);
+    }
+  }
 
   const onCardReady = useCallback((fn: () => Promise<string>) => {
     setTokenize(() => fn);
@@ -53,6 +87,16 @@ export function CheckoutClient() {
       setError("Add at least one item from the menu");
       return;
     }
+    if (fulfillment === "delivery") {
+      if (!addressCheck?.eligible) {
+        setError("Check your delivery address first");
+        return;
+      }
+      if (addressCheck.tier === "scheduled" && !scheduledFor) {
+        setError("Pick a delivery time");
+        return;
+      }
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/checkout", {
@@ -69,6 +113,14 @@ export function CheckoutClient() {
             phone: phone.trim() || null,
             note: note.trim() || null,
           },
+          fulfillment:
+            fulfillment === "delivery"
+              ? {
+                  type: "delivery",
+                  address: address.trim(),
+                  ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
+                }
+              : { type: "pickup" },
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -135,7 +187,12 @@ export function CheckoutClient() {
         </h2>
         <p style={{ fontWeight: 500, maxWidth: 440 }}>
           Thanks{name ? `, ${name}` : ""} — we charged {money(paidTotal ?? 0)} and sent the order to
-          the kitchen POS. Ready in about 15 minutes at 3315 Danforth Ave.
+          the kitchen POS.{" "}
+          {session?.fulfillment === "delivery_instant"
+            ? "On its way to you shortly — instant delivery, usually within 45 min."
+            : session?.fulfillment === "delivery_scheduled" && session.scheduledFor
+              ? `Scheduled for delivery ${new Date(session.scheduledFor).toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" })}.`
+              : "Ready in about 15 minutes at 3315 Danforth Ave."}
         </p>
         <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Btn page="eats" variant="yellow">
@@ -187,10 +244,89 @@ export function CheckoutClient() {
 
         {step === "review" ? (
           <>
-            <p style={{ fontWeight: 500, opacity: 0.8, marginBottom: 16, fontSize: "0.9rem" }}>
-              Pickup at 3315 Danforth Ave · ~15 min. Final total is calculated on the server —
-              client prices are estimates only.
-            </p>
+            <div className="flex wrap-gap" style={{ gap: 8, marginBottom: 14 }}>
+              <button
+                type="button"
+                className={`pill ${fulfillment === "pickup" ? "pill--green" : ""}`}
+                style={{ border: "2.5px solid var(--ink)", cursor: "pointer" }}
+                onClick={() => setFulfillment("pickup")}
+              >
+                🏠 Pickup
+              </button>
+              <button
+                type="button"
+                className={`pill ${fulfillment === "delivery" ? "pill--green" : ""}`}
+                style={{ border: "2.5px solid var(--ink)", cursor: "pointer" }}
+                onClick={() => setFulfillment("delivery")}
+              >
+                🛵 Delivery
+              </button>
+            </div>
+
+            {fulfillment === "pickup" ? (
+              <p style={{ fontWeight: 500, opacity: 0.8, marginBottom: 16, fontSize: "0.9rem" }}>
+                Pickup at 3315 Danforth Ave · ~15 min. Final total is calculated on the server —
+                client prices are estimates only.
+              </p>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                <label className="field" style={{ marginBottom: 10 }}>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>Delivery address</span>
+                  <textarea
+                    className="textarea"
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      setAddressCheck(null);
+                    }}
+                    placeholder="Street, city, postal code"
+                    style={{ minHeight: 60 }}
+                  />
+                </label>
+                <Btn
+                  variant="cream"
+                  size="sm"
+                  disabled={!address.trim() || addressChecking}
+                  onClick={() => void checkAddress()}
+                >
+                  {addressChecking ? "Checking…" : "Check address"}
+                </Btn>
+
+                {addressCheck?.eligible === true ? (
+                  <p style={{ fontWeight: 600, marginTop: 10, fontSize: "0.88rem" }}>
+                    {addressCheck.tier === "instant" ? (
+                      <>
+                        ✓ You&apos;re {addressCheck.distanceKm}km away — instant delivery, 15% off
+                        (~{money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT)} off applied at checkout).
+                      </>
+                    ) : (
+                      <>
+                        You&apos;re {addressCheck.distanceKm}km away — outside instant delivery. Scheduled
+                        delivery available, ${addressCheck.minSubtotal} minimum order. Pick a time below.
+                      </>
+                    )}
+                  </p>
+                ) : addressCheck?.eligible === false ? (
+                  <p style={{ fontWeight: 600, marginTop: 10, fontSize: "0.88rem", color: "var(--red)" }}>
+                    {addressCheck.reason}
+                  </p>
+                ) : null}
+
+                {addressCheck?.eligible === true && addressCheck.tier === "scheduled" ? (
+                  <label className="field" style={{ marginTop: 12 }}>
+                    <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>Delivery time</span>
+                    <input
+                      type="datetime-local"
+                      className="input"
+                      value={scheduledFor}
+                      onChange={(e) => setScheduledFor(e.target.value)}
+                      min={minScheduledFor}
+                    />
+                  </label>
+                ) : null}
+              </div>
+            )}
+
             <div className="checkout-fields">
               <label className="checkout-label">
                 Name *

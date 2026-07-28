@@ -64,8 +64,31 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Fulfillment</dt>
-              <dd className="capitalize">{order.fulfillment}</dd>
+              <dd className="capitalize">{order.fulfillment.replace(/_/g, " ")}</dd>
             </div>
+            {order.deliveryAddress ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Delivery address</dt>
+                <dd className="text-right">
+                  {order.deliveryAddress}
+                  {order.deliveryDistanceKm != null ? (
+                    <span className="text-muted-foreground"> ({Number(order.deliveryDistanceKm)}km)</span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
+            {order.scheduledFor ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Scheduled for</dt>
+                <dd>
+                  {new Date(order.scheduledFor).toLocaleString("en-CA", {
+                    timeZone: "America/Toronto",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Email</dt>
               <dd>{order.customerEmail}</dd>
@@ -105,6 +128,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <dt className="text-muted-foreground">Tax</dt>
               <dd className="tabular-nums">{formatMoney(Number(order.tax))}</dd>
             </div>
+            {order.pricingSnapshot.discountAmount ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Discount ({(order.pricingSnapshot.discountPct ?? 0) * 100}%)</dt>
+                <dd className="tabular-nums">-{formatMoney(order.pricingSnapshot.discountAmount)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-4 font-medium">
               <dt>Total</dt>
               <dd className="tabular-nums">{formatMoney(Number(order.total))}</dd>

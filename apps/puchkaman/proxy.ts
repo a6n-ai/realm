@@ -7,6 +7,7 @@ const PUBLIC_API = [
   "/api/checkout",
   "/api/catering-inquiries",
   "/api/integrations/clover/webhook",
+  "/api/delivery/check-address",
 ];
 
 function unauthorized(): NextResponse {
