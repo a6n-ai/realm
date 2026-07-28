@@ -1,5 +1,5 @@
 export { createRoleGuards } from "./guards";
-export { hashPassword, verifyPassword } from "./password";
+export { hashPassword, verifyPassword, isLegacyHash } from "./password";
 export {
   type SecurityEmailContext,
   type OtpType,

@@ -8,6 +8,13 @@ const nextIdText = sql`(next_id())::text`;
 // "admin") so a future member/customer role doesn't need a schema migration.
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
+// Account lifecycle. Only "active" may obtain a session — enforced in
+// lib/auth/index.ts's session.create.before hook (which fires after the
+// credential check but before a session row exists, so it covers every sign-in
+// method at once) and re-checked on the read path so an already-issued session
+// dies too rather than surviving until expiry.
+export const userStatus = pgEnum("user_status", ["active", "inactive", "suspended"]);
+
 export const users = pgTable(
   "users",
   {
@@ -17,6 +24,7 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     role: userRole("role").notNull().default("user"),
+    status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
     // own on first login. The dashboard gate redirects to /set-password while
     // this is false; setOwnPassword flips it true.

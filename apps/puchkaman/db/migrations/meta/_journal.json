@@ -71,6 +71,13 @@
       "when": 1785222979727,
       "tag": "0009_solid_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785262202299,
+      "tag": "0010_user_status",
+      "breakpoints": true
     }
   ]
 }

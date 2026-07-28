@@ -5,6 +5,7 @@ import {
   PuzzleIcon,
   SettingsIcon,
   UserIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { getCloverConnection } from "@realm/clover";
@@ -44,6 +45,14 @@ export default async function SettingsPage() {
       href: "/dashboard/settings/clover",
     });
   }
+
+  sections.push({
+    key: "users",
+    label: "Users",
+    description: "Dashboard sign-in accounts. Suspend or reactivate access.",
+    icon: UsersIcon,
+    href: "/dashboard/settings/users",
+  });
 
   sections.push({
     key: "account",

@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // outside this layout so it can't trap the user.
   const [u, clover] = await Promise.all([
     db
-      .select({ passwordSet: users.passwordSet, name: users.name })
+      .select({ passwordSet: users.passwordSet, name: users.name, status: users.status })
       .from(users)
       .where(eq(users.publicId, session.user.id))
       .limit(1)
@@ -32,6 +32,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     getCloverConnection(integrationsConfigStore),
   ]);
   if (!u) redirect("/login");
+  // Re-check status on the read path: the session.create.before hook stops a
+  // suspended account signing IN, but a session issued before the suspension
+  // would otherwise stay usable until it expires.
+  if (u.status !== "active") redirect("/login?suspended=1");
   if (!u.passwordSet) redirect("/set-password");
 
   const cloverInstalled = Boolean(clover.installed);

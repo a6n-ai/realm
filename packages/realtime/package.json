@@ -12,5 +12,11 @@
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": { "@realm/commons": "workspace:*" },
   "peerDependencies": { "react": "^19" },
-  "devDependencies": { "@types/react": "^19", "react": "^19", "typescript": "^5", "vitest": "^4.1.9" }
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "react": "^19",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
 }

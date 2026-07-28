@@ -11,6 +11,7 @@ import { account, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp } from "./security-events";
+import { upgradeLegacyPasswordHash } from "./password-upgrade";
 
 const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
@@ -78,6 +79,24 @@ export const auth = betterAuth({
   // Audit: session delete → logout (sign-out, revoke-on-password-reset, etc.).
   databaseHooks: {
     session: {
+      // Login gate: only `active` accounts may get a session. Fires after the
+      // credential check passes but before a session row is written, so a
+      // suspended/inactive user authenticates successfully and still gets
+      // nothing — and it covers every sign-in method at once rather than each
+      // route separately. Existing sessions are re-checked on the read path
+      // (see the dashboard layout).
+      create: {
+        before: async (sess) => {
+          const [u] = await db
+            .select({ status: users.status })
+            .from(users)
+            .where(eq(users.id, BigInt(sess.userId as string)))
+            .limit(1);
+          if (u && u.status !== "active") {
+            throw new APIError("FORBIDDEN", { message: "This account is not active. Contact an administrator." });
+          }
+        },
+      },
       delete: {
         after: async (sess) => {
           try {
@@ -107,6 +126,11 @@ export const auth = betterAuth({
 
       const newSession = ctx.context.newSession;
       if (newSession) {
+        // Opportunistic bcrypt → scrypt upgrade. This is the only point where a
+        // correct plaintext and a DB handle coexist; see password-upgrade.ts.
+        const pw = (ctx.body as { password?: string } | undefined)?.password;
+        if (pw) await upgradeLegacyPasswordHash(String(newSession.session.userId), pw);
+
         try {
           const publicId = (newSession.user as Record<string, unknown>).publicId as string | undefined;
           await recordAudit({
