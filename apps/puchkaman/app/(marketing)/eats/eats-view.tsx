@@ -83,7 +83,7 @@ export function EatsView({
           color="var(--ink)"
           surface="surface-yellow"
         />
-        <div className="wrap" style={{ padding: "40px 20px 80px" }}>
+        <div className="wrap" style={{ padding: "clamp(24px, 6vw, 40px) 20px clamp(48px, 10vw, 80px)" }}>
           <div className="card card--cream" style={{ padding: 28, marginBottom: 20 }}>
             <h2 className="display" style={{ fontSize: "1.5rem", marginBottom: 10 }}>
               No products yet
@@ -133,7 +133,7 @@ export function EatsView({
         </div>
       ) : null}
 
-      <div style={{ position: "sticky", top: 70, zIndex: 30, background: "var(--white)", borderBottom: "var(--border)" }}>
+      <div style={{ position: "sticky", top: "var(--header-h)", zIndex: 30, background: "var(--white)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ overflowX: "auto" }} ref={railRef}>
           <div className="flex" style={{ gap: 8, padding: "12px 0" }}>
             {categories.map((c) => (
@@ -165,9 +165,9 @@ export function EatsView({
       </div>
 
       <div style={{ background: "var(--paper)" }}>
-        <div className="wrap" style={{ padding: "40px 20px 80px" }}>
+        <div className="wrap" style={{ padding: "clamp(24px, 6vw, 40px) 20px clamp(48px, 10vw, 80px)" }}>
           {categories.map((cat) => (
-            <section key={cat.id} id={"cat-" + cat.id} style={{ marginBottom: 56, scrollMarginTop: 140 }}>
+            <section key={cat.id} id={"cat-" + cat.id} style={{ marginBottom: "clamp(36px, 9vw, 56px)", scrollMarginTop: 140 }}>
               <div className="flex center wrap-gap" style={{ gap: 14, marginBottom: 8 }}>
                 <span style={{ fontSize: 34 }} aria-hidden="true">
                   {cat.emoji}
@@ -188,7 +188,7 @@ export function EatsView({
                 {cat.note}
               </p>
               <div
-                className="grid"
+                className="grid eats-grid"
                 style={{ gridTemplateColumns: "repeat(auto-fill, minmax(228px, 1fr))", gridAutoRows: "1fr" }}
               >
                 {cat.items.map((item) => (
@@ -247,20 +247,20 @@ export function EatsView({
                     <div style={{ padding: "14px 15px 16px", flex: 1, display: "flex", flexDirection: "column" }}>
                       <div
                         className="flex"
-                        style={{ justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}
+                        style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}
                       >
                         <h3
                           className="flex"
-                          style={{ fontSize: "1.08rem", lineHeight: 1.05, alignItems: "center", gap: 7, minWidth: 0 }}
+                          style={{ fontSize: "1.08rem", lineHeight: 1.15, alignItems: "flex-start", gap: 7, minWidth: 0 }}
                         >
                           <CloverColorSwatch
                             color={item.cloverColorCode}
                             size={12}
-                            className="rounded-[1px] border-[1.5px] border-[var(--ink)]"
+                            className="rounded-[1px] border-[1.5px] border-[var(--ink)] mt-[4px]"
                           />
-                          <span style={{ minWidth: 0 }}>{item.name}</span>
+                          <span className="clamp-2" style={{ minWidth: 0 }}>{item.name}</span>
                         </h3>
-                        <span className="display" style={{ fontSize: "1.12rem", color: "var(--green)", flexShrink: 0 }}>
+                        <span className="display" style={{ fontSize: "1.12rem", color: "var(--green)", flexShrink: 0, lineHeight: 1.15 }}>
                           ${item.price.toFixed(0)}
                         </span>
                       </div>

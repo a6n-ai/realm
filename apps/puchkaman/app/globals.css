@@ -51,6 +51,14 @@
   --maxw: 1240px;
   --font: var(--font-archivo), 'Archivo', system-ui, sans-serif;
   --mono: var(--font-space-mono), 'Space Mono', ui-monospace, monospace;
+
+  /* Header bar height — used by chrome.tsx (nav height + mobile-menu offset)
+     and eats-view.tsx (sticky category rail offset). Mobile-only reduction
+     below (~20%); desktop stays 70px. */
+  --header-h: 70px;
+}
+@media (max-width: 879px) {
+  :root { --header-h: 56px; }
 }
 
 /* ============================================================
@@ -163,6 +171,11 @@ body:not(:has(.crm-app)) :is(h1, h2, h3, h4) {
 .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
 section { position: relative; }
 .section-pad { padding: 64px 0; }
+@media (max-width: 879px) {
+  /* Same rhythm everywhere would waste a disproportionate share of a small
+     viewport — tighten to the 8px scale (5x) on phones/tablets. */
+  .section-pad { padding: 40px 0; }
+}
 
 /* ============================================================
    Shadow / border / fill SYSTEM
@@ -270,6 +283,11 @@ section { position: relative; }
   color: var(--btn-fg);
 }
 .btn--lg     { padding: 18px 28px; font-size: 1.1rem; border-radius: var(--r); }
+@media (max-width: 879px) {
+  /* Still well above the 44px touch-target minimum, just less bulky when
+     several lg buttons stack full-width on a phone (e.g. the home hero). */
+  .btn--lg { padding: 15px 22px; }
+}
 .btn--block  { width: 100%; }
 .btn--sm     { padding: 9px 14px; font-size: 0.82rem; box-shadow: 3px 3px 0 var(--sh-c); }
 .btn--sm:hover  { box-shadow: 5px 5px 0 var(--sh-c); }
@@ -700,6 +718,15 @@ header a:active .logo-mark {
 }
 @media (max-width: 879px) {
   .nav-order { display: none !important; }
+}
+@media (max-width: 374px) {
+  /* At <375px the header (logo wordmark + theme/cart/burger icons) was
+     overflowing past the viewport edge — the icon trio alone (44px each,
+     the accessible-minimum touch size, so they can't shrink further) plus
+     wordmark needed a few px trimmed from padding/gaps to fit. */
+  .header-bar { padding-left: 14px; padding-right: 14px; }
+  .header-logo { gap: 6px !important; }
+  .header-icons { gap: 6px !important; }
 }
 .nav-link:hover { background: var(--white) !important; border-color: var(--ink) !important; }
 .foot-link:hover { color: var(--yellow); }
@@ -1170,6 +1197,23 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 .eats-card {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (max-width: 879px) {
+  /* Two columns instead of one on phones — these grids' original px floors
+     (228-280px) never fit two columns on any target phone width, so every
+     card was a full-width row. min(floor, Nvw) keeps each grid's original
+     desktop floor above 880px while safely fitting two columns down to
+     320px (verified against 320/360/375/390/414/430). */
+  .eats-grid,
+  .bs-grid,
+  .fusion-menu-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(228px, 40vw), 1fr)) !important;
+    gap: 12px !important;
+  }
+  .ig-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(170px, 38vw), 1fr)) !important;
+    gap: 10px !important;
+  }
 }
 @media (hover: hover) {
   .eats-card:hover {

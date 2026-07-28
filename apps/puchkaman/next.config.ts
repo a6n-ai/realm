@@ -16,6 +16,15 @@ const nextConfig: NextConfig = {
   // natively without remotePatterns.
   images: {
     remotePatterns: [{ protocol: "https", hostname: "*.cloudfront.net" }],
+    // Next defaults /_next/image responses to Content-Disposition: attachment
+    // (XSS defense for unoptimized/passthrough SVG delivery). Safari honours
+    // that even for <img> embeds and refuses to render the image inline,
+    // showing a broken-image icon — reproduced on real iPhone Safari, not in
+    // Chromium-based tooling. Safe to relax here: uploads are restricted to
+    // PNG/JPEG/WebP/GIF (no SVG, see app/api/files/upload/validate.ts) and
+    // every image is re-encoded through sharp both at upload/sync time and by
+    // this optimizer, so there's no raw-passthrough vector to guard against.
+    contentDispositionType: "inline",
   },
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
   // /menu and /productsmenu were both live public URLs before the rename to

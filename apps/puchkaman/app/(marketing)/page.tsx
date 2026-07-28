@@ -20,16 +20,20 @@ import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 // deploy + follow-up task for adding one).
 export const dynamic = "force-dynamic";
 
-type BestSellerCard = { name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
+// `key` is a stable React key — product *names* aren't unique (the catalog
+// genuinely has multiple distinct products sharing a display name), so
+// keying by name collides. publicId for real products, a static string for
+// the hardcoded fallback (already unique there).
+type BestSellerCard = { key: string; name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
 
 // Static fallback (no photos) for a fresh DB with nothing marked featured yet.
 const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
-  { name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "green" },
-  { name: "Dahi Puchka", tag: "Cooling", desc: "Crispy shells loaded with sweet yogurt & chutneys.", price: "$7" },
-  { name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "green" },
-  { name: "Vada Pav", tag: "Bombay", desc: "Mumbai's spicy potato slider with garlic chutney.", price: "$6" },
-  { name: "Pav Bhaji", tag: "Buttery", desc: "Mashed veg curry, toasted buttery pav, lime.", price: "$10" },
-  { name: "Kathi Rolls", tag: "Wrapped", desc: "Flaky paratha rolled with smoky fillings.", price: "$9" },
+  { key: "aloo-puchka", name: "Aloo Puchka", tag: "Classic", desc: "Spiced potato, tangy tamarind water, the OG crunch.", price: "$6", sticker: "#1 SELLER", sv: "green" },
+  { key: "dahi-puchka", name: "Dahi Puchka", tag: "Cooling", desc: "Crispy shells loaded with sweet yogurt & chutneys.", price: "$7" },
+  { key: "fusion-puchkas", name: "Fusion Puchkas", tag: "Viral", desc: "Chicken corn cheese, schezwan paneer & more.", price: "$9", sticker: "🔥 VIRAL", sv: "green" },
+  { key: "vada-pav", name: "Vada Pav", tag: "Bombay", desc: "Mumbai's spicy potato slider with garlic chutney.", price: "$6" },
+  { key: "pav-bhaji", name: "Pav Bhaji", tag: "Buttery", desc: "Mashed veg curry, toasted buttery pav, lime.", price: "$10" },
+  { key: "kathi-rolls", name: "Kathi Rolls", tag: "Wrapped", desc: "Flaky paratha rolled with smoky fillings.", price: "$9" },
 ];
 
 const REVIEWS = [
@@ -72,6 +76,7 @@ export default async function HomePage() {
     ? picks.map((p) => {
         const badge = (p.tags ?? []).find((t) => TAG_STYLE[t]);
         return {
+          key: p.publicId,
           name: p.name,
           tag: CATEGORIES[p.category as CategoryId]?.name ?? p.category,
           desc: p.description ?? "",
@@ -189,7 +194,7 @@ export default async function HomePage() {
           <SectionHead kicker="Crowd Favourites" title="The Best Sellers" sub="The dishes Scarborough keeps coming back for. Tap any to see the full menu." />
           <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {cards.map((d, i) => (
-              <Reveal key={d.name} delay={i * 60}>
+              <Reveal key={d.key} delay={i * 60}>
                 <Link href="/eats" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
                     <ProductImage image={d.image} name={d.name} />
