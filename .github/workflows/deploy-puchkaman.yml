@@ -92,13 +92,12 @@ jobs:
             git -C "$REPO" pull --ff-only
             cd "$REPO/deployment/prod/puchkaman"
             docker network inspect edge >/dev/null 2>&1 || docker network create edge
-            # The Caddyfile is a SINGLE-FILE bind mount, which binds the file's
-            # inode — and `git pull` replaces the file rather than editing it in
-            # place. A long-lived container therefore keeps reading the original
-            # inode forever: plain `up -d` won't recreate it (the service
-            # definition is unchanged) and `caddy reload` would just re-read the
-            # stale in-container copy. Only recreating the container re-binds the
-            # mount. Costs a sub-second ingress blip; certs live in a volume and
-            # are untouched.
-            (cd proxy && docker compose pull && docker compose up -d --force-recreate --wait)
+            # Caddy reads its config only at startup, and `up -d` does not
+            # recreate the container when only the Caddyfile changed. conf/ is
+            # mounted as a directory (see proxy/docker-compose.yml), so the file
+            # resolves fresh and an explicit reload applies edits with no restart
+            # and no dropped connections. An invalid config fails the deploy here
+            # rather than leaving the old one serving.
+            (cd proxy && docker compose pull && docker compose up -d --wait)
+            (cd proxy && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile)
             ./deploy.sh

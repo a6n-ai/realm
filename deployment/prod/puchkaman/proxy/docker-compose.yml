@@ -10,7 +10,14 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Mount the DIRECTORY, never the file. A single-file bind mount binds that
+      # file's inode, and `git pull` replaces the file rather than editing it in
+      # place — so a long-lived container would read the original inode forever
+      # and `caddy reload` would keep re-reading a stale copy. Mounting the dir
+      # makes /etc/caddy/Caddyfile resolve fresh on every open, so a reload picks
+      # up edits without recreating the container. conf/ holds only the Caddyfile
+      # (compose file and .env.production stay outside it, unmounted).
+      - ./conf:/etc/caddy:ro
       - caddy_data:/data # persists issued certs across restarts
       - caddy_config:/config
     networks:

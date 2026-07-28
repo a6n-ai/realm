@@ -7,6 +7,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Directory mount, matching prod — see the note in prod/proxy/docker-compose.yml.
+      - ./conf:/etc/caddy:ro
     depends_on:
       - web
