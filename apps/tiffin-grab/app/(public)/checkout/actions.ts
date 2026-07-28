@@ -38,7 +38,14 @@ async function maybeSendAccountSetup(email: string | undefined | null): Promise<
       .where(eq(users.email, email))
       .limit(1);
     if (u && !u.password) {
-      await auth.api.sendVerificationEmail({ body: { email, callbackURL: "/set-password" } });
+      // Absolute callback URL on purpose: a relative one makes better-auth infer
+      // the origin from the request, which is fragile behind a proxy and breaks
+      // outright if the API and site ever differ in host. BETTER_AUTH_URL is the
+      // same value baseURL is built from.
+      const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
+      await auth.api.sendVerificationEmail({
+        body: { email, callbackURL: `${origin}/set-password` },
+      });
     }
   } catch (err) {
     log.error({ err }, "account-setup email failed");
