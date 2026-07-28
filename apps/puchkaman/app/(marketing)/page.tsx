@@ -9,10 +9,16 @@ import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 
-// Home reads live products (real photos rehosted to our storage). ISR instead of
-// force-dynamic — most visitors get a cached response (no DB round-trip), and
-// admin/sync changes still show up within a minute without a rebuild.
-export const revalidate = 60;
+// Home reads live products (real photos rehosted to our storage). force-dynamic
+// so newly featured/synced items and their images show without a rebuild.
+//
+// Tried switching this to ISR (`revalidate = 60`) for a caching win, but the CI
+// Docker build has no real DB at build time (only a fake unreachable
+// DATABASE_URL placeholder) and Next tries to prerender ISR/static pages during
+// `next build`, which crashed the build with ECONNREFUSED. Revisit once the
+// build pipeline has a real build-time Postgres (see the failed 2026-07-28
+// deploy + follow-up task for adding one).
+export const dynamic = "force-dynamic";
 
 type BestSellerCard = { name: string; tag: string; desc: string; price: string; sticker?: string; sv?: string; image: FileDetail | null };
 

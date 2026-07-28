@@ -6,9 +6,11 @@ import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
 
-// ISR instead of force-dynamic — cached response for most visitors, still picks
-// up admin/sync catalog changes within a minute.
-export const revalidate = 60;
+// Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
+// no real DB at build time and Next tries to prerender ISR/static pages during
+// `next build`, which crashed the build. Reverted to force-dynamic until the
+// build pipeline has a real build-time Postgres.
+export const dynamic = "force-dynamic";
 
 type FusionCard = { name: string; desc: string; price: string; badge: string; badgeViral: boolean; image: FileDetail | null };
 
