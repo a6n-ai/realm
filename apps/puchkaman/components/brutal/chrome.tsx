@@ -77,7 +77,10 @@ export function ThemeToggle() {
 function Logo({
   size = 50,
   wordmarkColor = "var(--green)",
-  wordmarkSize = "1.35rem",
+  // clamp() so this stays pixel-identical to the old fixed 1.35rem from
+  // ~480px up (i.e. everywhere it used to render) but scales down on very
+  // narrow phones — at 320px this was overflowing past the header icons.
+  wordmarkSize = "clamp(0.85rem, 4.5vw, 1.35rem)",
   priority = false,
 }: {
   size?: number;
@@ -86,7 +89,7 @@ function Logo({
   priority?: boolean;
 } = {}) {
   return (
-    <Link href="/" aria-label="Puchkaman home" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+    <Link href="/" aria-label="Puchkaman home" className="header-logo" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
       <span className="logo-mark" style={{ width: size, height: size }}>
         <Image
           src="/logo.webp"
@@ -97,7 +100,7 @@ function Logo({
           className="logo-mark__img"
         />
       </span>
-      <span className="display" style={{ fontSize: wordmarkSize, letterSpacing: "-0.04em", color: wordmarkColor }}>
+      <span className="display" style={{ fontSize: wordmarkSize, letterSpacing: "-0.04em", color: wordmarkColor, whiteSpace: "nowrap" }}>
         PUCHKAMAN
       </span>
     </Link>
@@ -122,7 +125,7 @@ export function Nav() {
   return (
     <header style={{ position: "sticky", top: 0, zIndex: 50 }}>
       <div style={{ background: "var(--page-bg)", borderBottom: "var(--border)" }}>
-        <div className="wrap flex center between" style={{ height: 70 }}>
+        <div className="wrap header-bar flex center between" style={{ height: "var(--header-h)" }}>
           <Logo priority />
           <nav className="nav-desk" style={{ display: "none", alignItems: "center", gap: 2 }}>
             {NAV_LINKS.map(([p, label, short]) => (
@@ -146,7 +149,7 @@ export function Nav() {
               </Link>
             ))}
           </nav>
-          <div className="flex center" style={{ gap: 8 }}>
+          <div className="flex center header-icons" style={{ gap: 8 }}>
             <ThemeToggle />
             <NavCartButton />
             <Btn page="order" variant="green" size="sm" className="nav-order">
@@ -182,7 +185,7 @@ export function Nav() {
         <div
           style={{
             position: "fixed",
-            inset: "70px 0 0 0",
+            inset: "var(--header-h) 0 0 0",
             background: "var(--page-bg)",
             zIndex: 49,
             overflowY: "auto",

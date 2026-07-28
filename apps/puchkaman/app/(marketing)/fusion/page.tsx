@@ -12,7 +12,11 @@ import { TAG_STYLE } from "@/lib/menu-categories";
 // build pipeline has a real build-time Postgres.
 export const dynamic = "force-dynamic";
 
-type FusionCard = { name: string; desc: string; price: string; badge: string; badgeViral: boolean; image: FileDetail | null };
+// `key` is a stable React key — product *names* aren't unique (the catalog
+// genuinely has multiple distinct products sharing a display name), so
+// keying by name collides. publicId for real products, a static string for
+// the hardcoded fallback (already unique there).
+type FusionCard = { key: string; name: string; desc: string; price: string; badge: string; badgeViral: boolean; image: FileDetail | null };
 
 const FUSION_ITEMS: [string, string, string, string][] = [
   ["Chicken Corn Cheese Puchka", "Creamy corn, melty cheese, juicy chicken. The one that went viral.", "$10", "🔥 Most Viral"],
@@ -38,6 +42,7 @@ export default async function FusionPage() {
     ? fusionProducts.map((p) => {
         const tag = (p.tags ?? []).find((t) => TAG_STYLE[t]);
         return {
+          key: p.publicId,
           name: p.name,
           desc: p.description ?? "",
           price: `$${Number(p.price).toFixed(0)}`,
@@ -46,7 +51,7 @@ export default async function FusionPage() {
           image: (p.image as FileDetail | null) ?? null,
         };
       })
-    : FUSION_ITEMS.map(([name, desc, price, badge]) => ({ name, desc, price, badge, badgeViral: badge.includes("Viral"), image: null }));
+    : FUSION_ITEMS.map(([name, desc, price, badge]) => ({ key: name, name, desc, price, badge, badgeViral: badge.includes("Viral"), image: null }));
   const videoUrl = (fusionProducts.find((p) => p.image)?.image as FileDetail | null)?.url ?? null;
 
   return (
@@ -140,9 +145,9 @@ export default async function FusionPage() {
       <section className="section-pad surface-ink" style={{ background: "var(--ink)", color: "var(--cream)", borderBottom: "var(--border)" }}>
         <div className="wrap">
           <SectionHead kicker="Start Here" title="Best Fusion Puchkas To Try" light sub="New to fusion? These are the crowd-tested winners." />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+          <div className="grid fusion-menu-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {fusionCards.map((c, i) => (
-              <Reveal key={c.name} delay={i * 50}>
+              <Reveal key={c.key} delay={i * 50}>
                 <div className="card card--lift" style={{ background: "var(--white)", color: "var(--ink)", overflow: "hidden", height: "100%" }}>
                   <div style={{ position: "relative" }}>
                     <ProductImage image={c.image} name={c.name} />
