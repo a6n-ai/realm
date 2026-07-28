@@ -19,7 +19,6 @@ const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
-  trustHost: true,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: { user: users, account, session, verification },
@@ -38,11 +37,17 @@ export const auth = betterAuth({
   // ponytail: default in-memory rate-limit store. Correct for one instance;
   // counters reset on deploy. Move to `storage: "database"` (needs a rateLimit
   // table migration) if this app is ever scaled past a single process.
-  session: { expiresIn: SESSION_MAX_AGE_S },
+  // freshAge gates sensitive endpoints (change-email, delete-user) on a
+  // recently-authenticated session. Default is 24h, which is most of a working
+  // day against a 30-day session; 1h keeps a walked-away browser from being
+  // enough to change the account's email.
+  session: { expiresIn: SESSION_MAX_AGE_S, freshAge: 60 * 60 },
   emailAndPassword: {
     enabled: true,
     password: betterAuthPassword,
-    minPasswordLength: 8,
+    // Enforced on sign-up / change / reset only — never on sign-in, so raising
+    // this cannot lock out an existing account with a shorter password.
+    minPasswordLength: 12,
     maxPasswordLength: 256,
     requireEmailVerification: false, // customers are phone-first; email optional
     // Password reset is OTP-based (emailOTP plugin below); no reset links.

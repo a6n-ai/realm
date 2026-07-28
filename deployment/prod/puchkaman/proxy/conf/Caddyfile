@@ -3,8 +3,16 @@
 	email {$ACME_EMAIL}
 }
 
-# puchkaman is the ONLY app on this box. www → apex handled by Caddy.
-puchkaman.ca, www.puchkaman.ca {
+# www → apex. This block previously SERVED www alongside the apex rather than
+# redirecting, which made www a second live origin: BETTER_AUTH_URL is the apex,
+# so a sign-in posted from www carries an Origin better-auth's CSRF check
+# rejects. Redirecting removes the second origin instead of allow-listing it.
+www.puchkaman.ca {
+	redir https://puchkaman.ca{uri} permanent
+}
+
+# puchkaman is the ONLY app on this box.
+puchkaman.ca {
 	encode zstd gzip
 
 	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
