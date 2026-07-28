@@ -71,6 +71,16 @@ export function CheckoutClient() {
     setTokenize(() => fn);
   }, []);
 
+  // Order Direct / Schedule Delivery on /order link here with ?fulfillment=delivery
+  // so customers don't have to re-select what they just told us they wanted.
+  // Read via window.location instead of useSearchParams() to avoid a Suspense
+  // boundary requirement for something this minor.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("fulfillment") === "delivery") {
+      setFulfillment("delivery");
+    }
+  }, []);
+
   useEffect(() => {
     if (step === "pay" && items.length === 0 && !session) {
       setStep("review");

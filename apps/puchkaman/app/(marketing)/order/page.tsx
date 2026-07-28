@@ -1,5 +1,6 @@
 import { Btn, PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { OrderDirectCta } from "@/components/order/order-direct-cta";
 import { OrderPickupCta } from "@/components/order/order-pickup-cta";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 
@@ -144,9 +145,7 @@ export default function OrderPage() {
                 <p style={{ fontWeight: 500, opacity: 0.92, marginBottom: 20 }}>
                   Skip the app fees — order direct and we deliver it ourselves, 15% cheaper.
                 </p>
-                <Btn page="checkout" variant="yellow" block>
-                  Order Direct →
-                </Btn>
+                <OrderDirectCta />
               </div>
             </Reveal>
           </div>
@@ -169,7 +168,7 @@ export default function OrderPage() {
               Outside our instant-delivery zone? Order ahead and pick a time — same real checkout,
               you&apos;ll just choose a slot instead of ~15 min pickup.
             </p>
-            <Btn page="checkout" variant="ink" block>
+            <Btn href="/checkout?fulfillment=delivery" variant="ink" block>
               Schedule Delivery →
             </Btn>
           </div>
