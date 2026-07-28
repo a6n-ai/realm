@@ -5,11 +5,11 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { users, account } = await import("@/db/schema");
-const { verifyPassword, DEFAULT_TEMP_PASSWORD } = await import("@/lib/auth/password");
+const { verifyPassword } = await import("@/lib/auth/password");
 const { createCustomer } = await import("../customers.service");
 const { usersService } = await import("../users.service");
 
-const PHONES = ["+16475550101", "+16475550102", "+16475550103"];
+const PHONES = ["+16475550101", "+16475550102", "+16475550103", "+16475550104"];
 const EMAILS = ["rep@example.com"];
 
 // Scope cleanup to only the identifiers this file creates — the shared DB holds
@@ -37,19 +37,17 @@ describe("first-login password flow (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("provisions a customer needing a password set, with a credential hash", async () => {
+  it("provisions a customer with NO password at all", async () => {
     const { publicId } = await createCustomer(
       { fullName: "New Cust", phone: "+16475550101" },
       { actorId: null },
     );
     const row = await rowByPublicId(publicId);
-    expect(row.passwordSet).toBe(false);
-    const hash = await credentialPassword(row.id);
-    expect(hash).toBeTruthy();
-    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
+    expect(await credentialPassword(row.id)).toBeNull();
+    expect(await usersService.hasPassword(publicId)).toBe(false);
   });
 
-  it("setOwnPassword replaces the credential and clears the must-set flag", async () => {
+  it("setOwnPassword writes the credential and marks the password set", async () => {
     const { publicId } = await createCustomer(
       { fullName: "Setter", phone: "+16475550102" },
       { actorId: null },
@@ -59,26 +57,33 @@ describe("first-login password flow (integration)", () => {
     expect(row.passwordSet).toBe(true);
     const hash = await credentialPassword(row.id);
     expect(await verifyPassword("my-real-pass9", hash!)).toBe(true);
+    expect(await usersService.hasPassword(publicId)).toBe(true);
   });
 
-  it("admin reset re-arms a staff member's default password and must-set flag", async () => {
-    // Staff created without a credential; reset both creates one and forces set.
-    const staff = await usersService.create({ email: "rep@example.com", role: "member", name: "Rep" });
-    expect(await credentialPassword(staff.id)).toBeNull();
-
-    const { tempPassword } = await usersService.resetToDefaultPassword(staff.publicId);
-    expect(tempPassword).toBe(DEFAULT_TEMP_PASSWORD);
-    const row = await rowByPublicId(staff.publicId);
-    expect(row.passwordSet).toBe(false);
-    const hash = await credentialPassword(row.id);
-    expect(await verifyPassword(DEFAULT_TEMP_PASSWORD, hash!)).toBe(true);
-  });
-
-  it("refuses to reset a customer (non-staff) password", async () => {
+  // No current-password prompt on this path, so a second call would be a
+  // session-theft takeover. It must refuse once a password exists.
+  it("setOwnPassword refuses to overwrite an existing password", async () => {
     const { publicId } = await createCustomer(
-      { fullName: "Cust", phone: "+16475550103" },
+      { fullName: "Twice", phone: "+16475550103" },
       { actorId: null },
     );
-    await expect(usersService.resetToDefaultPassword(publicId)).rejects.toThrow();
+    await usersService.setOwnPassword(publicId, "first-pass99");
+    await expect(usersService.setOwnPassword(publicId, "attacker-pass9")).rejects.toThrow();
+    const row = await rowByPublicId(publicId);
+    expect(await verifyPassword("first-pass99", (await credentialPassword(row.id))!)).toBe(true);
+  });
+
+  it("admin reset resolves a staff email and never touches the credential", async () => {
+    const staff = await usersService.create({ email: "rep@example.com", role: "member", name: "Rep" });
+    expect(await usersService.assertStaffEmail(staff.publicId)).toBe("rep@example.com");
+    expect(await credentialPassword(staff.id)).toBeNull();
+  });
+
+  it("refuses an admin reset for a customer (non-staff)", async () => {
+    const { publicId } = await createCustomer(
+      { fullName: "Cust", phone: "+16475550104" },
+      { actorId: null },
+    );
+    await expect(usersService.assertStaffEmail(publicId)).rejects.toThrow();
   });
 });

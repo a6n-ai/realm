@@ -3,7 +3,7 @@ import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema }
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, session, users } from "@/db/schema";
-import { hashPassword, verifyPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit } from "./session-service";
 import { pickUserWritable } from "./users-writable";
 
@@ -312,11 +312,15 @@ class UsersService extends SessionUpdatableService<typeof users> {
     }
   }
 
-  // First-login flow: the signed-in user sets their own password, replacing the
-  // issued default. No current-password prompt (they authenticated with the
-  // temp one already) and no other sessions to revoke on first login, so this
-  // writes the credential directly rather than routing through better-auth.
+  // First-login flow: a signed-in user who has no password yet chooses one.
+  // There is no current-password prompt, so this MUST refuse once a password
+  // exists — otherwise a stolen session could overwrite the real password
+  // without knowing it. Changing an existing password goes through better-auth
+  // (/change-password) or the email OTP reset.
   async setOwnPassword(userId: string, newPassword: string): Promise<void> {
+    if (await this.hasPassword(userId)) {
+      throw new ValidationError("You already have a password. Change it from account settings.");
+    }
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u) throw new ValidationError("User not found");
     const hash = await hashPassword(newPassword);
@@ -326,20 +330,28 @@ class UsersService extends SessionUpdatableService<typeof users> {
     });
   }
 
-  // Admin resets a staff member back to the shared default password. Flips
-  // passwordSet false so the staff member is forced to /set-password on their
-  // next login. Returns the temp password for the admin to share out-of-band
-  // (no email/SMS wired yet). Staff-only — never a customer row.
-  async resetToDefaultPassword(userId: string): Promise<{ tempPassword: string }> {
+  // True once the user has chosen a password of their own. The credential row is
+  // only ever written by a set/change the user performed — provisioning never
+  // issues one — so its absence is the authoritative "must set a password".
+  async hasPassword(userId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ password: account.password })
+      .from(account)
+      .innerJoin(users, eq(users.id, account.userId))
+      .where(and(eq(users.publicId, userId), eq(account.providerId, "credential")))
+      .limit(1);
+    return Boolean(row?.password);
+  }
+
+  // Admin-initiated password reset for a staff member. Staff-only — never a
+  // customer row. Delivery is the normal email OTP reset; no password is ever
+  // issued on the user's behalf, so nothing is shared out-of-band.
+  async assertStaffEmail(userId: string): Promise<string> {
     await this.assertStaff(userId);
-    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
+    const [u] = await db.select({ email: users.email }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u) throw new ValidationError("User not found");
-    const hash = await hashPassword(DEFAULT_TEMP_PASSWORD);
-    await db.transaction(async (tx) => {
-      await this.writeCredentialPassword(tx, u.id, hash);
-      await tx.update(users).set({ passwordSet: false }).where(eq(users.id, u.id));
-    });
-    return { tempPassword: DEFAULT_TEMP_PASSWORD };
+    if (!u.email) throw new ValidationError("This user has no email address to send a reset to.");
+    return u.email;
   }
 
   private async assertFree(userId: string, field: "phone" | "email", value: string) {

@@ -4,8 +4,7 @@ import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@realm/database";
 import { db } from "@/db/client";
-import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
-import { hashPassword, DEFAULT_TEMP_PASSWORD } from "@/lib/auth/password";
+import { inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { ledgerService } from "./ledger.service";
 
@@ -25,22 +24,15 @@ export async function provisionCustomerByPhone(
     const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, contact.email)).limit(1);
     if (clash) throw new ValidationError("That email is already in use");
   }
+  // No credential row: a provisioned customer has NO password until they choose
+  // one (checkout mails them a verify link → /set-password; otherwise the email
+  // OTP reset works). Never issue a password on their behalf.
   const inserted = await tx
     .insert(users)
-    // passwordSet:false — customer holds the default password and is forced to
-    // set their own on first login (the /dashboard gate → /set-password).
-    .values({ phone: contact.phone, email: contact.email, name: contact.fullName, role: "user", createdBy, passwordSet: false })
+    .values({ phone: contact.phone, email: contact.email, name: contact.fullName, role: "user", createdBy })
     .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
     .returning({ id: users.id });
-  if (inserted[0]?.id) {
-    await tx.insert(account).values({
-      accountId: String(inserted[0].id),
-      providerId: "credential",
-      userId: inserted[0].id,
-      password: await hashPassword(DEFAULT_TEMP_PASSWORD),
-    });
-    return inserted[0].id;
-  }
+  if (inserted[0]?.id) return inserted[0].id;
   const [raced] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, contact.phone)).limit(1);
   return raced.id;
 }
