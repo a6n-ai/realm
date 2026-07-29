@@ -14,7 +14,7 @@ const { resetPoolCache } = await import("../inquiry-user-config.service");
 const seededUserIds: bigint[] = [];
 
 async function seedMember(name: string) {
-  const [u] = await db.insert(users).values({ name, role: "member" }).returning({ id: users.id, publicId: users.publicId });
+  const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name, role: "member" }).returning({ id: users.id, publicId: users.publicId });
   seededUserIds.push(u.id);
   return u;
 }

@@ -7,7 +7,8 @@ import { inquiriesService } from "@/lib/services/inquiries.service";
 import { createCustomer } from "@/lib/services/customers.service";
 
 type Source = { sourceKey: string; subSourceKey?: string };
-type Contact = { fullName: string; phone: string; email?: string };
+// Email is required on every account — it is the login path.
+type Contact = { fullName: string; phone: string; email: string };
 type Interest = {
   planInterest?: string;
   mealSizeInterest?: string;

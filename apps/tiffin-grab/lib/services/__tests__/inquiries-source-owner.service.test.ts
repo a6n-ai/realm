@@ -28,7 +28,7 @@ describe("inquiriesService source + owner resolution", () => {
   it("manual (non-inbound) source assigns currentOwner to the acting user", async () => {
     const [staff] = await db
       .insert(users)
-      .values({ name: "Agent Owner", role: "member" })
+      .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name: "Agent Owner", role: "member" })
       .returning({ id: users.id, publicId: users.publicId });
     session.user = { id: staff.publicId, role: "member" };
     const inq = await inquiriesService.create({ fullName: "Lead M", phone: "+16475552001", sourceKey: "manual" });

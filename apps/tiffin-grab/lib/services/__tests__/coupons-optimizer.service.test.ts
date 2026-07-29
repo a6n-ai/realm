@@ -81,7 +81,7 @@ describe("couponsService.resolveBestCoupons (optimizer)", () => {
         durationWeeks: 1,
         startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
       },
-      contact: { fullName: "A B", phone: "+16475559001", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475559001", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
     });
     const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
 

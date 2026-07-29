@@ -1,3 +1,4 @@
+import { emailSchema } from "@realm/commons";
 import { z } from "zod";
 
 export const orderFormSchema = z.object({
@@ -10,8 +11,8 @@ export const orderFormSchema = z.object({
   includeSunday: z.boolean(),
   durationWeeks: z.coerce.number().int().min(1),
   startDate: z.string().min(1, "Start date is required"),
-  // Staff Add Order collects email on step 1; convert sheet may still omit.
-  email: z.string().optional(),
+  // Required: email is the login path for the customer this order creates.
+  email: emailSchema,
   addressLine: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   postalCode: z.string().min(1, "Postal code is required"),

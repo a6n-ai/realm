@@ -45,7 +45,7 @@ describe("seed QA second subscription", () => {
           durationWeeks: 2,
           startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
         },
-        contact: {
+        contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
           fullName: "QA Customer",
           phone: "+16475550199",
           addressLine: "100 Queen St W",

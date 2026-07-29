@@ -35,7 +35,7 @@ async function makeOrder() {
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
     // M5V is a seeded Toronto zone -> order lands "active", giving us a real orderId to attach rows to.
-    contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;

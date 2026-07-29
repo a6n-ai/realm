@@ -26,8 +26,8 @@ describe("listCustomersPage", () => {
   afterAll(cleanup);
 
   it("paginates with a total and filters by Condition, scoped to this test's rows", async () => {
-    await createCustomer({ fullName: `${PREFIX} Alice`, phone: PHONES[0] }, {});
-    await createCustomer({ fullName: `${PREFIX} Bob`, phone: PHONES[1] }, {});
+    await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: `${PREFIX} Alice`, phone: PHONES[0] }, {});
+    await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: `${PREFIX} Bob`, phone: PHONES[1] }, {});
 
     const scope = cLike("name", `${PREFIX}%`);
 

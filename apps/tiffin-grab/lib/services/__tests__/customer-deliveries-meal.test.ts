@@ -36,7 +36,7 @@ describe("myDeliveryMeal (integration)", () => {
   it("resolves the delivered categories for a released week", async () => {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
-    const [u] = await db.insert(users).values({ phone: "+16475559100", role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475559100", role: "user" }).returning();
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
@@ -63,7 +63,7 @@ describe("myDeliveryMeal (integration)", () => {
   it("returns { pending } when the week is not released", async () => {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
-    const [u] = await db.insert(users).values({ phone: "+16475559101", role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475559101", role: "user" }).returning();
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],

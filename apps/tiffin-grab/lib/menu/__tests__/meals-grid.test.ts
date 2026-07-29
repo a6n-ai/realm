@@ -36,7 +36,7 @@ async function seedMondayDelivery(orderId: bigint, overrides: Partial<typeof del
 
 async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$inferInsert> = {}) {
   const snap = await loadCatalogSnapshot();
-  const [u] = await db.insert(users).values({ phone: `+1647555${Math.floor(Math.random() * 9000 + 1000)}`, role: "user" }).returning();
+  const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: `+1647555${Math.floor(Math.random() * 9000 + 1000)}`, role: "user" }).returning();
   const [freq] = await db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.key, "5_day")).limit(1);
   const [o] = await db.insert(orders).values({
     userId: u.id, planId, mealSizeId: snap.mealSizes[0].id, frequencyId: freq.id,

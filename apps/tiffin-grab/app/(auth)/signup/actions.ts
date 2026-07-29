@@ -9,20 +9,22 @@ import { hashPassword } from "@/lib/auth/password";
 
 const signUpSchema = z.object({
   phone: phoneSchema(),
-  email: emailSchema.optional(),
+  // Required: email is the login path and the only channel for verification,
+  // password reset and security alerts.
+  email: emailSchema,
   name: z.string().trim().optional(),
   password: passwordSchema,
 });
 
 export async function signUpCustomer(input: {
   phone: string;
-  email?: string;
+  email: string;
   name?: string;
   password: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = signUpSchema.safeParse({
     phone: input.phone,
-    email: input.email || undefined,
+    email: input.email,
     name: input.name,
     password: input.password,
   });

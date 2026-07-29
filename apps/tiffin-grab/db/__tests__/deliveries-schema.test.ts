@@ -14,7 +14,7 @@ async function reset() {
 
 async function makeOrder() {
   const snap = await loadCatalogSnapshot();
-  const [u] = await db.insert(users).values({ phone: "+16475551000", role: "user" }).returning();
+  const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475551000", role: "user" }).returning();
   const [o] = await db.insert(orders).values({
     userId: u.id, planId: snap.plans[0].id, mealSizeId: snap.mealSizes[0].id,
     frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,

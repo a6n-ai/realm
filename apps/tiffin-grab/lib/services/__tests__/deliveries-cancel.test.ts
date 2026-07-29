@@ -34,7 +34,7 @@ async function makeOrder(durationWeeks = 1) {
       durationWeeks,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;
@@ -55,7 +55,7 @@ async function makeWaitlistedOrder() {
       durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { fullName: "C D", phone: "+16135550111", addressLine: "1 St", city: "Ottawa", postalCode: "K1A 0A1" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "C D", phone: "+16135550111", addressLine: "1 St", city: "Ottawa", postalCode: "K1A 0A1" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;

@@ -25,7 +25,10 @@ export const users = pgTable(
   {
     ...updatableColumns("usr"),
     name: text("name"),
-    email: text("email"),
+    // Required: email is the login path and the only channel for verification,
+    // password reset and security alerts. Enforced here as well as in the
+    // services so no caller can create a contactable-by-nothing account.
+    email: text("email").notNull(),
     emailVerified: boolean("email_verified").notNull().default(false),
     phoneVerified: boolean("phone_verified").notNull().default(false),
     image: text("image"),
@@ -60,7 +63,9 @@ export const users = pgTable(
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("users_email_unique").on(t.email).where(sql`${t.email} is not null`),
+    // Plain unique now that email is NOT NULL — the partial index existed only
+    // to allow many rows with a null email.
+    uniqueIndex("users_email_unique").on(t.email),
     uniqueIndex("users_phone_unique").on(t.phone).where(sql`${t.phone} is not null`),
     index("users_created_idx").on(t.createdAt),
   ],

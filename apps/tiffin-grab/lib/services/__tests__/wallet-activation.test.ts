@@ -107,7 +107,7 @@ describe("wallet award on order activation", () => {
         durationWeeks: 1,
         startDate,
       },
-      contact: {
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
         fullName: "Wallet Test User",
         phone: TEST_PHONE,
         addressLine: "1 Test Ave",
@@ -163,7 +163,7 @@ describe("wallet award on order activation", () => {
         durationWeeks: 1,
         startDate,
       },
-      contact: {
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
         fullName: "Wallet CreateOrder Test",
         phone: TEST_PHONE_3,
         addressLine: "9 Etobicoke Ave",
@@ -208,7 +208,7 @@ describe("wallet award on order activation", () => {
         durationWeeks: 1,
         startDate,
       },
-      contact: {
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
         fullName: "Wallet Idempotent Test",
         phone: TEST_PHONE_2,
         addressLine: "2 Test Ave",

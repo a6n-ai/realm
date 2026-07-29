@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { phoneNumber, username, anonymous, emailOTP } from "better-auth/plugins";
+import { phoneNumber, username, emailOTP } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { authAuditAction } from "@realm/auth";
@@ -50,13 +50,17 @@ export const auth = betterAuth({
     // this cannot lock out an existing account with a shorter password.
     minPasswordLength: 12,
     maxPasswordLength: 256,
-    requireEmailVerification: false, // customers are phone-first; email optional
+    // Email is REQUIRED on every account (users.email is NOT NULL and the
+    // services enforce it) — it is the login path and the only channel for
+    // verification, reset and security alerts. Verification is still not
+    // *required to sign in*: checkout provisions a customer who must be able to
+    // reach /set-password via the verify link, and sendOnSignUp below mails it.
+    requireEmailVerification: false,
     // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
   },
   emailVerification: {
-    // Fire the verify/welcome email on email signups (phone-first users with no
-    // email are skipped inside the sender).
+    // Every account has an email now, so this always fires on signup.
     sendOnSignUp: true,
     // Clicking the verify link signs the user in — checkout onboarding relies on
     // this to land a brand-new customer on /set-password with a live session.
@@ -99,12 +103,9 @@ export const auth = betterAuth({
     // Sign in with a username (lowercased/unique). Complements email + phone —
     // the login form picks the endpoint from the identifier's shape.
     username({ minUsernameLength: 3, maxUsernameLength: 30 }),
-    // Guest sessions with no PII; linked to a real account on first real sign-in.
-    anonymous({
-      onLinkAccount: async ({ anonymousUser, newUser }) => {
-        log.debug(`linked anonymous ${anonymousUser.user.id} -> ${newUser.user.id}`);
-      },
-    }),
+    // No anonymous plugin: it minted users with no email, which contradicts email
+    // being required, and nothing ever called it — while /sign-in/anonymous stayed
+    // mounted and reachable, so anyone could create unlimited PII-less rows.
     // Email OTP: 6-digit codes for password reset and email change. Codes are
     // stored hashed and expire in 10 min. The single sendVerificationOTP callback
     // routes each type to the shared @realm/auth copy via SES.

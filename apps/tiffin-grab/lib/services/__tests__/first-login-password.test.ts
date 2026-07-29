@@ -39,7 +39,7 @@ describe("first-login password flow (integration)", () => {
 
   it("provisions a customer with NO password at all", async () => {
     const { publicId } = await createCustomer(
-      { fullName: "New Cust", phone: "+16475550101" },
+      { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "New Cust", phone: "+16475550101" },
       { actorId: null },
     );
     const row = await rowByPublicId(publicId);
@@ -49,7 +49,7 @@ describe("first-login password flow (integration)", () => {
 
   it("setOwnPassword writes the credential and marks the password set", async () => {
     const { publicId } = await createCustomer(
-      { fullName: "Setter", phone: "+16475550102" },
+      { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Setter", phone: "+16475550102" },
       { actorId: null },
     );
     await usersService.setOwnPassword(publicId, "my-real-pass9");
@@ -64,7 +64,7 @@ describe("first-login password flow (integration)", () => {
   // session-theft takeover. It must refuse once a password exists.
   it("setOwnPassword refuses to overwrite an existing password", async () => {
     const { publicId } = await createCustomer(
-      { fullName: "Twice", phone: "+16475550103" },
+      { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Twice", phone: "+16475550103" },
       { actorId: null },
     );
     await usersService.setOwnPassword(publicId, "first-pass99");
@@ -100,7 +100,7 @@ describe("first-login password flow (integration)", () => {
 
   it("refuses an admin reset for a customer (non-staff)", async () => {
     const { publicId } = await createCustomer(
-      { fullName: "Cust", phone: "+16475550104" },
+      { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Cust", phone: "+16475550104" },
       { actorId: null },
     );
     await expect(usersService.assertStaffEmail(publicId)).rejects.toThrow();

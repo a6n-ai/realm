@@ -29,7 +29,7 @@ describe("createCustomer", () => {
   afterAll(cleanup);
 
   it("provisions a user with no credential account and returns a publicId", async () => {
-    const { publicId } = await createCustomer({ fullName: "Walk In", phone: PHONE }, {});
+    const { publicId } = await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Walk In", phone: PHONE }, {});
     expect(publicId).toMatch(/^usr_/);
     const [u] = await db.select().from(users).where(eq(users.publicId, publicId));
     expect(u.role).toBe("user");
@@ -39,8 +39,8 @@ describe("createCustomer", () => {
   });
 
   it("is idempotent by phone — second call returns the same customer", async () => {
-    const first = await createCustomer({ fullName: "Walk In", phone: PHONE }, {});
-    const second = await createCustomer({ fullName: "Walk In Again", phone: PHONE }, {});
+    const first = await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Walk In", phone: PHONE }, {});
+    const second = await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Walk In Again", phone: PHONE }, {});
     expect(second.publicId).toBe(first.publicId);
     const n = await db.select({ id: users.id }).from(users).where(eq(users.phone, PHONE));
     expect(n).toHaveLength(1);

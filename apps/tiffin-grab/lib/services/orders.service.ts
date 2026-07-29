@@ -99,7 +99,7 @@ export async function recordPayment(
 export interface CreateOrderInput {
   selections: PricingSelections;
   planKey: string;
-  contact: { fullName: string; phone: string; email?: string; addressLine: string; city: string; postalCode: string };
+  contact: { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
   // Internal users.id of the lead owner to carry onto the order (set by the
   // convert flow so the order inherits the inquiry's currentOwner). Null/omitted
   // for ordinary checkout.
@@ -180,12 +180,13 @@ export async function createOrder(
   const parsedPhone = phoneSchema().safeParse(input.contact.phone);
   if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
   const phone = parsedPhone.data;
-  let email: string | null = null;
-  if (input.contact.email?.trim()) {
-    const parsedEmail = emailSchema.safeParse(input.contact.email);
-    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
-    email = parsedEmail.data;
-  }
+  // Email is required on every account: it is the login path and the only
+  // channel for verification, reset and security alerts. The checkout UI
+  // already disables Continue without one — this is the server-side enforcement
+  // of that rule, which a direct POST would otherwise bypass.
+  const parsedEmail = emailSchema.safeParse(input.contact.email?.trim());
+  if (!parsedEmail.success) throw new ValidationError("An email address is required");
+  const email = parsedEmail.data;
 
   const deploymentId = generateCode("SUB", 6);
 

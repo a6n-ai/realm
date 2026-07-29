@@ -154,7 +154,7 @@ export function OrderForm({
     contact: {
       fullName: contact.fullName,
       phone: contact.phone,
-      email: v.email || undefined,
+      email: v.email,
       addressLine: v.addressLine,
       city: v.city,
       postalCode: v.postalCode,

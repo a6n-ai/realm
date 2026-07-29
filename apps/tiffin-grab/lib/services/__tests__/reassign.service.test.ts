@@ -19,7 +19,7 @@ let flagCreated = false;
 async function seedUser(name: string, role: "user" | "member" | "admin", isSystem = false) {
   const [u] = await db
     .insert(users)
-    .values({ name, role, isSystem })
+    .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name, role, isSystem })
     .returning({ id: users.id, publicId: users.publicId });
   seededUserIds.push(u.id);
   return u;

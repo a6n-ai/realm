@@ -14,22 +14,28 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // Lifted verbatim from createOrder so both paths share one provisioning rule.
 export async function provisionCustomerByPhone(
   tx: Tx,
-  contact: { fullName: string; phone: string; email: string | null },
+  contact: { fullName: string; phone: string; email: string },
   createdBy: bigint | null,
 ): Promise<bigint> {
+  // Email is mandatory: it is the login path and the only channel for
+  // verification, password reset and security alerts. The checkout UI disables
+  // Continue without one, but that is a client-side rule — this is the trust
+  // boundary, so re-check rather than assume.
+  const parsedEmail = emailSchema.safeParse(contact.email?.trim());
+  if (!parsedEmail.success) throw new ValidationError("An email address is required");
+  const email = parsedEmail.data;
+
   const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, contact.phone)).limit(1);
   if (existing) return existing.id;
 
-  if (contact.email) {
-    const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, contact.email)).limit(1);
-    if (clash) throw new ValidationError("That email is already in use");
-  }
+  const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (clash) throw new ValidationError("That email is already in use");
   // No credential row: a provisioned customer has NO password until they choose
   // one (checkout mails them a verify link → /set-password; otherwise the email
   // OTP reset works). Never issue a password on their behalf.
   const inserted = await tx
     .insert(users)
-    .values({ phone: contact.phone, email: contact.email, name: contact.fullName, role: "user", createdBy })
+    .values({ phone: contact.phone, email, name: contact.fullName, role: "user", createdBy })
     .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
     .returning({ id: users.id });
   if (inserted[0]?.id) return inserted[0].id;
@@ -46,17 +52,16 @@ async function resolveActorId(tx: Tx, actorId: string | null | undefined): Promi
 
 // Customer-only creation (no order). Idempotent by phone.
 export async function createCustomer(
-  contact: { fullName: string; phone: string; email?: string },
+  contact: { fullName: string; phone: string; email: string },
   opts: { actorId?: string | null },
 ): Promise<{ publicId: string }> {
   const parsedPhone = phoneSchema().safeParse(contact.phone);
   if (!parsedPhone.success) throw new ValidationError("Enter a valid phone number");
-  let email: string | null = null;
-  if (contact.email?.trim()) {
-    const parsedEmail = emailSchema.safeParse(contact.email);
-    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
-    email = parsedEmail.data;
-  }
+  // Email is required — provisionCustomerByPhone re-validates, this gives the
+  // caller the clearer message.
+  const parsedEmail = emailSchema.safeParse(contact.email?.trim());
+  if (!parsedEmail.success) throw new ValidationError("An email address is required");
+  const email = parsedEmail.data;
   return db.transaction(async (tx) => {
     const createdBy = await resolveActorId(tx, opts.actorId);
     const id = await provisionCustomerByPhone(

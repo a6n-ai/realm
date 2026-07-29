@@ -10,7 +10,7 @@ const { newActivity, markRead, markAllRead } = await import("../section-seen.ser
 
 const seededUserIds: bigint[] = [];
 async function seedUser(name: string, role: "user" | "member" | "admin") {
-  const [u] = await db.insert(users).values({ name, role }).returning({ id: users.id, publicId: users.publicId });
+  const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name, role }).returning({ id: users.id, publicId: users.publicId });
   seededUserIds.push(u.id);
   return u;
 }

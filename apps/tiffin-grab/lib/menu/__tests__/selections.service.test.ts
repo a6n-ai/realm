@@ -41,7 +41,7 @@ describe("selectionsService.setSelection", () => {
   beforeEach(async () => {
     await reset();
     const snap = await loadCatalogSnapshot();
-    const [u] = await db.insert(users).values({ phone: "+16475557000", role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475557000", role: "user" }).returning();
     const [o] = await db.insert(orders).values({
       userId: u.id, planId: snap.plans.find((p) => p.key === "veg")!.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],

@@ -20,7 +20,7 @@ describe("findExistingByContact", () => {
       name: "Existing Customer",
       role: "user",
     });
-    await db.insert(users).values({
+    await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
       phone: "+16475559999",
       name: "Staff Person",
       role: "admin",

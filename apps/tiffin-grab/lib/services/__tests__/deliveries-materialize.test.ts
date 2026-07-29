@@ -42,7 +42,7 @@ async function makeOrder(opts: {
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
     // M5V is a seeded Toronto zone (zon_toronto: M4/M5/M6) — this order lands "active".
-    contact: { fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;
@@ -65,7 +65,7 @@ async function makeWaitlistedOrder(opts: { durationWeeks: number; persons: numbe
       durationWeeks: opts.durationWeeks,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { fullName: "Wait List", phone: "+16475550112", addressLine: "1 Rideau St", city: "Ottawa", postalCode: "K1A 0A1" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Wait List", phone: "+16475550112", addressLine: "1 Rideau St", city: "Ottawa", postalCode: "K1A 0A1" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;

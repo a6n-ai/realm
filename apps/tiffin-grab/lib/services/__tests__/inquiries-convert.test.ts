@@ -29,7 +29,7 @@ describe("inquiriesService.convert", () => {
     const plan = snap.plans[0];
     const [staff] = await db
       .insert(users)
-      .values({ name: "Agent Staff", role: "member" })
+      .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name: "Agent Staff", role: "member" })
       .returning({ publicId: users.publicId });
     session.user = { id: staff.publicId, role: "member" };
     const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", sourceKey: "manual" });
@@ -46,7 +46,7 @@ describe("inquiriesService.convert", () => {
         durationWeeks: 1,
         startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
       },
-      contact: { fullName: "Lead D", phone: "+16475551200", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Lead D", phone: "+16475551200", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.stage).toBe("converted");

@@ -48,7 +48,7 @@ async function baseInput(over: { couponCode?: string; paymentMethodId?: string; 
       durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: {
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
       fullName: "Pay Test",
       phone: over.phone ?? "+16475550999",
       addressLine: "1 St",

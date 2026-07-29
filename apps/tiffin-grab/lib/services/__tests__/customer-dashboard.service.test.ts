@@ -32,7 +32,7 @@ const baseInput = (mealSizePublicId: string, planKey: string) => ({
     durationWeeks: 1,
     startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
   },
-  contact: { fullName: "Dash Customer", phone: PHONE, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+  contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Dash Customer", phone: PHONE, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
 });
 
 describe("getCustomerDashboard (integration)", () => {

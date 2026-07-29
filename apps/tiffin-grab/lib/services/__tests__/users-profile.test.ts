@@ -15,7 +15,7 @@ describe("usersService.updateProfile", () => {
   afterAll(reset);
 
   it("updates name and image without touching contact fields", async () => {
-    const [u] = await db.insert(users).values({ phone: "+16475550900", role: "user", name: "Old" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550900", role: "user", name: "Old" }).returning();
     await usersService.updateProfile(u.publicId, { name: "Aanya" });
     let [row] = await db.select().from(users).where(eq(users.id, u.id));
     expect(row.name).toBe("Aanya");
@@ -30,14 +30,14 @@ describe("usersService.updateProfile", () => {
   });
 
   it("rejects name longer than 120 characters", async () => {
-    const [u] = await db.insert(users).values({ phone: "+16475550901", role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550901", role: "user" }).returning();
     await expect(
       usersService.updateProfile(u.publicId, { name: "A".repeat(121) }),
     ).rejects.toThrow("Name is too long");
   });
 
   it("trims whitespace from name", async () => {
-    const [u] = await db.insert(users).values({ phone: "+16475550902", role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550902", role: "user" }).returning();
     await usersService.updateProfile(u.publicId, { name: "  Priya  " });
     const [row] = await db.select().from(users).where(eq(users.id, u.id));
     expect(row.name).toBe("Priya");
@@ -46,7 +46,7 @@ describe("usersService.updateProfile", () => {
   it("accepts image: null to clear the image", async () => {
     const [u] = await db
       .insert(users)
-      .values({ phone: "+16475550903", role: "user", image: "/uploads/avatars/old.png" })
+      .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550903", role: "user", image: "/uploads/avatars/old.png" })
       .returning();
     await usersService.updateProfile(u.publicId, { image: null });
     const [row] = await db.select().from(users).where(eq(users.id, u.id));

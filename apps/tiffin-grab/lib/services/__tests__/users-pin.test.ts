@@ -13,7 +13,7 @@ const PASSWORD = "correct-horse";
 async function seedUser(role: "member" | "user" = "member", phone = PHONE) {
   const [u] = await db
     .insert(users)
-    .values({ name: "Pin Tester", phone, role })
+    .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name: "Pin Tester", phone, role })
     .returning({ id: users.id, publicId: users.publicId });
   await db.insert(account).values({
     accountId: String(u.id),

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { emailSchema } from "@realm/commons";
 import type { Country } from "react-phone-number-input";
 import { z } from "zod";
 import { signIn } from "@/lib/auth/client";
@@ -25,7 +26,7 @@ const PhoneInput = dynamic(
 
 const schema = z.object({
   phone: z.string().min(1, "Phone is required"),
-  email: z.string().trim().optional(),
+  email: emailSchema,
   name: z.string().trim().optional(),
   password: z.string().min(8, "Password must be at least 8 characters").max(256, "Password is too long"),
 });
@@ -45,7 +46,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
     setError(null);
     const result = await signUpCustomer({
       phone: values.phone,
-      email: values.email || undefined,
+      email: values.email,
       name: values.name || undefined,
       password: values.password,
     });

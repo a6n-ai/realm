@@ -50,7 +50,7 @@ async function makeOrder(phone: string, fullName: string) {
       durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
-    contact: { fullName, phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName, phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;
@@ -205,7 +205,7 @@ describe("myCalendar (integration)", () => {
   async function seedOrder(phone: string) {
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key === "veg")!;
-    const [u] = await db.insert(users).values({ phone, role: "user" }).returning();
+    const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone, role: "user" }).returning();
     const [order] = await db.insert(orders).values({
       userId: u.id, planId: plan.id, mealSizeId: snap.mealSizes[0].id,
       frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],

@@ -18,8 +18,8 @@ async function reset() {
 describe("usersService.updateContact", () => {
   beforeEach(async () => {
     await reset();
-    const [c] = await db.insert(users).values({ phone: "+16475550100", role: "user" }).returning();
-    await db.insert(users).values({ phone: "+16475550200", role: "user" });
+    const [c] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550100", role: "user" }).returning();
+    await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475550200", role: "user" });
     custId = c.publicId;
   });
   afterAll(reset);
