@@ -3,9 +3,13 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { emailSchema, passwordSchema, phoneSchema } from "@realm/commons";
+import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+
+const log = createLogger("signup");
 
 const signUpSchema = z.object({
   phone: phoneSchema(),
@@ -35,12 +39,13 @@ export async function signUpCustomer(input: {
   }
 
   const { phone, email, name, password } = parsed.data;
-  // Hash outside the transaction — bcrypt is CPU-bound (~100ms) and must not hold
-  // the DB connection open.
+  // Hash outside the transaction — scrypt is CPU-bound and must not hold the DB
+  // connection open.
   const passwordHash = await hashPassword(password);
 
+  let created = false;
   try {
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [existingPhone] = await tx
         .select({ id: users.id })
         .from(users)
@@ -65,7 +70,7 @@ export async function signUpCustomer(input: {
 
       const [inserted] = await tx
         .insert(users)
-        .values({ phone, email: email ?? null, name: name ?? null, role: "user" })
+        .values({ phone, email, name: name ?? null, role: "user" })
         .returning({ id: users.id });
 
       await tx.insert(account).values({
@@ -75,8 +80,27 @@ export async function signUpCustomer(input: {
         password: passwordHash,
       });
 
-      return { ok: true };
+      created = true;
+      return { ok: true as const };
     });
+
+    // This action writes users + account directly rather than going through
+    // better-auth's /sign-up/email, so `emailVerification.sendOnSignUp` never
+    // fires for it — the mail has to be sent here. Outside the transaction: a
+    // slow SES call must not hold the connection, and a delivery failure must
+    // not roll back a created account (the user can re-trigger by attempting to
+    // sign in, which re-sends via sendOnSignIn).
+    if (created) {
+      try {
+        const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
+        await auth.api.sendVerificationEmail({
+          body: { email, callbackURL: `${origin}/dashboard` },
+        });
+      } catch (err) {
+        log.error({ err }, "signup verification email failed");
+      }
+    }
+    return result;
   } catch {
     // The explicit uniqueness checks above return the phone/email-taken messages;
     // anything reaching here is an unexpected failure (the tx has rolled back).

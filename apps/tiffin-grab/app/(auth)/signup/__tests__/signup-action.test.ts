@@ -1,8 +1,14 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
-import { db } from "@/db/client";
-import { account, users } from "@/db/schema";
-import { signUpCustomer } from "../actions";
+
+// Signup mails a verification link; without this the suite makes a real SES call
+// (which fails, is caught, and just logs a stack). Keep it hermetic.
+const sendVerificationEmail = vi.fn(async () => ({}));
+vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail } } }));
+
+const { db } = await import("@/db/client");
+const { account, users } = await import("@/db/schema");
+const { signUpCustomer } = await import("../actions");
 
 async function reset() { await db.delete(account); await db.delete(users).where(ne(users.isSystem, true)); }
 
@@ -21,6 +27,10 @@ describe("signUpCustomer", () => {
     const [a] = await db.select().from(account).where(eq(account.userId, u.id));
     expect(a.providerId).toBe("credential");
     expect(a.password).not.toBe(PASSWORD);
+    // Not verified yet, and the link was mailed — the account cannot hold a
+    // session until that link is clicked.
+    expect(u.emailVerified).toBe(false);
+    expect(sendVerificationEmail).toHaveBeenCalled();
   });
 
   // Email is the login path, so signing up without one is no longer possible —

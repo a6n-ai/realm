@@ -4,13 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { emailSchema } from "@realm/commons";
+import { emailSchema, passwordSchema } from "@realm/commons";
 import type { Country } from "react-phone-number-input";
 import { z } from "zod";
-import { signIn } from "@/lib/auth/client";
 import { Button } from "@realm/ui/button";
 import { Card, CardContent } from "@realm/ui/card";
 import {
@@ -28,14 +26,16 @@ const schema = z.object({
   phone: z.string().min(1, "Phone is required"),
   email: emailSchema,
   name: z.string().trim().optional(),
-  password: z.string().min(8, "Password must be at least 8 characters").max(256, "Password is too long"),
+  // Shared schema so the form and the server agree on the 12-char minimum.
+  password: passwordSchema,
 });
 
 type FormValues = z.infer<typeof schema>;
 
 export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  // Set once the account exists and the verification mail has gone out.
+  const [sent, setSent] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -54,15 +54,34 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
       setError(result.error);
       return;
     }
-    const signedIn = await signIn.phoneNumber({ phoneNumber: values.phone, password: values.password });
-    if (signedIn?.error) {
-      // Account was created but auto sign-in failed — send them to sign in manually.
-      setError("Account created. Please sign in.");
-      router.push("/login");
-      return;
-    }
-    router.push("/dashboard");
-    router.refresh();
+    // No auto sign-in: a verified email is required to hold a session, and the
+    // phone sign-in this used to call is the one route better-auth does not gate
+    // on verification — so signing in here would have walked straight past the
+    // requirement. The signup action has mailed a verification link; clicking it
+    // verifies and signs them in.
+    setSent(values.email);
+  }
+
+  if (sent) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Card className="overflow-hidden">
+          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+            <h1 className="text-2xl font-bold">Check your email</h1>
+            <p className="text-muted-foreground text-balance">
+              We sent a verification link to <span className="font-medium">{sent}</span>. Click it to
+              finish setting up your account and sign in.
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Nothing yet? Check spam, or try signing in — we&apos;ll send a fresh link.
+            </p>
+            <Link href="/login" className="underline underline-offset-4">
+              Go to sign in
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -96,7 +115,7 @@ export function SignupForm({ defaultCountry }: { defaultCountry: Country }) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
                       </FormControl>

@@ -404,8 +404,8 @@ FROM new_week nw
 -- immediately. Idempotent via NOT EXISTS on email.
 -- ─────────────────────────────────────────────────────────────────────────────
 WITH new_admin AS (
-    INSERT INTO users (public_id, name, email, role, created_at, updated_at)
-    SELECT 'usr_seed_admin', 'Admin', 'admin@tiffingrab.ca', 'admin',
+    INSERT INTO users (public_id, name, email, role, email_verified, created_at, updated_at)
+    SELECT 'usr_seed_admin', 'Admin', 'admin@tiffingrab.ca', 'admin', true,
            (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
     WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@tiffingrab.ca')
     RETURNING id
@@ -416,8 +416,8 @@ SELECT 'act_seed_admin', id::text, 'credential', id,
 FROM new_admin;
 
 WITH new_sales AS (
-    INSERT INTO users (public_id, name, email, role, created_at, updated_at)
-    SELECT 'usr_seed_sales', 'Sales', 'sales@tiffingrab.ca', 'member',
+    INSERT INTO users (public_id, name, email, role, email_verified, created_at, updated_at)
+    SELECT 'usr_seed_sales', 'Sales', 'sales@tiffingrab.ca', 'member', true,
            (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
     WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'sales@tiffingrab.ca')
     RETURNING id

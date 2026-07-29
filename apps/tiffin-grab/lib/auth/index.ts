@@ -50,18 +50,22 @@ export const auth = betterAuth({
     // this cannot lock out an existing account with a shorter password.
     minPasswordLength: 12,
     maxPasswordLength: 256,
-    // Email is REQUIRED on every account (users.email is NOT NULL and the
-    // services enforce it) — it is the login path and the only channel for
-    // verification, reset and security alerts. Verification is still not
-    // *required to sign in*: checkout provisions a customer who must be able to
-    // reach /set-password via the verify link, and sendOnSignUp below mails it.
-    requireEmailVerification: false,
+    // A verified email is required to hold a session. This gates SIGN-IN only —
+    // checkout takes no session at all, so paying is never blocked by it.
+    // better-auth checks this on /sign-in/email and /sign-in/username but NOT
+    // /sign-in/phone-number, so the real enforcement is the session.create.before
+    // hook below; this flag keeps the per-route errors accurate.
+    requireEmailVerification: true,
     // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
   },
   emailVerification: {
     // Every account has an email now, so this always fires on signup.
     sendOnSignUp: true,
+    // Re-send the link when a blocked user tries to sign in. Without this a
+    // never-verified account gets a bare 403 with no way to trigger a new mail —
+    // a dead end, since the original link expires.
+    sendOnSignIn: true,
     // Clicking the verify link signs the user in — checkout onboarding relies on
     // this to land a brand-new customer on /set-password with a live session.
     autoSignInAfterVerification: true,
@@ -135,12 +139,27 @@ export const auth = betterAuth({
       create: {
         before: async (sess) => {
           const [u] = await db
-            .select({ status: users.status })
+            .select({ status: users.status, emailVerified: users.emailVerified })
             .from(users)
             .where(eq(users.id, BigInt(sess.userId as string)))
             .limit(1);
           if (u && u.status !== "active") {
             throw new APIError("FORBIDDEN", { message: "This account is not active. Contact support." });
+          }
+          // Verified-email gate. requireEmailVerification only covers
+          // /sign-in/email and /sign-in/username — phone sign-in skips it, and
+          // this app's signup used to auto-sign-in by phone, which would have
+          // walked straight past the requirement. Enforcing here catches every
+          // method at once.
+          //
+          // Safe against a lockout loop: every better-auth route that both
+          // verifies and opens a session (/verify-email, /sign-in/email-otp,
+          // /email-otp/reset-password) writes emailVerified BEFORE creating the
+          // session, so the user is already verified by the time this runs.
+          if (u && !u.emailVerified) {
+            throw new APIError("FORBIDDEN", {
+              message: "Verify your email address first — check your inbox for the link.",
+            });
           }
         },
       },
