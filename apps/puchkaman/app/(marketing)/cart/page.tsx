@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { CartPageClient } from "@/components/cart/cart-page-client";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
+import { buildMetadata } from "@/lib/seo";
+
+// Never indexable — a per-session cart, not a page worth ranking.
+export const metadata: Metadata = buildMetadata({
+  title: "Your Cart | Puchkaman",
+  description: "Review your Puchkaman pickup cart before checkout.",
+  path: "/cart",
+  noIndex: true,
+});
 
 export default async function CartPage() {
   const orderingEnabled = await isPublicOrderingEnabled();

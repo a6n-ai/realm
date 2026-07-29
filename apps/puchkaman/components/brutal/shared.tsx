@@ -277,6 +277,7 @@ export function PageBanner({
   bg = "var(--green)",
   color = "#fff",
   surface,
+  crumb,
 }: {
   kicker?: string;
   title: ReactNode;
@@ -284,6 +285,8 @@ export function PageBanner({
   bg?: string;
   color?: string;
   surface?: string;
+  /** Current page's label for the Home / {crumb} breadcrumb trail (omit on the homepage). */
+  crumb?: string;
 }) {
   const auto = bg.includes("--ink")
     ? "surface-ink"
@@ -297,6 +300,22 @@ export function PageBanner({
   return (
     <section className={surface || auto} style={{ background: bg, color, borderBottom: "var(--border)" }}>
       <div className="wrap" style={{ padding: "54px 20px 56px" }}>
+        {crumb && (
+          <nav aria-label="Breadcrumb" style={{ marginBottom: 14 }}>
+            <ol
+              className="mono"
+              style={{ display: "flex", gap: 6, fontSize: "0.76rem", opacity: 0.7, listStyle: "none", margin: 0, padding: 0 }}
+            >
+              <li>
+                <Link href="/" style={{ color: "inherit" }}>
+                  Home
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li aria-current="page">{crumb}</li>
+            </ol>
+          </nav>
+        )}
         {kicker && (
           <div style={{ marginBottom: 14 }}>
             <span className="tape kicker" style={{ background: "var(--ink)", color: "var(--yellow)" }}>

@@ -301,6 +301,17 @@ export function Footer() {
           }}
         >
           <span>© 2026 Puchkaman · Scarborough, GTA</span>
+          <div className="flex wrap-gap" style={{ gap: 14 }}>
+            <Link href="/faq" className="foot-link">
+              FAQ
+            </Link>
+            <Link href="/privacy" className="foot-link">
+              Privacy
+            </Link>
+            <Link href="/terms" className="foot-link">
+              Terms
+            </Link>
+          </div>
           <span>Pani Puri · Golgappa · Puchka · Gupchup</span>
         </div>
       </div>

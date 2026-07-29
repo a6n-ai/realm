@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { FileDetail } from "@realm/storage/model";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
@@ -115,6 +116,7 @@ export function EatsView({
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
+        crumb="Menu"
       />
 
       {!orderingEnabled ? (
@@ -186,6 +188,14 @@ export function EatsView({
                 }}
               >
                 {cat.note}
+                {cat.id === "fusion" && (
+                  <>
+                    {" "}
+                    <Link href="/fusion" style={{ textDecoration: "underline" }}>
+                      Learn more about fusion puchkas →
+                    </Link>
+                  </>
+                )}
               </p>
               <div
                 className="grid eats-grid"

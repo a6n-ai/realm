@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
@@ -8,6 +9,14 @@ import { HeroVideo } from "@/components/brutal/hero-video";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Puchkaman · Toronto's First Fusion Puchka Spot · Scarborough",
+  description:
+    "Puchkaman — Scarborough's fusion puchka & Indian street food spot. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering across the GTA.",
+  path: "/",
+});
 
 // Home reads live products (real photos rehosted to our storage). force-dynamic
 // so newly featured/synced items and their images show without a rebuild.
@@ -340,7 +349,9 @@ export default async function HomePage() {
                     >
                       <Image
                         src={thumbnail}
-                        alt="Puchkaman on Instagram"
+                        // Decorative: the parent <a>'s aria-label already gives the
+                        // accessible name — a second text alt here would double-announce.
+                        alt=""
                         fill
                         sizes="(min-width: 1024px) 16vw, (min-width: 640px) 30vw, 45vw"
                         style={{ objectFit: "cover", objectPosition: "center 25%" }}
