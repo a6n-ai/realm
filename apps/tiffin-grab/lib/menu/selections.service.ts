@@ -5,7 +5,7 @@
 import { ValidationError } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { visibleDeliveries } from "@/lib/services/deliveries.service";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
@@ -16,14 +16,25 @@ type Week = typeof menuWeeks.$inferSelect;
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
 
-// Single source of truth for "which diets does this plan key admit" — shared by setSelection
-// (input validation), buildMealsGrid (dish-option filtering), and resolveDeliveryMeal
-// (per-category diet filtering) so the three can never disagree.
-export function dietsForPlanKey(planKey: string): ("veg" | "nonveg")[] {
-  if (planKey === "veg") return ["veg"];
-  if (planKey === "non-veg") return ["nonveg"];
-  return ["veg", "nonveg"];
+/**
+ * The dish ids attached to a plan. Single source of truth for "what may this
+ * plan be served", shared by setSelection (input validation), buildMealsGrid
+ * (option filtering) and resolveDeliveryMeal (per-category filtering) so the
+ * three can never disagree.
+ *
+ * Replaces the old dietsForPlanKey: membership is explicit rather than inferred
+ * from a plan-key string, so a plan nobody special-cased (healthy) no longer
+ * silently falls through to "everything".
+ */
+export async function dishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
+  const rows = await db.select({ dishId: dishPlans.dishId }).from(dishPlans).where(eq(dishPlans.planId, planId));
+  return new Set(rows.map((r) => r.dishId));
 }
+
+// Deliberately NO veg/non-veg derivation here. Plans are user-editable, so any
+// `plans.key === "veg"` test would be a magic string that breaks the moment
+// someone renames a plan or adds another. A dish is simply "attached to these
+// plans"; the code never decides what a dish *is*.
 
 // The ISO date of `dayOfWeek` within the menu week starting on weekStart.
 function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
@@ -56,7 +67,7 @@ export const selectionsService = {
       throw new ValidationError("Selections are locked — the cutoff for that day has passed");
     }
 
-    const [dishRow] = await db.select({ id: dishes.id, diet: dishes.diet }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
+    const [dishRow] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
     if (!dishRow) throw new ValidationError("Dish not found");
     const dishId = dishRow.id;
 
@@ -66,7 +77,16 @@ export const selectionsService = {
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
     const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-    if (!plan || !dietsForPlanKey(plan.key).includes(dishRow.diet)) throw new ValidationError("Dish does not match your plan");
+    if (!plan) throw new ValidationError("Dish does not match your plan");
+    // Membership check, not an attribute check: the dish must be attached to THIS
+    // order's plan. A non-veg dish has no dish_plans row for the veg plan, so a
+    // vegetarian subscriber cannot select one even by posting the id directly.
+    const [attached] = await db
+      .select({ id: dishPlans.id })
+      .from(dishPlans)
+      .where(and(eq(dishPlans.dishId, dishId), eq(dishPlans.planId, order.planId)))
+      .limit(1);
+    if (!attached) throw new ValidationError("Dish does not match your plan");
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
     // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).

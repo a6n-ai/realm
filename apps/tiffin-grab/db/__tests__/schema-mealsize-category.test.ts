@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db/client";
 import { dishCategories } from "@/db/schema";
+import { attachAllCategoriesToPlans } from "@/db/test-helpers";
 import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema/catalog";
 import { orders } from "@/db/schema/orders";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -28,14 +29,15 @@ async function ensureSeedRows() {
       ].map((c) => ({ planType: "tiffin" as const, enabled: true, selectable: false, ...c })),
     )
     .onConflictDoNothing();
+  await attachAllCategoriesToPlans();
   await db
     .insert(dishes)
     .values([
-      { publicId: "dsh_dal_tadka", name: "Dal Tadka", diet: "veg", category: "daal" },
-      { publicId: "dsh_paneer_butter_masala", name: "Paneer Butter Masala", diet: "veg", category: "curry" },
-      { publicId: "dsh_aloo_gobi", name: "Aloo Gobi", diet: "veg", category: "sabzi" },
-      { publicId: "dsh_chicken_curry", name: "Chicken Curry", diet: "nonveg", category: "curry" },
-      { publicId: "dsh_egg_bhurji", name: "Egg Bhurji", diet: "nonveg", category: "extra" },
+      { publicId: "dsh_dal_tadka", name: "Dal Tadka", category: "daal" },
+      { publicId: "dsh_paneer_butter_masala", name: "Paneer Butter Masala", category: "curry" },
+      { publicId: "dsh_aloo_gobi", name: "Aloo Gobi", category: "sabzi" },
+      { publicId: "dsh_chicken_curry", name: "Chicken Curry", category: "curry" },
+      { publicId: "dsh_egg_bhurji", name: "Egg Bhurji", category: "extra" },
     ])
     .onConflictDoNothing();
 }
@@ -84,8 +86,8 @@ describe("schema: meal-size ↔ category delta (Task 1)", () => {
       const [row] = await db
         .select({ key: dishCategories.key })
         .from(dishCategories)
-        .where(and(eq(dishCategories.planType, "tiffin"), eq(dishCategories.key, key)));
-      expect(row, `dish_categories tiffin/${key}`).toBeDefined();
+        .where(eq(dishCategories.key, key));
+      expect(row, `dish_categories ${key}`).toBeDefined();
     }
   });
 

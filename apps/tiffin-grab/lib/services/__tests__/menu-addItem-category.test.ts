@@ -5,6 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { dishes, dishCategories, menuWeeks } = await import("@/db/schema");
+const { attachDishToPlans, attachAllCategoriesToPlans } = await import("@/db/test-helpers");
 const { menuService } = await import("../menu.service");
 
 // Scope all mutation + cleanup to identifiers this suite owns, so it never wipes
@@ -16,10 +17,11 @@ async function ensureCategories() {
   await db
     .insert(dishCategories)
     .values([
-      { planType: "tiffin", key: "sabzi", label: "Sabzi", enabled: true, selectable: true, sortOrder: 1 },
-      { planType: "tiffin", key: "rice", label: "Rice", enabled: true, selectable: false, sortOrder: 2 },
+      { key: "sabzi", label: "Sabzi", enabled: true, selectable: true, sortOrder: 1 },
+      { key: "rice", label: "Rice", enabled: true, selectable: false, sortOrder: 2 },
     ])
     .onConflictDoNothing();
+  await attachAllCategoriesToPlans();
 }
 
 async function cleanup() {
@@ -30,7 +32,8 @@ async function cleanup() {
 }
 
 async function addDish(name: string, category: string | null) {
-  const [d] = await db.insert(dishes).values({ name, diet: "veg", category }).returning();
+  const [d] = await db.insert(dishes).values({ name, category }).returning();
+    await attachDishToPlans(d.id);
   dishIds.push(d.publicId);
   return d;
 }

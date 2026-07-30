@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { app, deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { attachDishToPlans } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
@@ -43,7 +44,8 @@ describe("setSelection per-day cutoff + span", () => {
     // Menu week starting a Monday far in the future so cutoffs are open.
     const [w] = await db.insert(menuWeeks).values({ weekStart: "2099-01-05", status: "released", orderCutoff: 4070000000000 }).returning(); // 2099 Mon
     week = w;
-    const [d] = await db.insert(dishes).values({ name: "Dal", diet: "veg", active: true }).returning();
+    const [d] = await db.insert(dishes).values({ name: "Dal", active: true }).returning();
+    await attachDishToPlans(d.id);
     dishPublicId = d.publicId;
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d.id, isDefault: true });
     const [o] = await db.insert(orders).values({

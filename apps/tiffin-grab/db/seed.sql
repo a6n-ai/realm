@@ -1,6 +1,9 @@
--- Full database seed: lead sources, catalog, feature flags, app settings, wallet, menu,
--- plus the single login-able admin account at the end. No notification
--- templates (authored via UI).
+-- Catalog seed: lead sources, plans, meal sizes, delivery frequencies/zones,
+-- pricing, feature flags, app settings, wallet, dish categories, dishes and the
+-- first menu week. No notification templates (authored via UI).
+--
+-- Contains NO logins, so it is safe to run against production. The dev/QA staff
+-- account lives in db/seed-dev-staff.sql.
 -- id -> next_id() (DB). public_id/created_at/updated_at have NO db default -> supplied here.
 -- Idempotent: ON CONFLICT (<unique>) DO NOTHING; tables without a unique key use NOT EXISTS
 -- guards. pricing_tiers has no unique key -> wipe+insert.
@@ -309,42 +312,68 @@ SELECT 'cnr_cad_default', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'CAD', 0.1
 WHERE NOT EXISTS (SELECT 1 FROM coin_rate WHERE currency = 'CAD');
 
 -- ============ MENU: DISH CATEGORIES ============
-INSERT INTO dish_categories (public_id, created_at, updated_at, plan_type, key, label, enabled, selectable,
+INSERT INTO dish_categories (public_id, created_at, updated_at, key, label, enabled, selectable,
                              sort_order)
 VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'sabzi', 'Sabzi', TRUE, TRUE, 1),
+        'sabzi', 'Sabzi', TRUE, TRUE, 1),
        ('slt_tiffin_rice', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'rice', 'Rice', TRUE, FALSE, 2),
+        'rice', 'Rice', TRUE, FALSE, 2),
        ('slt_tiffin_roti', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'roti', 'Roti', TRUE, FALSE, 3),
+        'roti', 'Roti', TRUE, FALSE, 3),
        ('slt_tiffin_raita', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'raita', 'Raita', TRUE, FALSE, 4),
+        'raita', 'Raita', TRUE, FALSE, 4),
        ('slt_tiffin_salad', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'salad', 'Salad', TRUE, FALSE, 5),
+        'salad', 'Salad', TRUE, FALSE, 5),
        ('slt_tiffin_daal', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'daal', 'Daal', TRUE, FALSE, 6),
+        'daal', 'Daal', TRUE, FALSE, 6),
        ('slt_tiffin_curry', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'curry', 'Curry', TRUE, TRUE, 7),
+        'curry', 'Curry', TRUE, TRUE, 7),
        ('slt_tiffin_extra', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'tiffin', 'extra', 'Extra', TRUE, FALSE, 8),
+        'extra', 'Extra', TRUE, FALSE, 8),
        ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'protein', 'Protein', TRUE, FALSE, 1),
+        'protein', 'Protein', TRUE, FALSE, 1),
        ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'grain', 'Grain', TRUE, FALSE, 2),
+        'grain', 'Grain', TRUE, FALSE, 2),
        ('slt_healthy_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'veg', 'Veg', TRUE, TRUE, 3),
-       ('slt_healthy_salad', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'healthy', 'salad', 'Salad', TRUE, FALSE, 4)
-ON CONFLICT (plan_type, key) DO NOTHING;
+        'veg', 'Veg', TRUE, TRUE, 3)
+-- No second 'salad' row: `key` is unique now, and the one salad slot is attached
+-- to the tiffin AND healthy plans below instead of being duplicated per type.
+ON CONFLICT (key) DO NOTHING;
+
+-- ============ CATEGORY -> PLANS ============
+-- Which plans each slot belongs to. Tiffin slots go to both tiffin plans (a
+-- non-veg thali still has sabzi/daal/roti); healthy slots to the healthy plan.
+-- `salad` belongs to all three, which is what lets it be a single row.
+INSERT INTO category_plans (public_id, created_at, updated_at, category_id, plan_id)
+SELECT 'cpl_' || SUBSTR(MD5(v.cat_key || v.plan_key), 1, 10),
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (SELECT id FROM dish_categories WHERE key = v.cat_key),
+       (SELECT id FROM plans WHERE key = v.plan_key)
+FROM (VALUES
+  ('sabzi','veg'),('sabzi','non-veg'),
+  ('rice','veg'),('rice','non-veg'),
+  ('roti','veg'),('roti','non-veg'),
+  ('raita','veg'),('raita','non-veg'),
+  ('daal','veg'),('daal','non-veg'),
+  ('curry','veg'),('curry','non-veg'),
+  ('extra','veg'),('extra','non-veg'),
+  ('salad','veg'),('salad','non-veg'),('salad','healthy'),
+  ('protein','healthy'),('grain','healthy'),('veg','healthy')
+) AS v(cat_key, plan_key)
+WHERE NOT EXISTS (
+  SELECT 1 FROM category_plans cp
+  WHERE cp.category_id = (SELECT id FROM dish_categories WHERE key = v.cat_key)
+    AND cp.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
+);
 
 -- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
-INSERT INTO dishes (public_id, created_at, updated_at, name, description, diet, category)
+INSERT INTO dishes (public_id, created_at, updated_at, name, description, category)
 SELECT v.public_id,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        v.name,
        v.description,
-       v.diet::dish_diet,
        v.category
 FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin and garlic', 'veg', 'daal'),
              ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg', 'curry'),
@@ -352,6 +381,35 @@ FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin 
              ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg', 'curry'),
              ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg', 'extra')) AS v(public_id, name, description, diet, category)
 WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
+
+-- ============ DISH -> PLANS ============
+-- Replaces the old dishes.diet column. A vegetarian dish is attached to BOTH the
+-- veg and non-veg plans, because a non-veg thali still contains sabzi, daal and
+-- roti. A non-veg dish is attached only to the non-veg plan, which is what stops
+-- it ever reaching a vegetarian subscriber — every menu query joins through here.
+INSERT INTO dish_plans (public_id, created_at, updated_at, dish_id, plan_id)
+SELECT 'dpl_' || SUBSTR(MD5(v.dish_public_id || v.plan_key), 1, 10),
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (SELECT id FROM dishes WHERE public_id = v.dish_public_id),
+       (SELECT id FROM plans WHERE key = v.plan_key)
+FROM (VALUES
+  ('dsh_dal_tadka','veg'),            ('dsh_dal_tadka','non-veg'),
+  ('dsh_paneer_butter_masala','veg'), ('dsh_paneer_butter_masala','non-veg'),
+  ('dsh_aloo_gobi','veg'),            ('dsh_aloo_gobi','non-veg'),
+  ('dsh_chicken_curry','non-veg'),
+  ('dsh_egg_bhurji','non-veg')
+) AS v(dish_public_id, plan_key)
+WHERE NOT EXISTS (
+  SELECT 1 FROM dish_plans dp
+  WHERE dp.dish_id = (SELECT id FROM dishes WHERE public_id = v.dish_public_id)
+    AND dp.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
+);
+
+-- ============ PLAN DISPLAY TAGS ============ (rendered verbatim; no code reads them)
+UPDATE plans SET tag_label = 'Veg',      tag_color = '#16a34a' WHERE key = 'veg'      AND tag_label IS NULL;
+UPDATE plans SET tag_label = 'Non-veg',  tag_color = '#dc2626' WHERE key = 'non-veg'  AND tag_label IS NULL;
+UPDATE plans SET tag_label = 'Healthy',  tag_color = '#0d9488' WHERE key = 'healthy'  AND tag_label IS NULL;
 
 -- ============ MENU: WEEK + ITEMS ============ (next Monday UTC; guard week+items on week_start existing)
 WITH next_monday AS (SELECT d + (CASE WHEN dow = 0 THEN 1 ELSE 8 - dow END) AS week_start
@@ -392,31 +450,6 @@ FROM new_week nw
                                   ('Egg Bhurji', 5)) AS want(name, ord)
                               JOIN dishes d ON d.name = want.name) AS dsh;
 
-
--- ─────────────────────────────────────────────────────────────────────────────
--- STAFF LOGIN (moved here from db/seed-staff.ts). One credential account.
--- DEV/QA ONLY — never seeded into production, which gets its admin from
--- db/seed-admin.ts with an operator-supplied password.
--- One account only: the admin. A seeded member and customer used to live here
--- too; extra logins nobody asked for are just standing credentials, and the e2e
--- suite provisions what it needs itself (scripts/reseed-e2e-users.ts).
--- Password is a scrypt hash — admin=AdminDev123! — precomputed because SQL
--- cannot hash. To change it:
---   node -e "import('better-auth/crypto').then(m=>m.hashPassword('NEW')).then(console.log)"
--- and replace the string below. password_set defaults true so it logs in
--- immediately. Idempotent via NOT EXISTS on email.
--- ─────────────────────────────────────────────────────────────────────────────
-WITH new_admin AS (
-    INSERT INTO users (public_id, name, email, role, email_verified, created_at, updated_at)
-    SELECT 'usr_seed_admin', 'Admin', 'info@foodmonks.ca', 'admin', true,
-           (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'info@foodmonks.ca')
-    RETURNING id
-)
-INSERT INTO account (public_id, account_id, provider_id, user_id, password)
-SELECT 'act_seed_admin', id::text, 'credential', id,
-       '15a5f1872be519cf9b058cce1641d00f:bf09821001f57b0442409f3a5ed7105a29a9552c952130a55d13138c2b1c058d0bbf8ca96be67c3ba59a0121194015343639d28cdcb01ba4fa4594d2158ac2c9'
-FROM new_admin;
 
 COMMIT;
 

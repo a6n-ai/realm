@@ -15,9 +15,9 @@ import { MealPicker } from "../meal-picker";
 
 const grid = [
   { day: "tue", dateIso: "2026-07-15", slot: "sabzi", personIndex: 1, pickIndex: 1, selectable: true, quantity: 1, selectedDishId: "dsh_1", isDefaulted: false, locked: false,
-    dishes: [ { id: "dsh_1", name: "Paneer", diet: "veg", image: null }, { id: "dsh_2", name: "Aloo Gobi", diet: "veg", image: null } ] },
+    dishes: [ { id: "dsh_1", name: "Paneer", image: null }, { id: "dsh_2", name: "Aloo Gobi", image: null } ] },
   { day: "wed", dateIso: "2026-07-16", slot: "sabzi", personIndex: 1, pickIndex: 1, selectable: true, quantity: 1, selectedDishId: "dsh_1", isDefaulted: false, locked: true,
-    dishes: [ { id: "dsh_1", name: "Paneer", diet: "veg", image: null } ] },
+    dishes: [ { id: "dsh_1", name: "Paneer", image: null } ] },
 ] as never;
 const categories = [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 }] as never;
 

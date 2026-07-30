@@ -4,7 +4,7 @@ import type { FileDetail } from "@realm/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
-import { dietsForPlanKey } from "./selections.service";
+import { dishIdsForPlan } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -20,7 +20,7 @@ export type GridCell = {
   quantity: number;
   selectedDishId: string | null;
   isDefaulted: boolean;
-  dishes: { id: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null }[];
+  dishes: { id: string; name: string; image: FileDetail | null }[];
   locked: boolean;
 };
 
@@ -69,14 +69,14 @@ export async function buildMealsGrid(
 
   // Same Monday key menus are saved under (app-settings timezone) — and scoped by plan type.
   const [planRow] = await db
-    .select({ key: plans.key, planType: plans.planType })
+    .select({ id: plans.id, key: plans.key, planType: plans.planType })
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1);
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
   const planKey = planRow.key;
   const planType = planRow.planType as "tiffin" | "healthy";
-  const allowedDiets = dietsForPlanKey(planKey);
+  const planDishIds = await dishIdsForPlan(planRow.id);
 
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
   const releasedRef = await menuService.getReleasedWeek(planType, thisMonday);
@@ -93,20 +93,20 @@ export async function buildMealsGrid(
   const { items: allItems } = await menuService.weekWithItems(releasedWeek.publicId);
   const allDishBigintIds = [...new Set(allItems.map((i) => i.dishId))];
   const [categories, weekResolved, dishRows] = await Promise.all([
-    dishCategoriesService.forPlanType(planRow.planType as "tiffin" | "healthy"),
+    dishCategoriesService.forPlan(planRow.id),
     // Single source of truth for selected/resolved dish per (day, person, category, pickIndex),
-    // including stale-pick re-validation and diet filtering — buildMealsGrid must not re-derive it.
+    // including stale-pick re-validation and plan filtering — buildMealsGrid must not re-derive it.
     resolveDeliveryMealsForWeek(order, releasedWeek, order.persons),
     allDishBigintIds.length > 0
       ? db
-          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, diet: dishes.diet, image: dishes.image })
+          .select({ id: dishes.publicId, bigintId: dishes.id, name: dishes.name, image: dishes.image })
           .from(dishes)
           .where(inArray(dishes.id, allDishBigintIds))
           .orderBy(asc(dishes.name))
       : Promise.resolve([]),
   ]);
 
-  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, diet: d.diet, image: d.image ?? null }]));
+  const dishMap = new Map(dishRows.map((d) => [d.bigintId, { id: d.id, name: d.name, image: d.image ?? null }]));
 
   // Use each row's stored cutoffAt — never recomputed here. Missed-ness is decided once,
   // at materialization/reconciliation time, not re-derived at read time.
@@ -123,19 +123,19 @@ export async function buildMealsGrid(
     const dayItems = allItems.filter((i) => i.dayOfWeek === day);
     for (const cat of categories) {
       const slot = cat.key;
-      // Representative resolution (person 1): diet filtering and category_counts are
+      // Representative resolution (person 1): plan filtering and category_counts are
       // person-independent, so whether this (day, category) renders at all doesn't vary by
       // person — only the resolved pick per pickIndex does.
       const repResolved = weekResolved.get(resolvedMealsWeekKey(day, 1))?.find((r) => r.category === slot);
-      if (!repResolved) continue; // omitted: diet-filtered-empty or count=0 for this plan
+      if (!repResolved) continue; // omitted: nothing on this plan for the slot, or count=0
 
-      const slotItems = dayItems.filter((i) => i.slot === slot);
+      // Offer only dishes attached to this order's plan. Filtering on the menu
+      // item's dish id (not on any attribute of the dish) is what keeps a
+      // non-veg dish out of a vegetarian's picker.
+      const slotItems = dayItems.filter((i) => i.slot === slot && planDishIds.has(i.dishId));
       const slotDishes = slotItems
         .map((i) => dishMap.get(i.dishId))
-        .filter(
-          (d): d is { id: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null } =>
-            !!d && allowedDiets.includes(d.diet),
-        );
+        .filter((d): d is { id: string; name: string; image: FileDetail | null } => !!d);
 
       for (let p = 1; p <= order.persons; p++) {
         const resolved = weekResolved.get(resolvedMealsWeekKey(day, p))?.find((r) => r.category === slot);

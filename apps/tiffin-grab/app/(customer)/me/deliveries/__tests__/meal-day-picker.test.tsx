@@ -36,8 +36,8 @@ const cell: CalendarCell = {
     },
   ],
   options: [
-    { category: "sabzi", dishId: "dsh_1", name: "Aloo Gobi", diet: "veg", image: null },
-    { category: "sabzi", dishId: "dsh_2", name: "Paneer", diet: "veg", image: null },
+    { category: "sabzi", dishId: "dsh_1", name: "Aloo Gobi", image: null },
+    { category: "sabzi", dishId: "dsh_2", name: "Paneer", image: null },
   ],
 };
 

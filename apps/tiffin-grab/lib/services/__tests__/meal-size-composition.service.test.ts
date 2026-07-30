@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { asc, eq, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishCategories, mealSizeItems, mealSizes, plans, users } from "@/db/schema";
+import { attachAllCategoriesToPlans } from "@/db/test-helpers";
 
 // The meal-size service stamps updatedBy from the session actor; give it a real
 // user so we can assert the parent audit stamp survives the item full-replace.
@@ -41,9 +42,10 @@ beforeAll(async () => {
   planPublicId = p.publicId;
 
   await db.insert(dishCategories).values([
-    { planType: "tiffin", key: CAT_A, label: "Cat A", enabled: true, sortOrder: 0 },
-    { planType: "tiffin", key: CAT_B, label: "Cat B", enabled: true, sortOrder: 1 },
+    { key: CAT_A, label: "Cat A", enabled: true, sortOrder: 0 },
+    { key: CAT_B, label: "Cat B", enabled: true, sortOrder: 1 },
   ]);
+  await attachAllCategoriesToPlans();
 });
 
 beforeEach(async () => {

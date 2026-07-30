@@ -4,7 +4,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DishModal } from "../dish-modal";
 
-const dish = { name: "Paneer Butter Masala", description: "Creamy tomato gravy", diet: "veg" as const, image: { name: "p.jpg", url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", isDirectory: false, size: 1 } };
+const dish = { name: "Paneer Butter Masala", description: "Creamy tomato gravy", image: { name: "p.jpg", url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", isDirectory: false, size: 1 } };
 
 afterEach(cleanup);
 

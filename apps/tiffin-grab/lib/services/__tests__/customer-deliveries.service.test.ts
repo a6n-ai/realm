@@ -6,6 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
+const { attachDishToPlans } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, cancelOrder } = await import("../orders.service");
 const {
@@ -220,9 +221,12 @@ describe("myCalendar (integration)", () => {
     const [week] = await db.insert(menuWeeks).values({
       planType, weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
     }).returning();
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer Sabzi", diet: "veg" }).returning();
-    const [sabziAlt] = await db.insert(dishes).values({ name: "Aloo Sabzi", diet: "veg" }).returning();
-    const [riceDefault] = await db.insert(dishes).values({ name: "Jeera Rice", diet: "veg" }).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer Sabzi"}).returning();
+    await attachDishToPlans(sabziDefault.id);
+    const [sabziAlt] = await db.insert(dishes).values({ name: "Aloo Sabzi"}).returning();
+    await attachDishToPlans(sabziAlt.id);
+    const [riceDefault] = await db.insert(dishes).values({ name: "Jeera Rice"}).returning();
+    await attachDishToPlans(riceDefault.id);
     await db.insert(menuItems).values([
       { menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true },
       { menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziAlt.id, isDefault: false },
@@ -286,7 +290,8 @@ describe("myCalendar (integration)", () => {
       const [week] = await db.insert(menuWeeks).values({
         planType: plan.planType, weekStart: NEXT_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
       }).returning();
-      const [sabziDefault] = await db.insert(dishes).values({ name: "Bhindi Sabzi", diet: "veg" }).returning();
+      const [sabziDefault] = await db.insert(dishes).values({ name: "Bhindi Sabzi"}).returning();
+    await attachDishToPlans(sabziDefault.id);
       await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
       return { week, sabziDefault };
     })();

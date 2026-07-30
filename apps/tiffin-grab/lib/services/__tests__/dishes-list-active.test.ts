@@ -20,9 +20,9 @@ describe("dishesService.listActiveWithImages", () => {
   it("returns only active dishes that have an image", async () => {
     const { dishesService } = await import("../dishes.service");
 
-    await db.insert(dishes).values({ name: "TEST_DISH_A", diet: "veg", image: IMG, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_B", diet: "veg", image: null, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_C", diet: "nonveg", image: IMG, active: false });
+    await db.insert(dishes).values({ name: "TEST_DISH_A", image: IMG, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_B", image: null, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_C", image: IMG, active: false });
 
     const rows = await dishesService.listActiveWithImages();
     const names = rows.map((r) => r.name);
@@ -40,9 +40,9 @@ describe("dishesService.listActive", () => {
   it("returns active dishes including those without an image", async () => {
     const { dishesService } = await import("../dishes.service");
 
-    await db.insert(dishes).values({ name: "TEST_DISH_A", diet: "veg", image: IMG, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_B", diet: "veg", image: null, active: true });
-    await db.insert(dishes).values({ name: "TEST_DISH_C", diet: "nonveg", image: IMG, active: false });
+    await db.insert(dishes).values({ name: "TEST_DISH_A", image: IMG, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_B", image: null, active: true });
+    await db.insert(dishes).values({ name: "TEST_DISH_C", image: IMG, active: false });
 
     const rows = await dishesService.listActive();
     const names = rows.map((r) => r.name);

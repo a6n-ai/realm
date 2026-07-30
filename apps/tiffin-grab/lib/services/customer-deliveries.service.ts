@@ -11,7 +11,7 @@ import {
   resolvedMealsWeekKey,
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
-import { dietsForPlanKey } from "@/lib/menu/selections.service";
+import { dishIdsForPlan } from "@/lib/menu/selections.service";
 import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
@@ -451,7 +451,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 // Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of
 // "what a subscriber receives" (resolveCategoriesForDay), never a parallel type.
 export type ResolvedMeal = ResolvedCategory[];
-export type MealOption = { category: string; dishId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null };
+export type MealOption = { category: string; dishId: string; name: string; image: FileDetail | null };
 export type CalendarDay = {
   date: string;
   status: "scheduled" | "paused" | "skipped" | "cancelled";
@@ -492,12 +492,12 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   // A category the plan doesn't include (categoryCounts[key] absent or 0) is never offered,
   // even if it's marked selectable in general — matches resolveCategoriesForDay's own count gate.
   const selectableCats = cats.filter((c) => c.selectable && (order.categoryCounts?.[c.key] ?? 0) > 0);
-  const allowedDiets = dietsForPlanKey(order.planKey);
+  const planDishIds = await dishIdsForPlan(order.planId);
 
   // Per-week caches: myDeliveries can return many days across the same released week, so batch
   // the resolution and the day's menu items once per week instead of once per delivery row.
   const resolvedByWeek = new Map<bigint, Awaited<ReturnType<typeof resolveDeliveryMealsForWeek>>>();
-  const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; diet: "veg" | "nonveg"; image: FileDetail | null }[]>();
+  const itemsByWeek = new Map<bigint, { dayOfWeek: string; slot: string; dishId: bigint; publicId: string; name: string; image: FileDetail | null }[]>();
 
   const out: CalendarDay[] = [];
   for (const row of rows) {
@@ -524,7 +524,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     let weekItems = itemsByWeek.get(week.id);
     if (!weekItems) {
       weekItems = await db
-        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, diet: dishes.diet, image: dishes.image })
+        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
         .from(menuItems)
         .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
         .where(eq(menuItems.menuWeekId, week.id))
@@ -540,8 +540,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     const dayItems = weekItems.filter((i) => i.dayOfWeek === dayOfWeek);
     const options: MealOption[] = selectableCats.flatMap((c) =>
       dayItems
-        .filter((i) => i.slot === c.key && allowedDiets.includes(i.diet))
-        .map((i) => ({ category: c.key, dishId: i.publicId, name: i.name, diet: i.diet, image: i.image ?? null })),
+        .filter((i) => i.slot === c.key && planDishIds.has(i.dishId))
+        .map((i) => ({ category: c.key, dishId: i.publicId, name: i.name, image: i.image ?? null })),
     );
 
     out.push({

@@ -1,5 +1,5 @@
 import { parseIsoDateUtc } from "@realm/commons";
-import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
+import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";
 
@@ -31,7 +31,6 @@ export function WeeklyMenuPoster({
                     <li className="text-sm text-muted-foreground">—</li>
                   ) : g.dishes.map((d, i) => (
                     <li key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                      <span aria-hidden className={`size-2 rounded-full ${dietDotClass(d.diet, d.name)}`} />
                       <span>{d.name}</span>
                     </li>
                   ))}

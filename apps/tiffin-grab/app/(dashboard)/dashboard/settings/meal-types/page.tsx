@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import { asc } from "drizzle-orm";
 import { UtensilsCrossedIcon } from "lucide-react";
+import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getMealTypes } from "@/lib/services/app-settings.service";
 import { db } from "@/db/client";
-import { dishCategories } from "@/db/schema";
+import { dishCategories, plans } from "@/db/schema";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
 
@@ -27,12 +28,11 @@ export default function MealTypesPage() {
 async function MealTypesData() {
   await requireAdmin();
 
-  const [mealTypes, allSlots] = await Promise.all([
+  const [mealTypes, rows, plansByCategory, allPlans] = await Promise.all([
     getMealTypes(),
     db
       .select({
         id: dishCategories.publicId,
-        planType: dishCategories.planType,
         key: dishCategories.key,
         label: dishCategories.label,
         enabled: dishCategories.enabled,
@@ -41,7 +41,13 @@ async function MealTypesData() {
       })
       .from(dishCategories)
       .orderBy(asc(dishCategories.sortOrder)),
+    dishCategoriesService.plansByCategory(),
+    db.select({ publicId: plans.publicId, planType: plans.planType }).from(plans),
   ]);
 
-  return <MealTypesForm initial={mealTypes} slots={allSlots} />;
+  // A slot's plan membership replaced its old plan_type column; the form still
+  // groups by type, so hand it both the membership and the plan → type map.
+  const allSlots = rows.map((r) => ({ ...r, planPublicIds: plansByCategory.get(r.id) ?? [] }));
+
+  return <MealTypesForm initial={mealTypes} slots={allSlots} plans={allPlans} />;
 }

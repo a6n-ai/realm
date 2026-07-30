@@ -13,14 +13,13 @@ import { DAY_STATUS_UNDERLINE_CLASS, type DayStatus } from "./day-status";
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function TiffinTile({
-  date, status, dishName, dishImage: _dishImage, diet: _diet, extraCount: _extraCount = 0,
+  date, status, dishName, dishImage: _dishImage, extraCount: _extraCount = 0,
   isToday = false, selected = false, variant = "month", onClick,
 }: {
   date: string;
   status: DayStatus;
   dishName: string | null;
   dishImage: FileDetail | null;
-  diet: "veg" | "nonveg" | null;
   extraCount?: number;
   isToday?: boolean;
   selected?: boolean;

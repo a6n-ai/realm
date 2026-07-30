@@ -1,20 +1,40 @@
 import { updatableColumns } from "@realm/database";
 import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { dishes, planType } from "./catalog";
+import { dishes, planType, plans } from "./catalog";
 import { orders } from "./orders";
 
+// A menu slot (sabzi, rice, protein …). Which plans use a slot is explicit
+// membership via categoryPlans, not the old plan_type column: plan_type could
+// only split tiffin from healthy, so the veg and non-veg plans were forced to
+// share one slot list. `key` is globally unique now, so a slot used by several
+// plans — "salad" — is ONE row attached to each, rather than a duplicate per
+// plan type whose enabled/selectable flags drift apart.
 export const dishCategories = pgTable(
   "dish_categories",
   {
     ...updatableColumns("slt"),
-    planType: planType("plan_type").notNull().default("tiffin"),
     key: text("key").notNull(),
     label: text("label").notNull(),
     enabled: boolean("enabled").notNull().default(false),
     selectable: boolean("selectable").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [uniqueIndex("dish_categories_type_key_unique").on(t.planType, t.key)],
+  (t) => [uniqueIndex("dish_categories_key_unique").on(t.key)],
+);
+
+/** Which plans a menu slot belongs to. Mirrors dishPlans. */
+export const categoryPlans = pgTable(
+  "category_plans",
+  {
+    ...updatableColumns("cpl"),
+    categoryId: bigint("category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    planId: bigint("plan_id", { mode: "bigint" })
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId)],
 );
 
 export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "released"]);

@@ -1,17 +1,17 @@
 import { updatableColumns } from "@realm/database";
 import type { FileDetail } from "@realm/storage/model";
-import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
-export const dishDiet = pgEnum("dish_diet", ["veg", "nonveg"]);
 export const weightUnit = pgEnum("weight_unit", ["oz", "g", "ml", "piece"]);
 
+// A dish carries no diet column. Which plans it may appear on is explicit
+// membership — see dishPlans below.
 export const dishes = pgTable("dishes", {
   ...updatableColumns("dsh"),
   name: text("name").notNull(),
   description: text("description"),
-  diet: dishDiet("diet").notNull(),
   image: jsonb("image").$type<FileDetail>(),
   // Soft ref to dish_categories.key (no DB FK — key is unique only per (planType, key)).
   // Nullable for back-compat: a null-category dish may be placed in any slot.
@@ -26,8 +26,39 @@ export const plans = pgTable("plans", {
   description: text("description"),
   planType: planType("plan_type").notNull().default("tiffin"),
   allowedStartDays: text("allowed_start_days").array().notNull().default(["mon", "tue", "wed", "thu", "fri"]),
+  // Display only. A dish shows the tags of the plans it is attached to, which is
+  // what replaced the old veg/non-veg dot. Both are admin-set and rendered
+  // verbatim — the code never reads them to decide anything, so renaming a plan
+  // or adding a new one needs no code change.
+  tagLabel: text("tag_label"),
+  tagColor: text("tag_color"),
   active: boolean("active").notNull().default(true),
 });
+
+/**
+ * Which plans a dish may appear on. Many-to-many on purpose: a veg dish belongs
+ * to the veg plan AND the non-veg plan (a non-veg thali still contains sabzi,
+ * daal and roti), so a single plan_id would force duplicate dish rows that drift
+ * apart on edit.
+ *
+ * This is the food-safety boundary, and it replaces the old `diet` column. Every
+ * menu query joins through here, so a dish with no row for a given plan simply
+ * cannot be returned to a subscriber on that plan. The code never decides what a
+ * dish *is* — only which plans an admin attached it to.
+ */
+export const dishPlans = pgTable(
+  "dish_plans",
+  {
+    ...updatableColumns("dpl"),
+    dishId: bigint("dish_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishes.id, { onDelete: "cascade" }),
+    planId: bigint("plan_id", { mode: "bigint" })
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("dish_plans_dish_plan_unique").on(t.dishId, t.planId)],
+);
 
 export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),

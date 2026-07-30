@@ -34,7 +34,7 @@ vi.mock("@/app/(dashboard)/dashboard/catalog/actions", () => ({
 afterEach(cleanup);
 
 const dishRows = [
-  { publicId: "dish_1", name: "Paneer Tikka", diet: "veg", category: "sabzi", description: null, image: null, active: true },
+  { publicId: "dish_1", name: "Paneer Tikka", category: "sabzi", description: null, image: null, active: true },
 ];
 const categoryRows = [
   { publicId: "cat_1", key: "sabzi", label: "Sabzi", planType: "tiffin", selectable: true, sortOrder: 1, active: true },

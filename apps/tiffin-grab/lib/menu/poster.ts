@@ -8,12 +8,11 @@ export type PosterItem = {
   dayOfWeek: DayOfWeek;
   slot: string;
   dishName: string;
-  diet: "veg" | "nonveg";
   position: number;
   image?: FileDetail | null;
   dishPublicId?: string;
 };
-export type RenderedGroup = { slotLabel: string | null; dishes: { name: string; diet: "veg" | "nonveg" }[] };
+export type RenderedGroup = { slotLabel: string | null; dishes: { name: string }[] };
 export type RenderedColumn = { label: string; groups: RenderedGroup[] };
 
 export const DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
@@ -38,11 +37,6 @@ export const HOME_MENU_DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
 
 // Diet indicator colour. Egg dishes are stored as `nonveg` but get a distinct
 // yellow dot, detected by name (no separate enum value).
-export function dietDotClass(diet: "veg" | "nonveg", dishName: string): string {
-  if (/\begg\b/i.test(dishName)) return "bg-yellow-500";
-  return diet === "veg" ? "bg-green-600" : "bg-red-600";
-}
-
 export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
   const flat = slots.length <= 1;
   return DAY_COLUMNS.map((col) => {
@@ -50,12 +44,12 @@ export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): Rend
     const order = (a: PosterItem, b: PosterItem) =>
       col.days.indexOf(a.dayOfWeek) - col.days.indexOf(b.dayOfWeek) || a.position - b.position;
     if (flat) {
-      const dishes = [...inCol].sort(order).map((i) => ({ name: i.dishName, diet: i.diet }));
+      const dishes = [...inCol].sort(order).map((i) => ({ name: i.dishName }));
       return { label: col.label, groups: [{ slotLabel: null, dishes }] };
     }
     const groups: RenderedGroup[] = slots.map((s) => ({
       slotLabel: s.label,
-      dishes: inCol.filter((i) => i.slot === s.key).sort(order).map((i) => ({ name: i.dishName, diet: i.diet })),
+      dishes: inCol.filter((i) => i.slot === s.key).sort(order).map((i) => ({ name: i.dishName })),
     }));
     return { label: col.label, groups };
   });

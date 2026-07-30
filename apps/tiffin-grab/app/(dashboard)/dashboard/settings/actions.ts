@@ -29,7 +29,10 @@ export async function saveMealTypes(cfg: MealTypesSettings) {
 
 export async function saveSlot(input: {
   id: string | null;
-  planType: PlanType;
+  // Plans this slot belongs to. Replaces planType: a slot is now shared by the
+  // plans an admin attaches it to, so "salad" is one row on several plans rather
+  // than a duplicate per plan type.
+  planPublicIds: string[];
   key: string;
   label: string;
   enabled: boolean;
@@ -37,10 +40,13 @@ export async function saveSlot(input: {
   sortOrder: number;
 }) {
   await requireAdmin();
-  const { id, ...rest } = input;
+  const { id, planPublicIds, ...rest } = input;
   if (!SLOT_KEY_RE.test(rest.key)) throw new ValidationError("Slot key must be lowercase letters, numbers, or underscores");
-  if (id) await dishCategoriesService.update(id, rest);
-  else await dishCategoriesService.create(rest);
+  if (planPublicIds.length === 0) throw new ValidationError("Pick at least one plan — a slot on no plan never appears on a menu");
+  const row = id
+    ? await dishCategoriesService.update(id, rest)
+    : await dishCategoriesService.create(rest);
+  await dishCategoriesService.setPlans(row.publicId, planPublicIds);
   await bust();
 }
 

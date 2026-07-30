@@ -5,7 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { dietsForPlanKey } from "@/lib/menu/selections.service";
+import { dishIdsForPlan } from "@/lib/menu/selections.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
@@ -13,7 +13,7 @@ import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 type Order = Pick<typeof orders.$inferSelect, "id" | "planId" | "categoryCounts">;
 type Week = Pick<typeof menuWeeks.$inferSelect, "id">;
 
-type Item = { slot: string; dishId: bigint; isDefault: boolean; diet: "veg" | "nonveg"; name: string; publicId: string };
+type Item = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string };
 type Pick_ = { slot: string; pickIndex: number; dishId: bigint };
 type Category = { key: string; selectable: boolean; label: string };
 
@@ -26,7 +26,7 @@ export type ResolvedCategory = {
 };
 
 // Core, pure resolution for one (day, person): default selection, stale-pick re-validation, and
-// diet filtering. Shared by the single-day and week-batched entry points below so there is
+// plan-membership filtering. Shared by the single-day and week-batched entry points below so there is
 // exactly one implementation of this logic — buildMealsGrid must call one of these two, never
 // re-derive it.
 function resolveCategoriesForDay(
@@ -34,12 +34,14 @@ function resolveCategoriesForDay(
   dayPersonPicks: Pick_[],
   cats: Category[],
   counts: Record<string, number>,
-  allowedDiets: ("veg" | "nonveg")[],
+  // Dish ids attached to the order's plan. A menu item whose dish is not in
+  // here is simply not offered — this is the food-safety filter.
+  planDishIds: Set<bigint>,
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
-    const slotItems = dayItems.filter((i) => i.slot === c.key && allowedDiets.includes(i.diet));
-    if (slotItems.length === 0) continue; // diet-filtered-empty: category isn't offered this day
+    const slotItems = dayItems.filter((i) => i.slot === c.key && planDishIds.has(i.dishId));
+    if (slotItems.length === 0) continue; // nothing on this plan for that slot today
     // A category absent from the plan's category_counts isn't part of this plan at all — 0, not 1.
     const count = counts[c.key] ?? 0;
     if (count === 0) continue;
@@ -57,7 +59,7 @@ function resolveCategoriesForDay(
     for (let pi = 1; pi <= count; pi++) {
       const chosen = dayPersonPicks.find((p) => p.slot === c.key && p.pickIndex === pi);
       // If the chosen dish was removed from this day's menu (or no longer matches the plan's
-      // diet) since the pick was made, fall back to the default dish entirely — never a
+      // plan membership) since the pick was made, fall back to the default dish entirely — never a
       // half-stale mix of ids/name.
       const chosenItem = chosen ? slotItems.find((i) => i.dishId === chosen.dishId) : undefined;
       const resolvedItem = chosenItem ?? def;
@@ -76,7 +78,7 @@ export async function resolveDeliveryMeal(order: Order, week: Week, dayOfWeek: D
   if (!plan) return [];
   const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
   const items = await db
-    .select({ slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, diet: dishes.diet, name: dishes.name, publicId: dishes.publicId })
+    .select({ slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
     .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
     .where(and(eq(menuItems.menuWeekId, week.id), eq(menuItems.dayOfWeek, dayOfWeek)))
     .orderBy(asc(menuItems.position));
@@ -84,7 +86,7 @@ export async function resolveDeliveryMeal(order: Order, week: Week, dayOfWeek: D
     .from(mealSelections)
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  return resolveCategoriesForDay(items, picks, cats, order.categoryCounts ?? {}, dietsForPlanKey(plan.key));
+  return resolveCategoriesForDay(items, picks, cats, order.categoryCounts ?? {}, await dishIdsForPlan(order.planId));
 }
 
 export type ResolvedMealsWeek = Map<string, ResolvedCategory[]>;
@@ -101,7 +103,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
   if (!plan) return result;
   const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
   const items = await db
-    .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, diet: dishes.diet, name: dishes.name, publicId: dishes.publicId })
+    .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
     .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
     .where(eq(menuItems.menuWeekId, week.id))
     .orderBy(asc(menuItems.position));
@@ -109,14 +111,14 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     .from(mealSelections)
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const allowedDiets = dietsForPlanKey(plan.key);
+  const planDishIds = await dishIdsForPlan(order.planId);
   const counts = order.categoryCounts ?? {};
   const days = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
   for (const day of days) {
     const dayItems = items.filter((i) => i.dayOfWeek === day);
     for (let person = 1; person <= persons; person++) {
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
-      result.set(resolvedMealsWeekKey(day, person), resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, allowedDiets));
+      result.set(resolvedMealsWeekKey(day, person), resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds));
     }
   }
   return result;

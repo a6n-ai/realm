@@ -5,6 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { auditLog, dishes, dishCategories, menuItems, menuWeeks } = await import("@/db/schema");
+const { attachDishToPlans, attachAllCategoriesToPlans } = await import("@/db/test-helpers");
 const { menuService } = await import("../menu.service");
 
 async function reset() {
@@ -13,7 +14,8 @@ async function reset() {
   await db.delete(menuWeeks);
   await db.delete(dishes);
   await db.delete(dishCategories);
-  await db.insert(dishCategories).values({ planType: "tiffin", key: "sabzi", label: "Sabzi", enabled: true, selectable: true, sortOrder: 1 });
+  await db.insert(dishCategories).values({ key: "sabzi", label: "Sabzi", enabled: true, selectable: true, sortOrder: 1 });
+  await attachAllCategoriesToPlans();
 }
 
 describe("menuService (integration)", () => {
@@ -29,7 +31,8 @@ describe("menuService (integration)", () => {
   });
 
   it("addItem validates slot against the plan type's slots", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-12" });
     await expect(menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "dinner", dishId: d.publicId, position: 0 })).rejects.toThrow();
     const ok = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
@@ -37,8 +40,10 @@ describe("menuService (integration)", () => {
   });
 
   it("reorderItems writes position; getPublishedWeek returns released items ordered", async () => {
-    const [d1] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
-    const [d2] = await db.insert(dishes).values({ name: "Dal", diet: "veg" }).returning();
+    const [d1] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(d1.id);
+    const [d2] = await db.insert(dishes).values({ name: "Dal"}).returning();
+    await attachDishToPlans(d2.id);
     const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-01-19" });
     const i1 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d1.publicId, position: 0 });
     const i2 = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d2.publicId, position: 1 });
@@ -73,7 +78,8 @@ describe("menuService (integration)", () => {
   });
 
   it("listWeeks returns the plan's weeks newest-first with item counts", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(d.id);
     const older = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-02" });
     const newer = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-03-09" });
     await menuService.upsertWeek({ planType: "healthy", weekStart: "2099-03-09" });
@@ -86,7 +92,8 @@ describe("menuService (integration)", () => {
   });
 
   it("listWeekMenus returns each week's items + slots for the plan", async () => {
-    const [d] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
+    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(d.id);
     const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: "2099-04-06" });
     await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
 
@@ -94,6 +101,6 @@ describe("menuService (integration)", () => {
     const wk = menus.find((m) => m.publicId === w.publicId)!;
     expect(wk.slots.map((s) => s.key)).toEqual(["sabzi"]);
     expect(wk.items).toHaveLength(1);
-    expect(wk.items[0]).toMatchObject({ dayOfWeek: "mon", slot: "sabzi", dishName: "Paneer", diet: "veg" });
+    expect(wk.items[0]).toMatchObject({ dayOfWeek: "mon", slot: "sabzi", dishName: "Paneer"});
   });
 });

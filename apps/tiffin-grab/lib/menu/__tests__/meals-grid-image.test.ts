@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
+import { attachDishToPlans } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 
@@ -61,7 +62,8 @@ describe("buildMealsGrid — dish image on grid options", () => {
     await seedMondayDelivery(order.id);
     const week = await makeWeek();
 
-    const [sabziWithImage] = await db.insert(dishes).values({ name: "Paneer", diet: "veg", image: IMG }).returning();
+    const [sabziWithImage] = await db.insert(dishes).values({ name: "Paneer", image: IMG }).returning();
+    await attachDishToPlans(sabziWithImage.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziWithImage.id, isDefault: true });
 
     const result = await buildMealsGrid(mealOrder, SETTINGS);

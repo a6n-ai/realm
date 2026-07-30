@@ -13,7 +13,6 @@ CREATE OR REPLACE FUNCTION current_app_id() RETURNS bigint LANGUAGE sql STABLE A
 CREATE TYPE "public"."locale" AS ENUM('en', 'fr');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('admin', 'member', 'user');--> statement-breakpoint
 CREATE TYPE "public"."user_status" AS ENUM('active', 'inactive', 'suspended', 'deleted');--> statement-breakpoint
-CREATE TYPE "public"."dish_diet" AS ENUM('veg', 'nonveg');--> statement-breakpoint
 CREATE TYPE "public"."meal_tier" AS ENUM('budget', 'medium', 'premium');--> statement-breakpoint
 CREATE TYPE "public"."plan_type" AS ENUM('tiffin', 'healthy');--> statement-breakpoint
 CREATE TYPE "public"."weight_unit" AS ENUM('oz', 'g', 'ml', 'piece');--> statement-breakpoint
@@ -101,7 +100,7 @@ CREATE TABLE "users" (
 	"updated_at" bigint NOT NULL,
 	"updated_by" bigint,
 	"name" text,
-	"email" text,
+	"email" text NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
 	"phone_verified" boolean DEFAULT false NOT NULL,
 	"image" text,
@@ -208,6 +207,19 @@ CREATE TABLE "delivery_zones" (
 	CONSTRAINT "delivery_zones_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
+CREATE TABLE "dish_plans" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"dish_id" bigint NOT NULL,
+	"plan_id" bigint NOT NULL,
+	CONSTRAINT "dish_plans_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
 CREATE TABLE "dishes" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -218,7 +230,6 @@ CREATE TABLE "dishes" (
 	"updated_by" bigint,
 	"name" text NOT NULL,
 	"description" text,
-	"diet" "dish_diet" NOT NULL,
 	"image" jsonb,
 	"category" text,
 	"active" boolean DEFAULT true NOT NULL,
@@ -300,6 +311,8 @@ CREATE TABLE "plans" (
 	"description" text,
 	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
 	"allowed_start_days" text[] DEFAULT '{"mon","tue","wed","thu","fri"}' NOT NULL,
+	"tag_label" text,
+	"tag_color" text,
 	"active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "plans_public_id_unique" UNIQUE("public_id"),
 	CONSTRAINT "plans_key_unique" UNIQUE("key")
@@ -612,6 +625,19 @@ CREATE TABLE "inquiry_user_config" (
 	CONSTRAINT "inquiry_user_config_user_source_unq" UNIQUE("user_id","source_id")
 );
 --> statement-breakpoint
+CREATE TABLE "category_plans" (
+	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
+	"public_id" text NOT NULL,
+	"app_id" bigint DEFAULT current_app_id() NOT NULL,
+	"created_at" bigint NOT NULL,
+	"created_by" bigint,
+	"updated_at" bigint NOT NULL,
+	"updated_by" bigint,
+	"category_id" bigint NOT NULL,
+	"plan_id" bigint NOT NULL,
+	CONSTRAINT "category_plans_public_id_unique" UNIQUE("public_id")
+);
+--> statement-breakpoint
 CREATE TABLE "dish_categories" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -620,7 +646,6 @@ CREATE TABLE "dish_categories" (
 	"created_by" bigint,
 	"updated_at" bigint NOT NULL,
 	"updated_by" bigint,
-	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
 	"key" text NOT NULL,
 	"label" text NOT NULL,
 	"enabled" boolean DEFAULT false NOT NULL,
@@ -913,6 +938,8 @@ ALTER TABLE "account" ADD CONSTRAINT "account_user_id_users_id_fk" FOREIGN KEY (
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_feature_flags" ADD CONSTRAINT "user_feature_flags_flag_id_feature_flags_id_fk" FOREIGN KEY ("flag_id") REFERENCES "public"."feature_flags"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "dish_plans" ADD CONSTRAINT "dish_plans_dish_id_dishes_id_fk" FOREIGN KEY ("dish_id") REFERENCES "public"."dishes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "dish_plans" ADD CONSTRAINT "dish_plans_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_size_items" ADD CONSTRAINT "meal_size_items_meal_size_id_meal_sizes_id_fk" FOREIGN KEY ("meal_size_id") REFERENCES "public"."meal_sizes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_sizes" ADD CONSTRAINT "meal_sizes_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_activities" ADD CONSTRAINT "order_activities_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -949,6 +976,8 @@ ALTER TABLE "section_seen" ADD CONSTRAINT "section_seen_user_id_users_id_fk" FOR
 ALTER TABLE "lead_subsources" ADD CONSTRAINT "lead_subsources_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiry_user_config" ADD CONSTRAINT "inquiry_user_config_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inquiry_user_config" ADD CONSTRAINT "inquiry_user_config_source_id_lead_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."lead_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "category_plans" ADD CONSTRAINT "category_plans_category_id_dish_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."dish_categories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "category_plans" ADD CONSTRAINT "category_plans_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_menu_week_id_menu_weeks_id_fk" FOREIGN KEY ("menu_week_id") REFERENCES "public"."menu_weeks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_dish_id_dishes_id_fk" FOREIGN KEY ("dish_id") REFERENCES "public"."dishes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -964,10 +993,11 @@ ALTER TABLE "subscription_pauses" ADD CONSTRAINT "subscription_pauses_order_id_o
 ALTER TABLE "subscription_pauses" ADD CONSTRAINT "subscription_pauses_resumed_by_users_id_fk" FOREIGN KEY ("resumed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_user_id_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_user_id_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email") WHERE "users"."email" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_phone_unique" ON "users" USING btree ("phone") WHERE "users"."phone" is not null;--> statement-breakpoint
 CREATE INDEX "users_created_idx" ON "users" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE UNIQUE INDEX "dish_plans_dish_plan_unique" ON "dish_plans" USING btree ("dish_id","plan_id");--> statement-breakpoint
 CREATE INDEX "order_activities_order_created_idx" ON "order_activities" USING btree ("order_id","created_at");--> statement-breakpoint
 CREATE INDEX "orders_user_created_idx" ON "orders" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "orders_current_owner_idx" ON "orders" USING btree ("current_owner");--> statement-breakpoint
@@ -996,7 +1026,8 @@ CREATE INDEX "tickets_created_idx" ON "tickets" USING btree ("created_at");--> s
 CREATE UNIQUE INDEX "section_seen_user_section_idx" ON "section_seen" USING btree ("user_id","section");--> statement-breakpoint
 CREATE INDEX "lead_subsources_source_idx" ON "lead_subsources" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "inquiry_user_config_source_idx" ON "inquiry_user_config" USING btree ("source_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "dish_categories_type_key_unique" ON "dish_categories" USING btree ("plan_type","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "category_plans_category_plan_unique" ON "category_plans" USING btree ("category_id","plan_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "dish_categories_key_unique" ON "dish_categories" USING btree ("key");--> statement-breakpoint
 CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index","pick_index");--> statement-breakpoint
 CREATE UNIQUE INDEX "menu_items_unique" ON "menu_items" USING btree ("menu_week_id","day_of_week","slot","dish_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "menu_weeks_type_week_unique" ON "menu_weeks" USING btree ("plan_type","week_start");--> statement-breakpoint

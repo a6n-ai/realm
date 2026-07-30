@@ -5,7 +5,6 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { cn } from "@realm/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
-import { dietDotClass } from "@/lib/menu/poster";
 import type { CustomerDish } from "@/lib/services/dishes.service";
 import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
@@ -61,13 +60,6 @@ export function DishesSection({
                   )}
                 >
                   <DishImage image={dish.image} name={dish.name} sizes={dense ? "120px" : "200px"} />
-                  <span
-                    className={cn(
-                      "absolute rounded-full ring-2 ring-white/80",
-                      dense ? "right-1 top-1 size-2" : "right-1.5 top-1.5 size-2.5",
-                      dietDotClass(dish.diet, dish.name),
-                    )}
-                  />
                   {onMenu && onMenu.length > 0 ? (
                     <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium tracking-wide text-white uppercase">
                       This week
@@ -90,7 +82,6 @@ export function DishesSection({
         dish={{
           name: selected?.name ?? "",
           description: selected?.description ?? null,
-          diet: selected?.diet ?? "veg",
           image: selected?.image ?? null,
         }}
         daysOnMenu={selected?.publicId ? daysByDish?.[selected.publicId] : undefined}

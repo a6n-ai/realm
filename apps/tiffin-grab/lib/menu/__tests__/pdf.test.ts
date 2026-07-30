@@ -10,7 +10,7 @@ describe("renderWeeklyMenuPdf", () => {
     vi.spyOn(menuService, "getPublishedWeek").mockResolvedValue({
       planType: "tiffin", theme: { accent: "#F0820A", titlePrefix: "Tiffin Menu" },
       weekStart: "2099-01-05", slots: [{ key: "lunch", label: "Lunch" }],
-      items: [{ dayOfWeek: "mon", slot: "lunch", dishName: "Paneer", diet: "veg", position: 0 }],
+      items: [{ dayOfWeek: "mon", slot: "lunch", dishName: "Paneer", position: 0 }],
     } as never);
     const bytes = await renderWeeklyMenuPdf("tiffin");
     expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe("%PDF-");

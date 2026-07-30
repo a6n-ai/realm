@@ -9,7 +9,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@realm/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
-import { DAY_COLUMNS, dietDotClass, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
+import { DAY_COLUMNS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig, PlanType } from "@/lib/menu/meal-types";
 import { WeekStartPicker } from "./week-start-picker";
 import { addItem, createDish, releaseWeek, removeItem, reorderItems, setDefault, upsertWeek } from "./actions";
@@ -25,7 +25,7 @@ const CONFIG_FIELDS = [
   { key: "week", label: "Week start (Monday)", control: "w-56" },
 ] as const;
 
-type Dish = { id: string; name: string; diet: "veg" | "nonveg"; category: string | null };
+type Dish = { id: string; name: string; category: string | null };
 type Week = { id: string; weekStart: string; status: string };
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
 type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
@@ -59,7 +59,7 @@ export function MenuBuilder({
   const dishById = useMemo(() => new Map(dishes.map((d) => [d.id, d])), [dishes]);
   const posterItems: PosterItem[] = items.flatMap((i) => {
     const d = dishById.get(i.dishId);
-    return d ? [{ dayOfWeek: i.dayOfWeek as DayOfWeek, slot: i.slot, dishName: d.name, diet: d.diet, position: i.position }] : [];
+    return d ? [{ dayOfWeek: i.dayOfWeek as DayOfWeek, slot: i.slot, dishName: d.name, position: i.position }] : [];
   });
 
   const handleUpsert = () => {
@@ -78,7 +78,7 @@ export function MenuBuilder({
     run(async () => {
       // Default the new dish's category to the slot it was created in, so the
       // category guard accepts it and it stays scoped to that slot.
-      const d = await createDish({ name: newName, diet: newDiet, category: t.slot });
+      const d = await createDish({ name: newName, category: t.slot });
       await addItem({ menuWeekId: week.id, dayOfWeek: t.storeDay, slot: t.slot, dishId: d.publicId, position: t.position });
       setCreateTarget(null);
       setNewName("");
@@ -185,7 +185,6 @@ export function MenuBuilder({
                             };
                             return (
                               <div key={i.id} className={`group flex animate-in fade-in slide-in-from-top-1 duration-200 items-center gap-2 rounded-lg py-1.5 pl-2.5 pr-1 text-sm ${i.isDefault ? "bg-primary/10 ring-1 ring-primary/30" : "bg-muted/40"}`}>
-                                <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d?.diet ?? "nonveg", d?.name ?? "")}`} />
                                 <span className="flex-1 text-pretty">{d?.name ?? i.dishId}</span>
                                 {i.isDefault && (
                                   <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">Default</span>

@@ -112,7 +112,6 @@ export function MonthCalendar({
               status={data.status}
               dishName={data.dishName}
               dishImage={data.dishImage}
-              diet={data.diet}
               extraCount={data.extraCount}
               isToday={isToday}
               selected={isSelected}

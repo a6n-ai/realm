@@ -11,7 +11,7 @@ vi.mock("@/components/motion", () => ({
 import { MealSizesSection } from "../meal-sizes-section";
 
 const mealSizes = [{ publicId: "ms_1", name: "Medium", planKey: "veg-tiffin", tier: "medium", components: ["Sabzi", "Dal", "Rice"], items: [], kcalMin: 600, kcalMax: 700, proteinG: 32, carbsG: null, fatG: null, basePrice: 8.5, trial: false }] as never;
-const dishPool = [{ publicId: "dsh_1", name: "Paneer", description: null, diet: "veg", image: { url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 }, category: "sabzi" }] as never;
+const dishPool = [{ publicId: "dsh_1", name: "Paneer", description: null, image: { url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 }, category: "sabzi" }] as never;
 
 afterEach(cleanup);
 

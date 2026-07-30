@@ -1,5 +1,5 @@
 {
-  "id": "5ad239cf-f7e5-4511-b8a2-f1beb54ef8c3",
+  "id": "22b3716c-27a7-4a72-9c47-c3c73778eb98",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -426,7 +426,7 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "email_verified": {
           "name": "email_verified",
@@ -613,7 +613,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"users\".\"email\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1177,6 +1176,132 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.dish_plans": {
+      "name": "dish_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dish_id": {
+          "name": "dish_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "dish_plans_dish_plan_unique": {
+          "name": "dish_plans_dish_plan_unique",
+          "columns": [
+            {
+              "expression": "dish_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dish_plans_dish_id_dishes_id_fk": {
+          "name": "dish_plans_dish_id_dishes_id_fk",
+          "tableFrom": "dish_plans",
+          "tableTo": "dishes",
+          "columnsFrom": [
+            "dish_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "dish_plans_plan_id_plans_id_fk": {
+          "name": "dish_plans_plan_id_plans_id_fk",
+          "tableFrom": "dish_plans",
+          "tableTo": "plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dish_plans_public_id_unique": {
+          "name": "dish_plans_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.dishes": {
       "name": "dishes",
       "schema": "",
@@ -1236,13 +1361,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "diet": {
-          "name": "diet",
-          "type": "dish_diet",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
         },
         "image": {
           "name": "image",
@@ -1768,6 +1886,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{\"mon\",\"tue\",\"wed\",\"thu\",\"fri\"}'"
+        },
+        "tag_label": {
+          "name": "tag_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tag_color": {
+          "name": "tag_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "active": {
           "name": "active",
@@ -4633,6 +4763,132 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.category_plans": {
+      "name": "category_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "next_id()"
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "current_app_id()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "category_plans_category_plan_unique": {
+          "name": "category_plans_category_plan_unique",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "category_plans_category_id_dish_categories_id_fk": {
+          "name": "category_plans_category_id_dish_categories_id_fk",
+          "tableFrom": "category_plans",
+          "tableTo": "dish_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "category_plans_plan_id_plans_id_fk": {
+          "name": "category_plans_plan_id_plans_id_fk",
+          "tableFrom": "category_plans",
+          "tableTo": "plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "category_plans_public_id_unique": {
+          "name": "category_plans_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.dish_categories": {
       "name": "dish_categories",
       "schema": "",
@@ -4681,14 +4937,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "plan_type": {
-          "name": "plan_type",
-          "type": "plan_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'tiffin'"
-        },
         "key": {
           "name": "key",
           "type": "text",
@@ -4724,15 +4972,9 @@
         }
       },
       "indexes": {
-        "dish_categories_type_key_unique": {
-          "name": "dish_categories_type_key_unique",
+        "dish_categories_key_unique": {
+          "name": "dish_categories_key_unique",
           "columns": [
-            {
-              "expression": "plan_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "key",
               "isExpression": false,
@@ -7068,14 +7310,6 @@
         "inactive",
         "suspended",
         "deleted"
-      ]
-    },
-    "public.dish_diet": {
-      "name": "dish_diet",
-      "schema": "public",
-      "values": [
-        "veg",
-        "nonveg"
       ]
     },
     "public.meal_tier": {

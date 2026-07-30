@@ -7,7 +7,7 @@ import { parseIsoDateUtc } from "@realm/commons";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
 import { Skeleton } from "@realm/ui/skeleton";
-import { buildPosterColumns, dietDotClass, type PosterItem } from "@/lib/menu/poster";
+import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -99,7 +99,6 @@ export function MenuHistoryCard({
               ) : (
                 g.dishes.map((d, i) => (
                   <div key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                    <span aria-hidden className={`size-2 shrink-0 rounded-full ${dietDotClass(d.diet, d.name)}`} />
                     <span className="text-pretty">{d.name}</span>
                   </div>
                 ))

@@ -50,7 +50,7 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   const [mealTypes, appSettings, activeDishes, weeks, categories, sizeItemRows] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
-    db.select({ id: dishes.publicId, name: dishes.name, diet: dishes.diet, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
+    db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
     menuService.listWeekMenus(planType),
     dishCategoriesService.forPlanType(planType),
     // Aggregate item categories across every plan of this plan_type (veg + non-veg

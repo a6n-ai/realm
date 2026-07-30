@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes } from "@/db/schema";
+import { attachDishToPlans } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { dishesService } = await import("../dishes.service");
@@ -14,7 +15,8 @@ async function reset() { await db.delete(dishes).where(eq(dishes.name, DISH_NAME
 describe("dishesService soft-delete", () => {
   beforeEach(async () => {
     await reset();
-    const [d] = await db.insert(dishes).values({ name: DISH_NAME, diet: "veg" }).returning();
+    const [d] = await db.insert(dishes).values({ name: DISH_NAME}).returning();
+    await attachDishToPlans(d.id);
     publicId = d.publicId;
     bigintId = d.id;
   });

@@ -6,7 +6,7 @@ import { cn } from "@realm/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
 import { formatMenuWeekRange } from "@/lib/format/datetime";
-import { HOME_MENU_DAY_COLUMNS, dietDotClass, type PosterItem } from "@/lib/menu/poster";
+import { HOME_MENU_DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { menuService } from "@/lib/services/menu.service";
 import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
@@ -67,12 +67,6 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10">
                   <DishImage image={item.image ?? null} name={item.dishName} sizes="112px" />
-                  <span
-                    className={cn(
-                      "absolute right-1 top-1 size-2 rounded-full ring-2 ring-white/80",
-                      dietDotClass(item.diet, item.dishName),
-                    )}
-                  />
                 </div>
                 {/* Caption only when photo exists — gradient tiles already print the name. */}
                 {item.image?.url ? (
@@ -88,7 +82,6 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
         dish={{
           name: selected?.dishName ?? "",
           description: null,
-          diet: selected?.diet ?? "veg",
           image: selected?.image ?? null,
         }}
         daysOnMenu={selected?.dishPublicId ? daysOnMenu.get(selected.dishPublicId) : undefined}

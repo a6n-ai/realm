@@ -33,7 +33,9 @@ const SF = Object.fromEntries(SLOT_FIELDS.map((f) => [f.name, f])) as Record<
 
 type SlotData = {
   id: string;
-  planType: PlanType;
+  // Plans this slot belongs to. Replaced the plan_type column; the UI still
+  // groups by type, resolving it through the plans below.
+  planPublicIds: string[];
   key: string;
   label: string;
   enabled: boolean;
@@ -60,10 +62,13 @@ const emptyDraft = (): NewSlotDraft => ({
 export function MealTypesForm({
   initial,
   slots,
+  plans,
 }: {
   initial: MealTypesSettings;
   slots: SlotData[];
+  plans: { publicId: string; planType: PlanType }[];
 }) {
+  const planIdsByType = (t: PlanType) => plans.filter((p) => p.planType === t).map((p) => p.publicId);
   const router = useRouter();
   const [cfg, setCfg] = useState<MealTypesSettings>(initial);
   const [typesPending, startTypes] = useTransition();
@@ -106,7 +111,7 @@ export function MealTypesForm({
     setAddPending(t);
     setAddErrors((prev) => ({ ...prev, [t]: null }));
     try {
-      await saveSlot({ id: null, planType: t, ...draft });
+      await saveSlot({ id: null, planPublicIds: planIdsByType(t), ...draft });
       setDrafts((prev) => ({ ...prev, [t]: emptyDraft() }));
       refresh();
     } catch (e) {
@@ -122,7 +127,8 @@ export function MealTypesForm({
   return (
     <div className="space-y-5">
       {PLAN_TYPES.map((t) => {
-        const planSlots = slots.filter((s) => s.planType === t);
+        const ofType = new Set(planIdsByType(t));
+        const planSlots = slots.filter((s) => s.planPublicIds.some((id) => ofType.has(id)));
         const accent = cfg[t].accent;
 
         return (
@@ -274,14 +280,14 @@ function SlotRow({
   useEffect(() => {
     setLocal({
       id: slot.id,
-      planType: slot.planType,
+      planPublicIds: slot.planPublicIds,
       key: slot.key,
       label: slot.label,
       enabled: slot.enabled,
       selectable: slot.selectable,
       sortOrder: slot.sortOrder,
     });
-  }, [slot.id, slot.planType, slot.key, slot.label, slot.enabled, slot.selectable, slot.sortOrder]);
+  }, [slot.id, slot.planPublicIds, slot.key, slot.label, slot.enabled, slot.selectable, slot.sortOrder]);
 
   const patch = (p: Partial<SlotData>) =>
     setLocal((prev) => ({ ...prev, ...p }));
@@ -292,7 +298,7 @@ function SlotRow({
       try {
         await saveSlot({
           id: local.id,
-          planType: local.planType,
+          planPublicIds: local.planPublicIds,
           key: local.key,
           label: local.label,
           enabled: local.enabled,

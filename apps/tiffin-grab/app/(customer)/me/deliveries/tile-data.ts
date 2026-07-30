@@ -12,7 +12,6 @@ export type TileData = {
   status: DayStatus;
   dishName: string | null;
   dishImage: FileDetail | null;
-  diet: "veg" | "nonveg" | null;
   // Additional distinct picks beyond the primary one shown on the tile face (e.g. a second
   // category's dish, or a second unit of a selectable one) — rendered as a "+N" badge.
   extraCount: number;
@@ -31,7 +30,6 @@ export function cellToTileData(cell: CalendarCell): TileData {
     status,
     dishName: primary?.name ?? null,
     dishImage: option?.image ?? null,
-    diet: option?.diet ?? null,
     extraCount: Math.max(picks.length - 1, 0),
   };
 }

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { attachDishToPlans } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -41,10 +42,13 @@ describe("resolveDeliveryMeal", () => {
     week = w;
 
     // sabzi is the seeded selectable category (veg plan's category_counts has sabzi:2)
-    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer", diet: "veg" }).returning();
-    const [sabziPicked] = await db.insert(dishes).values({ name: "Bhindi", diet: "veg" }).returning();
+    const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(sabziDefault.id);
+    const [sabziPicked] = await db.insert(dishes).values({ name: "Bhindi"}).returning();
+    await attachDishToPlans(sabziPicked.id);
     // rice is the seeded fixed category (selectable=false)
-    const [riceDefault] = await db.insert(dishes).values({ name: "Basmati", diet: "veg" }).returning();
+    const [riceDefault] = await db.insert(dishes).values({ name: "Basmati"}).returning();
+    await attachDishToPlans(riceDefault.id);
 
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
     await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziPicked.id, isDefault: false });
@@ -77,8 +81,10 @@ describe("resolveDeliveryMeal", () => {
   it("falls back to the lowest-position item (deterministic) when no item is marked isDefault", async () => {
     // tue has no explicit isDefault in the sabzi category and no explicit picks —
     // both dishes are isDefault=false with distinct positions.
-    const [sabziLow] = await db.insert(dishes).values({ name: "Aloo Gobi", diet: "veg" }).returning();
-    const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala", diet: "veg" }).returning();
+    const [sabziLow] = await db.insert(dishes).values({ name: "Aloo Gobi"}).returning();
+    await attachDishToPlans(sabziLow.id);
+    const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala"}).returning();
+    await attachDishToPlans(sabziHigh.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziLow.id, isDefault: false, position: 1 });
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziHigh.id, isDefault: false, position: 2 });
 

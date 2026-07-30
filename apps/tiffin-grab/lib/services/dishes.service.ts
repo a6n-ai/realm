@@ -1,8 +1,9 @@
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 import { UpdatableRepository } from "@realm/database";
+import { ValidationError } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { db } from "@/db/client";
-import { dishes } from "@/db/schema";
+import { dishPlans, dishes, plans } from "@/db/schema";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 
@@ -10,12 +11,40 @@ export type CustomerDish = {
   publicId: string;
   name: string;
   description: string | null;
-  diet: "veg" | "nonveg";
   image: FileDetail | null;
   category: string | null;
 };
 
 class DishesService extends SessionUpdatableService<typeof dishes> {
+  /**
+   * Replace a dish's plan membership wholesale. At least one plan is required:
+   * a dish attached to nothing is invisible on every menu, which is a silent
+   * failure staff would not notice until a customer complained.
+   */
+  async setPlans(dishPublicId: string, planPublicIds: string[]) {
+    if (planPublicIds.length === 0) throw new ValidationError("Pick at least one plan for this dish");
+    const [dish] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
+    if (!dish) throw new ValidationError("Dish not found");
+    const planRows = await db.select({ id: plans.id }).from(plans).where(inArray(plans.publicId, planPublicIds));
+    if (planRows.length !== planPublicIds.length) throw new ValidationError("Unknown plan");
+    await db.transaction(async (tx) => {
+      await tx.delete(dishPlans).where(eq(dishPlans.dishId, dish.id));
+      await tx.insert(dishPlans).values(planRows.map((p) => ({ dishId: dish.id, planId: p.id })));
+    });
+  }
+
+  /** Plan public ids per dish, for the admin catalog form. */
+  async plansByDish(): Promise<Map<string, string[]>> {
+    const rows = await db
+      .select({ dishPublicId: dishes.publicId, planPublicId: plans.publicId })
+      .from(dishPlans)
+      .innerJoin(dishes, eq(dishes.id, dishPlans.dishId))
+      .innerJoin(plans, eq(plans.id, dishPlans.planId));
+    const out = new Map<string, string[]>();
+    for (const r of rows) out.set(r.dishPublicId, [...(out.get(r.dishPublicId) ?? []), r.planPublicId]);
+    return out;
+  }
+
   private schema = RESOURCES.dishes.schema;
 
   // Validate every write (incl. the soft-ref `category`) server-side, so any
@@ -38,7 +67,7 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
   // slideshows. Text-only (imageless) dishes are excluded so those surfaces stay photo-driven.
   async listActiveWithImages(): Promise<CustomerDish[]> {
     const rows = await db
-      .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, diet: dishes.diet, image: dishes.image, category: dishes.category })
+      .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, image: dishes.image, category: dishes.category })
       .from(dishes)
       .where(and(eq(dishes.active, true), isNotNull(dishes.image)))
       .orderBy(asc(dishes.name));
@@ -49,7 +78,7 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
   // image is null so seed catalogs still browse like a food app.
   async listActive(): Promise<CustomerDish[]> {
     const rows = await db
-      .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, diet: dishes.diet, image: dishes.image, category: dishes.category })
+      .select({ publicId: dishes.publicId, name: dishes.name, description: dishes.description, image: dishes.image, category: dishes.category })
       .from(dishes)
       .where(eq(dishes.active, true))
       .orderBy(asc(dishes.name));

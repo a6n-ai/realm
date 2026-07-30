@@ -5,7 +5,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { DishImage } from "./dish-image";
 
 export function DishModal({ dish, daysOnMenu, open, onOpenChange }: {
-  dish: { name: string; description: string | null; diet: "veg" | "nonveg"; image: FileDetail | null };
+  dish: { name: string; description: string | null; image: FileDetail | null };
   daysOnMenu?: string[];
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -16,7 +16,6 @@ export function DishModal({ dish, daysOnMenu, open, onOpenChange }: {
         <div className="aspect-video overflow-hidden rounded-lg">
           <DishImage image={dish.image} name={dish.name} />
         </div>
-        <p className="text-xs font-medium uppercase text-muted-foreground">{dish.diet === "veg" ? "Veg" : "Non-veg"}</p>
         {dish.description ? <p className="text-sm">{dish.description}</p> : null}
         {daysOnMenu?.length ? <p className="text-sm text-muted-foreground">On the menu: {daysOnMenu.join(", ")}</p> : null}
       </div>

@@ -149,7 +149,7 @@ export const menuService = {
     const categories = await dishCategoriesService.forPlanType(planType);
     if (weeks.length === 0) return [];
     const rows = await db
-      .select({ menuWeekId: menuItems.menuWeekId, dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name, diet: dishes.diet })
+      .select({ menuWeekId: menuItems.menuWeekId, dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, position: menuItems.position, dishName: dishes.name })
       .from(menuItems)
       .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
       .where(inArray(menuItems.menuWeekId, weeks.map((w) => w.id)))
@@ -157,7 +157,7 @@ export const menuService = {
     const byWeek = new Map<bigint, PosterItem[]>();
     for (const r of rows) {
       const list = byWeek.get(r.menuWeekId) ?? [];
-      list.push({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, diet: r.diet, position: r.position });
+      list.push({ dayOfWeek: r.dayOfWeek as DayOfWeek, slot: r.slot, dishName: r.dishName, position: r.position });
       byWeek.set(r.menuWeekId, list);
     }
     return weeks.map((w) => {
@@ -235,7 +235,6 @@ export const menuService = {
           slot: menuItems.slot,
           position: menuItems.position,
           dishName: dishes.name,
-          diet: dishes.diet,
           image: dishes.image,
           dishPublicId: dishes.publicId,
         })
@@ -247,7 +246,6 @@ export const menuService = {
         dayOfWeek: r.dayOfWeek as DayOfWeek,
         slot: r.slot,
         dishName: r.dishName,
-        diet: r.diet,
         position: r.position,
         image: r.image ?? null,
         dishPublicId: r.dishPublicId,

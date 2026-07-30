@@ -412,7 +412,7 @@ function DishList({
   dishes,
   onSelect,
 }: {
-  dishes: { id: string; name: string; diet: "veg" | "nonveg" }[];
+  dishes: { id: string; name: string }[];
   onSelect: (dishId: string) => void;
 }) {
   return (
@@ -424,9 +424,6 @@ function DishList({
             className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 text-left transition-[background-color,transform] hover:bg-muted active:scale-[0.96]"
           >
             <span className="text-sm font-medium">{dish.name}</span>
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {dish.diet === "veg" ? "V" : "NV"}
-            </span>
           </button>
         </li>
       ))}

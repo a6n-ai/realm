@@ -58,7 +58,6 @@ export function WeekRail({
               status={data?.status ?? "off"}
               dishName={data?.dishName ?? null}
               dishImage={data?.dishImage ?? null}
-              diet={data?.diet ?? null}
               extraCount={data?.extraCount ?? 0}
               isToday={iso === todayIso}
               selected={iso === selected}
