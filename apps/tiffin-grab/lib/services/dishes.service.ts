@@ -50,12 +50,20 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
   // Validate every write (incl. the soft-ref `category`) server-side, so any
   // caller — catalog editor, menu-builder inline create, seed — is held to the
   // same shape rather than trusting client-submitted fields.
+  // planIds is membership in dish_plans, not a column on dishes — split it out
+  // of the patch so the generic catalog form can carry it like any other field.
   async create(values: Record<string, unknown>) {
-    return super.create(this.schema.parse(values));
+    const { planIds, ...rest } = this.schema.parse(values);
+    const row = await super.create(rest);
+    await this.setPlans(row.publicId, planIds as string[]);
+    return row;
   }
 
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, this.schema.partial().parse(patch));
+    const { planIds, ...rest } = this.schema.partial().parse(patch);
+    const row = Object.keys(rest).length ? await super.update(id, rest) : await this.read(id);
+    if (planIds) await this.setPlans(id, planIds as string[]);
+    return row;
   }
 
   async delete(id: string): Promise<number> {

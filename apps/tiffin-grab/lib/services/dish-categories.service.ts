@@ -18,15 +18,23 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   private schema = RESOURCES["dish-categories"].schema;
 
   // New categories are enabled by default; retire/restore flips `enabled`.
+  // planIds is membership in category_plans, not a column — split it out so the
+  // generic catalog form can carry it like any other field.
   async create(values: Record<string, unknown>) {
-    return super.create({ ...this.schema.parse(values), enabled: true });
+    const { planIds, ...rest } = this.schema.parse(values);
+    const row = await super.create({ ...rest, enabled: true });
+    await this.setPlans(row.publicId, planIds as string[]);
+    return row;
   }
 
   async update(id: string, patch: Record<string, unknown>) {
     // The generic catalog retire/restore action toggles `active`; this table has
     // no `active` column, so map it onto `enabled` (its status column).
     if ("active" in patch) return super.update(id, { enabled: Boolean(patch.active) });
-    return super.update(id, this.schema.partial().parse(patch));
+    const { planIds, ...rest } = this.schema.partial().parse(patch);
+    const row = Object.keys(rest).length ? await super.update(id, rest) : await this.read(id);
+    if (planIds) await this.setPlans(id, planIds as string[]);
+    return row;
   }
 
   async delete(id: string): Promise<number> {

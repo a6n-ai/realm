@@ -69,6 +69,29 @@ describe("dish → plan membership", () => {
     await expect(dishesService.setPlans(dish.publicId, [])).rejects.toThrow();
   });
 
+  // The catalog form posts planIds alongside the ordinary columns; the service
+  // splits it out. Without this, a dish created through the admin UI would land
+  // with no membership and be invisible on every menu.
+  it("create/update through the catalog form persists planIds", async () => {
+    const { dishesService } = await import("@/lib/services/dishes.service");
+    const planIds = Object.fromEntries(
+      (await db.select({ key: plans.key, publicId: plans.publicId }).from(plans)).map((p) => [p.key, p.publicId]),
+    );
+
+    const created = await dishesService.create({
+      name: NAMES[0],
+      category: "sabzi",
+      planIds: [planIds["veg"], planIds["non-veg"]],
+    });
+    expect((await dishesService.plansByDish()).get(created.publicId)).toHaveLength(2);
+
+    await dishesService.update(created.publicId, { planIds: [planIds["veg"]] });
+    expect((await dishesService.plansByDish()).get(created.publicId)).toHaveLength(1);
+
+    // A create with no plans is refused rather than producing an invisible dish.
+    await expect(dishesService.create({ name: NAMES[1], category: "curry", planIds: [] })).rejects.toThrow();
+  });
+
   it("a dish attached to no plan is invisible everywhere", async () => {
     const [orphan] = await db.insert(dishes).values({ name: NAMES[0], category: "sabzi" }).returning();
     for (const p of await db.select({ id: plans.id }).from(plans)) {

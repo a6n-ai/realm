@@ -37,15 +37,15 @@ const dishRows = [
   { publicId: "dish_1", name: "Paneer Tikka", category: "sabzi", description: null, image: null, active: true },
 ];
 const categoryRows = [
-  { publicId: "cat_1", key: "sabzi", label: "Sabzi", planType: "tiffin", selectable: true, sortOrder: 1, active: true },
+  { publicId: "cat_1", key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 1, active: true },
 ];
 
 describe("CatalogTabs", () => {
   it("renders a Dishes tab and a Categories tab, defaulting to Dishes", () => {
     render(
       <CatalogTabs
-        dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} />}
-        categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} />}
+        dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
+        categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
       />,
     );
 
@@ -58,8 +58,8 @@ describe("CatalogTabs", () => {
   it("switches to the Categories tab's editor on click", () => {
     render(
       <CatalogTabs
-        dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} />}
-        categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} />}
+        dishes={<ResourceEditor resource="dishes" rows={dishRows} dynamicOptions={{}} sort={{ column: "name", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
+        categories={<ResourceEditor resource="dish-categories" rows={categoryRows} dynamicOptions={{}} sort={{ column: "label", dir: "asc" }} spec={[]} total={1} page={0} size={10} />}
       />,
     );
 

@@ -143,7 +143,10 @@ const optCategory = z.preprocess(
 const dishesSchema = z.object({
   name,
   description: z.string().trim().optional().nullable(),
-  diet: z.enum(["veg", "nonveg"]),
+  // Plan public_ids. Replaces the old `diet` enum: which plans a dish may appear
+  // on is explicit membership, and at least one is required because a dish
+  // attached to nothing is invisible on every menu.
+  planIds: z.array(z.string()).min(1, "Pick at least one plan"),
   // Soft ref to dish_categories.key; nullable so an uncategorized dish stays
   // placeable in any menu slot (I5). Enforced server-side via dishesService.
   category: optCategory,
@@ -152,13 +155,12 @@ const dishesSchema = z.object({
 });
 
 // dish_categories uses `enabled` as its status column (not `active`); retire/
-// restore maps to it in dishCategoriesService. Duplicate-key errors surface per
-// planType only — the unique constraint is composite (planType, key), a soft ref
-// with no FK (Constraint 7).
+// restore maps to it in dishCategoriesService. `key` is globally unique now, so a
+// slot shared by several plans is one row attached to each.
 const dishCategoriesSchema = z.object({
   key,
   label: name,
-  planType: z.enum(["tiffin", "healthy"]),
+  planIds: z.array(z.string()).min(1, "Pick at least one plan"),
   selectable: z.boolean().default(false),
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
 });
@@ -168,7 +170,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     key: "dishes", label: "Dishes", singular: "dish", keyed: false, schema: dishesSchema,
     fields: [
       { key: "name", label: "Name", type: "text" },
-      { key: "diet", label: "Diet", type: "select", options: ["veg", "nonveg"], optionLabels: ENUM_LABELS },
+      { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "image", label: "Image", type: "image", optional: true },
@@ -179,7 +181,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "label", label: "Label", type: "text" },
-      { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
+      { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
       { key: "sortOrder", label: "Sort order", type: "number" },
     ],

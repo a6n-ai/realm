@@ -1,12 +1,15 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { asc, desc, eq, getTableColumns, inArray, type Column as DrizzleColumn } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
+import { asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishesService } from "@/lib/services/dishes.service";
+import { columnResolver, conditionToSql, type FilterResolver } from "@realm/database";
+import { parseFilterState, type FacetDef } from "@realm/design-system";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
@@ -40,7 +43,41 @@ function sortableColumns(def: ResourceDef): string[] {
   ];
 }
 
-export type SearchParams = Promise<{ sort?: string; dir?: string }>;
+export type SearchParams = Promise<Record<string, string | undefined>>;
+
+/**
+ * Filter spec per resource, derived from its own field definitions so every
+ * catalog page gets the same facet bar the orders and inquiries lists use
+ * instead of a bespoke one each.
+ *
+ * - search over the text fields (plus `key` for keyed resources)
+ * - a status pill pair, since every resource has a retire/restore state
+ * - a `multi` facet for any select/multiselect field with resolvable options
+ */
+function facetsFor(def: ResourceDef, dynamicOptions: Record<string, { value: string; label: string }[]>): FacetDef[] {
+  const spec: FacetDef[] = [];
+
+  const searchFields = def.fields.filter((f) => f.type === "text").map((f) => f.key);
+  if (def.keyed) searchFields.unshift("key");
+  if (searchFields.length) spec.push({ kind: "search", fields: searchFields });
+
+  spec.push({
+    kind: "pills",
+    field: "status",
+    label: "Status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "retired", label: "Retired" },
+    ],
+  });
+
+  for (const f of def.fields) {
+    if (f.type !== "select" && f.type !== "multiselect") continue;
+    const options = dynamicOptions[f.key] ?? f.options?.map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
+    if (options?.length) spec.push({ kind: "multi", field: f.key, label: f.label, options });
+  }
+  return spec;
+}
 
 export default async function CatalogResourcePage({
   params, searchParams,
@@ -86,15 +123,60 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     }
   }
 
+  const sp = await searchParams;
   const allowed = sortableColumns(def);
-  const sort = parseSort(await searchParams, allowed, { column: allowed[0], dir: "asc" });
+  const sort = parseSort(sp, allowed, { column: allowed[0], dir: "asc" });
 
   const statusField = def.statusField ?? "active";
   const columns = getTableColumns(table) as Record<string, DrizzleColumn>;
   const sortCol = columns[sort.column === STATUS_SORT_KEY ? statusField : sort.column];
   const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
 
-  const raw = (await db.select().from(table).orderBy(orderBy)) as Record<string, unknown>[];
+  const spec = facetsFor(def, dynamicOptions);
+  const { condition, page } = parseFilterState(spec, sp);
+
+  // Resolver over this resource's own columns, with two cases the generic map
+  // can't express: `status` is whichever column this table uses for retire/
+  // restore, and plan membership lives in a join table, so it filters by
+  // existence rather than by a column on the row.
+  const joinFor: Record<string, { table: string; fk: string }> = {
+    dishes: { table: "dish_plans", fk: "dish_id" },
+    "dish-categories": { table: "category_plans", fk: "category_id" },
+  };
+  const baseResolver = columnResolver(columns as Record<string, PgColumn>);
+  const resolver: FilterResolver = (f) => {
+    if (f.field === "status") {
+      const vals = (Array.isArray(f.value) ? f.value : [f.value]) as string[];
+      if (vals.length !== 1) return undefined; // both or neither → no constraint
+      return eq(columns[statusField], vals[0] === "active");
+    }
+    if (f.field === "planIds") {
+      const vals = (Array.isArray(f.value) ? f.value : [f.value]) as string[];
+      const join = joinFor[resource];
+      if (!vals.length || !join) return undefined;
+      return sql`exists (
+        select 1 from ${sql.identifier(join.table)} j
+        join plans p on p.id = j.plan_id
+        where j.${sql.identifier(join.fk)} = ${columns.id}
+          and p.public_id in ${vals}
+      )`;
+    }
+    return baseResolver(f);
+  };
+
+  const where = conditionToSql(condition, resolver);
+  const [{ count: total }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(table)
+    .where(where);
+
+  const raw = (await db
+    .select()
+    .from(table)
+    .where(where)
+    .orderBy(orderBy)
+    .limit(page.size)
+    .offset(page.page * page.size)) as Record<string, unknown>[];
   const rows = raw.map((r) => {
     const dto: Record<string, unknown> & { publicId: string } = {
       publicId: r.publicId as string,
@@ -138,5 +220,28 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     });
   }
 
-  return <ResourceEditor resource={resource} rows={rows} dynamicOptions={dynamicOptions} sort={sort} />;
+  // Dishes and slots carry plan membership in a join table, so the generic
+  // column flatten can't see it. Hydrate planIds (plan publicIds — the same
+  // space the dropdown options use) so the multiselect preselects and the table
+  // can render which plans each row serves.
+  if (resource === "dishes" || resource === "dish-categories") {
+    const byRow =
+      resource === "dishes"
+        ? await dishesService.plansByDish()
+        : await dishCategoriesService.plansByCategory();
+    for (const dto of rows) dto.planIds = byRow.get(dto.publicId) ?? [];
+  }
+
+  return (
+    <ResourceEditor
+      resource={resource}
+      rows={rows}
+      dynamicOptions={dynamicOptions}
+      sort={sort}
+      spec={spec}
+      total={total}
+      page={page.page}
+      size={page.size}
+    />
+  );
 }

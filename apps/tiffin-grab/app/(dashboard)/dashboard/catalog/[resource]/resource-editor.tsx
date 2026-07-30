@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
-import { DataTable, ResponsiveDialog, type Column } from "@/components/ds";
+import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { ImageUploader } from "@/components/files";
 import type { FileDetail } from "@realm/storage/model";
 import { MealCard } from "@/components/marketing/cards";
@@ -536,12 +537,17 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
 }
 
 export function ResourceEditor({
-  resource, rows, dynamicOptions, sort,
+  resource, rows, dynamicOptions, sort, spec, total, page, size,
 }: {
   resource: string;
   rows: Row[];
   dynamicOptions: Options;
   sort: SortState<string>;
+  // Same server-side facet framework the orders and inquiries lists use.
+  spec: FacetDef[];
+  total: number;
+  page: number;
+  size: number;
 }) {
   const def = RESOURCES[resource];
   const router = useRouter();
@@ -575,7 +581,6 @@ export function ResourceEditor({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
-        search={{ placeholder: `Search ${def.label.toLowerCase()}…`, shortPlaceholder: "Search…", keys: searchKeys(def) }}
         rowClassName={(r) =>
           cn(
             "transition-colors",
@@ -583,12 +588,7 @@ export function ResourceEditor({
             busyId === r.publicId && "pointer-events-none opacity-60",
           )
         }
-        filters={
-          <p className="text-muted-foreground text-sm">
-            <span className="text-foreground font-medium tabular-nums">{activeCount}</span> active
-            {retired ? <> · <span className="tabular-nums">{retired}</span> retired</> : null}
-          </p>
-        }
+        filters={<ReuiFacetFilters spec={spec} />}
         actions={
           <Button onClick={openNew} className="active:scale-[0.96]">
             <PlusIcon className="size-4" /> Add {def.singular}
@@ -641,6 +641,8 @@ export function ResourceEditor({
           );
         }}
       />
+
+      <ListPagination page={page} size={size} total={total} />
 
       {editing ? (
         <EditorDialog
