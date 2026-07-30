@@ -13,7 +13,7 @@ Playwright is **not** a unit-test runner. Prefer Vitest for pure logic; add a Pl
 
 1. App: `pnpm --filter tiffin-grab dev`
 2. Seeded users (`scripts/reseed-e2e-users.ts`):
-   - Admin: `admin@tiffingrab.ca` / `Admin123!`
+   - Admin: `info@foodmonks.ca` / `AdminDev123!`
    - Customer: `customer@tiffingrab.ca` / `Customer123!`
 3. Optional: `E2E_BASE_URL`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_CUSTOMER_EMAIL`, `E2E_CUSTOMER_PASSWORD`
 

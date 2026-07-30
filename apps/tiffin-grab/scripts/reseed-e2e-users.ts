@@ -5,9 +5,9 @@ async function main() {
   await db.execute(sql.raw(`
 WITH new_admin AS (
     INSERT INTO users (public_id, name, email, role, created_at, updated_at, password_set, email_verified)
-    SELECT 'usr_seed_admin', 'Admin', 'admin@tiffingrab.ca', 'admin',
+    SELECT 'usr_seed_admin', 'Admin', 'info@foodmonks.ca', 'admin',
            (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint, true, true
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@tiffingrab.ca')
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'info@foodmonks.ca')
     RETURNING id
 )
 INSERT INTO account (public_id, account_id, provider_id, user_id, password)
@@ -22,7 +22,7 @@ INSERT INTO account (public_id, account_id, provider_id, user_id, password)
 SELECT 'act_seed_admin', u.id::text, 'credential', u.id,
        '$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm'
 FROM users u
-WHERE u.email = 'admin@tiffingrab.ca'
+WHERE u.email = 'info@foodmonks.ca'
   AND NOT EXISTS (
     SELECT 1 FROM account a WHERE a.user_id = u.id AND a.provider_id = 'credential'
   );
@@ -30,7 +30,7 @@ WHERE u.email = 'admin@tiffingrab.ca'
 
   await db.execute(sql.raw(`
 UPDATE users SET password_set = true, email_verified = true
-WHERE email = 'admin@tiffingrab.ca';
+WHERE email = 'info@foodmonks.ca';
 `));
 
   // QA customer
@@ -59,7 +59,7 @@ WHERE u.email = 'customer@tiffingrab.ca'
   );
 `));
 
-  const r = await db.execute(sql`select email, role, password_set from users where email in ('admin@tiffingrab.ca','customer@tiffingrab.ca')`);
+  const r = await db.execute(sql`select email, role, password_set from users where email in ('info@foodmonks.ca','customer@tiffingrab.ca')`);
   console.log(r);
 }
 

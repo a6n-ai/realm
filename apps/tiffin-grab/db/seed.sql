@@ -405,9 +405,9 @@ FROM new_week nw
 -- ─────────────────────────────────────────────────────────────────────────────
 WITH new_admin AS (
     INSERT INTO users (public_id, name, email, role, email_verified, created_at, updated_at)
-    SELECT 'usr_seed_admin', 'Admin', 'admin@tiffingrab.ca', 'admin', true,
+    SELECT 'usr_seed_admin', 'Admin', 'info@foodmonks.ca', 'admin', true,
            (extract(epoch FROM now()) * 1000)::bigint, (extract(epoch FROM now()) * 1000)::bigint
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@tiffingrab.ca')
+    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'info@foodmonks.ca')
     RETURNING id
 )
 INSERT INTO account (public_id, account_id, provider_id, user_id, password)

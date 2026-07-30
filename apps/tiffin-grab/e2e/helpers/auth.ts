@@ -6,8 +6,8 @@ export type Creds = { email: string; password: string };
 
 export function adminCreds(): Creds {
   return {
-    email: process.env.E2E_ADMIN_EMAIL ?? "admin@tiffingrab.ca",
-    password: process.env.E2E_ADMIN_PASSWORD ?? "Admin123!",
+    email: process.env.E2E_ADMIN_EMAIL ?? "info@foodmonks.ca",
+    password: process.env.E2E_ADMIN_PASSWORD ?? "AdminDev123!",
   };
 }
 
