@@ -48,6 +48,27 @@ describe("dish → plan membership", () => {
     expect(nonVegAllowed.has(meat.id)).toBe(true);
   });
 
+  // The write path the admin form will use: a dish can be attached to several
+  // plans at once, and re-setting replaces the whole set rather than appending.
+  it("setPlans attaches a dish to MULTIPLE plans and is idempotent", async () => {
+    const { dishesService } = await import("@/lib/services/dishes.service");
+    const [dish] = await db.insert(dishes).values({ name: NAMES[0], category: "sabzi" }).returning();
+    // setPlans speaks plan public_ids (what the admin form will hold), not keys.
+    const planIds = Object.fromEntries(
+      (await db.select({ key: plans.key, publicId: plans.publicId }).from(plans)).map((p) => [p.key, p.publicId]),
+    );
+
+    await dishesService.setPlans(dish.publicId, [planIds["veg"], planIds["non-veg"]]);
+    expect((await dishesService.plansByDish()).get(dish.publicId)).toHaveLength(2);
+
+    // Re-setting to one plan replaces, not appends.
+    await dishesService.setPlans(dish.publicId, [planIds["non-veg"]]);
+    expect((await dishesService.plansByDish()).get(dish.publicId)).toHaveLength(1);
+
+    // And an empty set is refused — an unattached dish is invisible everywhere.
+    await expect(dishesService.setPlans(dish.publicId, [])).rejects.toThrow();
+  });
+
   it("a dish attached to no plan is invisible everywhere", async () => {
     const [orphan] = await db.insert(dishes).values({ name: NAMES[0], category: "sabzi" }).returning();
     for (const p of await db.select({ id: plans.id }).from(plans)) {
