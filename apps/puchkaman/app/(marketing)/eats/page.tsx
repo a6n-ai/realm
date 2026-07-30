@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import type { FileDetail } from "@realm/storage/model";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { EatsView, type EatsCategory } from "./eats-view";
 
 // Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
@@ -10,6 +12,42 @@ import { EatsView, type EatsCategory } from "./eats-view";
 // `next build`, which crashed the build. Reverted to force-dynamic until the
 // build pipeline has a real build-time Postgres.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Menu — Puchka, Chaat & Indian Street Food | Puchkaman Scarborough",
+  description:
+    "Full Puchkaman menu: aloo & dahi puchka, fusion puchkas, chaat, kathi rolls, vada pav, pav bhaji & summer drinks. Order pickup or delivery in Scarborough.",
+  path: "/eats",
+});
+
+const breadcrumb = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Menu", path: "/eats" },
+]);
+
+function menuJsonLd(categories: EatsCategory[]) {
+  const nonEmpty = categories.filter((c) => c.items.length > 0);
+  if (!nonEmpty.length) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Menu",
+    name: "Puchkaman Menu",
+    hasMenuSection: nonEmpty.map((cat) => ({
+      "@type": "MenuSection",
+      name: cat.name,
+      hasMenuItem: cat.items.map((item) => ({
+        "@type": "MenuItem",
+        name: item.name,
+        description: item.description ?? undefined,
+        offers: {
+          "@type": "Offer",
+          price: item.price.toFixed(2),
+          priceCurrency: "CAD",
+        },
+      })),
+    })),
+  };
+}
 
 async function getEats(): Promise<{
   categories: EatsCategory[];
@@ -74,11 +112,16 @@ async function getEats(): Promise<{
 
 export default async function EatsPage() {
   const { categories, totalProducts, orderingEnabled } = await getEats();
+  const menuJson = menuJsonLd(categories);
   return (
-    <EatsView
-      categories={categories}
-      totalProducts={totalProducts}
-      orderingEnabled={orderingEnabled}
-    />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+      {menuJson && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(menuJson) }} />}
+      <EatsView
+        categories={categories}
+        totalProducts={totalProducts}
+        orderingEnabled={orderingEnabled}
+      />
+    </>
   );
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import type { FileDetail } from "@realm/storage/model";
 import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
@@ -5,12 +6,25 @@ import { Reveal } from "@/components/brutal/reveal";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 // Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
 // no real DB at build time and Next tries to prerender ISR/static pages during
 // `next build`, which crashed the build. Reverted to force-dynamic until the
 // build pipeline has a real build-time Postgres.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Fusion Puchkas Toronto — Chicken Corn Cheese, Schezwan Paneer | Puchkaman",
+  description:
+    "Toronto's first fusion puchka spot. Crispy puchka shells stuffed with chicken corn cheese, schezwan paneer, momo filling & more — made fresh in Scarborough.",
+  path: "/fusion",
+});
+
+const breadcrumb = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Fusion Puchkas", path: "/fusion" },
+]);
 
 // `key` is a stable React key — product *names* aren't unique (the catalog
 // genuinely has multiple distinct products sharing a display name), so
@@ -56,11 +70,13 @@ export default async function FusionPage() {
 
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageBanner
         kicker="The Hero Product"
         title="Fusion Puchkas, Explained"
         sub="Crispy puchka shells, stuffed with bold global flavours. If you've never had one — start here."
         bg="var(--green)"
+        crumb="Fusion Puchkas"
       />
 
       {/* What is it */}

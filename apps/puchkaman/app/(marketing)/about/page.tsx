@@ -1,6 +1,20 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { Btn, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "About Puchkaman — Kolkata Street Food in Scarborough | Our Story",
+  description:
+    "From Kolkata's streets to Danforth Ave. Puchkaman brought fusion puchkas to Toronto — bold flavours, fresh-made shells, and a Scarborough community hub.",
+  path: "/about",
+});
+
+const breadcrumb = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "About", path: "/about" },
+]);
 
 const TIMELINE: [string, string][] = [
   ["Kolkata", "It starts on the streets of Kolkata — the puchka stall, the spiced water, the one-bite ritual that brings a city together."],
@@ -18,11 +32,13 @@ const VALUES: [string, string, string][] = [
 export default function AboutPage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageBanner
         kicker="Our Story"
         title="From Kolkata Streets To Scarborough"
         sub="We didn't want another Indian restaurant. We wanted the street, the crunch, and the chaos — done right."
         bg="var(--green)"
+        crumb="About"
       />
 
       {/* intro */}
@@ -54,6 +70,11 @@ export default function AboutPage() {
               <p style={{ fontSize: "1.12rem", fontWeight: 500, marginTop: 14, maxWidth: 500 }}>
                 We brought that feeling to Scarborough, then pushed it further with the fusion puchkas nobody else in Toronto was making.
               </p>
+              <div className="flex wrap-gap" style={{ marginTop: 20 }}>
+                <Btn page="eats" variant="ink" size="sm">
+                  See the menu →
+                </Btn>
+              </div>
             </div>
           </div>
         </div>

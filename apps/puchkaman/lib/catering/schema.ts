@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Mirrors the client-side CForm shape in app/(marketing)/catering/page.tsx —
+// Mirrors the client-side CForm shape in app/(marketing)/catering/catering-view.tsx —
 // server-side validation for the public (unauthenticated) inquiry endpoint.
 export const cateringInquirySchema = z.object({
   name: z.string().trim().min(1, "Name is required"),

@@ -1,8 +1,22 @@
+import type { Metadata } from "next";
 import { Btn, PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { OrderDirectCta } from "@/components/order/order-direct-cta";
 import { OrderPickupCta } from "@/components/order/order-pickup-cta";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Order Puchkaman Online — Pickup & Delivery in Scarborough",
+  description:
+    "Order Puchkaman for pickup in ~15 min, instant delivery within 7km at 15% off, or scheduled delivery across the GTA. Also on Uber Eats & DoorDash.",
+  path: "/order",
+});
+
+const breadcrumb = breadcrumbJsonLd([
+  { name: "Home", path: "/" },
+  { name: "Order Online", path: "/order" },
+]);
 
 type Channel = {
   name: string;
@@ -58,6 +72,7 @@ const WHY: [string, string, string][] = [
 export default function OrderPage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageBanner
         kicker="Order Online"
         title="Get Your Puchka Fix"
@@ -65,6 +80,7 @@ export default function OrderPage() {
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"
+        crumb="Order Online"
       />
 
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>

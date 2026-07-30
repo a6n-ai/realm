@@ -154,6 +154,7 @@ body:not(:has(.crm-app)) :is(h1, h2, h3, h4) {
   text-transform: uppercase;
   letter-spacing: -0.03em;
   line-height: 0.9;
+  overflow-wrap: break-word;
 }
 .mono {
   font-family: var(--mono);
@@ -300,6 +301,10 @@ section { position: relative; }
   border: var(--bd) solid var(--bd-c);
   border-radius: var(--r);
   box-shadow: 7px 7px 0 var(--sh-c);
+  /* Grid/flex items default to min-width: auto, so a card holding a replaced
+     element (iframe, image) can force its own track wider than the parent
+     column regardless of width:100% inside — cards should never do that. */
+  min-width: 0;
 }
 .card--white  { --card-bg: var(--white); }
 .card--yellow { --card-bg: var(--yellow); }
@@ -716,6 +721,10 @@ header a:active .logo-mark {
   .footer-grid { grid-template-columns: 1.6fr 1fr 1.2fr !important; }
   .contact-grid { grid-template-columns: 1fr 1.1fr !important; }
 }
+/* Grid items default to min-width: auto, so a replaced element inside (the
+   map <iframe>) forces the column to its intrinsic ~300px width regardless
+   of width:100% — overflowing at narrow viewports below 880px. */
+.contact-grid > * { min-width: 0; }
 @media (max-width: 879px) {
   .nav-order { display: none !important; }
 }
