@@ -11,7 +11,7 @@ vi.mock("@/components/motion", () => ({
 
 import { DishesSection } from "../dishes-section";
 
-const dishes = [{ publicId: "dsh_1", name: "Paneer", description: "Creamy", image: { url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 }, category: "sabzi" }] as never;
+const dishes = [{ planTags: [], publicId: "dsh_1", name: "Paneer", description: "Creamy", image: { url: "/api/files/p.jpg", filePath: "p", fileName: "p", type: "image/jpeg", size: 1 }, category: "sabzi" }] as never;
 
 afterEach(cleanup);
 

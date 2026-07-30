@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "categoryCounts" | "composition";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "color" | "categoryCounts" | "composition";
 
 export interface FieldDef {
   key: string;
@@ -64,6 +64,10 @@ const plansSchema = z.object({
   key, name,
   description: z.string().trim().optional().nullable(),
   planType: z.enum(["tiffin", "healthy"]),
+  // Display tag shown against dishes on this plan. Rendered verbatim — no code
+  // reads it to decide anything.
+  tagLabel: z.string().trim().max(24).optional().nullable(),
+  tagColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").optional().nullable(),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
   active,
 });
@@ -193,6 +197,8 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
       { key: "planType", label: "Plan type", type: "select", options: ["tiffin", "healthy"], optionLabels: ENUM_LABELS },
+      { key: "tagLabel", label: "Tag", type: "text", optional: true },
+      { key: "tagColor", label: "Tag colour", type: "color", optional: true },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
     ],
   },

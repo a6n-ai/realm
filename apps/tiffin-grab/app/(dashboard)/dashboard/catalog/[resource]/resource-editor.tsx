@@ -76,15 +76,6 @@ function tableColumns(def: ResourceDef): Column<string>[] {
   ];
 }
 
-// Client-side search keys: the text-ish visible columns plus the slug on keyed
-// resources. Numeric/image columns are skipped — substring search over them is noise.
-function searchKeys(def: ResourceDef): (keyof Row)[] {
-  const keys = visibleCols(def)
-    .filter((f) => f.type === "text" || f.type === "select" || isArrayType(f))
-    .map((f) => f.key);
-  if (def.keyed) keys.push("key");
-  return keys as (keyof Row)[];
-}
 
 /** Resolve a stored option value to its human label (dynamic source wins, then static map). */
 function labelFor(f: FieldDef, value: string, options: Options): string {
@@ -300,6 +291,31 @@ function FieldControl({
                 prefix="catalog/dishes"
               />
             </FormControl>
+          ) : f.type === "color" ? (
+            // Native swatch for picking, hex box for pasting a brand colour.
+            // Both write the same #rrggbb the schema validates.
+            <div className="flex items-center gap-2">
+              <FormControl>
+                <input
+                  type="color"
+                  aria-label={`${f.label} swatch`}
+                  value={(field.value as string) || "#888888"}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className="border-border size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+                />
+              </FormControl>
+              <Input
+                value={(field.value as string) ?? ""}
+                onChange={(e) => field.onChange(e.target.value)}
+                placeholder="#16a34a"
+                className="font-mono"
+              />
+              {field.value ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => field.onChange(null)}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
           ) : f.type === "date" ? (
             <FormControl><Input type="date" value={(field.value as string) ?? ""} onChange={field.onChange} /></FormControl>
           ) : (
@@ -515,6 +531,20 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
   }
   if (f.type === "select") {
     return <Badge variant="secondary" className="font-normal">{labelFor(f, String(value), options)}</Badge>;
+  }
+  if (f.type === "color") {
+    // Swatch + hex, so the column is scannable at a glance and still exact.
+    const hex = String(value);
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden
+          className="border-border size-3.5 shrink-0 rounded-full border"
+          style={{ backgroundColor: hex }}
+        />
+        <span className="text-muted-foreground font-mono text-xs">{hex}</span>
+      </span>
+    );
   }
   if (isArrayType(f)) {
     const labels = (value as string[]).map((v) => labelFor(f, v, options));

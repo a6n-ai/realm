@@ -83,6 +83,8 @@ export function ThisWeekMenuSection({ week }: { week: Week }) {
           name: selected?.dishName ?? "",
           description: null,
           image: selected?.image ?? null,
+          // The weekly poster carries menu items, not dishes, so no tags here.
+          planTags: [],
         }}
         daysOnMenu={selected?.dishPublicId ? daysOnMenu.get(selected.dishPublicId) : undefined}
         open={selected !== null}

@@ -6,6 +6,7 @@ import { cn } from "@realm/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
 import type { CustomerDish } from "@/lib/services/dishes.service";
+import { PlanTags } from "./plan-tags";
 import { DishImage } from "./dish-image";
 import { DishModal } from "./dish-modal";
 
@@ -60,6 +61,11 @@ export function DishesSection({
                   )}
                 >
                   <DishImage image={dish.image} name={dish.name} sizes={dense ? "120px" : "200px"} />
+                  <PlanTags
+                    tags={dish.planTags}
+                    dots
+                    className={cn("absolute", dense ? "right-1 top-1" : "right-1.5 top-1.5")}
+                  />
                   {onMenu && onMenu.length > 0 ? (
                     <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium tracking-wide text-white uppercase">
                       This week
@@ -83,6 +89,7 @@ export function DishesSection({
           name: selected?.name ?? "",
           description: selected?.description ?? null,
           image: selected?.image ?? null,
+          planTags: selected?.planTags ?? [],
         }}
         daysOnMenu={selected?.publicId ? daysByDish?.[selected.publicId] : undefined}
         open={selected !== null}
