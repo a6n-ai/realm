@@ -124,6 +124,21 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   }
 
   const sp = await searchParams;
+  // Composition rows offer the slots of the plan the meal size is scoped to, so
+  // a veg meal size can't be built out of healthy-plan slots. Sent as a map
+  // rather than fetched per change, so switching the plan dropdown is instant.
+  let categoriesByPlan: Record<string, { value: string; label: string }[]> | undefined;
+  if (resource === "meal-sizes") {
+    const planRows = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.active, true));
+    const entries = await Promise.all(
+      planRows.map(async (p) => [
+        p.publicId,
+        (await dishCategoriesService.forPlan(p.id)).map((c) => ({ value: c.key, label: c.label })),
+      ] as const),
+    );
+    categoriesByPlan = Object.fromEntries(entries);
+  }
+
   const allowed = sortableColumns(def);
   const sort = parseSort(sp, allowed, { column: allowed[0], dir: "asc" });
 
@@ -238,6 +253,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       rows={rows}
       dynamicOptions={dynamicOptions}
       sort={sort}
+      categoriesByPlan={categoriesByPlan}
       spec={spec}
       total={total}
       page={page.page}

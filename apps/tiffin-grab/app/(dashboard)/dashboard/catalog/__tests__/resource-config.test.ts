@@ -90,20 +90,21 @@ describe("blank numeric fields (form feeds \"\")", () => {
     expect(out.fatG).toBeNull();
   });
 
-  it("meal-sizes: requires a plan and a valid composition row (name is NOT NULL)", () => {
+  it("meal-sizes: requires a plan and a category on every composition row", () => {
     const base = { key: "x", name: "X", tier: "budget", kcalMin: "1", kcalMax: "2", basePrice: "10" };
     // Missing plan is rejected.
     expect(() => RESOURCES["meal-sizes"].schema.parse({ ...base, items: [] })).toThrow();
-    // A composition row without a name is rejected (would violate NOT NULL on insert).
+    // A row without a category is rejected — the category IS the item now, and
+    // its label becomes the NOT NULL name on insert.
     expect(() => RESOURCES["meal-sizes"].schema.parse({
-      ...base, planId: "pln_test", items: [{ name: "", category: "sabzi", qty: "1" }],
+      ...base, planId: "pln_test", items: [{ category: "", qty: "1" }],
     })).toThrow();
     // A well-formed row parses; blank weight round-trips to null.
     const out = RESOURCES["meal-sizes"].schema.parse({
       ...base, planId: "pln_test",
-      items: [{ name: "Paneer", category: "sabzi", weightValue: "", weightUnit: "", qty: "2" }],
+      items: [{ category: "sabzi", weightValue: "", weightUnit: "", qty: "2" }],
     });
-    expect((out.items as Record<string, unknown>[])[0]).toMatchObject({ name: "Paneer", category: "sabzi", weightValue: null, weightUnit: null, qty: 2 });
+    expect((out.items as Record<string, unknown>[])[0]).toMatchObject({ category: "sabzi", weightValue: null, weightUnit: null, qty: 2 });
   });
 
   it("required numeric blank is rejected rather than silently coerced to 0", () => {

@@ -75,9 +75,11 @@ const plansSchema = z.object({
 // A composition row: the required NOT NULL `name`, a category soft-ref (validated
 // against dish_categories server-side), an optional numeric weight (numeric column
 // ⇒ string in Drizzle, nullable) with a nullable unit, and a positive qty.
+// No free-text name: an item IS a category (Sabzi, Roti …), and its display name
+// is that category's label, resolved server-side. Typing names by hand let the
+// same slot be spelled three ways across meal sizes.
 const compositionItem = z.object({
-  name: z.string().trim().min(1, "Item name is required"),
-  category: z.string().trim().min(1, "Category is required"),
+  category: z.string().trim().min(1, "Pick a category"),
   weightValue: z.preprocess((v) => (v === "" || v == null ? null : String(v)), z.string().nullable()),
   weightUnit: z.preprocess((v) => (v === "" || v == null ? null : v), z.enum(["oz", "g", "ml", "piece"]).nullable()),
   qty: reqNum(z.coerce.number().int().positive()),

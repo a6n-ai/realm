@@ -73,8 +73,8 @@ describe("MealSizeService composition save", () => {
       kcalMax: "200",
       basePrice: "9.99",
       items: [
-        { name: "Paneer Masala", category: CAT_A, weightValue: "6", weightUnit: "oz", qty: 2 },
-        { name: "Jeera Rice", category: CAT_B, weightValue: "", weightUnit: "", qty: 1 },
+        { category: CAT_A, weightValue: "6", weightUnit: "oz", qty: 2 },
+        { category: CAT_B, weightValue: "", weightUnit: "", qty: 1 },
       ],
     });
 
@@ -87,9 +87,11 @@ describe("MealSizeService composition save", () => {
       .from(mealSizeItems)
       .where(eq(mealSizeItems.mealSizeId, sizeId))
       .orderBy(asc(mealSizeItems.sortOrder));
-    expect(items.map((i) => i.name)).toEqual(["Paneer Masala", "Jeera Rice"]); // STALE gone
+    // An item's name is its category label now — no free-text name to drift.
+    expect(items.map((i) => i.name)).toEqual(["Cat A", "Cat B"]); // STALE gone
     expect(items.map((i) => i.sortOrder)).toEqual([0, 1]);
     expect(items.every((i) => i.name.length > 0)).toBe(true); // NOT NULL name populated
+    expect(items.map((i) => i.label)).toEqual(["Cat A", "Cat B"]);
     expect(items[0].weightUnit).toBe("oz");
     expect(items[1].weightValue).toBeNull();
     expect(items[1].weightUnit).toBeNull();
@@ -99,7 +101,7 @@ describe("MealSizeService composition save", () => {
     await expect(
       mealSizeService.update(sizePublicId, {
         planId: planPublicId,
-        items: [{ name: "Mystery", category: "not-a-real-category", qty: 1 }],
+        items: [{ category: "not-a-real-category", qty: 1 }],
       }),
     ).rejects.toThrow();
 

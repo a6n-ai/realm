@@ -95,34 +95,54 @@ function formatNumber(f: FieldDef, n: number): string {
 // name, a category soft-ref, an optional numeric weight + unit, and a qty; the
 // service full-replaces the rows and derives sortOrder from the array order.
 function CompositionField({
-  f, form, options,
+  f, form, options, categoriesByPlan,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
+  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
 }) {
   // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
   // array element shape from the key — cast the field-array path/append payload.
   const { fields, append, remove } = useFieldArray<Record<string, unknown>>({ control: form.control, name: f.key as never });
-  const cats = options[f.key] ?? [];
+
+  // Slots follow the selected plan. Watching planId keeps the two in step without
+  // a round trip, and re-picking a plan re-scopes the options immediately.
+  const planId = form.watch("planId") as string | undefined;
+  const cats = categoriesByPlan ? (planId ? (categoriesByPlan[planId] ?? []) : []) : (options[f.key] ?? []);
+  const needsPlan = Boolean(categoriesByPlan) && !planId;
+  const used = new Set(
+    (form.watch(f.key) as { category?: string }[] | undefined)?.map((r) => r?.category).filter(Boolean) as string[],
+  );
 
   return (
     <FormItem className="grid gap-2">
-      <FormLabel>{f.label}</FormLabel>
+      <div className="flex items-baseline justify-between gap-3">
+        <FormLabel>{f.label}</FormLabel>
+        {fields.length > 0 ? (
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {fields.length} {fields.length === 1 ? "item" : "items"}
+          </span>
+        ) : null}
+      </div>
+
       <div className="grid gap-2">
-        {fields.length === 0 ? <p className="text-muted-foreground text-sm">No items yet — add the dishes that make up this meal size.</p> : null}
+        {needsPlan ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
+            Pick a plan first — the composition uses that plan&apos;s categories.
+          </p>
+        ) : fields.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
+            No items yet. Add the categories that make up this meal size.
+          </p>
+        ) : null}
+
         {fields.map((row, idx) => (
-          <div key={row.id} className="grid grid-cols-1 items-end gap-2 rounded-md border p-2.5 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_5.5rem_4rem_auto]">
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.name`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Name</span>
-                  <Input value={field.value ?? ""} onChange={field.onChange} placeholder="Paneer masala" />
-                </label>
-              )}
-            />
+          <div
+            key={row.id}
+            // Outer radius = inner radius + padding (rounded-md inputs + p-2 → rounded-lg).
+            className="grid grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,1.6fr)_5.5rem_6rem_4.5rem_auto]"
+          >
             <Controller
               control={form.control}
               name={`${f.key}.${idx}.category`}
@@ -130,9 +150,27 @@ function CompositionField({
                 <label className="grid gap-1">
                   <span className="text-muted-foreground text-xs">Category</span>
                   <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                    <SelectContent>{cats.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                    <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
+                    <SelectContent>
+                      {cats.map((o) => (
+                        // Already-used categories stay visible but unselectable, so
+                        // the list reads the same every time instead of shrinking.
+                        <SelectItem key={o.value} value={o.value} disabled={o.value !== field.value && used.has(o.value)}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
+                </label>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name={`${f.key}.${idx}.qty`}
+              render={({ field }) => (
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Qty</span>
+                  <Input className="tabular-nums" type="number" min={1} value={field.value ?? ""} onChange={field.onChange} />
                 </label>
               )}
             />
@@ -142,7 +180,7 @@ function CompositionField({
               render={({ field }) => (
                 <label className="grid gap-1">
                   <span className="text-muted-foreground text-xs">Weight</span>
-                  <Input className="nums" value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
+                  <Input className="tabular-nums" value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
                 </label>
               )}
             />
@@ -159,34 +197,27 @@ function CompositionField({
                 </label>
               )}
             />
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.qty`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Qty</span>
-                  <Input className="nums" type="number" min={1} value={field.value ?? ""} onChange={field.onChange} />
-                </label>
-              )}
-            />
             <Button
               type="button"
               variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive self-end"
-              aria-label="Remove item"
+              size="icon"
+              // size-10 keeps the hit area at 40px even though the glyph is 16px.
+              className="text-muted-foreground hover:text-destructive size-10 self-end transition-[color,scale] active:scale-[0.96]"
+              aria-label={`Remove item ${idx + 1}`}
               onClick={() => remove(idx)}
             >
               <Trash2Icon className="size-4" />
             </Button>
           </div>
         ))}
+
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="justify-self-start active:scale-[0.96]"
-          onClick={() => append({ name: "", category: "", weightValue: "", weightUnit: "", qty: 1 })}
+          className="justify-self-start transition-transform active:scale-[0.96]"
+          disabled={needsPlan || cats.length === 0 || used.size >= cats.length}
+          onClick={() => append({ category: "", weightValue: "", weightUnit: "", qty: 1 })}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>
@@ -197,14 +228,15 @@ function CompositionField({
 }
 
 function FieldControl({
-  f, form, options, isNew,
+  f, form, options, isNew, categoriesByPlan,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
   isNew: boolean;
+  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
 }) {
-  if (f.type === "composition") return <CompositionField f={f} form={form} options={options} />;
+  if (f.type === "composition") return <CompositionField f={f} form={form} options={options} categoriesByPlan={categoriesByPlan} />;
   const opts = f.optionsSource
     ? (options[f.key] ?? [])
     : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
@@ -432,13 +464,14 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
 }
 
 function EditorDialog({
-  resource, def, options, editing, onClose,
+  resource, def, options, editing, onClose, categoriesByPlan,
 }: {
   resource: string;
   def: ResourceDef;
   options: Options;
   editing: { id: string; row: Row | null };
   onClose: () => void;
+  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
 }) {
   const router = useRouter();
   const isNew = editing.id === "__new__";
@@ -492,7 +525,7 @@ function EditorDialog({
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
             {def.fields.map((f) => (
               <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
-                <FieldControl f={f} form={form} options={options} isNew={isNew} />
+                <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} />
                 {f.key === "key" && isNew && keyField?.readOnlyOnEdit && !keyManual ? (
                   <button
                     type="button"
@@ -567,12 +600,14 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
 }
 
 export function ResourceEditor({
-  resource, rows, dynamicOptions, sort, spec, total, page, size,
+  resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan,
 }: {
   resource: string;
   rows: Row[];
   dynamicOptions: Options;
   sort: SortState<string>;
+  // Slots per plan, so the composition editor can scope to the selected plan.
+  categoriesByPlan?: Record<string, { value: string; label: string }[]>;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];
   total: number;
@@ -680,6 +715,7 @@ export function ResourceEditor({
           resource={resource}
           def={def}
           options={dynamicOptions}
+          categoriesByPlan={categoriesByPlan}
           editing={editing}
           onClose={() => setEditing(null)}
         />

@@ -65,8 +65,8 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
 
     const parentPatch: Record<string, unknown> = { ...rest };
     if (planId !== undefined) parentPatch.planId = await this.resolvePlanId(planId);
-    // `components` is derived from the item names, never hand-edited.
-    if (items !== undefined) parentPatch.components = items.map((i) => i.name);
+    // `components` is derived from the category labels, never hand-edited.
+    // Resolved below, once the label map is loaded.
 
     // Validate every category soft-ref BEFORE any write, so a bad row rejects the
     // whole save (create/update + item replace) rather than half-applying it.
@@ -74,13 +74,16 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     if (items !== undefined) {
       const categories = await dishCategoriesService.enabledCategories();
       const labelByKey = new Map(categories.map((c) => [c.key, c.label]));
+      // An item's name IS its category label now, so the two can never disagree.
+      parentPatch.components = items.map((i) => labelByKey.get(i.category) ?? i.category);
       rows = items.map((item, index) => {
         if (!labelByKey.has(item.category)) throw new ValidationError(`Unknown category: ${item.category}`);
+        const label = labelByKey.get(item.category)!;
         return {
           mealSizeId: 0n, // placeholder; set once the parent id is known
-          name: item.name,
+          name: label,
           category: item.category,
-          label: labelByKey.get(item.category) ?? item.name,
+          label,
           qty: item.qty,
           weightValue: item.weightValue,
           weightUnit: item.weightUnit,
