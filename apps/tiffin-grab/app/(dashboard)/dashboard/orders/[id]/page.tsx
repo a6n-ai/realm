@@ -22,24 +22,41 @@ import { PaymentsPanel } from "./payments-panel";
 import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
+import { SubscriptionPanel, SubscriptionPanelSkeleton } from "@/components/dashboard/subscription-panel";
 
-// This page is the commercial record: what the order is, what it costs, whether it is
-// paid. Delivery calendar, meal picks, and their half of the activity log live on
-// /dashboard/customers/[id], which owns "what is this person receiving".
+// The full record for ONE order: what it is, what it costs, whether it is paid, and the
+// same delivery/meal controls the customer page shows. The customer page is the
+// multi-order view — it spans a person's subscriptions; this is the single-order view.
+// Both mount the same SubscriptionPanel so they cannot drift.
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<{ month?: string }>;
+
+export default function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   return (
     <PageShell>
       <Suspense fallback={<OrderDetail.Skeleton />}>
-        <OrderDetail params={params} />
+        <OrderDetail params={params} searchParams={searchParams} />
       </Suspense>
     </PageShell>
   );
 }
 
-async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
+async function OrderDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   await requireStaff();
   const { id } = await params;
+  const { month } = await searchParams;
 
   const settingsP = getAppSettings();
   let order;
@@ -120,8 +137,14 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         </SectionCard>
       </div>
 
+      <SubscriptionPanel
+        orderPublicId={order.publicId}
+        monthParam={month}
+        basePath={`/dashboard/orders/${order.publicId}`}
+      />
+
       <SectionCard title="Activity">
-        <OrderActivityLog activities={activities} scope="commercial" />
+        <OrderActivityLog activities={activities} />
       </SectionCard>
     </>
   );
@@ -150,6 +173,8 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           <Skeleton className="h-32 w-full" />
         </SectionCard>
       </div>
+
+      <SubscriptionPanelSkeleton />
 
       <SectionCard title="Activity">
         <OrderActivityLogSkeleton />

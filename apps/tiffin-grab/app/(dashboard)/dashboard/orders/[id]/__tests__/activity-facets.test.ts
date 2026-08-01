@@ -2,18 +2,14 @@ import { describe, expect, it } from "vitest";
 import { orderActivityType } from "@/db/schema/orders";
 import {
   ACTIVITY_CATEGORY_TYPES,
-  ACTIVITY_SCOPES,
-  activityFacetsFor,
-  activityTypesInScope,
+  ORDER_ACTIVITY_FACETS,
   filterActivityRows,
 } from "../activity-facets";
 
-const row = (type: string, over: Partial<{ createdAt: number; actorKind: "system" | "staff" | "customer" }> = {}) => ({
-  type,
-  createdAt: 1_000,
-  actorKind: "staff" as const,
-  ...over,
-});
+const row = (
+  type: string,
+  over: Partial<{ createdAt: number; actorKind: "system" | "staff" | "customer" }> = {},
+) => ({ type, createdAt: 1_000, actorKind: "staff" as const, ...over });
 
 describe("category coverage", () => {
   it("every order_activity_type falls in exactly one category", () => {
@@ -21,56 +17,43 @@ describe("category coverage", () => {
     for (const types of Object.values(ACTIVITY_CATEGORY_TYPES)) {
       for (const t of types) counts.set(t, (counts.get(t) ?? 0) + 1);
     }
-    // A type in no category is invisible in the UI; a type in two is double-counted.
+    // A type in no category is unreachable by the filter pills; a type in two is
+    // double-counted. meal_pick sat in the first bucket for months with nothing writing it.
     for (const t of orderActivityType.enumValues) {
       expect(counts.get(t), `${t} should be in exactly one category`).toBe(1);
     }
   });
 
-  it("every category belongs to exactly one scope", () => {
-    const scoped = Object.values(ACTIVITY_SCOPES).flat();
-    expect([...scoped].sort()).toEqual(Object.keys(ACTIVITY_CATEGORY_TYPES).sort());
+  it("offers a pill for every category", () => {
+    const options = (ORDER_ACTIVITY_FACETS[0] as { options: { value: string }[] }).options;
+    expect(options.map((o) => o.value)).toEqual(Object.keys(ACTIVITY_CATEGORY_TYPES));
   });
 });
 
-describe("scoping", () => {
-  it("splits meal and delivery events from lifecycle and payment events", () => {
-    expect(activityTypesInScope("subscription")).toContain("meal_pick");
-    expect(activityTypesInScope("subscription")).toContain("skipped");
-    expect(activityTypesInScope("subscription")).not.toContain("payment_verified");
-    expect(activityTypesInScope("commercial")).toContain("payment_verified");
-    expect(activityTypesInScope("commercial")).not.toContain("meal_pick");
+describe("filterActivityRows", () => {
+  it("keeps everything when no filter is applied", () => {
+    const rows = [row("meal_pick"), row("payment_verified"), row("created")];
+    expect(filterActivityRows(rows, new URLSearchParams())).toHaveLength(3);
   });
 
-  it("drops out-of-scope rows", () => {
-    const rows = [row("meal_pick"), row("payment_verified"), row("skipped")];
-    expect(filterActivityRows(rows, new URLSearchParams(), "subscription").map((r) => r.type)).toEqual([
-      "meal_pick",
-      "skipped",
-    ]);
+  it("narrows to a category's types", () => {
+    const rows = [row("meal_pick"), row("payment_verified"), row("payment_rejected")];
+    const got = filterActivityRows(rows, new URLSearchParams("category=payments"));
+    expect(got.map((r) => r.type)).toEqual(["payment_verified", "payment_rejected"]);
   });
 
-  it("a category from the other scope yields nothing rather than leaking rows", () => {
-    const rows = [row("meal_pick"), row("payment_verified")];
-    const params = new URLSearchParams("category=payments");
-    expect(filterActivityRows(rows, params, "subscription")).toEqual([]);
+  it("ignores an unknown category rather than emptying the table", () => {
+    const rows = [row("meal_pick")];
+    expect(filterActivityRows(rows, new URLSearchParams("category=nonsense"))).toHaveLength(1);
   });
 
-  it("still filters by actor and time within a scope", () => {
+  it("filters by actor and time", () => {
     const rows = [
       row("meal_pick", { actorKind: "customer", createdAt: 100 }),
       row("meal_pick", { actorKind: "staff", createdAt: 900 }),
     ];
-    expect(filterActivityRows(rows, new URLSearchParams("actorKind=staff"), "subscription")).toHaveLength(1);
-    expect(filterActivityRows(rows, new URLSearchParams("from=500"), "subscription")).toHaveLength(1);
-  });
-});
-
-describe("facets", () => {
-  it("offers only the pills its scope can produce", () => {
-    const opts = (scope: "subscription" | "commercial") =>
-      (activityFacetsFor(scope)[0] as { options: { value: string }[] }).options.map((o) => o.value);
-    expect(opts("subscription")).toEqual(["deliveries", "meals"]);
-    expect(opts("commercial")).toEqual(["lifecycle", "payments", "notes"]);
+    expect(filterActivityRows(rows, new URLSearchParams("actorKind=staff"))).toHaveLength(1);
+    expect(filterActivityRows(rows, new URLSearchParams("from=500"))).toHaveLength(1);
+    expect(filterActivityRows(rows, new URLSearchParams("to=500"))).toHaveLength(1);
   });
 });

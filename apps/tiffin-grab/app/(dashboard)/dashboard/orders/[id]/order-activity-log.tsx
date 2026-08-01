@@ -13,7 +13,7 @@ import {
   describeActivity,
   describeActivityActor,
 } from "@/lib/services/order-activity-describe";
-import { activityFacetsFor, filterActivityRows, type ActivityScope } from "./activity-facets";
+import { filterActivityRows, ORDER_ACTIVITY_FACETS } from "./activity-facets";
 
 export type OrderActivityLogRow = {
   publicId: string;
@@ -74,21 +74,15 @@ function activityPagination(sp: URLSearchParams) {
   return { page, size };
 }
 
-export function OrderActivityLog({
-  activities,
-  scope = "commercial",
-}: {
-  activities: OrderActivityLogRow[];
-  scope?: ActivityScope;
-}) {
+export function OrderActivityLog({ activities }: { activities: OrderActivityLogRow[] }) {
   const tz = useTimezone();
   const params = useSearchParams();
   const { page, size } = activityPagination(params);
 
   const rows = useMemo(() => {
     const view = toViewRows(activities);
-    return filterActivityRows(view, params, scope);
-  }, [activities, params, scope]);
+    return filterActivityRows(view, params);
+  }, [activities, params]);
 
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
 
@@ -103,7 +97,7 @@ export function OrderActivityLog({
         shortPlaceholder: "Search…",
         keys: ["action", "actorLabel", "actorEmail", "note", "type"],
       }}
-      filters={<ReuiFacetFilters spec={activityFacetsFor(scope)} />}
+      filters={<ReuiFacetFilters spec={ORDER_ACTIVITY_FACETS} />}
       pagination={{ page, size }}
       emptyIcon={ScrollTextIcon}
       emptyMessage="No activity yet."

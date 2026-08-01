@@ -1,6 +1,6 @@
 import { zonedDateIso } from "@realm/commons";
 import { eq } from "drizzle-orm";
-import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
+import { readOrder } from "@/lib/services/orders.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
 import {
@@ -11,25 +11,26 @@ import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { db } from "@/db/client";
 import { plans } from "@/db/schema";
 import { SectionCard, SkeletonCardGrid } from "@/components/ds";
-import { MealsGrid } from "../../meals/meals-grid";
+import { MealsGrid } from "@/app/(dashboard)/dashboard/meals/meals-grid";
 import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
 import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
 // Still owned by the order route: it is a thin wrapper over the customer's DeliveryCalendar
-// and pairs with fetchOrderDeliveriesMonth, which lives beside it. Only the mount moved.
-import { AdminOrderDeliveries } from "../../orders/[id]/admin-order-deliveries";
-import { OrderActivityLog, OrderActivityLogSkeleton } from "../../orders/[id]/order-activity-log";
+// and pairs with fetchOrderDeliveriesMonth, which lives beside it.
+import { AdminOrderDeliveries } from "@/app/(dashboard)/dashboard/orders/[id]/admin-order-deliveries";
 
 export const SUBSCRIPTION_SECTIONS = {
   deliveries: { title: "Deliveries" },
   meals: { title: "This week's meals" },
-  activity: { title: "Subscription activity" },
 } as const;
 
 /**
- * Everything staff can do to ONE subscription: the delivery calendar, this week's meal
- * picks, and the log of what changed. Moved here from the order detail page — the order
- * page answers "what did this cost and has it been paid", this answers "what is this
- * person receiving".
+ * What staff can change on ONE subscription: the delivery calendar and this week's meal
+ * picks. Extracted from the order detail page so that page stays readable, and so a
+ * second mount point (a customer-level view, an ops console) gets the same controls
+ * rather than a second implementation.
+ *
+ * The activity log is deliberately NOT here — the host page owns it, since it logs more
+ * than this panel can change (payments, lifecycle).
  */
 export async function SubscriptionPanel({
   orderPublicId,
@@ -38,7 +39,7 @@ export async function SubscriptionPanel({
 }: {
   orderPublicId: string;
   monthParam?: string;
-  /** Where the calendar's month links point — this page, so ?order= survives paging. */
+  /** Where the calendar's month links point, so the host page's params survive paging. */
   basePath: string;
 }) {
   const [order, settings] = await Promise.all([readOrder(orderPublicId), getAppSettings()]);
@@ -80,7 +81,7 @@ export async function SubscriptionPanel({
       ? (await myWaitlistedSubscriptions(order.userId)).filter((s) => s.publicId === order.publicId)
       : [];
 
-  const [deliveriesBundle, grid, activities] = await Promise.all([
+  const [deliveriesBundle, grid] = await Promise.all([
     subscription && order.userId != null
       ? loadOrderDeliveriesBundle(order.userId, subscription, from, until)
       : Promise.resolve(null),
@@ -100,7 +101,6 @@ export async function SubscriptionPanel({
       },
       settings,
     ),
-    listOrderActivities(order.id),
   ]);
 
   return (
@@ -140,9 +140,6 @@ export async function SubscriptionPanel({
         ) : null}
       </SectionCard>
 
-      <SectionCard title={SUBSCRIPTION_SECTIONS.activity.title}>
-        <OrderActivityLog activities={activities} scope="subscription" />
-      </SectionCard>
     </>
   );
 }
@@ -155,9 +152,6 @@ export function SubscriptionPanelSkeleton() {
       </SectionCard>
       <SectionCard title={SUBSCRIPTION_SECTIONS.meals.title}>
         <SkeletonCardGrid count={6} />
-      </SectionCard>
-      <SectionCard title={SUBSCRIPTION_SECTIONS.activity.title}>
-        <OrderActivityLogSkeleton />
       </SectionCard>
     </>
   );
