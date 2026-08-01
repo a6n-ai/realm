@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  ActivityIcon,
   BellIcon,
   CalendarIcon,
   CheckIcon,
@@ -27,8 +26,7 @@ import { lockSession } from "@/lib/auth/lock-actions";
 import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { activeNavHref } from "./nav-active";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@realm/ui/cn";
 import {
   Sidebar,
@@ -72,7 +70,6 @@ export const SECTIONS: NavSection[] = [
       { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
       { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
       { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
-      { title: "Ongoing", href: "/dashboard/orders?status=ongoing", icon: ActivityIcon, roles: ["admin", "member"] },
       { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
       { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: ["admin", "member"] },
     ],
@@ -115,10 +112,6 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
-// Every href, role filtering aside: the active row is decided across the whole
-// nav (a saved view outranks its parent), not per rendered group.
-const NAV_HREFS = SECTIONS.flatMap((s) => s.items.map((i) => i.href));
-
 // Serializable rep-coupon projection (mirrors RepCouponToday) — kept local so the
 // client bundle never imports the server-only coupons service module.
 export type RepCouponView = {
@@ -141,11 +134,10 @@ export function AppSidebar({
   activity?: Record<Section, boolean> | null;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const initials = (user.name?.trim() || user.email).slice(0, 2).toUpperCase();
-  const activeHref = activeNavHref(NAV_HREFS, pathname, searchParams);
-  const isActive = (href: string) => href === activeHref;
+  const isActive = (href: string) =>
+    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   return (
     <Sidebar collapsible="icon">
