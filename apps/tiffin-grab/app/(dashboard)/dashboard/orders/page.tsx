@@ -24,7 +24,8 @@ import {
   type FacetDef,
 } from "@/components/ds";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
-import { ORDER_STATUS_PILLS } from "./status-pills";
+import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
+import { and } from "@realm/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -100,10 +101,12 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     { kind: "search", fields: ["fullName", "deploymentId"] },
   ];
 
-  const { condition, page } = parseFilterState(spec, sp);
+  const { sp: filterSp, extra } = ongoingFilter(sp);
+  const { condition, page } = parseFilterState(spec, filterSp);
+  const finalCondition = extra ? and(...[condition, extra].filter((c) => c != null)) : condition;
 
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(condition, page, sort),
+    listOrdersPage(finalCondition, page, sort),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];

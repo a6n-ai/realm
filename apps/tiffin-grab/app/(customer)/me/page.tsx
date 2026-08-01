@@ -6,10 +6,12 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   myCalendar,
   myPrimarySubscription,
+  mySubscriptionsSummary,
   myWaitlistedSubscriptions,
   nextDeliveryByOrder,
 } from "@/lib/services/customer-deliveries.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
+import { OrdersSection, OrdersSectionSkeleton } from "@/components/customer/home/orders-section";
 import {
   HomeWeekStrip,
   HomeWeekStripEmpty,
@@ -46,9 +48,16 @@ export default async function MePage() {
               </Suspense>
             );
           }
+          if (section.key === "subscription") {
+            return (
+              <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
+                <SubscriptionSectionData userId={userId} timezone={timezone} />
+              </Suspense>
+            );
+          }
           return (
-            <Suspense key={section.key} fallback={<SubscriptionSectionSkeleton />}>
-              <SubscriptionSectionData userId={userId} timezone={timezone} />
+            <Suspense key={section.key} fallback={<OrdersSectionSkeleton />}>
+              <OrdersSectionData userId={userId} />
             </Suspense>
           );
         })}
@@ -69,6 +78,10 @@ async function HomeWeekStripData({ userId, timezone }: { userId: bigint; timezon
   const days = await myCalendar(userId, primary.publicId, { from: today, until });
   const cells: CalendarCell[] = days.map((c) => ({ ...c, menuWeekId: null }));
   return <HomeWeekStrip cells={cells} todayIso={today} />;
+}
+
+async function OrdersSectionData({ userId }: { userId: bigint }) {
+  return <OrdersSection subs={await mySubscriptionsSummary(userId)} />;
 }
 
 async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; timezone: string }) {

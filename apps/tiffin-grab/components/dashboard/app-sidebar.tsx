@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  ActivityIcon,
   BellIcon,
   CalendarIcon,
   CheckIcon,
@@ -70,6 +71,7 @@ export const SECTIONS: NavSection[] = [
       { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: ["admin", "member"] },
       { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: ["admin", "member"] },
       { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: ["admin", "member"] },
+      { title: "Ongoing", href: "/dashboard/orders?status=ongoing", icon: ActivityIcon, roles: ["admin", "member"] },
       { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: ["admin", "member"] },
       { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: ["admin", "member"] },
     ],

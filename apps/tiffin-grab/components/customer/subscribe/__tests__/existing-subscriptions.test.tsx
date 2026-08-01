@@ -37,10 +37,13 @@ describe("ExistingSubscriptions", () => {
     expect(screen.getAllByRole("link", { name: /Manage/i }).length).toBeGreaterThan(0);
   });
 
-  it("soft-encourages starting another when a live plan exists", () => {
+  // The "you already have a plan, keep going below" nudge is subscribe-flow copy
+  // and lives in app/(public)/subscribe/page.tsx — this component is also mounted
+  // on /me/home, where that wording would be nonsense.
+  it("carries no subscribe-flow copy so it can be reused on home", () => {
     render(<ExistingSubscriptions subs={[mk("active", "Veg")]} />);
-    expect(screen.getByText(/already have a plan/i)).toBeInTheDocument();
-    expect(screen.getByText(/Starting another is fine/i)).toBeInTheDocument();
+    expect(screen.queryByText(/already have a plan/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Current plan/i)).toBeInTheDocument();
   });
 
   it("renders nothing when empty", () => {

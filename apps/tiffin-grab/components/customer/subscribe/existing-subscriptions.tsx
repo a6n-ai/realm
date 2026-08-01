@@ -9,7 +9,7 @@ import { KIND_LABELS } from "@/app/(dashboard)/dashboard/discounts/kind-labels";
 import type { SubSummary } from "@/lib/services/customer-deliveries.service";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
-const CURRENT = new Set(["active", "paused", "waitlisted", "pending"]);
+export const CURRENT = new Set(["active", "paused", "waitlisted", "pending"]);
 
 function discountLine(c: AvailableCoupon): string {
   switch (c.kind) {
@@ -64,12 +64,6 @@ export function ExistingSubscriptions({ subs }: { subs: SubSummary[] }) {
   const past = subs.filter((s) => !CURRENT.has(s.status));
   return (
     <div className="space-y-4">
-      {current.length > 0 ? (
-        <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-pretty">
-          You already have a plan. Starting another is fine — manage meals on your calendar, or keep
-          going below to add a new subscription.
-        </p>
-      ) : null}
       {current.length > 0 && <Group title="Current plan" subs={current} />}
       {past.length > 0 && <Group title="Past subscriptions" subs={past} />}
     </div>

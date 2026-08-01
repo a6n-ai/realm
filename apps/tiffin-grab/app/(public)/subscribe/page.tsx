@@ -60,7 +60,13 @@ export default async function SubscribePage() {
       </header>
 
       {subs.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          {liveSubs.length > 0 && (
+            <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-pretty">
+              You already have a plan. Starting another is fine — manage meals on your calendar, or
+              keep going below to add a new subscription.
+            </p>
+          )}
           <ExistingSubscriptions subs={subs} />
         </div>
       )}
