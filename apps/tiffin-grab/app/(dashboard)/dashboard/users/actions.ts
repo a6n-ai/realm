@@ -17,8 +17,10 @@ export async function setUserStatus(userId: string, status: UserStatusValue) {
   if ((session?.user as { publicId?: string })?.publicId === userId) {
     throw new ValidationError("Change your own account status from account settings.");
   }
+  // setStatus, not update: a non-active status must take the user's sessions with it,
+  // otherwise "suspended" only stops the next login and leaves the current one running.
   if (status === "deleted") await usersService.softDelete(userId);
-  else await usersService.update(userId, { status });
+  else await usersService.setStatus(userId, status);
   revalidatePath("/dashboard/users");
 }
 

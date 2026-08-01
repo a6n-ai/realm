@@ -41,6 +41,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     if (err instanceof NotFoundError) redirect("/login");
     throw err;
   }
+  // Re-check status on the read path. session.create.before only gates a session
+  // being CREATED, so an account suspended mid-session would otherwise keep full
+  // CRM access until the 30-day session expired. usersService.setStatus revokes
+  // sessions too; this is the belt to that braces, covering any other path that
+  // flips status. Mirrors puchkaman's dashboard layout.
+  if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
+
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard (customers and staff
   // alike). /set-password sits outside this layout so it can't trap the user.

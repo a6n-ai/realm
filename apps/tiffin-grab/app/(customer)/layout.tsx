@@ -26,6 +26,10 @@ export default async function CustomerLayout({ children }: { children: ReactNode
     throw err;
   }
 
+  // Same read-path status re-check as the staff shell: a suspension must end the
+  // session already in flight, not only block the next sign-in.
+  if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
+
   const [{ timezone }, coinBalance] = await Promise.all([
     getAppSettings(),
     walletService.balance(user.id),

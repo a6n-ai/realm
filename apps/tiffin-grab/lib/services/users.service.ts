@@ -55,15 +55,46 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   /**
-   * Soft-delete: mark `deleted`, anonymize contact so the email/phone free up for
-   * reuse, and revoke every session (log out everywhere). Business rows
-   * (orders/wallet/tickets) are preserved — we never hard-delete a user.
+   * Change a user's account status, revoking every session when the new status is
+   * anything but `active`.
+   *
+   * Revoking is the point. The login gate (session.create.before) only runs when a
+   * session is CREATED, so on its own a suspension does nothing to whoever is already
+   * signed in — they keep their access until the session expires, which is 30 days
+   * here. For a staff or admin account that is the entire CRM: customer PII, orders,
+   * payments. Offboarding has to take effect immediately, so the sessions go with the
+   * status change rather than relying on a read-path check somewhere else.
    */
-  async softDelete(publicId: string) {
+  async setStatus(publicId: string, status: "active" | "inactive" | "suspended") {
+    if (status !== "active") await this.revokeSessions(publicId);
+    return super.update(publicId, { status });
+  }
+
+  /** Delete every session row for a user — "sign out everywhere". */
+  async revokeSessions(publicId: string) {
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
     if (!u) throw new ValidationError("User not found");
     await db.delete(session).where(eq(session.userId, u.id));
-    return super.update(publicId, { status: "deleted", email: null, phone: null });
+  }
+
+  /**
+   * Soft-delete: mark `deleted`, anonymize contact so the email/phone free up for
+   * reuse, and revoke every session (log out everywhere). Business rows
+   * (orders/wallet/tickets) are preserved — we never hard-delete a user.
+   *
+   * The email is tombstoned rather than nulled. It used to be set to null, which
+   * silently stopped working when email became NOT NULL — every soft-delete has been
+   * throwing a 23502 since. The tombstone keeps the column non-null, stays unique
+   * (publicId is), releases the real address for re-registration, and uses the
+   * reserved .invalid TLD so nothing can ever route mail to it.
+   */
+  async softDelete(publicId: string) {
+    await this.revokeSessions(publicId);
+    return super.update(publicId, {
+      status: "deleted",
+      email: `deleted-${publicId}@deleted.invalid`,
+      phone: null,
+    });
   }
 
   /** Verify a plaintext password against the user's credential account. */
