@@ -27,7 +27,8 @@ import { lockSession } from "@/lib/auth/lock-actions";
 import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { activeNavHref } from "./nav-active";
 import { cn } from "@realm/ui/cn";
 import {
   Sidebar,
@@ -114,6 +115,10 @@ export const SECTIONS: NavSection[] = [
   },
 ];
 
+// Every href, role filtering aside: the active row is decided across the whole
+// nav (a saved view outranks its parent), not per rendered group.
+const NAV_HREFS = SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+
 // Serializable rep-coupon projection (mirrors RepCouponToday) — kept local so the
 // client bundle never imports the server-only coupons service module.
 export type RepCouponView = {
@@ -136,10 +141,11 @@ export function AppSidebar({
   activity?: Record<Section, boolean> | null;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const initials = (user.name?.trim() || user.email).slice(0, 2).toUpperCase();
-  const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+  const activeHref = activeNavHref(NAV_HREFS, pathname, searchParams);
+  const isActive = (href: string) => href === activeHref;
 
   return (
     <Sidebar collapsible="icon">
