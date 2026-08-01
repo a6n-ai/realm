@@ -39,10 +39,16 @@ export type CloverConnection = z.infer<typeof cloverConnectionSchema>;
 /**
  * Broader integrations blob (mirrors payment_config style on the app row).
  * Other plugins can add keys later without a new column per plugin.
+ *
+ * `.loose()` is load-bearing: a stripping object would silently DELETE any other plugin's
+ * key every time this parses on the way in or out, so an app-local integration (e.g.
+ * tiffin-grab's OptimoRoute block) would vanish the next time Clover settings were saved.
  */
-export const integrationsConfigSchema = z.object({
-  clover: cloverConnectionSchema.optional(),
-});
+export const integrationsConfigSchema = z
+  .object({
+    clover: cloverConnectionSchema.optional(),
+  })
+  .loose();
 export type IntegrationsConfig = z.infer<typeof integrationsConfigSchema>;
 
 export const DEFAULT_INTEGRATIONS_CONFIG: IntegrationsConfig = {};
