@@ -2,7 +2,7 @@ import { NotFoundError, Role, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryFrequencies, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
+import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import {
@@ -439,7 +439,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
 
   const weekStart = mondayOfIso(d.deliveryDate);
   // Same exact released-week gate as Menu (`menuService.getReleasedWeek`) — never a parallel query.
-  const week = await menuService.getReleasedWeek(order.planType as "tiffin" | "healthy", weekStart);
+  const week = await menuService.getReleasedWeek(weekStart);
   if (!week) return { pending: true };
 
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
@@ -485,7 +485,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   // so its delivery days are simply absent from the calendar rather than rendered blank.
   // Uses menuService.getReleasedWeeks — same exact weekStart gate as Menu / myDeliveryMeal.
   const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
-  const releasedWeeks = await menuService.getReleasedWeeks(order.planType as "tiffin" | "healthy", weekStarts);
+  const releasedWeeks = await menuService.getReleasedWeeks(weekStarts);
   const weekByStart = new Map(releasedWeeks.map((w) => [w.weekStart, w]));
 
   const cats = await dishCategoriesService.forPlanType(order.planType as "tiffin" | "healthy");
@@ -524,9 +524,10 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     let weekItems = itemsByWeek.get(week.id);
     if (!weekItems) {
       weekItems = await db
-        .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
+        .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
         .from(menuItems)
         .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+        .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
         .where(eq(menuItems.menuWeekId, week.id))
         .orderBy(asc(menuItems.position));
       itemsByWeek.set(week.id, weekItems);

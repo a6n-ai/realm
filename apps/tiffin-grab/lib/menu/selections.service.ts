@@ -5,8 +5,9 @@
 import { ValidationError } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
+import { deliveries, dishCategories, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { visibleDeliveries } from "@/lib/services/deliveries.service";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 
@@ -67,17 +68,17 @@ export const selectionsService = {
       throw new ValidationError("Selections are locked — the cutoff for that day has passed");
     }
 
+    const categoryId = (await requireCategoryIds([slot])).get(slot)!;
+
     const [dishRow] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
     if (!dishRow) throw new ValidationError("Dish not found");
     const dishId = dishRow.id;
 
     const [item] = await db.select().from(menuItems).where(and(
-      eq(menuItems.menuWeekId, menuWeek.id), eq(menuItems.dayOfWeek, dayOfWeek), eq(menuItems.slot, slot), eq(menuItems.dishId, dishId),
+      eq(menuItems.menuWeekId, menuWeek.id), eq(menuItems.dayOfWeek, dayOfWeek), eq(menuItems.categoryId, categoryId), eq(menuItems.dishId, dishId),
     )).limit(1);
     if (!item) throw new ValidationError("Dish is not available for that day and slot");
 
-    const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-    if (!plan) throw new ValidationError("Dish does not match your plan");
     // Membership check, not an attribute check: the dish must be attached to THIS
     // order's plan. A non-veg dish has no dish_plans row for the veg plan, so a
     // vegetarian subscriber cannot select one even by posting the id directly.
@@ -90,16 +91,16 @@ export const selectionsService = {
 
     // `slot` is a dish-category key: only categories marked selectable may receive a subscriber pick,
     // and pickIndex must fall within that category's per-plan count (e.g. sabzi:2 allows picks 1 and 2).
-    const cats = await dishCategoriesService.forPlanType(plan.planType);
+    const cats = await dishCategoriesService.forPlan(order.planId);
     const cat = cats.find((c) => c.key === slot);
     if (!cat) throw new ValidationError("Unknown category");
     if (!cat.selectable) throw new ValidationError("This item is fixed and can't be changed");
     const max = order.categoryCounts?.[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
-    await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, slot, personIndex, pickIndex, dishId })
+    await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, categoryId, personIndex, pickIndex, dishId })
       .onConflictDoUpdate({
-        target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.slot, mealSelections.personIndex, mealSelections.pickIndex],
+        target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.categoryId, mealSelections.personIndex, mealSelections.pickIndex],
         set: { dishId },
       });
   },

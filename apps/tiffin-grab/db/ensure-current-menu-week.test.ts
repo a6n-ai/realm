@@ -4,7 +4,7 @@
  * resolve meal options (avoids "Menu not released yet" when Menu page still
  * shows an older published week).
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { zonedDateIso, parseIsoDateUtc } from "@realm/commons";
 import { db } from "@/db/client";
@@ -13,7 +13,6 @@ import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/services/menu.service";
 
-const DISH_NAMES = ["Dal Tadka", "Paneer Butter Masala", "Aloo Gobi", "Chicken Curry", "Egg Bhurji"] as const;
 const DAYS = ["mon", "tue", "wed", "thu", "fri"] as const;
 
 describe("ensure current menu week", () => {
@@ -27,11 +26,14 @@ describe("ensure current menu week", () => {
     const weekStarts = [thisMonday, nextMondayDate.toISOString().slice(0, 10)];
 
     for (const weekStart of weekStarts) {
-      const week = await menuService.upsertWeek({ planType: "tiffin", weekStart });
+      const week = await menuService.upsertWeek({ weekStart });
       const [row] = await db.select({ id: menuWeeks.id, status: menuWeeks.status }).from(menuWeeks).where(eq(menuWeeks.publicId, week.publicId)).limit(1);
       expect(row).toBeTruthy();
 
-      const dishRows = await db.select().from(dishes).where(inArray(dishes.name, [...DISH_NAMES]));
+      // Every active dish, not a fixed list: menuService.release refuses a week that leaves
+      // a plan short of a category its meal sizes promise, and the seeded catalog now has
+      // one dish per required category. Placing all of them is what makes the week releasable.
+      const dishRows = await db.select().from(dishes).where(eq(dishes.active, true));
       expect(dishRows.length).toBeGreaterThan(0);
 
       const existing = await db.select({ id: menuItems.id }).from(menuItems).where(eq(menuItems.menuWeekId, row!.id)).limit(1);
@@ -58,7 +60,7 @@ describe("ensure current menu week", () => {
         await menuService.evictPublishedCache();
       }
 
-      const pub = await menuService.getPublishedWeek("tiffin", weekStart);
+      const pub = await menuService.getPublishedWeek(weekStart);
       expect(pub).not.toBeNull();
       expect(pub!.weekStart).toBe(weekStart);
       expect(pub!.items.length).toBeGreaterThan(0);

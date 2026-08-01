@@ -379,7 +379,18 @@ FROM (VALUES ('dsh_dal_tadka', 'Dal Tadka', 'Yellow lentils tempered with cumin 
              ('dsh_paneer_butter_masala', 'Paneer Butter Masala', 'Paneer in a rich tomato-cream sauce', 'veg', 'curry'),
              ('dsh_aloo_gobi', 'Aloo Gobi', 'Potato and cauliflower dry sabzi', 'veg', 'sabzi'),
              ('dsh_chicken_curry', 'Chicken Curry', 'Tender chicken in a spiced onion-tomato gravy', 'nonveg', 'curry'),
-             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg', 'extra')) AS v(public_id, name, description, diet, category)
+             ('dsh_egg_bhurji', 'Egg Bhurji', 'Spiced scrambled eggs with onion and peppers', 'nonveg', 'extra'),
+             -- Staples. Both tiffin plans' meal sizes ask for rice, roti, raita and salad,
+             -- so without a dish in each of those categories no menu week can be released:
+             -- menuService.release refuses a week that leaves a plan short of a category its
+             -- meal sizes promise. These four make the seeded catalog self-consistent.
+             ('dsh_jeera_rice', 'Jeera Rice', 'Basmati rice tempered with cumin', 'veg', 'rice'),
+             ('dsh_roti', 'Roti', 'Soft whole-wheat flatbread', 'veg', 'roti'),
+             ('dsh_boondi_raita', 'Boondi Raita', 'Whisked yoghurt with crisp gram-flour pearls', 'veg', 'raita'),
+             ('dsh_kachumber_salad', 'Kachumber Salad', 'Diced cucumber, tomato and onion with lemon', 'veg', 'salad'),
+             -- Egg Bhurji is the only other 'extra', and it is non-veg only, so the veg
+             -- plan needs its own.
+             ('dsh_masala_papad', 'Masala Papad', 'Roasted papad topped with onion, tomato and chaat masala', 'veg', 'extra')) AS v(public_id, name, description, diet, category)
 WHERE NOT EXISTS (SELECT 1 FROM dishes d WHERE d.name = v.name);
 
 -- ============ DISH -> PLANS ============
@@ -398,7 +409,14 @@ FROM (VALUES
   ('dsh_paneer_butter_masala','veg'), ('dsh_paneer_butter_masala','non-veg'),
   ('dsh_aloo_gobi','veg'),            ('dsh_aloo_gobi','non-veg'),
   ('dsh_chicken_curry','non-veg'),
-  ('dsh_egg_bhurji','non-veg')
+  ('dsh_egg_bhurji','non-veg'),
+  -- Staples reach both tiffin plans: a non-veg thali still contains rice, roti,
+  -- raita and salad.
+  ('dsh_jeera_rice','veg'),           ('dsh_jeera_rice','non-veg'),
+  ('dsh_roti','veg'),                 ('dsh_roti','non-veg'),
+  ('dsh_boondi_raita','veg'),         ('dsh_boondi_raita','non-veg'),
+  ('dsh_kachumber_salad','veg'),      ('dsh_kachumber_salad','non-veg'),
+  ('dsh_masala_papad','veg'),         ('dsh_masala_papad','non-veg')
 ) AS v(dish_public_id, plan_key)
 WHERE NOT EXISTS (
   SELECT 1 FROM dish_plans dp
@@ -416,39 +434,49 @@ WITH next_monday AS (SELECT d + (CASE WHEN dow = 0 THEN 1 ELSE 8 - dow END) AS w
                      FROM (SELECT d, EXTRACT(DOW FROM d)::INT AS dow
                            FROM (SELECT (NOW() AT TIME ZONE 'utc')::DATE AS d) t0) t1),
      new_week AS (
-         INSERT INTO menu_weeks (public_id, created_at, updated_at, plan_type, week_start, status, order_cutoff)
+         INSERT INTO menu_weeks (public_id, created_at, updated_at, week_start, status, order_cutoff)
              SELECT 'mnw_' || TO_CHAR(nm.week_start, 'yyyymmdd'),
                     (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
                     (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-                    'tiffin',
                     nm.week_start,
                     'released',
                     (EXTRACT(EPOCH FROM ((nm.week_start - INTERVAL '1 day') AT TIME ZONE 'utc')) * 1000)::BIGINT
              FROM next_monday nm
              WHERE NOT EXISTS (SELECT 1
                                FROM menu_weeks mw
-                               WHERE mw.plan_type = 'tiffin' AND mw.week_start = nm.week_start)
+                               WHERE mw.week_start = nm.week_start)
              RETURNING id)
 INSERT
-INTO menu_items (public_id, created_at, updated_at, menu_week_id, day_of_week, slot, dish_id, is_default, position)
+INTO menu_items (public_id, created_at, updated_at, menu_week_id, day_of_week, category_id, dish_id, is_default, position)
 SELECT 'mni_' || SUBSTR(MD5(RANDOM()::TEXT || day.d || dsh.rn::TEXT), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        nw.id,
        day.d::day_of_week,
-       'lunch',
+       -- Each dish sits in its OWN category, resolved to the dish_categories row. This used
+       -- to be the literal 'lunch' in a free-text `slot` column — not a category key at all,
+       -- so every seeded item pointed at something that did not exist and nothing complained.
+       dsh.category_id,
        dsh.id,
        (dsh.rn = 1),
        dsh.rn - 1
 FROM new_week nw
          CROSS JOIN (VALUES ('mon'), ('tue'), ('wed'), ('thu'), ('fri')) AS day(d)
-         CROSS JOIN (SELECT d.id, ROW_NUMBER() OVER (ORDER BY want.ord) AS rn
+         CROSS JOIN (SELECT d.id,
+                            dc.id AS category_id,
+                            ROW_NUMBER() OVER (PARTITION BY d.category ORDER BY want.ord) AS rn
                      FROM (VALUES ('Dal Tadka', 1),
                                   ('Paneer Butter Masala', 2),
                                   ('Aloo Gobi', 3),
                                   ('Chicken Curry', 4),
-                                  ('Egg Bhurji', 5)) AS want(name, ord)
-                              JOIN dishes d ON d.name = want.name) AS dsh;
+                                  ('Egg Bhurji', 5),
+                                  ('Jeera Rice', 6),
+                                  ('Roti', 7),
+                                  ('Boondi Raita', 8),
+                                  ('Kachumber Salad', 9),
+                                  ('Masala Papad', 10)) AS want(name, ord)
+                              JOIN dishes d ON d.name = want.name
+                              JOIN dish_categories dc ON dc.key = d.category) AS dsh;
 
 
 COMMIT;

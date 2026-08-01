@@ -3,7 +3,7 @@
 // reuses this instead of re-deriving the pick → isDefault fallback.
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, plans } from "@/db/schema";
+import { dishCategories, dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishIdsForPlan } from "@/lib/menu/selections.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
@@ -74,16 +74,21 @@ function resolveCategoriesForDay(
 }
 
 export async function resolveDeliveryMeal(order: Order, week: Week, dayOfWeek: DayOfWeek, person: number): Promise<ResolvedCategory[]> {
-  const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-  if (!plan) return [];
-  const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
+  // forPlan, never forPlanType: buildMealsGrid decides which categories to render with
+  // forPlan(order.planId), so resolving against the plan_type union made the two disagree —
+  // a category on the non-veg plan but not the veg plan resolved for a veg order and was
+  // then dropped by the grid. One scope, one source.
+  const cats = await dishCategoriesService.forPlan(order.planId);
   const items = await db
-    .select({ slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
-    .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .select({ slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
+    .from(menuItems)
+    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
     .where(and(eq(menuItems.menuWeekId, week.id), eq(menuItems.dayOfWeek, dayOfWeek)))
     .orderBy(asc(menuItems.position));
-  const picks = await db.select({ slot: mealSelections.slot, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+  const picks = await db.select({ slot: dishCategories.key, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
     .from(mealSelections)
+    .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
   return resolveCategoriesForDay(items, picks, cats, order.categoryCounts ?? {}, await dishIdsForPlan(order.planId));
@@ -99,16 +104,17 @@ export function resolvedMealsWeekKey(day: DayOfWeek, personIndex: number): strin
 // one per (day, person). buildMealsGrid uses this rather than re-inlining the resolution.
 export async function resolveDeliveryMealsForWeek(order: Order, week: Week, persons: number): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
-  const [plan] = await db.select({ key: plans.key, planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-  if (!plan) return result;
-  const cats = await dishCategoriesService.forPlanType(plan.planType as "tiffin" | "healthy");
+  const cats = await dishCategoriesService.forPlan(order.planId);
   const items = await db
-    .select({ dayOfWeek: menuItems.dayOfWeek, slot: menuItems.slot, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
-    .from(menuItems).innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId })
+    .from(menuItems)
+    .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
+    .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
     .where(eq(menuItems.menuWeekId, week.id))
     .orderBy(asc(menuItems.position));
-  const picks = await db.select({ dayOfWeek: mealSelections.dayOfWeek, slot: mealSelections.slot, personIndex: mealSelections.personIndex, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
+  const picks = await db.select({ dayOfWeek: mealSelections.dayOfWeek, slot: dishCategories.key, personIndex: mealSelections.personIndex, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
     .from(mealSelections)
+    .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
   const planDishIds = await dishIdsForPlan(order.planId);

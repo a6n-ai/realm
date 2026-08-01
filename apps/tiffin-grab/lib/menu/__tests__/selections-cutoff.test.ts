@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { app, deliveries, deliveryFrequencies, dishes, mealSelections, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
-import { attachDishToPlans } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
@@ -47,7 +47,7 @@ describe("setSelection per-day cutoff + span", () => {
     const [d] = await db.insert(dishes).values({ name: "Dal", active: true }).returning();
     await attachDishToPlans(d.id);
     dishPublicId = d.publicId;
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d.id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: d.id, isDefault: true });
     const [o] = await db.insert(orders).values({
       userId, planId: plan.id, mealSizeId: mealSize.id, frequencyId: freq.id, persons: 1, mealSlots: ["lunch"],
       categoryCounts: { sabzi: 2, rice: 1, roti: 4, raita: 1, salad: 1 },
@@ -67,7 +67,7 @@ describe("setSelection per-day cutoff + span", () => {
   });
 
   it("rejects a day not in the subscription delivery set (Saturday, not a delivery day)", async () => {
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", slot: "sabzi", dishId: (await db.select().from(dishes).limit(1))[0].id });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", categoryId: await categoryIdFor("sabzi"), dishId: (await db.select().from(dishes).limit(1))[0].id });
     await expect(
       selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "sat", slot: "sabzi", personIndex: 1, dishPublicId }),
     ).rejects.toThrow();
@@ -75,7 +75,7 @@ describe("setSelection per-day cutoff + span", () => {
 
   it("rejects after the cutoff has passed", async () => {
     const [past] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning(); // 2000 Mon, long past
-    await db.insert(menuItems).values({ menuWeekId: past.id, dayOfWeek: "mon", slot: "sabzi", dishId: (await db.select().from(dishes).limit(1))[0].id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: past.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: (await db.select().from(dishes).limit(1))[0].id, isDefault: true });
     await seedDelivery(order.id, { deliveryDate: "2000-01-03", cutoffAt: Date.now() - 1000 });
     const pastOrder = { ...order, startDate: "2000-01-03" };
     await expect(

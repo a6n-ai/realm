@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -50,15 +50,15 @@ describe("resolveDeliveryMeal", () => {
     const [riceDefault] = await db.insert(dishes).values({ name: "Basmati"}).returning();
     await attachDishToPlans(riceDefault.id);
 
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziPicked.id, isDefault: false });
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "rice", dishId: riceDefault.id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziPicked.id, isDefault: false });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("rice"), dishId: riceDefault.id, isDefault: true });
 
     pickedSabziPublicId = sabziPicked.publicId;
 
     // Explicit pick for sabzi pickIndex 1; pickIndex 2 has no explicit pick, so falls back to isDefault.
     await db.insert(mealSelections).values({
-      orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishId: sabziPicked.id,
+      orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), personIndex: 1, pickIndex: 1, dishId: sabziPicked.id,
     });
   });
   afterAll(reset);
@@ -78,6 +78,20 @@ describe("resolveDeliveryMeal", () => {
     expect(rice.picks.length).toBe(1); // the single default dish
   });
 
+  it("resolves Sunday from its own items — the weekend is two days, not one", async () => {
+    // The builder used to collapse Sat+Sun into one column and store both under 'sat',
+    // so every include_sunday order resolved Sunday to nothing. Storage is per real day.
+    const [satDish] = await db.insert(dishes).values({ name: "Weekend Sabzi" }).returning();
+    await attachDishToPlans(satDish.id);
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", categoryId: await categoryIdFor("sabzi"), dishId: satDish.id, isDefault: true });
+
+    expect(await resolveDeliveryMeal(order, week, "sun", 1)).toEqual([]);
+
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sun", categoryId: await categoryIdFor("sabzi"), dishId: satDish.id, isDefault: true });
+    const sun = await resolveDeliveryMeal(order, week, "sun", 1);
+    expect(sun.find((m) => m.category === "sabzi")?.picks[0].name).toBe("Weekend Sabzi");
+  });
+
   it("falls back to the lowest-position item (deterministic) when no item is marked isDefault", async () => {
     // tue has no explicit isDefault in the sabzi category and no explicit picks —
     // both dishes are isDefault=false with distinct positions.
@@ -85,8 +99,8 @@ describe("resolveDeliveryMeal", () => {
     await attachDishToPlans(sabziLow.id);
     const [sabziHigh] = await db.insert(dishes).values({ name: "Chana Masala"}).returning();
     await attachDishToPlans(sabziHigh.id);
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziLow.id, isDefault: false, position: 1 });
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziHigh.id, isDefault: false, position: 2 });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziLow.id, isDefault: false, position: 1 });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziHigh.id, isDefault: false, position: 2 });
 
     const meal = await resolveDeliveryMeal(order, week, "tue", 1);
 

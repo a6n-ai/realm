@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
-const { attachDishToPlans } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, cancelOrder } = await import("../orders.service");
 const {
@@ -219,7 +219,7 @@ describe("myCalendar (integration)", () => {
 
   async function seedThisWeekMenu(planType: "tiffin" | "healthy") {
     const [week] = await db.insert(menuWeeks).values({
-      planType, weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
+      weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
     }).returning();
     const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer Sabzi"}).returning();
     await attachDishToPlans(sabziDefault.id);
@@ -228,12 +228,12 @@ describe("myCalendar (integration)", () => {
     const [riceDefault] = await db.insert(dishes).values({ name: "Jeera Rice"}).returning();
     await attachDishToPlans(riceDefault.id);
     await db.insert(menuItems).values([
-      { menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true },
-      { menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziAlt.id, isDefault: false },
-      { menuWeekId: week.id, dayOfWeek: "mon", slot: "rice", dishId: riceDefault.id, isDefault: true },
-      { menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziDefault.id, isDefault: true },
-      { menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziAlt.id, isDefault: false },
-      { menuWeekId: week.id, dayOfWeek: "tue", slot: "rice", dishId: riceDefault.id, isDefault: true },
+      { menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true },
+      { menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziAlt.id, isDefault: false },
+      { menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("rice"), dishId: riceDefault.id, isDefault: true },
+      { menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true },
+      { menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziAlt.id, isDefault: false },
+      { menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("rice"), dishId: riceDefault.id, isDefault: true },
     ]);
     return { week, sabziDefault, sabziAlt, riceDefault };
   }
@@ -243,7 +243,7 @@ describe("myCalendar (integration)", () => {
     const { week, sabziAlt, riceDefault } = await seedThisWeekMenu(plan.planType);
 
     // Next week's menu is still draft — its delivery day must not appear at all.
-    await db.insert(menuWeeks).values({ planType: plan.planType, weekStart: NEXT_MONDAY, status: "draft", orderCutoff: Date.now() + 999_999_999 });
+    await db.insert(menuWeeks).values({ weekStart: NEXT_MONDAY, status: "draft", orderCutoff: Date.now() + 999_999_999 });
 
     await db.insert(deliveries).values([
       { orderId: order.id, deliveryDate: THIS_MONDAY, cutoffAt: Date.now() - 1000 }, // cutoff already passed
@@ -253,7 +253,7 @@ describe("myCalendar (integration)", () => {
 
     // Subscriber overrode Monday's sabzi pick away from the default.
     await db.insert(mealSelections).values({
-      orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishId: sabziAlt.id,
+      orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), personIndex: 1, pickIndex: 1, dishId: sabziAlt.id,
     });
 
     const cells = await myCalendar(userId, order.publicId, { from: THIS_MONDAY, until: TUE_NEXT });
@@ -288,11 +288,11 @@ describe("myCalendar (integration)", () => {
     await seedThisWeekMenu(plan.planType);
     const { week: nextWeek, sabziDefault } = await (async () => {
       const [week] = await db.insert(menuWeeks).values({
-        planType: plan.planType, weekStart: NEXT_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
+        weekStart: NEXT_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
       }).returning();
       const [sabziDefault] = await db.insert(dishes).values({ name: "Bhindi Sabzi"}).returning();
     await attachDishToPlans(sabziDefault.id);
-      await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
+      await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
       return { week, sabziDefault };
     })();
 

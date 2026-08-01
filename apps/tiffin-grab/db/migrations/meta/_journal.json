@@ -8,6 +8,34 @@
       "when": 1785423214178,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785470400000,
+      "tag": "0001_weekend_sunday_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785472800000,
+      "tag": "0002_menu_week_ready_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785477600000,
+      "tag": "0003_consolidate_menu_weeks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785481200000,
+      "tag": "0004_menu_category_fk",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,23 @@ export type PosterItem = {
 export type RenderedGroup = { slotLabel: string | null; dishes: { name: string }[] };
 export type RenderedColumn = { label: string; groups: RenderedGroup[] };
 
+/**
+ * Editing labels. The builder writes one row per real weekday — it must never collapse
+ * Sat and Sun into one, because plans do deliver on both (orderDeliveryDays appends each
+ * from includeSaturday/includeSunday) and every reader keys on the actual weekday. The
+ * poster below is free to *display* the weekend as one column; storage is not.
+ */
+export const DAY_LABELS: Record<DayOfWeek, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+
+/** Display grouping for the printed/marketing poster only. Not an editing shape. */
 export const DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
   { label: "Monday", days: ["mon"] },
   { label: "Tuesday", days: ["tue"] },
@@ -35,6 +52,14 @@ export const HOME_MENU_DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
   { label: "Sun", days: ["sun"] },
 ];
 
+// A merged display column (Weekends) draws from two stored days, and the usual case is
+// that both hold the same dishes — so list each name once. Without this, splitting the
+// weekend into real sat/sun rows would print every weekend dish twice.
+function uniqueByName(items: PosterItem[]): { name: string }[] {
+  const seen = new Set<string>();
+  return items.flatMap((i) => (seen.has(i.dishName) ? [] : (seen.add(i.dishName), [{ name: i.dishName }])));
+}
+
 // Diet indicator colour. Egg dishes are stored as `nonveg` but get a distinct
 // yellow dot, detected by name (no separate enum value).
 export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
@@ -44,12 +69,11 @@ export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): Rend
     const order = (a: PosterItem, b: PosterItem) =>
       col.days.indexOf(a.dayOfWeek) - col.days.indexOf(b.dayOfWeek) || a.position - b.position;
     if (flat) {
-      const dishes = [...inCol].sort(order).map((i) => ({ name: i.dishName }));
-      return { label: col.label, groups: [{ slotLabel: null, dishes }] };
+      return { label: col.label, groups: [{ slotLabel: null, dishes: uniqueByName([...inCol].sort(order)) }] };
     }
     const groups: RenderedGroup[] = slots.map((s) => ({
       slotLabel: s.label,
-      dishes: inCol.filter((i) => i.slot === s.key).sort(order).map((i) => ({ name: i.dishName })),
+      dishes: uniqueByName(inCol.filter((i) => i.slot === s.key).sort(order)),
     }));
     return { label: col.label, groups };
   });

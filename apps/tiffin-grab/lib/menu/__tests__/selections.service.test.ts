@@ -3,7 +3,7 @@ import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -66,8 +66,8 @@ describe("selectionsService.setSelection", () => {
     nonvegDishPublicId = nd.publicId;
     vegDishBigintId = vd.id;
     // "sabzi" is the seeded selectable category (veg plan's category_counts has sabzi:2); "rice" is fixed.
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
-    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: vd2.id, isDefault: false });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: vegDishBigintId, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: vd2.id, isDefault: false });
   });
   afterAll(reset);
 
@@ -83,7 +83,7 @@ describe("selectionsService.setSelection", () => {
   it("rejects after cutoff (locked)", async () => {
     // Use a past week/date so the row's own snapshotted cutoff has already elapsed.
     const [pastWeek] = await db.insert(menuWeeks).values({ weekStart: "2000-01-03", status: "released", orderCutoff: 1 }).returning();
-    await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", slot: "sabzi", dishId: vegDishBigintId, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: pastWeek.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: vegDishBigintId, isDefault: true });
     await seedDelivery(order.id, { deliveryDate: "2000-01-03", cutoffAt: Date.now() - 1000 });
     const pastOrder = { ...order, startDate: "2000-01-03" };
     await expect(selectionsService.setSelection({ order: pastOrder, menuWeek: pastWeek, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
@@ -92,7 +92,7 @@ describe("selectionsService.setSelection", () => {
 
   it("rejects a pick on a fixed (non-selectable) category", async () => {
     // rice is selectable=false
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "rice", dishId: vegDishBigintId, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("rice"), dishId: vegDishBigintId, isDefault: true });
     await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "rice", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });

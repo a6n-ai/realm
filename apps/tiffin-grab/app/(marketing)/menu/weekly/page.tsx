@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "This week's menu — Tiffin Grab", d
 export const dynamic = "force-dynamic";
 
 export default async function WeeklyMenuPage() {
-  const pub = await menuService.getPublishedWeek("tiffin");
+  const pub = await menuService.getPublishedWeek();
   return (
     <Section className="space-y-8">
       <div className="max-w-2xl">

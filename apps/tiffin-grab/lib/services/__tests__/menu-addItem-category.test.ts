@@ -47,7 +47,7 @@ describe("menuService.addItem category guard (I5)", () => {
 
   it("rejects a dish whose category does not match the slot", async () => {
     const d = await addDish("Basmati (test)", "rice");
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: WEEK_STARTS[0] });
+    const w = await menuService.upsertWeek({ weekStart: WEEK_STARTS[0] });
     await expect(
       menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 }),
     ).rejects.toThrow(/category/i);
@@ -55,14 +55,14 @@ describe("menuService.addItem category guard (I5)", () => {
 
   it("allows a dish whose category matches the slot", async () => {
     const d = await addDish("Aloo Gobi (test)", "sabzi");
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: WEEK_STARTS[1] });
+    const w = await menuService.upsertWeek({ weekStart: WEEK_STARTS[1] });
     const ok = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
     expect(ok).toBeTruthy();
   });
 
   it("allows a null-category dish in any slot (back-compat)", async () => {
     const d = await addDish("Wildcard (test)", null);
-    const w = await menuService.upsertWeek({ planType: "tiffin", weekStart: WEEK_STARTS[2] });
+    const w = await menuService.upsertWeek({ weekStart: WEEK_STARTS[2] });
     const inSabzi = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
     const inRice = await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "tue", slot: "rice", dishId: d.publicId, position: 0 });
     expect(inSabzi).toBeTruthy();

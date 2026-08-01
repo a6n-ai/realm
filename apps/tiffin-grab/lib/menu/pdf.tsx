@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
 });
 
 export async function renderWeeklyMenuPdf(planType: PlanType, weekStart?: string): Promise<Uint8Array> {
-  const pub = await menuService.getPublishedWeek(planType, weekStart);
+  const pub = await menuService.getPublishedWeek(weekStart);
   if (!pub) throw new NotFoundError("No published menu for this week");
   const columns = buildPosterColumns(pub.slots, pub.items);
   const buf = await renderToBuffer(

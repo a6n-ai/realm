@@ -30,8 +30,8 @@ function weekRange(weekStart: string): string {
 }
 
 export function MenuHistoryCard({
-  week, planType, accent, highlight = null,
-}: { week: WeekMenu; planType: string; accent: string; highlight?: "current" | "upcoming" | null }) {
+  week, accent, highlight = null,
+}: { week: WeekMenu; accent: string; highlight?: "current" | "upcoming" | null }) {
   const tz = useTimezone();
   const columns = buildPosterColumns(week.slots, week.items);
   const [day, setDay] = useState(0);
@@ -109,7 +109,7 @@ export function MenuHistoryCard({
       </div>
 
       <Button asChild variant="ghost" size="sm" className="mt-3 w-fit gap-1.5 transition-transform active:scale-[0.96]">
-        <Link href={`/dashboard/menus?type=${planType}&week=${week.publicId}`}>
+        <Link href={`/dashboard/menus?week=${week.publicId}`}>
           <Pencil className="size-3.5" />
           Edit week
         </Link>

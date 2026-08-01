@@ -21,7 +21,7 @@ const VALUES = [
 ];
 
 export default async function LandingPage() {
-  const pub = await menuService.getPublishedWeek("tiffin");
+  const pub = await menuService.getPublishedWeek();
   return (
     <>
       <Hero />

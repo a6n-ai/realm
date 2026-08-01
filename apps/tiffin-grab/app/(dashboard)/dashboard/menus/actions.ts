@@ -1,41 +1,27 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService, type DraftMenuItem } from "@/lib/services/menu.service";
 import { dishesService } from "@/lib/services/dishes.service";
-import type { PlanType } from "@/lib/menu/meal-types";
-import type { DayOfWeek } from "@/lib/menu/poster";
 
+// Draft edits are invisible to the public site — only a release changes what is served.
+// Revalidating "/" and /menu/weekly on every add/remove was busting the marketing home
+// page once per click for no reachable change.
 function revalidate() {
+  revalidatePath("/dashboard/menus");
+}
+
+function revalidatePublic() {
   revalidatePath("/dashboard/menus");
   revalidatePath("/menu/weekly");
   revalidatePath("/");
 }
 
-export async function upsertWeek(input: { planType: PlanType; weekStart: string }) {
+export async function upsertWeek(input: { weekStart: string }) {
   await requireAdmin();
   const w = await menuService.upsertWeek(input);
   revalidate();
   return { publicId: w.publicId };
-}
-
-export async function addItem(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; dishId: string; position: number }) {
-  await requireAdmin();
-  const item = await menuService.addItem(input);
-  revalidate();
-  return item ? { publicId: item.publicId } : null;
-}
-
-export async function removeItem(id: string) {
-  await requireAdmin();
-  await menuService.removeItem(id);
-  revalidate();
-}
-
-export async function setDefault(itemId: string) {
-  await requireAdmin();
-  await menuService.setDefault({ itemId });
-  revalidate();
 }
 
 export async function createDish(input: { name: string; category?: string | null }) {
@@ -48,14 +34,47 @@ export async function createDish(input: { name: string; category?: string | null
   return { publicId: row.publicId, name: row.name, category: row.category };
 }
 
-export async function reorderItems(input: { menuWeekId: string; dayOfWeek: DayOfWeek; slot: string; orderedItemIds: string[] }) {
+export async function saveWeek(input: { menuWeekId: string; expectedUpdatedAt: number; items: DraftMenuItem[]; amend?: boolean }) {
   await requireAdmin();
-  await menuService.reorderItems(input);
+  const result = await menuService.saveWeek(input);
+  // An amend rewrote a live menu, so the public pages must be revalidated too.
+  if (input.amend) revalidatePublic(); else revalidate();
+  return result;
+}
+
+/** What an amend would cost, for the confirm step — reads only, writes nothing. */
+export async function amendImpact(input: { menuWeekId: string; items: DraftMenuItem[] }) {
+  await requireAdmin();
+  const { resetPicks, affectedOrders, days } = await menuService.amendImpact(input);
+  return { resetPicks, affectedOrders, days };
+}
+
+export async function releaseProblems(menuWeekId: string) {
+  await requireAdmin();
+  return menuService.releaseProblems(menuWeekId);
+}
+
+export async function markReady(menuWeekId: string) {
+  await requireAdmin();
+  await menuService.markReady(menuWeekId);
   revalidate();
+}
+
+export async function backToDraft(menuWeekId: string) {
+  await requireAdmin();
+  await menuService.backToDraft(menuWeekId);
+  revalidate();
+}
+
+export async function copyWeek(input: { fromWeekId: string; toWeekId: string }) {
+  await requireAdmin();
+  const result = await menuService.copyWeek(input);
+  revalidate();
+  return result;
 }
 
 export async function releaseWeek(menuWeekId: string) {
   await requireAdmin();
   await menuService.release(menuWeekId);
-  revalidate();
+  revalidatePublic();
 }

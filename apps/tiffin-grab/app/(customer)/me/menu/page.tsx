@@ -50,7 +50,7 @@ async function MenuSectionData({ userId }: { userId: bigint }) {
   const { timezone } = await getAppSettings();
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
   // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
-  const week = await menuService.getPublishedWeek(planType, thisMonday);
+  const week = await menuService.getPublishedWeek(thisMonday);
   return <ThisWeekMenuSection week={week} />;
 }
 
@@ -62,7 +62,7 @@ async function DishesSectionData({ userId }: { userId: bigint }) {
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
-  const week = await menuService.getPublishedWeek(planType, thisMonday);
+  const week = await menuService.getPublishedWeek(thisMonday);
 
   const daysByDish: Record<string, string[]> = {};
   if (week) {

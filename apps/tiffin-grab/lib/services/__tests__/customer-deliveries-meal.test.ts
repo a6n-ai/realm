@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, menuItems, menuWeeks, orders, users } = await import("@/db/schema");
-const { attachDishToPlans } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { myDeliveryMeal } = await import("../customer-deliveries.service");
 
@@ -50,11 +50,11 @@ describe("myDeliveryMeal (integration)", () => {
     }).returning();
 
     const [week] = await db.insert(menuWeeks).values({
-      planType: plan.planType, weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
+      weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
     const [sabziDefault] = await db.insert(dishes).values({ name: "Paneer"}).returning();
     await attachDishToPlans(sabziDefault.id);
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", slot: "sabzi", dishId: sabziDefault.id, isDefault: true });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDefault.id, isDefault: true });
 
     const meal = await myDeliveryMeal({ ...delivery, orderPublicId: order.publicId, planName: plan.name, isMakeup: false });
 
@@ -79,7 +79,7 @@ describe("myDeliveryMeal (integration)", () => {
 
     // draft (not released) week for this plan/week — myDeliveryMeal must not see it
     await db.insert(menuWeeks).values({
-      planType: plan.planType, weekStart: OTHER_MONDAY, status: "draft", orderCutoff: new Date("2999-01-01").getTime(),
+      weekStart: OTHER_MONDAY, status: "draft", orderCutoff: new Date("2999-01-01").getTime(),
     }).returning();
 
     const meal = await myDeliveryMeal({ ...delivery, orderPublicId: order.publicId, planName: plan.name, isMakeup: false });

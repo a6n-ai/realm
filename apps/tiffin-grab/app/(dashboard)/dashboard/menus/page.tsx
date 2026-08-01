@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { CalendarIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { dishes, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { dishes, mealSizeItems, mealSizes } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings, getMealTypes } from "@/lib/services/app-settings.service";
@@ -12,9 +12,8 @@ import { maxQtyByCategory } from "@/lib/menu/category-hint";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuBuilder, MenuBuilderSkeleton } from "./menu-builder";
 import { MenuHistoryCard, MenuHistoryCardSkeleton } from "./menu-history-card";
-import type { PlanType } from "@/lib/menu/meal-types";
 
-type SearchParams = Promise<{ type?: string; week?: string }>;
+type SearchParams = Promise<{ week?: string }>;
 
 export default function MenusPage({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -44,41 +43,43 @@ export default function MenusPage({ searchParams }: { searchParams: SearchParams
 
 async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const { type, week: weekId } = await searchParams;
-  const planType: PlanType = type === "healthy" ? "healthy" : "tiffin";
+  const { week: weekId } = await searchParams;
 
   const [mealTypes, appSettings, activeDishes, weeks, categories, sizeItemRows] = await Promise.all([
     getMealTypes(),
     getAppSettings(),
     db.select({ id: dishes.publicId, name: dishes.name, category: dishes.category }).from(dishes).where(eq(dishes.active, true)).orderBy(asc(dishes.name)),
-    menuService.listWeekMenus(planType),
-    dishCategoriesService.forPlanType(planType),
-    // Aggregate item categories across every plan of this plan_type (veg + non-veg
-    // are both 'tiffin'), so join through plans rather than filtering a single plan.
+    menuService.listWeekMenus(),
+    dishCategoriesService.enabledCategories(),
+    // One week serves every plan, so the "N needed" hint is the largest quantity any
+    // active meal size asks for in a category, across all plans.
     db
       .select({ category: mealSizeItems.category, qty: mealSizeItems.qty })
       .from(mealSizeItems)
       .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
-      .innerJoin(plans, eq(mealSizes.planId, plans.id))
-      .where(and(eq(plans.planType, planType), eq(mealSizes.active, true))),
+      .where(eq(mealSizes.active, true)),
   ]);
-  const mealType = mealTypes[planType];
-  // "N needed" hint: max qty any meal size in this plan type asks for, per
-  // category — the admin should build enough variety to cover the biggest size.
+  const mealType = mealTypes.tiffin;
+  // "N needed" hint: the largest quantity any active meal size asks for in a category —
+  // the admin should build enough variety to cover the biggest size.
   const categoryCounts = maxQtyByCategory(sizeItemRows);
 
-  let week: { id: string; weekStart: string; status: string } | null = null;
+  let week: { id: string; weekStart: string; status: string; updatedAt: number } | null = null;
   let items: { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean }[] = [];
+  // Which plans this week would leave without a meal. Computed here rather than on demand so
+  // the admin sees it while building, not only when Release refuses.
+  let problems: { day: string; planName: string; categoryKey: string; categoryLabel: string }[] = [];
   if (weekId) {
     const result = await menuService.weekWithItems(weekId);
     if (result.week) {
-      week = { id: result.week.publicId, weekStart: result.week.weekStart, status: result.week.status };
+      week = { id: result.week.publicId, weekStart: result.week.weekStart, status: result.week.status, updatedAt: result.week.updatedAt };
       const dishRows = await db.select({ bigintId: dishes.id, publicId: dishes.publicId }).from(dishes);
       const byId = new Map(dishRows.map((d) => [d.bigintId, d.publicId]));
       items = result.items.flatMap((i) => {
         const dishId = byId.get(i.dishId);
         return dishId ? [{ id: i.publicId, dayOfWeek: i.dayOfWeek, slot: i.slot, dishId, position: i.position, isDefault: i.isDefault }] : [];
       });
+      if (result.week.status !== "released") problems = await menuService.releaseProblems(weekId);
     }
   }
 
@@ -101,7 +102,6 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
           </p>
         )}
         <MenuBuilder
-          planType={planType}
           mealType={mealType}
           categories={categories}
           categoryCounts={categoryCounts}
@@ -109,20 +109,23 @@ async function MenusData({ searchParams }: { searchParams: SearchParams }) {
           week={week}
           items={items}
           takenWeekStarts={weeks.map((w) => w.weekStart)}
+          copySources={weeks
+            .filter((w) => w.publicId !== week?.id && w.itemCount > 0)
+            .map((w) => ({ id: w.publicId, weekStart: w.weekStart }))}
+          problems={problems}
         />
       </SectionCard>
 
       <SectionCard title="Past menus">
         {weeks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No {planType} menus yet.</p>
+          <p className="text-sm text-muted-foreground">No menus yet.</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {weeks.map((w) => (
               <MenuHistoryCard
                 key={w.publicId}
                 week={w}
-                planType={planType}
-                accent={mealTypes[planType].accent}
+                accent={mealTypes.tiffin.accent}
                 highlight={w.publicId === currentId ? "current" : w.publicId === upcomingId ? "upcoming" : null}
               />
             ))}

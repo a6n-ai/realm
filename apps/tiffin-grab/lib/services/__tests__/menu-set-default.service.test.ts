@@ -3,7 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
@@ -26,8 +26,8 @@ async function seedDraftCell() {
     await attachDishToPlans(d1.id);
   const [d2] = await db.insert(dishes).values({ name: "Dal"}).returning();
     await attachDishToPlans(d2.id);
-  const [a] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d1.id, isDefault: false, position: 0 }).returning();
-  const [b] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", slot: "sabzi", dishId: d2.id, isDefault: false, position: 1 }).returning();
+  const [a] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: d1.id, isDefault: false, position: 0 }).returning();
+  const [b] = await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: d2.id, isDefault: false, position: 1 }).returning();
   itemA = a; itemB = b;
 }
 

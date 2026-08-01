@@ -24,6 +24,18 @@ describe("buildPosterColumns", () => {
     expect(weekend.groups[0].dishes.map((d) => d.name)).toEqual(["Veg Pasta", "Chicken Pasta"]);
   });
 
+  it("lists a dish once in the merged weekend column when sat and sun carry the same menu", () => {
+    // Sat and Sun are stored separately now, and the usual case is identical weekend
+    // dishes — the poster still displays one Weekends column, so it must not print each twice.
+    const cols = buildPosterColumns(tiffinSlots, [
+      { dayOfWeek: "sat", slot: "lunch", dishName: "Veg Pasta", position: 0 },
+      { dayOfWeek: "sun", slot: "lunch", dishName: "Veg Pasta", position: 0 },
+      { dayOfWeek: "sun", slot: "lunch", dishName: "Chicken Pasta", position: 1 },
+    ]);
+    const weekend = cols.find((c) => c.label === "Weekends")!;
+    expect(weekend.groups[0].dishes.map((d) => d.name)).toEqual(["Veg Pasta", "Chicken Pasta"]);
+  });
+
   it("multi slot => one group per slot in slot order", () => {
     const cols = buildPosterColumns(healthySlots, [
       { dayOfWeek: "mon", slot: "dinner", dishName: "Soup", position: 0 },

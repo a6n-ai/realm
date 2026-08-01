@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -52,7 +52,7 @@ describe("selectionsService.applyToWeek", () => {
     vegDishPublicId = vd.publicId; vegDishBigintId = vd.id;
     // Offer the dish Mon–Thu (4 of the 5 weekday deliveries); Friday deliberately has no menu item for it.
     for (const day of ["mon", "tue", "wed", "thu"] as const) {
-      await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: day, slot: "sabzi", dishId: vegDishBigintId, isDefault: false });
+      await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: day, categoryId: await categoryIdFor("sabzi"), dishId: vegDishBigintId, isDefault: false });
     }
     // A scheduled delivery row for every weekday (incl. Friday) — Friday must still be "skipped"
     // for missing the dish, not for missing a delivery row.
@@ -85,7 +85,7 @@ describe("selectionsService.applyToWeek", () => {
       orderId: order.id, deliveryDate: makeupDateIso, status: "scheduled" as const,
       cutoffAt: Date.now() + 1e9, makeupForDeliveryId: originalDelivery.id,
     }).returning();
-    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", slot: "sabzi", dishId: vegDishBigintId, isDefault: false });
+    await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", categoryId: await categoryIdFor("sabzi"), dishId: vegDishBigintId, isDefault: false });
 
     const res = await selectionsService.applyToWeek({ order, menuWeek: week, slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId });
 

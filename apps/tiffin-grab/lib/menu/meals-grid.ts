@@ -79,7 +79,7 @@ export async function buildMealsGrid(
   const planDishIds = await dishIdsForPlan(planRow.id);
 
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
-  const releasedRef = await menuService.getReleasedWeek(planType, thisMonday);
+  const releasedRef = await menuService.getReleasedWeek(thisMonday);
   if (!releasedRef) return { empty: "no-week" };
 
   const [releasedWeek] = await db.select().from(menuWeeks).where(eq(menuWeeks.id, releasedRef.id)).limit(1);
