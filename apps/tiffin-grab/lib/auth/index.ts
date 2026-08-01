@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { phoneNumber, username, emailOTP } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { authAuditAction } from "@realm/auth";
@@ -52,9 +52,9 @@ export const auth = betterAuth({
     maxPasswordLength: 256,
     // A verified email is required to hold a session. This gates SIGN-IN only —
     // checkout takes no session at all, so paying is never blocked by it.
-    // better-auth checks this on /sign-in/email and /sign-in/username but NOT
-    // /sign-in/phone-number, so the real enforcement is the session.create.before
-    // hook below; this flag keeps the per-route errors accurate.
+    // better-auth applies this to /sign-in/email but NOT to the emailOTP plugin's
+    // /sign-in/email-otp, so the real enforcement is the session.create.before hook
+    // below; this flag keeps the per-route error accurate.
     requireEmailVerification: true,
     // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
@@ -83,33 +83,15 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    phoneNumber({
-      sendOTP: async ({ phoneNumber: phone, code }) => {
-        log.debug(`phone OTP for ${phone}: ${code}`);
-      },
-      // The plugin's /request-password-reset dispatches its OTP through THIS callback,
-      // not sendOTP. Without it the phone password-reset code is generated but never
-      // sent, so the reset can never complete. Stubbed (logged) until SMS exists.
-      sendPasswordResetOTP: async ({ phoneNumber: phone, code }) => {
-        log.debug(`phone password-reset OTP for ${phone}: ${code}`);
-      },
-      // Map the plugin's phoneNumber/phoneNumberVerified model fields onto the
-      // existing `phone` and `phoneVerified` columns in the users table.
-      schema: {
-        user: {
-          fields: {
-            phoneNumber: "phone",
-            phoneNumberVerified: "phoneVerified",
-          },
-        },
-      },
-    }),
-    // Sign in with a username (lowercased/unique). Complements email + phone —
-    // the login form picks the endpoint from the identifier's shape.
-    username({ minUsernameLength: 3, maxUsernameLength: 30 }),
-    // No anonymous plugin: it minted users with no email, which contradicts email
-    // being required, and nothing ever called it — while /sign-in/anonymous stayed
-    // mounted and reachable, so anyone could create unlimited PII-less rows.
+    // Deliberately NO phoneNumber / username / anonymous plugins. Each mounted live
+    // sign-in endpoints that nothing in this app ever called — the login form only uses
+    // /sign-in/email and /sign-in/email-otp. Unused auth surface is not free: the phone
+    // plugin's OTP senders were stubs that logged the code, so a single LOG_LEVEL=debug
+    // would have put working sign-in codes into CloudWatch for every user with a phone.
+    // Add them back with a real sender, not a stub, if phone or username login is wanted.
+    // The `phone` and `username` COLUMNS stay — they are app data (delivery contact,
+    // profile handle) and are written through usersService, never through a plugin.
+
     // Email OTP: 6-digit codes for password reset and email change. Codes are
     // stored hashed and expire in 10 min. The single sendVerificationOTP callback
     // routes each type to the shared @realm/auth copy via SES.
@@ -147,10 +129,9 @@ export const auth = betterAuth({
             throw new APIError("FORBIDDEN", { message: "This account is not active. Contact support." });
           }
           // Verified-email gate. requireEmailVerification only covers
-          // /sign-in/email and /sign-in/username — phone sign-in skips it, and
-          // this app's signup used to auto-sign-in by phone, which would have
-          // walked straight past the requirement. Enforcing here catches every
-          // method at once.
+          // /sign-in/email; the emailOTP plugin's own sign-in route skips it.
+          // Enforcing on session creation catches every method at once, including
+          // any plugin added later.
           //
           // Safe against a lockout loop: every better-auth route that both
           // verifies and opens a session (/verify-email, /sign-in/email-otp,
@@ -232,11 +213,9 @@ export const auth = betterAuth({
         return;
       }
 
-      const SIGN_IN_PATHS = ["/sign-in/email", "/sign-in/phone-number", "/sign-in/username"];
-      if (!SIGN_IN_PATHS.includes(ctx.path)) return;
+      if (ctx.path !== "/sign-in/email") return;
 
-      const method =
-        ctx.path === "/sign-in/phone-number" ? "phone" : ctx.path === "/sign-in/username" ? "username" : "email";
+      const method = "email";
       const newSession = ctx.context.newSession;
 
       if (newSession) {
@@ -271,8 +250,8 @@ export const auth = betterAuth({
       if (ctx.context.returned instanceof APIError) {
         // Login failed — log the attempted identifier (never the password).
         try {
-          const body = ctx.body as { email?: string; phoneNumber?: string; username?: string } | undefined;
-          const identifier = body?.email ?? body?.phoneNumber ?? body?.username ?? "unknown";
+          const body = ctx.body as { email?: string } | undefined;
+          const identifier = body?.email ?? "unknown";
           await recordAudit({
             entity: "auth",
             entityPublicId: identifier,

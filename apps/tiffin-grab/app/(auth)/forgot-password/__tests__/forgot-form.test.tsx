@@ -3,11 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { ForgotForm } from "../forgot-form";
 
-const { emailOtp, phoneNumber } = vi.hoisted(() => ({
+const { emailOtp } = vi.hoisted(() => ({
   emailOtp: { requestPasswordReset: vi.fn(), resetPassword: vi.fn() },
-  phoneNumber: { requestPasswordReset: vi.fn(), resetPassword: vi.fn() },
 }));
-vi.mock("@/lib/auth/client", () => ({ authClient: { emailOtp, phoneNumber } }));
+vi.mock("@/lib/auth/client", () => ({ authClient: { emailOtp } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -26,7 +25,8 @@ describe("ForgotForm (OTP reset)", () => {
     fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     await waitFor(() => expect(emailOtp.requestPasswordReset).toHaveBeenCalledWith({ email: "user@x.com" }));
     expect(screen.getByText(/enter your code/i)).toBeDefined();
-    expect(phoneNumber.requestPasswordReset).not.toHaveBeenCalled();
+    // Phone reset is not merely unused now — the phoneNumber plugin is gone, so
+    // authClient has no such method and the endpoint is not mounted.
   });
 
   it("accepts a 6-digit code typed into the segmented OTP field", async () => {

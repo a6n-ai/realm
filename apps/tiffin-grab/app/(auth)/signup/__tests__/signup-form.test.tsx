@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { SignupForm } from "../signup-form";
 
 vi.mock("../actions", () => ({ signUpCustomer: vi.fn() }));
-vi.mock("@/lib/auth/client", () => ({ signIn: { phoneNumber: vi.fn() } }));
+vi.mock("@/lib/auth/client", () => ({ signIn: {} }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 describe("SignupForm", () => {
