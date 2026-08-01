@@ -83,16 +83,26 @@ const EMPTY = (date: string, weekStart: string): DailyLabelSheet => ({
 
 const UNZONED = "Unzoned";
 
-export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {
-  const weekStart = mondayOfIso(dateIso);
-  const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek;
+export type DayDeliveryRow = {
+  delivery: typeof deliveries.$inferSelect;
+  order: typeof orders.$inferSelect;
+  planName: string;
+  mealSizeName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  customerNotes: string | null;
+};
 
-  // Exact-match released week, same gate as the customer calendar — never a fallback week,
-  // or the kitchen packs a menu nobody was shown.
-  const week = await menuService.getReleasedWeek(weekStart);
-  if (!week) return EMPTY(dateIso, weekStart);
-
-  const rows = await db
+/**
+ * Every scheduled delivery for one date, with who and where — the transpose of the
+ * per-order reads the rest of the app does.
+ *
+ * Deliberately independent of the menu week: an address is known whether or not a menu is
+ * released, and route planning must not silently return nothing because the kitchen has
+ * not published the week yet.
+ */
+export async function loadDayDeliveries(dateIso: string): Promise<DayDeliveryRow[]> {
+  return db
     .select({
       delivery: deliveries,
       order: orders,
@@ -109,6 +119,18 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     .leftJoin(users, eq(orders.userId, users.id))
     .where(and(eq(deliveries.deliveryDate, dateIso), eq(deliveries.status, "scheduled")))
     .orderBy(asc(deliveries.id));
+}
+
+export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet> {
+  const weekStart = mondayOfIso(dateIso);
+  const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso)) as DayOfWeek;
+
+  // Exact-match released week, same gate as the customer calendar — never a fallback week,
+  // or the kitchen packs a menu nobody was shown.
+  const week = await menuService.getReleasedWeek(weekStart);
+  if (!week) return EMPTY(dateIso, weekStart);
+
+  const rows = await loadDayDeliveries(dateIso);
 
   if (rows.length === 0) return { ...EMPTY(dateIso, weekStart), menuWeekPublicId: week.publicId };
 

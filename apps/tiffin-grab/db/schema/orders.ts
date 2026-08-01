@@ -17,6 +17,7 @@ export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
   "skipped", "unskipped", "delivery_address_changed", "pool_scheduled",
   "payment_claimed", "payment_verified", "payment_rejected",
+  "route_pushed",
 ]);
 
 export const orders = pgTable("orders", {

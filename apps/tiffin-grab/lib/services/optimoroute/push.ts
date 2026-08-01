@@ -1,6 +1,10 @@
-import { dailyLabelSheet, type DeliveryLabel } from "@/lib/services/daily-labels.service";
+import { inArray } from "drizzle-orm";
+import { db } from "@/db/client";
+import { deliveries, orderActivities } from "@/db/schema";
+import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
+import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
-import { getRoutes, type OptimoOrderPayload } from "./client";
+import { createOrder, getRoutes, withConcurrency, type OptimoOrderPayload } from "./client";
 
 // Step 1 is preview-only: this module reads both sides and reports the difference. It
 // contains no create/update/delete call — pushing is the next step, and keeping the diff
@@ -22,8 +26,6 @@ export type PlannedOrder = {
 
 export type PushPreview = {
   date: string;
-  /** False when no menu week is released — dishes and therefore plan labels are unknown. */
-  resolvable: boolean;
   create: PlannedOrder[];
   update: PlannedOrder[];
   /** On OptimoRoute for this date but no longer ours: paused, skipped, or cancelled. */
@@ -31,20 +33,6 @@ export type PushPreview = {
   /** Present on both sides — the count that should be the bulk of a normal day. */
   unchangedCount: number;
 };
-
-/**
- * One label per tiffin, but ONE OptimoRoute order per delivery: a 2-person order is a
- * single stop at a single door. Deduping on deliveryPublicId is what keeps the route from
- * showing the same address twice.
- */
-function oneLabelPerDelivery(labels: DeliveryLabel[]): DeliveryLabel[] {
-  const seen = new Set<string>();
-  return labels.filter((l) => {
-    if (seen.has(l.deliveryPublicId)) return false;
-    seen.add(l.deliveryPublicId);
-    return true;
-  });
-}
 
 /** 10 digits, country code stripped — the format the driver app dials. */
 export function normalisePhone(phone: string | null | undefined): string {
@@ -56,29 +44,32 @@ export function normalisePhone(phone: string | null | undefined): string {
   return digits;
 }
 
-export async function buildPlannedOrders(date: string): Promise<{
-  resolvable: boolean;
-  orders: PlannedOrder[];
-}> {
-  const [sheet, cfg] = await Promise.all([dailyLabelSheet(date), getOptimoRouteConfig()]);
-  const stops = oneLabelPerDelivery(sheet.labels);
+/**
+ * One OptimoRoute order per DELIVERY — a 2-person order prints two labels but is one stop
+ * at one door. Built from loadDayDeliveries rather than the label sheet, so a week the
+ * kitchen has not released still produces a full route.
+ */
+export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> {
+  const [rows, cfg] = await Promise.all([loadDayDeliveries(date), getOptimoRouteConfig()]);
 
-  const orders = stops.map((label) => {
-    const notes = label.deliveryNotes ?? "";
+  return rows.map((row) => {
+    const address = effectiveAddress(row.delivery, row.order);
+    const notes = row.customerNotes?.trim() ?? "";
     const durationMins = stopDuration(cfg.duration, {
-      city: label.city,
+      city: address.city,
       upstairs: looksUpstairs(notes),
     });
-    const phone = normalisePhone(label.phone);
-    // The meal summary a driver can read at the door without opening the tiffin.
-    const plan = `${label.planName} · ${label.mealSizeName}`;
+    const phone = normalisePhone(row.customerPhone);
+    // The summary a driver reads at the door without opening the tiffin.
+    const plan = `${row.planName} · ${row.mealSizeName}`;
+    const fullAddress = `${address.addressLine}, ${address.city} ${address.postalCode}`;
 
     return {
-      orderNo: label.deliveryPublicId,
-      customerName: label.customerName,
-      address: `${label.addressLine}, ${label.city} ${label.postalCode}`,
-      city: label.city,
-      postalCode: label.postalCode,
+      orderNo: row.delivery.publicId,
+      customerName: address.fullName,
+      address: fullAddress,
+      city: address.city,
+      postalCode: address.postalCode,
       durationMins,
       notes,
       phone: phone || null,
@@ -87,33 +78,25 @@ export async function buildPlannedOrders(date: string): Promise<{
         // MERGE, not SYNC: SYNC replaces every field, which would blank anything a
         // dispatcher set by hand in OptimoRoute (assigned driver, time window).
         operation: "MERGE" as const,
-        orderNo: label.deliveryPublicId,
+        orderNo: row.delivery.publicId,
         date,
         duration: durationMins,
         notes,
         ...(phone ? { phone } : {}),
-        location: {
-          address: `${label.addressLine}, ${label.city} ${label.postalCode}`,
-          locationName: label.customerName,
-        },
+        location: { address: fullAddress, locationName: address.fullName },
         // Mapping preserved from the Route Maker sheet — drivers read these fields in the
         // OptimoRoute mobile app, so changing the slots changes what they see at the door.
         customField1: phone,
-        customField2: label.customerName,
+        customField2: address.fullName,
         customField4: plan,
       } satisfies OptimoOrderPayload,
     };
   });
-
-  return { resolvable: sheet.menuWeekPublicId != null, orders };
 }
 
 /** What a push would do, without doing any of it. */
 export async function previewPush(date: string): Promise<PushPreview> {
-  const [{ resolvable, orders }, routes] = await Promise.all([
-    buildPlannedOrders(date),
-    getRoutes(date),
-  ]);
+  const [orders, routes] = await Promise.all([buildPlannedOrders(date), getRoutes(date)]);
 
   const theirs = new Map<string, { driver: string | null; address: string | null }>();
   for (const route of routes) {
@@ -134,10 +117,98 @@ export async function previewPush(date: string): Promise<PushPreview> {
 
   return {
     date,
-    resolvable,
     create,
     update,
     remove,
     unchangedCount: update.length,
   };
+}
+
+export type PushOutcome = {
+  orderNo: string;
+  customerName: string;
+  ok: boolean;
+  message: string;
+};
+
+export type PushResult = {
+  date: string;
+  pushed: number;
+  failed: number;
+  /** Stale stops found but NOT touched — removal is a separate, confirmed action. */
+  staleCount: number;
+  outcomes: PushOutcome[];
+};
+
+/**
+ * Sends every scheduled delivery for the date as a MERGE upsert. Idempotent: re-running
+ * with unchanged data is a no-op on OptimoRoute's side, so a half-failed push is fixed by
+ * pressing the button again rather than by reasoning about which half landed.
+ *
+ * Does NOT delete. Stale stops are counted and reported; removing them is its own action
+ * because it takes a stop off a driver's route.
+ */
+export async function pushDay(date: string, actorId: bigint | null = null): Promise<PushResult> {
+  const preview = await previewPush(date);
+  const targets = [...preview.create, ...preview.update];
+
+  const outcomes = await withConcurrency(targets, async (order): Promise<PushOutcome> => {
+    try {
+      await createOrder(order.payload);
+      return { orderNo: order.orderNo, customerName: order.customerName, ok: true, message: "Sent" };
+    } catch (e) {
+      return {
+        orderNo: order.orderNo,
+        customerName: order.customerName,
+        ok: false,
+        message: e instanceof Error ? e.message : "Unknown error",
+      };
+    }
+  });
+
+  const failed = outcomes.filter((o) => !o.ok);
+  await recordPushActivities(date, outcomes, actorId);
+
+  return {
+    date,
+    pushed: outcomes.length - failed.length,
+    failed: failed.length,
+    staleCount: preview.remove.length,
+    outcomes,
+  };
+}
+
+/**
+ * One activity row per delivery, so "why did this customer not get delivered?" is
+ * answerable from the same log as everything else rather than from a server log nobody
+ * reads. Failures always logged; successes too, since a route is a claim about the day.
+ */
+async function recordPushActivities(
+  date: string,
+  outcomes: PushOutcome[],
+  actorId: bigint | null,
+): Promise<void> {
+  if (outcomes.length === 0) return;
+
+  // orderId is NOT NULL on order_activities, so both ids come from one lookup.
+  const found = await db
+    .select({ id: deliveries.id, publicId: deliveries.publicId, orderId: deliveries.orderId })
+    .from(deliveries)
+    .where(inArray(deliveries.publicId, outcomes.map((o) => o.orderNo)));
+  const byPublicId = new Map(found.map((r) => [r.publicId, r]));
+
+  const rows = outcomes.flatMap((o) => {
+    const delivery = byPublicId.get(o.orderNo);
+    if (!delivery) return [];
+    return [{
+      orderId: delivery.orderId,
+      deliveryId: delivery.id,
+      type: "route_pushed" as const,
+      note: o.ok ? `Sent to OptimoRoute for ${date}` : `OptimoRoute push failed: ${o.message}`,
+      createdBy: actorId,
+    }];
+  });
+  if (rows.length === 0) return;
+
+  await db.insert(orderActivities).values(rows);
 }

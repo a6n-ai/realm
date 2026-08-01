@@ -15,6 +15,13 @@
       "when": 1785608181202,
       "tag": "0001_married_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785620597162,
+      "tag": "0002_wakeful_katie_power",
+      "breakpoints": true
     }
   ]
 }

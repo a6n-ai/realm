@@ -37,6 +37,8 @@ export function describeActivity(a: OrderActivityLike): string {
       return a.note ? `Payment verified — ${a.note}` : "Payment verified";
     case "payment_rejected":
       return a.note ? `Payment rejected — ${a.note}` : "Payment rejected";
+    case "route_pushed":
+      return a.note ? `Route — ${a.note}` : "Sent to route planning";
     default:
       return a.note ?? a.type.replaceAll("_", " ");
   }

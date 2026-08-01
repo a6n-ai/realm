@@ -9,6 +9,7 @@ import { previewPush } from "@/lib/services/optimoroute/push";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "../labels/label-date-picker";
 import { PlannedOrders, RemovedOrders } from "./routes-view";
+import { PushControl } from "./push-control";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -76,20 +77,22 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
         items={[
           { label: "To create", value: preview.create.length },
           { label: "To update", value: preview.update.length },
-          { label: "To remove", value: preview.remove.length, hint: "no longer scheduled" },
-          { label: "Menu week", value: preview.resolvable ? "released" : "not released" },
+          { label: "Stale", value: preview.remove.length, hint: "no longer scheduled" },
+          { label: "Stops", value: preview.create.length + preview.update.length },
         ]}
       />
 
-      <SectionCard title="Preview only">
-        <p className="text-muted-foreground text-sm">
-          Nothing has been sent. This page reads both sides and reports the difference; the
-          push itself is the next step.
-        </p>
+      <SectionCard title="Send to OptimoRoute">
+        <PushControl date={date} stops={preview.create.length + preview.update.length} />
       </SectionCard>
 
       {preview.remove.length > 0 ? (
         <SectionCard title="On OptimoRoute but not scheduled">
+          <p className="text-muted-foreground mb-3 text-sm">
+            These stops are still on a route but no longer scheduled here — paused, skipped,
+            or cancelled since the last push. Removing them is a separate action; until then
+            a driver will arrive at the door.
+          </p>
           <RemovedOrders rows={preview.remove} />
         </SectionCard>
       ) : null}

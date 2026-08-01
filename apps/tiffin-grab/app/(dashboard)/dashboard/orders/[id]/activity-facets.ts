@@ -2,7 +2,9 @@ import type { FacetDef } from "@/components/ds";
 
 /** Activity categories — maps to order_activity_type groups in the log table. */
 export const ACTIVITY_CATEGORY_TYPES = {
-  deliveries: ["skipped", "unskipped", "delivery_address_changed", "pool_scheduled"],
+  // route_pushed sits with deliveries: it is fulfillment, and staff ask "was this stop on
+  // the route?" in the same breath as "was it skipped?".
+  deliveries: ["skipped", "unskipped", "delivery_address_changed", "pool_scheduled", "route_pushed"],
   meals: ["meal_pick"],
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
   payments: ["payment_claimed", "payment_verified", "payment_rejected"],
