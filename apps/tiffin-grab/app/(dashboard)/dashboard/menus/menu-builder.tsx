@@ -144,6 +144,24 @@ export function MenuBuilder({
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  // One line per (plan, day) rather than per missing category — see the banner below.
+  const problemGroups = useMemo(() => {
+    const byKey = new Map<string, { key: string; planName: string; dayLabel: string; categories: string[] }>();
+    for (const p of problems) {
+      const key = `${p.planName}|${p.day}`;
+      const existing = byKey.get(key);
+      if (existing) existing.categories.push(p.categoryLabel);
+      else
+        byKey.set(key, {
+          key,
+          planName: p.planName,
+          dayLabel: DAY_LABELS[p.day as DayOfWeek] ?? p.day,
+          categories: [p.categoryLabel],
+        });
+    }
+    return [...byKey.values()];
+  }, [problems]);
+
   const posterItems: PosterItem[] = rows.flatMap((r, index) => {
     const d = dishById.get(r.dishId);
     return d ? [{ dayOfWeek: r.dayOfWeek, slot: r.slot, dishName: d.name, position: index }] : [];
@@ -350,14 +368,27 @@ export function MenuBuilder({
 
       {problems.length > 0 && !isReleased && (
         <div className="rounded-xl border border-warn/40 bg-warn/5 p-4 text-sm">
-          <p className="font-medium">This menu cannot be released yet — some subscribers would get no meal:</p>
-          <ul className="mt-2 space-y-1 text-muted-foreground">
-            {problems.map((p, i) => (
-              <li key={`${p.day}-${p.planName}-${p.categoryLabel}-${i}`}>
-                {p.planName} has no {p.categoryLabel} on {DAY_LABELS[p.day as DayOfWeek] ?? p.day}
-              </li>
-            ))}
-          </ul>
+          <p className="font-medium">
+            This menu cannot be released yet — <span className="tabular-nums">{problems.length}</span>{" "}
+            {problems.length === 1 ? "gap" : "gaps"} would leave subscribers without a meal.
+          </p>
+          {/* Grouped, and collapsed by default. One row per missing (plan, day, category) is
+              O(plans x days x categories): a week built across all seven days produced ~84
+              rows and pushed the grid off screen entirely. Grouping to one line per plan+day
+              turns that into ~14, and <details> keeps the banner a summary until asked. */}
+          <details className="group mt-2">
+            <summary className="cursor-pointer text-muted-foreground underline-offset-2 hover:underline">
+              Show what is missing
+            </summary>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
+              {problemGroups.map((g) => (
+                <li key={g.key}>
+                  <span className="font-medium text-foreground">{g.planName}</span> — {g.dayLabel}:{" "}
+                  {g.categories.join(", ")}
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
       )}
 

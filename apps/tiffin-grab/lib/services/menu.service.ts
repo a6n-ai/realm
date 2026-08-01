@@ -400,7 +400,14 @@ export const menuService = {
 
     const problems = await this.releaseProblems(weekPublicId);
     if (problems.length > 0) {
-      const first = problems.slice(0, 3).map((p) => `${p.planName} has no ${p.categoryLabel} on ${p.day}`).join("; ");
+      const dayLabel: Record<string, string> = {
+        mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
+        fri: "Friday", sat: "Saturday", sun: "Sunday",
+      };
+      const first = problems
+        .slice(0, 3)
+        .map((p) => `${p.planName} has no ${p.categoryLabel} on ${dayLabel[p.day] ?? p.day}`)
+        .join("; ");
       const more = problems.length > 3 ? ` (and ${problems.length - 3} more)` : "";
       throw new ValidationError(`This menu would leave subscribers without a meal: ${first}${more}`);
     }
