@@ -67,15 +67,15 @@ export async function buildMealsGrid(
   // from settings at read time.
   const { timezone } = settings;
 
-  // Same Monday key menus are saved under (app-settings timezone) — and scoped by plan type.
+  // The plan still has to exist — categories and dish membership are both scoped to it —
+  // but nothing here needs its key or plan_type any more: one week now serves every plan,
+  // and what a subscriber is offered comes from membership alone.
   const [planRow] = await db
-    .select({ id: plans.id, key: plans.key, planType: plans.planType })
+    .select({ id: plans.id })
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1);
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
-  const planKey = planRow.key;
-  const planType = planRow.planType as "tiffin" | "healthy";
   const planDishIds = await dishIdsForPlan(planRow.id);
 
   const thisMonday = thisWeekStartIso(Date.now(), timezone);

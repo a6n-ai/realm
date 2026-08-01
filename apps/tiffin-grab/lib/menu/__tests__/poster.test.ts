@@ -36,15 +36,23 @@ describe("buildPosterColumns", () => {
     expect(weekend.groups[0].dishes.map((d) => d.name)).toEqual(["Veg Pasta", "Chicken Pasta"]);
   });
 
-  it("multi slot => one group per slot in slot order", () => {
+  it("multi slot => only the categories that actually have a dish, in slot order", () => {
     const cols = buildPosterColumns(healthySlots, [
       { dayOfWeek: "mon", slot: "dinner", dishName: "Soup", position: 0 },
       { dayOfWeek: "mon", slot: "breakfast", dishName: "Poha", position: 0 },
     ]);
     const mon = cols.find((c) => c.label === "Monday")!;
-    expect(mon.groups.map((g) => g.slotLabel)).toEqual(["Breakfast", "Lunch", "Dinner"]);
+    // Lunch has nothing on Monday, so it is omitted rather than rendered empty — the
+    // public menu shows what IS served, not a column of placeholders.
+    expect(mon.groups.map((g) => g.slotLabel)).toEqual(["Breakfast", "Dinner"]);
     expect(mon.groups[0].dishes.map((d) => d.name)).toEqual(["Poha"]);
-    expect(mon.groups[1].dishes).toEqual([]);
-    expect(mon.groups[2].dishes.map((d) => d.name)).toEqual(["Soup"]);
+    expect(mon.groups[1].dishes.map((d) => d.name)).toEqual(["Soup"]);
+  });
+
+  it("a day with nothing on it yields no groups at all", () => {
+    const cols = buildPosterColumns(healthySlots, [
+      { dayOfWeek: "mon", slot: "breakfast", dishName: "Poha", position: 0 },
+    ]);
+    expect(cols.find((c) => c.label === "Tuesday")!.groups).toEqual([]);
   });
 });

@@ -71,10 +71,14 @@ export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): Rend
     if (flat) {
       return { label: col.label, groups: [{ slotLabel: null, dishes: uniqueByName([...inCol].sort(order)) }] };
     }
-    const groups: RenderedGroup[] = slots.map((s) => ({
-      slotLabel: s.label,
-      dishes: uniqueByName(inCol.filter((i) => i.slot === s.key).sort(order)),
-    }));
+    // A category with nothing on it that day is omitted entirely, not rendered as an
+    // empty row. The public menu should read as what IS being served — an admin leaving
+    // Protein blank on a Tuesday is not information a customer needs, and a column of
+    // "—" placeholders made a half-built week look broken rather than simply shorter.
+    const groups: RenderedGroup[] = slots.flatMap((s) => {
+      const dishes = uniqueByName(inCol.filter((i) => i.slot === s.key).sort(order));
+      return dishes.length ? [{ slotLabel: s.label, dishes }] : [];
+    });
     return { label: col.label, groups };
   });
 }

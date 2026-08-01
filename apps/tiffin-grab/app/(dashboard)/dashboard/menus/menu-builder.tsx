@@ -8,22 +8,15 @@ import { Input } from "@realm/ui/input";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@realm/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@realm/ui/dropdown-menu";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
-import { WeekStartPicker } from "./week-start-picker";
 import { MenuGrid } from "./menu-grid";
-import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek, upsertWeek } from "./actions";
+import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@realm/ui/cn";
 
 const AUTOSAVE_MS = 1500;
-
-// Single source of truth for the config bar's labelled controls. The real bar
-// and MenuBuilderSkeleton both read labels + control widths from here, so the
-// loading skeleton can never drift from the component.
-const CONFIG_FIELDS = [
-  { key: "week", label: "Week start (Monday)", control: "w-56" },
-] as const;
 
 type Dish = { id: string; name: string; category: string | null };
 type Week = { id: string; weekStart: string; status: string; updatedAt: number };
@@ -47,22 +40,20 @@ const toRows = (items: Item[]): Row[] =>
 const signature = (rows: Row[]) => JSON.stringify(rows.map((r) => [r.id, r.dayOfWeek, r.slot, r.dishId, r.isDefault]));
 
 export function MenuBuilder({
-  mealType, categories, categoryCounts, dishes, week, items, takenWeekStarts, copySources, problems,
+  mealType, categories, categoryCounts, dishes, week, items, copySources, problems,
 }: {
   mealType: MealTypeConfig;
   categories: Category[];
   categoryCounts: Record<string, number>;
   dishes: Dish[];
-  week: Week | null;
+  week: Week;
   items: Item[];
-  takenWeekStarts: string[];
   copySources: CopySource[];
   problems: ReleaseProblem[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [weekStart, setWeekStart] = useState(week?.weekStart ?? "");
   const [createTarget, setCreateTarget] = useState<{ storeDay: DayOfWeek; slot: string } | null>(null);
   const [newName, setNewName] = useState("");
   const [newDiet, setNewDiet] = useState<"veg" | "nonveg">("veg");
@@ -71,7 +62,7 @@ export function MenuBuilder({
   // action, and re-seeding from props would throw away edits the admin has not saved yet.
   const [rows, setRows] = useState<Row[]>(() => toRows(items));
   const [savedSignature, setSavedSignature] = useState(() => signature(toRows(items)));
-  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState(week?.updatedAt ?? 0);
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState(week.updatedAt);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [staleConflict, setStaleConflict] = useState(false);
@@ -87,9 +78,9 @@ export function MenuBuilder({
   const allDishes = useMemo(() => [...dishes, ...createdDishes], [dishes, createdDishes]);
   const dishById = useMemo(() => new Map(allDishes.map((d) => [d.id, d])), [allDishes]);
   const dirty = signature(rows) !== savedSignature;
-  const isDraft = week?.status === "draft";
-  const isReady = week?.status === "ready";
-  const isReleased = week?.status === "released";
+  const isDraft = week.status === "draft";
+  const isReady = week.status === "ready";
+  const isReleased = week.status === "released";
   const editable = isDraft || (isReleased && amending);
 
   const run = (fn: () => Promise<void>) => start(async () => {
@@ -200,14 +191,6 @@ export function MenuBuilder({
       return prev.map((r) => (r.key === target.key ? swapWith : r.key === swapWith.key ? target : r));
     });
 
-  const handleUpsert = () => {
-    if (!weekStart) return;
-    run(async () => {
-      const w = await upsertWeek({ weekStart });
-      router.push(`/dashboard/menus?week=${w.publicId}`);
-    });
-  };
-
   const handleCreateDish = () => {
     const t = createTarget;
     if (!t || !week || !newName.trim()) return;
@@ -263,19 +246,7 @@ export function MenuBuilder({
     <div className="space-y-6">
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">{CONFIG_FIELDS[0].label}</label>
-          <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
-        </div>
-        {!week && (
-          <Button className="transition-transform active:scale-[0.96]" onClick={handleUpsert} disabled={pending || !weekStart}>
-            Create draft
-          </Button>
-        )}
-      </div>
-
-      {week && (
+      {(
         <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4 ${isReleased ? "border-l-ok" : isReady ? "border-l-primary" : "border-l-muted-foreground/30"}`}>
           <div className="flex items-center gap-2 text-sm">
             {isDraft && (
@@ -304,15 +275,24 @@ export function MenuBuilder({
           </div>
           <div className="flex items-center gap-2">
             {isDraft && copySources.length > 0 && rows.length === 0 && (
-              <Select value="" onValueChange={handleCopyWeek}>
-                <SelectTrigger className="h-9 w-48 rounded-lg text-xs">
-                  <Copy className="size-3.5 shrink-0" />
-                  <SelectValue placeholder="Copy from week…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {copySources.map((s) => <SelectItem key={s.id} value={s.id}>{s.weekStart}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              // A one-shot action, so DropdownMenu — not Select. A Select models persistent
+              // state; using one here meant resetting it with a controlled value="" , which
+              // left the trigger showing a stale week and stopped onValueChange re-firing.
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-9 transition-transform active:scale-[0.96]">
+                    <Copy className="size-3.5" />
+                    Copy from week…
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {copySources.map((src) => (
+                    <DropdownMenuItem key={src.id} onSelect={() => handleCopyWeek(src.id)}>
+                      {src.weekStart}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {isDraft && (
@@ -362,7 +342,7 @@ export function MenuBuilder({
               {showPreview ? "Hide preview" : "Preview"}
             </Button>
             <Button variant="outline" className="transition-transform active:scale-[0.96]" onClick={() => router.push("/dashboard/menus")}>
-              Close
+              Done
             </Button>
           </div>
         </div>
@@ -388,7 +368,7 @@ export function MenuBuilder({
         </div>
       )}
 
-      {week && (
+      {(
         <div className={cn("grid gap-6", showPreview && "lg:grid-cols-[minmax(0,1fr)_24rem]")}>
           <MenuGrid
             categories={categories}
@@ -408,7 +388,7 @@ export function MenuBuilder({
           {showPreview && (
             <div className="lg:sticky lg:top-4 lg:self-start">
               <p className="mb-3 text-xs font-medium text-muted-foreground">Live preview</p>
-              <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={weekStart || week.weekStart} slots={categories} items={posterItems} accent={mealType.accent} />
+              <WeeklyMenuPoster titlePrefix={mealType.titlePrefix} weekStart={week.weekStart} slots={categories} items={posterItems} accent={mealType.accent} />
             </div>
           )}
         </div>
@@ -478,20 +458,20 @@ export function MenuBuilder({
   );
 }
 
-// Exact loading twin of the initial (no-week) config bar: same wrapper markup and
-// the same CONFIG_FIELDS labels, with grey controls in place of the live inputs.
+// Loading twin of the editor's status bar — the first thing that paints, so the page
+// does not jump when the grid arrives.
 export function MenuBuilderSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border p-5 shadow-sm">
-        {CONFIG_FIELDS.map((f) => (
-          <div key={f.key} className="space-y-1.5">
-            <label className="block text-sm font-medium">{f.label}</label>
-            <Skeleton className={cn("h-9", f.control)} />
-          </div>
-        ))}
-        <Skeleton className="h-9 w-28" />
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-l-2 bg-muted/30 p-4">
+        <Skeleton className="h-5 w-56" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-20" />
+          <Skeleton className="h-9 w-28" />
+          <Skeleton className="h-9 w-24" />
+        </div>
       </div>
+      <Skeleton className="h-[60vh] w-full rounded-2xl" />
     </div>
   );
 }

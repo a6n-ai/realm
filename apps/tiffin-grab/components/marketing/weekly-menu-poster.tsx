@@ -26,10 +26,11 @@ export function WeeklyMenuPoster({
             {col.groups.map((g, gi) => (
               <div key={g.slotLabel ?? gi} className="space-y-1">
                 {g.slotLabel ? <p className="text-xs font-medium text-muted-foreground">{g.slotLabel}</p> : null}
+                {/* No placeholder row: buildPosterColumns already drops categories with
+                    nothing on them, and a wholly empty day reads as an empty column under
+                    its label rather than a dash that looks like a rendering fault. */}
                 <ul className="space-y-1">
-                  {g.dishes.length === 0 ? (
-                    <li className="text-sm text-muted-foreground">—</li>
-                  ) : g.dishes.map((d, i) => (
+                  {g.dishes.map((d, i) => (
                     <li key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
                       <span>{d.name}</span>
                     </li>

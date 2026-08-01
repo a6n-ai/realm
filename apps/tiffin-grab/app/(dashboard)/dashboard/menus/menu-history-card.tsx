@@ -109,7 +109,7 @@ export function MenuHistoryCard({
       </div>
 
       <Button asChild variant="ghost" size="sm" className="mt-3 w-fit gap-1.5 transition-transform active:scale-[0.96]">
-        <Link href={`/dashboard/menus?week=${week.publicId}`}>
+        <Link href={`/dashboard/menus/${week.publicId}`}>
           <Pencil className="size-3.5" />
           Edit week
         </Link>
