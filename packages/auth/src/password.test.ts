@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "./password";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+// pino writes straight to fd 1, so a console spy sees nothing — mock the logger factory.
+const error = vi.fn();
+vi.mock("@realm/commons/logger", () => ({
+  createLogger: () => ({ error, warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
+}));
+
+const { hashPassword, verifyPassword } = await import("./password");
 
 const PLAIN = "correct-horse-battery-staple";
+
+beforeEach(() => error.mockClear());
 
 describe("password hashing (scrypt)", () => {
   it("hashes to scrypt, never plaintext or bcrypt", async () => {
@@ -24,9 +33,39 @@ describe("password hashing (scrypt)", () => {
     expect(await verifyPassword(PLAIN, b)).toBe(true);
   });
 
-  // bcrypt support is gone; a stale hash must fail closed rather than throw.
-  it("rejects a legacy bcrypt hash instead of crashing", async () => {
-    const legacy = "$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm";
-    await expect(verifyPassword(PLAIN, legacy)).resolves.toBe(false);
+  it("a plain wrong password is NOT logged as an error — that is a user typo, not a fault", async () => {
+    const hash = await hashPassword(PLAIN);
+    expect(await verifyPassword("wrong", hash)).toBe(false);
+    expect(error).not.toHaveBeenCalled();
+  });
+});
+
+// An unreadable hash fails closed exactly like a wrong password, which is correct but
+// indistinguishable from a typo. These pin the diagnosis that tells them apart.
+describe("unreadable stored hashes fail closed AND say so", () => {
+  const unreadable: [string, string, string][] = [
+    ["legacy bcrypt", "$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm", "bcrypt"],
+    ["empty", "", "empty"],
+    ["garbage", "not-a-hash", "unrecognised"],
+    ["plaintext left in the column", PLAIN, "unrecognised"],
+  ];
+
+  for (const [name, stored, expectedFormat] of unreadable) {
+    it(`rejects ${name} without throwing, and logs which format it found`, async () => {
+      await expect(verifyPassword(PLAIN, stored)).resolves.toBe(false);
+      expect(error).toHaveBeenCalledTimes(1);
+      const [meta, message] = error.mock.calls[0];
+      expect(meta.hashFormat).toContain(expectedFormat);
+      expect(message).toMatch(/cannot be verified|corrupt/);
+    });
+  }
+
+  it("never logs the password or the stored hash, not even a prefix", async () => {
+    const secret = "$2b$10$JNPi3ia9w9BkjJXhHA3s/eLV05yzvLY48Mk13ZMhIvXuqkSpJ/ZAm";
+    await verifyPassword(PLAIN, secret);
+    const logged = JSON.stringify(error.mock.calls);
+    expect(logged).not.toContain(PLAIN);
+    expect(logged).not.toContain(secret);
+    expect(logged).not.toContain(secret.slice(0, 12));
   });
 });
