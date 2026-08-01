@@ -1,5 +1,5 @@
 {
-  "id": "22b3716c-27a7-4a72-9c47-c3c73778eb98",
+  "id": "7939192f-4622-4155-8d59-8c4035b90d62",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -5070,9 +5070,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "slot": {
-          "name": "slot",
-          "type": "text",
+        "category_id": {
+          "name": "category_id",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -5119,7 +5119,7 @@
               "nulls": "last"
             },
             {
-              "expression": "slot",
+              "expression": "category_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5168,6 +5168,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "meal_selections_category_id_dish_categories_id_fk": {
+          "name": "meal_selections_category_id_dish_categories_id_fk",
+          "tableFrom": "meal_selections",
+          "tableTo": "dish_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "meal_selections_dish_id_dishes_id_fk": {
@@ -5259,9 +5272,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "slot": {
-          "name": "slot",
-          "type": "text",
+        "category_id": {
+          "name": "category_id",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -5303,7 +5316,7 @@
               "nulls": "last"
             },
             {
-              "expression": "slot",
+              "expression": "category_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5333,6 +5346,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "menu_items_category_id_dish_categories_id_fk": {
+          "name": "menu_items_category_id_dish_categories_id_fk",
+          "tableFrom": "menu_items",
+          "tableTo": "dish_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "menu_items_dish_id_dishes_id_fk": {
@@ -5411,14 +5437,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "plan_type": {
-          "name": "plan_type",
-          "type": "plan_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'tiffin'"
-        },
         "week_start": {
           "name": "week_start",
           "type": "date",
@@ -5447,15 +5465,9 @@
         }
       },
       "indexes": {
-        "menu_weeks_type_week_unique": {
-          "name": "menu_weeks_type_week_unique",
+        "menu_weeks_week_unique": {
+          "name": "menu_weeks_week_unique",
           "columns": [
-            {
-              "expression": "plan_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "week_start",
               "isExpression": false,
@@ -7540,6 +7552,7 @@
       "schema": "public",
       "values": [
         "draft",
+        "ready",
         "released"
       ]
     },

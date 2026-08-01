@@ -1,3 +1,10 @@
+-- Squashed baseline. Replaces 0000_baseline + 0001..0004; the schema is identical to
+-- applying that chain in order.
+--
+-- The sequence, next_id()/current_app_id() and the app_id foreign-key loop are hand-written:
+-- drizzle-kit generate does NOT emit them, so they are spliced back around the generated
+-- body every time this file is regenerated. Dropping them yields a schema whose CREATE TABLE
+-- defaults reference functions that do not exist, and an idempotence check will not catch it.
 CREATE SEQUENCE IF NOT EXISTS "id_seq";--> statement-breakpoint
 CREATE OR REPLACE FUNCTION next_id(OUT result bigint) RETURNS bigint LANGUAGE plpgsql AS $fn$
 DECLARE our_epoch bigint := 1735689600000; seq_id bigint; now_millis bigint;
@@ -33,7 +40,7 @@ CREATE TYPE "public"."ticket_priority" AS ENUM('low', 'normal', 'high', 'urgent'
 CREATE TYPE "public"."ticket_status" AS ENUM('open', 'in_progress', 'waiting_on_customer', 'resolved', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."section_kind" AS ENUM('tickets', 'inquiries', 'customers');--> statement-breakpoint
 CREATE TYPE "public"."day_of_week" AS ENUM('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun');--> statement-breakpoint
-CREATE TYPE "public"."menu_week_status" AS ENUM('draft', 'released');--> statement-breakpoint
+CREATE TYPE "public"."menu_week_status" AS ENUM('draft', 'ready', 'released');--> statement-breakpoint
 CREATE TYPE "public"."audit_operation" AS ENUM('create', 'update', 'delete', 'read', 'login', 'logout', 'login_failed');--> statement-breakpoint
 CREATE TYPE "public"."app_event" AS ENUM('order_created', 'order_activated', 'order_completed', 'order_cancelled', 'order_paused', 'payment_received', 'refund_issued', 'menu_released', 'wallet_credited', 'wallet_redeemed', 'inquiry_created', 'inquiry_follow_up', 'inquiry_converted', 'ticket_created', 'ticket_reply', 'ticket_resolved', 'signup', 'manual_adjustment');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel" AS ENUM('email', 'in_app', 'sms', 'whatsapp');--> statement-breakpoint
@@ -665,7 +672,7 @@ CREATE TABLE "meal_selections" (
 	"order_id" bigint NOT NULL,
 	"menu_week_id" bigint NOT NULL,
 	"day_of_week" "day_of_week" NOT NULL,
-	"slot" text NOT NULL,
+	"category_id" bigint NOT NULL,
 	"person_index" integer NOT NULL,
 	"pick_index" integer DEFAULT 1 NOT NULL,
 	"dish_id" bigint NOT NULL,
@@ -682,7 +689,7 @@ CREATE TABLE "menu_items" (
 	"updated_by" bigint,
 	"menu_week_id" bigint NOT NULL,
 	"day_of_week" "day_of_week" NOT NULL,
-	"slot" text NOT NULL,
+	"category_id" bigint NOT NULL,
 	"dish_id" bigint NOT NULL,
 	"is_default" boolean DEFAULT false NOT NULL,
 	"position" integer DEFAULT 0 NOT NULL,
@@ -697,7 +704,6 @@ CREATE TABLE "menu_weeks" (
 	"created_by" bigint,
 	"updated_at" bigint NOT NULL,
 	"updated_by" bigint,
-	"plan_type" "plan_type" DEFAULT 'tiffin' NOT NULL,
 	"week_start" date NOT NULL,
 	"status" "menu_week_status" DEFAULT 'draft' NOT NULL,
 	"order_cutoff" bigint NOT NULL,
@@ -980,8 +986,10 @@ ALTER TABLE "category_plans" ADD CONSTRAINT "category_plans_category_id_dish_cat
 ALTER TABLE "category_plans" ADD CONSTRAINT "category_plans_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_menu_week_id_menu_weeks_id_fk" FOREIGN KEY ("menu_week_id") REFERENCES "public"."menu_weeks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_category_id_dish_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."dish_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "meal_selections" ADD CONSTRAINT "meal_selections_dish_id_dishes_id_fk" FOREIGN KEY ("dish_id") REFERENCES "public"."dishes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "menu_items" ADD CONSTRAINT "menu_items_menu_week_id_menu_weeks_id_fk" FOREIGN KEY ("menu_week_id") REFERENCES "public"."menu_weeks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "menu_items" ADD CONSTRAINT "menu_items_category_id_dish_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."dish_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "menu_items" ADD CONSTRAINT "menu_items_dish_id_dishes_id_fk" FOREIGN KEY ("dish_id") REFERENCES "public"."dishes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "wallet_ledger" ADD CONSTRAINT "wallet_ledger_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "wallet_ledger" ADD CONSTRAINT "wallet_ledger_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1028,9 +1036,9 @@ CREATE INDEX "lead_subsources_source_idx" ON "lead_subsources" USING btree ("sou
 CREATE INDEX "inquiry_user_config_source_idx" ON "inquiry_user_config" USING btree ("source_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "category_plans_category_plan_unique" ON "category_plans" USING btree ("category_id","plan_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "dish_categories_key_unique" ON "dish_categories" USING btree ("key");--> statement-breakpoint
-CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","slot","person_index","pick_index");--> statement-breakpoint
-CREATE UNIQUE INDEX "menu_items_unique" ON "menu_items" USING btree ("menu_week_id","day_of_week","slot","dish_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "menu_weeks_type_week_unique" ON "menu_weeks" USING btree ("plan_type","week_start");--> statement-breakpoint
+CREATE UNIQUE INDEX "meal_selections_unique" ON "meal_selections" USING btree ("order_id","menu_week_id","day_of_week","category_id","person_index","pick_index");--> statement-breakpoint
+CREATE UNIQUE INDEX "menu_items_unique" ON "menu_items" USING btree ("menu_week_id","day_of_week","category_id","dish_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "menu_weeks_week_unique" ON "menu_weeks" USING btree ("week_start");--> statement-breakpoint
 CREATE INDEX "coin_rate_currency_created_idx" ON "coin_rate" USING btree ("currency","created_at");--> statement-breakpoint
 CREATE INDEX "wallet_user_created_idx" ON "wallet_ledger" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "wallet_earn_idempotent_idx" ON "wallet_ledger" USING btree ("source_type","source_id","event_type");--> statement-breakpoint
