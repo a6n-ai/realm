@@ -23,7 +23,14 @@ type Week = { id: string; weekStart: string; status: string; updatedAt: number }
 type Item = { id: string; dayOfWeek: string; slot: string; dishId: string; position: number; isDefault: boolean };
 type Category = { key: string; label: string; selectable: boolean; sortOrder: number };
 type CopySource = { id: string; weekStart: string };
-type ReleaseProblem = { day: string; planName: string; categoryKey: string; categoryLabel: string };
+type ReleaseProblem = {
+  kind: "missing" | "extra";
+  day: string;
+  planName: string;
+  categoryKey: string;
+  categoryLabel: string;
+  dishNames: string[];
+};
 type AmendPreview = { resetPicks: number; affectedOrders: number; days: string[] };
 
 /**
@@ -148,6 +155,7 @@ export function MenuBuilder({
   const problemGroups = useMemo(() => {
     const byKey = new Map<string, { key: string; planName: string; dayLabel: string; categories: string[] }>();
     for (const p of problems) {
+      if (p.kind !== "missing") continue; // surplus never blocks a release
       const key = `${p.planName}|${p.day}`;
       const existing = byKey.get(key);
       if (existing) existing.categories.push(p.categoryLabel);
@@ -161,6 +169,8 @@ export function MenuBuilder({
     }
     return [...byKey.values()];
   }, [problems]);
+
+  const blockingCount = problems.filter((p) => p.kind === "missing").length;
 
   const posterItems: PosterItem[] = rows.flatMap((r, index) => {
     const d = dishById.get(r.dishId);
@@ -366,11 +376,11 @@ export function MenuBuilder({
         </div>
       )}
 
-      {problems.length > 0 && !isReleased && (
+      {blockingCount > 0 && !isReleased && (
         <div className="rounded-xl border border-warn/40 bg-warn/5 p-4 text-sm">
           <p className="font-medium">
-            This menu cannot be released yet — <span className="tabular-nums">{problems.length}</span>{" "}
-            {problems.length === 1 ? "gap" : "gaps"} would leave subscribers without a meal.
+            This menu cannot be released yet — <span className="tabular-nums">{blockingCount}</span>{" "}
+            {blockingCount === 1 ? "gap" : "gaps"} would leave subscribers without a meal.
           </p>
           {/* Grouped, and collapsed by default. One row per missing (plan, day, category) is
               O(plans x days x categories): a week built across all seven days produced ~84

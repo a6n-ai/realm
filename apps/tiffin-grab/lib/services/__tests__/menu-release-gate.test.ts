@@ -84,6 +84,39 @@ describe("menuService release gate", () => {
     expect(problems.filter((p) => p.day !== "mon")).toEqual([]);
   });
 
+  it("a fixed category with one dish PER PLAN is correct, not surplus", async () => {
+    // The membership filter runs before "take the first dish", so several dishes in one
+    // fixed category can be right — one per plan. A naive count of rows in the cell would
+    // wrongly flag this, which is precisely the mistake the plan-aware check avoids.
+    const vegOnly = await dishOn("Papad", "extra", ["veg"]);
+    const nonVegOnly = await dishOn("Egg Bhurji", "extra", ["non-veg"]);
+    const week = await menuService.upsertWeek({ weekStart: "2099-09-28" });
+    await menuService.saveWeek({
+      menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
+      items: [item(vegOnly, "extra"), item(nonVegOnly, "extra")],
+    });
+
+    const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
+    expect(surplus).toEqual([]);
+  });
+
+  it("flags a fixed category holding two dishes that reach the SAME plan", async () => {
+    // Both are on the veg plan, so only one can ever be served to a veg subscriber.
+    const a = await dishOn("Papad", "extra", ["veg", "non-veg"]);
+    const b = await dishOn("Pickle", "extra", ["veg", "non-veg"]);
+    const week = await menuService.upsertWeek({ weekStart: "2099-10-26" });
+    await menuService.saveWeek({
+      menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
+      items: [item(a, "extra"), item(b, "extra")],
+    });
+
+    const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
+    expect(surplus.map((p) => p.planName).sort()).toEqual(["Non-Veg Plan", "Pure Vegetarian Plan"]);
+    expect(surplus[0].dishNames).toHaveLength(2);
+    // Surplus is a warning, never a blocker — only a missing category stops a release.
+    expect(surplus.every((p) => p.kind !== "missing")).toBe(true);
+  });
+
   it("refuses to release an empty week only via the caller — a week with no items has no problems to report", async () => {
     const week = await menuService.upsertWeek({ weekStart: "2099-09-21" });
     expect(await menuService.releaseProblems(week.publicId)).toEqual([]);

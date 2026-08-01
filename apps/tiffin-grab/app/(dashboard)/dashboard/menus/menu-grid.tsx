@@ -12,7 +12,14 @@ import { DAYS, DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };
 export type GridDish = { id: string; name: string; category: string | null };
 export type GridCategory = { key: string; label: string; selectable: boolean; sortOrder: number };
-export type GridProblem = { day: string; planName: string; categoryKey: string; categoryLabel: string };
+export type GridProblem = {
+  kind: "missing" | "extra";
+  day: string;
+  planName: string;
+  categoryKey: string;
+  categoryLabel: string;
+  dishNames: string[];
+};
 
 const CREATE_VALUE = "__create__";
 
@@ -43,12 +50,16 @@ export function MenuGrid({
 }) {
   const dishById = useMemo(() => new Map(dishes.map((d) => [d.id, d])), [dishes]);
 
-  // Plans that would get nothing in a cell, keyed for O(1) lookup while rendering 77 of them.
+  // Server verdicts per cell, keyed for O(1) lookup while rendering 77 of them. Split by
+  // kind: "missing" is a plan that gets nothing here, "extra" is a fixed category holding
+  // more than one dish for the SAME plan (only that surplus is dead — see below).
   const problemsByCell = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, { missing: string[]; extra: string[] }>();
     for (const p of problems) {
       const key = `${p.day}:${p.categoryKey}`;
-      map.set(key, [...(map.get(key) ?? []), p.planName]);
+      const entry = map.get(key) ?? { missing: [], extra: [] };
+      entry[p.kind === "missing" ? "missing" : "extra"].push(p.planName);
+      map.set(key, entry);
     }
     return map;
   }, [problems]);
@@ -101,7 +112,8 @@ export function MenuGrid({
                   rows={cellRows(day, category.key)}
                   dishes={dishes}
                   dishById={dishById}
-                  missingForPlans={problemsByCell.get(`${day}:${category.key}`) ?? []}
+                  missingForPlans={problemsByCell.get(`${day}:${category.key}`)?.missing ?? []}
+                  surplusForPlans={problemsByCell.get(`${day}:${category.key}`)?.extra ?? []}
                   editable={editable}
                   onAdd={onAdd}
                   onRemove={onRemove}
@@ -120,7 +132,7 @@ export function MenuGrid({
 }
 
 function Cell({
-  day, category, needed, rows, dishes, dishById, missingForPlans, editable,
+  day, category, needed, rows, dishes, dishById, missingForPlans, surplusForPlans, editable,
   onAdd, onRemove, onMove, onToggleDefault, onCopyAcrossDays, onCreateDish,
 }: {
   day: DayOfWeek;
@@ -130,6 +142,7 @@ function Cell({
   dishes: GridDish[];
   dishById: Map<string, GridDish>;
   missingForPlans: string[];
+  surplusForPlans: string[];
   editable: boolean;
   onAdd: (day: DayOfWeek, slot: string, dishId: string) => void;
   onRemove: (key: string) => void;
@@ -149,8 +162,12 @@ function Cell({
         ? `Only ${rows.length} of ${needed} — customers have less to choose from than they ordered`
         : category.selectable && rows.length === 1 && needed > 1
           ? "One dish only — nothing to choose between"
-          : !category.selectable && rows.length > 1
-            ? "Fixed category — only the first dish is ever served"
+          : surplusForPlans.length > 0
+            // NOT a plain "more than one dish" check. A fixed category serves one dish per
+            // subscriber, but several rows here can be right — one per plan, since plan
+            // membership filters before the default is picked. Only dishes competing for the
+            // SAME plan are dead, and only the server knows membership.
+            ? `Only one is served to ${surplusForPlans.join(", ")} — the rest never reach a plate`
             : null;
 
   const addable = dishes.filter(

@@ -310,14 +310,18 @@ export const menuService = {
    * Only days that already have dishes are checked: a week that deliberately skips Sunday
    * is not an error, but a Monday built for non-veg only is.
    */
-  async releaseProblems(weekPublicId: string): Promise<{ day: DayOfWeek; planName: string; categoryKey: string; categoryLabel: string }[]> {
+  async releaseProblems(weekPublicId: string): Promise<
+    { kind: "missing" | "extra"; day: DayOfWeek; planName: string; categoryKey: string; categoryLabel: string; dishNames: string[] }[]
+  > {
     const [week] = await db.select({ id: menuWeeks.id })
       .from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) throw new ValidationError("Week not found");
 
-    const items = await db.select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId })
+    const items = await db
+      .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, dishName: dishes.name })
       .from(menuItems)
       .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
+      .innerJoin(dishes, eq(dishes.id, menuItems.dishId))
       .where(eq(menuItems.menuWeekId, week.id));
     if (items.length === 0) return [];
     const daysWithItems = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
@@ -326,7 +330,14 @@ export const menuService = {
     const planRows = await db.select({ id: plans.id, name: plans.name })
       .from(plans).where(eq(plans.active, true));
 
-    const problems: { day: DayOfWeek; planName: string; categoryKey: string; categoryLabel: string }[] = [];
+    const problems: {
+      kind: "missing" | "extra";
+      day: DayOfWeek;
+      planName: string;
+      categoryKey: string;
+      categoryLabel: string;
+      dishNames: string[];
+    }[] = [];
     for (const plan of planRows) {
       const [categories, requiredRows, membership] = await Promise.all([
         dishCategoriesService.forPlan(plan.id),
@@ -344,8 +355,26 @@ export const menuService = {
       for (const day of daysWithItems) {
         for (const category of categories) {
           if (!required.has(category.key)) continue;
-          const served = items.some((i) => i.dayOfWeek === day && i.slot === category.key && planDishIds.has(i.dishId));
-          if (!served) problems.push({ day, planName: plan.name, categoryKey: category.key, categoryLabel: category.label });
+          // Plan membership first, exactly as resolveCategoriesForDay does it. That ordering
+          // is why several dishes in one fixed category can be correct: one per plan. Only
+          // dishes reaching the SAME plan compete, and only then is the surplus dead.
+          const served = items.filter(
+            (i) => i.dayOfWeek === day && i.slot === category.key && planDishIds.has(i.dishId),
+          );
+          if (served.length === 0) {
+            problems.push({ kind: "missing", day, planName: plan.name, categoryKey: category.key, categoryLabel: category.label, dishNames: [] });
+          } else if (!category.selectable && served.length > 1) {
+            // A fixed category serves exactly one dish per subscriber (the default, else the
+            // lowest position), so anything past the first never reaches this plan's plate.
+            problems.push({
+              kind: "extra",
+              day,
+              planName: plan.name,
+              categoryKey: category.key,
+              categoryLabel: category.label,
+              dishNames: served.map((i) => i.dishName),
+            });
+          }
         }
       }
     }
