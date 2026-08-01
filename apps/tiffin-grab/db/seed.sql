@@ -2,8 +2,11 @@
 -- pricing, feature flags, app settings, wallet, dish categories, dishes and the
 -- first menu week. No notification templates (authored via UI).
 --
--- Contains NO logins, so it is safe to run against production. The dev/QA staff
--- account lives in db/seed-dev-staff.sql.
+-- Contains NO logins, so it is safe to run against production. The first admin comes
+-- from db/seed-admin.ts with an operator-supplied password (single-use: passwordSet
+-- stays false, so the dashboard forces /set-password on first login). There is no
+-- committed-credential seed any more — the old db/seed-dev-staff.sql carried a password
+-- hash in a public repo.
 -- id -> next_id() (DB). public_id/created_at/updated_at have NO db default -> supplied here.
 -- Idempotent: ON CONFLICT (<unique>) DO NOTHING; tables without a unique key use NOT EXISTS
 -- guards. pricing_tiers has no unique key -> wipe+insert.

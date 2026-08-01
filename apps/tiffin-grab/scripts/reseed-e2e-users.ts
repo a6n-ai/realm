@@ -1,7 +1,32 @@
 import { db } from "../db/client";
 import { sql } from "drizzle-orm";
 
+/**
+ * PROD SAFETY: this script writes credentials for info@foodmonks.ca — which is also the
+ * real production admin — and unconditionally sets password_set = true, which would
+ * disable the forced /set-password gate on that account. Run against prod by accident
+ * (a stale DATABASE_URL is all it takes) it would hand out a known login.
+ *
+ * Same guard vitest.teardown.ts uses: local databases only, no exceptions.
+ */
+function isLocalDb(url: string): boolean {
+  try {
+    const h = new URL(url).hostname;
+    return h === "localhost" || h === "127.0.0.1" || h === "::1";
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
+  const dbUrl = process.env.DATABASE_URL ?? "";
+  if (!isLocalDb(dbUrl)) {
+    throw new Error(
+      "reseed-e2e-users refuses to run: DATABASE_URL is not a local database. " +
+        "These are throwaway e2e credentials and must never reach a deployed environment.",
+    );
+  }
+
   await db.execute(sql.raw(`
 WITH new_admin AS (
     INSERT INTO users (public_id, name, email, role, created_at, updated_at, password_set, email_verified)
