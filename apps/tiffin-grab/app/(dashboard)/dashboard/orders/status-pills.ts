@@ -7,9 +7,11 @@ import { inList, type Condition } from "@realm/commons/model/condition";
 // Deliberately NOT in orders-list.tsx: that module is "use client", so every one
 // of its exports reaches the RSC graph as a client reference. The server page
 // calling .map() on such a reference throws "…map is not a function" at render.
-// "ongoing" is a pseudo-bucket too: not an `orders.status` value, but a pill the
-// server expands to inList(status, ONGOING_STATUSES). The `pills` facet kind is
-// single-value (eq), so a comma list in the URL would never match a row.
+
+// "ongoing" is the second pseudo-bucket: a saved view rather than an
+// `orders.status` value, which the server expands to inList(status, …). It has to
+// work this way because the `pills` facet kind parses to eq() — a comma-separated
+// list in the URL would query status = "pending,active,paused" and match nothing.
 export const ONGOING_STATUSES = ["pending", "active", "paused"] as const;
 
 // Strips the pseudo-value out of the search params and hands back the real
