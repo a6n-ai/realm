@@ -5,9 +5,10 @@
 import { ValidationError } from "@realm/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
+import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
+import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { visibleDeliveries } from "@/lib/services/deliveries.service";
 import { type DayOfWeek } from "@/lib/menu/delivery-dates";
 
@@ -45,8 +46,8 @@ function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
 }
 
 export const selectionsService = {
-  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: DayOfWeek; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string }) {
-    const { order, menuWeek, dayOfWeek, slot, personIndex, pickIndex = 1, dishPublicId } = input;
+  async setSelection(input: { order: Order; menuWeek: Week; dayOfWeek: DayOfWeek; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string; actorId?: bigint | null }) {
+    const { order, menuWeek, dayOfWeek, slot, personIndex, pickIndex = 1, dishPublicId, actorId = null } = input;
     if (order.status === "cancelled") throw new ValidationError("This order is cancelled");
     if (personIndex < 1 || personIndex > order.persons) throw new ValidationError("Invalid person");
 
@@ -54,7 +55,7 @@ export const selectionsService = {
 
     // The `deliveries` row is the single source of truth for day-membership AND cutoff: a
     // paused/skipped/cancelled delivery — or a date with no row at all — has no scheduled row here.
-    const [deliveryRow] = await db.select({ cutoffAt: deliveries.cutoffAt }).from(deliveries)
+    const [deliveryRow] = await db.select({ id: deliveries.id, cutoffAt: deliveries.cutoffAt }).from(deliveries)
       .where(and(
         eq(deliveries.orderId, order.id),
         eq(deliveries.deliveryDate, deliveryDateIso),
@@ -70,7 +71,7 @@ export const selectionsService = {
 
     const categoryId = (await requireCategoryIds([slot])).get(slot)!;
 
-    const [dishRow] = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
+    const [dishRow] = await db.select({ id: dishes.id, name: dishes.name }).from(dishes).where(eq(dishes.publicId, dishPublicId)).limit(1);
     if (!dishRow) throw new ValidationError("Dish not found");
     const dishId = dishRow.id;
 
@@ -98,15 +99,52 @@ export const selectionsService = {
     const max = order.categoryCounts?.[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
+    // Read the outgoing dish BEFORE the upsert overwrites it. Without this the log could
+    // only say "someone touched Tuesday" — the prior value is what answers the actual
+    // question staff get asked ("why did I get paneer?").
+    const [prior] = await db
+      .select({ dishId: mealSelections.dishId, dishName: dishes.name })
+      .from(mealSelections)
+      .leftJoin(dishes, eq(dishes.id, mealSelections.dishId))
+      .where(and(
+        eq(mealSelections.orderId, order.id),
+        eq(mealSelections.menuWeekId, menuWeek.id),
+        eq(mealSelections.dayOfWeek, dayOfWeek),
+        eq(mealSelections.categoryId, categoryId),
+        eq(mealSelections.personIndex, personIndex),
+        eq(mealSelections.pickIndex, pickIndex),
+      ))
+      .limit(1);
+
     await db.insert(mealSelections).values({ orderId: order.id, menuWeekId: menuWeek.id, dayOfWeek, categoryId, personIndex, pickIndex, dishId })
       .onConflictDoUpdate({
         target: [mealSelections.orderId, mealSelections.menuWeekId, mealSelections.dayOfWeek, mealSelections.categoryId, mealSelections.personIndex, mealSelections.pickIndex],
         set: { dishId },
       });
+
+    // Re-picking the same dish is a no-op the customer can trigger by tapping twice —
+    // logging it would bury the real changes. applyToWeek fans out over a week, so this
+    // also keeps "apply to all days" from writing rows for days already on that dish.
+    if (prior?.dishId === dishId) return;
+
+    await db.insert(orderActivities).values({
+      orderId: order.id,
+      deliveryId: deliveryRow.id,
+      type: "meal_pick",
+      note: mealPickNote({
+        deliveryDateIso,
+        categoryLabel: cat.label,
+        personIndex,
+        persons: order.persons,
+        from: prior?.dishName ?? null,
+        to: dishRow.name,
+      }),
+      createdBy: actorId,
+    });
   },
 
-  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string }) {
-    const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId } = input;
+  async applyToWeek(input: { order: Order; menuWeek: Week; slot: string; personIndex: number; pickIndex?: number; dishPublicId: string; actorId?: bigint | null }) {
+    const { order, menuWeek, slot, personIndex, pickIndex, dishPublicId, actorId } = input;
 
     // The `deliveries` table is the single source of truth for which dates exist in this week —
     // the same source buildMealsGrid reads via visibleDeliveries. A make-up can land on a date
@@ -122,7 +160,7 @@ export const selectionsService = {
       const dayOfWeek = dateToDay.get(row.deliveryDate);
       if (!dayOfWeek) continue; // defensive: visibleDeliveries is already bounded to this week
       try {
-        await this.setSelection({ order, menuWeek, dayOfWeek, slot, personIndex, pickIndex, dishPublicId });
+        await this.setSelection({ order, menuWeek, dayOfWeek, slot, personIndex, pickIndex, dishPublicId, actorId });
         applied += 1;
       } catch (e) {
         skipped.push({ dateIso: row.deliveryDate, reason: e instanceof Error ? e.message : "Could not apply" });

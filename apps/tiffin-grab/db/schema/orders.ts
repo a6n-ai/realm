@@ -11,9 +11,12 @@ export const paymentStatus = pgEnum("payment_status", [
   "awaiting_payment", "pending_verification", "paid", "rejected",
 ]);
 export const paymentMethod = pgEnum("payment_method", ["simulated", "cash", "etransfer", "manual"]);
+// Append-only in practice: Postgres cannot drop an enum value, and the log table holds
+// history keyed on these. New values go on the end.
 export const orderActivityType = pgEnum("order_activity_type", [
   "created", "status_change", "paused", "resumed", "cancelled", "activated", "meal_pick", "note",
   "skipped", "unskipped", "delivery_address_changed", "pool_scheduled",
+  "payment_claimed", "payment_verified", "payment_rejected",
 ]);
 
 export const orders = pgTable("orders", {

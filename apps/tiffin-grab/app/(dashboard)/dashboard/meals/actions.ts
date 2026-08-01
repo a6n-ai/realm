@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { AuthError, ValidationError } from "@realm/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { menuWeeks, orders, users } from "@/db/schema";
+import { menuWeeks, orders } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { currentUserId } from "@/lib/services/session-service";
 import { selectionsService } from "@/lib/menu/selections.service";
 
 export async function pickDish(input: {
@@ -28,10 +29,13 @@ export async function pickDish(input: {
   const [order] = await orderP;
   if (!order) { void weekP.catch(() => {}); throw new ValidationError("Order not found"); }
 
+  // Resolved for every actor, not just customers: staff picks are logged too, and an
+  // unattributed meal_pick row is the exact thing this log exists to prevent.
+  const actorId = await currentUserId();
   const isStaff = session.user.role === "admin" || session.user.role === "member";
-  if (!isStaff) {
-    const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    if (!actor || order.userId !== actor.id) { void weekP.catch(() => {}); throw new AuthError(); }
+  if (!isStaff && (actorId == null || order.userId !== actorId)) {
+    void weekP.catch(() => {});
+    throw new AuthError();
   }
 
   const [week] = await weekP;
@@ -45,6 +49,7 @@ export async function pickDish(input: {
     personIndex: input.personIndex,
     pickIndex: input.pickIndex ?? 1,
     dishPublicId: input.dishId,
+    actorId,
   });
   revalidatePath("/dashboard/meals");
   revalidatePath(`/dashboard/orders/${input.orderId}`);
@@ -64,11 +69,9 @@ export async function applyDishToWeek(input: {
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
   if (!order) throw new ValidationError("Order not found");
 
+  const actorId = await currentUserId();
   const isStaff = session.user.role === "admin" || session.user.role === "member";
-  if (!isStaff) {
-    const [actor] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    if (!actor || order.userId !== actor.id) throw new AuthError();
-  }
+  if (!isStaff && (actorId == null || order.userId !== actorId)) throw new AuthError();
 
   const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
   if (!week) throw new ValidationError("Menu week not found");
@@ -80,6 +83,7 @@ export async function applyDishToWeek(input: {
     personIndex: input.personIndex,
     pickIndex: input.pickIndex ?? 1,
     dishPublicId: input.dishId,
+    actorId,
   });
   revalidatePath("/dashboard/meals");
   revalidatePath(`/dashboard/orders/${input.orderId}`);

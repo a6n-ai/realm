@@ -31,6 +31,12 @@ export function describeActivity(a: OrderActivityLike): string {
       return a.note ? `Meal pick — ${a.note}` : "Meal pick updated";
     case "note":
       return a.note ? `Note — ${a.note}` : "Note added";
+    case "payment_claimed":
+      return a.note ? `Payment submitted — ${a.note}` : "Payment submitted";
+    case "payment_verified":
+      return a.note ? `Payment verified — ${a.note}` : "Payment verified";
+    case "payment_rejected":
+      return a.note ? `Payment rejected — ${a.note}` : "Payment rejected";
     default:
       return a.note ?? a.type.replaceAll("_", " ");
   }

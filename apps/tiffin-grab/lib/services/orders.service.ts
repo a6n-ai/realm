@@ -440,6 +440,15 @@ export async function verifyPayment(
       .set({ status: "paid", capturedAt: Date.now() })
       .where(eq(payments.id, pay.id));
 
+    // `payments` has baseColumns, not updatableColumns — there is no updatedBy on the row,
+    // so the activity row is the only place the verifier's identity is ever recorded.
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: "payment_verified",
+      note: `${pay.method} · ${pay.amount}`,
+      createdBy: actorInternalId,
+    });
+
     const snap = order.pricingSnapshot as OrderPricingSnapshot;
     const pending = snap.pendingRedemptions ?? [];
     for (const r of pending) {
@@ -488,6 +497,7 @@ export async function verifyPayment(
 export async function claimPayment(
   paymentPublicId: string,
   input: { reference?: string | null; proof?: PaymentProof | null },
+  actorId: bigint | null = null,
 ): Promise<void> {
   const [pay] = await db.select().from(payments).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!pay) throw new NotFoundError("Payment not found");
@@ -529,6 +539,15 @@ export async function claimPayment(
       note: null,
     })
     .where(eq(payments.id, pay.id));
+
+  // Re-claiming after a rejection wipes payments.note, so the rejection reason survives
+  // only here. Without this row a rejected-then-reclaimed payment has no history at all.
+  await db.insert(orderActivities).values({
+    orderId: pay.orderId,
+    type: "payment_claimed",
+    note: reference ? `${pay.method} · ref ${reference}` : `${pay.method} · proof attached`,
+    createdBy: actorId,
+  });
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;
@@ -536,6 +555,7 @@ export async function claimPayment(
 export async function rejectPayment(
   paymentPublicId: string,
   note: string,
+  actorId: bigint | null = null,
 ): Promise<void> {
   const reason = note.trim();
   if (!reason) throw new ValidationError("Add a reason for rejecting this payment");
@@ -553,6 +573,13 @@ export async function rejectPayment(
       note: reason,
     })
     .where(eq(payments.id, pay.id));
+
+  await db.insert(orderActivities).values({
+    orderId: pay.orderId,
+    type: "payment_rejected",
+    note: reason,
+    createdBy: actorId,
+  });
 }
 
 // Serializable claim form context for activate / Finances UI.
@@ -995,14 +1022,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         ne(deliveries.status, "paused"),
       ))
       .limit(1);
-    if (remaining) return;
 
-    await this.update(publicId, { status: "paused" });
+    // A pause window narrower than the subscription leaves future deliveries scheduled, so
+    // the ORDER stays active — but the customer did pause something. The log write used to
+    // sit behind this early return, which meant every partial vacation was invisible.
+    const full = !remaining;
+    const note = `${window.from} → ${until}${window.indefinite ? " (indefinite)" : ""}`;
+    if (full) await this.update(publicId, { status: "paused" });
     await this.activities.create({
       orderId: order.id,
       type: "paused",
-      fromStatus: order.status,
-      toStatus: "paused",
+      note,
+      ...(full ? { fromStatus: order.status, toStatus: "paused" as const } : {}),
     });
   }
 

@@ -3,8 +3,8 @@ import { describeActivity } from "../order-activity-describe";
 
 describe("describeActivity", () => {
   it("labels the delivery activity types with human copy", () => {
-    expect(describeActivity({ type: "skipped", note: null, fromStatus: null, toStatus: null })).toBe("Skipped");
-    expect(describeActivity({ type: "unskipped", note: null, fromStatus: null, toStatus: null })).toBe("Un-skipped");
+    expect(describeActivity({ type: "skipped", note: null, fromStatus: null, toStatus: null })).toBe("Delivery skipped");
+    expect(describeActivity({ type: "unskipped", note: null, fromStatus: null, toStatus: null })).toBe("Delivery un-skipped");
     expect(describeActivity({ type: "delivery_address_changed", note: null, fromStatus: null, toStatus: null })).toBe(
       "Delivery address changed",
     );
@@ -21,10 +21,20 @@ describe("describeActivity", () => {
     );
   });
 
-  it("falls back to note, then type, for unrecognized types", () => {
-    expect(describeActivity({ type: "meal_pick", note: "Picked lunch", fromStatus: null, toStatus: null })).toBe(
-      "Picked lunch",
+  it("prefixes the meal and payment notes so the note reads as detail, not as the whole event", () => {
+    expect(describeActivity({ type: "meal_pick", note: "2026-08-04 · Sabzi: Aloo → Paneer", fromStatus: null, toStatus: null })).toBe(
+      "Meal pick — 2026-08-04 · Sabzi: Aloo → Paneer",
     );
-    expect(describeActivity({ type: "meal_pick", note: null, fromStatus: null, toStatus: null })).toBe("meal_pick");
+    expect(describeActivity({ type: "meal_pick", note: null, fromStatus: null, toStatus: null })).toBe("Meal pick updated");
+    expect(describeActivity({ type: "payment_rejected", note: "No matching transfer", fromStatus: null, toStatus: null })).toBe(
+      "Payment rejected — No matching transfer",
+    );
+  });
+
+  it("falls back to note, then a de-underscored type, for types it has no copy for", () => {
+    expect(describeActivity({ type: "future_type", note: "something happened", fromStatus: null, toStatus: null })).toBe(
+      "something happened",
+    );
+    expect(describeActivity({ type: "future_type", note: null, fromStatus: null, toStatus: null })).toBe("future type");
   });
 });

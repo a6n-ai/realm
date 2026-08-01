@@ -217,4 +217,34 @@ describe("OrdersService.pause/resume — limits + recorded pauses (integration)"
     // The one-open-pause guard has released: a new pause no longer throws "already paused".
     await expect(svc.pauseOrder(publicId, { from: "2000-01-03", until: "2000-01-04" })).resolves.toBeUndefined();
   });
+
+  // REGRESSION: the activity write used to sit behind the `if (remaining) return` that skips
+  // the status flip, so a partial vacation left no trace in the log at all.
+  it("logs a partial pause even though the order stays active", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2000-01-02" });
+
+    const [o] = await db.select().from(orders).where(eq(orders.id, orderId));
+    expect(o.status).toBe("active");
+
+    const rows = await db.select().from(orderActivities)
+      .where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, "paused")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].note).toContain("2000-01-01");
+    // No status transition happened, so the row must not claim one.
+    expect(rows[0].toStatus).toBeNull();
+  });
+
+  it("a full pause logs the status transition alongside the window", async () => {
+    const publicId = await makeOrder();
+    const orderId = await orderIdOf(publicId);
+    await svc.pauseOrder(publicId, { from: "2000-01-01", until: "2100-01-01" });
+
+    const rows = await db.select().from(orderActivities)
+      .where(and(eq(orderActivities.orderId, orderId), eq(orderActivities.type, "paused")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].toStatus).toBe("paused");
+    expect(rows[0].note).toContain("2100-01-01");
+  });
 });

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@realm/commons";
 import { db } from "@/db/client";
-import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -105,6 +105,31 @@ describe("selectionsService.setSelection", () => {
     await selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 2, dishPublicId: vegDishPublicId2 });
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, order.id));
     expect(rows.length).toBe(2);
+  });
+
+  // The upsert overwrites dishId in place, so the activity row is the ONLY record that a
+  // dish was ever swapped — and the only place the outgoing dish survives.
+  const activities = () =>
+    db.select().from(orderActivities).where(eq(orderActivities.orderId, order.id));
+  const pick = (dishPublicId: string) =>
+    selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId });
+
+  it("logs a meal_pick naming the dish that was replaced", async () => {
+    await pick(vegDishPublicId);
+    await pick(vegDishPublicId2);
+
+    const rows = await activities();
+    expect(rows.map((r) => r.type)).toEqual(["meal_pick", "meal_pick"]);
+    // First pick has no predecessor; the second must carry the arrow.
+    expect(rows[0].note).not.toContain("→");
+    expect(rows[1].note).toContain("→");
+    expect(rows[1].deliveryId).not.toBeNull();
+  });
+
+  it("writes nothing when the same dish is re-picked", async () => {
+    await pick(vegDishPublicId);
+    await pick(vegDishPublicId);
+    expect(await activities()).toHaveLength(1);
   });
 
   // Order-level pausedFrom/pausedUntil is dropped in this task (per-delivery pause lands on the

@@ -79,13 +79,19 @@ describe("order lifecycle (integration)", () => {
     expect(resumedRows.every((r) => r.status === "scheduled")).toBe(true);
   });
 
-  it("pauseOrder with a window covering none of the order's deliveries leaves it active", async () => {
+  it("pauseOrder with a window covering none of the order's deliveries leaves it active but still logs", async () => {
     const id = await makeOrder("active");
     await svc.pauseOrder(id, { from: "2000-01-01", until: "2000-01-02" });
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
+
+    // The activity IS written — the customer paused something even though no status
+    // transition followed. This assertion previously required the opposite, which is how
+    // partial vacations stayed invisible in the log.
     const acts = await svc.listOrderActivities(o.id);
-    expect(acts.every((a) => a.type !== "paused")).toBe(true);
+    const paused = acts.filter((a) => a.type === "paused");
+    expect(paused).toHaveLength(1);
+    expect(paused[0].toStatus).toBeNull();
   });
 
   it("rejects illegal transitions", async () => {

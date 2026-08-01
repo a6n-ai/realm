@@ -265,10 +265,31 @@ describe("payment methods E2E lifecycle", () => {
     expect(detail.payments[0]!.reference).toBe("GOOD-REF-999");
     expect(detail.payments[0]!.proofThumbUrl).toBe("https://cdn.test/thumb.png");
 
+    // The whole claim → reject → re-claim → verify path is now in the activity log. It is the
+    // only durable record: payments has no updatedBy, and re-claiming wipes the reject note.
+    const trail = await db
+      .select()
+      .from(orderActivities)
+      .where(eq(orderActivities.orderId, order!.id));
+    const payTypes = trail.map((r) => r.type).filter((t) => t.startsWith("payment_"));
+    expect(payTypes).toEqual([
+      "payment_claimed",
+      "payment_rejected",
+      "payment_claimed",
+      "payment_verified",
+    ]);
+    const rejectRow = trail.find((r) => r.type === "payment_rejected");
+    expect(rejectRow!.note).toBe("No matching Interac transfer");
+
     // Idempotent re-verify
     await verifyPayment(pay!.publicId);
     expect(
       await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.orderId, order!.id), eq(ledgerEntries.type, "payment"))),
+    ).toHaveLength(1);
+    // ...and does not double-log.
+    expect(
+      (await db.select().from(orderActivities).where(eq(orderActivities.orderId, order!.id)))
+        .filter((r) => r.type === "payment_verified"),
     ).toHaveLength(1);
   });
 

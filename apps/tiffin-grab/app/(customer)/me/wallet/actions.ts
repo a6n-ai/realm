@@ -9,6 +9,7 @@ import {
 } from "@/lib/services/orders.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
+import { currentUserId } from "@/lib/services/session-service";
 
 async function assertCanClaimPayment(paymentPublicId: string): Promise<ClaimPaymentContext> {
   const ctx = await getClaimPaymentContext(paymentPublicId);
@@ -25,7 +26,7 @@ export async function claimPaymentAction(paymentPublicId: string, form: FormData
     form.get("proof"),
     form.get("proof_thumb"),
   );
-  await claimPayment(paymentPublicId, { reference, proof });
+  await claimPayment(paymentPublicId, { reference, proof }, await currentUserId());
   revalidatePath("/me/wallet");
   revalidatePath("/dashboard/orders");
 }

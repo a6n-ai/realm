@@ -1,65 +1,45 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PackageIcon } from "lucide-react";
-import { NotFoundError, zonedDateIso } from "@realm/commons";
+import { CalendarIcon, PackageIcon } from "lucide-react";
+import { NotFoundError } from "@realm/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@realm/payments";
+import { Button } from "@realm/ui/button";
 import { requireStaff } from "@/lib/auth/guards";
 import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
-import {
-  myWaitlistedSubscriptions,
-  type Subscription,
-} from "@/lib/services/customer-deliveries.service";
-import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import { db } from "@/db/client";
 import { plans, users } from "@/db/schema";
 import {
   PageShell,
   PageHeader,
   SectionCard,
-  SkeletonCardGrid,
 } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
-import { MealsGrid } from "../../meals/meals-grid";
-import { DeliveryCalendarSkeleton } from "@/app/(customer)/me/deliveries/delivery-calendar";
-import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
-import { AdminOrderDeliveries } from "./admin-order-deliveries";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
 
-type SearchParams = Promise<{ month?: string }>;
+// This page is the commercial record: what the order is, what it costs, whether it is
+// paid. Delivery calendar, meal picks, and their half of the activity log live on
+// /dashboard/customers/[id], which owns "what is this person receiving".
 
-export default function OrderDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: SearchParams;
-}) {
+export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
       <Suspense fallback={<OrderDetail.Skeleton />}>
-        <OrderDetail params={params} searchParams={searchParams} />
+        <OrderDetail params={params} />
       </Suspense>
     </PageShell>
   );
 }
 
-async function OrderDetail({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: SearchParams;
-}) {
+async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
   const { id } = await params;
-  const { month: monthParam } = await searchParams;
 
   const settingsP = getAppSettings();
   let order;
@@ -86,10 +66,6 @@ async function OrderDetail({
     getPaymentConfig(),
   ]);
 
-  const today = zonedDateIso(Date.now(), settings.timezone);
-  const monthKey = parseMonthParam(monthParam, today);
-  const { from, until } = monthFetchRange(monthKey, today);
-
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
   const categoryRows = await dishCategoriesService.forPlanType(planType);
@@ -99,64 +75,24 @@ async function OrderDetail({
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
 
-  const subscription: Subscription | null =
-    order.status === "active" || order.status === "paused"
-      ? {
-          publicId: order.publicId,
-          planName: order.planName,
-          planType,
-          planKey: order.planKey,
-          status: order.status,
-          fullName: order.fullName,
-          addressLine: order.addressLine,
-          city: order.city,
-          postalCode: order.postalCode,
-          zoneId: order.zoneId,
-          mealSizeName: order.mealSizeName,
-          persons: order.persons,
-          categoryCounts,
-        }
-      : null;
-
-  const waitlisted =
-    order.userId != null && (order.status === "waitlisted" || order.status === "pending")
-      ? (
-          await myWaitlistedSubscriptions(order.userId)
-        ).filter((s) => s.publicId === order.publicId)
-      : [];
-
-  let deliveriesBundle: Awaited<ReturnType<typeof loadOrderDeliveriesBundle>> | null = null;
-
-  if (subscription && order.userId != null) {
-    deliveriesBundle = await loadOrderDeliveriesBundle(order.userId, subscription, from, until);
-  }
-
-  const grid = await buildMealsGrid(
-    {
-      id: order.id,
-      publicId: order.publicId,
-      planId: order.planId,
-      persons: order.persons,
-      categoryCounts,
-      mealSlots: order.mealSlots,
-      includeSaturday: order.includeSaturday,
-      includeSunday: order.includeSunday,
-      startDate: order.startDate,
-      durationWeeks: order.durationWeeks,
-      frequencyKey: order.frequencyKey,
-    },
-    settings,
-  );
-
-  const basePath = `/dashboard/orders/${order.publicId}`;
-
   return (
     <>
       <PageHeader
         icon={PackageIcon}
         title={order.fullName}
         subtitle={order.deploymentId}
-        actions={<ActivateCancelControls orderId={order.publicId} status={order.status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {customer ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/dashboard/customers/${customer.publicId}?order=${order.publicId}`}>
+                  <CalendarIcon data-icon="inline-start" /> Manage deliveries
+                </Link>
+              </Button>
+            ) : null}
+            <ActivateCancelControls orderId={order.publicId} status={order.status} />
+          </div>
+        }
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -184,41 +120,8 @@ async function OrderDetail({
         </SectionCard>
       </div>
 
-      <SectionCard title="Deliveries">
-        {subscription && deliveriesBundle ? (
-          <AdminOrderDeliveries
-            initial={{ ...deliveriesBundle, monthKey, today }}
-            subscription={subscription}
-            waitlisted={waitlisted}
-            basePath={basePath}
-          />
-        ) : (
-          <DeliveryCalendarSkeleton />
-        )}
-      </SectionCard>
-
-      <SectionCard title="This week's meals">
-        {order.status === "cancelled" ? (
-          <p className="text-muted-foreground text-sm">This order is cancelled — meal selections are closed.</p>
-        ) : grid.empty === "no-week" ? (
-          <p className="text-muted-foreground text-sm">This week&apos;s menu hasn&apos;t been published yet.</p>
-        ) : grid.empty === "no-dates" ? (
-          <p className="text-muted-foreground text-sm">No deliveries scheduled for this week on this order.</p>
-        ) : grid.empty === null ? (
-          <MealsGrid
-            orderId={order.publicId}
-            menuWeekId={grid.releasedWeek.publicId}
-            grid={grid.grid}
-            persons={grid.persons}
-            weekDates={grid.weekDatesView}
-            categories={grid.categories}
-            timezone={settings.timezone}
-          />
-        ) : null}
-      </SectionCard>
-
       <SectionCard title="Activity">
-        <OrderActivityLog activities={activities} />
+        <OrderActivityLog activities={activities} scope="commercial" />
       </SectionCard>
     </>
   );
@@ -247,14 +150,6 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           <Skeleton className="h-32 w-full" />
         </SectionCard>
       </div>
-
-      <SectionCard title="Deliveries">
-        <DeliveryCalendarSkeleton />
-      </SectionCard>
-
-      <SectionCard title="This week's meals">
-        <SkeletonCardGrid count={6} />
-      </SectionCard>
 
       <SectionCard title="Activity">
         <OrderActivityLogSkeleton />

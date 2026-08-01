@@ -20,7 +20,7 @@ export async function pickMyDish(input: {
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
   slot: string; personIndex: number; pickIndex?: number; dishId: string;
 }): Promise<void> {
-  await me();
+  const actorId = await me();
   await assertCanManageOrder(input.orderId); // owner OR staff
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
@@ -29,6 +29,7 @@ export async function pickMyDish(input: {
   await selectionsService.setSelection({
     order, menuWeek: week, dayOfWeek: input.dayOfWeek, slot: input.slot,
     personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
+    actorId,
   });
   revalidatePath("/me/meals");
   revalidatePath("/me/deliveries");
@@ -38,7 +39,7 @@ export async function pickMyDish(input: {
 export async function applyMyDishToWeek(input: {
   orderId: string; menuWeekId: string; slot: string; personIndex: number; pickIndex?: number; dishId: string;
 }): Promise<{ applied: number; skipped: string[] }> {
-  await me();
+  const actorId = await me();
   await assertCanManageOrder(input.orderId);
   const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
@@ -46,7 +47,7 @@ export async function applyMyDishToWeek(input: {
   if (!week) throw new NotFoundError("Menu week not found");
   const result = await selectionsService.applyToWeek({
     order, menuWeek: week, slot: input.slot, personIndex: input.personIndex,
-    pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
+    pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId, actorId,
   });
   revalidatePath("/me/meals");
   revalidatePath("/me/deliveries");

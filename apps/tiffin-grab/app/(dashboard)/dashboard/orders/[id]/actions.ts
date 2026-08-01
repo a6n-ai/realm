@@ -12,6 +12,7 @@ import {
   verifyPayment,
 } from "@/lib/services/orders.service";
 import { assertCanManageOrder, type Subscription } from "@/lib/services/customer-deliveries.service";
+import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
 import { db } from "@/db/client";
@@ -40,7 +41,7 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
 
 export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string) {
   await requireStaff();
-  await rejectPayment(paymentPublicId, note);
+  await rejectPayment(paymentPublicId, note, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath("/me/wallet");
 }

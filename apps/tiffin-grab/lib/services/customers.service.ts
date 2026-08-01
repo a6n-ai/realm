@@ -278,8 +278,12 @@ export async function getCustomer360(userPublicId: string) {
         startDate: orders.startDate,
         total: orders.total,
         createdAt: orders.createdAt,
+        // Named so the subscription switcher on this page can label an order the way
+        // staff talk about it ("Veg"), not just by its deployment id.
+        planName: plans.name,
       })
       .from(orders)
+      .innerJoin(plans, eq(orders.planId, plans.id))
       .where(eq(orders.userId, user.id))
       .orderBy(desc(orders.createdAt)),
     matchConds.length
