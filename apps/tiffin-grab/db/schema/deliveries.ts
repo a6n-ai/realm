@@ -1,5 +1,5 @@
 import { updatableColumns } from "@realm/database";
-import { bigint, date, index, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones } from "./catalog";
 import { orders } from "./orders";
 
@@ -27,6 +27,14 @@ export const deliveries = pgTable("deliveries", {
   city: text("city"),
   postalCode: text("postal_code"),
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
+  // Route assignment, WRITTEN ONLY BY THE OPTIMOROUTE PULL — never by hand and never by
+  // the app's own logic. OptimoRoute plans the routes; these columns are a cache of its
+  // answer so labels can print in the order the van is loaded. A stale value is corrected
+  // by pulling again, and cleared when a delivery drops off the plan.
+  routeDriverSerial: text("route_driver_serial"),
+  routeDriverName: text("route_driver_name"),
+  routeStopNumber: integer("route_stop_number"),
+  routeSyncedAt: bigint("route_synced_at", { mode: "number" }),
 }, (t) => [
   uniqueIndex("deliveries_order_date_unique").on(t.orderId, t.deliveryDate),
   uniqueIndex("deliveries_makeup_unique").on(t.makeupForDeliveryId),

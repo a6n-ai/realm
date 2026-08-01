@@ -43,6 +43,9 @@ export type DeliveryLabel = {
   city: string;
   postalCode: string;
   zoneName: string | null;
+  /** From the OptimoRoute pull. Null until routes are planned and pulled for that date. */
+  routeDriver: string | null;
+  routeStop: number | null;
   planName: string;
   mealSizeName: string;
   /** 1-based; an order for 2 people prints 2 labels, as the kitchen packs 2 tiffins. */
@@ -68,8 +71,11 @@ export type DailyLabelSheet = {
   menuWeekPublicId: string | null;
   labels: DeliveryLabel[];
   counts: KitchenCount[];
-  /** Labels grouped by zone name, the closest thing to the sheet's D1/D4/D8 routes. */
-  byZone: { zone: string; labels: number }[];
+  /**
+   * Labels per delivery group. Once routes are pulled this is the driver — the real
+   * loading order; before that it falls back to delivery zone.
+   */
+  byRoute: { group: string; labels: number; planned: boolean }[];
 };
 
 const EMPTY = (date: string, weekStart: string): DailyLabelSheet => ({
@@ -78,7 +84,7 @@ const EMPTY = (date: string, weekStart: string): DailyLabelSheet => ({
   menuWeekPublicId: null,
   labels: [],
   counts: [],
-  byZone: [],
+  byRoute: [],
 });
 
 const UNZONED = "Unzoned";
@@ -189,6 +195,8 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         city: address.city,
         postalCode: address.postalCode,
         zoneName: address.zoneId != null ? zoneName.get(address.zoneId) ?? null : null,
+        routeDriver: delivery.routeDriverName ?? delivery.routeDriverSerial ?? null,
+        routeStop: delivery.routeStopNumber,
         planName: row.planName,
         mealSizeName: row.mealSizeName,
         personIndex: person,
@@ -203,9 +211,9 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     date: dateIso,
     weekStart,
     menuWeekPublicId: week.publicId,
-    labels,
+    labels: sortForPrinting(labels),
     counts: countBy(labels),
-    byZone: zoneTotals(labels),
+    byRoute: routeTotals(labels),
   };
 }
 
@@ -235,13 +243,37 @@ export function countBy(labels: DeliveryLabel[]): KitchenCount[] {
   );
 }
 
-export function zoneTotals(labels: DeliveryLabel[]): { zone: string; labels: number }[] {
-  const acc = new Map<string, number>();
+/** Driver once routes are pulled, delivery zone until then. */
+export function routeGroupOf(label: DeliveryLabel): string {
+  return label.routeDriver ?? label.zoneName ?? UNZONED;
+}
+
+export function routeTotals(
+  labels: DeliveryLabel[],
+): { group: string; labels: number; planned: boolean }[] {
+  const acc = new Map<string, { labels: number; planned: boolean }>();
   for (const label of labels) {
-    const zone = label.zoneName ?? UNZONED;
-    acc.set(zone, (acc.get(zone) ?? 0) + 1);
+    const group = routeGroupOf(label);
+    const hit = acc.get(group);
+    if (hit) hit.labels += 1;
+    else acc.set(group, { labels: 1, planned: label.routeDriver != null });
   }
   return [...acc.entries()]
-    .map(([zone, count]) => ({ zone, labels: count }))
-    .sort((a, b) => a.zone.localeCompare(b.zone));
+    .map(([group, v]) => ({ group, ...v }))
+    .sort((a, b) => a.group.localeCompare(b.group, undefined, { numeric: true }));
+}
+
+/**
+ * Print order: driver, then stop number — the sequence the van is loaded in, so the
+ * packer works down the pile in the order the driver will hand it over. Falls back to
+ * zone then name when a date has not been planned yet.
+ */
+export function sortForPrinting(labels: DeliveryLabel[]): DeliveryLabel[] {
+  return [...labels].sort(
+    (a, b) =>
+      routeGroupOf(a).localeCompare(routeGroupOf(b), undefined, { numeric: true }) ||
+      (a.routeStop ?? Number.MAX_SAFE_INTEGER) - (b.routeStop ?? Number.MAX_SAFE_INTEGER) ||
+      a.customerName.localeCompare(b.customerName) ||
+      a.personIndex - b.personIndex,
+  );
 }

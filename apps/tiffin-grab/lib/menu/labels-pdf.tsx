@@ -41,7 +41,12 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
     <View style={styles.cell}>
       <View style={styles.headRow}>
         <Text style={styles.name}>{label.customerName}</Text>
-        <Text style={styles.zone}>{label.zoneName ?? "—"}</Text>
+        {/* Driver + stop when routes are planned; the zone is only a stand-in. */}
+        <Text style={styles.zone}>
+          {label.routeDriver
+            ? `${label.routeDriver}${label.routeStop != null ? ` · #${label.routeStop}` : ""}`
+            : (label.zoneName ?? "—")}
+        </Text>
       </View>
       <Text style={styles.meta}>
         {label.deploymentId} · {label.planName} · {label.mealSizeName}
@@ -63,15 +68,9 @@ function LabelCell({ label, date }: { label: DeliveryLabel; date: string }) {
 }
 
 export async function renderDailyLabelsPdf(sheet: DailyLabelSheet): Promise<Uint8Array> {
-  // Zone-ordered so a page of labels matches the order the van is packed in. This is the
-  // stand-in for the spreadsheet's D1/D4/D8 routes until a real route column exists.
-  const ordered = [...sheet.labels].sort(
-    (a, b) =>
-      (a.zoneName ?? "￿").localeCompare(b.zoneName ?? "￿") ||
-      a.customerName.localeCompare(b.customerName) ||
-      a.personIndex - b.personIndex,
-  );
-  const pages = chunk(ordered, PER_PAGE);
+  // Already ordered by driver then stop (sortForPrinting) — one sort, in the service, so
+  // the on-screen list and the printed sheet cannot disagree about the packing order.
+  const pages = chunk(sheet.labels, PER_PAGE);
 
   const buf = await renderToBuffer(
     <Document>

@@ -3,16 +3,18 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SendIcon } from "lucide-react";
+import { DownloadIcon, SendIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
-import { pushDayAction } from "./actions";
+import { pullRoutesAction, pushDayAction } from "./actions";
 import type { PushResult } from "@/lib/services/optimoroute/push";
+import type { PullResult } from "@/lib/services/optimoroute/pull";
 
 export function PushControl({ date, stops }: { date: string; stops: number }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<PushResult | null>(null);
+  const [pull, setPull] = useState<PullResult | null>(null);
 
   function run() {
     startTransition(async () => {
@@ -28,6 +30,23 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
     });
   }
 
+  function runPull() {
+    startTransition(async () => {
+      try {
+        const res = await pullRoutesAction(date);
+        setPull(res);
+        toast.success(
+          res.matched > 0
+            ? `Assigned ${res.matched} stop${res.matched === 1 ? "" : "s"} to drivers`
+            : "No planned routes found for this date yet",
+        );
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Pull failed");
+      }
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -35,10 +54,26 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
           <SendIcon data-icon="inline-start" />
           {pending ? "Sending…" : `Send ${stops} stop${stops === 1 ? "" : "s"}`}
         </Button>
+        <Button variant="outline" onClick={runPull} disabled={pending}>
+          <DownloadIcon data-icon="inline-start" /> Pull planned routes
+        </Button>
         <p className="text-muted-foreground text-sm">
-          Creates and updates only — nothing is removed from OptimoRoute.
+          Send creates and updates only. Pull reads driver and stop order back — labels then
+          print in van-loading order.
         </p>
       </div>
+
+      {pull ? (
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">Assigned {pull.matched}</Badge>
+          {pull.cleared > 0 ? <Badge variant="outline">Cleared {pull.cleared}</Badge> : null}
+          {pull.unknownOrderNos.length > 0 ? (
+            <Badge variant="outline">
+              {pull.unknownOrderNos.length} stop(s) on OptimoRoute we did not create
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
 
       {result ? (
         <div className="space-y-2">

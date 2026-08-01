@@ -60,7 +60,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
         items={[
           { label: "Labels", value: sheet.labels.length, hint: "one per tiffin" },
           { label: "Containers", value: containers },
-          { label: "Zones", value: sheet.byZone.length },
+          { label: "Routes", value: sheet.byRoute.length },
           { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },
         ]}
       />
@@ -76,7 +76,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
       ) : (
         <>
           <SectionCard title="Kitchen counts">
-            <KitchenCounts counts={sheet.counts} byZone={sheet.byZone} />
+            <KitchenCounts counts={sheet.counts} byRoute={sheet.byRoute} />
           </SectionCard>
           <SectionCard title="Labels">
             <LabelList labels={sheet.labels} />

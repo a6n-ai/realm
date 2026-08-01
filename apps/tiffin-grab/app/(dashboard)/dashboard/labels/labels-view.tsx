@@ -15,10 +15,10 @@ const COUNT_COLUMNS: readonly Column<"category" | "dish" | "portion" | "count">[
 
 export function KitchenCounts({
   counts,
-  byZone,
+  byRoute,
 }: {
   counts: KitchenCount[];
-  byZone: { zone: string; labels: number }[];
+  byRoute: { group: string; labels: number; planned: boolean }[];
 }) {
   if (counts.length === 0) {
     return <EmptyState icon={UtensilsCrossedIcon} message="Nothing scheduled for this day." />;
@@ -26,9 +26,10 @@ export function KitchenCounts({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {byZone.map((z) => (
-          <Badge key={z.zone} variant="secondary">
-            {z.zone}: {z.labels}
+        {byRoute.map((r) => (
+          // "planned" = came from an OptimoRoute pull; otherwise it is a zone stand-in.
+          <Badge key={r.group} variant={r.planned ? "secondary" : "outline"}>
+            {r.group}: {r.labels}
           </Badge>
         ))}
       </div>
@@ -85,7 +86,9 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
               </p>
             </div>
             <Badge variant="outline" className="shrink-0 text-[10px]">
-              {label.zoneName ?? "Unzoned"}
+              {label.routeDriver
+                ? `${label.routeDriver}${label.routeStop != null ? ` · #${label.routeStop}` : ""}`
+                : (label.zoneName ?? "Unzoned")}
             </Badge>
           </div>
           <ul className="space-y-0.5 text-xs">
