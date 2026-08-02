@@ -91,6 +91,8 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         operation: "MERGE" as const,
         orderNo: row.delivery.publicId,
         date,
+        // Required by create_order; every stop here is a tiffin being dropped off.
+        type: "D" as const,
         duration: durationMins,
         notes,
         ...(phone ? { phone } : {}),

@@ -41,6 +41,8 @@ export type OptimoOrderPayload = {
   operation: "CREATE" | "UPDATE" | "SYNC" | "MERGE";
   orderNo: string;
   date: string;
+  /** Required by the API — D delivery, P pickup, T task. Omitting it 400s. */
+  type: "D" | "P" | "T";
   duration?: number;
   notes?: string;
   phone?: string;

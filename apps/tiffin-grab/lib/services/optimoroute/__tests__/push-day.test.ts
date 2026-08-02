@@ -132,6 +132,13 @@ describe("OptimoRoute push (integration)", () => {
     expect(planned.payload.operation).toBe("MERGE");
   });
 
+  // Regression: the live API 400s with "u'type' is a required property" without this.
+  // Every stop is a drop-off, so type is always D.
+  it("declares the order type the API requires", async () => {
+    const [planned] = await buildPlannedOrders(DATE);
+    expect(planned.payload.type).toBe("D");
+  });
+
   it("splits create from update against what OptimoRoute already has", async () => {
     let preview = await previewPush(DATE);
     expect(preview.create.map((c) => c.orderNo)).toEqual([deliveryPublicId]);
