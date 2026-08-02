@@ -34,8 +34,13 @@ export type PushPreview = {
   date: string;
   create: PlannedOrder[];
   update: PlannedOrder[];
-  /** On OptimoRoute for this date but no longer ours: paused, skipped, or cancelled. */
-  remove: { orderNo: string; driver: string | null; address: string | null }[];
+  /**
+   * On OptimoRoute for this date but not in our scheduled set. Two very different kinds,
+   * hence `ours`: a delivery of ours that was paused/skipped/cancelled, versus a stop
+   * created by something else entirely. The OptimoRoute account is shared with another
+   * business, so most entries here are usually not ours to touch.
+   */
+  remove: { orderNo: string; driver: string | null; address: string | null; ours: boolean }[];
   /** Present on both sides — the count that should be the bulk of a normal day. */
   unchangedCount: number;
 };
@@ -117,9 +122,25 @@ export async function previewPush(date: string): Promise<PushPreview> {
   const ours = new Set(orders.map((o) => o.orderNo));
   const create = orders.filter((o) => !theirs.has(o.orderNo));
   const update = orders.filter((o) => theirs.has(o.orderNo));
-  const remove = [...theirs.entries()]
-    .filter(([orderNo]) => !ours.has(orderNo))
-    .map(([orderNo, meta]) => ({ orderNo, ...meta }));
+
+  const orphanNos = [...theirs.keys()].filter((orderNo) => !ours.has(orderNo));
+  // A stop is "ours" when it names a delivery in our database — including one that is
+  // paused or skipped, which is precisely the case worth removing. Anything else belongs
+  // to another system sharing this OptimoRoute account and must not be swept up.
+  const known =
+    orphanNos.length === 0
+      ? []
+      : await db
+          .select({ publicId: deliveries.publicId })
+          .from(deliveries)
+          .where(inArray(deliveries.publicId, orphanNos));
+  const knownIds = new Set(known.map((k) => k.publicId));
+
+  const remove = orphanNos.map((orderNo) => ({
+    orderNo,
+    ...theirs.get(orderNo)!,
+    ours: knownIds.has(orderNo),
+  }));
 
   return {
     date,

@@ -119,6 +119,16 @@ describe("removeStops (integration)", () => {
     expect(deleted).toEqual([]);
   });
 
+  it("marks foreign stops as not ours — the account is shared with another business", async () => {
+    await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, deliveryId));
+    onOptimo = [livePublicId, "Palka Chatrath"];
+
+    const { previewPush } = await import("../push");
+    const preview = await previewPush(DATE);
+    expect(preview.remove.find((r) => r.orderNo === livePublicId)?.ours).toBe(true);
+    expect(preview.remove.find((r) => r.orderNo === "Palka Chatrath")?.ours).toBe(false);
+  });
+
   it("removes only what was named, not everything stale", async () => {
     await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.id, deliveryId));
     onOptimo = [livePublicId, "43 Yatharth Aggarwal"];

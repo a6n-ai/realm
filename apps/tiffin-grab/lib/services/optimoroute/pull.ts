@@ -52,11 +52,15 @@ export async function pullRoutes(date: string): Promise<PullResult> {
     for (const stop of route.stops ?? []) {
       const orderNo = stop.orderNo?.trim();
       if (!orderNo || orderNo === "-") continue;
+      // Real data: the shared account has a route with driverSerial "" — store null, or
+      // "" becomes a distinct driver key that never matches a config code.
+      const serial = route.driverSerial?.trim() || null;
+      const name = route.driverName?.trim() || null;
       stops.push({
         deliveryPublicId: orderNo,
-        driverSerial: route.driverSerial ?? null,
-        driverName: route.driverName ?? null,
-        driverCode: driverCodeFor(cfg.driverCodes, route.driverSerial ?? null, route.driverName ?? null),
+        driverSerial: serial,
+        driverName: name,
+        driverCode: driverCodeFor(cfg.driverCodes, serial, name),
         stopNumber: stop.stopNumber ?? null,
       });
     }

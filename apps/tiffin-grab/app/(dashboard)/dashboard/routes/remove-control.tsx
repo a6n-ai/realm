@@ -84,11 +84,12 @@ export function RemoveControl({
                 {s.driver ?? "unassigned"} · {s.address ?? "no address"}
               </span>
             </label>
-            {!s.orderNo.startsWith("dlv_") ? (
-              // Not one of ours: an order created outside this app, e.g. left over from
-              // the Route Maker sheet's "43 Yatharth Aggarwal" numbering.
+            {!s.ours ? (
+              // The OptimoRoute account is shared with another business, and the old
+              // spreadsheet numbered stops by customer name — so most foreign stops are
+              // not ours to delete.
               <Badge variant="outline" className="shrink-0 text-[10px]">
-                not created here
+                not ours
               </Badge>
             ) : null}
           </li>
@@ -107,9 +108,9 @@ export function RemoveControl({
           variant="ghost"
           size="sm"
           disabled={pending}
-          onClick={() => setSelected(new Set(stale.map((s) => s.orderNo)))}
+          onClick={() => setSelected(new Set(stale.filter((s) => s.ours).map((s) => s.orderNo)))}
         >
-          Select all
+          Select ours ({stale.filter((s) => s.ours).length})
         </Button>
       </div>
 
