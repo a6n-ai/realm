@@ -4,7 +4,13 @@ import { deliveries, orderActivities } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
-import { createOrder, getRoutes, withConcurrency, type OptimoOrderPayload } from "./client";
+import {
+  createOrder,
+  deleteOrder,
+  getRoutes,
+  withConcurrency,
+  type OptimoOrderPayload,
+} from "./client";
 
 // Step 1 is preview-only: this module reads both sides and reports the difference. It
 // contains no create/update/delete call — pushing is the next step, and keeping the diff
@@ -178,6 +184,77 @@ export async function pushDay(date: string, actorId: bigint | null = null): Prom
   };
 }
 
+export type RemoveResult = {
+  date: string;
+  removed: number;
+  failed: number;
+  /** Asked for but no longer stale by the time we checked — deliberately left alone. */
+  skipped: string[];
+  outcomes: PushOutcome[];
+};
+
+/**
+ * Takes stops off OptimoRoute. The destructive arm, so it is explicit in three ways:
+ * the caller passes the exact orderNos, staleness is re-checked here against a fresh
+ * read, and anything that has become live again is skipped rather than deleted.
+ *
+ * That re-check is the important one. A preview rendered a minute ago can be out of date —
+ * a customer may have un-paused, or another admin may have pushed — and deleting from a
+ * stale list would take a real stop off a driver's route.
+ */
+export async function removeStops(
+  date: string,
+  orderNos: string[],
+  actorId: bigint | null = null,
+): Promise<RemoveResult> {
+  if (orderNos.length === 0) {
+    return { date, removed: 0, failed: 0, skipped: [], outcomes: [] };
+  }
+
+  const preview = await previewPush(date);
+  const staleNow = new Set(preview.remove.map((r) => r.orderNo));
+  const requested = new Set(orderNos);
+
+  const targets = [...requested].filter((o) => staleNow.has(o));
+  const skipped = [...requested].filter((o) => !staleNow.has(o));
+
+  const outcomes = await withConcurrency(targets, async (orderNo): Promise<PushOutcome> => {
+    try {
+      await deleteOrder(orderNo);
+      return { orderNo, customerName: orderNo, ok: true, message: "Removed" };
+    } catch (e) {
+      return {
+        orderNo,
+        customerName: orderNo,
+        ok: false,
+        message: e instanceof Error ? e.message : "Unknown error",
+      };
+    }
+  });
+
+  const failed = outcomes.filter((o) => !o.ok);
+  // A stale stop usually still HAS a delivery row (paused or skipped, not deleted), so
+  // most removals land in that delivery's log. Stops created outside this app match
+  // nothing and are reported in the result only.
+  await recordPushActivities(
+    date,
+    outcomes.map((o) => ({
+      ...o,
+      message: o.ok ? "removed" : o.message,
+    })),
+    actorId,
+    (o) => (o.ok ? `Removed from OptimoRoute for ${date}` : `OptimoRoute removal failed: ${o.message}`),
+  );
+
+  return {
+    date,
+    removed: outcomes.length - failed.length,
+    failed: failed.length,
+    skipped,
+    outcomes,
+  };
+}
+
 /**
  * One activity row per delivery, so "why did this customer not get delivered?" is
  * answerable from the same log as everything else rather than from a server log nobody
@@ -187,6 +264,8 @@ async function recordPushActivities(
   date: string,
   outcomes: PushOutcome[],
   actorId: bigint | null,
+  describe: (o: PushOutcome) => string = (o) =>
+    o.ok ? `Sent to OptimoRoute for ${date}` : `OptimoRoute push failed: ${o.message}`,
 ): Promise<void> {
   if (outcomes.length === 0) return;
 
@@ -204,7 +283,7 @@ async function recordPushActivities(
       orderId: delivery.orderId,
       deliveryId: delivery.id,
       type: "route_pushed" as const,
-      note: o.ok ? `Sent to OptimoRoute for ${date}` : `OptimoRoute push failed: ${o.message}`,
+      note: describe(o),
       createdBy: actorId,
     }];
   });

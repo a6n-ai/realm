@@ -8,8 +8,9 @@ import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { previewPush } from "@/lib/services/optimoroute/push";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "../labels/label-date-picker";
-import { PlannedOrders, RemovedOrders } from "./routes-view";
+import { PlannedOrders } from "./routes-view";
 import { PushControl } from "./push-control";
+import { RemoveControl } from "./remove-control";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -89,11 +90,14 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
       {preview.remove.length > 0 ? (
         <SectionCard title="On OptimoRoute but not scheduled">
           <p className="text-muted-foreground mb-3 text-sm">
-            These stops are still on a route but no longer scheduled here — paused, skipped,
-            or cancelled since the last push. Removing them is a separate action; until then
-            a driver will arrive at the door.
+            Still on a route but no longer scheduled here — paused, skipped, or cancelled
+            since the last push. Until removed, a driver arrives at the door.
           </p>
-          <RemovedOrders rows={preview.remove} />
+          <RemoveControl
+            date={date}
+            stale={preview.remove}
+            scheduledCount={preview.create.length + preview.update.length}
+          />
         </SectionCard>
       ) : null}
 

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
-import { pushDay, type PushResult } from "@/lib/services/optimoroute/push";
+import { pushDay, removeStops, type PushResult, type RemoveResult } from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -19,6 +19,21 @@ export async function pushDayAction(date: string): Promise<PushResult> {
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pushDay(date, await currentUserId());
+  revalidatePath("/dashboard/routes");
+  return result;
+}
+
+/**
+ * Removes stops from OptimoRoute. Destructive, so the caller must name the exact stops —
+ * there is no "remove everything stale" call. removeStops re-checks staleness against a
+ * fresh read before deleting anything, so a stop that went live again is skipped.
+ */
+export async function removeStopsAction(date: string, orderNos: string[]): Promise<RemoveResult> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  if (orderNos.length === 0) throw new ValidationError("Select at least one stop to remove");
+
+  const result = await removeStops(date, orderNos, await currentUserId());
   revalidatePath("/dashboard/routes");
   return result;
 }
