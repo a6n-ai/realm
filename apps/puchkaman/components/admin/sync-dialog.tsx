@@ -15,9 +15,11 @@ import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 export function SyncDialog({
   open,
+  cloverConnected,
   onOpenChange,
 }: {
   open: boolean;
+  cloverConnected: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
@@ -85,10 +87,9 @@ export function SyncDialog({
           {!result && !busy ? (
             <>
               <p className="text-muted-foreground text-sm">
-                Refreshes product photos from the Uber Eats snapshot. When Clover is connected,
-                new Uber-only items start out of stock until linked; without Clover, Uber-only
-                products are reactivated so the website shows them available. Inventory fields
-                are never overwritten from Uber.
+                {cloverConnected
+                  ? "Refreshes product photos from the Uber Eats snapshot. Clover owns the catalogue: Uber items with no product here are skipped, not added, and name, price and availability are never taken from Uber."
+                  : "Refreshes products from the Uber Eats snapshot. With no Clover merchant connected, Uber is the only catalogue there is, so it owns the whole product record — name, price, category and photo."}
               </p>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 space-y-0.5">
@@ -134,8 +135,11 @@ export function SyncDialog({
               {result.duplicates.length > 0 ? (
                 <div className="bg-muted/40 rounded-lg border p-3">
                   <p className="mb-2 text-sm font-medium">
-                    {result.duplicates.length} item
-                    {result.duplicates.length === 1 ? "" : "s"} look like products you already have.
+                    {result.duplicates.length} Uber Eats item
+                    {result.duplicates.length === 1 ? "" : "s"}{" "}
+                    {cloverConnected
+                      ? "may match a product here. Link them to take their photos."
+                      : "look like products you already have."}
                   </p>
                   <Button
                     type="button"
@@ -143,7 +147,7 @@ export function SyncDialog({
                     size="sm"
                     onClick={() => setResolvingDuplicates(true)}
                   >
-                    Review duplicates
+                    {cloverConnected ? "Review photo matches" : "Review duplicates"}
                   </Button>
                 </div>
               ) : null}
@@ -155,6 +159,7 @@ export function SyncDialog({
       {resolvingDuplicates && result ? (
         <DuplicateDialog
           queue={result.duplicates}
+          cloverConnected={cloverConnected}
           onDone={() => {
             setResolvingDuplicates(false);
             setResult((r) => (r ? { ...r, duplicates: [] } : r));

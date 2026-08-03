@@ -55,7 +55,7 @@ export function ProductsHeaderActions({
         Add product
       </Button>
       <ProductForm open={formOpen} onOpenChange={setFormOpen} product={null} />
-      <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
+      <SyncDialog open={syncOpen} cloverConnected={cloverConnected} onOpenChange={setSyncOpen} />
       <DeleteAllProductsDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen} />
       {cloverEnabled ? (
         <CloverInventorySyncDialog
