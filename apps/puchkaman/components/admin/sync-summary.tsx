@@ -20,6 +20,7 @@ const STAT_META: Record<string, { label: string; tone: Tone }> = {
   imagesUpdated: { label: "Photos updated", tone: "ok" },
   fieldsUpdated: { label: "Details updated", tone: "ok" },
   unchanged: { label: "Unchanged", tone: "muted" },
+  skippedNotInClover: { label: "Not in Clover (skipped)", tone: "warn" },
   duplicates: { label: "Duplicates to resolve", tone: "warn" },
   categoryIssues: { label: "Category issues", tone: "bad" },
   errors: { label: "Errors", tone: "bad" },
@@ -53,6 +54,11 @@ export function SyncSummary({ result }: { result: SyncResult }) {
       items: result.fieldsUpdated.map((i) => `${i.name} (${i.changed.join(", ")})`),
     },
     { key: "unchanged", count: result.unchangedCount, items: [] },
+    {
+      key: "skippedNotInClover",
+      count: result.skippedNotInClover.length,
+      items: result.skippedNotInClover.map((i) => `${i.name} (${i.rawCategory})`),
+    },
     {
       key: "duplicates",
       count: result.duplicates.length,

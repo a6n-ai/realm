@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "reset-products": "node --experimental-strip-types scripts/reset-products.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

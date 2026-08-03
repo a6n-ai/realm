@@ -27,6 +27,10 @@ export type SyncResult = {
   // rows not linked to Clover — see diffAndFlag.
   fieldsUpdated: { publicId: string; name: string; changed: string[] }[];
   unchangedCount: number;
+  // Uber items with no counterpart in our catalogue, skipped because Clover is
+  // connected and owns which products exist. Reported, never silently dropped:
+  // this is the list to check when something is on Uber Eats but not the site.
+  skippedNotInClover: { name: string; rawCategory: string }[];
   duplicates: DuplicateCandidate[];
   categoryIssues: { rawCategory: string; items: string[] }[];
   errors: { item: string; message: string }[];
@@ -111,6 +115,7 @@ export class MenuSyncService {
       imagesUpdated: [],
       fieldsUpdated: [],
       unchangedCount: 0,
+      skippedNotInClover: [],
       duplicates: [],
       categoryIssues: [],
       errors: [],
@@ -150,6 +155,14 @@ export class MenuSyncService {
             existingActive: duplicate.active,
             incoming: item,
           });
+          continue;
+        }
+
+        // Clover owns which products exist. An Uber item that matched nothing
+        // above is not ours to create — Uber's only remaining job is donating a
+        // photo to a product Clover already put in the catalogue.
+        if (cloverConnected) {
+          result.skippedNotInClover.push({ name: item.name, rawCategory: item.rawCategory });
           continue;
         }
 

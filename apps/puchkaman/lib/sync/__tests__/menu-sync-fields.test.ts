@@ -121,3 +121,61 @@ describe("menu sync — who owns the product fields", () => {
     expect(result.fieldsUpdated).toHaveLength(0);
   });
 });
+
+describe("Clover owns which products exist", () => {
+  it("does not create an Uber-only item when Clover is connected", async () => {
+    const created: unknown[] = [];
+    const base = repo([]);
+    const svc = new MenuSyncService({
+      ...base,
+      create: async (v: Record<string, unknown>) => {
+        created.push(v);
+        return { publicId: "prd_new" };
+      },
+    } as never);
+
+    const result = await svc.run(source([ITEM]), { cloverConnected: true });
+
+    expect(created).toHaveLength(0);
+    expect(result.added).toHaveLength(0);
+    expect(result.skippedNotInClover).toEqual([
+      { name: ITEM.name, rawCategory: ITEM.rawCategory },
+    ]);
+  });
+
+  it("still creates it when no Clover merchant is connected", async () => {
+    const svc = new MenuSyncService(repo([]) as never);
+
+    const result = await svc.run(source([ITEM]), { cloverConnected: false });
+
+    expect(result.added).toHaveLength(1);
+    expect(result.skippedNotInClover).toHaveLength(0);
+  });
+
+  // Linking an Uber item to a Clover product stamps source/externalId onto the
+  // Clover row (see resolveDuplicate), which is how later syncs find it again.
+  it("keeps donating a photo to a product Clover already owns", async () => {
+    const rows = [
+      existingRow({
+        name: ITEM.name,
+        description: ITEM.description,
+        price: "15.99",
+        source: "uber_eats",
+        externalId: "ext-1",
+        cloverItemId: "CLV1",
+      }),
+    ];
+    const r = repo(rows);
+    const svc = new MenuSyncService(r as never);
+
+    const result = await svc.run(source([{ ...ITEM, imageUrl: "https://img.test/a.jpg" }]), {
+      cloverConnected: true,
+    });
+
+    expect(result.imagesUpdated).toHaveLength(1);
+    expect(result.skippedNotInClover).toHaveLength(0);
+    // Clover's fields are untouched — only the photo moved.
+    expect(result.fieldsUpdated).toHaveLength(0);
+    expect(r.updates.some((u) => "image" in u.patch)).toBe(true);
+  });
+});
