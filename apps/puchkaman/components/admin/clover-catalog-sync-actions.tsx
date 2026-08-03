@@ -109,17 +109,3 @@ export function CloverCatalogSyncActions({
 }
 
 /** Tiny color swatch for Clover colorCode (items/categories). */
-export function ColorSwatch({ colorCode }: { colorCode: string | null | undefined }) {
-  if (!colorCode) return <span className="text-muted-foreground text-xs">—</span>;
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span
-        className="border-border size-4 shrink-0 rounded-sm border"
-        style={{ backgroundColor: colorCode }}
-        title={colorCode}
-        aria-label={`Color ${colorCode}`}
-      />
-      <span className="text-muted-foreground font-mono text-xs">{colorCode}</span>
-    </span>
-  );
-}

@@ -12,7 +12,7 @@ import {
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { TableCell } from "@realm/ui/table";
-import { ColorSwatch } from "@/components/admin/clover-catalog-sync-actions";
+import { ColorSwatch } from "@/components/products/clover-color-swatch";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CategoryListRow, CategorySortColumn } from "@/lib/services/inventory.service";

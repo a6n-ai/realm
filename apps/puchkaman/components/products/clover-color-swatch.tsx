@@ -42,3 +42,19 @@ export function CloverColorSwatch({
     />
   );
 }
+
+/**
+ * Swatch plus its hex, for table cells where the code itself is worth reading.
+ * Renders an em dash when Clover has no colour, or the value is not usable hex —
+ * a silent blank would be indistinguishable from a broken cell.
+ */
+export function ColorSwatch({ colorCode }: { colorCode: string | null | undefined }) {
+  const hex = normalizeCloverColor(colorCode);
+  if (!hex) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <span className="inline-flex items-center gap-2">
+      <CloverColorSwatch color={hex} size={16} className="rounded-sm" />
+      <span className="text-muted-foreground font-mono text-xs">{hex}</span>
+    </span>
+  );
+}

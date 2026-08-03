@@ -24,7 +24,7 @@ import { TableCell } from "@realm/ui/table";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
+import { ColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { SortState } from "@/lib/list/sort";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
@@ -57,11 +57,12 @@ export type ProductRow = {
 
 // Sortable keys must match ProductSortColumn / PRODUCT_SORT_COL. "actions" is
 // UI-only and never a server sort key.
-type ProductCol = ProductSortColumn | "actions";
+type ProductCol = ProductSortColumn | "color" | "actions";
 
 const COLUMNS: readonly Column<ProductCol>[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "category", label: "Category", sortable: true },
+  { key: "color", label: "Colour", sortable: false },
   { key: "price", label: "Price", sortable: true, align: "right" },
   { key: "status", label: "Status", sortable: true },
   { key: "source", label: "Source", sortable: true },
@@ -155,7 +156,6 @@ export function ProductsTable({
                   <div className="bg-muted size-8 shrink-0 rounded-md" />
                 )}
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <CloverColorSwatch color={row.cloverColorCode} size={12} />
                   <Link
                     href={`/dashboard/products/${row.publicId}`}
                     className="hover:text-foreground truncate font-medium hover:underline"
@@ -167,6 +167,9 @@ export function ProductsTable({
               </div>
             </TableCell>
             <TableCell>{CATEGORIES[row.category as CategoryId]?.name ?? row.category}</TableCell>
+            <TableCell>
+              <ColorSwatch colorCode={row.cloverColorCode} />
+            </TableCell>
             <TableCell className="text-right font-mono text-sm tabular-nums">
               ${row.price.toFixed(2)}
             </TableCell>
