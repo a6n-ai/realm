@@ -23,7 +23,11 @@ import {
   SelectValue,
 } from "@realm/ui/select";
 import { CLOVER_PLUGIN } from "../plugin";
-import type { CloverApiTokenConnectInput, CloverConnectionPublic } from "../config";
+import type {
+  CloverApiTokenConnectInput,
+  CloverApiTokenConnectResult,
+  CloverConnectionPublic,
+} from "../config";
 
 /**
  * Settings → Clover panel — connection info, reconnect, disconnect.
@@ -50,12 +54,15 @@ export function CloverSettingsPanel({
    * Connect with a merchant API token instead of the developer app.
    * Omit to hide that path entirely.
    */
-  onConnectApiToken?: (input: CloverApiTokenConnectInput) => Promise<void>;
+  onConnectApiToken?: (
+    input: CloverApiTokenConnectInput,
+  ) => Promise<CloverApiTokenConnectResult>;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [tokenFormOpen, setTokenFormOpen] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
     const status = searchParams.get("clover");
@@ -111,13 +118,24 @@ export function CloverSettingsPanel({
 
   const connectApiToken = (input: CloverApiTokenConnectInput) =>
     start(async () => {
+      setTokenError(null);
       try {
-        await onConnectApiToken?.(input);
+        const result = await onConnectApiToken?.(input);
+        // A rejected token comes back as data, not as a throw — throwing from the
+        // Server Action hits the error boundary and shows a bare digest instead.
+        if (result && !result.ok) {
+          setTokenError(result.error);
+          toast.error(result.error);
+          return;
+        }
         toast.success("Clover connected with API token");
         setTokenFormOpen(false);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not connect with that API token");
+        const message =
+          e instanceof Error ? e.message : "Could not connect with that API token";
+        setTokenError(message);
+        toast.error(message);
       }
     });
 
@@ -241,8 +259,12 @@ export function CloverSettingsPanel({
             {tokenFormOpen ? (
               <ApiTokenForm
                 pending={pending}
+                error={tokenError}
                 defaults={{ environment: clover.environment, region: clover.region }}
-                onCancel={() => setTokenFormOpen(false)}
+                onCancel={() => {
+                  setTokenError(null);
+                  setTokenFormOpen(false);
+                }}
                 onSubmit={connectApiToken}
               />
             ) : (
@@ -273,11 +295,13 @@ export function CloverSettingsPanel({
 
 function ApiTokenForm({
   pending,
+  error,
   defaults,
   onCancel,
   onSubmit,
 }: {
   pending: boolean;
+  error: string | null;
   defaults: Pick<CloverConnectionPublic, "environment" | "region">;
   onCancel: () => void;
   onSubmit: (input: CloverApiTokenConnectInput) => void;
@@ -380,6 +404,11 @@ function ApiTokenForm({
         own tokens (Dashboard → Ecommerce API Tokens) — leave those blank unless this app
         takes payments on the website.
       </p>
+      {error ? (
+        <p role="alert" className="text-destructive text-xs">
+          {error}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>
           <KeyRoundIcon className="size-3.5" />

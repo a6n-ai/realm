@@ -24,6 +24,7 @@ export {
   type CloverConnectionPublic,
   type CloverAuthMode,
   type CloverApiTokenConnectInput,
+  type CloverApiTokenConnectResult,
   type IntegrationsConfig,
 } from "./config";
 

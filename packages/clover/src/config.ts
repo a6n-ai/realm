@@ -67,6 +67,16 @@ export const cloverApiTokenConnectSchema = z.object({
 export type CloverApiTokenConnectInput = z.infer<typeof cloverApiTokenConnectSchema>;
 
 /**
+ * Outcome of an admin-submitted API-token connect.
+ *
+ * A rejected token is an expected, user-correctable answer — not an exception.
+ * Throwing it from a Server Action reaches the error boundary and, in a
+ * production build, arrives as a bare digest: a mistyped token renders as a
+ * crashed page instead of "check your token".
+ */
+export type CloverApiTokenConnectResult = { ok: true } | { ok: false; error: string };
+
+/**
  * Broader integrations blob (mirrors payment_config style on the app row).
  * Other plugins can add keys later without a new column per plugin.
  *

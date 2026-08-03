@@ -12,6 +12,7 @@ import {
   uninstallCloverPlugin,
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
+  type CloverApiTokenConnectResult,
 } from "@realm/clover";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
@@ -48,23 +49,28 @@ export async function disconnectCloverAction(): Promise<void> {
  */
 export async function connectCloverApiTokenAction(
   input: CloverApiTokenConnectInput,
-): Promise<void> {
+): Promise<CloverApiTokenConnectResult> {
   await requireAdmin();
   const parsed = cloverApiTokenConnectSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid Clover API token details");
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid Clover API token details",
+    };
   }
 
   try {
     await verifyCloverApiToken(parsed.data);
   } catch {
-    throw new Error(
-      "Clover rejected those details. Check the merchant ID, token, and environment.",
-    );
+    return {
+      ok: false,
+      error: "Clover rejected those details. Check the merchant ID, token, and environment.",
+    };
   }
 
   await connectCloverWithApiToken(integrationsConfigStore, parsed.data);
   revalidateCloverPaths();
+  return { ok: true };
 }
 
 /** Returns the Clover authorize URL; client navigates (avoids swallowing NEXT_REDIRECT). */
