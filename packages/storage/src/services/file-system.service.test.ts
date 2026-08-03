@@ -92,4 +92,18 @@ describe.skipIf(!url)("FileSystemService (integration)", () => {
     expect(await storage.head("x/a.png")).toBeNull();
     expect(await svc.head("x/a.png")).toBeNull();
   });
+
+  // Callers that clean up (e.g. puchkaman deleting product photos) only hold the
+  // stored FileDetail, so filePath must be a valid delete() argument — including
+  // under keyPrefix, where the physical key is not the path that was created.
+  it("filePath from create round-trips straight back into delete", async () => {
+    const pub = new FileSystemService(storage, db, { keyPrefix: "public" });
+    const fd = await pub.create("catalog/products/synced/n1/image.webp", "v");
+    expect(fd.filePath).toBe("public/catalog/products/synced/n1/image.webp");
+
+    await pub.delete(fd.filePath);
+
+    expect(await storage.head(fd.filePath)).toBeNull();
+    expect(await pub.head(fd.filePath)).toBeNull();
+  });
 });

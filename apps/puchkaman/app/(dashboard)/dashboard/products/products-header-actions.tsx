@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { PlusIcon, RefreshCwIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { CloverInventorySyncDialog } from "@/components/admin/clover-inventory-sync-dialog";
+import { DeleteAllProductsDialog } from "@/components/admin/delete-all-products-dialog";
 import { SyncDialog } from "@/components/admin/sync-dialog";
 import { ProductForm } from "./product-form";
 
@@ -19,6 +20,9 @@ export function ProductsHeaderActions({
   const [formOpen, setFormOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [cloverSyncOpen, setCloverSyncOpen] = useState(false);
+  // TEMPORARY: one-time catalogue wipe before the Clover rebuild — remove with
+  // DeleteAllProductsDialog and /api/products/delete-all.
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
 
   return (
     <>
@@ -37,12 +41,22 @@ export function ProductsHeaderActions({
           Sync Clover
         </Button>
       ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        className="text-destructive hover:text-destructive gap-1.5"
+        onClick={() => setDeleteAllOpen(true)}
+      >
+        <Trash2Icon className="size-4" />
+        Delete all
+      </Button>
       <Button type="button" className="gap-1.5" onClick={() => setFormOpen(true)}>
         <PlusIcon className="size-4" />
         Add product
       </Button>
       <ProductForm open={formOpen} onOpenChange={setFormOpen} product={null} />
       <SyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
+      <DeleteAllProductsDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen} />
       {cloverEnabled ? (
         <CloverInventorySyncDialog
           open={cloverSyncOpen}

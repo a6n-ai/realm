@@ -1,12 +1,19 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
+import { createLogger } from "@realm/commons/logger";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { getCloverConnection } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { products } from "@/db/schema";
+import {
+  orderItems,
+  productCategoryItems,
+  productModifierGroups,
+  products,
+} from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
+import { filesService } from "@/lib/files";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
@@ -110,6 +117,8 @@ export type ProductSortColumn =
   | "status"
   | "source"
   | "lastSynced";
+
+const log = createLogger("products-service");
 
 const PRODUCT_SORT_COL = {
   name: products.name,
@@ -459,6 +468,74 @@ class ProductsService extends SessionUpdatableService<typeof products> {
       createdBy: await currentUserId(),
     });
     return { ok: true };
+  }
+
+  /**
+   * TEMPORARY — remove when the Clover catalogue rebuild is done (see the
+   * "Delete all products" button in products-header-actions.tsx and
+   * app/api/products/delete-all/route.ts; deleting those three plus this
+   * method removes the feature entirely).
+   *
+   * Wipes the whole catalogue so a Clover pull can rebuild it from the POS.
+   * Deletes the rehosted product photos from storage too, otherwise the
+   * blobs are orphaned the moment their rows go: nothing else references
+   * them and no GC sweeps them up.
+   *
+   * `order_items.product_id` is a plain FK, so order lines go first — those
+   * orders keep their totals but lose their itemisation, permanently.
+   */
+  async deleteAllProducts(): Promise<{
+    products: number;
+    orderLines: number;
+    imagesDeleted: number;
+    imageErrors: number;
+  }> {
+    const rows = await db.select({ image: products.image }).from(products);
+    const [{ orderLines }] = await db
+      .select({ orderLines: sql<number>`count(*)::int` })
+      .from(orderItems);
+
+    // Storage first: a failed delete here must not leave rows pointing at
+    // blobs we already removed, and a leftover blob is cheaper than a broken row.
+    let imagesDeleted = 0;
+    let imageErrors = 0;
+    for (const row of rows) {
+      const path = row.image?.filePath;
+      if (!path) continue;
+      try {
+        await filesService().delete(path);
+        imagesDeleted++;
+      } catch (e) {
+        imageErrors++;
+        log.warn(
+          { path, err: e instanceof Error ? e.message : e },
+          "could not delete product image from storage",
+        );
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(orderItems);
+      await tx.delete(productCategoryItems);
+      await tx.delete(productModifierGroups);
+      await tx.delete(products);
+    });
+
+    await recordAudit({
+      entity: "products",
+      entityPublicId: "*",
+      operation: "delete",
+      changes: {
+        _action: "delete_all_products",
+        products: rows.length,
+        orderLines,
+        imagesDeleted,
+        imageErrors,
+      },
+      createdBy: await currentUserId(),
+    });
+
+    return { products: rows.length, orderLines, imagesDeleted, imageErrors };
   }
 }
 
