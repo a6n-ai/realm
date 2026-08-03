@@ -3,9 +3,9 @@ import type { Condition, FilterCondition } from "@realm/commons/model/condition"
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import {
   cloverCheckoutSdkUrl,
+  getCloverConnection,
   dollarsToCloverCents,
   expandAtomicLineItems,
-  getCloverConnection,
   mapCloverRemoteToPaymentStatus,
   parseCloverWebhookObjectId,
   type CloverWebhookUpdate,

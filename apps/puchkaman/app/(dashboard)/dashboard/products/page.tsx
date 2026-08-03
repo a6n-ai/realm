@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PackageIcon } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { getCloverConnection } from "@realm/clover";
 import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";

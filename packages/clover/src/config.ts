@@ -36,8 +36,18 @@ export const cloverConnectionSchema = z.object({
    */
   authMode: z.enum(["oauth", "apiToken"]).default("oauth"),
   tokens: cloverTokenPairSchema.optional(),
-  /** Permanent merchant API token (Clover dashboard → Setup → API Tokens). */
+  /**
+   * Permanent Platform (v3) merchant API token — items, categories, atomic
+   * orders, employees. Clover dashboard → Setup → API Tokens.
+   */
   apiToken: z.string().min(1).optional(),
+  /**
+   * Ecommerce (v1) credentials — pay order, charges, and the PAKMS iframe key.
+   * A separate Clover surface with its own tokens: the Platform token above is
+   * not accepted there. Only needed for checkout. Dashboard → Ecommerce API Tokens.
+   */
+  ecommercePublicKey: z.string().min(1).optional(),
+  ecommercePrivateToken: z.string().min(1).optional(),
   /** ISO timestamp of last successful OAuth connect/refresh. */
   connectedAt: z.string().min(1).optional(),
 });
@@ -48,6 +58,9 @@ export type CloverAuthMode = CloverConnection["authMode"];
 export const cloverApiTokenConnectSchema = z.object({
   merchantId: z.string().trim().min(1, "Merchant ID is required"),
   apiToken: z.string().trim().min(1, "API token is required"),
+  /** Optional — required only for website checkout (Ecommerce API). */
+  ecommercePublicKey: z.string().trim().min(1).optional(),
+  ecommercePrivateToken: z.string().trim().min(1).optional(),
   environment: z.enum(["sandbox", "production"]).default("production"),
   region: z.enum(["na", "eu", "la"]).default("na"),
 });

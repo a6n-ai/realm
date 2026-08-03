@@ -86,6 +86,45 @@ describe("API-token auth mode", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it("routes Ecommerce calls to the Ecommerce token, Platform calls to the Platform token", async () => {
+    const fetchImpl = okFetch({ id: "MERCH1", name: "Puchka Man" });
+    const client = new CloverApiClient({
+      connection: {
+        ...apiTokenConnection,
+        ecommercePublicKey: "pk_live",
+        ecommercePrivateToken: "ecom-secret",
+      },
+      fetchImpl,
+    });
+
+    await client.getMerchant();
+    await client.request(`${client.ecommerceOrigin()}/v1/orders`, { method: "GET" });
+
+    const auth = (i: number) =>
+      new Headers((fetchImpl.mock.calls[i] as unknown as [string, RequestInit])[1].headers).get(
+        "Authorization",
+      );
+    expect(auth(0)).toBe("Bearer tok-secret");
+    expect(auth(1)).toBe("Bearer ecom-secret");
+  });
+
+  it("returns the PAKMS key from config instead of fetching it", async () => {
+    const fetchImpl = okFetch({});
+    const client = new CloverApiClient({
+      connection: { ...apiTokenConnection, ecommercePublicKey: "pk_live" },
+      fetchImpl,
+    });
+    expect(await client.getPakmsApiKey()).toEqual({ apiAccessKey: "pk_live" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("fails loudly on an Ecommerce call when no Ecommerce token is configured", async () => {
+    const client = new CloverApiClient({ connection: apiTokenConnection, fetchImpl: okFetch({}) });
+    await expect(
+      client.request(`${client.ecommerceOrigin()}/v1/orders`, { method: "GET" }),
+    ).rejects.toThrow(/Ecommerce API token is not configured/);
+  });
+
   it("throws a clear error when the mode is set but the token is missing", async () => {
     const client = new CloverApiClient({
       connection: { ...apiTokenConnection, apiToken: undefined },

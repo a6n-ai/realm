@@ -9,8 +9,8 @@ import { products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { productSchema } from "@/lib/products/schema";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { productSchema } from "@/lib/products/schema";
 import {
   cloverInventorySyncService,
   cloverItemToIncoming,

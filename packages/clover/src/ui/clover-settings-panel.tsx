@@ -280,9 +280,15 @@ function ApiTokenForm({
       onSubmit={(e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
+        const optional = (key: string) => {
+          const value = String(data.get(key) ?? "").trim();
+          return value ? value : undefined;
+        };
         onSubmit({
           merchantId: String(data.get("merchantId") ?? "").trim(),
           apiToken: String(data.get("apiToken") ?? "").trim(),
+          ecommercePublicKey: optional("ecommercePublicKey"),
+          ecommercePrivateToken: optional("ecommercePrivateToken"),
           environment: (data.get("environment") ??
             defaults.environment) as CloverApiTokenConnectInput["environment"],
           region: (data.get("region") ?? defaults.region) as CloverApiTokenConnectInput["region"],
@@ -314,6 +320,27 @@ function ApiTokenForm({
           />
         </div>
         <div className="space-y-1.5">
+          <Label htmlFor="clover-ecom-public">Ecommerce public key</Label>
+          <Input
+            id="clover-ecom-public"
+            name="ecommercePublicKey"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Only needed for website checkout"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="clover-ecom-private">Ecommerce private token</Label>
+          <Input
+            id="clover-ecom-private"
+            name="ecommercePrivateToken"
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Only needed for website checkout"
+          />
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="clover-environment">Environment</Label>
           <Select name="environment" defaultValue={defaults.environment}>
             <SelectTrigger id="clover-environment">
@@ -340,8 +367,10 @@ function ApiTokenForm({
         </div>
       </div>
       <p className="text-muted-foreground text-xs">
-        The token is verified against Clover before it is saved, and is stored server-side
-        only.
+        The Platform token is verified against Clover before anything is saved, and all
+        tokens are stored server-side only. Ecommerce is a separate Clover surface with its
+        own tokens (Dashboard → Ecommerce API Tokens) — leave those blank unless this app
+        takes payments on the website.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>

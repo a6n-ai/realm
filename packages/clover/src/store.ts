@@ -62,6 +62,8 @@ export async function connectCloverWithApiToken(
     authMode: "apiToken",
     merchantId: input.merchantId,
     apiToken: input.apiToken,
+    ecommercePublicKey: input.ecommercePublicKey,
+    ecommercePrivateToken: input.ecommercePrivateToken,
     environment: input.environment,
     region: input.region,
     tokens: undefined,
@@ -78,6 +80,8 @@ export async function disconnectClover(store: IntegrationsConfigStore): Promise<
     merchantId: undefined,
     tokens: undefined,
     apiToken: undefined,
+    ecommercePublicKey: undefined,
+    ecommercePrivateToken: undefined,
     connectedAt: undefined,
   });
 }

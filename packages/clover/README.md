@@ -33,13 +33,24 @@ Dependency rule: never imports an app. Persist via injected `IntegrationsConfigS
 
 | | `oauth` (default) | `apiToken` |
 |---|---|---|
-| Credential | developer app + refreshable token pair | permanent merchant API token (Clover dashboard → Setup → API Tokens) |
+| Credential | developer app + refreshable token pair | permanent merchant tokens (Clover dashboard → Setup → API Tokens) |
 | Needs `CLOVER_APP_ID`/`SECRET` | yes | no |
+| Platform (v3) auth | access token | `apiToken` |
+| Ecommerce (v1) auth | *same* access token | `ecommercePrivateToken` — **a different credential** |
+| PAKMS iframe key | fetched from `/pakms/apikey` | `ecommercePublicKey`, known upfront |
 | Connect with | `startCloverConnectAction` → callback → `persistCloverOAuthConnection` | `verifyCloverApiToken` → `connectCloverWithApiToken` |
 | Webhooks | yes | **no** — Clover only delivers to a registered app; sync manually |
 
-Everything downstream (`createCloverClient`, every client method) is mode-agnostic:
-auth resolves once in `CloverApiClient.getAccessToken()`.
+Platform and Ecommerce are separate Clover API surfaces with separate tokens. A
+single OAuth access token happens to work for both, which is what hides this —
+under API-token auth they are not interchangeable. `CloverApiClient.bearerFor()`
+routes by request origin, so callers never pick a token themselves.
+
+The Ecommerce fields are optional: an integration that only syncs catalog and
+employees never needs them. Checkout without them throws rather than 401s.
+
+Everything downstream (`createCloverClient`, every client method) stays
+mode-agnostic — auth resolves once, in `bearerFor` / `getAccessToken`.
 
 Always call `verifyCloverApiToken` before persisting an admin-submitted token — a
 wrong merchant id or environment otherwise lands a dead connection in config.

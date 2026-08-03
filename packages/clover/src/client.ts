@@ -1,4 +1,8 @@
-import type { CloverAppCredentials, CloverConnection, CloverTokenPair } from "./config";
+import type {
+  CloverAppCredentials,
+  CloverConnection,
+  CloverTokenPair,
+} from "./config";
 import {
   isCloverAccessTokenExpired,
   refreshCloverTokens,
@@ -60,7 +64,7 @@ import { httpsOrigin, resolveCloverHosts } from "./urls";
 export type CloverApiClientOptions = {
   /** Required for OAuth mode (token refresh). Omit in API-token mode. */
   credentials?: CloverAppCredentials;
-  /** Current connection (merchant + tokens). */
+  /** Current connection (merchant + tokens, or merchant API tokens). */
   connection: CloverConnection;
   /**
    * Called when tokens are rotated so the app can persist them.
@@ -73,6 +77,12 @@ export type CloverApiClientOptions = {
 /**
  * Thin authenticated Platform + Ecommerce API client.
  * Auth, merchant, inventory, atomic orders, PAKMS, pay-for-order / charges.
+ *
+ * Two auth modes, both carried on the connection. OAuth: one access token
+ * covers both API surfaces, refreshed on expiry. API token: two separate
+ * non-expiring bearer tokens, because Platform (v3) and Ecommerce (v1) are
+ * genuinely different Clover credentials — the single OAuth token happening
+ * to work for both is what hides that.
  */
 export class CloverApiClient {
   private credentials?: CloverAppCredentials;
@@ -114,7 +124,7 @@ export class CloverApiClient {
   }
 
   /**
-   * Ensure a valid access token, refreshing when near expiry.
+   * Platform (v3) bearer token, refreshing when near expiry.
    * Merchant API tokens are permanent, so that mode short-circuits.
    */
   async getAccessToken(): Promise<string> {
@@ -150,12 +160,30 @@ export class CloverApiClient {
     return next.accessToken;
   }
 
+  /**
+   * Bearer token for a request, routed by URL. OAuth mode: the single shared
+   * access token, for either surface. API-token mode: the Ecommerce private
+   * token for Ecommerce-origin URLs, the Platform merchant token otherwise —
+   * these are two distinct Clover credentials, not interchangeable.
+   */
+  private async bearerFor(url: string): Promise<string> {
+    if (this.connection.authMode !== "apiToken") return this.getAccessToken();
+    if (!url.startsWith(this.ecommerceOrigin())) return this.getAccessToken();
+    const ecommerceToken = this.connection.ecommercePrivateToken;
+    if (!ecommerceToken) {
+      throw new Error(
+        "Clover Ecommerce API token is not configured (required for checkout in API-token mode)",
+      );
+    }
+    return ecommerceToken;
+  }
+
   async request<T = unknown>(
     path: string,
     init: RequestInit & { json?: unknown } = {},
   ): Promise<T> {
-    const token = await this.getAccessToken();
     const url = path.startsWith("http") ? path : `${this.platformOrigin()}${path}`;
+    const token = await this.bearerFor(url);
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("Accept", "application/json");
@@ -543,6 +571,12 @@ export class CloverApiClient {
 
   /** GET /pakms/apikey — public iframe tokenization key (not a secret). */
   async getPakmsApiKey(): Promise<CloverPakmsKey> {
+    // API-token mode already has this key — it's what was generated in the
+    // merchant Dashboard, no fetch needed (and no OAuth access token to fetch it with).
+    const publicKey = this.connection.ecommercePublicKey;
+    if (this.connection.authMode === "apiToken" && publicKey) {
+      return { apiAccessKey: publicKey };
+    }
     const data = await this.request(`${this.ecommerceOrigin()}/pakms/apikey`, {
       method: "GET",
     });

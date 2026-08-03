@@ -1,4 +1,4 @@
-import { CloverApiClient } from "./client";
+import { CloverApiClient, type CloverMerchantSummary } from "./client";
 import {
   getCloverConnection,
   setCloverConnection,
@@ -8,7 +8,6 @@ import {
   loadCloverAppCredentialsFromEnv,
   type CloverApiTokenConnectInput,
 } from "./config";
-import type { CloverMerchantSummary } from "./client";
 
 /**
  * Prove a merchant API token works before persisting it: a bad token, a wrong
@@ -33,9 +32,12 @@ export async function verifyCloverApiToken(
 }
 
 /**
- * Authenticated Clover API client with token refresh persisted into the
- * app-injected integrations store. Returns null when credentials or a
- * merchant connection are missing.
+ * Authenticated Clover API client for the merchant connected in this app.
+ *
+ * API-token mode needs no Developer app: the merchant's own Dashboard tokens
+ * are the credential. OAuth mode uses CLOVER_APP_ID/SECRET plus the stored
+ * token pair, refreshing into the app-injected integrations store.
+ * Returns null when neither is usable.
  */
 export async function createCloverClient(
   store: IntegrationsConfigStore,
@@ -43,7 +45,6 @@ export async function createCloverClient(
   const connection = await getCloverConnection(store);
   if (!connection.connected || !connection.merchantId) return null;
 
-  // API-token mode needs no developer app: the merchant token is the credential.
   if (connection.authMode === "apiToken") {
     if (!connection.apiToken) return null;
     return new CloverApiClient({ connection });

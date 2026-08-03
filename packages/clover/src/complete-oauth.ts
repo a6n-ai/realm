@@ -25,6 +25,8 @@ export async function persistCloverOAuthConnection(
     // Reconnecting via OAuth must drop any API token left by the other mode.
     authMode: "oauth",
     apiToken: undefined,
+    ecommercePublicKey: undefined,
+    ecommercePrivateToken: undefined,
     merchantId: input.merchantId,
     environment: input.credentials.environment,
     region: input.credentials.region,

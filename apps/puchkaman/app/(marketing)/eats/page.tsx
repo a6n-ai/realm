@@ -63,6 +63,10 @@ async function getEats(): Promise<{
 
   const byCategory = new Map<string, typeof rows>();
   for (const row of rows) {
+    // Extras is a catch-all bucket for miscellaneous synced items — inactive
+    // ones are dropped entirely here rather than shown greyed out, unlike
+    // every other category (which keeps out-of-stock rows visible).
+    if (row.category === "extra" && !row.active) continue;
     const list = byCategory.get(row.category) ?? [];
     list.push(row);
     byCategory.set(row.category, list);
