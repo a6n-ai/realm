@@ -9,6 +9,7 @@ export {
   cloverAppCredentialsSchema,
   cloverTokenPairSchema,
   cloverConnectionSchema,
+  cloverStaticCredentialsSchema,
   integrationsConfigSchema,
   DEFAULT_INTEGRATIONS_CONFIG,
   DEFAULT_CLOVER_CONNECTION,
@@ -16,10 +17,12 @@ export {
   parseCloverConnection,
   toPublicCloverConnection,
   loadCloverAppCredentialsFromEnv,
+  loadCloverStaticCredentialsFromEnv,
   type CloverAppCredentials,
   type CloverTokenPair,
   type CloverConnection,
   type CloverConnectionPublic,
+  type CloverStaticCredentials,
   type IntegrationsConfig,
 } from "./config";
 

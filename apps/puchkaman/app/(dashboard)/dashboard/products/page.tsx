@@ -1,11 +1,10 @@
 import { Suspense } from "react";
 import { PackageIcon } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { getEffectiveCloverConnection } from "@/lib/clover/connection-status";
 import { productsService, type ProductSortColumn } from "@/lib/services/products.service";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
 import { ProductsHeaderActions } from "./products-header-actions";
@@ -89,7 +88,7 @@ export default function ProductsPage({ searchParams }: { searchParams: SearchPar
 }
 
 async function ProductsHeaderLoader() {
-  const clover = await getCloverConnection(integrationsConfigStore);
+  const clover = await getEffectiveCloverConnection();
   return (
     <ProductsHeaderActions
       cloverEnabled={Boolean(clover.installed)}
@@ -107,7 +106,7 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
 
   const [result, clover] = await Promise.all([
     productsService.queryProducts(condition, page, sort),
-    getCloverConnection(integrationsConfigStore),
+    getEffectiveCloverConnection(),
   ]);
   const rows = result.items.map((r) => ({
     ...r,

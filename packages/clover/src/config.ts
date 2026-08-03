@@ -114,3 +114,52 @@ export function loadCloverAppCredentialsFromEnv(
   });
   return parsed.success ? parsed.data : null;
 }
+
+/**
+ * Static, non-expiring merchant credentials — the alternative to the OAuth
+ * app-install flow above, for a single-merchant integration that generated
+ * its tokens directly from the merchant Dashboard (Settings → API tokens,
+ * Settings → Ecommerce API tokens) instead of registering a Developer app.
+ *
+ * Two separate bearer tokens because they're two separate Clover API
+ * surfaces: the Platform v3 API (merchant REST token) and the Ecommerce v1
+ * API (Ecommerce private token) are not interchangeable, even though a
+ * single OAuth access token happens to work for both.
+ */
+export const cloverStaticCredentialsSchema = z.object({
+  merchantId: z.string().min(1),
+  /** Bearer for Platform (v3) calls — items, categories, atomic orders, employees. */
+  merchantApiToken: z.string().min(1),
+  /** PAKMS / apiAccessKey — already known upfront, no /pakms/apikey fetch needed. */
+  ecommercePublicKey: z.string().min(1),
+  /** Bearer for Ecommerce (v1) calls — pay order, charges. */
+  ecommercePrivateToken: z.string().min(1),
+  environment: z.enum(["sandbox", "production"]).default("sandbox"),
+  region: z.enum(["na", "eu", "la"]).default("na"),
+});
+export type CloverStaticCredentials = z.infer<typeof cloverStaticCredentialsSchema>;
+
+/**
+ * Read static merchant credentials from process env.
+ * Required: CLOVER_MERCHANT_ID, CLOVER_MERCHANT_API_TOKEN,
+ *           CLOVER_ECOMMERCE_PUBLIC_KEY, CLOVER_ECOMMERCE_PRIVATE_TOKEN
+ * Optional: CLOVER_ENVIRONMENT (sandbox|production), CLOVER_REGION (na|eu|la)
+ */
+export function loadCloverStaticCredentialsFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): CloverStaticCredentials | null {
+  const merchantId = env.CLOVER_MERCHANT_ID?.trim();
+  const merchantApiToken = env.CLOVER_MERCHANT_API_TOKEN?.trim();
+  const ecommercePublicKey = env.CLOVER_ECOMMERCE_PUBLIC_KEY?.trim();
+  const ecommercePrivateToken = env.CLOVER_ECOMMERCE_PRIVATE_TOKEN?.trim();
+  if (!merchantId || !merchantApiToken || !ecommercePublicKey || !ecommercePrivateToken) return null;
+  const parsed = cloverStaticCredentialsSchema.safeParse({
+    merchantId,
+    merchantApiToken,
+    ecommercePublicKey,
+    ecommercePrivateToken,
+    environment: env.CLOVER_ENVIRONMENT?.trim() || "sandbox",
+    region: env.CLOVER_REGION?.trim() || "na",
+  });
+  return parsed.success ? parsed.data : null;
+}

@@ -20,11 +20,28 @@ declare global {
   }
 }
 
+// Cached per src so concurrent mounts (React Strict Mode's double-invoke in
+// dev, or two CloverCardForm instances) await the *same* load rather than
+// each independently finding the other's <script> tag already in the DOM
+// and resolving immediately — before it has actually finished loading and
+// defined window.Clover.
+const scriptLoads = new Map<string, Promise<void>>();
+
 function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${src}"]`);
+  const cached = scriptLoads.get(src);
+  if (cached) return cached;
+
+  const promise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
     if (existing) {
-      resolve();
+      if (window.Clover) {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", () =>
+          reject(new Error("Failed to load Clover checkout SDK")),
+        );
+      }
       return;
     }
     const s = document.createElement("script");
@@ -34,6 +51,9 @@ function loadScript(src: string): Promise<void> {
     s.onerror = () => reject(new Error("Failed to load Clover checkout SDK"));
     document.head.appendChild(s);
   });
+
+  scriptLoads.set(src, promise);
+  return promise;
 }
 
 /**
@@ -58,8 +78,10 @@ export function CloverCardForm({
 
     void (async () => {
       try {
+        setError(null);
         await loadScript(sdkUrl);
-        if (destroyed || !window.Clover) {
+        if (destroyed) return;
+        if (!window.Clover) {
           setError("Clover payment form unavailable");
           return;
         }

@@ -2,11 +2,10 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
 import { NotFoundError } from "@realm/commons";
-import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { getEffectiveCloverConnection } from "@/lib/clover/connection-status";
 import { productsService } from "@/lib/services/products.service";
 import { ProductDetail } from "./product-detail";
 
@@ -31,7 +30,7 @@ async function ProductDetailLoader({ params }: { params: Promise<{ id: string }>
       if (e instanceof NotFoundError) return null;
       throw e;
     }),
-    getCloverConnection(integrationsConfigStore),
+    getEffectiveCloverConnection(),
   ]);
 
   if (!product) notFound();

@@ -1,4 +1,9 @@
-import type { CloverAppCredentials, CloverConnection, CloverTokenPair } from "./config";
+import type {
+  CloverAppCredentials,
+  CloverConnection,
+  CloverStaticCredentials,
+  CloverTokenPair,
+} from "./config";
 import {
   isCloverAccessTokenExpired,
   refreshCloverTokens,
@@ -57,46 +62,70 @@ import {
 } from "./orders";
 import { httpsOrigin, resolveCloverHosts } from "./urls";
 
-export type CloverApiClientOptions = {
-  credentials: CloverAppCredentials;
-  /** Current connection (merchant + tokens). */
-  connection: CloverConnection;
-  /**
-   * Called when tokens are rotated so the app can persist them.
-   * Required for long-lived server usage; omit only for one-shot calls.
-   */
-  onTokensRefreshed?: (tokens: CloverTokenPair) => Promise<void> | void;
-  fetchImpl?: typeof fetch;
-};
+export type CloverApiClientOptions = (
+  | {
+      credentials: CloverAppCredentials;
+      /** Current connection (merchant + tokens). */
+      connection: CloverConnection;
+      /**
+       * Called when tokens are rotated so the app can persist them.
+       * Required for long-lived server usage; omit only for one-shot calls.
+       */
+      onTokensRefreshed?: (tokens: CloverTokenPair) => Promise<void> | void;
+      static?: undefined;
+    }
+  | {
+      /** Static, non-expiring merchant tokens — the non-OAuth alternative. */
+      static: CloverStaticCredentials;
+      credentials?: undefined;
+      connection?: undefined;
+      onTokensRefreshed?: undefined;
+    }
+) & { fetchImpl?: typeof fetch };
 
 /**
  * Thin authenticated Platform + Ecommerce API client.
  * Auth, merchant, inventory, atomic orders, PAKMS, pay-for-order / charges.
+ *
+ * Two auth modes: OAuth (credentials + connection, access token shared across
+ * both API surfaces, refreshed on expiry) or static (two separate
+ * non-expiring bearer tokens — Platform and Ecommerce are genuinely different
+ * Clover API surfaces under static auth, unlike the single OAuth token that
+ * happens to cover both).
  */
 export class CloverApiClient {
-  private credentials: CloverAppCredentials;
-  private connection: CloverConnection;
-  private onTokensRefreshed?: CloverApiClientOptions["onTokensRefreshed"];
+  private credentials?: CloverAppCredentials;
+  private connection?: CloverConnection;
+  private staticCredentials?: CloverStaticCredentials;
+  private onTokensRefreshed?: (tokens: CloverTokenPair) => Promise<void> | void;
   private fetchImpl: typeof fetch;
   private refreshPromise: Promise<CloverTokenPair> | null = null;
 
   constructor(opts: CloverApiClientOptions) {
-    this.credentials = opts.credentials;
-    this.connection = opts.connection;
-    this.onTokensRefreshed = opts.onTokensRefreshed;
+    if (opts.static) {
+      this.staticCredentials = opts.static;
+    } else {
+      this.credentials = opts.credentials;
+      this.connection = opts.connection;
+      this.onTokensRefreshed = opts.onTokensRefreshed;
+    }
     this.fetchImpl = opts.fetchImpl ?? fetch;
   }
 
   get merchantId(): string {
-    const id = this.connection.merchantId;
+    if (this.staticCredentials) return this.staticCredentials.merchantId;
+    const id = this.connection?.merchantId;
     if (!id) throw new Error("Clover is not connected (missing merchantId)");
     return id;
   }
 
   private hosts() {
+    if (this.staticCredentials) {
+      return resolveCloverHosts(this.staticCredentials.environment, this.staticCredentials.region);
+    }
     return resolveCloverHosts(
-      this.connection.environment ?? this.credentials.environment,
-      this.connection.region ?? this.credentials.region,
+      this.connection!.environment ?? this.credentials!.environment,
+      this.connection!.region ?? this.credentials!.region,
     );
   }
 
@@ -109,22 +138,26 @@ export class CloverApiClient {
   }
 
   environment(): "sandbox" | "production" {
-    return this.connection.environment ?? this.credentials.environment;
+    if (this.staticCredentials) return this.staticCredentials.environment;
+    return this.connection!.environment ?? this.credentials!.environment;
   }
 
-  /** Ensure a valid access token, refreshing when near expiry. */
+  /** Ensure a valid access token, refreshing when near expiry. OAuth mode only. */
   async getAccessToken(): Promise<string> {
-    const tokens = this.connection.tokens;
+    if (this.staticCredentials) {
+      throw new Error("getAccessToken() is not valid in static-credential mode");
+    }
+    const tokens = this.connection!.tokens;
     if (!tokens) throw new Error("Clover is not connected (missing tokens)");
     if (!isCloverAccessTokenExpired(tokens)) return tokens.accessToken;
 
     if (!this.refreshPromise) {
       this.refreshPromise = (async () => {
         const next = await refreshCloverTokens({
-          credentials: this.credentials,
+          credentials: this.credentials!,
           refreshToken: tokens.refreshToken,
         });
-        this.connection = { ...this.connection, tokens: next, connected: true };
+        this.connection = { ...this.connection!, tokens: next, connected: true };
         await this.onTokensRefreshed?.(next);
         return next;
       })().finally(() => {
@@ -135,12 +168,25 @@ export class CloverApiClient {
     return next.accessToken;
   }
 
+  /**
+   * Bearer token for a request, routed by URL. OAuth mode: the single shared
+   * access token, for either surface. Static mode: the Ecommerce private
+   * token for Ecommerce-origin URLs, the Platform merchant token otherwise —
+   * these are two distinct Clover credentials, not interchangeable.
+   */
+  private async bearerFor(url: string): Promise<string> {
+    if (!this.staticCredentials) return this.getAccessToken();
+    return url.startsWith(this.ecommerceOrigin())
+      ? this.staticCredentials.ecommercePrivateToken
+      : this.staticCredentials.merchantApiToken;
+  }
+
   async request<T = unknown>(
     path: string,
     init: RequestInit & { json?: unknown } = {},
   ): Promise<T> {
-    const token = await this.getAccessToken();
     const url = path.startsWith("http") ? path : `${this.platformOrigin()}${path}`;
+    const token = await this.bearerFor(url);
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("Accept", "application/json");
@@ -528,6 +574,11 @@ export class CloverApiClient {
 
   /** GET /pakms/apikey — public iframe tokenization key (not a secret). */
   async getPakmsApiKey(): Promise<CloverPakmsKey> {
+    // Static mode already has this key — it's what was generated in the
+    // merchant Dashboard, no fetch needed (and no OAuth access token to fetch it with).
+    if (this.staticCredentials) {
+      return { apiAccessKey: this.staticCredentials.ecommercePublicKey };
+    }
     const data = await this.request(`${this.ecommerceOrigin()}/pakms/apikey`, {
       method: "GET",
     });

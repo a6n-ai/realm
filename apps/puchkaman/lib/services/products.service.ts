@@ -1,16 +1,15 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
-import { getCloverConnection } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
+import { getEffectiveCloverConnection } from "@/lib/clover/connection-status";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { productSchema } from "@/lib/products/schema";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   cloverInventorySyncService,
   cloverItemToIncoming,
@@ -400,7 +399,7 @@ class ProductsService extends SessionUpdatableService<typeof products> {
   // cloverConnected flag below is what selects between the two.
 
   async syncUberImages(opts: SyncOptions = {}): Promise<SyncResult> {
-    const clover = await getCloverConnection(integrationsConfigStore);
+    const clover = await getEffectiveCloverConnection();
     const result = await menuSyncService.run(new UberEatsSnapshotSource(), {
       ...opts,
       cloverConnected: isCloverInventoryConnected(clover),
@@ -421,7 +420,7 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     incoming: MenuSourceItem,
   ): Promise<{ ok: true }> {
     if (action !== "skip") await this.read(existingPublicId);
-    const clover = await getCloverConnection(integrationsConfigStore);
+    const clover = await getEffectiveCloverConnection();
     await menuSyncService.resolveDuplicate(existingPublicId, action, incoming, {
       cloverConnected: isCloverInventoryConnected(clover),
     });

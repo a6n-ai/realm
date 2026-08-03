@@ -5,7 +5,6 @@ import {
   cloverCheckoutSdkUrl,
   dollarsToCloverCents,
   expandAtomicLineItems,
-  getCloverConnection,
   mapCloverRemoteToPaymentStatus,
   parseCloverWebhookObjectId,
   type CloverWebhookUpdate,
@@ -16,6 +15,7 @@ import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizz
 import { db } from "@/db/client";
 import { employees, orders, payments, products } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
+import { getEffectiveCloverConnection } from "@/lib/clover/connection-status";
 import {
   isPublicOrderingEnabled,
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
@@ -35,7 +35,6 @@ import {
 } from "@/lib/orders/checkout-schema";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
@@ -142,7 +141,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       return [];
     }
 
-    const clover = await getCloverConnection(integrationsConfigStore);
+    const clover = await getEffectiveCloverConnection();
     const cloverConnected = isCloverInventoryConnected(clover);
 
     const rows = await db
