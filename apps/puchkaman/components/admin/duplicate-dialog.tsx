@@ -51,7 +51,7 @@ export function DuplicateDialog({
       title={cloverConnected ? "Use this Uber Eats photo?" : "A similar product already exists"}
       description={
         cloverConnected
-          ? `${index + 1} of ${queue.length} — “${current.incoming.name}” on Uber Eats looks like this product. Linking takes its photo; name, price and availability stay from Clover.`
+          ? `${index + 1} of ${queue.length} — an Uber Eats item matches this product. Only the photo is copied; everything else stays as Clover has it.`
           : `${index + 1} of ${queue.length} — “${current.incoming.name}” looks like it might already be on your menu.`
       }
       contentClassName="sm:max-w-xl"
@@ -61,15 +61,17 @@ export function DuplicateDialog({
           <ProductPreview
             label={cloverConnected ? "On the site (from Clover)" : "Current website product"}
             name={current.existingName}
-            price={current.existingPrice}
+            price={cloverConnected ? undefined : current.existingPrice}
             imageUrl={current.existingImageUrl}
-            extra={current.existingActive ? "Active" : "Archived"}
+            extra={cloverConnected ? undefined : current.existingActive ? "Active" : "Archived"}
+            emptyLabel="No photo yet"
           />
           <ProductPreview
-            label={cloverConnected ? "Uber Eats photo" : "Uber Eats product"}
-            name={current.incoming.name}
-            price={current.incoming.price}
+            label={cloverConnected ? "Photo from Uber Eats" : "Uber Eats product"}
+            name={cloverConnected ? undefined : current.incoming.name}
+            price={cloverConnected ? undefined : current.incoming.price}
             imageUrl={current.incoming.imageUrl}
+            emptyLabel="No photo on Uber Eats"
           />
         </div>
 
@@ -125,12 +127,15 @@ function ProductPreview({
   price,
   imageUrl,
   extra,
+  emptyLabel,
 }: {
   label: string;
-  name: string;
-  price: number;
+  /** Omitted on the Uber side once Clover owns the record — only the photo moves. */
+  name?: string;
+  price?: number;
   imageUrl: string | null;
   extra?: string;
+  emptyLabel?: string;
 }) {
   return (
     <div className="bg-card rounded-lg border p-3">
@@ -143,13 +148,18 @@ function ProductPreview({
           className="mb-2 aspect-[4/3] w-full rounded-md object-cover"
         />
       ) : (
-        <div className="bg-muted mb-2 aspect-[4/3] w-full rounded-md" />
+        <div className="bg-muted text-muted-foreground mb-2 grid aspect-[4/3] w-full place-items-center rounded-md text-xs">
+          {emptyLabel ?? ""}
+        </div>
       )}
-      <p className="text-sm font-medium">{name}</p>
-      <p className="text-muted-foreground text-xs tabular-nums">
-        ${Number(price).toFixed(2)}
-        {extra ? ` · ${extra}` : ""}
-      </p>
+      {name ? <p className="text-sm font-medium">{name}</p> : null}
+      {price != null || extra ? (
+        <p className="text-muted-foreground text-xs tabular-nums">
+          {price != null ? `$${Number(price).toFixed(2)}` : ""}
+          {price != null && extra ? " · " : ""}
+          {extra ?? ""}
+        </p>
+      ) : null}
     </div>
   );
 }
