@@ -30,11 +30,28 @@ export const cloverConnectionSchema = z.object({
   merchantId: z.string().min(1).optional(),
   environment: z.enum(["sandbox", "production"]).default("sandbox"),
   region: z.enum(["na", "eu", "la"]).default("na"),
+  /**
+   * How this merchant is authenticated. Defaults to "oauth" so every
+   * connection persisted before API-token support keeps working.
+   */
+  authMode: z.enum(["oauth", "apiToken"]).default("oauth"),
   tokens: cloverTokenPairSchema.optional(),
+  /** Permanent merchant API token (Clover dashboard → Setup → API Tokens). */
+  apiToken: z.string().min(1).optional(),
   /** ISO timestamp of last successful OAuth connect/refresh. */
   connectedAt: z.string().min(1).optional(),
 });
 export type CloverConnection = z.infer<typeof cloverConnectionSchema>;
+export type CloverAuthMode = CloverConnection["authMode"];
+
+/** Admin-submitted API-token connection. Token is input-only, never returned. */
+export const cloverApiTokenConnectSchema = z.object({
+  merchantId: z.string().trim().min(1, "Merchant ID is required"),
+  apiToken: z.string().trim().min(1, "API token is required"),
+  environment: z.enum(["sandbox", "production"]).default("production"),
+  region: z.enum(["na", "eu", "la"]).default("na"),
+});
+export type CloverApiTokenConnectInput = z.infer<typeof cloverApiTokenConnectSchema>;
 
 /**
  * Broader integrations blob (mirrors payment_config style on the app row).
@@ -57,6 +74,7 @@ export const DEFAULT_CLOVER_CONNECTION: CloverConnection = {
   connected: false,
   environment: "sandbox",
   region: "na",
+  authMode: "oauth",
 };
 
 export function parseIntegrationsConfig(raw: unknown): IntegrationsConfig {
@@ -76,22 +94,31 @@ export type CloverConnectionPublic = {
   merchantId?: string;
   environment: CloverEnvironment;
   region: CloverRegion;
+  authMode: CloverAuthMode;
   connectedAt?: string;
-  /** True when access token exists and is not expired (60s skew). */
+  /**
+   * OAuth: access token exists and is not expired (60s skew).
+   * API token: always true — merchant API tokens do not expire.
+   */
   accessTokenValid: boolean;
 };
 
 export function toPublicCloverConnection(conn: CloverConnection): CloverConnectionPublic {
   const nowSec = Math.floor(Date.now() / 1000);
   const exp = conn.tokens?.accessTokenExpiration;
+  const apiTokenMode = conn.authMode === "apiToken";
+  const credentialPresent = apiTokenMode ? Boolean(conn.apiToken) : Boolean(conn.tokens);
   return {
     installed: conn.installed,
-    connected: conn.connected && Boolean(conn.merchantId && conn.tokens),
+    connected: conn.connected && Boolean(conn.merchantId) && credentialPresent,
     merchantId: conn.merchantId,
     environment: conn.environment,
     region: conn.region,
+    authMode: conn.authMode,
     connectedAt: conn.connectedAt,
-    accessTokenValid: Boolean(exp && exp - 60 > nowSec),
+    accessTokenValid: apiTokenMode
+      ? Boolean(conn.apiToken)
+      : Boolean(exp && exp - 60 > nowSec),
   };
 }
 

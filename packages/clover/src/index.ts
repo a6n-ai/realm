@@ -9,6 +9,7 @@ export {
   cloverAppCredentialsSchema,
   cloverTokenPairSchema,
   cloverConnectionSchema,
+  cloverApiTokenConnectSchema,
   integrationsConfigSchema,
   DEFAULT_INTEGRATIONS_CONFIG,
   DEFAULT_CLOVER_CONNECTION,
@@ -20,6 +21,8 @@ export {
   type CloverTokenPair,
   type CloverConnection,
   type CloverConnectionPublic,
+  type CloverAuthMode,
+  type CloverApiTokenConnectInput,
   type IntegrationsConfig,
 } from "./config";
 
@@ -52,7 +55,7 @@ export {
 
 export { persistCloverOAuthConnection } from "./complete-oauth";
 
-export { createCloverClient } from "./create-client";
+export { createCloverClient, verifyCloverApiToken } from "./create-client";
 
 export {
   CloverApiClient,
@@ -147,6 +150,7 @@ export {
   setCloverConnection,
   installCloverPlugin,
   uninstallCloverPlugin,
+  connectCloverWithApiToken,
   disconnectClover,
   type IntegrationsConfigStore,
 } from "./store";

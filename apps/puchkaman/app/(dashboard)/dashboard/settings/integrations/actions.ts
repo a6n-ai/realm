@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import {
   buildCloverAuthorizeUrl,
+  cloverApiTokenConnectSchema,
   cloverOAuthRedirectUri,
+  connectCloverWithApiToken,
   createCloverOAuthState,
   disconnectClover,
   getCloverConnection,
   installCloverPlugin,
   loadCloverAppCredentialsFromEnv,
   uninstallCloverPlugin,
+  verifyCloverApiToken,
+  type CloverApiTokenConnectInput,
 } from "@realm/clover";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
@@ -55,6 +59,43 @@ export async function disconnectCloverAction(): Promise<void> {
     entityPublicId: "clover",
     operation: "update",
     changes: { _action: "clover_disconnect" },
+    createdBy: await currentUserId(),
+  });
+  revalidateCloverPaths();
+}
+
+/**
+ * Connect a merchant with a permanent API token instead of the developer app.
+ * The token is proven against Clover before anything is persisted, and is
+ * never echoed back to the client or into the audit trail.
+ */
+export async function connectCloverApiTokenAction(
+  input: CloverApiTokenConnectInput,
+): Promise<void> {
+  await requireAdmin();
+  const parsed = cloverApiTokenConnectSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Invalid Clover API token details");
+  }
+
+  try {
+    await verifyCloverApiToken(parsed.data);
+  } catch {
+    throw new Error(
+      "Clover rejected those details. Check the merchant ID, token, and environment.",
+    );
+  }
+
+  await connectCloverWithApiToken(integrationsConfigStore, parsed.data);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "update",
+    changes: {
+      _action: "clover_connect_api_token",
+      merchantId: parsed.data.merchantId,
+      environment: parsed.data.environment,
+    },
     createdBy: await currentUserId(),
   });
   revalidateCloverPaths();

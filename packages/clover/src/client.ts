@@ -58,7 +58,8 @@ import {
 import { httpsOrigin, resolveCloverHosts } from "./urls";
 
 export type CloverApiClientOptions = {
-  credentials: CloverAppCredentials;
+  /** Required for OAuth mode (token refresh). Omit in API-token mode. */
+  credentials?: CloverAppCredentials;
   /** Current connection (merchant + tokens). */
   connection: CloverConnection;
   /**
@@ -74,7 +75,7 @@ export type CloverApiClientOptions = {
  * Auth, merchant, inventory, atomic orders, PAKMS, pay-for-order / charges.
  */
 export class CloverApiClient {
-  private credentials: CloverAppCredentials;
+  private credentials?: CloverAppCredentials;
   private connection: CloverConnection;
   private onTokensRefreshed?: CloverApiClientOptions["onTokensRefreshed"];
   private fetchImpl: typeof fetch;
@@ -95,8 +96,8 @@ export class CloverApiClient {
 
   private hosts() {
     return resolveCloverHosts(
-      this.connection.environment ?? this.credentials.environment,
-      this.connection.region ?? this.credentials.region,
+      this.connection.environment ?? this.credentials?.environment ?? "sandbox",
+      this.connection.region ?? this.credentials?.region ?? "na",
     );
   }
 
@@ -109,19 +110,33 @@ export class CloverApiClient {
   }
 
   environment(): "sandbox" | "production" {
-    return this.connection.environment ?? this.credentials.environment;
+    return this.connection.environment ?? this.credentials?.environment ?? "sandbox";
   }
 
-  /** Ensure a valid access token, refreshing when near expiry. */
+  /**
+   * Ensure a valid access token, refreshing when near expiry.
+   * Merchant API tokens are permanent, so that mode short-circuits.
+   */
   async getAccessToken(): Promise<string> {
+    if (this.connection.authMode === "apiToken") {
+      const apiToken = this.connection.apiToken;
+      if (!apiToken) throw new Error("Clover is not connected (missing API token)");
+      return apiToken;
+    }
+
     const tokens = this.connection.tokens;
     if (!tokens) throw new Error("Clover is not connected (missing tokens)");
     if (!isCloverAccessTokenExpired(tokens)) return tokens.accessToken;
 
+    const credentials = this.credentials;
+    if (!credentials) {
+      throw new Error("Clover access token expired and no app credentials to refresh with");
+    }
+
     if (!this.refreshPromise) {
       this.refreshPromise = (async () => {
         const next = await refreshCloverTokens({
-          credentials: this.credentials,
+          credentials,
           refreshToken: tokens.refreshToken,
         });
         this.connection = { ...this.connection, tokens: next, connected: true };

@@ -91,6 +91,7 @@ describe("config helpers", () => {
       merchantId: "M1",
       environment: "sandbox",
       region: "na",
+      authMode: "oauth",
       tokens: {
         accessToken: "secret",
         refreshToken: "secret2",

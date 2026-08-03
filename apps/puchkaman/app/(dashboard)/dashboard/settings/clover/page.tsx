@@ -12,6 +12,7 @@ import { PageHeader, PageShell } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
+  connectCloverApiTokenAction,
   disconnectCloverAction,
   startCloverConnectAction,
 } from "../integrations/actions";
@@ -37,20 +38,27 @@ async function CloverSettingsLoader() {
   const clover = toPublicCloverConnection(connection);
   const credentials = loadCloverAppCredentialsFromEnv();
 
+  const apiTokenMode = connection.authMode === "apiToken";
+
   let merchantName: string | undefined;
-  if (clover.connected && credentials && connection.merchantId && connection.tokens) {
+  // API-token mode carries its own credential, so it needs no app env creds.
+  const canProbe =
+    clover.connected && (apiTokenMode ? Boolean(connection.apiToken) : Boolean(credentials));
+  if (canProbe) {
     try {
       const client = new CloverApiClient({
-        credentials,
+        credentials: apiTokenMode ? undefined : credentials!,
         connection,
-        onTokensRefreshed: async (tokens) => {
-          const latest = await getCloverConnection(integrationsConfigStore);
-          await setCloverConnection(integrationsConfigStore, {
-            ...latest,
-            tokens,
-            connected: true,
-          });
-        },
+        onTokensRefreshed: apiTokenMode
+          ? undefined
+          : async (tokens) => {
+              const latest = await getCloverConnection(integrationsConfigStore);
+              await setCloverConnection(integrationsConfigStore, {
+                ...latest,
+                tokens,
+                connected: true,
+              });
+            },
       });
       merchantName = (await client.getMerchant()).name;
     } catch {
@@ -66,6 +74,7 @@ async function CloverSettingsLoader() {
       integrationsHref="/dashboard/settings/integrations"
       onConnect={startCloverConnectAction}
       onDisconnect={disconnectCloverAction}
+      onConnectApiToken={connectCloverApiTokenAction}
     />
   );
 }

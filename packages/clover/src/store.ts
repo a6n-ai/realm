@@ -1,4 +1,9 @@
-import type { CloverConnection, IntegrationsConfig } from "./config";
+import { DEFAULT_CLOVER_CONNECTION } from "./config";
+import type {
+  CloverApiTokenConnectInput,
+  CloverConnection,
+  IntegrationsConfig,
+} from "./config";
 
 /**
  * App-injected persistence for integrations config.
@@ -14,14 +19,7 @@ export async function getCloverConnection(
   store: IntegrationsConfigStore,
 ): Promise<CloverConnection> {
   const cfg = await store.get();
-  return (
-    cfg.clover ?? {
-      installed: false,
-      connected: false,
-      environment: "sandbox",
-      region: "na",
-    }
-  );
+  return cfg.clover ?? { ...DEFAULT_CLOVER_CONNECTION };
 }
 
 export async function setCloverConnection(
@@ -43,11 +41,31 @@ export async function installCloverPlugin(store: IntegrationsConfigStore): Promi
 
 export async function uninstallCloverPlugin(store: IntegrationsConfigStore): Promise<void> {
   // Removing the plugin clears tokens — merchant must reconnect after reinstall.
+  await setCloverConnection(store, { ...DEFAULT_CLOVER_CONNECTION });
+}
+
+/**
+ * Connect a merchant with a permanent API token from their Clover dashboard
+ * (Setup → API Tokens) instead of the developer-app OAuth flow.
+ * Callers must verify the token against the Clover API before persisting.
+ * No webhooks in this mode — Clover only delivers those to a registered app.
+ */
+export async function connectCloverWithApiToken(
+  store: IntegrationsConfigStore,
+  input: CloverApiTokenConnectInput,
+): Promise<void> {
+  const current = await getCloverConnection(store);
   await setCloverConnection(store, {
-    installed: false,
-    connected: false,
-    environment: "sandbox",
-    region: "na",
+    ...current,
+    installed: true,
+    connected: true,
+    authMode: "apiToken",
+    merchantId: input.merchantId,
+    apiToken: input.apiToken,
+    environment: input.environment,
+    region: input.region,
+    tokens: undefined,
+    connectedAt: new Date().toISOString(),
   });
 }
 
@@ -56,8 +74,10 @@ export async function disconnectClover(store: IntegrationsConfigStore): Promise<
   await setCloverConnection(store, {
     ...current,
     connected: false,
+    authMode: "oauth",
     merchantId: undefined,
     tokens: undefined,
+    apiToken: undefined,
     connectedAt: undefined,
   });
 }

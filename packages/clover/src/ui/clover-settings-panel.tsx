@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  KeyRoundIcon,
   LinkIcon,
   PuzzleIcon,
   RefreshCwIcon,
@@ -12,8 +13,17 @@ import {
 import { toast } from "sonner";
 import { SectionCard } from "@realm/design-system";
 import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@realm/ui/select";
 import { CLOVER_PLUGIN } from "../plugin";
-import type { CloverConnectionPublic } from "../config";
+import type { CloverApiTokenConnectInput, CloverConnectionPublic } from "../config";
 
 /**
  * Settings → Clover panel — connection info, reconnect, disconnect.
@@ -27,6 +37,7 @@ export function CloverSettingsPanel({
   integrationsHref,
   onConnect,
   onDisconnect,
+  onConnectApiToken,
 }: {
   clover: CloverConnectionPublic;
   merchantName?: string;
@@ -35,10 +46,16 @@ export function CloverSettingsPanel({
   /** Returns the Clover authorize URL; client navigates. */
   onConnect: () => Promise<string>;
   onDisconnect: () => Promise<void>;
+  /**
+   * Connect with a merchant API token instead of the developer app.
+   * Omit to hide that path entirely.
+   */
+  onConnectApiToken?: (input: CloverApiTokenConnectInput) => Promise<void>;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [tokenFormOpen, setTokenFormOpen] = useState(false);
 
   useEffect(() => {
     const status = searchParams.get("clover");
@@ -92,6 +109,19 @@ export function CloverSettingsPanel({
       }
     });
 
+  const connectApiToken = (input: CloverApiTokenConnectInput) =>
+    start(async () => {
+      try {
+        await onConnectApiToken?.(input);
+        toast.success("Clover connected with API token");
+        setTokenFormOpen(false);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not connect with that API token");
+      }
+    });
+
+  const apiTokenMode = clover.authMode === "apiToken";
   const statusLabel = !clover.connected
     ? "Installed · not connected"
     : clover.accessTokenValid
@@ -119,9 +149,16 @@ export function CloverSettingsPanel({
             <InfoRow label="Merchant ID" value={clover.merchantId} mono />
             <InfoRow label="Environment" value={capitalize(clover.environment)} />
             <InfoRow label="Region" value={clover.region.toUpperCase()} />
+            <InfoRow label="Auth" value={apiTokenMode ? "API token" : "OAuth"} />
             <InfoRow
               label="Token"
-              value={clover.accessTokenValid ? "Valid" : "Needs refresh"}
+              value={
+                apiTokenMode
+                  ? "Permanent"
+                  : clover.accessTokenValid
+                    ? "Valid"
+                    : "Needs refresh"
+              }
             />
             {clover.connectedAt ? (
               <InfoRow label="Connected" value={formatConnectedAt(clover.connectedAt)} />
@@ -129,9 +166,18 @@ export function CloverSettingsPanel({
           </dl>
         ) : null}
 
-        {!credentialsConfigured ? (
+        {clover.connected && apiTokenMode ? (
           <p className="text-warn text-xs">
-            Set CLOVER_APP_ID and CLOVER_APP_SECRET in the server env to connect.
+            API-token mode has no webhooks — Clover only delivers those to a registered
+            developer app. Keep data current with manual sync and status checks.
+          </p>
+        ) : null}
+
+        {!credentialsConfigured && !apiTokenMode ? (
+          <p className="text-warn text-xs">
+            Set CLOVER_APP_ID and CLOVER_APP_SECRET in the server env to connect with the
+            developer app{onConnectApiToken ? ", or connect with a merchant API token below" : ""}
+            .
           </p>
         ) : null}
 
@@ -181,8 +227,138 @@ export function CloverSettingsPanel({
             </p>
           ) : null}
         </div>
+
+        {onConnectApiToken && !clover.connected ? (
+          <div className="border-t pt-4">
+            {tokenFormOpen ? (
+              <ApiTokenForm
+                pending={pending}
+                defaults={{ environment: clover.environment, region: clover.region }}
+                onCancel={() => setTokenFormOpen(false)}
+                onSubmit={connectApiToken}
+              />
+            ) : (
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={pending}
+                  onClick={() => setTokenFormOpen(true)}
+                >
+                  <KeyRoundIcon className="size-3.5" />
+                  Connect with API token
+                </Button>
+                <p className="text-muted-foreground text-xs">
+                  No developer app needed. Create the token in the Clover dashboard under
+                  Setup → API Tokens. Webhooks are not available in this mode.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </SectionCard>
+  );
+}
+
+function ApiTokenForm({
+  pending,
+  defaults,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  defaults: Pick<CloverConnectionPublic, "environment" | "region">;
+  onCancel: () => void;
+  onSubmit: (input: CloverApiTokenConnectInput) => void;
+}) {
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        onSubmit({
+          merchantId: String(data.get("merchantId") ?? "").trim(),
+          apiToken: String(data.get("apiToken") ?? "").trim(),
+          environment: (data.get("environment") ??
+            defaults.environment) as CloverApiTokenConnectInput["environment"],
+          region: (data.get("region") ?? defaults.region) as CloverApiTokenConnectInput["region"],
+        });
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="clover-merchant-id">Merchant ID</Label>
+          <Input
+            id="clover-merchant-id"
+            name="merchantId"
+            required
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="e.g. XY1234ABCDEFG"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="clover-api-token">API token</Label>
+          <Input
+            id="clover-api-token"
+            name="apiToken"
+            type="password"
+            required
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Paste the token from Setup → API Tokens"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="clover-environment">Environment</Label>
+          <Select name="environment" defaultValue={defaults.environment}>
+            <SelectTrigger id="clover-environment">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="production">Production</SelectItem>
+              <SelectItem value="sandbox">Sandbox</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="clover-region">Region</Label>
+          <Select name="region" defaultValue={defaults.region}>
+            <SelectTrigger id="clover-region">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="na">North America</SelectItem>
+              <SelectItem value="eu">Europe</SelectItem>
+              <SelectItem value="la">Latin America</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        The token is verified against Clover before it is saved, and is stored server-side
+        only.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>
+          <KeyRoundIcon className="size-3.5" />
+          Connect
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -195,7 +371,7 @@ export function CloverSettingsPanelSkeleton() {
       </div>
       <div className="bg-muted h-3 w-40 animate-pulse rounded" />
       <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="space-y-1.5">
             <div className="bg-muted h-3 w-16 animate-pulse rounded" />
             <div className="bg-muted h-4 w-28 animate-pulse rounded" />
