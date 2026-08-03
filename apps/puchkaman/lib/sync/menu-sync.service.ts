@@ -304,8 +304,11 @@ export class MenuSyncService {
   ): Promise<void> {
     const cloverConnected = opts.cloverConnected ?? false;
     if (action === "skip") {
-      // "Unrelated" means exactly that — the Uber Eats item is a genuinely
-      // different product and gets created on its own, not silently dropped.
+      // "Unrelated" means the Uber item is a genuinely different product. With
+      // no Clover merchant, Uber is the only catalogue we have, so create it.
+      // With Clover connected, Uber may not add products at all — the item is
+      // simply not ours, and the admin adds it in Clover if they want it.
+      if (cloverConnected) return;
       if (!incoming.category) return;
       const existingSlugs = new Set(await this.products.listSlugs());
       await this.createFromItem(incoming, existingSlugs, true, cloverConnected);
@@ -323,25 +326,28 @@ export class MenuSyncService {
       return;
     }
 
-    // replace: adopt Uber image (+ description) onto the existing row.
-    // When Clover-linked, leave name/price/active alone — Clover is inventory SoT.
+    // replace: adopt the Uber photo onto the existing row. Name, price,
+    // description and availability come too only while Uber is the only
+    // catalogue we have — see cloverOwns below.
     const existing = await this.products.findByPublicId(existingPublicId);
     if (!existing) return;
 
     const image = incoming.imageUrl
       ? await rehostImage(incoming.imageUrl, "catalog/products/synced")
       : null;
-    const cloverLinked = Boolean(existing.cloverItemId);
+    // Clover owns the record the moment a merchant is connected or the row is
+    // linked. Uber contributes the photo and nothing else — description
+    // included, which used to slip through on this path.
+    const cloverOwns = cloverConnected || Boolean(existing.cloverItemId);
     await this.products.updateByPublicId(existingPublicId, {
-      ...(cloverLinked
+      ...(cloverOwns
         ? {}
         : {
             name: incoming.name,
             price: incoming.price.toFixed(2),
-            // Clover connected + unlinked → OOS until linked; otherwise active for website.
-            active: !cloverConnected,
+            active: true,
+            description: incoming.description,
           }),
-      description: incoming.description,
       image,
       source: "uber_eats",
       externalId: incoming.externalId,
@@ -361,10 +367,15 @@ export class MenuSyncService {
       | "apply_image"
       | "apply_all"
       | "ignore",
+    opts: { cloverConnected?: boolean } = {},
   ): Promise<void> {
     const row = await this.products.findByPublicId(productId);
     if (!row?.pendingSync) return;
     const pending = row.pendingSync;
+    // Uber is image-only once Clover owns the record. Pending blobs written
+    // before that can still carry name/description/price, so drop them here
+    // rather than trusting whatever was queued earlier.
+    const imageOnly = (opts.cloverConnected ?? false) || Boolean(row.cloverItemId);
 
     if (action === "ignore") {
       await this.products.updateByInternalId(row.id, {
@@ -375,9 +386,10 @@ export class MenuSyncService {
     }
 
     const patch: Record<string, unknown> = {};
-    const wantsName = action === "apply_name" || action === "apply_all";
-    const wantsDescription = action === "apply_description" || action === "apply_all";
-    const wantsPrice = action === "apply_price" || action === "apply_all";
+    const wantsName = !imageOnly && (action === "apply_name" || action === "apply_all");
+    const wantsDescription =
+      !imageOnly && (action === "apply_description" || action === "apply_all");
+    const wantsPrice = !imageOnly && (action === "apply_price" || action === "apply_all");
     const wantsImage = action === "apply_image" || action === "apply_all";
 
     if (wantsName && pending.name !== undefined) patch.name = pending.name;
@@ -391,9 +403,9 @@ export class MenuSyncService {
     }
 
     const remaining: Record<string, unknown> = { ...pending };
-    if (wantsName) delete remaining.name;
-    if (wantsDescription) delete remaining.description;
-    if (wantsPrice) delete remaining.price;
+    if (wantsName || imageOnly) delete remaining.name;
+    if (wantsDescription || imageOnly) delete remaining.description;
+    if (wantsPrice || imageOnly) delete remaining.price;
     if (wantsImage) delete remaining.imageUrl;
     const stillPending = Object.keys(remaining).some((k) => k !== "fetchedAt");
 

@@ -459,7 +459,10 @@ class ProductsService extends SessionUpdatableService<typeof products> {
       | "ignore",
   ): Promise<{ ok: true }> {
     await this.read(publicId);
-    await menuSyncService.applyPending(publicId, action);
+    const clover = await getCloverConnection(integrationsConfigStore);
+    await menuSyncService.applyPending(publicId, action, {
+      cloverConnected: isCloverInventoryConnected(clover),
+    });
     await recordAudit({
       entity: "products",
       entityPublicId: publicId,

@@ -179,3 +179,104 @@ describe("Clover owns which products exist", () => {
     expect(r.updates.some((u) => "image" in u.patch)).toBe(true);
   });
 });
+
+// Every remaining route by which Uber data could reach a Clover-owned record.
+describe("Uber contributes the photo and nothing else", () => {
+  function repoWithRow(row: Row) {
+    const updates: { publicId: string; patch: Record<string, unknown> }[] = [];
+    const created: unknown[] = [];
+    return {
+      updates,
+      created,
+      findAll: async () => [row],
+      findByPublicId: async () => row,
+      listSlugs: async () => [],
+      create: async (v: Record<string, unknown>) => {
+        created.push(v);
+        return { publicId: "prd_new" };
+      },
+      updateByPublicId: async (publicId: string, patch: Record<string, unknown>) => {
+        updates.push({ publicId, patch });
+        return null;
+      },
+      updateByInternalId: async (_id: bigint, patch: Record<string, unknown>) => {
+        updates.push({ publicId: row.publicId, patch });
+        return null;
+      },
+    };
+  }
+
+  it("resolveDuplicate 'replace' does not carry description onto a Clover row", async () => {
+    const r = repoWithRow(existingRow({ cloverItemId: "CLV1", externalId: null }));
+    const svc = new MenuSyncService(r as never);
+
+    await svc.resolveDuplicate("prd_1", "replace", ITEM, { cloverConnected: true });
+
+    const patch = r.updates[0].patch;
+    expect(patch).toHaveProperty("image");
+    expect(patch).not.toHaveProperty("description");
+    expect(patch).not.toHaveProperty("name");
+    expect(patch).not.toHaveProperty("price");
+  });
+
+  it("resolveDuplicate 'replace' still owns the row when Clover is absent", async () => {
+    const r = repoWithRow(existingRow({ cloverItemId: null, externalId: null }));
+    const svc = new MenuSyncService(r as never);
+
+    await svc.resolveDuplicate("prd_1", "replace", ITEM, { cloverConnected: false });
+
+    const patch = r.updates[0].patch;
+    expect(patch.name).toBe(ITEM.name);
+    expect(patch.description).toBe(ITEM.description);
+  });
+
+  it("resolveDuplicate 'skip' creates nothing when Clover is connected", async () => {
+    const r = repoWithRow(existingRow());
+    const svc = new MenuSyncService(r as never);
+
+    await svc.resolveDuplicate("prd_1", "skip", ITEM, { cloverConnected: true });
+
+    expect(r.created).toHaveLength(0);
+  });
+
+  it("applyPending ignores queued name/price/description on a Clover row", async () => {
+    const row = existingRow({
+      cloverItemId: "CLV1",
+      pendingSync: {
+        name: "Uber Name",
+        description: "Uber text",
+        price: 22.5,
+        imageUrl: "https://img.test/new.jpg",
+      },
+    });
+    const r = repoWithRow(row);
+    const svc = new MenuSyncService(r as never);
+
+    await svc.applyPending("prd_1", "apply_all", { cloverConnected: true });
+
+    const patch = r.updates[0].patch;
+    expect(patch).toHaveProperty("image");
+    expect(patch).not.toHaveProperty("name");
+    expect(patch).not.toHaveProperty("description");
+    expect(patch).not.toHaveProperty("price");
+    // the ignored fields are dropped, so the row does not sit on a permanent
+    // "update available" that can never be applied
+    expect(patch.pendingSync).toBeNull();
+    expect(patch.syncStatus).toBe("synced");
+  });
+
+  it("applyPending still applies queued fields on a row Clover does not own", async () => {
+    const row = existingRow({
+      cloverItemId: null,
+      pendingSync: { name: "Uber Name", price: 22.5 },
+    });
+    const r = repoWithRow(row);
+    const svc = new MenuSyncService(r as never);
+
+    await svc.applyPending("prd_1", "apply_all", { cloverConnected: false });
+
+    const patch = r.updates[0].patch;
+    expect(patch.name).toBe("Uber Name");
+    expect(patch.price).toBe("22.50");
+  });
+});
