@@ -173,6 +173,14 @@ export function CloverSettingsPanel({
           </p>
         ) : null}
 
+        {clover.connected && !clover.ecommerceReady ? (
+          <p className="text-warn text-xs">
+            Catalog and employee sync are working, but website checkout is off: no Ecommerce
+            API credentials. Add them from the Clover dashboard (Ecommerce API Tokens) by
+            disconnecting and reconnecting with all three values.
+          </p>
+        ) : null}
+
         {!credentialsConfigured && !apiTokenMode ? (
           <p className="text-warn text-xs">
             Set CLOVER_APP_ID and CLOVER_APP_SECRET in the server env to connect with the

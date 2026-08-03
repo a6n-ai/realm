@@ -16,6 +16,7 @@ export {
   parseIntegrationsConfig,
   parseCloverConnection,
   toPublicCloverConnection,
+  isCloverEcommerceConfigured,
   loadCloverAppCredentialsFromEnv,
   type CloverAppCredentials,
   type CloverTokenPair,

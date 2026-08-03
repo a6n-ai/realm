@@ -4,6 +4,7 @@ import {
   connectCloverWithApiToken,
   createCloverClient,
   disconnectClover,
+  isCloverEcommerceConfigured,
   parseCloverConnection,
   toPublicCloverConnection,
   verifyCloverApiToken,
@@ -220,6 +221,48 @@ describe("public projection", () => {
     expect(pub.accessTokenValid).toBe(true);
     expect(pub.authMode).toBe("apiToken");
     expect(JSON.stringify(pub)).not.toContain("tok-secret");
+  });
+
+  it("is connected but not ecommerce-ready with only a Platform token", () => {
+    const pub = toPublicCloverConnection(apiTokenConnection);
+    expect(pub.connected).toBe(true);
+    expect(pub.ecommerceReady).toBe(false);
+    expect(isCloverEcommerceConfigured(apiTokenConnection)).toBe(false);
+  });
+
+  it("is ecommerce-ready once both Ecommerce values are present", () => {
+    const conn = {
+      ...apiTokenConnection,
+      ecommercePublicKey: "pk_live",
+      ecommercePrivateToken: "ecom-secret",
+    };
+    expect(toPublicCloverConnection(conn).ecommerceReady).toBe(true);
+    expect(isCloverEcommerceConfigured(conn)).toBe(true);
+  });
+
+  it("half-configured Ecommerce credentials are not ready", () => {
+    expect(
+      isCloverEcommerceConfigured({ ...apiTokenConnection, ecommercePublicKey: "pk_live" }),
+    ).toBe(false);
+  });
+
+  it("OAuth connections are always ecommerce-ready — one token covers both surfaces", () => {
+    expect(
+      isCloverEcommerceConfigured({
+        installed: true,
+        connected: true,
+        authMode: "oauth",
+        merchantId: "M1",
+        environment: "production",
+        region: "na",
+        tokens: {
+          accessToken: "a",
+          refreshToken: "r",
+          accessTokenExpiration: 9_999_999_999,
+          refreshTokenExpiration: 9_999_999_999,
+        },
+      }),
+    ).toBe(true);
   });
 
   it("is not connected when the API token is gone", () => {

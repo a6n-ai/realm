@@ -100,6 +100,19 @@ export function parseCloverConnection(raw: unknown): CloverConnection {
   return parsed.success ? parsed.data : { ...DEFAULT_CLOVER_CONNECTION };
 }
 
+/**
+ * Can this connection call the Ecommerce (v1) API — PAKMS, pay order, charges?
+ *
+ * Under OAuth the single access token covers both surfaces, so a connected
+ * merchant is always ecommerce-capable. Under API-token auth Ecommerce is a
+ * separate credential pair the admin may not have entered: catalog and
+ * employee sync work fine without it, checkout does not.
+ */
+export function isCloverEcommerceConfigured(conn: CloverConnection): boolean {
+  if (conn.authMode !== "apiToken") return true;
+  return Boolean(conn.ecommercePublicKey && conn.ecommercePrivateToken);
+}
+
 /** Safe projection for admin UI — never includes tokens or app secret. */
 export type CloverConnectionPublic = {
   installed: boolean;
@@ -114,6 +127,8 @@ export type CloverConnectionPublic = {
    * API token: always true — merchant API tokens do not expire.
    */
   accessTokenValid: boolean;
+  /** Connected *and* able to reach the Ecommerce API — i.e. checkout can work. */
+  ecommerceReady: boolean;
 };
 
 export function toPublicCloverConnection(conn: CloverConnection): CloverConnectionPublic {
@@ -121,9 +136,10 @@ export function toPublicCloverConnection(conn: CloverConnection): CloverConnecti
   const exp = conn.tokens?.accessTokenExpiration;
   const apiTokenMode = conn.authMode === "apiToken";
   const credentialPresent = apiTokenMode ? Boolean(conn.apiToken) : Boolean(conn.tokens);
+  const connected = conn.connected && Boolean(conn.merchantId) && credentialPresent;
   return {
     installed: conn.installed,
-    connected: conn.connected && Boolean(conn.merchantId) && credentialPresent,
+    connected,
     merchantId: conn.merchantId,
     environment: conn.environment,
     region: conn.region,
@@ -132,6 +148,7 @@ export function toPublicCloverConnection(conn: CloverConnection): CloverConnecti
     accessTokenValid: apiTokenMode
       ? Boolean(conn.apiToken)
       : Boolean(exp && exp - 60 > nowSec),
+    ecommerceReady: connected && isCloverEcommerceConfigured(conn),
   };
 }
 
