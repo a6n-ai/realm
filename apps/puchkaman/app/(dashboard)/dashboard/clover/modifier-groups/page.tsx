@@ -1,32 +1,80 @@
 import { Suspense } from "react";
 import { LayersIcon } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
-import { formatMoney } from "@realm/commons";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@realm/ui/table";
 import { redirect } from "next/navigation";
+import { getCloverConnection } from "@realm/clover";
+import {
+  PageHeader,
+  PageShell,
+  SectionCard,
+  parseFilterState,
+  type FacetDef,
+} from "@realm/design-system";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requireAdmin } from "@/lib/auth/guards";
+import { parseSort } from "@/lib/list/sort";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { inventoryCatalogService } from "@/lib/services/inventory.service";
+import {
+  inventoryCatalogService,
+  type ModifierGroupSortColumn,
+} from "@/lib/services/inventory.service";
+import { ModifierGroupsTable, ModifierGroupsTableSkeleton } from "./modifier-groups-table";
 
 export const dynamic = "force-dynamic";
 
-export default function CloverModifierGroupsPage() {
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+const MODIFIER_GROUP_SORT_COLUMNS = [
+  "name",
+  "status",
+  "order",
+  "synced",
+] as const satisfies readonly ModifierGroupSortColumn[];
+
+// Facet spec — server-authored so parseFilterState (server) and ReuiFacetFilters
+// (client) stay in lockstep. "linked" is not a column; the service resolves it
+// to a null check on cloverModifierGroupId.
+const SPEC: FacetDef[] = [
+  {
+    kind: "pills",
+    field: "active",
+    label: "Status",
+    options: [
+      { value: "true", label: "Active" },
+      { value: "false", label: "Inactive" },
+    ],
+  },
+  {
+    kind: "pills",
+    field: "showByDefault",
+    label: "Shown by default",
+    options: [
+      { value: "true", label: "Yes" },
+      { value: "false", label: "No" },
+    ],
+  },
+  {
+    kind: "pills",
+    field: "linked",
+    label: "Clover",
+    options: [
+      { value: "true", label: "Linked" },
+      { value: "false", label: "Not linked" },
+    ],
+  },
+  { kind: "search", fields: ["name"] },
+];
+
+export default function CloverModifierGroupsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   return (
     <PageShell>
       <PageHeader
         icon={LayersIcon}
         title="Modifier groups"
-        subtitle="Clover modifier groups and modifiers. Checkout modifier UX deferred."
+        subtitle="Clover modifier groups. Edits are pushed back to Clover."
         actions={
           <Suspense fallback={null}>
             <HeaderActions />
@@ -34,8 +82,8 @@ export default function CloverModifierGroupsPage() {
         }
       />
       <SectionCard title="All modifier groups">
-        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading…</p>}>
-          <GroupsTable />
+        <Suspense fallback={<ModifierGroupsTableSkeleton />}>
+          <GroupsData searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
@@ -53,69 +101,24 @@ async function HeaderActions() {
   );
 }
 
-async function GroupsTable() {
+async function GroupsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
 
-  const rows = await inventoryCatalogService.modifierGroups.listWithModifiers();
-
-  if (rows.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        No modifier groups yet. Sync from Clover to pull them.
-      </p>
-    );
-  }
+  const sp = await searchParams;
+  const sort = parseSort(sp, MODIFIER_GROUP_SORT_COLUMNS, { column: "order", dir: "asc" });
+  const { condition, page } = parseFilterState(SPEC, sp);
+  const result = await inventoryCatalogService.modifierGroups.query(condition, page, sort);
 
   return (
-    <div className="space-y-6">
-      {rows.map((g) => (
-        <div key={g.publicId} className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{g.name}</span>
-            <Badge variant={g.active ? "default" : "outline"}>
-              {g.active ? "Active" : "Inactive"}
-            </Badge>
-            <span className="text-muted-foreground text-xs">
-              min {g.minRequired ?? "—"} / max {g.maxAllowed ?? "—"}
-            </span>
-            <span className="text-muted-foreground font-mono text-xs">
-              {g.cloverModifierGroupId ?? "—"}
-            </span>
-          </div>
-          {g.modifiers.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No modifiers in this group.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Modifier</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Available</TableHead>
-                  <TableHead>Clover id</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {g.modifiers.map((m) => (
-                  <TableRow key={m.publicId}>
-                    <TableCell>{m.name}</TableCell>
-                    <TableCell>{formatMoney(Number(m.price))}</TableCell>
-                    <TableCell>
-                      <Badge variant={m.available && m.active ? "default" : "outline"}>
-                        {m.available && m.active ? "Yes" : "No"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">
-                      {m.cloverModifierId ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      ))}
-    </div>
+    <ModifierGroupsTable
+      spec={SPEC}
+      rows={result.items}
+      total={result.total}
+      page={page.page}
+      size={page.size}
+      sort={sort}
+    />
   );
 }

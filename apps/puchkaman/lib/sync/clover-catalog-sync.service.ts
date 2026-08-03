@@ -35,6 +35,7 @@ import {
   productCategoriesRepository,
   productCategoryItemsRepository,
   productModifierGroupsRepository,
+  type ModifierGroupRow,
   type ProductCategoryRow,
 } from "@/lib/services/inventory.repository";
 import { productsRepository } from "@/lib/services/products.repository";
@@ -325,14 +326,54 @@ class CloverCatalogSyncService {
   }
 
   /**
-   * Push stubs for modifier groups / discounts — not implemented in this pass.
-   * Call sites should use pull + category push only.
+   * Mirror of pushCategories for modifier groups. Clover has no "delete" here —
+   * an inactive group stays in Clover; `active` is a local display flag, so it
+   * is deliberately not part of the pushed payload.
    */
-  async pushModifierGroups(_client: CloverApiClient): Promise<{ deferred: true; reason: string }> {
-    return {
-      deferred: true,
-      reason: "Modifier group push deferred — pull sync is SoT for this pass",
-    };
+  async pushModifierGroups(
+    client: CloverApiClient,
+    opts: CloverCategoryPushOptions = {},
+  ): Promise<CloverCategoryPushResult> {
+    const result: CloverCategoryPushResult = { created: [], updated: [], errors: [] };
+    const rows = opts.publicIds?.length
+      ? (
+          await Promise.all(
+            opts.publicIds.map((id) => modifierGroupsRepository.findByPublicId(id)),
+          )
+        ).filter((r): r is ModifierGroupRow => !!r)
+      : await modifierGroupsRepository.findAll();
+
+    const now = Date.now();
+    for (const row of rows) {
+      const payload = {
+        name: row.name,
+        alternateName: row.alternateName ?? null,
+        minRequired: row.minRequired ?? null,
+        maxAllowed: row.maxAllowed ?? null,
+        showByDefault: row.showByDefault,
+        sortOrder: row.sortOrder,
+      };
+      try {
+        if (row.cloverModifierGroupId) {
+          await client.updateModifierGroup(row.cloverModifierGroupId, payload);
+          await modifierGroupsRepository.updateByInternalId(row.id, { cloverLastSyncedAt: now });
+          result.updated.push(row.publicId);
+        } else {
+          const created = await client.createModifierGroup(payload);
+          await modifierGroupsRepository.updateByInternalId(row.id, {
+            cloverModifierGroupId: created.id,
+            cloverLastSyncedAt: now,
+          });
+          result.created.push(row.publicId);
+        }
+      } catch (err) {
+        result.errors.push({
+          publicId: row.publicId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return result;
   }
 
   async pushDiscounts(_client: CloverApiClient): Promise<{ deferred: true; reason: string }> {

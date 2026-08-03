@@ -2,7 +2,7 @@ import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discounts,
@@ -17,6 +17,7 @@ import {
 import { createCloverClient } from "@/lib/clover/client";
 import type { SortState } from "@/lib/list/sort";
 import type { MenuSaveInput } from "@/lib/menus/schema";
+import type { CategoryEditInput, ModifierGroupEditInput } from "@/lib/inventory/schema";
 import {
   cloverCatalogSyncService,
   type CloverCatalogPullResult,
@@ -63,6 +64,72 @@ function resolveMenuFacet(f: FilterCondition) {
     name: menus.name,
   })(f);
 }
+
+/** Sortable keys match the DataTable column keys (see categories-table.tsx). */
+export type CategorySortColumn = "name" | "status" | "order" | "synced";
+
+const CATEGORY_SORT_COL = {
+  name: productCategories.name,
+  status: productCategories.active,
+  order: productCategories.sortOrder,
+  synced: productCategories.cloverLastSyncedAt,
+} as const;
+
+function resolveCategoryFacet(f: FilterCondition) {
+  if (f.field === "active") return eq(productCategories.active, f.value === "true");
+  // "linked" is not a column — it asks whether Clover knows about this row.
+  if (f.field === "linked") {
+    return f.value === "true"
+      ? isNotNull(productCategories.cloverCategoryId)
+      : isNull(productCategories.cloverCategoryId);
+  }
+  return columnResolver({ name: productCategories.name })(f);
+}
+
+/** Sortable keys match the DataTable column keys (see modifier-groups-table.tsx). */
+export type ModifierGroupSortColumn = "name" | "status" | "order" | "synced";
+
+const MODIFIER_GROUP_SORT_COL = {
+  name: modifierGroups.name,
+  status: modifierGroups.active,
+  order: modifierGroups.sortOrder,
+  synced: modifierGroups.cloverLastSyncedAt,
+} as const;
+
+function resolveModifierGroupFacet(f: FilterCondition) {
+  if (f.field === "active") return eq(modifierGroups.active, f.value === "true");
+  if (f.field === "showByDefault") return eq(modifierGroups.showByDefault, f.value === "true");
+  if (f.field === "linked") {
+    return f.value === "true"
+      ? isNotNull(modifierGroups.cloverModifierGroupId)
+      : isNull(modifierGroups.cloverModifierGroupId);
+  }
+  return columnResolver({ name: modifierGroups.name })(f);
+}
+
+export type CategoryListRow = {
+  publicId: string;
+  name: string;
+  active: boolean;
+  sortOrder: number;
+  colorCode: string | null;
+  cloverCategoryId: string | null;
+  cloverLastSyncedAt: number | null;
+};
+
+export type ModifierGroupListRow = {
+  publicId: string;
+  name: string;
+  alternateName: string | null;
+  active: boolean;
+  showByDefault: boolean;
+  sortOrder: number;
+  minRequired: number | null;
+  maxAllowed: number | null;
+  modifierCount: number;
+  cloverModifierGroupId: string | null;
+  cloverLastSyncedAt: number | null;
+};
 
 export type MenuSectionItemDetail = {
   productPublicId: string;
@@ -119,6 +186,40 @@ class ProductCategoriesService extends SessionUpdatableService<typeof productCat
     );
   }
 
+  /** Admin list — same facets + page + sort contract as Products/Menus. */
+  async query(
+    condition: Condition | undefined,
+    page: PageRequest,
+    sort: SortState<CategorySortColumn> = { column: "order", dir: "asc" },
+  ): Promise<Page<CategoryListRow>> {
+    const where = conditionToSql(condition, resolveCategoryFacet);
+    const col = CATEGORY_SORT_COL[sort.column] ?? productCategories.sortOrder;
+
+    const [items, [{ count }]] = await Promise.all([
+      db
+        .select({
+          publicId: productCategories.publicId,
+          name: productCategories.name,
+          active: productCategories.active,
+          sortOrder: productCategories.sortOrder,
+          colorCode: productCategories.colorCode,
+          cloverCategoryId: productCategories.cloverCategoryId,
+          cloverLastSyncedAt: productCategories.cloverLastSyncedAt,
+        })
+        .from(productCategories)
+        .where(where)
+        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(productCategories)
+        .where(where),
+    ]);
+
+    return { items, page: page.page, size: page.size, total: count };
+  }
+
   async listActiveOrdered(): Promise<ProductCategoryRow[]> {
     return db
       .select()
@@ -139,6 +240,63 @@ class ModifierGroupsService extends SessionUpdatableService<typeof modifierGroup
         a.sortOrder === b.sortOrder ? a.name.localeCompare(b.name) : a.sortOrder - b.sortOrder,
       ),
     );
+  }
+
+  /** Admin list — same facets + page + sort contract as Products/Menus. */
+  async query(
+    condition: Condition | undefined,
+    page: PageRequest,
+    sort: SortState<ModifierGroupSortColumn> = { column: "order", dir: "asc" },
+  ): Promise<Page<ModifierGroupListRow>> {
+    const where = conditionToSql(condition, resolveModifierGroupFacet);
+    const col = MODIFIER_GROUP_SORT_COL[sort.column] ?? modifierGroups.sortOrder;
+
+    const [rows, [{ count }]] = await Promise.all([
+      db
+        .select({
+          id: modifierGroups.id,
+          publicId: modifierGroups.publicId,
+          name: modifierGroups.name,
+          alternateName: modifierGroups.alternateName,
+          active: modifierGroups.active,
+          showByDefault: modifierGroups.showByDefault,
+          sortOrder: modifierGroups.sortOrder,
+          minRequired: modifierGroups.minRequired,
+          maxAllowed: modifierGroups.maxAllowed,
+          cloverModifierGroupId: modifierGroups.cloverModifierGroupId,
+          cloverLastSyncedAt: modifierGroups.cloverLastSyncedAt,
+        })
+        .from(modifierGroups)
+        .where(where)
+        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(modifierGroups)
+        .where(where),
+    ]);
+
+    // Counted with a grouped query over just this page's ids rather than a
+    // correlated subquery — one extra round trip, and the result is something
+    // you can read off the query instead of trusting template interpolation.
+    const ids = rows.map((r) => r.id);
+    const counts = new Map<string, number>();
+    if (ids.length > 0) {
+      const grouped = await db
+        .select({ groupId: modifiers.modifierGroupId, n: sql<number>`cast(count(*) as int)` })
+        .from(modifiers)
+        .where(inArray(modifiers.modifierGroupId, ids))
+        .groupBy(modifiers.modifierGroupId);
+      for (const g of grouped) counts.set(String(g.groupId), g.n);
+    }
+
+    const items = rows.map(({ id, ...rest }) => ({
+      ...rest,
+      modifierCount: counts.get(String(id)) ?? 0,
+    }));
+
+    return { items, page: page.page, size: page.size, total: count };
   }
 
   async listWithModifiers(): Promise<
@@ -470,6 +628,69 @@ class InventoryCatalogService {
       menu: await this.menus.getDetail(publicId),
       pushedCategories,
     };
+  }
+
+  /**
+   * Edit a category, then push it to Clover in the same call.
+   *
+   * Write-through is the point: Clover is the source of truth, so a local-only
+   * edit is a lie with a countdown on it — the next pull overwrites it. A push
+   * that fails is reported rather than swallowed, because the row now disagrees
+   * with the POS and someone has to know.
+   */
+  async updateCategory(
+    publicId: string,
+    input: CategoryEditInput,
+  ): Promise<{ pushed: CloverCategoryPushResult | null }> {
+    await this.categories.update(publicId, {
+      name: input.name,
+      sortOrder: input.sortOrder,
+      colorCode: input.colorCode ?? null,
+      active: input.active,
+    });
+
+    const pushed = (await createCloverClient())
+      ? await this.pushCategories([publicId])
+      : null;
+
+    await recordAudit({
+      entity: "inventory",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "category_edit", ...input, pushed },
+      createdBy: await currentUserId(),
+    });
+    return { pushed };
+  }
+
+  /** Edit a modifier group, then push it to Clover. See updateCategory. */
+  async updateModifierGroup(
+    publicId: string,
+    input: ModifierGroupEditInput,
+  ): Promise<{ pushed: CloverCategoryPushResult | null }> {
+    await this.modifierGroups.update(publicId, {
+      name: input.name,
+      alternateName: input.alternateName ?? null,
+      minRequired: input.minRequired ?? null,
+      maxAllowed: input.maxAllowed ?? null,
+      showByDefault: input.showByDefault,
+      sortOrder: input.sortOrder,
+      active: input.active,
+    });
+
+    const client = await createCloverClient();
+    const pushed = client
+      ? await cloverCatalogSyncService.pushModifierGroups(client, { publicIds: [publicId] })
+      : null;
+
+    await recordAudit({
+      entity: "inventory",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "modifier_group_edit", ...input, pushed },
+      createdBy: await currentUserId(),
+    });
+    return { pushed };
   }
 
   /** Categories available to add as menu sections. */
