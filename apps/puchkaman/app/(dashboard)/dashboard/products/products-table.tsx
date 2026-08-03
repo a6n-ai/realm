@@ -21,10 +21,8 @@ import {
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { TableCell } from "@realm/ui/table";
-import type { PendingSync } from "@/db/schema/products";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
-import { PendingSyncReviewDialog } from "@/components/admin/pending-sync-review-dialog";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
@@ -49,8 +47,9 @@ export type ProductRow = {
   featured: boolean;
   source: "manual" | "uber_eats";
   lastSyncedAt: number | null;
+  // "update_available" is still reachable on rows written before Uber went
+  // image-only; nothing sets it now, and nothing acts on it.
   syncStatus: "none" | "synced" | "update_available";
-  pendingSync: PendingSync | null;
   cloverItemId: string | null;
   cloverLastSyncedAt: number | null;
   cloverColorCode: string | null;
@@ -105,7 +104,6 @@ export function ProductsTable({
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [removing, setRemoving] = useState<ProductRow | null>(null);
-  const [reviewing, setReviewing] = useState<ProductRow | null>(null);
   const [cloverLinking, setCloverLinking] = useState<ProductRow | null>(null);
 
   async function confirmRemove() {
@@ -183,26 +181,7 @@ export function ProductsTable({
             </TableCell>
             <TableCell>
               <div className="flex flex-col gap-1">
-                {row.source === "uber_eats" ? (
-                  row.syncStatus === "update_available" ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReviewing(row);
-                      }}
-                    >
-                      Update available
-                    </Button>
-                  ) : (
-                    <span>Uber Eats</span>
-                  )
-                ) : (
-                  <span>Manual</span>
-                )}
+                <span>{row.source === "uber_eats" ? "Uber Eats" : "Manual"}</span>
                 {cloverEnabled && row.cloverItemId ? (
                   <Badge variant="outline" className="w-fit text-[10px]">
                     Clover
@@ -279,10 +258,6 @@ export function ProductsTable({
         confirmLabel="Remove"
         danger
         onConfirm={confirmRemove}
-      />
-      <PendingSyncReviewDialog
-        product={reviewing}
-        onOpenChange={(open) => !open && setReviewing(null)}
       />
       {cloverEnabled ? (
         <CloverLinkDialog

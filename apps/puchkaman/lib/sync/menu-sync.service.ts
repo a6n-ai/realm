@@ -18,9 +18,7 @@ export type DuplicateCandidate = {
 
 export type SyncResult = {
   added: { publicId: string; name: string }[];
-  updatesAvailable: { publicId: string; name: string }[];
-  // Items whose photo changed and was auto-rehosted to our storage this sync
-  // (applied immediately, unlike text/price which wait in updatesAvailable).
+  // Items whose photo changed and was auto-rehosted to our storage this sync.
   imagesUpdated: { publicId: string; name: string }[];
   // Items whose name/description/price/category/availability were applied from
   // the source this sync. Only populated while Uber owns inventory, i.e. for
@@ -111,7 +109,6 @@ export class MenuSyncService {
 
     const result: SyncResult = {
       added: [],
-      updatesAvailable: [],
       imagesUpdated: [],
       fieldsUpdated: [],
       unchangedCount: 0,
@@ -355,64 +352,6 @@ export class MenuSyncService {
       lastSyncedAt: Date.now(),
       lastSyncedImageUrl: incoming.imageUrl,
       pendingSync: null,
-    });
-  }
-
-  async applyPending(
-    productId: string,
-    action:
-      | "apply_name"
-      | "apply_description"
-      | "apply_price"
-      | "apply_image"
-      | "apply_all"
-      | "ignore",
-    opts: { cloverConnected?: boolean } = {},
-  ): Promise<void> {
-    const row = await this.products.findByPublicId(productId);
-    if (!row?.pendingSync) return;
-    const pending = row.pendingSync;
-    // Uber is image-only once Clover owns the record. Pending blobs written
-    // before that can still carry name/description/price, so drop them here
-    // rather than trusting whatever was queued earlier.
-    const imageOnly = (opts.cloverConnected ?? false) || Boolean(row.cloverItemId);
-
-    if (action === "ignore") {
-      await this.products.updateByInternalId(row.id, {
-        pendingSync: null,
-        syncStatus: "synced",
-      });
-      return;
-    }
-
-    const patch: Record<string, unknown> = {};
-    const wantsName = !imageOnly && (action === "apply_name" || action === "apply_all");
-    const wantsDescription =
-      !imageOnly && (action === "apply_description" || action === "apply_all");
-    const wantsPrice = !imageOnly && (action === "apply_price" || action === "apply_all");
-    const wantsImage = action === "apply_image" || action === "apply_all";
-
-    if (wantsName && pending.name !== undefined) patch.name = pending.name;
-    if (wantsDescription && "description" in pending) patch.description = pending.description;
-    if (wantsPrice && pending.price !== undefined) patch.price = pending.price.toFixed(2);
-    if (wantsImage && "imageUrl" in pending) {
-      patch.image = pending.imageUrl
-        ? await rehostImage(pending.imageUrl, "catalog/products/synced")
-        : null;
-      patch.lastSyncedImageUrl = pending.imageUrl ?? null;
-    }
-
-    const remaining: Record<string, unknown> = { ...pending };
-    if (wantsName || imageOnly) delete remaining.name;
-    if (wantsDescription || imageOnly) delete remaining.description;
-    if (wantsPrice || imageOnly) delete remaining.price;
-    if (wantsImage) delete remaining.imageUrl;
-    const stillPending = Object.keys(remaining).some((k) => k !== "fetchedAt");
-
-    await this.products.updateByInternalId(row.id, {
-      ...patch,
-      pendingSync: stillPending ? remaining : null,
-      syncStatus: stillPending ? "update_available" : "synced",
     });
   }
 }

@@ -51,7 +51,6 @@ const SPEC: FacetDef[] = [
     options: [
       { value: "none", label: "None" },
       { value: "synced", label: "Synced" },
-      { value: "update_available", label: "Update available" },
     ],
   },
   {

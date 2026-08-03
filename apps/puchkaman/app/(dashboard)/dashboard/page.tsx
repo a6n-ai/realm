@@ -89,7 +89,6 @@ async function DashboardData() {
           { label: "Total products", value: stats.total },
           { label: "Featured", value: stats.featured },
           { label: "Categories", value: stats.categories },
-          { label: "Pending sync", value: stats.pendingSync },
         ]}
       />
 

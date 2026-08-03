@@ -222,22 +222,17 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     total: number;
     featured: number;
     categories: number;
-    pendingSync: number;
   }> {
-    const [[{ total }], [{ featured }], [{ categories }], [{ pendingSync }]] = await Promise.all([
+    const [[{ total }], [{ featured }], [{ categories }]] = await Promise.all([
       db.select({ total: sql<number>`cast(count(*) as int)` }).from(products),
       db
         .select({ featured: sql<number>`cast(count(*) as int)` })
         .from(products)
         .where(eq(products.featured, true)),
       db.select({ categories: sql<number>`cast(count(distinct ${products.category}) as int)` }).from(products),
-      db
-        .select({ pendingSync: sql<number>`cast(count(*) as int)` })
-        .from(products)
-        .where(eq(products.syncStatus, "update_available")),
     ]);
 
-    return { total, featured, categories, pendingSync };
+    return { total, featured, categories };
   }
 
   async recentProducts(limit: number): Promise<ProductListRow[]> {
@@ -447,32 +442,6 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     });
     return { ok: true };
   }
-
-  async applyUberPending(
-    publicId: string,
-    action:
-      | "apply_name"
-      | "apply_description"
-      | "apply_price"
-      | "apply_image"
-      | "apply_all"
-      | "ignore",
-  ): Promise<{ ok: true }> {
-    await this.read(publicId);
-    const clover = await getCloverConnection(integrationsConfigStore);
-    await menuSyncService.applyPending(publicId, action, {
-      cloverConnected: isCloverInventoryConnected(clover),
-    });
-    await recordAudit({
-      entity: "products",
-      entityPublicId: publicId,
-      operation: "update",
-      changes: { _action: "uber_apply_pending", action },
-      createdBy: await currentUserId(),
-    });
-    return { ok: true };
-  }
-
   /**
    * TEMPORARY — remove when the Clover catalogue rebuild is done (see the
    * "Delete all products" button in products-header-actions.tsx and

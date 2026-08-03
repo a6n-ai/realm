@@ -239,44 +239,4 @@ describe("Uber contributes the photo and nothing else", () => {
     expect(r.created).toHaveLength(0);
   });
 
-  it("applyPending ignores queued name/price/description on a Clover row", async () => {
-    const row = existingRow({
-      cloverItemId: "CLV1",
-      pendingSync: {
-        name: "Uber Name",
-        description: "Uber text",
-        price: 22.5,
-        imageUrl: "https://img.test/new.jpg",
-      },
-    });
-    const r = repoWithRow(row);
-    const svc = new MenuSyncService(r as never);
-
-    await svc.applyPending("prd_1", "apply_all", { cloverConnected: true });
-
-    const patch = r.updates[0].patch;
-    expect(patch).toHaveProperty("image");
-    expect(patch).not.toHaveProperty("name");
-    expect(patch).not.toHaveProperty("description");
-    expect(patch).not.toHaveProperty("price");
-    // the ignored fields are dropped, so the row does not sit on a permanent
-    // "update available" that can never be applied
-    expect(patch.pendingSync).toBeNull();
-    expect(patch.syncStatus).toBe("synced");
-  });
-
-  it("applyPending still applies queued fields on a row Clover does not own", async () => {
-    const row = existingRow({
-      cloverItemId: null,
-      pendingSync: { name: "Uber Name", price: 22.5 },
-    });
-    const r = repoWithRow(row);
-    const svc = new MenuSyncService(r as never);
-
-    await svc.applyPending("prd_1", "apply_all", { cloverConnected: false });
-
-    const patch = r.updates[0].patch;
-    expect(patch.name).toBe("Uber Name");
-    expect(patch.price).toBe("22.50");
-  });
 });

@@ -16,7 +16,6 @@ type Tone = "ok" | "warn" | "bad" | "muted";
 
 const STAT_META: Record<string, { label: string; tone: Tone }> = {
   added: { label: "Added", tone: "ok" },
-  updatesAvailable: { label: "Updates available", tone: "warn" },
   imagesUpdated: { label: "Photos updated", tone: "ok" },
   fieldsUpdated: { label: "Details updated", tone: "ok" },
   unchanged: { label: "Unchanged", tone: "muted" },
@@ -36,11 +35,6 @@ const toneValue: Record<Tone, string> = {
 export function SyncSummary({ result }: { result: SyncResult }) {
   const stats: { key: string; count: number; items: string[] }[] = [
     { key: "added", count: result.added.length, items: result.added.map((i) => i.name) },
-    {
-      key: "updatesAvailable",
-      count: result.updatesAvailable.length,
-      items: result.updatesAvailable.map((i) => i.name),
-    },
     {
       key: "imagesUpdated",
       count: result.imagesUpdated.length,
