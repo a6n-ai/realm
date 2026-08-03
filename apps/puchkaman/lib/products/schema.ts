@@ -48,6 +48,11 @@ export const productSchema = z.object({
   cloverUnitName: optText,
   cloverColorCode: optText,
   cloverStockQty: optNum(z.coerce.number()),
+  cloverOnlineName: optText,
+  cloverEnabledOnline: z.boolean().nullable().optional(),
+  cloverAgeRestricted: z.boolean().nullable().optional(),
+  cloverDefaultTaxRates: z.boolean().nullable().optional(),
+  cloverIsRevenue: z.boolean().nullable().optional(),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;

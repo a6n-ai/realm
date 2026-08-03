@@ -7,6 +7,10 @@ import {
   normalizeCloverItem,
   normalizeCloverModifier,
   normalizeCloverModifierGroup,
+  normalizeCloverTag,
+  normalizeCloverTaxRate,
+  cloverRateToPercent,
+  percentToCloverRate,
   primaryCategoryName,
 } from "../inventory";
 
@@ -137,6 +141,80 @@ describe("normalizeCloverDiscount", () => {
     expect(normalizeCloverDiscount({ id: "D2", name: "$1 off", amount: -100 })).toMatchObject({
       id: "D2",
       amount: -100,
+    });
+  });
+});
+
+describe("tax rates", () => {
+  // Ground truth from a live merchant: a 13% tax comes back as rate 1300000.
+  it("round-trips Clover's 1/100000-percent encoding", () => {
+    expect(cloverRateToPercent(1_300_000)).toBe(13);
+    expect(cloverRateToPercent(2_500_000)).toBe(25);
+    expect(cloverRateToPercent(8_250)).toBe(0.0825);
+    expect(percentToCloverRate(13)).toBe(1_300_000);
+    expect(percentToCloverRate(cloverRateToPercent(1_300_000))).toBe(1_300_000);
+    expect(cloverRateToPercent(null)).toBeNull();
+    expect(percentToCloverRate(undefined)).toBeNull();
+  });
+
+  it("normalizes percentage and flat-amount rates", () => {
+    expect(
+      normalizeCloverTaxRate({
+        id: "PNF6CV7VAK4GT",
+        name: "Tax",
+        rate: 1_300_000,
+        isDefault: true,
+      }),
+    ).toMatchObject({ id: "PNF6CV7VAK4GT", rate: 1_300_000, isDefault: true });
+
+    expect(
+      normalizeCloverTaxRate({
+        id: "C7JJP9BQ81H8R",
+        name: "Restaurant Tax",
+        taxType: "PARTNER_TAX",
+        rate: 0,
+        taxAmount: 1,
+      }),
+    ).toMatchObject({ taxType: "PARTNER_TAX", rate: 0, taxAmount: 1 });
+
+    expect(() => normalizeCloverTaxRate({ id: "X" })).toThrow();
+  });
+});
+
+describe("tags", () => {
+  it("normalizes a printer label", () => {
+    expect(normalizeCloverTag({ id: "T1", name: "Kitchen", showInReporting: true })).toEqual({
+      id: "T1",
+      name: "Kitchen",
+      showInReporting: true,
+      deleted: undefined,
+      modifiedTime: undefined,
+    });
+  });
+});
+
+describe("item associations", () => {
+  it("reads taxRates/tags expansions and the online-ordering fields", () => {
+    const item = normalizeCloverItem({
+      id: "KQQGD9QWDCJDJ",
+      name: "Aalo tikki Burger",
+      price: 699,
+      taxRates: { elements: [{ id: "PNF6CV7VAK4GT", name: "Tax" }] },
+      tags: { elements: [] },
+      onlineName: "Aalo tikki Burger",
+      enabledOnline: false,
+      isAgeRestricted: false,
+      defaultTaxRates: true,
+      isRevenue: true,
+    });
+    expect(item.taxRates?.elements).toEqual([{ id: "PNF6CV7VAK4GT", name: "Tax" }]);
+    expect(item.tags?.elements).toEqual([]);
+    expect(item).toMatchObject({
+      onlineName: "Aalo tikki Burger",
+      enabledOnline: false,
+      isAgeRestricted: false,
+      defaultTaxRates: true,
+      isRevenue: true,
     });
   });
 });

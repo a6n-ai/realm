@@ -19,6 +19,15 @@ export type CloverMatchIncoming = {
   unitName: string | null;
   colorCode: string | null;
   stockQty: number | null;
+  onlineName: string | null;
+  enabledOnline: boolean | null;
+  ageRestricted: boolean | null;
+  /** Clover applies all default tax rates instead of the explicit set. */
+  defaultTaxRates: boolean | null;
+  isRevenue: boolean | null;
+  /** Clover ids from the `taxRates` / `tags` expansions. */
+  taxRateIds: string[];
+  tagIds: string[];
 };
 
 export type CloverAmbiguousMatch = {

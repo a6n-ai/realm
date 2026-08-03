@@ -17,6 +17,8 @@ import {
 import {
   normalizeCloverCategory,
   normalizeCloverDiscount,
+  normalizeCloverTaxRate,
+  normalizeCloverTag,
   normalizeCloverItem,
   normalizeCloverModifier,
   normalizeCloverModifierGroup,
@@ -24,6 +26,8 @@ import {
   type CloverCategoryCreateInput,
   type CloverCategoryUpdateInput,
   type CloverDiscount,
+  type CloverTaxRate,
+  type CloverTag,
   type CloverDiscountCreateInput,
   type CloverDiscountUpdateInput,
   type CloverElements,
@@ -459,6 +463,76 @@ export class CloverApiClient {
     });
   }
 
+  // ── Inventory: tax rates ──────────────────────────────────────────────────
+
+  async listTaxRates(params: ListInventoryParams = {}): Promise<CloverElements<CloverTaxRate>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`tax_rates${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverTaxRate(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllTaxRates(
+    params: Omit<ListInventoryParams, "limit" | "offset"> = {},
+  ): Promise<CloverTaxRate[]> {
+    return this.paginateInventory((p) => this.listTaxRates({ ...params, ...p }));
+  }
+
+  /** Associate item ↔ tax rate. */
+  async associateTaxRateItem(taxRateId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("tax_rate_items"), {
+      elements: [{ taxRate: { id: taxRateId }, item: { id: itemId } }],
+    });
+  }
+
+  /** Remove item ↔ tax rate association. */
+  async dissociateTaxRateItem(taxRateId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("tax_rate_items?delete=true"), {
+      elements: [{ taxRate: { id: taxRateId }, item: { id: itemId } }],
+    });
+  }
+
+  // ── Inventory: tags (Order printing labels) ───────────────────────────────
+
+  async listTags(params: ListInventoryParams = {}): Promise<CloverElements<CloverTag>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`tags${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverTag(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllTags(
+    params: Omit<ListInventoryParams, "limit" | "offset"> = {},
+  ): Promise<CloverTag[]> {
+    return this.paginateInventory((p) => this.listTags({ ...params, ...p }));
+  }
+
+  async createTag(input: { name: string; showInReporting?: boolean }): Promise<CloverTag> {
+    const body: Record<string, unknown> = { name: input.name };
+    if (input.showInReporting != null) body.showInReporting = input.showInReporting;
+    return normalizeCloverTag(await this.post(this.merchantPath("tags"), body));
+  }
+
+  /** Associate item ↔ tag. */
+  async associateTagItem(tagId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("tag_items"), {
+      elements: [{ tag: { id: tagId }, item: { id: itemId } }],
+    });
+  }
+
+  /** Remove item ↔ tag association. */
+  async dissociateTagItem(tagId: string, itemId: string): Promise<void> {
+    await this.post(this.merchantPath("tag_items?delete=true"), {
+      elements: [{ tag: { id: tagId }, item: { id: itemId } }],
+    });
+  }
+
   // ── Inventory: discounts ──────────────────────────────────────────────────
 
   async listDiscounts(params: ListInventoryParams = {}): Promise<CloverElements<CloverDiscount>> {
@@ -723,6 +797,12 @@ function cloverItemBody(
   if (input.cost !== undefined) body.cost = input.cost;
   if (input.unitName !== undefined) body.unitName = input.unitName;
   if (input.colorCode !== undefined) body.colorCode = input.colorCode;
+  if (input.onlineName !== undefined) body.onlineName = input.onlineName;
+  if (input.description !== undefined) body.description = input.description;
+  if (input.enabledOnline != null) body.enabledOnline = input.enabledOnline;
+  if (input.isAgeRestricted != null) body.isAgeRestricted = input.isAgeRestricted;
+  if (input.defaultTaxRates != null) body.defaultTaxRates = input.defaultTaxRates;
+  if (input.isRevenue != null) body.isRevenue = input.isRevenue;
   return body;
 }
 

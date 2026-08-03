@@ -21,6 +21,10 @@ import { products } from "./products";
  * - modifiers             ↔ Clover modifiers
  * - product_modifier_groups ↔ Clover item_modifier_groups (M:N)
  * - discounts             ↔ Clover discounts
+ * - tax_rates             ↔ Clover tax_rates
+ * - product_tax_rates     ↔ Clover tax_rate_items (M:N)
+ * - printer_labels        ↔ Clover tags (Register "Order printing" labels)
+ * - product_printer_labels↔ Clover tag_items (M:N)
  * - menus                 ↔ local Register menu layout (Clover has no separate Menus
  *                           inventory resource — sections are categories)
  * - menu_sections         ↔ ordered category membership on a menu
@@ -111,6 +115,69 @@ export const discounts = pgTable("discounts", {
   cloverDiscountId: text("clover_discount_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
 });
+
+/**
+ * Clover tax_rates. Clover expresses `rate` in 1/100000 of a percent
+ * (13% → 1300000, verified against the live merchant), so we divide by 100000
+ * on the way in and multiply on the way out — storing percent keeps every
+ * reader from having to know the encoding.
+ * Percentage and flat taxes are mutually exclusive: PARTNER_TAX rows carry
+ * `taxAmount` cents with rate 0.
+ */
+export const taxRates = pgTable("tax_rates", {
+  ...updatableColumns("tax"),
+  name: text("name").notNull(),
+  /** Percent, e.g. 13.00000. Null for flat-amount taxes. */
+  rate: numeric("rate", { precision: 9, scale: 5 }),
+  /** Flat tax in cents (Clover taxAmount). Null for percentage taxes. */
+  taxAmount: integer("tax_amount"),
+  /** VAT_TAXABLE | VAT_NON_TAXABLE | VAT_EXEMPT | INTERNAL_TAX | PARTNER_TAX. */
+  taxType: text("tax_type"),
+  isDefault: boolean("is_default").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  cloverTaxRateId: text("clover_tax_rate_id").unique(),
+  cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+});
+
+/** M:N product ↔ tax rate (Clover tax_rate_items). */
+export const productTaxRates = pgTable(
+  "product_tax_rates",
+  {
+    ...updatableColumns("ptx"),
+    productId: bigint("product_id", { mode: "bigint" })
+      .notNull()
+      .references(() => products.id),
+    taxRateId: bigint("tax_rate_id", { mode: "bigint" })
+      .notNull()
+      .references(() => taxRates.id),
+  },
+  (t) => [uniqueIndex("product_tax_rates_prod_tax_uidx").on(t.productId, t.taxRateId)],
+);
+
+/** Clover tags — the "Order printing" labels shown on the Register item form. */
+export const printerLabels = pgTable("printer_labels", {
+  ...updatableColumns("lbl"),
+  name: text("name").notNull(),
+  showInReporting: boolean("show_in_reporting").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  cloverTagId: text("clover_tag_id").unique(),
+  cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+});
+
+/** M:N product ↔ printer label (Clover tag_items). */
+export const productPrinterLabels = pgTable(
+  "product_printer_labels",
+  {
+    ...updatableColumns("ppl"),
+    productId: bigint("product_id", { mode: "bigint" })
+      .notNull()
+      .references(() => products.id),
+    printerLabelId: bigint("printer_label_id", { mode: "bigint" })
+      .notNull()
+      .references(() => printerLabels.id),
+  },
+  (t) => [uniqueIndex("product_printer_labels_prod_label_uidx").on(t.productId, t.printerLabelId)],
+);
 
 /**
  * Local Register menu layout. Clover Inventory has no separate Menus resource —

@@ -63,4 +63,12 @@ export const products = pgTable("products", {
   cloverColorCode: text("clover_color_code"),
   /** Stock quantity from Clover itemStock expansion. */
   cloverStockQty: numeric("clover_stock_qty", { precision: 12, scale: 3 }),
+  /** Clover `onlineName` — the name shown on the online menu (≠ alternateName). */
+  cloverOnlineName: text("clover_online_name"),
+  cloverEnabledOnline: boolean("clover_enabled_online"),
+  cloverAgeRestricted: boolean("clover_age_restricted"),
+  /** Clover applies every default tax rate to this item instead of an explicit set. */
+  cloverDefaultTaxRates: boolean("clover_default_tax_rates"),
+  /** false = non-revenue item (excluded from revenue reporting). */
+  cloverIsRevenue: boolean("clover_is_revenue"),
 });

@@ -9,6 +9,9 @@
  * - modifiers          → modifiers
  * - item_modifier_groups → product_modifier_groups
  * - discounts          → discounts
+ * - tax_rates          → tax_rates
+ * - tags               → printer_labels
+ * (item ↔ tax_rate / tag links ride on the item pull, which expands taxRates,tags)
  * - (no Menus API)     → menus + menu_sections built from categories
  *
  * Pull is SoT: missing remote rows are marked inactive (not deleted).
@@ -25,9 +28,14 @@ import {
   type CloverDiscount,
   type CloverModifier,
   type CloverModifierGroup,
+  type CloverTag,
+  type CloverTaxRate,
+  cloverRateToPercent,
 } from "@realm/clover";
 import {
   discountsRepository,
+  printerLabelsRepository,
+  taxRatesRepository,
   menusRepository,
   menuSectionsRepository,
   modifierGroupsRepository,
@@ -47,6 +55,8 @@ export type CloverCatalogPullResult = {
   modifierGroups: { upserted: number; inactivated: number };
   modifiers: { upserted: number; inactivated: number };
   discounts: { upserted: number; inactivated: number };
+  taxRates: { upserted: number; inactivated: number };
+  printerLabels: { upserted: number; inactivated: number };
   menus: { upserted: number };
   links: {
     categoryItems: number;
@@ -73,6 +83,8 @@ class CloverCatalogSyncService {
       modifierGroups: { upserted: 0, inactivated: 0 },
       modifiers: { upserted: 0, inactivated: 0 },
       discounts: { upserted: 0, inactivated: 0 },
+      taxRates: { upserted: 0, inactivated: 0 },
+      printerLabels: { upserted: 0, inactivated: 0 },
       menus: { upserted: 0 },
       links: { categoryItems: 0, productModifierGroups: 0, menuSections: 0 },
       errors: [],
@@ -224,6 +236,56 @@ class CloverCatalogSyncService {
       if (local.cloverDiscountId && !seenDiscountIds.has(local.cloverDiscountId) && local.active) {
         await discountsRepository.updateByInternalId(local.id, { active: false });
         result.discounts.inactivated += 1;
+      }
+    }
+
+    // ── Tax rates ───────────────────────────────────────────────────────────
+    const cloverTaxRates = await client.listAllTaxRates();
+    const seenTaxRateIds = new Set<string>();
+
+    for (const tax of cloverTaxRates) {
+      try {
+        await this.upsertTaxRate(tax, now);
+        seenTaxRateIds.add(tax.id);
+        result.taxRates.upserted += 1;
+      } catch (err) {
+        result.errors.push({
+          entity: "tax_rate",
+          id: tax.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    for (const local of await taxRatesRepository.findAll()) {
+      if (local.cloverTaxRateId && !seenTaxRateIds.has(local.cloverTaxRateId) && local.active) {
+        await taxRatesRepository.updateByInternalId(local.id, { active: false });
+        result.taxRates.inactivated += 1;
+      }
+    }
+
+    // ── Printer labels (Clover tags) ────────────────────────────────────────
+    const cloverTags = await client.listAllTags();
+    const seenTagIds = new Set<string>();
+
+    for (const tag of cloverTags) {
+      try {
+        await this.upsertPrinterLabel(tag, now);
+        seenTagIds.add(tag.id);
+        result.printerLabels.upserted += 1;
+      } catch (err) {
+        result.errors.push({
+          entity: "printer_label",
+          id: tag.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    for (const local of await printerLabelsRepository.findAll()) {
+      if (local.cloverTagId && !seenTagIds.has(local.cloverTagId) && local.active) {
+        await printerLabelsRepository.updateByInternalId(local.id, { active: false });
+        result.printerLabels.inactivated += 1;
       }
     }
 
@@ -443,6 +505,43 @@ class CloverCatalogSyncService {
       return (await modifiersRepository.updateByInternalId(existing.id, patch)) ?? existing;
     }
     return modifiersRepository.create(patch);
+  }
+
+  private async upsertTaxRate(tax: CloverTaxRate, now: number) {
+    // A Clover tax rate is either percentage or flat; keep the unused side null
+    // so a reader never has to decide which of two populated fields wins.
+    const percent = cloverRateToPercent(tax.rate);
+    const isFlat = tax.taxAmount != null && (tax.rate == null || tax.rate === 0);
+    const patch = {
+      name: tax.name,
+      rate: isFlat || percent == null ? null : String(percent),
+      taxAmount: isFlat ? tax.taxAmount! : null,
+      taxType: tax.taxType ?? null,
+      isDefault: tax.isDefault === true,
+      active: tax.deleted !== true,
+      cloverTaxRateId: tax.id,
+      cloverLastSyncedAt: now,
+    };
+    const existing = await taxRatesRepository.findByCloverTaxRateId(tax.id);
+    if (existing) {
+      return (await taxRatesRepository.updateByInternalId(existing.id, patch)) ?? existing;
+    }
+    return taxRatesRepository.create(patch);
+  }
+
+  private async upsertPrinterLabel(tag: CloverTag, now: number) {
+    const patch = {
+      name: tag.name,
+      showInReporting: tag.showInReporting === true,
+      active: tag.deleted !== true,
+      cloverTagId: tag.id,
+      cloverLastSyncedAt: now,
+    };
+    const existing = await printerLabelsRepository.findByCloverTagId(tag.id);
+    if (existing) {
+      return (await printerLabelsRepository.updateByInternalId(existing.id, patch)) ?? existing;
+    }
+    return printerLabelsRepository.create(patch);
   }
 
   private async upsertDiscount(disc: CloverDiscount, now: number) {

@@ -34,6 +34,13 @@ const incomingBase = {
   unitName: null,
   colorCode: null,
   stockQty: null,
+  onlineName: null,
+  enabledOnline: null,
+  ageRestricted: null,
+  defaultTaxRates: null,
+  isRevenue: null,
+  taxRateIds: [],
+  tagIds: [],
 };
 
 describe("findSafeAutoMatch", () => {

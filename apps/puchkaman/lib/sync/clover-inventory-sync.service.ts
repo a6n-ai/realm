@@ -10,6 +10,12 @@ import {
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 import { uniqueSlug } from "@/lib/products/slug";
 import {
+  printerLabelsRepository,
+  productPrinterLabelsRepository,
+  productTaxRatesRepository,
+  taxRatesRepository,
+} from "@/lib/services/inventory.repository";
+import {
   productsRepository,
   type ProductRow,
   type ProductsRepository,
@@ -46,7 +52,7 @@ export {
   pricesEqual,
 } from "./clover-inventory-match";
 
-const CLOVER_EXPAND = "categories,itemStock";
+const CLOVER_EXPAND = "categories,itemStock,taxRates,tags";
 
 function numOrNull(v: string | number | null | undefined): number | null {
   if (v == null || v === "") return null;
@@ -77,6 +83,13 @@ export function cloverItemToIncoming(item: CloverItem): CloverMatchIncoming {
       item.itemStock?.quantity != null && Number.isFinite(item.itemStock.quantity)
         ? item.itemStock.quantity
         : null,
+    onlineName: item.onlineName ?? null,
+    enabledOnline: typeof item.enabledOnline === "boolean" ? item.enabledOnline : null,
+    ageRestricted: typeof item.isAgeRestricted === "boolean" ? item.isAgeRestricted : null,
+    defaultTaxRates: typeof item.defaultTaxRates === "boolean" ? item.defaultTaxRates : null,
+    isRevenue: typeof item.isRevenue === "boolean" ? item.isRevenue : null,
+    taxRateIds: item.taxRates?.elements?.map((e) => e.id) ?? [],
+    tagIds: item.tags?.elements?.map((e) => e.id) ?? [],
   };
 }
 
@@ -93,6 +106,11 @@ function cloverMirrorFields(incoming: CloverMatchIncoming) {
     cloverUnitName: incoming.unitName,
     cloverColorCode: incoming.colorCode,
     cloverStockQty: incoming.stockQty != null ? String(incoming.stockQty) : null,
+    cloverOnlineName: incoming.onlineName,
+    cloverEnabledOnline: incoming.enabledOnline,
+    cloverAgeRestricted: incoming.ageRestricted,
+    cloverDefaultTaxRates: incoming.defaultTaxRates,
+    cloverIsRevenue: incoming.isRevenue,
   };
 }
 
@@ -117,6 +135,11 @@ function buildCloverPushPayload(row: ProductRow): CloverItemCreateInput {
     ...(cost != null ? { cost: dollarsToCloverCents(cost) } : {}),
     unitName: row.cloverUnitName ?? null,
     colorCode: row.cloverColorCode ?? null,
+    onlineName: row.cloverOnlineName ?? null,
+    ...(row.cloverEnabledOnline != null ? { enabledOnline: row.cloverEnabledOnline } : {}),
+    ...(row.cloverAgeRestricted != null ? { isAgeRestricted: row.cloverAgeRestricted } : {}),
+    ...(row.cloverDefaultTaxRates != null ? { defaultTaxRates: row.cloverDefaultTaxRates } : {}),
+    ...(row.cloverIsRevenue != null ? { isRevenue: row.cloverIsRevenue } : {}),
   };
 }
 
@@ -288,6 +311,8 @@ export class CloverInventorySyncService {
       }
     }
 
+    await this.syncItemAssociations(cloverItems);
+
     return result;
   }
 
@@ -300,6 +325,7 @@ export class CloverInventorySyncService {
     const incoming = cloverItemToIncoming(item);
     const now = Date.now();
     const changed = await this.applyCloverInventory(row, incoming, now);
+    await this.syncItemAssociations([item]);
     return {
       publicId: row.publicId,
       name: incoming.name,
@@ -493,6 +519,68 @@ export class CloverInventorySyncService {
       });
   }
 
+  /**
+   * Reconcile item ↔ tax-rate and item ↔ printer-label links from the expanded
+   * item payloads. Runs as its own pass rather than inside the match loop: a
+   * product can be resolved by any of four branches up there, and doing it once
+   * at the end means one code path instead of four.
+   *
+   * Requires the catalog pull (tax_rates, tags) to have run first — an unknown
+   * Clover id is skipped rather than invented.
+   */
+  private async syncItemAssociations(items: CloverItem[]): Promise<void> {
+    const taxByCloverId = new Map<string, bigint>();
+    for (const t of await taxRatesRepository.findAll()) {
+      if (t.cloverTaxRateId) taxByCloverId.set(t.cloverTaxRateId, t.id);
+    }
+    const labelByCloverId = new Map<string, bigint>();
+    for (const l of await printerLabelsRepository.findAll()) {
+      if (l.cloverTagId) labelByCloverId.set(l.cloverTagId, l.id);
+    }
+
+    for (const item of items) {
+      const product = await this.products.findByCloverItemId(item.id);
+      if (!product) continue;
+
+      const desiredTax = new Set(
+        (item.taxRates?.elements ?? [])
+          .map((e) => taxByCloverId.get(e.id))
+          .filter((id): id is bigint => id != null),
+      );
+      const existingTax = await productTaxRatesRepository.findByProduct(product.id);
+      for (const link of existingTax) {
+        if (!desiredTax.has(link.taxRateId)) {
+          await productTaxRatesRepository.deleteByProductAndTaxRate(product.id, link.taxRateId);
+        }
+      }
+      for (const taxRateId of desiredTax) {
+        if (!existingTax.some((l) => l.taxRateId === taxRateId)) {
+          await productTaxRatesRepository.create({ productId: product.id, taxRateId });
+        }
+      }
+
+      const desiredLabels = new Set(
+        (item.tags?.elements ?? [])
+          .map((e) => labelByCloverId.get(e.id))
+          .filter((id): id is bigint => id != null),
+      );
+      const existingLabels = await productPrinterLabelsRepository.findByProduct(product.id);
+      for (const link of existingLabels) {
+        if (!desiredLabels.has(link.printerLabelId)) {
+          await productPrinterLabelsRepository.deleteByProductAndLabel(
+            product.id,
+            link.printerLabelId,
+          );
+        }
+      }
+      for (const printerLabelId of desiredLabels) {
+        if (!existingLabels.some((l) => l.printerLabelId === printerLabelId)) {
+          await productPrinterLabelsRepository.create({ productId: product.id, printerLabelId });
+        }
+      }
+    }
+  }
+
   private async applyCloverInventory(
     row: ProductRow,
     incoming: CloverMatchIncoming,
@@ -514,7 +602,12 @@ export class CloverInventorySyncService {
       numOrNull(row.cloverCost) !== incoming.cost ||
       (row.cloverUnitName ?? null) !== mirror.cloverUnitName ||
       (row.cloverColorCode ?? null) !== mirror.cloverColorCode ||
-      numOrNull(row.cloverStockQty) !== incoming.stockQty;
+      numOrNull(row.cloverStockQty) !== incoming.stockQty ||
+      (row.cloverOnlineName ?? null) !== mirror.cloverOnlineName ||
+      (row.cloverEnabledOnline ?? null) !== mirror.cloverEnabledOnline ||
+      (row.cloverAgeRestricted ?? null) !== mirror.cloverAgeRestricted ||
+      (row.cloverDefaultTaxRates ?? null) !== mirror.cloverDefaultTaxRates ||
+      (row.cloverIsRevenue ?? null) !== mirror.cloverIsRevenue;
 
     if (!changed) {
       await this.products.updateByInternalId(row.id, { cloverLastSyncedAt: now });

@@ -77,6 +77,11 @@ export type ProductDetailDto = {
   cloverUnitName: string | null;
   cloverColorCode: string | null;
   cloverStockQty: number | null;
+  cloverOnlineName: string | null;
+  cloverEnabledOnline: boolean | null;
+  cloverAgeRestricted: boolean | null;
+  cloverDefaultTaxRates: boolean | null;
+  cloverIsRevenue: boolean | null;
 };
 
 export function toProductDetailDto(row: ProductRow): ProductDetailDto {
@@ -105,6 +110,11 @@ export function toProductDetailDto(row: ProductRow): ProductDetailDto {
     cloverUnitName: row.cloverUnitName ?? null,
     cloverColorCode: row.cloverColorCode ?? null,
     cloverStockQty: row.cloverStockQty != null ? Number(row.cloverStockQty) : null,
+    cloverOnlineName: row.cloverOnlineName ?? null,
+    cloverEnabledOnline: row.cloverEnabledOnline ?? null,
+    cloverAgeRestricted: row.cloverAgeRestricted ?? null,
+    cloverDefaultTaxRates: row.cloverDefaultTaxRates ?? null,
+    cloverIsRevenue: row.cloverIsRevenue ?? null,
   };
 }
 

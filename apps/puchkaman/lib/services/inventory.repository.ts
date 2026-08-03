@@ -7,9 +7,13 @@ import {
   menuSections,
   modifierGroups,
   modifiers,
+  printerLabels,
   productCategories,
   productCategoryItems,
   productModifierGroups,
+  productPrinterLabels,
+  productTaxRates,
+  taxRates,
 } from "@/db/schema";
 
 export type ProductCategoryRow = typeof productCategories.$inferSelect;
@@ -20,6 +24,10 @@ export type MenuRow = typeof menus.$inferSelect;
 export type MenuSectionRow = typeof menuSections.$inferSelect;
 export type ProductCategoryItemRow = typeof productCategoryItems.$inferSelect;
 export type ProductModifierGroupRow = typeof productModifierGroups.$inferSelect;
+export type TaxRateRow = typeof taxRates.$inferSelect;
+export type PrinterLabelRow = typeof printerLabels.$inferSelect;
+export type ProductTaxRateRow = typeof productTaxRates.$inferSelect;
+export type ProductPrinterLabelRow = typeof productPrinterLabels.$inferSelect;
 
 export class ProductCategoriesRepository extends UpdatableRepository<typeof productCategories> {
   async findAll(): Promise<ProductCategoryRow[]> {
@@ -237,6 +245,17 @@ export class ProductCategoryItemsRepository extends UpdatableRepository<
       .limit(1);
     return row ?? null;
   }
+
+  async deleteByCategoryAndProduct(categoryId: bigint, productId: bigint): Promise<void> {
+    await this.db
+      .delete(productCategoryItems)
+      .where(
+        and(
+          eq(productCategoryItems.categoryId, categoryId),
+          eq(productCategoryItems.productId, productId),
+        ),
+      );
+  }
 }
 
 export class ProductModifierGroupsRepository extends UpdatableRepository<
@@ -257,6 +276,144 @@ export class ProductModifierGroupsRepository extends UpdatableRepository<
       )
       .limit(1);
     return row ?? null;
+  }
+
+  async deleteByProductAndGroup(productId: bigint, modifierGroupId: bigint): Promise<void> {
+    await this.db
+      .delete(productModifierGroups)
+      .where(
+        and(
+          eq(productModifierGroups.productId, productId),
+          eq(productModifierGroups.modifierGroupId, modifierGroupId),
+        ),
+      );
+  }
+}
+
+export class TaxRatesRepository extends UpdatableRepository<typeof taxRates> {
+  async findAll(): Promise<TaxRateRow[]> {
+    return this.db.select().from(taxRates);
+  }
+
+  async findByCloverTaxRateId(cloverTaxRateId: string): Promise<TaxRateRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(taxRates)
+      .where(and(eq(taxRates.cloverTaxRateId, cloverTaxRateId), isNotNull(taxRates.cloverTaxRateId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async updateByInternalId(
+    id: bigint,
+    patch: Record<string, unknown>,
+    actorId?: bigint | null,
+  ): Promise<TaxRateRow | null> {
+    const safePatch = stripCreateOnly(patch);
+    const toSet = actorId ? { ...safePatch, updatedBy: actorId } : safePatch;
+    const [row] = await this.db
+      .update(taxRates)
+      .set(toSet as never)
+      .where(eq(taxRates.id, id))
+      .returning();
+    return (row as TaxRateRow) ?? null;
+  }
+}
+
+export class PrinterLabelsRepository extends UpdatableRepository<typeof printerLabels> {
+  async findAll(): Promise<PrinterLabelRow[]> {
+    return this.db.select().from(printerLabels);
+  }
+
+  async findByCloverTagId(cloverTagId: string): Promise<PrinterLabelRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(printerLabels)
+      .where(and(eq(printerLabels.cloverTagId, cloverTagId), isNotNull(printerLabels.cloverTagId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async updateByInternalId(
+    id: bigint,
+    patch: Record<string, unknown>,
+    actorId?: bigint | null,
+  ): Promise<PrinterLabelRow | null> {
+    const safePatch = stripCreateOnly(patch);
+    const toSet = actorId ? { ...safePatch, updatedBy: actorId } : safePatch;
+    const [row] = await this.db
+      .update(printerLabels)
+      .set(toSet as never)
+      .where(eq(printerLabels.id, id))
+      .returning();
+    return (row as PrinterLabelRow) ?? null;
+  }
+}
+
+export class ProductTaxRatesRepository extends UpdatableRepository<typeof productTaxRates> {
+  async findByProduct(productId: bigint): Promise<ProductTaxRateRow[]> {
+    return this.db.select().from(productTaxRates).where(eq(productTaxRates.productId, productId));
+  }
+
+  async findByProductAndTaxRate(
+    productId: bigint,
+    taxRateId: bigint,
+  ): Promise<ProductTaxRateRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(productTaxRates)
+      .where(
+        and(eq(productTaxRates.productId, productId), eq(productTaxRates.taxRateId, taxRateId)),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async deleteByProductAndTaxRate(productId: bigint, taxRateId: bigint): Promise<void> {
+    await this.db
+      .delete(productTaxRates)
+      .where(
+        and(eq(productTaxRates.productId, productId), eq(productTaxRates.taxRateId, taxRateId)),
+      );
+  }
+}
+
+export class ProductPrinterLabelsRepository extends UpdatableRepository<
+  typeof productPrinterLabels
+> {
+  async findByProduct(productId: bigint): Promise<ProductPrinterLabelRow[]> {
+    return this.db
+      .select()
+      .from(productPrinterLabels)
+      .where(eq(productPrinterLabels.productId, productId));
+  }
+
+  async findByProductAndLabel(
+    productId: bigint,
+    printerLabelId: bigint,
+  ): Promise<ProductPrinterLabelRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(productPrinterLabels)
+      .where(
+        and(
+          eq(productPrinterLabels.productId, productId),
+          eq(productPrinterLabels.printerLabelId, printerLabelId),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async deleteByProductAndLabel(productId: bigint, printerLabelId: bigint): Promise<void> {
+    await this.db
+      .delete(productPrinterLabels)
+      .where(
+        and(
+          eq(productPrinterLabels.productId, productId),
+          eq(productPrinterLabels.printerLabelId, printerLabelId),
+        ),
+      );
   }
 }
 
@@ -309,4 +466,32 @@ export const productModifierGroupsRepository = new ProductModifierGroupsReposito
   productModifierGroups,
   productModifierGroups.publicId,
   productModifierGroups.id,
+);
+
+export const taxRatesRepository = new TaxRatesRepository(
+  db,
+  taxRates,
+  taxRates.publicId,
+  taxRates.id,
+);
+
+export const printerLabelsRepository = new PrinterLabelsRepository(
+  db,
+  printerLabels,
+  printerLabels.publicId,
+  printerLabels.id,
+);
+
+export const productTaxRatesRepository = new ProductTaxRatesRepository(
+  db,
+  productTaxRates,
+  productTaxRates.publicId,
+  productTaxRates.id,
+);
+
+export const productPrinterLabelsRepository = new ProductPrinterLabelsRepository(
+  db,
+  productPrinterLabels,
+  productPrinterLabels.publicId,
+  productPrinterLabels.id,
 );

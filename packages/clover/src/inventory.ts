@@ -38,6 +38,16 @@ export type CloverItemStock = {
   modifiedTime?: number;
 };
 
+export type CloverTaxRateRef = {
+  id: string;
+  name?: string;
+};
+
+export type CloverTagRef = {
+  id: string;
+  name?: string;
+};
+
 /** Inventory item as returned by Platform API `/items`. */
 export type CloverItem = {
   id: string;
@@ -64,6 +74,19 @@ export type CloverItem = {
   itemStock?: CloverItemStock;
   /** Present when `expand=modifierGroups`. */
   modifierGroups?: { elements?: CloverModifierGroupRef[] };
+  /** Present when `expand=taxRates`. Empty when `defaultTaxRates` is true. */
+  taxRates?: { elements?: CloverTaxRateRef[] };
+  /** Present when `expand=tags` — Register's "Order printing" labels. */
+  tags?: { elements?: CloverTagRef[] };
+  /** Name shown on the online menu. Distinct from `alternateName` (Register). */
+  onlineName?: string | null;
+  description?: string | null;
+  enabledOnline?: boolean;
+  isAgeRestricted?: boolean;
+  /** True = Clover applies its default tax rates instead of an explicit set. */
+  defaultTaxRates?: boolean;
+  /** False = non-revenue item, excluded from revenue reporting. */
+  isRevenue?: boolean;
 };
 
 export type CloverItemCreateInput = {
@@ -81,6 +104,12 @@ export type CloverItemCreateInput = {
   cost?: number | null;
   unitName?: string | null;
   colorCode?: string | null;
+  onlineName?: string | null;
+  description?: string | null;
+  enabledOnline?: boolean;
+  isAgeRestricted?: boolean;
+  defaultTaxRates?: boolean;
+  isRevenue?: boolean;
 };
 
 export type CloverItemUpdateInput = Partial<CloverItemCreateInput> & {
@@ -296,6 +325,18 @@ export function normalizeCloverItem(raw: unknown): CloverItem {
     };
   });
 
+  const taxRates = elementsOf(o.taxRates, (e) => {
+    const tid = typeof e.id === "string" ? e.id : "";
+    if (!tid) return null;
+    return { id: tid, name: typeof e.name === "string" ? e.name : undefined };
+  });
+
+  const tags = elementsOf(o.tags, (e) => {
+    const tid = typeof e.id === "string" ? e.id : "";
+    if (!tid) return null;
+    return { id: tid, name: typeof e.name === "string" ? e.name : undefined };
+  });
+
   const costRaw = o.cost;
   const cost =
     typeof costRaw === "number"
@@ -327,6 +368,89 @@ export function normalizeCloverItem(raw: unknown): CloverItem {
         ? (o.itemStock as CloverItemStock)
         : undefined,
     modifierGroups,
+    taxRates,
+    tags,
+    onlineName: optString(o.onlineName),
+    description: optString(o.description),
+    enabledOnline: optBool(o.enabledOnline),
+    isAgeRestricted: optBool(o.isAgeRestricted),
+    defaultTaxRates: optBool(o.defaultTaxRates),
+    isRevenue: optBool(o.isRevenue),
+  };
+}
+
+/**
+ * Tax rate as returned by `/tax_rates`.
+ *
+ * `rate` is in 1/100000 of a percent (13% → 1300000, confirmed against a live
+ * merchant). Percentage and flat taxes are mutually exclusive: PARTNER_TAX rows
+ * carry `taxAmount` cents with `rate: 0`.
+ */
+export type CloverTaxRate = {
+  id: string;
+  name: string;
+  rate?: number | null;
+  /** Flat tax in cents. */
+  taxAmount?: number | null;
+  /** VAT_TAXABLE | VAT_NON_TAXABLE | VAT_EXEMPT | INTERNAL_TAX | PARTNER_TAX. */
+  taxType?: string | null;
+  isDefault?: boolean;
+  deleted?: boolean;
+  modifiedTime?: number;
+};
+
+/** Clover encodes tax rates in 1/100000 of a percent. */
+export const CLOVER_TAX_RATE_SCALE = 100_000;
+
+export function cloverRateToPercent(rate: number | null | undefined): number | null {
+  if (rate == null || !Number.isFinite(rate)) return null;
+  return rate / CLOVER_TAX_RATE_SCALE;
+}
+
+export function percentToCloverRate(percent: number | null | undefined): number | null {
+  if (percent == null || !Number.isFinite(percent)) return null;
+  return Math.round(percent * CLOVER_TAX_RATE_SCALE);
+}
+
+export function normalizeCloverTaxRate(raw: unknown): CloverTaxRate {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid Clover tax rate payload");
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id : "";
+  const name = typeof o.name === "string" ? o.name : "";
+  if (!id || !name) throw new Error("Clover tax rate missing id or name");
+  return {
+    id,
+    name,
+    rate: optNullableNumber(o.rate),
+    taxAmount: optNullableNumber(o.taxAmount),
+    taxType: optString(o.taxType),
+    isDefault: optBool(o.isDefault),
+    deleted: optBool(o.deleted),
+    modifiedTime: optNumber(o.modifiedTime),
+  };
+}
+
+/** Clover tag — Register's "Order printing" label. */
+export type CloverTag = {
+  id: string;
+  name: string;
+  showInReporting?: boolean;
+  deleted?: boolean;
+  modifiedTime?: number;
+};
+
+export function normalizeCloverTag(raw: unknown): CloverTag {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid Clover tag payload");
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id : "";
+  const name = typeof o.name === "string" ? o.name : "";
+  if (!id || !name) throw new Error("Clover tag missing id or name");
+  return {
+    id,
+    name,
+    showInReporting: optBool(o.showInReporting),
+    deleted: optBool(o.deleted),
+    modifiedTime: optNumber(o.modifiedTime),
   };
 }
 

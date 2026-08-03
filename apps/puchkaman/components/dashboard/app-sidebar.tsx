@@ -12,6 +12,8 @@ import {
   LogOutIcon,
   PackageIcon,
   PercentIcon,
+  PrinterIcon,
+  ReceiptIcon,
   PuzzleIcon,
   ScrollTextIcon,
   SettingsIcon,
@@ -65,6 +67,8 @@ const CLOVER_CATALOG_ITEMS: NavItem[] = [
     icon: LayersIcon,
   },
   { title: "Menus", href: "/dashboard/clover/menus", icon: BookOpenIcon },
+  { title: "Taxes and fees", href: "/dashboard/clover/taxes", icon: ReceiptIcon },
+  { title: "Printer labels", href: "/dashboard/clover/labels", icon: PrinterIcon },
   { title: "Discounts", href: "/dashboard/clover/discounts", icon: PercentIcon },
   { title: "Employees", href: "/dashboard/clover/employees", icon: UsersIcon },
 ];

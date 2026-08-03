@@ -65,5 +65,14 @@ function parseIncoming(raw: unknown): CloverMatchIncoming {
     unitName: typeof o.unitName === "string" ? o.unitName : null,
     colorCode: typeof o.colorCode === "string" ? o.colorCode : null,
     stockQty: typeof o.stockQty === "number" && Number.isFinite(o.stockQty) ? o.stockQty : null,
+    onlineName: typeof o.onlineName === "string" ? o.onlineName : null,
+    enabledOnline: typeof o.enabledOnline === "boolean" ? o.enabledOnline : null,
+    ageRestricted: typeof o.ageRestricted === "boolean" ? o.ageRestricted : null,
+    defaultTaxRates: typeof o.defaultTaxRates === "boolean" ? o.defaultTaxRates : null,
+    isRevenue: typeof o.isRevenue === "boolean" ? o.isRevenue : null,
+    // Associations are never trusted from the client — the next pull rebuilds
+    // them from Clover's own expansions.
+    taxRateIds: [],
+    tagIds: [],
   };
 }

@@ -20,12 +20,14 @@ import { Button } from "@realm/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
+import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
 import { Textarea } from "@realm/ui/textarea";
 import {
   Select,
@@ -35,18 +37,24 @@ import {
   SelectValue,
 } from "@realm/ui/select";
 import { Switch } from "@realm/ui/switch";
-import { cn } from "@realm/ui/cn";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { SyncLoadingOverlay } from "@/components/admin/sync-loading-overlay";
 import { ImageUploader } from "@/components/files/image-uploader";
-import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
+import { AssociationSection } from "@/components/products/association-section";
+import { CloverColorSwatch, normalizeCloverColor } from "@/components/products/clover-color-swatch";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";
 import { isEffectivelyAvailable } from "@/lib/products/availability";
 import { productSchema } from "@/lib/products/schema";
+import type { ProductAssociations } from "@/lib/services/inventory.service";
 
 const TAG_OPTIONS = ["best", "viral", "new"] as const;
-const PRICE_TYPES = ["FIXED", "VARIABLE", "PER_UNIT"] as const;
+const PRICE_TYPES = [
+  { value: "FIXED", label: "Fixed" },
+  { value: "VARIABLE", label: "Variable" },
+  { value: "PER_UNIT", label: "Per unit" },
+] as const;
+const DESCRIPTION_MAX = 1000;
 
 type FormInput = z.input<typeof productSchema>;
 type FormValues = z.output<typeof productSchema>;
@@ -76,6 +84,11 @@ export type ProductDetailData = {
   cloverUnitName: string | null;
   cloverColorCode: string | null;
   cloverStockQty: number | null;
+  cloverOnlineName: string | null;
+  cloverEnabledOnline: boolean | null;
+  cloverAgeRestricted: boolean | null;
+  cloverDefaultTaxRates: boolean | null;
+  cloverIsRevenue: boolean | null;
 };
 
 function relativeTime(ms: number | null): string {
@@ -89,12 +102,49 @@ function relativeTime(ms: number | null): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/** Clover's own item form marks required fields with an asterisk. */
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <FormLabel>
+      {children}
+      <span className="text-destructive ml-0.5">*</span>
+    </FormLabel>
+  );
+}
+
+/** Toggle row used for every boolean on the form — one shape, one rhythm. */
+function SwitchRow({
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border px-3 py-3">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint ? <span className="text-muted-foreground block text-xs">{hint}</span> : null}
+      </span>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </label>
+  );
+}
+
 export function ProductDetail({
   product,
+  associations,
+  associationOptions,
   cloverEnabled,
   cloverConnected,
 }: {
   product: ProductDetailData;
+  associations: ProductAssociations;
+  associationOptions: ProductAssociations;
   /** Plugin installed — gates all Clover sync/link chrome and inventory fields. */
   cloverEnabled: boolean;
   cloverConnected: boolean;
@@ -172,8 +222,12 @@ export function ProductDetail({
         ? "Pushing product to Clover…"
         : "Syncing…";
 
+  const dirty = form.formState.isDirty;
+  const assignDisabled = !cloverConnected;
+  const assignDisabledReason = "Connect Clover under Settings → Clover first.";
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <SyncLoadingOverlay open={syncBusy !== null} label={syncOverlayLabel} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -199,61 +253,51 @@ export function ProductDetail({
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {cloverEnabled ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={!cloverConnected}
-                onClick={() => setLinkOpen(true)}
-              >
-                <LinkIcon className="size-3.5" />
-                {linked ? "Unlink" : "Link"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={!cloverConnected || !linked || syncBusy !== null}
-                onClick={() => void sync("pull")}
-              >
-                {syncBusy === "pull" ? (
-                  <Loader2Icon className="size-3.5 animate-spin" />
-                ) : (
-                  <CloudDownloadIcon className="size-3.5" />
-                )}
-                Sync from Clover
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={!cloverConnected || syncBusy !== null}
-                onClick={() => void sync("push")}
-              >
-                {syncBusy === "push" ? (
-                  <Loader2Icon className="size-3.5 animate-spin" />
-                ) : (
-                  <CloudUploadIcon className="size-3.5" />
-                )}
-                Push to Clover
-              </Button>
-            </>
-          ) : null}
-          <Button
-            type="submit"
-            form="product-detail-form"
-            size="sm"
-            disabled={form.formState.isSubmitting}
-          >
-            {form.formState.isSubmitting ? "Saving…" : "Save"}
-          </Button>
-        </div>
+        {cloverEnabled ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!cloverConnected}
+              onClick={() => setLinkOpen(true)}
+            >
+              <LinkIcon className="size-3.5" />
+              {linked ? "Unlink" : "Link"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!cloverConnected || !linked || syncBusy !== null}
+              onClick={() => void sync("pull")}
+            >
+              {syncBusy === "pull" ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+              ) : (
+                <CloudDownloadIcon className="size-3.5" />
+              )}
+              Sync from Clover
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!cloverConnected || syncBusy !== null}
+              onClick={() => void sync("push")}
+            >
+              {syncBusy === "push" ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+              ) : (
+                <CloudUploadIcon className="size-3.5" />
+              )}
+              Push to Clover
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {cloverEnabled && linked && product.cloverItemId ? (
@@ -268,14 +312,17 @@ export function ProductDetail({
           onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-4"
         >
-          <SectionCard title="Catalog">
+          <SectionCard
+            title="Details"
+            subtitle="Basic item details for both the register and the website."
+          >
             <div className="grid gap-4">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <RequiredLabel>Name</RequiredLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -287,10 +334,60 @@ export function ProductDetail({
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <RequiredLabel>Price ($)</RequiredLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="tabular-nums"
+                          value={
+                            field.value === undefined || field.value === null
+                              ? ""
+                              : String(field.value)
+                          }
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {cloverEnabled ? (
+                  <FormField
+                    control={form.control}
+                    name="cloverPriceType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price type</FormLabel>
+                        <Select value={field.value ?? "FIXED"} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PRICE_TYPES.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>
+                                {t.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : null}
+                <FormField
+                  control={form.control}
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>Website category</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -305,48 +402,56 @@ export function ProductDetail({
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormDescription>
+                        Groups the item on the public menu. Clover categories are assigned below.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={
-                            field.value === undefined || field.value === null
-                              ? ""
-                              : String(field.value)
-                          }
-                          onChange={(e) => field.onChange(e.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {cloverEnabled ? (
+                  <FormField
+                    control={form.control}
+                    name="cloverColorCode"
+                    render={({ field }) => {
+                      const hex = normalizeCloverColor(field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>Item colour</FormLabel>
+                          <div className="flex items-center gap-2">
+                            {/* Native colour input — no picker dependency needed. */}
+                            <input
+                              type="color"
+                              aria-label="Pick item colour"
+                              value={hex ?? "#000000"}
+                              onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                              className="border-input size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+                            />
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                placeholder="None"
+                                className="flex-1 font-mono"
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={!field.value}
+                              onClick={() => field.onChange(null)}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                ) : null}
               </div>
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea rows={3} {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormItem>
                 <FormLabel>Badges</FormLabel>
@@ -382,8 +487,30 @@ export function ProductDetail({
                 />
               </FormItem>
 
+              {cloverEnabled ? (
+                <Controller
+                  control={form.control}
+                  name="cloverAgeRestricted"
+                  render={({ field }) => (
+                    <SwitchRow
+                      label="This is an age-restricted item"
+                      hint="Needs extra confirmation during fulfilment — for example alcohol."
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  )}
+                />
+              ) : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Online ordering"
+            subtitle="What customers see on the website and the online menu."
+          >
+            <div className="grid gap-4">
               <FormItem>
-                <FormLabel>Image (Uber / local)</FormLabel>
+                <FormLabel>Image</FormLabel>
                 <Controller
                   control={form.control}
                   name="image"
@@ -395,29 +522,67 @@ export function ProductDetail({
                     />
                   )}
                 />
+                <FormDescription>
+                  Photos stay local (or come from Uber Eats); Clover never overwrites them.
+                </FormDescription>
               </FormItem>
+
+              {cloverEnabled ? (
+                <FormField
+                  control={form.control}
+                  name="cloverOnlineName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Online name</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} placeholder={product.name} />
+                      </FormControl>
+                      <FormDescription>
+                        Overrides the register name on the online menu. Blank uses the name above.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        maxLength={DESCRIPTION_MAX}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription className="tabular-nums">
+                      {(field.value ?? "").length}/{DESCRIPTION_MAX} characters
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <Controller
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <label
-                    className={cn(
-                      "flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3",
-                    )}
-                  >
-                    <span className="text-sm font-medium">Active — shown on the public menu</span>
-                    <Switch
-                      checked={field.value ?? true}
-                      onCheckedChange={(v) => {
-                        field.onChange(v);
-                        if (cloverEnabled) {
-                          form.setValue("cloverHidden", !v);
-                          form.setValue("cloverAvailable", v);
-                        }
-                      }}
-                    />
-                  </label>
+                  <SwitchRow
+                    label="Active — shown on the public menu"
+                    checked={field.value ?? true}
+                    onCheckedChange={(v) => {
+                      field.onChange(v);
+                      if (cloverEnabled) {
+                        form.setValue("cloverHidden", !v, { shouldDirty: true });
+                        form.setValue("cloverAvailable", v, { shouldDirty: true });
+                      }
+                    }}
+                  />
                 )}
               />
 
@@ -425,226 +590,320 @@ export function ProductDetail({
                 control={form.control}
                 name="featured"
                 render={({ field }) => (
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
-                    <span className="text-sm font-medium">
-                      Featured — shown in Best Sellers on the home page
-                    </span>
-                    <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
-                  </label>
+                  <SwitchRow
+                    label="Featured — shown in Best Sellers on the home page"
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
+                  />
                 )}
               />
+
+              {cloverEnabled ? (
+                <Controller
+                  control={form.control}
+                  name="cloverEnabledOnline"
+                  render={({ field }) => (
+                    <SwitchRow
+                      label="Enabled for Clover online ordering"
+                      hint="Clover's own online-ordering flag. Independent of the public menu."
+                      checked={field.value ?? false}
+                      onCheckedChange={field.onChange}
+                    />
+                  )}
+                />
+              ) : null}
             </div>
           </SectionCard>
 
           {cloverEnabled ? (
-          <SectionCard title="Clover inventory">
-            <p className="text-muted-foreground mb-4 text-sm">
-              Mirrored from Clover when linked. Push sends these fields to Clover; Sync from Clover
-              overwrites them. Images stay local / Uber.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="cloverAlternateName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alternate name</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverPriceType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price type</FormLabel>
-                    <Select
-                      value={field.value ?? "FIXED"}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {PRICE_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverSku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>SKU</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverCost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cost ($)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={
-                          field.value === undefined || field.value === null
-                            ? ""
-                            : String(field.value)
-                        }
-                        onChange={(e) => field.onChange(e.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverStockQty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock qty</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.001"
-                        value={
-                          field.value === undefined || field.value === null
-                            ? ""
-                            : String(field.value)
-                        }
-                        onChange={(e) => field.onChange(e.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverUnitName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit name</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} placeholder="each, lb, oz…" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cloverColorCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Color code</FormLabel>
-                    <div className="flex items-center gap-2">
-                      <CloverColorSwatch color={field.value} size={16} />
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ""}
-                          placeholder="#FF0080"
-                          className="flex-1"
-                        />
-                      </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              <Controller
-                control={form.control}
-                name="cloverAvailable"
-                render={({ field }) => (
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
-                    <span className="text-sm font-medium">Available (Clover)</span>
-                    <Switch
-                      checked={field.value ?? true}
-                      onCheckedChange={(v) => {
-                        field.onChange(v);
-                        const hidden = form.getValues("cloverHidden") ?? false;
-                        form.setValue("active", v && !hidden);
-                      }}
-                    />
-                  </label>
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="cloverHidden"
-                render={({ field }) => (
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
-                    <span className="text-sm font-medium">Hidden on Register</span>
-                    <Switch
-                      checked={field.value ?? false}
-                      onCheckedChange={(v) => {
-                        field.onChange(v);
-                        const available = form.getValues("cloverAvailable") ?? true;
-                        form.setValue("active", available && !v);
-                      }}
-                    />
-                  </label>
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="cloverAutoManage"
-                render={({ field }) => (
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
-                    <span className="text-sm font-medium">
-                      Auto-manage availability from stock
-                    </span>
-                    <Switch
+            <>
+              <SectionCard
+                title="Taxes and fees"
+                subtitle="Leaving this empty means no tax is applied to the item."
+              >
+                <Controller
+                  control={form.control}
+                  name="cloverDefaultTaxRates"
+                  render={({ field }) => (
+                    <SwitchRow
+                      label="Use the merchant's default tax rates"
+                      hint="When on, Clover applies its defaults and ignores the list below."
                       checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
-                  </label>
-                )}
+                  )}
                 />
-            </div>
-          </SectionCard>
+              </SectionCard>
+
+              <AssociationSection
+                productPublicId={product.publicId}
+                kind="taxRates"
+                title="Assigned taxes and fees"
+                subtitle="Tax rates come from Clover — edit the rates under Clover → Taxes and fees."
+                assignLabel="Assign taxes and fees"
+                columns={["Tax name", "Tax rate"]}
+                emptyMessage="No taxes assigned. Select 'Assign taxes and fees' above to begin."
+                assigned={associations.taxRates}
+                options={associationOptions.taxRates}
+                disabled={assignDisabled}
+                disabledReason={assignDisabledReason}
+              />
+
+              <AssociationSection
+                productPublicId={product.publicId}
+                kind="modifierGroups"
+                title="Modifier groups"
+                subtitle="Modifier groups are used for add-ons, options, or other customisations."
+                assignLabel="Assign modifier groups"
+                columns={["Modifier group", "Min–max"]}
+                emptyMessage="No modifier groups assigned. Select 'Assign modifier groups' above to begin."
+                assigned={associations.modifierGroups}
+                options={associationOptions.modifierGroups}
+                disabled={assignDisabled}
+                disabledReason={assignDisabledReason}
+              />
+
+              <AssociationSection
+                productPublicId={product.publicId}
+                kind="categories"
+                title="Clover categories"
+                subtitle="Categories make items easier to find on the register and sharpen reports."
+                assignLabel="Assign categories"
+                columns={["Category name", "Colour"]}
+                emptyMessage="No categories assigned. Select 'Assign categories' above to begin."
+                assigned={associations.categories}
+                options={associationOptions.categories}
+                disabled={assignDisabled}
+                disabledReason={assignDisabledReason}
+              />
+
+              <AssociationSection
+                productPublicId={product.publicId}
+                kind="printerLabels"
+                title="Order printing"
+                subtitle="Decide where orders for this item will be printed."
+                assignLabel="Assign labels"
+                columns={["Label name", "Reporting"]}
+                emptyMessage="You have not assigned any labels to this item. Select 'Assign labels' above to begin."
+                assigned={associations.printerLabels}
+                options={associationOptions.printerLabels}
+                disabled={assignDisabled}
+                disabledReason={assignDisabledReason}
+              />
+
+              <SectionCard
+                title="Cost"
+                subtitle="Item cost enables gross profit margin in Clover reports."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="cloverCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item cost ($)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="tabular-nums"
+                            value={
+                              field.value === undefined || field.value === null
+                                ? ""
+                                : String(field.value)
+                            }
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cloverUnitName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit name</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} placeholder="each, lb, oz…" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="mt-4">
+                  <Controller
+                    control={form.control}
+                    name="cloverIsRevenue"
+                    render={({ field }) => (
+                      <SwitchRow
+                        label="This is a non-revenue item"
+                        hint="Excluded from revenue reporting — gift cards, deposits, and the like."
+                        checked={field.value === false}
+                        onCheckedChange={(v) => field.onChange(!v)}
+                      />
+                    )}
+                  />
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Item tracking"
+                subtitle="How stock and availability are managed for this item."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="cloverCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Product code</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cloverSku"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SKU</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cloverStockQty"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stock</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.001"
+                            className="tabular-nums"
+                            value={
+                              field.value === undefined || field.value === null
+                                ? ""
+                                : String(field.value)
+                            }
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="cloverAlternateName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Alternate name (register)</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  <Controller
+                    control={form.control}
+                    name="cloverAutoManage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Availability</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            value={field.value ? "auto" : "manual"}
+                            onValueChange={(v) => field.onChange(v === "auto")}
+                            className="gap-2"
+                          >
+                            <label className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-sm">
+                              <RadioGroupItem value="manual" />
+                              Manually manage availability
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-sm">
+                              <RadioGroupItem value="auto" />
+                              Automatically manage availability from stock
+                            </label>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Controller
+                    control={form.control}
+                    name="cloverAvailable"
+                    render={({ field }) => (
+                      <SwitchRow
+                        label="Available"
+                        checked={field.value ?? true}
+                        onCheckedChange={(v) => {
+                          field.onChange(v);
+                          const hidden = form.getValues("cloverHidden") ?? false;
+                          form.setValue("active", v && !hidden, { shouldDirty: true });
+                        }}
+                      />
+                    )}
+                  />
+                  <Controller
+                    control={form.control}
+                    name="cloverHidden"
+                    render={({ field }) => (
+                      <SwitchRow
+                        label="Hidden on register"
+                        checked={field.value ?? false}
+                        onCheckedChange={(v) => {
+                          field.onChange(v);
+                          const available = form.getValues("cloverAvailable") ?? true;
+                          form.setValue("active", available && !v, { shouldDirty: true });
+                        }}
+                      />
+                    )}
+                  />
+                </div>
+              </SectionCard>
+            </>
           ) : null}
         </form>
       </Form>
+
+      {/* Clover keeps Cancel/Save pinned to the bottom of a long item form. */}
+      <div className="bg-background/95 sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-3 border-t px-4 py-3 backdrop-blur sm:-mx-5 sm:px-5">
+        {dirty ? (
+          <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!dirty || form.formState.isSubmitting}
+          onClick={() => form.reset(rowToForm(product))}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          form="product-detail-form"
+          disabled={!dirty || form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? "Saving…" : "Save"}
+        </Button>
+      </div>
 
       {cloverEnabled ? (
         <CloverLinkDialog
@@ -665,9 +924,7 @@ function rowToForm(row: ProductDetailData): FormInput {
   const priceType =
     row.cloverPriceType === "VARIABLE" || row.cloverPriceType === "PER_UNIT"
       ? row.cloverPriceType
-      : row.cloverPriceType
-        ? "FIXED"
-        : "FIXED";
+      : "FIXED";
   return {
     name: row.name,
     description: row.description ?? "",
@@ -688,5 +945,10 @@ function rowToForm(row: ProductDetailData): FormInput {
     cloverUnitName: row.cloverUnitName,
     cloverColorCode: row.cloverColorCode,
     cloverStockQty: row.cloverStockQty,
+    cloverOnlineName: row.cloverOnlineName,
+    cloverEnabledOnline: row.cloverEnabledOnline ?? false,
+    cloverAgeRestricted: row.cloverAgeRestricted ?? false,
+    cloverDefaultTaxRates: row.cloverDefaultTaxRates ?? false,
+    cloverIsRevenue: row.cloverIsRevenue ?? true,
   };
 }
