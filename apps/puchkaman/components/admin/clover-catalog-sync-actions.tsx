@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2Icon, RefreshCwIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
@@ -31,6 +32,7 @@ export function CloverCatalogSyncActions({
   cloverConnected: boolean;
   showPushCategories?: boolean;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<"pull" | "push" | null>(null);
 
   async function run(direction: "pull" | "push_categories") {
@@ -55,7 +57,9 @@ export function CloverCatalogSyncActions({
         );
       }
       toastSyncErrors(r.errors);
-      window.location.reload();
+      // Soft refresh: a hard reload would destroy the toast that just
+      // reported what the sync did (or what Clover rejected).
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
     } finally {

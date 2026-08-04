@@ -8,8 +8,13 @@ export type SyncErrorLike = {
   message: string;
 };
 
-/** Longer than the default so an API message is actually readable. */
-const ERROR_TOAST_MS = 10_000;
+/**
+ * Diagnostics wait for the reader. An API message like "Developer App Id is
+ * required for get menus from provider" is the whole point of the toast, and
+ * any timeout races whoever is looking at the sync counts instead — so it stays
+ * until dismissed, with a close button since the Toaster has none by default.
+ */
+const ERROR_TOAST_OPTIONS = { duration: Infinity, closeButton: true } as const;
 
 /**
  * Show what the upstream API actually said.
@@ -29,7 +34,7 @@ export function toastSyncErrors(errors: SyncErrorLike[] | undefined, prefix?: st
   const subject = first.entity ?? first.item ?? first.publicId;
   const headline = [prefix, subject, first.message].filter(Boolean).join(": ");
   toast.warning(headline, {
-    duration: ERROR_TOAST_MS,
+    ...ERROR_TOAST_OPTIONS,
     ...(errors.length > 1 ? { description: `+${errors.length - 1} more` } : {}),
   });
 }

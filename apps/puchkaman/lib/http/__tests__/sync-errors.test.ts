@@ -26,6 +26,14 @@ describe("toastSyncErrors", () => {
     expect(warning.mock.calls[0]![1]).not.toHaveProperty("description");
   });
 
+  it("waits to be dismissed rather than timing out", () => {
+    toastSyncErrors([{ entity: "menu", message: "boom" }]);
+    expect(warning.mock.calls[0]![1]).toMatchObject({
+      duration: Infinity,
+      closeButton: true,
+    });
+  });
+
   it("keeps the first message in full and counts the rest", () => {
     toastSyncErrors([
       { entity: "menu", message: "boom" },
