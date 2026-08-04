@@ -34,6 +34,7 @@ import {
   type CreateCheckoutInput,
   type PayCheckoutInput,
 } from "@/lib/orders/checkout-schema";
+import { loadModifierGroupsByProduct, resolveSelectedModifiers } from "@/lib/orders/modifiers";
 import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
@@ -209,6 +210,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     const rows = await db
       .select({
+        id: products.id,
         publicId: products.publicId,
         name: products.name,
         description: products.description,
@@ -232,7 +234,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       )
       .orderBy(asc(products.displayOrder), asc(products.name));
 
-    return rows
+    const orderable = rows
       .filter((r) => {
         if (!cloverConnected) return true;
         return r.cloverAvailable !== false;
@@ -241,18 +243,23 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         if (!cloverConnected) return true;
         if (r.cloverStockQty == null) return true;
         return Number(r.cloverStockQty) > 0;
-      })
-      .map((r) => ({
-        publicId: r.publicId,
-        name: r.name,
-        description: r.description,
-        category: r.category,
-        price: Number(r.price),
-        image: r.image,
-        tags: r.tags,
-        cloverItemId: r.cloverItemId,
-        stockQty: r.cloverStockQty != null ? Number(r.cloverStockQty) : null,
-      }));
+      });
+
+    // Modifier groups drive the picker, so the catalog has to carry them.
+    const groupsByProduct = await loadModifierGroupsByProduct(orderable.map((r) => r.id));
+
+    return orderable.map((r) => ({
+      publicId: r.publicId,
+      name: r.name,
+      description: r.description,
+      category: r.category,
+      price: Number(r.price),
+      image: r.image,
+      tags: r.tags,
+      cloverItemId: r.cloverItemId,
+      stockQty: r.cloverStockQty != null ? Number(r.cloverStockQty) : null,
+      modifierGroups: groupsByProduct.get(r.id.toString()) ?? [],
+    }));
   }
 
   async listAdmin(page = 0, size = 50): Promise<{ rows: OrderListRow[]; total: number }> {
@@ -375,6 +382,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       .where(and(inArray(products.publicId, publicIds), eq(products.active, true)));
 
     const byPublic = new Map(productRows.map((p) => [p.publicId, p]));
+    // Modifier prices come from our Clover mirror, never from the request — whatever
+    // amount we send is what Clover bills, so a client-supplied price would be free money.
+    const groupsByProduct = await loadModifierGroupsByProduct(productRows.map((p) => p.id));
     const lines: OrderPricingSnapshot["lines"] = [];
 
     for (const line of parsed.items) {
@@ -395,13 +405,21 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (!Number.isFinite(unitPrice) || unitPrice < 0) {
         throw new ValidationError(`Invalid price for ${product.name}`);
       }
+      const selected = resolveSelectedModifiers(
+        product.name,
+        groupsByProduct.get(product.id.toString()) ?? [],
+        line.modifiers,
+      );
+      const modifierTotal = selected.reduce((s, m) => s + m.price, 0);
+
       lines.push({
         productPublicId: product.publicId,
         cloverItemId: product.cloverItemId,
         name: product.name,
         unitPrice,
         quantity: line.quantity,
-        lineTotal: Number(money(unitPrice * line.quantity)),
+        lineTotal: Number(money((unitPrice + modifierTotal) * line.quantity)),
+        ...(selected.length ? { modifiers: selected } : {}),
       });
     }
 
@@ -453,7 +471,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // never actually give. Clover applies discounts before tax.
     const atomicInput = {
       lineItems: expandAtomicLineItems(
-        lines.map((l) => ({ itemId: l.cloverItemId, quantity: l.quantity, name: l.name })),
+        lines.map((l) => ({
+          itemId: l.cloverItemId,
+          quantity: l.quantity,
+          name: l.name,
+          // `amount` is mandatory: Clover prices a modification at zero if you send
+          // only the modifier id, so omitting it hands out free upgrades.
+          modifications: (l.modifiers ?? []).map((m) => ({
+            modifierId: m.cloverModifierId,
+            name: m.name,
+            amount: dollarsToCloverCents(m.price),
+          })),
+        })),
       ),
       ...(discountAmount > 0
         ? {
@@ -556,6 +585,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             unitPrice: money(l.unitPrice),
             quantity: l.quantity,
             lineTotal: money(l.lineTotal),
+            selectedModifiers: l.modifiers ?? [],
           };
         }),
       );

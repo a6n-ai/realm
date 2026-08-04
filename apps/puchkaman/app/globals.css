@@ -1161,6 +1161,98 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   border-top: var(--border);
   background: var(--cream);
 }
+/* Product page: image above the details on phones, side by side from tablet up. */
+@media (min-width: 720px) {
+  .product-detail-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+}
+
+/* Modifier sheet — bottom sheet on phones, centred panel from tablet up.
+   Mounted only while open, so it needs no closed/`is-open` state like the cart drawer. */
+.mod-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  cursor: pointer;
+}
+.mod-sheet {
+  position: fixed;
+  z-index: 71;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-top: var(--border);
+  box-shadow: 0 -8px 0 var(--ink);
+  animation: mod-sheet-up 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes mod-sheet-up {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+@media (min-width: 720px) {
+  .mod-sheet {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: min(94vw, 460px);
+    transform: translate(-50%, -50%);
+    border: var(--border);
+    border-radius: 14px;
+    box-shadow: 8px 8px 0 var(--ink);
+    animation: none;
+  }
+}
+.mod-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: var(--border);
+  background: var(--yellow);
+}
+.mod-sheet__close {
+  width: 44px;
+  height: 44px;
+  border: var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: 3px 3px 0 var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+.mod-sheet__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+.mod-sheet__foot {
+  padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: var(--border);
+  background: var(--cream);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mod-sheet {
+    animation: none;
+  }
+}
+
 .cart-remove {
   background: none;
   border: none;

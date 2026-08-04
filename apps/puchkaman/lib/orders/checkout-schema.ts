@@ -3,6 +3,12 @@ import { z } from "zod";
 const cartLineSchema = z.object({
   productPublicId: z.string().min(1),
   quantity: z.number().int().min(1).max(50),
+  /**
+   * Clover modifier ids only. Prices are never accepted from the browser — the
+   * server re-reads each modifier's amount, which is also what gets sent to Clover
+   * (it does not look modifier prices up itself).
+   */
+  modifiers: z.array(z.string().min(1)).max(20).default([]),
 });
 
 const contactSchema = z.object({

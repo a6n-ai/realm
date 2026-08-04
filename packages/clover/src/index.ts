@@ -135,6 +135,7 @@ export {
   mapCloverRemoteToPaymentStatus,
   cloverCheckoutSdkUrl,
   type CloverAtomicLineItemInput,
+  type CloverAtomicModificationInput,
   type CloverAtomicDiscountInput,
   type CloverAtomicOrderInput,
   type CloverAtomicOrderResult,

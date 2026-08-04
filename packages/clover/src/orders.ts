@@ -9,11 +9,28 @@
  * Amounts on Platform are integer cents. Ecommerce pay uses the order total.
  */
 
+/**
+ * A chosen modifier on a line item.
+ *
+ * `amount` is NOT optional in practice: Clover does not look up the modifier's
+ * catalog price. Sending `{modifier: {id}}` alone prices it at zero — verified
+ * against a live merchant, where a $0.99 and a $1.99 modifier both came back free
+ * and the subtotal never moved. Always pass the amount from your own catalog.
+ */
+export type CloverAtomicModificationInput = {
+  /** Clover modifier id. */
+  modifierId: string;
+  name: string;
+  /** Extra charge in cents. */
+  amount: number;
+};
+
 export type CloverAtomicLineItemInput = {
   /** Clover inventory item id. */
   itemId: string;
   /** Optional display override; Clover always takes the inventory price (see note below). */
   name?: string;
+  modifications?: CloverAtomicModificationInput[];
 };
 
 /**
@@ -115,13 +132,23 @@ export type CloverChargeResult = {
 
 /** Expand qty into repeated atomic line refs (Platform atomic uses one row per unit). */
 export function expandAtomicLineItems(
-  lines: { itemId: string; quantity: number; name?: string }[],
+  lines: {
+    itemId: string;
+    quantity: number;
+    name?: string;
+    modifications?: CloverAtomicModificationInput[];
+  }[],
 ): CloverAtomicLineItemInput[] {
   const out: CloverAtomicLineItemInput[] = [];
   for (const line of lines) {
     const qty = Math.max(0, Math.floor(line.quantity));
     for (let i = 0; i < qty; i++) {
-      out.push({ itemId: line.itemId, name: line.name });
+      // Each unit is its own row, so every unit carries its own modifications.
+      out.push({
+        itemId: line.itemId,
+        name: line.name,
+        ...(line.modifications?.length ? { modifications: line.modifications } : {}),
+      });
     }
   }
   return out;
@@ -142,6 +169,16 @@ export function buildAtomicOrderBody(input: CloverAtomicOrderInput): Record<stri
       printed: false,
     };
     if (li.name != null) row.name = li.name;
+    if (li.modifications?.length) {
+      row.modifications = li.modifications.map((m) => {
+        if (!Number.isFinite(m.amount)) {
+          // Guard the free-upgrade failure mode: a modification without a usable
+          // amount is billed at zero by Clover, silently.
+          throw new Error(`modification ${m.modifierId} is missing a numeric amount`);
+        }
+        return { modifier: { id: m.modifierId }, name: m.name, amount: Math.round(m.amount) };
+      });
+    }
     return row;
   });
   const orderCart: Record<string, unknown> = {

@@ -6,7 +6,7 @@ import { groupByCloverSections } from "@/lib/products/public-menu";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, jsonLdHtml } from "@/lib/seo";
 import { EatsView, type EatsCategory } from "./eats-view";
 
 // Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
@@ -63,6 +63,9 @@ async function getEats(): Promise<{
     inventoryCatalogService.publicMenuSections(),
   ]);
   const orderableIds = new Set(orderable.map((o) => o.publicId));
+  // Modifier groups come from the orderable catalog — the picker needs them inline
+  // so choosing options never costs another round trip.
+  const groupsByProduct = new Map(orderable.map((o) => [o.publicId, o.modifierGroups]));
 
   const toItem = (row: (typeof rows)[number]) => ({
     publicId: row.publicId,
@@ -74,6 +77,7 @@ async function getEats(): Promise<{
     orderable: orderingEnabled && orderableIds.has(row.publicId),
     category: row.category,
     cloverColorCode: row.cloverColorCode ?? null,
+    modifierGroups: groupsByProduct.get(row.publicId) ?? [],
   });
 
   // Clover is the inventory source of truth, so when its catalog has been
@@ -117,34 +121,14 @@ async function getEats(): Promise<{
     ...known.map((id: CategoryId) => ({
       id,
       ...CATEGORIES[id],
-      items: (byCategory.get(id) ?? []).map((row) => ({
-        publicId: row.publicId,
-        name: row.name,
-        description: row.description,
-        price: Number(row.price),
-        image: (row.image as FileDetail | null) ?? null,
-        tags: row.tags ?? [],
-        orderable: orderingEnabled && orderableIds.has(row.publicId),
-        category: row.category,
-        cloverColorCode: row.cloverColorCode ?? null,
-      })),
+      items: (byCategory.get(id) ?? []).map(toItem),
     })),
     ...extras.map((id) => ({
       id,
       name: id.charAt(0).toUpperCase() + id.slice(1),
       emoji: "🍽️",
       note: "More from the kitchen.",
-      items: (byCategory.get(id) ?? []).map((row) => ({
-        publicId: row.publicId,
-        name: row.name,
-        description: row.description,
-        price: Number(row.price),
-        image: (row.image as FileDetail | null) ?? null,
-        tags: row.tags ?? [],
-        orderable: orderingEnabled && orderableIds.has(row.publicId),
-        category: row.category,
-        cloverColorCode: row.cloverColorCode ?? null,
-      })),
+      items: (byCategory.get(id) ?? []).map(toItem),
     })),
   ];
 
@@ -156,8 +140,8 @@ export default async function EatsPage() {
   const menuJson = menuJsonLd(categories);
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      {menuJson && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(menuJson) }} />}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(breadcrumb) }} />
+      {menuJson && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(menuJson) }} />}
       <EatsView
         categories={categories}
         totalProducts={totalProducts}

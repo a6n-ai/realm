@@ -43,15 +43,25 @@ export const ledgerEntryType = pgEnum("ledger_entry_type", [
   "adjustment",
 ]);
 
+/** A modifier as ordered. `price` is what was charged, not what the catalog says today. */
+export type OrderItemModifier = {
+  cloverModifierId: string;
+  name: string;
+  price: number;
+};
+
 export type OrderPricingSnapshot = {
   currency: "CAD" | "USD";
   lines: {
     productPublicId: string;
     cloverItemId: string;
     name: string;
+    /** Base price, excluding modifiers. */
     unitPrice: number;
     quantity: number;
+    /** (unitPrice + modifiers) x quantity. */
     lineTotal: number;
+    modifiers?: OrderItemModifier[];
   }[];
   subtotal: number;
   tax: number;
@@ -115,9 +125,16 @@ export const orderItems = pgTable(
       .references(() => products.id),
     cloverItemId: text("clover_item_id").notNull(),
     name: text("name").notNull(),
+    /** Base item price, excluding modifiers. */
     unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
     quantity: integer("quantity").notNull(),
+    /** (unitPrice + modifiers) x quantity. */
     lineTotal: numeric("line_total", { precision: 10, scale: 2 }).notNull(),
+    /** Point-in-time snapshot of the chosen modifiers, priced as charged. */
+    selectedModifiers: jsonb("selected_modifiers")
+      .$type<OrderItemModifier[]>()
+      .notNull()
+      .default([]),
   },
   (t) => [index("order_items_order_idx").on(t.orderId)],
 );

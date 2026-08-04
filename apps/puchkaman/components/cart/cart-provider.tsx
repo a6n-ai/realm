@@ -12,12 +12,15 @@ import {
 } from "react";
 import {
   CART_MAX_LINES,
+  CART_MAX_MODIFIERS,
   CART_MAX_QTY,
   CART_STORAGE_KEY,
   cartCount,
+  cartLineKey,
   cartSubtotal,
   type CartAddInput,
   type CartItem,
+  type CartModifier,
 } from "@/lib/cart/types";
 
 type CartContextValue = {
@@ -32,8 +35,9 @@ type CartContextValue = {
   openDrawer: () => void;
   closeDrawer: () => void;
   addItem: (input: CartAddInput) => void;
-  setQty: (productPublicId: string, quantity: number) => void;
-  removeItem: (productPublicId: string) => void;
+  /** Both take a `cartLineKey`, not a product id — one product can span several lines. */
+  setQty: (lineKey: string, quantity: number) => void;
+  removeItem: (lineKey: string) => void;
   clear: () => void;
 };
 
@@ -47,6 +51,18 @@ function clampQty(n: number) {
 const NO_ITEMS: CartItem[] = [];
 
 const noopSubscribe = () => () => {};
+
+function readStoredModifiers(raw: unknown): CartModifier[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((m) => m && typeof m === "object" && typeof m.cloverModifierId === "string")
+    .slice(0, CART_MAX_MODIFIERS)
+    .map((m) => ({
+      cloverModifierId: String(m.cloverModifierId),
+      name: String(m.name ?? ""),
+      price: Number(m.price) || 0,
+    }));
+}
 
 /** Read the saved cart. Returns empty on the server, on corrupt JSON, or in private mode. */
 function readStoredCart(): CartItem[] {
@@ -65,6 +81,7 @@ function readStoredCart(): CartItem[] {
         price: Number(i.price) || 0,
         category: String(i.category ?? ""),
         quantity: clampQty(Number(i.quantity) || 1),
+        modifiers: readStoredModifiers(i.modifiers),
       }));
   } catch {
     return NO_ITEMS;
@@ -117,7 +134,11 @@ export function CartProvider({
       if (!orderingEnabled) return;
       const addQty = clampQty(input.quantity ?? 1) || 1;
       setItems((prev) => {
-        const idx = prev.findIndex((i) => i.productPublicId === input.productPublicId);
+        const modifiers = (input.modifiers ?? []).slice(0, CART_MAX_MODIFIERS);
+        // Merge only into a line with the identical modifier set — same burger with
+        // and without extra cheese are two different things to order.
+        const key = cartLineKey({ productPublicId: input.productPublicId, modifiers });
+        const idx = prev.findIndex((i) => cartLineKey(i) === key);
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = {
@@ -138,6 +159,7 @@ export function CartProvider({
             price: input.price,
             category: input.category,
             quantity: addQty,
+            modifiers,
           },
         ];
       });
@@ -147,16 +169,17 @@ export function CartProvider({
     [orderingEnabled],
   );
 
-  const setQty = useCallback((productPublicId: string, quantity: number) => {
+  // Keyed by line, not product: a product can now occupy several lines.
+  const setQty = useCallback((lineKey: string, quantity: number) => {
     const q = clampQty(quantity);
     setItems((prev) => {
-      if (q <= 0) return prev.filter((i) => i.productPublicId !== productPublicId);
-      return prev.map((i) => (i.productPublicId === productPublicId ? { ...i, quantity: q } : i));
+      if (q <= 0) return prev.filter((i) => cartLineKey(i) !== lineKey);
+      return prev.map((i) => (cartLineKey(i) === lineKey ? { ...i, quantity: q } : i));
     });
   }, []);
 
-  const removeItem = useCallback((productPublicId: string) => {
-    setItems((prev) => prev.filter((i) => i.productPublicId !== productPublicId));
+  const removeItem = useCallback((lineKey: string) => {
+    setItems((prev) => prev.filter((i) => cartLineKey(i) !== lineKey));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

@@ -23,6 +23,14 @@ describe("expandAtomicLineItems", () => {
       { itemId: "B", name: undefined },
     ]);
   });
+
+  // Every unit is billed separately, so each expanded row needs its own modifiers.
+  it("carries modifications onto every expanded unit", () => {
+    const mods = [{ modifierId: "MOD1", name: "Extra Cheese", amount: 99 }];
+    const out = expandAtomicLineItems([{ itemId: "A", quantity: 3, modifications: mods }]);
+    expect(out).toHaveLength(3);
+    expect(out.every((l) => l.modifications?.length === 1)).toBe(true);
+  });
 });
 
 describe("buildAtomicOrderBody", () => {
@@ -70,6 +78,44 @@ describe("buildAtomicOrderBody", () => {
       orderCart: Record<string, unknown>;
     };
     expect(body.orderCart).not.toHaveProperty("discounts");
+  });
+
+  // Clover prices a modification at zero unless the amount is supplied, so these
+  // two tests are the guard against silently giving away paid modifiers.
+  it("sends each modification with its name and amount", () => {
+    const body = buildAtomicOrderBody({
+      lineItems: [
+        {
+          itemId: "ITEM1",
+          modifications: [{ modifierId: "MOD1", name: "Extra Cheese", amount: 99 }],
+        },
+      ],
+    }) as { orderCart: { lineItems: Record<string, unknown>[] } };
+    expect(body.orderCart.lineItems[0].modifications).toEqual([
+      { modifier: { id: "MOD1" }, name: "Extra Cheese", amount: 99 },
+    ]);
+  });
+
+  it("refuses a modification with a non-numeric amount", () => {
+    expect(() =>
+      buildAtomicOrderBody({
+        lineItems: [
+          {
+            itemId: "ITEM1",
+            modifications: [
+              { modifierId: "MOD1", name: "Extra Cheese", amount: Number.NaN },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/missing a numeric amount/);
+  });
+
+  it("omits modifications when none are chosen", () => {
+    const body = buildAtomicOrderBody({ lineItems: [{ itemId: "ITEM1" }] }) as {
+      orderCart: { lineItems: Record<string, unknown>[] };
+    };
+    expect(body.orderCart.lineItems[0]).not.toHaveProperty("modifications");
   });
 
   it("includes employee when provided", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Btn, Pill } from "@/components/brutal/shared";
-import { money, type CartItem } from "@/lib/cart/types";
+import { cartLineKey, cartUnitPrice, money, type CartItem } from "@/lib/cart/types";
 import { useCart } from "@/components/cart/cart-provider";
 
 export function CartLines({
@@ -31,9 +31,14 @@ export function CartLines({
         gap: compact ? 10 : 14,
       }}
     >
-      {items.map((item) => (
+      {items.map((item) => {
+        // Same product with different modifiers is a distinct line, so every
+        // identity — React key, quantity, removal — keys off the modifier set.
+        const lineKey = cartLineKey(item);
+        const unitPrice = cartUnitPrice(item);
+        return (
         <li
-          key={item.productPublicId}
+          key={lineKey}
           className="card"
           style={{
             padding: compact ? "12px 14px" : "16px 18px",
@@ -58,9 +63,28 @@ export function CartLines({
               >
                 {item.name}
               </h3>
+              {item.modifiers.length ? (
+                <ul
+                  style={{
+                    listStyle: "none",
+                    margin: "6px 0 0",
+                    padding: 0,
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    opacity: 0.8,
+                  }}
+                >
+                  {item.modifiers.map((m) => (
+                    <li key={m.cloverModifierId}>
+                      + {m.name}
+                      {m.price > 0 ? ` (${money(m.price)})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             <strong style={{ fontSize: "1.05rem", flexShrink: 0 }}>
-              {money(item.price * item.quantity)}
+              {money(unitPrice * item.quantity)}
             </strong>
           </div>
           <div className="flex center between" style={{ gap: 10, flexWrap: "wrap" }}>
@@ -69,7 +93,7 @@ export function CartLines({
                 variant="cream"
                 size="sm"
                 aria-label={`Decrease ${item.name}`}
-                onClick={() => setQty(item.productPublicId, item.quantity - 1)}
+                onClick={() => setQty(lineKey, item.quantity - 1)}
                 style={{ minWidth: 44, minHeight: 44 }}
               >
                 −
@@ -84,7 +108,7 @@ export function CartLines({
                 variant="ink"
                 size="sm"
                 aria-label={`Increase ${item.name}`}
-                onClick={() => setQty(item.productPublicId, item.quantity + 1)}
+                onClick={() => setQty(lineKey, item.quantity + 1)}
                 style={{ minWidth: 44, minHeight: 44 }}
               >
                 +
@@ -93,17 +117,18 @@ export function CartLines({
             <button
               type="button"
               className="cart-remove"
-              onClick={() => removeItem(item.productPublicId)}
+              onClick={() => removeItem(lineKey)}
               aria-label={`Remove ${item.name}`}
             >
               Remove
             </button>
           </div>
           <p style={{ fontSize: "0.78rem", fontWeight: 500, opacity: 0.7, margin: 0 }}>
-            Est. {money(item.price)} each · final total set server-side at checkout
+            Est. {money(unitPrice)} each · final total set server-side at checkout
           </p>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

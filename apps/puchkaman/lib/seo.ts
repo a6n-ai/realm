@@ -105,5 +105,18 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
   };
 }
 
+/**
+ * Serialise JSON-LD for injection into a `<script>` tag.
+ *
+ * `JSON.stringify` does not escape `<`, so a value containing `</script>` would close
+ * the tag early and let the rest execute as markup. Product names and descriptions come
+ * from the Clover catalog, which is merchant-authored data we do not control, so use
+ * this rather than stringify-ing straight into `dangerouslySetInnerHTML`.
+ * `<` is valid inside a JSON string and parses back to `<`.
+ */
+export function jsonLdHtml(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
 /** Address string reused where full NAP text is needed inline (e.g. schema descriptions). */
 export const ADDRESS_LINE = ADDRESS;

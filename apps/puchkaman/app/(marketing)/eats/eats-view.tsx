@@ -8,6 +8,7 @@ import { Btn, Ph, PageBanner, Pill } from "@/components/brutal/shared";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import { ProductImage } from "@/components/products/product-image";
 import { PUBLIC_ORDERING_UNAVAILABLE_MESSAGE } from "@/lib/clover/public-ordering-copy";
+import type { PublicModifierGroup } from "@/lib/orders/modifier-types";
 import { TAG_STYLE } from "@/lib/menu-categories";
 
 export type EatsItem = {
@@ -21,6 +22,8 @@ export type EatsItem = {
   orderable: boolean;
   category: string;
   cloverColorCode: string | null;
+  /** Empty when the product takes no options — then adding is one click. */
+  modifierGroups: PublicModifierGroup[];
 };
 
 export type EatsCategory = {
@@ -268,7 +271,13 @@ export function EatsView({
                             size={12}
                             className="rounded-[1px] border-[1.5px] border-[var(--ink)] mt-[4px]"
                           />
-                          <span className="clamp-2" style={{ minWidth: 0 }}>{item.name}</span>
+                          <Link
+                            href={`/eats/${item.publicId}`}
+                            className="clamp-2"
+                            style={{ minWidth: 0 }}
+                          >
+                            {item.name}
+                          </Link>
                         </h3>
                         <span className="display" style={{ fontSize: "1.12rem", color: "var(--green)", flexShrink: 0, lineHeight: 1.15 }}>
                           ${item.price.toFixed(0)}
@@ -285,6 +294,7 @@ export function EatsView({
                           {item.orderable ? (
                             <AddToCartButton
                               block
+                              groups={item.modifierGroups}
                               item={{
                                 productPublicId: item.publicId,
                                 name: item.name,

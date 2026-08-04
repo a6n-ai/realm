@@ -112,6 +112,8 @@ export function CheckoutClient({
           items: items.map((i) => ({
             productPublicId: i.productPublicId,
             quantity: i.quantity,
+            // Ids only — the server re-reads every modifier price.
+            modifiers: i.modifiers.map((m) => m.cloverModifierId),
           })),
           contact: {
             name: name.trim(),

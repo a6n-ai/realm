@@ -1,0 +1,1 @@
+ALTER TABLE "order_items" ADD COLUMN "selected_modifiers" jsonb DEFAULT '[]'::jsonb NOT NULL;
