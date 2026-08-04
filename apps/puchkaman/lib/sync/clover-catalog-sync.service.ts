@@ -40,6 +40,7 @@ import {
   taxRatesRepository,
   menusRepository,
   menuItemsRepository,
+  menuSectionsRepository,
   modifierGroupsRepository,
   modifiersRepository,
   productCategoriesRepository,
@@ -57,7 +58,7 @@ export type CloverCatalogPullResult = {
   discounts: { upserted: number; inactivated: number };
   taxRates: { upserted: number; inactivated: number };
   printerLabels: { upserted: number; inactivated: number };
-  menus: { upserted: number; inactivated: number };
+  menus: { upserted: number; inactivated: number; legacyRemoved: number };
   links: {
     categoryItems: number;
     productModifierGroups: number;
@@ -85,7 +86,7 @@ class CloverCatalogSyncService {
       discounts: { upserted: 0, inactivated: 0 },
       taxRates: { upserted: 0, inactivated: 0 },
       printerLabels: { upserted: 0, inactivated: 0 },
-      menus: { upserted: 0, inactivated: 0 },
+      menus: { upserted: 0, inactivated: 0, legacyRemoved: 0 },
       links: { categoryItems: 0, productModifierGroups: 0, menuItems: 0 },
       errors: [],
     };
@@ -287,6 +288,27 @@ class CloverCatalogSyncService {
         await printerLabelsRepository.updateByInternalId(local.id, { active: false });
         result.printerLabels.inactivated += 1;
       }
+    }
+
+    // ── Legacy fabricated menus ─────────────────────────────────────────────
+    // Menus used to be invented locally from categories (a "Register" menu
+    // Clover never had). Those rows carry no cloverMenuId, so the "gone from
+    // Clover" check below can never see them and they would linger forever.
+    // This runs *before* and outside the mirror's try: when listMenus fails
+    // (an API-token connection cannot read menus), the cleanup must still
+    // happen — otherwise the fabricated row outlives the code that made it.
+    try {
+      for (const local of await menusRepository.findAll()) {
+        if (local.cloverMenuId) continue;
+        await menuSectionsRepository.deleteByMenuId(local.id);
+        await menusRepository.deleteByInternalId(local.id);
+        result.menus.legacyRemoved += 1;
+      }
+    } catch (err) {
+      result.errors.push({
+        entity: "menu",
+        message: `legacy menu cleanup: ${err instanceof Error ? err.message : String(err)}`,
+      });
     }
 
     // ── Online-ordering menus ───────────────────────────────────────────────

@@ -179,6 +179,10 @@ export class MenusRepository extends UpdatableRepository<typeof menus> {
     return row ?? null;
   }
 
+  async deleteByInternalId(id: bigint): Promise<void> {
+    await this.db.delete(menus).where(eq(menus.id, id));
+  }
+
   async findByCloverMenuId(cloverMenuId: string): Promise<MenuRow | null> {
     const [row] = await this.db
       .select()
@@ -207,6 +211,10 @@ export class MenusRepository extends UpdatableRepository<typeof menus> {
 export class MenuSectionsRepository extends UpdatableRepository<typeof menuSections> {
   async findByMenuId(menuId: bigint): Promise<MenuSectionRow[]> {
     return this.db.select().from(menuSections).where(eq(menuSections.menuId, menuId));
+  }
+
+  async deleteByMenuId(menuId: bigint): Promise<void> {
+    await this.db.delete(menuSections).where(eq(menuSections.menuId, menuId));
   }
 
   async findByMenuAndCategory(

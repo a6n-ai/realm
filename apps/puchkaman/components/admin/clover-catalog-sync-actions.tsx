@@ -19,7 +19,7 @@ type SyncResponse = {
     menus?: { upserted: number; inactivated: number };
     created?: string[];
     updated?: string[];
-    errors?: Array<{ message: string }>;
+    errors?: Array<{ entity?: string; message: string }>;
   };
 };
 
@@ -54,7 +54,16 @@ export function CloverCatalogSyncActions({
         );
       }
       if (r.errors?.length) {
-        toast.warning(`${r.errors.length} sync warning(s)`);
+        // A partial sync used to report only a count, which meant a real
+        // failure ("Developer App Id is required for get menus from provider")
+        // was only readable by querying the audit log. Show what Clover said.
+        const first = r.errors[0]!;
+        toast.warning(
+          [first.entity, first.message].filter(Boolean).join(": "),
+          r.errors.length > 1
+            ? { description: `+${r.errors.length - 1} more sync warning(s)`, duration: 10000 }
+            : { duration: 10000 },
+        );
       }
       window.location.reload();
     } catch (err) {
