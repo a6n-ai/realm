@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
@@ -30,19 +30,24 @@ type AddressCheck =
   | { eligible: true; tier: "instant" | "scheduled"; distanceKm: number; minSubtotal?: number }
   | { eligible: false; reason: string };
 
-export function CheckoutClient() {
+export function CheckoutClient({
+  initialFulfillment = "pickup",
+}: {
+  /** Resolved server-side from ?fulfillment= so the first render is already correct. */
+  initialFulfillment?: Fulfillment;
+}) {
   const { items, subtotal, clear, hydrated } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
-  const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
+  const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
   const [address, setAddress] = useState("");
   const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
   const [addressChecking, setAddressChecking] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
   const [minScheduledFor] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16));
-  const [step, setStep] = useState<Step>("review");
+  const [stepState, setStep] = useState<Step>("review");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<CheckoutSession | null>(null);
@@ -73,21 +78,10 @@ export function CheckoutClient() {
     setTokenize(() => fn);
   }, []);
 
-  // Order Direct / Schedule Delivery on /order link here with ?fulfillment=delivery
-  // so customers don't have to re-select what they just told us they wanted.
-  // Read via window.location instead of useSearchParams() to avoid a Suspense
-  // boundary requirement for something this minor.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("fulfillment") === "delivery") {
-      setFulfillment("delivery");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (step === "pay" && items.length === 0 && !session) {
-      setStep("review");
-    }
-  }, [items.length, session, step]);
+  // An emptied cart with no checkout session can't be paid for — fall back to review.
+  // Derived rather than corrected in an effect, so there is no render showing "pay"
+  // for a cart that has nothing in it.
+  const step = stepState === "pay" && items.length === 0 && !session ? "review" : stepState;
 
   async function startCheckout() {
     setError(null);

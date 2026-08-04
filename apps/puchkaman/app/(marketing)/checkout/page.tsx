@@ -14,8 +14,19 @@ export const metadata: Metadata = buildMetadata({
   noIndex: true,
 });
 
-export default async function CheckoutPage() {
-  const orderingEnabled = await isPublicOrderingEnabled();
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fulfillment?: string }>;
+}) {
+  const [orderingEnabled, params] = await Promise.all([
+    isPublicOrderingEnabled(),
+    searchParams,
+  ]);
+  // Order Direct / Schedule Delivery link here with ?fulfillment=delivery so customers
+  // don't re-select what they just told us. Resolved on the server, so the client never
+  // has to read window.location after mount.
+  const initialFulfillment = params.fulfillment === "delivery" ? "delivery" : "pickup";
 
   return (
     <div>
@@ -34,7 +45,11 @@ export default async function CheckoutPage() {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ maxWidth: 960 }}>
           <Reveal>
-            {orderingEnabled ? <CheckoutClient /> : <OrderingUnavailableNotice title="Checkout coming soon" />}
+            {orderingEnabled ? (
+              <CheckoutClient initialFulfillment={initialFulfillment} />
+            ) : (
+              <OrderingUnavailableNotice title="Checkout coming soon" />
+            )}
           </Reveal>
           <div style={{ marginTop: 20 }}>
             {orderingEnabled ? (

@@ -110,11 +110,12 @@ function Logo({
 /* ---------- Nav ---------- */
 export function Nav() {
   const current = usePageName();
-  const [open, setOpen] = useState(false);
+  // Remember which page the drawer was opened on. Navigating changes `current`, so
+  // the drawer closes on its own — no route-watching effect to reset it.
+  const [openForPage, setOpenForPage] = useState<string | null>(null);
+  const open = openForPage === current;
+  const setOpen = (next: boolean) => setOpenForPage(next ? current : null);
 
-  useEffect(() => {
-    setOpen(false);
-  }, [current]);
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {

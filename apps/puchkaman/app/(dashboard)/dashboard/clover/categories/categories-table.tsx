@@ -109,7 +109,12 @@ export function CategoriesTable({
         )}
       />
       <ListPagination page={page} size={size} total={total} />
-      <CategoryEditDialog category={editing} onOpenChange={(open) => !open && setEditing(null)} />
+      {/* key remounts the form for each row, so its fields reseed from the new category. */}
+      <CategoryEditDialog
+        key={editing?.publicId ?? "none"}
+        category={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+      />
     </div>
   );
 }

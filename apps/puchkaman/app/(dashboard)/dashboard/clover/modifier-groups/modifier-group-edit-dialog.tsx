@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "@realm/design-system";
@@ -27,25 +27,20 @@ export function ModifierGroupEditDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [alternateName, setAlternateName] = useState("");
-  const [minRequired, setMinRequired] = useState("");
-  const [maxAllowed, setMaxAllowed] = useState("");
-  const [showByDefault, setShowByDefault] = useState(true);
-  const [sortOrder, setSortOrder] = useState("0");
-  const [active, setActive] = useState(true);
+  // Seeded straight from the row; the caller remounts on a new group via `key`,
+  // so there is no prop-to-state sync effect to keep in step.
+  const [name, setName] = useState(group?.name ?? "");
+  const [alternateName, setAlternateName] = useState(group?.alternateName ?? "");
+  const [minRequired, setMinRequired] = useState(
+    group?.minRequired == null ? "" : String(group.minRequired),
+  );
+  const [maxAllowed, setMaxAllowed] = useState(
+    group?.maxAllowed == null ? "" : String(group.maxAllowed),
+  );
+  const [showByDefault, setShowByDefault] = useState(group?.showByDefault ?? true);
+  const [sortOrder, setSortOrder] = useState(String(group?.sortOrder ?? 0));
+  const [active, setActive] = useState(group?.active ?? true);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!group) return;
-    setName(group.name);
-    setAlternateName(group.alternateName ?? "");
-    setMinRequired(group.minRequired == null ? "" : String(group.minRequired));
-    setMaxAllowed(group.maxAllowed == null ? "" : String(group.maxAllowed));
-    setShowByDefault(group.showByDefault);
-    setSortOrder(String(group.sortOrder));
-    setActive(group.active);
-  }, [group]);
 
   const min = numOrNull(minRequired);
   const max = numOrNull(maxAllowed);

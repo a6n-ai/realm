@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
@@ -42,6 +43,34 @@ function clampQty(n: number) {
   return Math.max(0, Math.min(CART_MAX_QTY, Math.floor(n)));
 }
 
+/** Stable empty reference so the pre-hydration value never re-triggers memos. */
+const NO_ITEMS: CartItem[] = [];
+
+const noopSubscribe = () => () => {};
+
+/** Read the saved cart. Returns empty on the server, on corrupt JSON, or in private mode. */
+function readStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return NO_ITEMS;
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return NO_ITEMS;
+    const parsed = JSON.parse(raw) as CartItem[];
+    if (!Array.isArray(parsed)) return NO_ITEMS;
+    return parsed
+      .filter((i) => i?.productPublicId && i.quantity > 0)
+      .slice(0, CART_MAX_LINES)
+      .map((i) => ({
+        productPublicId: String(i.productPublicId),
+        name: String(i.name ?? "Item"),
+        price: Number(i.price) || 0,
+        category: String(i.category ?? ""),
+        quantity: clampQty(Number(i.quantity) || 1),
+      }));
+  } catch {
+    return NO_ITEMS;
+  }
+}
+
 export function CartProvider({
   children,
   orderingEnabled = true,
@@ -49,36 +78,21 @@ export function CartProvider({
   children: ReactNode;
   orderingEnabled?: boolean;
 }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  // Storage is read once during the lazy initialiser rather than in an effect.
+  const [items, setItems] = useState<CartItem[]>(readStoredCart);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [badgePulse, setBadgePulse] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as CartItem[];
-        if (Array.isArray(parsed)) {
-          setItems(
-            parsed
-              .filter((i) => i?.productPublicId && i.quantity > 0)
-              .slice(0, CART_MAX_LINES)
-              .map((i) => ({
-                productPublicId: String(i.productPublicId),
-                name: String(i.name ?? "Item"),
-                price: Number(i.price) || 0,
-                category: String(i.category ?? ""),
-                quantity: clampQty(Number(i.quantity) || 1),
-              })),
-          );
-        }
-      }
-    } catch {
-      /* ignore corrupt storage */
-    }
-    setHydrated(true);
-  }, []);
+  // False on the server AND on the hydration pass, true immediately after. Consumers
+  // therefore render an empty cart while hydrating — matching the server output — and
+  // the saved cart appears on the next commit. Exposing `items` directly would make
+  // the badge count differ between server and client and break hydration.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const visibleItems = hydrated ? items : NO_ITEMS;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -149,10 +163,10 @@ export function CartProvider({
 
   const value = useMemo<CartContextValue>(
     () => ({
-      items,
+      items: visibleItems,
       hydrated,
-      count: cartCount(items),
-      subtotal: cartSubtotal(items),
+      count: cartCount(visibleItems),
+      subtotal: cartSubtotal(visibleItems),
       drawerOpen,
       badgePulse,
       orderingEnabled,
@@ -164,7 +178,7 @@ export function CartProvider({
       clear,
     }),
     [
-      items,
+      visibleItems,
       hydrated,
       drawerOpen,
       badgePulse,

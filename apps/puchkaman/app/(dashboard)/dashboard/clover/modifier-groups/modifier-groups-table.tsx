@@ -132,7 +132,12 @@ export function ModifierGroupsTable({
         )}
       />
       <ListPagination page={page} size={size} total={total} />
-      <ModifierGroupEditDialog group={editing} onOpenChange={(open) => !open && setEditing(null)} />
+      {/* key remounts the form for each row, so its fields reseed from the new group. */}
+      <ModifierGroupEditDialog
+        key={editing?.publicId ?? "none"}
+        group={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+      />
     </div>
   );
 }

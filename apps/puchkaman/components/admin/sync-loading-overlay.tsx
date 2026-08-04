@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Loader2Icon } from "lucide-react";
+
+const noopSubscribe = () => () => {};
 
 /**
  * Full-viewport blocking overlay while a Clover/Uber admin sync is in flight.
@@ -15,11 +17,13 @@ export function SyncLoadingOverlay({
   open: boolean;
   label?: string;
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // `createPortal` needs document.body, which only exists on the client. The store
+  // reports false on the server and true after hydration — no mount-flag effect.
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (!open) return;

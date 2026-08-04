@@ -264,6 +264,7 @@ export function ProductsTable({
       />
       {cloverEnabled ? (
         <CloverLinkDialog
+          key={cloverLinking?.publicId ?? "none"}
           open={!!cloverLinking}
           onOpenChange={(open) => !open && setCloverLinking(null)}
           product={

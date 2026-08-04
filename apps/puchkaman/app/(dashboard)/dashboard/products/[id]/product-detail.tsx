@@ -907,6 +907,7 @@ export function ProductDetail({
 
       {cloverEnabled ? (
         <CloverLinkDialog
+          key={linkOpen ? "open" : "closed"}
           open={linkOpen}
           onOpenChange={setLinkOpen}
           product={{

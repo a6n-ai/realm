@@ -36,16 +36,11 @@ export function CloverLinkDialog({
 
   const linked = Boolean(product?.cloverItemId);
 
+  // Fetch only. The caller remounts this dialog per open via `key`, so state starts
+  // clean and there is nothing to reset synchronously here.
   useEffect(() => {
-    if (!open || !product || linked) {
-      setItems(null);
-      setSelected(null);
-      setLoadError(null);
-      return;
-    }
+    if (!open || !product || linked) return;
     let cancelled = false;
-    setItems(null);
-    setLoadError(null);
     void (async () => {
       try {
         const res = await apiFetch<{ items: CloverUnlinkedItem[] }>(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ResponsiveDialog } from "@realm/design-system";
@@ -25,19 +25,13 @@ export function CategoryEditDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [sortOrder, setSortOrder] = useState("0");
-  const [colorCode, setColorCode] = useState("");
-  const [active, setActive] = useState(true);
+  // Seeded straight from the row; the caller remounts on a new category via `key`,
+  // so there is no prop-to-state sync effect to keep in step.
+  const [name, setName] = useState(category?.name ?? "");
+  const [sortOrder, setSortOrder] = useState(String(category?.sortOrder ?? 0));
+  const [colorCode, setColorCode] = useState(category?.colorCode ?? "");
+  const [active, setActive] = useState(category?.active ?? true);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!category) return;
-    setName(category.name);
-    setSortOrder(String(category.sortOrder));
-    setColorCode(category.colorCode ?? "");
-    setActive(category.active);
-  }, [category]);
 
   async function save() {
     if (!category) return;

@@ -26,7 +26,6 @@ import {
   pricesEqual,
 } from "./clover-inventory-match";
 import type {
-  CloverAmbiguousMatch,
   CloverMatchIncoming,
   CloverPullOneResult,
   CloverPullResult,
