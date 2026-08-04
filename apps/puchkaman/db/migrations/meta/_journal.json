@@ -15,6 +15,13 @@
       "when": 1785783084965,
       "tag": "0001_faithful_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785814020365,
+      "tag": "0002_dark_catseye",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,17 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { BookOpenIcon } from "lucide-react";
+import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
 import { NotFoundError } from "@realm/commons";
 import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { Badge } from "@realm/ui/badge";
+import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
-import { MenuDetail } from "./menu-detail";
 
 export const dynamic = "force-dynamic";
 
@@ -24,33 +27,107 @@ export default function MenuDetailPage({ params }: { params: Promise<{ id: strin
 
 async function MenuDetailLoader({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
-  const { id } = await params;
-
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
 
-  const [menu, categories] = await Promise.all([
-    inventoryCatalogService.menus.getDetail(id).catch((e) => {
-      if (e instanceof NotFoundError) return null;
-      throw e;
-    }),
-    inventoryCatalogService.listCategoryOptions(),
-  ]);
+  const { id } = await params;
+  const data = await inventoryCatalogService.menus.menuWithItems(id).catch((e) => {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  });
+  if (!data) notFound();
 
-  if (!menu) notFound();
+  const { menu, items } = data;
+  const markups = items.filter((i) => i.basePrice != null && i.price !== i.basePrice).length;
 
   return (
     <>
       <PageHeader
         icon={BookOpenIcon}
         title={menu.name}
-        subtitle="Edit menu sections (categories) and save. Order mirrors Clover Register category sort."
+        subtitle="Clover online-ordering menu. Items and prices are managed in Clover."
       />
-      <MenuDetail
-        menu={menu}
-        categories={categories}
-        cloverConnected={Boolean(clover.connected && clover.merchantId)}
-      />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button type="button" variant="ghost" size="sm" className="gap-1.5" asChild>
+          <Link href="/dashboard/clover/menus">
+            <ArrowLeftIcon className="size-3.5" />
+            Menus
+          </Link>
+        </Button>
+        <Badge variant={menu.cloverPublishedAt ? "secondary" : "outline"}>
+          {menu.cloverPublishedAt ? "Published" : "Draft"}
+        </Badge>
+        {menu.cloverMenuType ? <Badge variant="outline">{menu.cloverMenuType}</Badge> : null}
+        {menu.cloverFallbackMenu ? <Badge variant="outline">Fallback</Badge> : null}
+        {menu.cloverProviderIds?.length ? (
+          <span className="text-muted-foreground font-mono text-xs">
+            {menu.cloverProviderIds.join(", ")}
+          </span>
+        ) : null}
+      </div>
+
+      <SectionCard
+        title="Items on this menu"
+        subtitle={
+          markups
+            ? `${items.length} item${items.length === 1 ? "" : "s"} · ${markups} priced above the register`
+            : `${items.length} item${items.length === 1 ? "" : "s"}`
+        }
+      >
+        {items.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-sm">
+            No items on this menu yet. Run Sync from Clover.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Register price</TableHead>
+                <TableHead className="text-right">Menu price</TableHead>
+                <TableHead className="text-right">Markup</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const markup =
+                  item.basePrice == null ? null : Number((item.price - item.basePrice).toFixed(2));
+                return (
+                  <TableRow key={item.publicId}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/dashboard/products/${item.productPublicId}`}
+                        className="hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {item.basePrice == null ? "—" : `$${item.basePrice.toFixed(2)}`}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      ${item.price.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {markup == null || markup === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        `${markup > 0 ? "+" : ""}$${markup.toFixed(2)}`
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.enabled ? "default" : "outline"}>
+                        {item.enabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </SectionCard>
     </>
   );
 }
@@ -59,11 +136,11 @@ function MenuDetailSkeleton() {
   return (
     <>
       <PageHeader icon={BookOpenIcon} title="Menu" subtitle="Loading…" />
-      <SectionCard title="Menu">
+      <SectionCard title="Items on this menu">
         <div className="space-y-3">
           <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-3/4" />
-          <Skeleton className="h-24 w-full" />
         </div>
       </SectionCard>
     </>

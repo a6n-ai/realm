@@ -16,7 +16,7 @@ type SyncResponse = {
     discounts?: { upserted: number; inactivated: number };
     taxRates?: { upserted: number; inactivated: number };
     printerLabels?: { upserted: number; inactivated: number };
-    menus?: { upserted: number };
+    menus?: { upserted: number; inactivated: number };
     created?: string[];
     updated?: string[];
     errors?: Array<{ message: string }>;
@@ -46,7 +46,7 @@ export function CloverCatalogSyncActions({
       const r = res.result;
       if (direction === "pull") {
         toast.success(
-          `Pulled: ${r.categories?.upserted ?? 0} categories, ${r.modifierGroups?.upserted ?? 0} modifier groups, ${r.discounts?.upserted ?? 0} discounts, ${r.taxRates?.upserted ?? 0} taxes, ${r.printerLabels?.upserted ?? 0} labels`,
+          `Pulled: ${r.categories?.upserted ?? 0} categories, ${r.modifierGroups?.upserted ?? 0} modifier groups, ${r.discounts?.upserted ?? 0} discounts, ${r.taxRates?.upserted ?? 0} taxes, ${r.printerLabels?.upserted ?? 0} labels, ${r.menus?.upserted ?? 0} menus`,
         );
       } else {
         toast.success(

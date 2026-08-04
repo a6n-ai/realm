@@ -19,6 +19,8 @@ import {
   normalizeCloverDiscount,
   normalizeCloverTaxRate,
   normalizeCloverTag,
+  normalizeCloverMenu,
+  normalizeCloverMenuItem,
   normalizeCloverItem,
   normalizeCloverModifier,
   normalizeCloverModifierGroup,
@@ -28,6 +30,8 @@ import {
   type CloverDiscount,
   type CloverTaxRate,
   type CloverTag,
+  type CloverMenu,
+  type CloverMenuItem,
   type CloverDiscountCreateInput,
   type CloverDiscountUpdateInput,
   type CloverElements,
@@ -531,6 +535,22 @@ export class CloverApiClient {
     await this.post(this.merchantPath("tag_items?delete=true"), {
       elements: [{ tag: { id: tagId }, item: { id: itemId } }],
     });
+  }
+
+  // ── Online-ordering menus ─────────────────────────────────────────────────
+
+  /** Unlike every other inventory endpoint this one answers `{menus: [...]}`. */
+  async listMenus(): Promise<CloverMenu[]> {
+    const data = await this.get<{ menus?: unknown[] }>(this.merchantPath("menus"));
+    return Array.isArray(data.menus) ? data.menus.map((el) => normalizeCloverMenu(el)) : [];
+  }
+
+  /** A menu's item list, each with that menu's own price. Answers `{items: [...]}`. */
+  async listMenuItems(menuId: string): Promise<CloverMenuItem[]> {
+    const data = await this.get<{ items?: unknown[] }>(
+      this.merchantPath(`menus/${encodeURIComponent(menuId)}/items`),
+    );
+    return Array.isArray(data.items) ? data.items.map((el) => normalizeCloverMenuItem(el)) : [];
   }
 
   // ── Inventory: discounts ──────────────────────────────────────────────────

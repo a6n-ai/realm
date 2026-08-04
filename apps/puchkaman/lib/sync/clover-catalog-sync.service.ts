@@ -12,12 +12,13 @@
  * - tax_rates          → tax_rates
  * - tags               → printer_labels
  * (item ↔ tax_rate / tag links ride on the item pull, which expands taxRates,tags)
- * - (no Menus API)     → menus + menu_sections built from categories
+ * - menus              → menus (Clover online-ordering menus, one per channel)
+ * - menus/{id}/items   → menu_items (that channel's price for each product)
  *
  * Pull is SoT: missing remote rows are marked inactive (not deleted).
  * Category push is implemented; other entity pushes are stubs for a later pass.
  *
- * Deferred: checkout modifier UX, checkout discount engine, Online Ordering menus API.
+ * Deferred: checkout modifier UX, checkout discount engine.
  */
 
 import {
@@ -27,6 +28,7 @@ import {
   type CloverCategory,
   type CloverDiscount,
   type CloverModifier,
+  type CloverMenu,
   type CloverModifierGroup,
   type CloverTag,
   type CloverTaxRate,
@@ -37,7 +39,7 @@ import {
   printerLabelsRepository,
   taxRatesRepository,
   menusRepository,
-  menuSectionsRepository,
+  menuItemsRepository,
   modifierGroupsRepository,
   modifiersRepository,
   productCategoriesRepository,
@@ -48,8 +50,6 @@ import {
 } from "@/lib/services/inventory.repository";
 import { productsRepository } from "@/lib/services/products.repository";
 
-const REGISTER_MENU_NAME = "Register";
-
 export type CloverCatalogPullResult = {
   categories: { upserted: number; inactivated: number };
   modifierGroups: { upserted: number; inactivated: number };
@@ -57,11 +57,11 @@ export type CloverCatalogPullResult = {
   discounts: { upserted: number; inactivated: number };
   taxRates: { upserted: number; inactivated: number };
   printerLabels: { upserted: number; inactivated: number };
-  menus: { upserted: number };
+  menus: { upserted: number; inactivated: number };
   links: {
     categoryItems: number;
     productModifierGroups: number;
-    menuSections: number;
+    menuItems: number;
   };
   errors: Array<{ entity: string; id?: string; message: string }>;
 };
@@ -85,8 +85,8 @@ class CloverCatalogSyncService {
       discounts: { upserted: 0, inactivated: 0 },
       taxRates: { upserted: 0, inactivated: 0 },
       printerLabels: { upserted: 0, inactivated: 0 },
-      menus: { upserted: 0 },
-      links: { categoryItems: 0, productModifierGroups: 0, menuSections: 0 },
+      menus: { upserted: 0, inactivated: 0 },
+      links: { categoryItems: 0, productModifierGroups: 0, menuItems: 0 },
       errors: [],
     };
 
@@ -289,43 +289,33 @@ class CloverCatalogSyncService {
       }
     }
 
-    // ── Register menu (from categories) ─────────────────────────────────────
+    // ── Online-ordering menus ───────────────────────────────────────────────
+    // Clover owns these (one per delivery channel), so this is a pure mirror:
+    // menus, then each menu's item list with that channel's own price.
     try {
-      let menu = await menusRepository.findByName(REGISTER_MENU_NAME);
-      if (!menu) {
-        menu = await menusRepository.create({
-          name: REGISTER_MENU_NAME,
-          sortOrder: 0,
-          active: true,
-          cloverLastSyncedAt: now,
-        });
-      } else {
-        await menusRepository.updateByInternalId(menu.id, {
-          active: true,
-          cloverLastSyncedAt: now,
-        });
-        menu = (await menusRepository.findByName(REGISTER_MENU_NAME))!;
-      }
-      result.menus.upserted = 1;
+      const cloverMenus = await client.listMenus();
+      const seenMenuIds = new Set<string>();
 
-      const activeCats = [...categoryByCloverId.values()]
-        .filter((c) => c.active)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
-
-      for (const cat of activeCats) {
-        const existing = await menuSectionsRepository.findByMenuAndCategory(menu.id, cat.id);
-        if (existing) {
-          await menuSectionsRepository.updateByPublicId(existing.publicId, {
-            sortOrder: cat.sortOrder,
-          });
-        } else {
-          await menuSectionsRepository.create({
-            menuId: menu.id,
-            categoryId: cat.id,
-            sortOrder: cat.sortOrder,
+      for (const menu of cloverMenus) {
+        try {
+          const menuRow = await this.upsertMenu(menu, now);
+          seenMenuIds.add(menu.id);
+          result.menus.upserted += 1;
+          result.links.menuItems += await this.syncMenuItems(client, menu.id, menuRow.id, now);
+        } catch (err) {
+          result.errors.push({
+            entity: "menu",
+            id: menu.id,
+            message: err instanceof Error ? err.message : String(err),
           });
         }
-        result.links.menuSections += 1;
+      }
+
+      for (const local of await menusRepository.findAll()) {
+        if (local.cloverMenuId && !seenMenuIds.has(local.cloverMenuId) && local.active) {
+          await menusRepository.updateByInternalId(local.id, { active: false });
+          result.menus.inactivated += 1;
+        }
       }
     } catch (err) {
       result.errors.push({
@@ -542,6 +532,66 @@ class CloverCatalogSyncService {
       return (await printerLabelsRepository.updateByInternalId(existing.id, patch)) ?? existing;
     }
     return printerLabelsRepository.create(patch);
+  }
+
+  private async upsertMenu(menu: CloverMenu, now: number) {
+    const patch = {
+      name: menu.name,
+      active: true,
+      cloverMenuId: menu.id,
+      cloverMenuType: menu.menuType ?? null,
+      cloverProviderIds: menu.providerIds,
+      cloverPublishedAt: menu.publishedAt ?? null,
+      cloverFallbackMenu: menu.fallbackMenu === true,
+      cloverLastSyncedAt: now,
+    };
+    const existing = await menusRepository.findByCloverMenuId(menu.id);
+    if (existing) {
+      return (await menusRepository.updateByInternalId(existing.id, patch)) ?? existing;
+    }
+    return menusRepository.create(patch);
+  }
+
+  /**
+   * Mirror one menu's item list. Items Clover no longer lists are removed
+   * outright rather than deactivated: a menu_items row only exists to record a
+   * price on a menu, so a stale one is a wrong price, not history.
+   */
+  private async syncMenuItems(
+    client: CloverApiClient,
+    cloverMenuId: string,
+    menuId: bigint,
+    now: number,
+  ): Promise<number> {
+    const items = await client.listMenuItems(cloverMenuId);
+    const seen = new Set<string>();
+    let written = 0;
+
+    for (const item of items) {
+      const product = await productsRepository.findByCloverItemId(item.id);
+      if (!product) continue;
+      seen.add(String(product.id));
+      const patch = {
+        price: String(cloverCentsToDollars(item.price)),
+        basePrice: item.basePrice != null ? String(cloverCentsToDollars(item.basePrice)) : null,
+        enabled: item.enabled !== false,
+        cloverLastSyncedAt: now,
+      };
+      const existing = await menuItemsRepository.findByMenuAndProduct(menuId, product.id);
+      if (existing) {
+        await menuItemsRepository.updateByPublicId(existing.publicId, patch);
+      } else {
+        await menuItemsRepository.create({ menuId, productId: product.id, ...patch });
+      }
+      written += 1;
+    }
+
+    for (const row of await menuItemsRepository.findByMenu(menuId)) {
+      if (!seen.has(String(row.productId))) {
+        await menuItemsRepository.deleteByMenuAndProduct(menuId, row.productId);
+      }
+    }
+    return written;
   }
 
   private async upsertDiscount(disc: CloverDiscount, now: number) {

@@ -430,6 +430,85 @@ export function normalizeCloverTaxRate(raw: unknown): CloverTaxRate {
   };
 }
 
+/**
+ * Online-ordering menu (`/v3/merchants/{mId}/menus`).
+ *
+ * Note the envelope: this endpoint returns `{menus: [...]}` and its items
+ * endpoint returns `{items: [...]}`, not the `{elements: [...]}` every other
+ * inventory endpoint uses.
+ */
+export type CloverMenu = {
+  id: string;
+  name: string;
+  /** Provider ids this menu publishes to. Clover exposes no name lookup. */
+  providerIds: string[];
+  menuType?: string | null;
+  fallbackMenu?: boolean;
+  /** Epoch ms; absent when the menu has never been published. */
+  publishedAt?: number | null;
+  hasMenuItems?: boolean;
+  modifiedTime?: number;
+};
+
+export function normalizeCloverMenu(raw: unknown): CloverMenu {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid Clover menu payload");
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id : "";
+  const name = typeof o.name === "string" ? o.name : "";
+  if (!id || !name) throw new Error("Clover menu missing id or name");
+  const providerIds = Array.isArray(o.providers)
+    ? o.providers
+        .map((p) => (p && typeof p === "object" ? (p as Record<string, unknown>).id : null))
+        .filter((v): v is string => typeof v === "string")
+    : [];
+  return {
+    id,
+    name,
+    providerIds,
+    menuType: optString(o.menuType),
+    fallbackMenu: optBool(o.fallbackMenu),
+    publishedAt: optNullableNumber(o.published_at),
+    hasMenuItems: optBool(o.hasMenuItems),
+    modifiedTime: optNumber(o.modifiedTime),
+  };
+}
+
+/** A menu's entry for one item. `price` is this menu's price, `basePrice` the register price. */
+export type CloverMenuItem = {
+  id: string;
+  name: string;
+  /** Menu price in cents. */
+  price: number;
+  /** Register price in cents. */
+  basePrice?: number | null;
+  enabled?: boolean;
+  hidden?: boolean;
+  available?: boolean;
+  customerFacingName?: string | null;
+  description?: string | null;
+};
+
+export function normalizeCloverMenuItem(raw: unknown): CloverMenuItem {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid Clover menu item payload");
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id : "";
+  const name = typeof o.name === "string" ? o.name : "";
+  if (!id || !name) throw new Error("Clover menu item missing id or name");
+  const price = typeof o.price === "number" ? o.price : Number(o.price);
+  if (!Number.isFinite(price)) throw new Error(`Clover menu item ${id} has invalid price`);
+  return {
+    id,
+    name,
+    price,
+    basePrice: optNullableNumber(o.basePrice),
+    enabled: optBool(o.enabled),
+    hidden: optBool(o.hidden),
+    available: optBool(o.available),
+    customerFacingName: optString(o.customerFacingName),
+    description: optString(o.description),
+  };
+}
+
 /** Clover tag — Register's "Order printing" label. */
 export type CloverTag = {
   id: string;

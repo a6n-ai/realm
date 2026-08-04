@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   discounts,
   menus,
+  menuItems,
   menuSections,
   modifierGroups,
   modifiers,
@@ -22,6 +23,7 @@ export type ModifierRow = typeof modifiers.$inferSelect;
 export type DiscountRow = typeof discounts.$inferSelect;
 export type MenuRow = typeof menus.$inferSelect;
 export type MenuSectionRow = typeof menuSections.$inferSelect;
+export type MenuItemRow = typeof menuItems.$inferSelect;
 export type ProductCategoryItemRow = typeof productCategoryItems.$inferSelect;
 export type ProductModifierGroupRow = typeof productModifierGroups.$inferSelect;
 export type TaxRateRow = typeof taxRates.$inferSelect;
@@ -174,6 +176,15 @@ export class MenusRepository extends UpdatableRepository<typeof menus> {
 
   async findByName(name: string): Promise<MenuRow | null> {
     const [row] = await this.db.select().from(menus).where(eq(menus.name, name)).limit(1);
+    return row ?? null;
+  }
+
+  async findByCloverMenuId(cloverMenuId: string): Promise<MenuRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(menus)
+      .where(and(eq(menus.cloverMenuId, cloverMenuId), isNotNull(menus.cloverMenuId)))
+      .limit(1);
     return row ?? null;
   }
 
@@ -417,6 +428,27 @@ export class ProductPrinterLabelsRepository extends UpdatableRepository<
   }
 }
 
+export class MenuItemsRepository extends UpdatableRepository<typeof menuItems> {
+  async findByMenu(menuId: bigint): Promise<MenuItemRow[]> {
+    return this.db.select().from(menuItems).where(eq(menuItems.menuId, menuId));
+  }
+
+  async findByMenuAndProduct(menuId: bigint, productId: bigint): Promise<MenuItemRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(menuItems)
+      .where(and(eq(menuItems.menuId, menuId), eq(menuItems.productId, productId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async deleteByMenuAndProduct(menuId: bigint, productId: bigint): Promise<void> {
+    await this.db
+      .delete(menuItems)
+      .where(and(eq(menuItems.menuId, menuId), eq(menuItems.productId, productId)));
+  }
+}
+
 export const productCategoriesRepository = new ProductCategoriesRepository(
   db,
   productCategories,
@@ -446,6 +478,13 @@ export const discountsRepository = new DiscountsRepository(
 );
 
 export const menusRepository = new MenusRepository(db, menus, menus.publicId, menus.id);
+
+export const menuItemsRepository = new MenuItemsRepository(
+  db,
+  menuItems,
+  menuItems.publicId,
+  menuItems.id,
+);
 
 export const menuSectionsRepository = new MenuSectionsRepository(
   db,

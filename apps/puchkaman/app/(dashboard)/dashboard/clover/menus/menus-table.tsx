@@ -15,14 +15,15 @@ import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { MenuListRow, MenuSortColumn } from "@/lib/services/inventory.service";
 
-// Sortable keys must match MenuSortColumn. "sections" is display-only.
-type MenuCol = MenuSortColumn | "sections";
+// Sortable keys must match MenuSortColumn; the rest are display-only.
+type MenuCol = MenuSortColumn | "items" | "channel" | "published";
 
 const COLUMNS: readonly Column<MenuCol>[] = [
-  { key: "name", label: "Name", sortable: true },
-  { key: "sections", label: "Sections", sortable: false },
+  { key: "name", label: "Menu name", sortable: true },
+  { key: "channel", label: "Channel", sortable: false },
+  { key: "items", label: "Items", sortable: false },
+  { key: "published", label: "Published", sortable: false },
   { key: "status", label: "Status", sortable: true },
-  { key: "order", label: "Order", sortable: true },
   { key: "synced", label: "Last synced", sortable: true, align: "right" },
 ];
 
@@ -68,7 +69,7 @@ export function MenusTable({
         }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={BookOpenIcon}
-        emptyMessage="No menus yet. Sync from Clover builds a Register menu from categories."
+        emptyMessage="No menus yet. Create them in Clover, then run Sync from Clover."
         emptySearchMessage="No menus match your filters."
         renderRow={(r) => (
           <>
@@ -81,15 +82,24 @@ export function MenusTable({
                 {r.name}
               </Link>
             </TableCell>
+            <TableCell className="text-muted-foreground text-sm">
+              {r.channel ?? "—"}
+            </TableCell>
             <TableCell>
-              {r.sectionCount} section{r.sectionCount === 1 ? "" : "s"}
+              {r.itemCount} item{r.itemCount === 1 ? "" : "s"}
+            </TableCell>
+            <TableCell>
+              {r.cloverPublishedAt ? (
+                <Badge variant="secondary">Published</Badge>
+              ) : (
+                <Badge variant="outline">Draft</Badge>
+              )}
             </TableCell>
             <TableCell>
               <Badge variant={r.active ? "default" : "outline"}>
                 {r.active ? "Active" : "Inactive"}
               </Badge>
             </TableCell>
-            <TableCell>{r.sortOrder}</TableCell>
             <TableCell className="text-muted-foreground text-right text-sm">
               {relativeTime(r.cloverLastSyncedAt)}
             </TableCell>

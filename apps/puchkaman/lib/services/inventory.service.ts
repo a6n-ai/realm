@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import {
   discounts,
   menus,
+  menuItems,
   menuSections,
   modifierGroups,
   modifiers,
@@ -23,7 +24,6 @@ import type { CloverApiClient } from "@realm/clover";
 import { createCloverClient } from "@/lib/clover/client";
 import { productsRepository } from "@/lib/services/products.repository";
 import type { SortState } from "@/lib/list/sort";
-import type { MenuSaveInput } from "@/lib/menus/schema";
 import type { CategoryEditInput, ModifierGroupEditInput } from "@/lib/inventory/schema";
 import {
   cloverCatalogSyncService,
@@ -45,7 +45,6 @@ import {
   taxRatesRepository,
   type DiscountRow,
   type MenuRow,
-  type MenuSectionRow,
   type ModifierGroupRow,
   type ModifierRow,
   type ProductCategoryRow,
@@ -67,7 +66,10 @@ export type MenuListRow = {
   name: string;
   active: boolean;
   sortOrder: number;
-  sectionCount: number;
+  itemCount: number;
+  /** Provider ids joined for display — Clover exposes no provider-name lookup. */
+  channel: string | null;
+  cloverPublishedAt: number | null;
   cloverLastSyncedAt: number | null;
 };
 
@@ -266,13 +268,6 @@ export type MenuDetail = {
   sections: MenuSectionDetail[];
 };
 
-export type MenuCategoryOption = {
-  publicId: string;
-  name: string;
-  active: boolean;
-  colorCode: string | null;
-  sortOrder: number;
-};
 
 export type MenuSaveResult = {
   menu: MenuDetail;
@@ -531,29 +526,6 @@ class MenusService extends SessionUpdatableService<typeof menus> {
     );
   }
 
-  async listWithSections(): Promise<
-    Array<MenuRow & { sections: Array<MenuSectionRow & { categoryName: string | null }> }>
-  > {
-    const [menuRows, sectionRows, cats] = await Promise.all([
-      this.listAll(),
-      db.select().from(menuSections),
-      productCategoriesRepository.findAll(),
-    ]);
-    const catName = new Map(cats.map((c) => [String(c.id), c.name]));
-    const byMenu = new Map<string, MenuSectionRow[]>();
-    for (const s of sectionRows) {
-      const key = String(s.menuId);
-      const list = byMenu.get(key) ?? [];
-      list.push(s);
-      byMenu.set(key, list);
-    }
-    return menuRows.map((m) => ({
-      ...m,
-      sections: (byMenu.get(String(m.id)) ?? [])
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((s) => ({ ...s, categoryName: catName.get(String(s.categoryId)) ?? null })),
-    }));
-  }
 
   /** Admin list — Orders/Products pattern (facets + page + sort). */
   async queryMenus(
@@ -563,9 +535,9 @@ class MenusService extends SessionUpdatableService<typeof menus> {
   ): Promise<Page<MenuListRow>> {
     const where = conditionToSql(condition, resolveMenuFacet);
     const col = MENU_SORT_COL[sort.column] ?? menus.sortOrder;
-    const sectionCount = sql<number>`cast((
-      select count(*)::int from ${menuSections}
-      where ${menuSections.menuId} = ${menus.id}
+    const itemCount = sql<number>`cast((
+      select count(*)::int from ${menuItems}
+      where ${menuItems.menuId} = ${menus.id}
     ) as int)`;
 
     const [items, [{ count }]] = await Promise.all([
@@ -575,7 +547,9 @@ class MenusService extends SessionUpdatableService<typeof menus> {
           name: menus.name,
           active: menus.active,
           sortOrder: menus.sortOrder,
-          sectionCount,
+          itemCount,
+          providerIds: menus.cloverProviderIds,
+          cloverPublishedAt: menus.cloverPublishedAt,
           cloverLastSyncedAt: menus.cloverLastSyncedAt,
         })
         .from(menus)
@@ -589,76 +563,55 @@ class MenusService extends SessionUpdatableService<typeof menus> {
         .where(where),
     ]);
 
-    return { items, page: page.page, size: page.size, total: count };
+    return {
+      items: items.map(({ providerIds, ...row }) => ({
+        ...row,
+        channel: providerIds?.length ? providerIds.join(", ") : null,
+      })),
+      page: page.page,
+      size: page.size,
+      total: count,
+    };
+  }
+
+  /** One menu plus its item list — the prices that channel charges. */
+  async menuWithItems(publicId: string): Promise<{
+    menu: MenuRow;
+    items: Array<{
+      publicId: string;
+      productPublicId: string;
+      name: string;
+      price: number;
+      basePrice: number | null;
+      enabled: boolean;
+    }>;
+  }> {
+    const menu = await menusRepository.findByPublicId(publicId);
+    if (!menu) throw new NotFoundError(`Menu not found: ${publicId}`);
+    const rows = await db
+      .select({
+        publicId: menuItems.publicId,
+        productPublicId: products.publicId,
+        name: products.name,
+        price: menuItems.price,
+        basePrice: menuItems.basePrice,
+        enabled: menuItems.enabled,
+      })
+      .from(menuItems)
+      .innerJoin(products, eq(menuItems.productId, products.id))
+      .where(eq(menuItems.menuId, menu.id))
+      .orderBy(asc(products.name));
+    return {
+      menu,
+      items: rows.map((r) => ({
+        ...r,
+        price: Number(r.price),
+        basePrice: r.basePrice == null ? null : Number(r.basePrice),
+      })),
+    };
   }
 
   /** Detail for list→open→edit (Orders/Products pattern). */
-  async getDetail(publicId: string): Promise<MenuDetail> {
-    const menu = await this.repo.findByPublicId(publicId);
-    if (!menu) throw new NotFoundError(`Menu not found: ${publicId}`);
-
-    const sectionRows = await menuSectionsRepository.findByMenuId(menu.id);
-    const cats = await productCategoriesRepository.findAll();
-    const catById = new Map(cats.map((c) => [String(c.id), c]));
-    const ordered = [...sectionRows].sort((a, b) => a.sortOrder - b.sortOrder);
-    const categoryIds = ordered.map((s) => s.categoryId);
-
-    const itemsByCategory = new Map<string, MenuSectionItemDetail[]>();
-    if (categoryIds.length > 0) {
-      const links = await db
-        .select({
-          categoryId: productCategoryItems.categoryId,
-          sortOrder: productCategoryItems.sortOrder,
-          productPublicId: products.publicId,
-          name: products.name,
-          active: products.active,
-          cloverItemId: products.cloverItemId,
-        })
-        .from(productCategoryItems)
-        .innerJoin(products, eq(products.id, productCategoryItems.productId))
-        .where(inArray(productCategoryItems.categoryId, categoryIds));
-
-      for (const row of links) {
-        const key = String(row.categoryId);
-        const list = itemsByCategory.get(key) ?? [];
-        list.push({
-          productPublicId: row.productPublicId,
-          name: row.name,
-          active: row.active,
-          cloverItemId: row.cloverItemId,
-          sortOrder: row.sortOrder,
-        });
-        itemsByCategory.set(key, list);
-      }
-      for (const list of itemsByCategory.values()) {
-        list.sort((a, b) =>
-          a.sortOrder === b.sortOrder ? a.name.localeCompare(b.name) : a.sortOrder - b.sortOrder,
-        );
-      }
-    }
-
-    return {
-      publicId: menu.publicId,
-      name: menu.name,
-      sortOrder: menu.sortOrder,
-      active: menu.active,
-      cloverMenuId: menu.cloverMenuId,
-      cloverLastSyncedAt: menu.cloverLastSyncedAt,
-      sections: ordered.map((s) => {
-        const cat = catById.get(String(s.categoryId));
-        return {
-          publicId: s.publicId,
-          sortOrder: s.sortOrder,
-          categoryPublicId: cat?.publicId ?? "",
-          categoryName: cat?.name ?? "—",
-          categoryActive: cat?.active ?? false,
-          categoryColorCode: cat?.colorCode ?? null,
-          cloverCategoryId: cat?.cloverCategoryId ?? null,
-          items: itemsByCategory.get(String(s.categoryId)) ?? [],
-        };
-      }),
-    };
-  }
 
 }
 
@@ -729,92 +682,6 @@ class InventoryCatalogService {
    * Mirrors section sortOrder onto product_categories (Register layout SoT),
    * optionally pushes those categories to Clover.
    */
-  async saveMenu(publicId: string, input: MenuSaveInput): Promise<MenuSaveResult> {
-    const menu = await menusRepository.findByPublicId(publicId);
-    if (!menu) throw new NotFoundError(`Menu not found: ${publicId}`);
-
-    const seen = new Set<string>();
-    for (const s of input.sections) {
-      if (seen.has(s.categoryPublicId)) {
-        throw new ValidationError(`Duplicate section category: ${s.categoryPublicId}`);
-      }
-      seen.add(s.categoryPublicId);
-    }
-
-    const categories = await Promise.all(
-      input.sections.map((s) => productCategoriesRepository.findByPublicId(s.categoryPublicId)),
-    );
-    for (let i = 0; i < categories.length; i++) {
-      if (!categories[i]) {
-        throw new ValidationError(`Category not found: ${input.sections[i]!.categoryPublicId}`);
-      }
-    }
-
-    await this.menus.update(publicId, {
-      name: input.name,
-      active: input.active,
-      sortOrder: input.sortOrder,
-    });
-
-    const existing = await menuSectionsRepository.findByMenuId(menu.id);
-    const nextCategoryIds = new Set(categories.map((c) => String(c!.id)));
-    for (const row of existing) {
-      if (!nextCategoryIds.has(String(row.categoryId))) {
-        await this.menuSections.delete(row.publicId);
-      }
-    }
-
-    const categoryPublicIds: string[] = [];
-    for (let i = 0; i < input.sections.length; i++) {
-      const section = input.sections[i]!;
-      const cat = categories[i]!;
-      categoryPublicIds.push(cat.publicId);
-      const sortOrder = section.sortOrder;
-
-      const prior = await menuSectionsRepository.findByMenuAndCategory(menu.id, cat.id);
-      if (prior) {
-        if (prior.sortOrder !== sortOrder) {
-          await this.menuSections.update(prior.publicId, { sortOrder });
-        }
-      } else {
-        await this.menuSections.create({
-          menuId: menu.id,
-          categoryId: cat.id,
-          sortOrder,
-        });
-      }
-
-      if (cat.sortOrder !== sortOrder) {
-        await this.categories.update(cat.publicId, { sortOrder });
-      }
-    }
-
-    let pushedCategories: CloverCategoryPushResult | null = null;
-    if (input.pushToClover && categoryPublicIds.length > 0) {
-      pushedCategories = await this.pushCategories(categoryPublicIds);
-    }
-
-    await recordAudit({
-      entity: "menus",
-      entityPublicId: publicId,
-      operation: "update",
-      changes: {
-        _action: "menu_save",
-        name: input.name,
-        active: input.active,
-        sortOrder: input.sortOrder,
-        sectionCount: input.sections.length,
-        pushToClover: Boolean(input.pushToClover),
-        pushed: pushedCategories,
-      },
-      createdBy: await currentUserId(),
-    });
-
-    return {
-      menu: await this.menus.getDetail(publicId),
-      pushedCategories,
-    };
-  }
 
   /**
    * Edit a category, then push it to Clover in the same call.
@@ -880,16 +747,6 @@ class InventoryCatalogService {
   }
 
   /** Categories available to add as menu sections. */
-  async listCategoryOptions(): Promise<MenuCategoryOption[]> {
-    const rows = await this.categories.listAll();
-    return rows.map((c) => ({
-      publicId: c.publicId,
-      name: c.name,
-      active: c.active,
-      colorCode: c.colorCode,
-      sortOrder: c.sortOrder,
-    }));
-  }
 
   /**
    * Clover's category layout for the public menu: active categories in Clover's

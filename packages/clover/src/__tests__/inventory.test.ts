@@ -9,6 +9,8 @@ import {
   normalizeCloverModifierGroup,
   normalizeCloverTag,
   normalizeCloverTaxRate,
+  normalizeCloverMenu,
+  normalizeCloverMenuItem,
   cloverRateToPercent,
   percentToCloverRate,
   primaryCategoryName,
@@ -216,5 +218,50 @@ describe("item associations", () => {
       defaultTaxRates: true,
       isRevenue: true,
     });
+  });
+});
+
+describe("online-ordering menus", () => {
+  it("reads providers and the published timestamp", () => {
+    expect(
+      normalizeCloverMenu({
+        id: "1G0XQAEB52NZM",
+        name: "Uber",
+        providers: [{ id: "MDBCNFEW6749C" }],
+        menuType: "OLO_MENU",
+        fallbackMenu: false,
+        published_at: 1785300268590,
+        hasMenuItems: true,
+      }),
+    ).toMatchObject({
+      id: "1G0XQAEB52NZM",
+      name: "Uber",
+      providerIds: ["MDBCNFEW6749C"],
+      menuType: "OLO_MENU",
+      publishedAt: 1785300268590,
+    });
+  });
+
+  it("treats an unpublished menu with no providers as empty, not broken", () => {
+    const menu = normalizeCloverMenu({ id: "M1", name: "Draft" });
+    expect(menu.providerIds).toEqual([]);
+    expect(menu.publishedAt).toBeUndefined();
+  });
+
+  it("keeps the menu price and the register price apart", () => {
+    // Clover charges $7.99 on Uber for an item that rings up at $6.99.
+    const item = normalizeCloverMenuItem({
+      id: "KQQGD9QWDCJDJ",
+      name: "Aalo tikki Burger",
+      price: 799,
+      basePrice: 699,
+      enabled: true,
+    });
+    expect(item.price).toBe(799);
+    expect(item.basePrice).toBe(699);
+  });
+
+  it("rejects a menu item with no usable price", () => {
+    expect(() => normalizeCloverMenuItem({ id: "X", name: "Nameless" })).toThrow();
   });
 });

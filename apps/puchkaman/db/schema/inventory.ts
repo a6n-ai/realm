@@ -25,9 +25,9 @@ import { products } from "./products";
  * - product_tax_rates     ↔ Clover tax_rate_items (M:N)
  * - printer_labels        ↔ Clover tags (Register "Order printing" labels)
  * - product_printer_labels↔ Clover tag_items (M:N)
- * - menus                 ↔ local Register menu layout (Clover has no separate Menus
- *                           inventory resource — sections are categories)
- * - menu_sections         ↔ ordered category membership on a menu
+ * - menus                 ↔ Clover online-ordering menus (one per delivery channel)
+ * - menu_items            ↔ a product's price on one of those menus
+ * - menu_sections         ↔ ordered category membership on a menu (local layout)
  */
 
 /** Clover categories (Register sections). colorCode preserved for swatches. */
@@ -180,19 +180,54 @@ export const productPrinterLabels = pgTable(
 );
 
 /**
- * Local Register menu layout. Clover Inventory has no separate Menus resource —
- * Register menus are categories + category_items. Pull sync maintains a default
- * "Register" menu whose sections are synced categories.
+ * Clover online-ordering menus (`/v3/merchants/{mId}/menus`).
+ *
+ * An earlier note here claimed Clover had no Menus resource and that Register
+ * menus were just categories — that was wrong. Clover has real menus, one per
+ * delivery channel (Uber Eats, DoorDash), each with its own item list and its
+ * own prices. They are owned and published in Clover, so these rows are a
+ * read-only mirror.
  */
 export const menus = pgTable("menus", {
   ...updatableColumns("mnu"),
   name: text("name").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
-  /** Reserved for future Online Ordering menus API. */
   cloverMenuId: text("clover_menu_id").unique(),
+  /** e.g. OLO_MENU. */
+  cloverMenuType: text("clover_menu_type"),
+  /** Clover provider ids this menu publishes to; Clover exposes no name lookup. */
+  cloverProviderIds: text("clover_provider_ids").array(),
+  /** Epoch ms Clover published it; null = never published. */
+  cloverPublishedAt: bigint("clover_published_at", { mode: "number" }),
+  cloverFallbackMenu: boolean("clover_fallback_menu").notNull().default(false),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
 });
+
+/**
+ * A product's entry on one menu. `price` is what that channel charges and
+ * `basePrice` is the register price — the delivery markup lives in the gap, so
+ * both are stored rather than derived.
+ */
+export const menuItems = pgTable(
+  "menu_items",
+  {
+    ...updatableColumns("mni"),
+    menuId: bigint("menu_id", { mode: "bigint" })
+      .notNull()
+      .references(() => menus.id),
+    productId: bigint("product_id", { mode: "bigint" })
+      .notNull()
+      .references(() => products.id),
+    /** Menu price in dollars (Clover stores cents). */
+    price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
+    /** Register price in dollars, as Clover reported it on this menu. */
+    basePrice: numeric("base_price", { precision: 10, scale: 2 }),
+    enabled: boolean("enabled").notNull().default(true),
+    cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  },
+  (t) => [uniqueIndex("menu_items_menu_product_uidx").on(t.menuId, t.productId)],
+);
 
 export const menuSections = pgTable(
   "menu_sections",
