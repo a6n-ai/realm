@@ -180,14 +180,30 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 <div className="font-medium">
                   {it.quantity}× {it.name}
                 </div>
+                {/* The kitchen works from this list, so free options are shown too. */}
+                {it.selectedModifiers.length ? (
+                  <ul className="text-muted-foreground mt-1 space-y-0.5 text-xs">
+                    {it.selectedModifiers.map((m) => (
+                      <li key={m.cloverModifierId}>
+                        + {m.name}
+                        {m.price > 0 ? ` (${formatMoney(m.price)})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {cloverEnabled && it.cloverItemId ? (
-                  <div className="text-muted-foreground font-mono text-xs">{it.cloverItemId}</div>
+                  <div className="text-muted-foreground mt-1 font-mono text-xs">
+                    {it.cloverItemId}
+                  </div>
                 ) : null}
               </div>
               <div className="text-right tabular-nums">
                 <div>{formatMoney(Number(it.lineTotal))}</div>
                 <div className="text-muted-foreground text-xs">
+                  {/* unitPrice excludes modifiers, so say so rather than showing a
+                      base price that does not multiply out to the line total. */}
                   @ {formatMoney(Number(it.unitPrice))}
+                  {it.selectedModifiers.length ? " + options" : ""}
                 </div>
               </div>
             </li>
