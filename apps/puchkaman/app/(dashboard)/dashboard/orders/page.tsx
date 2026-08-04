@@ -8,6 +8,7 @@ import {
   parseFilterState,
   type FacetDef,
 } from "@realm/design-system";
+import { OrderingDisabledNotice } from "@/components/admin/ordering-disabled-notice";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { ordersService, type OrderSortColumn } from "@/lib/services/orders.service";
@@ -75,6 +76,10 @@ export default function OrdersPage({ searchParams }: { searchParams: SearchParam
         title="Orders"
         subtitle="Pickup orders."
       />
+      {/* Streams in with the page; renders nothing once Ecommerce is configured. */}
+      <Suspense fallback={null}>
+        <OrderingDisabledNotice />
+      </Suspense>
       <SectionCard title="All orders">
         <Suspense fallback={<OrdersTableSkeleton />}>
           <OrdersData searchParams={searchParams} />

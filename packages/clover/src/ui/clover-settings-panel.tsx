@@ -193,9 +193,11 @@ export function CloverSettingsPanel({
 
         {clover.connected && !clover.ecommerceReady ? (
           <p className="text-warn text-xs">
-            Catalog and employee sync are working, but website checkout is off: no Ecommerce
-            API credentials. Add them from the Clover dashboard (Ecommerce API Tokens) by
-            disconnecting and reconnecting with all three values.
+            <strong>The website is not taking orders.</strong> Catalog and employee sync are
+            working, but there are no Ecommerce API credentials, so customers see
+            &quot;Coming soon&quot; instead of a cart. Add them from the Clover dashboard
+            (Ecommerce API Tokens) by disconnecting and reconnecting with all three values —
+            ordering turns on by itself once they are saved.
           </p>
         ) : null}
 
