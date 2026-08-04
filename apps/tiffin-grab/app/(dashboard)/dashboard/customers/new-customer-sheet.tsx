@@ -285,7 +285,7 @@ export function NewCustomerSheet({
                   <Label>Phone <Req /></Label>
                   <PhoneInput value={phone} onChange={(v) => setPhone(v ?? "")} defaultCountry={defaultCountry} />
                   {phone.length > 0 && !phoneValid && (
-                    <p className="text-muted-foreground text-sm">This number looks incomplete — we'll still save it.</p>
+                    <p className="text-muted-foreground text-sm">This number looks incomplete — we&apos;ll still save it.</p>
                   )}
                 </div>
                 <div className="grid gap-1.5">

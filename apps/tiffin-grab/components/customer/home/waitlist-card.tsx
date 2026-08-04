@@ -17,7 +17,7 @@ export function WaitlistCard({ sub }: { sub: WaitlistedSubscription }) {
         {sub.postalCode}{waitlisted ? " — not served yet" : ""}
       </p>
       {waitlisted ? (
-        <p className="text-muted-foreground text-sm">We'll email you when we reach your area.</p>
+        <p className="text-muted-foreground text-sm">We&apos;ll email you when we reach your area.</p>
       ) : null}
     </Card>
   );

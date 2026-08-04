@@ -65,7 +65,15 @@ export function GlobalSearch({ role }: { role: string }) {
   const [open, setOpen] = useState(false);
   // The nav search is also the list-filter: seed from the current ?q= so a
   // deep-linked/bookmarked filter shows in the box.
-  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  // The shell keeps this component mounted across navigations, so what was typed is
+  // remembered against the route it was typed on. Landing on a different route falls
+  // back to that route's own ?q= — a filter from one list must not bleed into the next.
+  const [typed, setTyped] = useState<{ path: string; q: string }>(() => ({
+    path: pathname,
+    q: searchParams.get("q") ?? "",
+  }));
+  const query = typed.path === pathname ? typed.q : (searchParams.get("q") ?? "");
+  const setQuery = (next: string) => setTyped({ path: pathname, q: next });
   const [results, setResults] = useState<SearchResults>(EMPTY);
 
   // ⌘K / Ctrl-K focuses the search (no modal — the palette is inline now).
@@ -108,14 +116,6 @@ export function GlobalSearch({ role }: { role: string }) {
     }, 250);
     return () => clearTimeout(t);
   }, [query, pathname, searchParams, router]);
-
-  // The shell keeps this component mounted across navigations, so reset the box
-  // to the destination route's own ?q= when the path changes — a filter from one
-  // list must not bleed into the next.
-  useEffect(() => {
-    setQuery(searchParams.get("q") ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
 
   const go = useCallback(
     (href: string) => {

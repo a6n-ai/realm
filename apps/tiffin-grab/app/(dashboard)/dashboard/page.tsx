@@ -332,7 +332,7 @@ async function CustomerDashboard({ userId }: { userId: string }) {
               href="/dashboard/meals"
               className="text-sm font-medium underline-offset-4 hover:underline"
             >
-              View this week's meals
+              View this week&apos;s meals
             </Link>
           </div>
         ) : (

@@ -36,6 +36,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const { month: monthParam, sub: subParam } = await searchParams;
 
   const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const monthKey = parseMonthParam(monthParam, today);
   const { from, until } = monthFetchRange(monthKey, today);

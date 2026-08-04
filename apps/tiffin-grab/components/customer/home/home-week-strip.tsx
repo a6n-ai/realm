@@ -24,11 +24,12 @@ export function HomeWeekStrip({
     return map;
   }, [cells]);
 
-  const [selected, setSelected] = useState(todayIso);
-  // Keep the rail on "today" after navigation/refresh so home and deliveries stay aligned.
-  useEffect(() => {
-    setSelected(todayIso);
-  }, [todayIso]);
+  // Keep the rail on "today" after navigation/refresh so home and deliveries stay
+  // aligned. Derived rather than re-synced in an effect: a pick is remembered only
+  // for the day it was made on, so a new app-day falls back to today by itself.
+  const [picked, setPicked] = useState<{ day: string; date: string } | null>(null);
+  const selected = picked?.day === todayIso ? picked.date : todayIso;
+  const setSelected = (date: string) => setPicked({ day: todayIso, date });
   const cell = cellsByDate.get(selected);
   const delivery = cell?.meal
     ? { meal: cell.meal as DeliveryCardMeal }

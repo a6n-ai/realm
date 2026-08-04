@@ -67,6 +67,7 @@ export default async function MePage() {
 }
 
 async function HomeWeekStripData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const untilDate = parseIsoDateUtc(today);
   untilDate.setUTCDate(untilDate.getUTCDate() + HOME_WEEK_DAYS);
@@ -85,6 +86,7 @@ async function OrdersSectionData({ userId }: { userId: bigint }) {
 }
 
 async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const [primary, nextByOrder, waitlisted] = await Promise.all([
     myPrimarySubscription(userId),

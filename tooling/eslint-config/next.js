@@ -23,6 +23,14 @@ export default defineConfig([
       ],
     },
   },
+  // Playwright specs are not React. Its fixture callbacks take a parameter named
+  // `use`, which the hooks plugin mistakes for the `use` hook.
+  {
+    files: ["e2e/**"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

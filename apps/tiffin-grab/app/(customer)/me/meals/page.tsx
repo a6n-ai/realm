@@ -18,7 +18,7 @@ export default function MyMealsPage() {
     <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Meals</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Pick this week's meals before the cutoff.</p>
+        <p className="text-muted-foreground text-sm text-pretty">Pick this week&apos;s meals before the cutoff.</p>
       </header>
       <Suspense fallback={<MealPickerSkeleton />}>
         <MyMealsData />

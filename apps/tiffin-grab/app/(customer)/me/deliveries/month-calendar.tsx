@@ -44,20 +44,24 @@ export function MonthCalendar({
   const startMonth = minMonth;
   const endMonth = addMonths(startMonth, 18);
 
-  const [month, setMonth] = useState(() => {
-    const [y, m] = monthKey.split("-").map(Number);
-    return new Date(y, m - 1, 1);
-  });
-
-  useEffect(() => {
-    const [y, m] = monthKey.split("-").map(Number);
-    setMonth(new Date(y, m - 1, 1));
-  }, [monthKey]);
+  // The month shown follows `monthKey`. Paging is remembered only until the prop
+  // catches up, so there is no effect syncing prop into state.
+  const [paged, setPaged] = useState<{ fromKey: string; toKey: string; date: Date } | null>(null);
+  // Valid while the parent still reports the key we paged away from (the round trip
+  // has not landed yet) and once it reports the one we asked for. Anything else means
+  // the parent navigated on its own, so fall back to the prop.
+  const month =
+    paged && (monthKey === paged.fromKey || monthKey === paged.toKey)
+      ? paged.date
+      : (() => {
+          const [y, m] = monthKey.split("-").map(Number);
+          return new Date(y, m - 1, 1);
+        })();
 
   function handleMonthChange(next: Date) {
     const nextStart = startOfMonth(next);
-    setMonth(nextStart);
     const nextKey = monthKeyFromDate(nextStart);
+    setPaged({ fromKey: monthKey, toKey: nextKey, date: nextStart });
     if (nextKey !== monthKey) onMonthChange(nextKey);
   }
 

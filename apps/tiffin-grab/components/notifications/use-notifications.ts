@@ -42,6 +42,9 @@ export function useNotifications() {
 
   // Initial load + refresh when the tab regains focus.
   useEffect(() => {
+    // Fetch-on-mount: every setState in `refresh` runs after an await, but the rule
+    // cannot see through the call.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);

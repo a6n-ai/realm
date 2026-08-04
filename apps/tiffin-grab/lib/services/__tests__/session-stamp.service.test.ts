@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { PgTable } from "drizzle-orm/pg-core";
 
 const created: Record<string, unknown>[] = [];
 const updated: Record<string, unknown>[] = [];
@@ -24,7 +25,11 @@ vi.mock("@realm/database", async (orig) => {
 
 import { SessionUpdatableService } from "../session-service";
 
-class Widgets extends SessionUpdatableService<any> {
+// The base class is mocked above, so only `tableName` is ever read off the repo.
+type FakeRepo = ConstructorParameters<typeof SessionUpdatableService<PgTable>>[0];
+const fakeRepo = (tableName: string) => ({ tableName }) as unknown as FakeRepo;
+
+class Widgets extends SessionUpdatableService<PgTable> {
   protected currentUserId() { return Promise.resolve(42n); }
 }
 
@@ -32,13 +37,13 @@ describe("session stamping", () => {
   beforeEach(() => { created.length = 0; updated.length = 0; });
 
   it("stamps createdBy on create", async () => {
-    const svc = new Widgets({ tableName: "widgets" } as any);
+    const svc = new Widgets(fakeRepo("widgets"));
     await svc.create({ name: "x" });
     expect(created[0]).toMatchObject({ name: "x", createdBy: 42n });
   });
 
   it("stamps updatedBy on update", async () => {
-    const svc = new Widgets({ tableName: "widgets" } as any);
+    const svc = new Widgets(fakeRepo("widgets"));
     await svc.update("wid_1", { name: "y" });
     expect(updated[0]).toMatchObject({ name: "y", updatedBy: 42n });
   });

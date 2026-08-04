@@ -12,16 +12,20 @@ import { searchCustomers, type CustomerHit } from "./match-actions";
  * typing the new customer's details below. */
 export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void }) {
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<CustomerHit[]>([]);
+  // Results carry the query they belong to, so "no results yet" is derived rather
+  // than written synchronously in the effect — and a stale list can never show.
+  const [found, setFound] = useState<{ q: string; items: CustomerHit[] }>({ q: "", items: [] });
+  const term = q.trim();
+  const hits = found.q === term ? found.items : [];
 
   useEffect(() => {
-    const s = q.trim();
-    if (s.length < 2) { setHits([]); return; }
+    if (term.length < 2) return;
     const t = setTimeout(async () => {
-      try { setHits(await searchCustomers(s)); } catch { setHits([]); }
+      try { setFound({ q: term, items: await searchCustomers(term) }); }
+      catch { setFound({ q: term, items: [] }); }
     }, 300);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [term]);
 
   return (
     <Command shouldFilter={false} className="border-border/70 h-auto rounded-lg border">
@@ -37,7 +41,7 @@ export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void })
               <CommandItem
                 key={c.publicId}
                 value={c.publicId}
-                onSelect={() => { onPick(c); setQ(""); setHits([]); }}
+                onSelect={() => { onPick(c); setQ(""); }}
                 className="gap-2"
               >
                 <UserRoundIcon className="size-4 opacity-60" />

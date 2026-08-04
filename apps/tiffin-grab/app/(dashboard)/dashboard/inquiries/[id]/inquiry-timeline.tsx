@@ -14,6 +14,7 @@ import {
   SparklesIcon,
   StickyNoteIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@realm/ui/badge";
 import { cn } from "@realm/ui/cn";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -103,10 +104,14 @@ export function InquiryTimeline({
   terminal: boolean;
 }) {
   const tz = useTimezone();
+  // Pinned at mount rather than read every render: the entries are all in the past,
+  // so a stable "x ago" beats one that shifts on unrelated re-renders. Must sit above
+  // the early return — hooks cannot be called conditionally.
+  const [now] = useState(() => Date.now());
+
   if (activities.length === 0) {
     return <p className="text-muted-foreground py-6 text-center text-sm">No activity yet.</p>;
   }
-  const now = Date.now();
 
   return (
     <ol className="relative">

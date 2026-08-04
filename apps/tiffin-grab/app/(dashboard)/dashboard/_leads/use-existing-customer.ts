@@ -13,23 +13,29 @@ export function useExistingCustomer(
   email: string,
   exceptId?: string | null,
 ): ExistingCustomer | null {
-  const [hit, setHit] = useState<ExistingCustomer | null>(null);
+  const p = phone.trim();
+  const e = email.trim();
+  const key = `${p}|${e}|${exceptId ?? ""}`;
+  // The result carries the contact it was looked up for, so "nothing yet" is derived
+  // instead of written synchronously in the effect, and a stale hit cannot linger.
+  const [found, setFound] = useState<{ key: string; hit: ExistingCustomer | null }>({
+    key: "",
+    hit: null,
+  });
 
   useEffect(() => {
-    const p = phone.trim();
-    const e = email.trim();
-    if (p.length < 6 && e.length < 3) { setHit(null); return; }
+    if (p.length < 6 && e.length < 3) return;
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
         const r = await findCustomerByContact(p, e || undefined);
-        if (!cancelled) setHit(r && r.publicId !== exceptId ? r : null);
+        if (!cancelled) setFound({ key, hit: r && r.publicId !== exceptId ? r : null });
       } catch {
-        if (!cancelled) setHit(null);
+        if (!cancelled) setFound({ key, hit: null });
       }
     }, 400);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [phone, email, exceptId]);
+  }, [p, e, exceptId, key]);
 
-  return hit;
+  return found.key === key ? found.hit : null;
 }

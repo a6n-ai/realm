@@ -48,6 +48,7 @@ async function MenuSectionData({ userId }: { userId: bigint }) {
   const subs = await myActiveSubscriptions(userId);
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
   // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
   const week = await menuService.getPublishedWeek(thisMonday);
@@ -61,6 +62,7 @@ async function DishesSectionData({ userId }: { userId: bigint }) {
   ]);
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
   const week = await menuService.getPublishedWeek(thisMonday);
 

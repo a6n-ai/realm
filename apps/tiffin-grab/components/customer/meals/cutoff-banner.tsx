@@ -18,7 +18,8 @@ function fmt(ms: number): string {
 
 export function CutoffBanner({ days, now: injectedNow }: { days: { dateIso: string; dayOfWeek: string; lockMs: number }[]; now?: number }) {
   const reduce = useReducedMotion();
-  const [now, setNow] = useState(injectedNow ?? Date.now());
+  // Lazy initialiser: the clock is read once at mount, not on every render.
+  const [now, setNow] = useState(() => injectedNow ?? Date.now());
 
   useEffect(() => {
     if (injectedNow != null) return; // test-injected clock is fixed
@@ -32,7 +33,7 @@ export function CutoffBanner({ days, now: injectedNow }: { days: { dateIso: stri
     return (
       <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm">
         <ClockIcon className="size-4 shrink-0" aria-hidden />
-        This week's meals are locked.
+        This week&apos;s meals are locked.
       </div>
     );
   }

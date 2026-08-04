@@ -58,6 +58,7 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
 async function CustomersStats() {
   await requireStaff();
 
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const oc = db
     .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })

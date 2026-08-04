@@ -9,14 +9,19 @@ const EMPTY: CatalogSearchResults = { plans: [], meals: [] };
 
 export function CustomerSearch() {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<CatalogSearchResults>(EMPTY);
+  // Keyed by the query so the empty state is derived, not set synchronously.
+  const [found, setFound] = useState<{ q: string; results: CatalogSearchResults }>({ q: "", results: EMPTY });
+  const term = q.trim();
+  const results = found.q === term ? found.results : EMPTY;
 
   useEffect(() => {
-    if (!q.trim()) { setResults(EMPTY); return; }
+    if (!term) return;
     let active = true;
-    searchCatalog(q).then((r) => { if (active) setResults(r); }).catch(() => { if (active) setResults(EMPTY); });
+    searchCatalog(term)
+      .then((r) => { if (active) setFound({ q: term, results: r }); })
+      .catch(() => { if (active) setFound({ q: term, results: EMPTY }); });
     return () => { active = false; };
-  }, [q]);
+  }, [term]);
 
   const hasResults = results.plans.length > 0 || results.meals.length > 0;
 

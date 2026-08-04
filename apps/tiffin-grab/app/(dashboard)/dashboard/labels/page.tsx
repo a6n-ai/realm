@@ -36,6 +36,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const { timezone } = await getAppSettings();
 
   // Default to today in the app timezone, the same clock the rest of the app runs on.
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 

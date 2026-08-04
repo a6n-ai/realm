@@ -71,6 +71,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     const override = policy.repDaily.perRep[session.user.id];
     const repActive = !(override && override.active === false);
     if (policy.repDaily.enabled && repActive) {
+      // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
       const istDate = zonedDateIso(Date.now(), "Asia/Kolkata");
       repCoupon = await couponsService.getTodayRepCoupon(session.user.id, istDate);
     }

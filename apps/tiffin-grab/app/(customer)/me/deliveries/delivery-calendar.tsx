@@ -104,7 +104,12 @@ function TiffinCalendarSection({
   })();
   const [selected, setSelected] = useState(initialSelected);
   const calendarDaysRef = useRef(calendarDays);
-  calendarDaysRef.current = calendarDays;
+  // Synced in an effect, not during render: writing a ref while rendering is unsafe
+  // under concurrent rendering. Declared before the effect below so the value is
+  // already fresh when that one runs.
+  useEffect(() => {
+    calendarDaysRef.current = calendarDays;
+  });
 
   // Re-anchor when the app-day rolls — not when the viewed month changes.
   useEffect(() => {

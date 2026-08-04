@@ -87,7 +87,13 @@ export function NewOrderSheet({
   const [email, setEmail] = useState("");
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pickedCustomerId, setPickedCustomerId] = useState<string | null>(null);
-  const [interestPrefill, setInterestPrefill] = useState<Partial<OrderFormInput>>({});
+  // Keyed by the inquiry it was fetched for, so clearing the pick derives an empty
+  // prefill instead of writing one synchronously in the effect below.
+  const [fetchedPrefill, setFetchedPrefill] = useState<{
+    forId: string;
+    prefill: Partial<OrderFormInput>;
+  } | null>(null);
+  const interestPrefill = pickedId && fetchedPrefill?.forId === pickedId ? fetchedPrefill.prefill : {};
 
   const subs = sources.find((s) => s.key === sourceKey)?.subs ?? [];
   const phoneValid = isValidPhone(phone);
@@ -104,7 +110,6 @@ export function NewOrderSheet({
       setSourceKey(lockedSourceKey);
       setSubSourceKey("");
     }
-    if (!id) setInterestPrefill({});
   }
 
   function pickCustomer(c: CustomerHit) {
@@ -115,10 +120,7 @@ export function NewOrderSheet({
   }
 
   useEffect(() => {
-    if (!pickedId) {
-      setInterestPrefill({});
-      return;
-    }
+    if (!pickedId) return;
     let cancelled = false;
     getInquiryInterestForPrefill(pickedId)
       .then((interest) => {
@@ -127,10 +129,10 @@ export function NewOrderSheet({
           plans: catalog.plans,
           mealSizes: catalog.mealSizes,
         });
-        setInterestPrefill(prefill);
+        setFetchedPrefill({ forId: pickedId, prefill });
       })
       .catch(() => {
-        if (!cancelled) setInterestPrefill({});
+        if (!cancelled) setFetchedPrefill({ forId: pickedId, prefill: {} });
       });
     return () => {
       cancelled = true;
@@ -146,7 +148,7 @@ export function NewOrderSheet({
     setOpen(o);
     if (!o) {
       setStep(1);
-      setInterestPrefill({});
+      setFetchedPrefill(null);
     }
   }
 

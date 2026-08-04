@@ -36,6 +36,7 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
   const { date: dateParam } = await searchParams;
   const [{ timezone }, status] = await Promise.all([getAppSettings(), getOptimoRouteStatus()]);
 
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 

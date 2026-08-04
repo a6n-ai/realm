@@ -135,6 +135,7 @@ async function CouponsSectionData() {
 // Session-scoped: the month window is computed from the APP timezone (never the
 // server's UTC clock — spec 6), and every read below is scoped to `userId`.
 async function AnalyticsTilesData({ userId, timezone }: { userId: bigint; timezone: string }) {
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const { from, until } = monthWindow(Date.now(), timezone);
   const [deliveriesThisMonth, totalSpend, totalSavings] = await Promise.all([
     myDeliveries(userId, from, until),

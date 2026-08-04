@@ -1,5 +1,13 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect --
+ * Loading an image and re-fitting the crop box are imperative flows: `setReady(false)`
+ * marks a new src as not-yet-drawn, and the aspect effect re-derives the box from the
+ * current one. Both could be restructured (deriving `ready` from the loaded src, moving
+ * the box derivation into render), but this is an interactive canvas widget with no test
+ * coverage, so it is left as declared debt rather than rewritten blind.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fitWithin } from "@/lib/images/export-image";
 import {

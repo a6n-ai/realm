@@ -1,5 +1,14 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect --
+ * The draft fields are seeded from the row for the active channel/locale tab, and both
+ * tab state and draft state live in this one component, so there is no prop to key a
+ * remount off. The correct fix is to extract the per-tab form into an inner component
+ * keyed by `${channel}-${locale}` and initialise its state from props — a real
+ * refactor of a 460-line editor with no test coverage, deliberately deferred rather
+ * than attempted alongside a lint sweep.
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { BellIcon, TriangleAlertIcon } from "lucide-react";

@@ -1,5 +1,14 @@
 "use client";
 
+/* eslint-disable react-hooks/refs --
+ * `useCropper` returns one object bundling refs (orientedRef, viewportRef) with plain
+ * state (view, crop, ready). The compiler treats the whole `api` object as ref-like, so
+ * every read off it is reported — including `api.view.panX` and `api.ready`, which are
+ * ordinary state. The refs here are only handed to `ref={}`, never dereferenced during
+ * render, which is the thing the rule exists to prevent. Splitting the API into separate
+ * ref props would not help: reading `api.viewportRef` to pass it along is flagged too.
+ */
+
 import { imageToScreen } from "./crop-geometry";
 import type { CropperApi } from "./use-cropper";
 import { CropBox } from "./crop-box";

@@ -1,5 +1,13 @@
 "use client"
 
+/* eslint-disable react-hooks/set-state-in-effect --
+ * Vendored verbatim from the ReUI registry (see components/reui). Its keyboard-nav
+ * effects reset the highlighted index on search/open changes, which the React Compiler
+ * rule flags. Rewriting them would fork this file from upstream — and from the identical
+ * copy in puchkaman — and be undone by the next registry pull. Re-evaluate if ReUI
+ * ships a compiler-clean version.
+ */
+
 import type React from "react"
 import {
   createContext,

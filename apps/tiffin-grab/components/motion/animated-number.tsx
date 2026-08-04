@@ -12,10 +12,14 @@ interface AnimatedNumberProps {
 
 export function AnimatedNumber({ value, format = (n) => String(Math.round(n)), className }: AnimatedNumberProps) {
   const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(value);
+  const [animated, setAnimated] = useState(value);
+  // With reduced motion there is no animation to read from, so show the value itself
+  // rather than pushing it into state from the effect.
+  const display = reduce ? value : animated;
+  const setDisplay = setAnimated;
 
   useEffect(() => {
-    if (reduce) { setDisplay(value); return; }
+    if (reduce) return;
     const controls = animate(display, value, {
       ...transitions.easeSlow,
       onUpdate: (v) => setDisplay(v),

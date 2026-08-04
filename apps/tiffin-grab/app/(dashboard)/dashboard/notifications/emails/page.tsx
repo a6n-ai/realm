@@ -59,6 +59,7 @@ type ActivityRow = { at: number; recipient: string | null; subject: string; stat
 async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const { condition, page } = parseFilterState(SPEC, sp);
+  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const n = sql<number>`cast(count(*) as int)`;
 

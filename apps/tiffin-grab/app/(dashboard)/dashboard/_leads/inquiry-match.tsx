@@ -22,17 +22,20 @@ export function InquiryMatch({
   pickedId: string | null;
   onPick: (id: string | null, lockedSourceKey?: string) => void;
 }) {
-  const [matches, setMatches] = useState<Match[]>([]);
+  // Keyed by phone so the empty state is derived, not set synchronously.
+  const [found, setFound] = useState<{ phone: string; items: Match[] }>({ phone: "", items: [] });
   const autoPicked = useRef<string | null>(null);
+  const term = phone.trim();
+  const matches = found.phone === term ? found.items : [];
 
   useEffect(() => {
-    const p = phone.trim();
-    if (p.length < 6) { setMatches([]); return; }
+    if (term.length < 6) return;
     const t = setTimeout(async () => {
-      try { setMatches(await findInquiryMatches(p)); } catch { setMatches([]); }
+      try { setFound({ phone: term, items: await findInquiryMatches(term) }); }
+      catch { setFound({ phone: term, items: [] }); }
     }, 400);
     return () => clearTimeout(t);
-  }, [phone]);
+  }, [term]);
 
   // Always-reuse: a same-source open match auto-selects once.
   useEffect(() => {
