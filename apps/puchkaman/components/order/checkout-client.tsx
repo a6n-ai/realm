@@ -11,6 +11,8 @@ import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 type CheckoutSession = {
   orderPublicId: string;
   cloverOrderId: string;
+  subtotal: number;
+  tax: number;
   total: number;
   currency: string;
   customerEmail: string;
@@ -251,6 +253,35 @@ export function CheckoutClient() {
           </h2>
           <strong style={{ fontSize: "1.25rem" }}>{money(session?.total ?? subtotal)}</strong>
         </div>
+
+        {/* Totals come from Clover, which is what the card is actually charged. Before
+            the server has priced the cart we only know the subtotal, so say so. */}
+        {session ? (
+          <dl className="checkout-totals" style={{ margin: "0 0 14px", fontSize: "0.95rem" }}>
+            <div className="flex center between">
+              <dt>Subtotal</dt>
+              <dd style={{ margin: 0 }}>{money(session.subtotal)}</dd>
+            </div>
+            {session.discountAmount ? (
+              <div className="flex center between">
+                <dt>Instant delivery discount</dt>
+                <dd style={{ margin: 0 }}>−{money(session.discountAmount)}</dd>
+              </div>
+            ) : null}
+            <div className="flex center between">
+              <dt>Tax</dt>
+              <dd style={{ margin: 0 }}>{money(session.tax)}</dd>
+            </div>
+            <div className="flex center between" style={{ fontWeight: 700 }}>
+              <dt>Total</dt>
+              <dd style={{ margin: 0 }}>{money(session.total)}</dd>
+            </div>
+          </dl>
+        ) : (
+          <p style={{ margin: "0 0 14px", fontSize: "0.9rem", opacity: 0.75 }}>
+            {money(subtotal)} subtotal — tax is added when we price your order in the next step.
+          </p>
+        )}
 
         {step === "review" ? (
           <>

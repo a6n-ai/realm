@@ -12,14 +12,24 @@
 export type CloverAtomicLineItemInput = {
   /** Clover inventory item id. */
   itemId: string;
-  /** Optional display override; Clover usually takes inventory name/price. */
+  /** Optional display override; Clover always takes the inventory price (see note below). */
   name?: string;
-  /** Optional unit price override in cents. */
-  price?: number;
+};
+
+/**
+ * Order-level discount. Clover applies discounts BEFORE tax, so this is the only
+ * lever we have over the charged total — see the note on price above.
+ * `amount` is negative cents; `percentage` is a whole percent. Send one, not both.
+ */
+export type CloverAtomicDiscountInput = {
+  name: string;
+  amount?: number;
+  percentage?: number;
 };
 
 export type CloverAtomicOrderInput = {
   lineItems: CloverAtomicLineItemInput[];
+  discounts?: CloverAtomicDiscountInput[];
   /** Merchant order type id (pickup/online). Optional for first slice. */
   orderTypeId?: string;
   note?: string;
@@ -28,6 +38,24 @@ export type CloverAtomicOrderInput = {
    * Requires Read employees permission on the app.
    */
   employeeId?: string;
+};
+
+/** Computed totals from `atomic_order/checkouts`. All amounts integer cents. */
+export type CloverAtomicCheckoutResult = {
+  subtotal: number;
+  totalTaxAmount: number;
+  total: number;
+  taxSummaries: {
+    id: string;
+    name: string;
+    /** Tax charged for this rate, in cents. */
+    amount: number;
+    /** Discounted base this rate was applied to, in cents. */
+    net: number;
+    /** Clover rate encoding: 1/100000 of a percent (1300000 = 13%). */
+    rate: number;
+  }[];
+  raw: unknown;
 };
 
 export type CloverAtomicOrderResult = {
@@ -87,22 +115,25 @@ export type CloverChargeResult = {
 
 /** Expand qty into repeated atomic line refs (Platform atomic uses one row per unit). */
 export function expandAtomicLineItems(
-  lines: { itemId: string; quantity: number; name?: string; priceCents?: number }[],
+  lines: { itemId: string; quantity: number; name?: string }[],
 ): CloverAtomicLineItemInput[] {
   const out: CloverAtomicLineItemInput[] = [];
   for (const line of lines) {
     const qty = Math.max(0, Math.floor(line.quantity));
     for (let i = 0; i < qty; i++) {
-      out.push({
-        itemId: line.itemId,
-        name: line.name,
-        price: line.priceCents,
-      });
+      out.push({ itemId: line.itemId, name: line.name });
     }
   }
   return out;
 }
 
+/**
+ * Clover IGNORES a `price` override on a line item that carries `item: {id}` — it
+ * always bills the inventory price. Verified against a live merchant: three lines
+ * sent at `price: 50` came back as `subtotal: 2997` (3 x the $9.99 catalog price).
+ * So we never send a price, and callers must treat Clover's computed total as
+ * authoritative rather than assuming our mirrored `products.price` was honoured.
+ */
 export function buildAtomicOrderBody(input: CloverAtomicOrderInput): Record<string, unknown> {
   if (!input.lineItems.length) throw new Error("atomic order requires at least one line item");
   const lineItems = input.lineItems.map((li) => {
@@ -111,18 +142,51 @@ export function buildAtomicOrderBody(input: CloverAtomicOrderInput): Record<stri
       printed: false,
     };
     if (li.name != null) row.name = li.name;
-    if (li.price != null) row.price = li.price;
     return row;
   });
   const orderCart: Record<string, unknown> = {
     lineItems,
     groupLineItems: false,
   };
+  if (input.discounts?.length) {
+    orderCart.discounts = input.discounts.map((d) => {
+      const row: Record<string, unknown> = { name: d.name };
+      if (d.amount != null) row.amount = d.amount;
+      if (d.percentage != null) row.percentage = d.percentage;
+      return row;
+    });
+  }
   if (input.orderTypeId) orderCart.orderType = { id: input.orderTypeId };
   if (input.note) orderCart.note = input.note;
   const body: Record<string, unknown> = { orderCart };
   if (input.employeeId) body.employee = { id: input.employeeId };
   return body;
+}
+
+export function normalizeAtomicCheckoutResult(raw: unknown): CloverAtomicCheckoutResult {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid atomic checkout response");
+  const o = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  // Clover wraps collections as `{elements: [...]}` throughout the Platform API.
+  const elements = (v: unknown): Record<string, unknown>[] => {
+    if (!v || typeof v !== "object") return [];
+    const list = (v as Record<string, unknown>).elements;
+    return Array.isArray(list) ? (list.filter((e) => e && typeof e === "object") as Record<string, unknown>[]) : [];
+  };
+  if (typeof o.total !== "number") throw new Error("Clover atomic checkout missing total");
+  return {
+    subtotal: num(o.subtotal),
+    totalTaxAmount: num(o.totalTaxAmount),
+    total: num(o.total),
+    taxSummaries: elements(o.taxSummaries).map((t) => ({
+      id: typeof t.id === "string" ? t.id : "",
+      name: typeof t.name === "string" ? t.name : "",
+      amount: num(t.amount),
+      net: num(t.net),
+      rate: num(t.rate),
+    })),
+    raw,
+  };
 }
 
 export function normalizeAtomicOrderResult(raw: unknown): CloverAtomicOrderResult {

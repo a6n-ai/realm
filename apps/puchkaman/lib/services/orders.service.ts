@@ -1,4 +1,5 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
+import { createLogger } from "@realm/commons/logger";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import {
@@ -14,7 +15,7 @@ import {
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { employees, orders, payments, products } from "@/db/schema";
+import { employees, orders, payments, productTaxRates, products, taxRates } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   isPublicOrderingEnabled,
@@ -33,6 +34,8 @@ import {
   type CreateCheckoutInput,
   type PayCheckoutInput,
 } from "@/lib/orders/checkout-schema";
+import { resolveSettlement } from "@/lib/orders/settlement";
+import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
@@ -84,6 +87,9 @@ function resolveOrderFacet(f: FilterCondition) {
 export type CheckoutCreateResult = {
   orderPublicId: string;
   cloverOrderId: string;
+  /** All three are Clover's computed figures — what the card will actually be charged. */
+  subtotal: number;
+  tax: number;
   total: number;
   currency: "CAD";
   customerEmail: string;
@@ -122,8 +128,64 @@ export type CloverWebhookHandleResult = {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+const log = createLogger("orders");
+
 function money(n: number): string {
   return n.toFixed(2);
+}
+
+const centsToDollars = (cents: number) => cents / 100;
+
+/**
+ * Tax rates + per-product associations for the products in a cart.
+ * Only active rates are considered — an inactivated rate is one Clover no longer
+ * applies, and the catalog sync marks (never deletes) them.
+ */
+async function loadTaxContext(productIds: bigint[]): Promise<{
+  rates: TaxRateRow[];
+  rateIdsByProduct: Map<string, string[]>;
+}> {
+  const rateRows = await db
+    .select({
+      id: taxRates.id,
+      cloverTaxRateId: taxRates.cloverTaxRateId,
+      name: taxRates.name,
+      rate: taxRates.rate,
+      taxAmount: taxRates.taxAmount,
+      isDefault: taxRates.isDefault,
+    })
+    .from(taxRates)
+    .where(eq(taxRates.active, true));
+
+  const cloverIdByLocalId = new Map<string, string>();
+  const rates: TaxRateRow[] = [];
+  for (const r of rateRows) {
+    if (!r.cloverTaxRateId) continue;
+    cloverIdByLocalId.set(r.id.toString(), r.cloverTaxRateId);
+    rates.push({
+      cloverTaxRateId: r.cloverTaxRateId,
+      name: r.name,
+      rate: r.rate,
+      taxAmount: r.taxAmount,
+      isDefault: r.isDefault,
+    });
+  }
+
+  const rateIdsByProduct = new Map<string, string[]>();
+  if (productIds.length) {
+    const links = await db
+      .select({ productId: productTaxRates.productId, taxRateId: productTaxRates.taxRateId })
+      .from(productTaxRates)
+      .where(inArray(productTaxRates.productId, productIds));
+    for (const l of links) {
+      const cloverId = cloverIdByLocalId.get(l.taxRateId.toString());
+      if (!cloverId) continue;
+      const key = l.productId.toString();
+      rateIdsByProduct.set(key, [...(rateIdsByProduct.get(key) ?? []), cloverId]);
+    }
+  }
+
+  return { rates, rateIdsByProduct };
 }
 
 /**
@@ -344,7 +406,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     }
 
     const subtotal = Number(money(lines.reduce((s, l) => s + l.lineTotal, 0)));
-    const tax = 0;
 
     // Delivery is resolved server-side from a fresh geocode — the client only ever
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
@@ -387,13 +448,75 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
     }
 
-    const total = Number(money(subtotal - discountAmount + tax));
+    // The discount has to reach Clover: `POST /v1/orders/{id}/pay` bills the Clover
+    // order's total, so a discount that exists only locally is one we quote but
+    // never actually give. Clover applies discounts before tax.
+    const atomicInput = {
+      lineItems: expandAtomicLineItems(
+        lines.map((l) => ({ itemId: l.cloverItemId, quantity: l.quantity, name: l.name })),
+      ),
+      ...(discountAmount > 0
+        ? {
+            discounts: [
+              {
+                name: `Instant delivery (${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}%)`,
+                amount: -dollarsToCloverCents(discountAmount),
+              },
+            ],
+          }
+        : {}),
+    };
+
+    // Local forecast, used only to detect drift — Clover's numbers are what get charged.
+    const taxCtx = await loadTaxContext(lines.map((l) => byPublic.get(l.productPublicId)!.id));
+    const forecast = computeTax(
+      lines.map<TaxableLine>((l) => {
+        const product = byPublic.get(l.productPublicId)!;
+        return {
+          lineTotal: l.lineTotal,
+          quantity: l.quantity,
+          useDefaultRates: product.cloverDefaultTaxRates ?? true,
+          rateIds: taxCtx.rateIdsByProduct.get(product.id.toString()) ?? [],
+        };
+      }),
+      taxCtx.rates,
+      discountAmount,
+    );
+
+    // Clover is the authority on price and tax for `item: {id}` lines, so we ask it
+    // what this cart actually costs before writing an order we might not be able to honour.
+    let computed;
+    try {
+      computed = await client.checkoutAtomicOrder(atomicInput);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Clover could not price this order";
+      throw new ValidationError(msg);
+    }
+
+    const subtotalCharged = centsToDollars(computed.subtotal);
+    const tax = centsToDollars(computed.totalTaxAmount);
+    const total = centsToDollars(computed.total);
+
+    if (Math.abs(tax - forecast.tax) >= 0.01) {
+      log.warn(
+        { quotedTax: forecast.tax, cloverTax: tax, subtotal },
+        "local tax forecast disagreed with Clover — charging Clover's figure",
+      );
+    }
+    // Clover ignores our price override and bills the catalog price, so a drift here
+    // means the customer was shown a stale price.
+    if (Math.abs(subtotalCharged - subtotal) >= 0.01) {
+      log.warn(
+        { quotedSubtotal: subtotal, cloverSubtotal: subtotalCharged },
+        "product price mirror is stale — Clover priced this cart differently",
+      );
+    }
     if (total <= 0) throw new ValidationError("Order total must be greater than zero");
 
     const snapshot: OrderPricingSnapshot = {
       currency: "CAD",
       lines,
-      subtotal,
+      subtotal: subtotalCharged,
       tax,
       ...(discountAmount > 0 ? { discountPct: INSTANT_DELIVERY_DISCOUNT_PCT, discountAmount } : {}),
       total,
@@ -414,7 +537,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           deliveryLng: deliveryLng != null ? deliveryLng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
           scheduledFor: scheduledForMs,
-          subtotal: money(subtotal),
+          subtotal: money(subtotalCharged),
           tax: money(tax),
           total: money(total),
           pricingSnapshot: snapshot,
@@ -471,19 +594,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           : `Web pickup · ${parsed.contact.name}`;
 
     // Push to Clover after local commit so we can fail the order if POS create fails.
+    // Same cart and discount we priced above — `note` is kitchen text and carries no money.
     let cloverOrderId: string;
     try {
-      const atomic = await client.createAtomicOrder({
-        lineItems: expandAtomicLineItems(
-          lines.map((l) => ({
-            itemId: l.cloverItemId,
-            quantity: l.quantity,
-            name: l.name,
-            priceCents: dollarsToCloverCents(l.unitPrice),
-          })),
-        ),
-        note,
-      });
+      const atomic = await client.createAtomicOrder({ ...atomicInput, note });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
     } catch (err) {
@@ -495,6 +609,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return {
       orderPublicId: order.publicId,
       cloverOrderId,
+      subtotal: subtotalCharged,
+      tax,
       total,
       currency: "CAD",
       customerEmail: order.customerEmail,
@@ -522,13 +638,17 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     if (!order) throw new NotFoundError(`Order not found: ${parsed.orderPublicId}`);
     if (order.status === "paid") {
       const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
-      const paid = pays.find((p) => p.status === "paid");
+      // A settled-but-flagged payment is `pending_verification`, not `paid` — still the
+      // payment that captured this order, so a repeat call must return it, not a blank.
+      const captured =
+        pays.find((p) => p.status === "paid") ??
+        pays.find((p) => p.status === "pending_verification" && p.capturedAt != null);
       return {
         orderPublicId: order.publicId,
         status: "paid",
-        paymentPublicId: paid?.publicId ?? "",
-        cloverChargeId: paid?.cloverChargeId ?? null,
-        total: Number(order.total),
+        paymentPublicId: captured?.publicId ?? "",
+        cloverChargeId: captured?.cloverChargeId ?? null,
+        total: captured ? Number(captured.amount) : Number(order.total),
       };
     }
     if (order.status !== "pending") {
@@ -549,6 +669,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       });
     } catch (err) {
       // Fallback: some merchants pay via charge when atomic order isn't on Ecommerce yet.
+      // This bills `order.total`, which since slice 2 is Clover's own computed total —
+      // so both payment paths now charge the same figure rather than two different ones.
       try {
         const charge = await client.createCharge({
           amountCents: dollarsToCloverCents(Number(order.total)),
@@ -578,7 +700,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     }
 
     return db.transaction(async (tx) => {
-      return this.settlePaid(tx, order, payResult.chargeId ?? payResult.id);
+      return this.settlePaid(tx, order, payResult.chargeId ?? payResult.id, payResult.amount);
     });
   }
 
@@ -603,6 +725,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let cloverStatus: MappedCloverPaymentStatus = "awaiting_payment";
     let chargeId = primary?.cloverChargeId ?? null;
     let source: CheckPaymentStatusResult["source"] = "platform_order";
+    let chargedCents: number | null = null;
 
     if (chargeId) {
       const charge = await client.getCharge(chargeId);
@@ -611,6 +734,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         chargePaid: charge.paid,
       });
       chargeId = charge.id;
+      chargedCents = charge.amount ?? null;
       source = "charge";
     } else if (order.cloverOrderId) {
       // Prefer Ecommerce order (charge linkage), fall back to Platform order + payments.
@@ -621,6 +745,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           orderPaid: ecom.paid,
         });
         if (ecom.chargeId) chargeId = ecom.chargeId;
+        chargedCents = ecom.amount ?? null;
         source = "ecommerce_order";
         if (cloverStatus === "awaiting_payment" && ecom.chargeId) {
           const charge = await client.getCharge(ecom.chargeId);
@@ -629,6 +754,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             chargePaid: charge.paid,
           });
           chargeId = charge.id;
+          chargedCents = charge.amount ?? null;
           source = "charge";
         }
       } catch {
@@ -640,6 +766,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           const pay = await client.getPlatformPayment(platform.paymentIds[0]!);
           paymentResult = pay.result;
           chargeId = chargeId ?? pay.id;
+          chargedCents = pay.amount ?? null;
           source = "platform_payment";
         } else {
           source = "platform_order";
@@ -653,7 +780,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       throw new ValidationError("Order has no Clover order or charge id to check");
     }
 
-    const applied = await this.applyRemotePaymentStatus(order, cloverStatus, chargeId);
+    const applied = await this.applyRemotePaymentStatus(
+      order,
+      cloverStatus,
+      chargeId,
+      chargedCents,
+    );
     const refreshed = await this.ordersRepo.findByPublicId(order.publicId);
     const refreshedPays = refreshed
       ? await this.ordersRepo.findPaymentsByOrderId(refreshed.id)
@@ -723,10 +855,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         let order: OrderRow | null = null;
         let cloverStatus: MappedCloverPaymentStatus = "awaiting_payment";
         let chargeId: string | null = null;
+        // Webhooks are the primary settlement path in production, so this is where
+        // the charged-amount check earns its keep.
+        let chargedCents: number | null = null;
 
         if (parsed.kind === "P") {
           const payment = await client.getPlatformPayment(parsed.id);
           chargeId = payment.id;
+          chargedCents = payment.amount ?? null;
           cloverStatus = mapCloverRemoteToPaymentStatus({ paymentResult: payment.result });
           if (payment.orderId) {
             order = await this.ordersRepo.findByCloverOrderId(payment.orderId);
@@ -746,6 +882,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             const pay = await client.getPlatformPayment(platform.paymentIds[0]!);
             paymentResult = pay.result;
             chargeId = pay.id;
+            chargedCents = pay.amount ?? null;
           }
           cloverStatus = mapCloverRemoteToPaymentStatus({
             paymentState: platform.paymentState,
@@ -758,12 +895,23 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           continue;
         }
 
-        const applied = await this.applyRemotePaymentStatus(order, cloverStatus, chargeId);
+        const applied = await this.applyRemotePaymentStatus(
+          order,
+          cloverStatus,
+          chargeId,
+          chargedCents,
+        );
         result.processed += 1;
         if (applied.outcome === "paid" && applied.changed) result.settled += 1;
         else if (applied.outcome === "failed" && applied.changed) result.failed += 1;
         else if (!applied.changed) result.skipped += 1;
-      } catch {
+      } catch (err) {
+        // A settlement that throws is counted as `skipped`, which is indistinguishable
+        // from an event we deliberately ignored — log it so the two can be told apart.
+        log.error(
+          { objectId: update.objectId, type: update.type, err },
+          "Clover webhook update failed to apply",
+        );
         result.skipped += 1;
       }
     }
@@ -775,13 +923,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     order: OrderRow,
     cloverStatus: MappedCloverPaymentStatus,
     cloverChargeId: string | null,
+    chargedCents?: number | null,
   ): Promise<{ changed: boolean; outcome: MappedCloverPaymentStatus | "unchanged" }> {
     if (cloverStatus === "paid") {
       if (order.status === "paid" || order.status === "fulfilled") {
         return { changed: false, outcome: "unchanged" };
       }
       await db.transaction(async (tx) => {
-        await this.settlePaid(tx, order, cloverChargeId);
+        await this.settlePaid(tx, order, cloverChargeId, chargedCents);
       });
       return { changed: true, outcome: "paid" };
     }
@@ -831,12 +980,34 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return true;
   }
 
+  /**
+   * Mark an order paid. `chargedCents` is what Clover reported actually taking from
+   * the card; when it disagrees with the order total we still settle (the money has
+   * moved — refusing to record it would lose it) but flag the payment for review and
+   * write an adjustment entry, so the ledger reflects reality rather than our quote.
+   */
   private async settlePaid(
     tx: Tx,
     order: OrderRow,
     cloverChargeId: string | null,
+    chargedCents?: number | null,
   ): Promise<CheckoutPayResult> {
     const now = Date.now();
+    const settlement = resolveSettlement(Number(order.total), chargedCents);
+
+    if (settlement.mismatch) {
+      log.error(
+        {
+          orderPublicId: order.publicId,
+          quotedTotal: Number(order.total),
+          chargedCents,
+          deltaCents: settlement.deltaCents,
+          cloverChargeId,
+        },
+        "Clover charged an amount different from the order total — payment held for verification",
+      );
+    }
+
     const [pay] = await tx
       .select()
       .from(payments)
@@ -876,10 +1047,13 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     await tx
       .update(payments)
       .set({
-        status: "paid",
+        // The card was charged either way; `pending_verification` is a staff signal,
+        // not a claim that the money is still in flight.
+        status: settlement.paymentStatus,
         capturedAt: now,
         cloverChargeId,
         method: "clover",
+        amount: money(settlement.settledTotal),
       })
       .where(eq(payments.id, pay.id));
 
@@ -888,22 +1062,35 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       .set({ status: "paid", paidAt: now })
       .where(eq(orders.id, order.id));
 
+    // Record what was actually taken, not what we quoted.
     await ledgerService.record(tx, {
       userId: order.userId,
       orderId: order.id,
       paymentId: pay.id,
       direction: "credit",
       type: "payment",
-      amount: Number(order.total),
+      amount: settlement.settledTotal,
       memo: `Clover charge ${cloverChargeId ?? "n/a"}`,
     });
+
+    if (settlement.adjustmentDirection) {
+      await ledgerService.record(tx, {
+        userId: order.userId,
+        orderId: order.id,
+        paymentId: pay.id,
+        direction: settlement.adjustmentDirection,
+        type: "adjustment",
+        amount: Math.abs(settlement.deltaCents) / 100,
+        memo: `Charged ${money(settlement.settledTotal)} against a quoted total of ${money(Number(order.total))}`,
+      });
+    }
 
     return {
       orderPublicId: order.publicId,
       status: "paid",
       paymentPublicId: pay.publicId,
       cloverChargeId,
-      total: Number(order.total),
+      total: settlement.settledTotal,
     };
   }
 }

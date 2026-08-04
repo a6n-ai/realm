@@ -49,6 +49,7 @@ import {
 } from "./inventory";
 import {
   buildAtomicOrderBody,
+  normalizeAtomicCheckoutResult,
   normalizeAtomicOrderResult,
   normalizeChargeResult,
   normalizeEcommerceOrder,
@@ -56,6 +57,7 @@ import {
   normalizePayOrderResult,
   normalizePlatformOrder,
   normalizePlatformPayment,
+  type CloverAtomicCheckoutResult,
   type CloverAtomicOrderInput,
   type CloverAtomicOrderResult,
   type CloverChargeInput,
@@ -659,6 +661,21 @@ export class CloverApiClient {
       buildAtomicOrderBody(input),
     );
     return normalizeAtomicOrderResult(data);
+  }
+
+  /**
+   * Compute order totals and tax without creating anything on the POS.
+   * POST /v3/merchants/{mId}/atomic_order/checkouts
+   *
+   * This is the authority for what a customer will actually be charged: the
+   * Ecommerce `POST /v1/orders/{id}/pay` bills the Clover order's total, not ours.
+   */
+  async checkoutAtomicOrder(input: CloverAtomicOrderInput): Promise<CloverAtomicCheckoutResult> {
+    const data = await this.post(
+      this.merchantPath("atomic_order/checkouts"),
+      buildAtomicOrderBody(input),
+    );
+    return normalizeAtomicCheckoutResult(data);
   }
 
   // ── Ecommerce (SCL host) ──────────────────────────────────────────────────

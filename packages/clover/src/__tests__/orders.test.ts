@@ -3,6 +3,7 @@ import {
   buildAtomicOrderBody,
   cloverCheckoutSdkUrl,
   expandAtomicLineItems,
+  normalizeAtomicCheckoutResult,
   normalizeAtomicOrderResult,
   normalizeChargeResult,
   normalizePakmsKey,
@@ -13,13 +14,13 @@ describe("expandAtomicLineItems", () => {
   it("repeats lines by quantity", () => {
     expect(
       expandAtomicLineItems([
-        { itemId: "A", quantity: 2, name: "Puchka", priceCents: 500 },
+        { itemId: "A", quantity: 2, name: "Puchka" },
         { itemId: "B", quantity: 1 },
       ]),
     ).toEqual([
-      { itemId: "A", name: "Puchka", price: 500 },
-      { itemId: "A", name: "Puchka", price: 500 },
-      { itemId: "B", name: undefined, price: undefined },
+      { itemId: "A", name: "Puchka" },
+      { itemId: "A", name: "Puchka" },
+      { itemId: "B", name: undefined },
     ]);
   });
 });
@@ -27,13 +28,13 @@ describe("expandAtomicLineItems", () => {
 describe("buildAtomicOrderBody", () => {
   it("builds orderCart with inventory refs", () => {
     const body = buildAtomicOrderBody({
-      lineItems: [{ itemId: "ITEM1", name: "Puchka", price: 599 }],
+      lineItems: [{ itemId: "ITEM1", name: "Puchka" }],
       orderTypeId: "TYPE1",
       note: "Pickup",
     });
     expect(body).toEqual({
       orderCart: {
-        lineItems: [{ item: { id: "ITEM1" }, printed: false, name: "Puchka", price: 599 }],
+        lineItems: [{ item: { id: "ITEM1" }, printed: false, name: "Puchka" }],
         groupLineItems: false,
         orderType: { id: "TYPE1" },
         note: "Pickup",
@@ -41,19 +42,78 @@ describe("buildAtomicOrderBody", () => {
     });
   });
 
+  // Clover bills the inventory price for `item: {id}` lines and discards any price
+  // we send, so sending one would only invite the caller to trust a number Clover ignores.
+  it("never sends a price override", () => {
+    const body = buildAtomicOrderBody({
+      lineItems: [{ itemId: "ITEM1", name: "Puchka" }],
+    }) as { orderCart: { lineItems: Record<string, unknown>[] } };
+    expect(body.orderCart.lineItems[0]).not.toHaveProperty("price");
+  });
+
   it("rejects empty carts", () => {
     expect(() => buildAtomicOrderBody({ lineItems: [] })).toThrow(/at least one/);
   });
 
+  it("passes order-level discounts through as negative cents", () => {
+    const body = buildAtomicOrderBody({
+      lineItems: [{ itemId: "ITEM1" }],
+      discounts: [{ name: "Instant delivery (15%)", amount: -150 }],
+    });
+    expect(body).toMatchObject({
+      orderCart: { discounts: [{ name: "Instant delivery (15%)", amount: -150 }] },
+    });
+  });
+
+  it("omits discounts entirely when there are none", () => {
+    const body = buildAtomicOrderBody({ lineItems: [{ itemId: "ITEM1" }] }) as {
+      orderCart: Record<string, unknown>;
+    };
+    expect(body.orderCart).not.toHaveProperty("discounts");
+  });
+
   it("includes employee when provided", () => {
     const body = buildAtomicOrderBody({
-      lineItems: [{ itemId: "ITEM1", name: "Puchka", price: 599 }],
+      lineItems: [{ itemId: "ITEM1", name: "Puchka" }],
       employeeId: "EMP1",
     });
     expect(body).toMatchObject({
       orderCart: expect.any(Object),
       employee: { id: "EMP1" },
     });
+  });
+});
+
+describe("normalizeAtomicCheckoutResult", () => {
+  // Captured verbatim from a live merchant: one $9.99 item, default 13% tax rate.
+  const live = {
+    orderCart: { lineItems: { elements: [] }, discounts: { elements: [] } },
+    total: 1129,
+    subtotal: 999,
+    totalTaxAmount: 130,
+    taxSummaries: {
+      elements: [
+        { id: "PNF6CV7VAK4GT", name: "Tax", amount: 130, gross: 1129, net: 999, rate: 1300000 },
+      ],
+    },
+    isVat: false,
+  };
+
+  it("unwraps totals and the taxSummaries elements array", () => {
+    expect(normalizeAtomicCheckoutResult(live)).toMatchObject({
+      subtotal: 999,
+      totalTaxAmount: 130,
+      total: 1129,
+      taxSummaries: [{ id: "PNF6CV7VAK4GT", amount: 130, net: 999, rate: 1300000 }],
+    });
+  });
+
+  it("tolerates a missing taxSummaries collection", () => {
+    expect(normalizeAtomicCheckoutResult({ total: 500, subtotal: 500 }).taxSummaries).toEqual([]);
+  });
+
+  it("rejects a response with no total rather than defaulting it to zero", () => {
+    expect(() => normalizeAtomicCheckoutResult({ subtotal: 999 })).toThrow(/missing total/);
   });
 });
 
