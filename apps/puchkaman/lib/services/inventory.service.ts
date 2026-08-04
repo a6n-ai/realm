@@ -891,6 +891,57 @@ class InventoryCatalogService {
     }));
   }
 
+  /**
+   * Clover's category layout for the public menu: active categories in Clover's
+   * own sortOrder, each holding its items in the order Clover puts them.
+   *
+   * Returns product publicIds rather than rows — the menu page already loads
+   * every product, so this only has to answer "which, and in what order".
+   * Empty when the catalog has never been synced; callers fall back.
+   */
+  async publicMenuSections(): Promise<
+    Array<{ publicId: string; name: string; sortOrder: number; colorCode: string | null; productIds: string[] }>
+  > {
+    const rows = await db
+      .select({
+        publicId: productCategories.publicId,
+        name: productCategories.name,
+        sortOrder: productCategories.sortOrder,
+        colorCode: productCategories.colorCode,
+        productPublicId: products.publicId,
+      })
+      .from(productCategoryItems)
+      .innerJoin(productCategories, eq(productCategoryItems.categoryId, productCategories.id))
+      .innerJoin(products, eq(productCategoryItems.productId, products.id))
+      .where(eq(productCategories.active, true))
+      .orderBy(
+        asc(productCategories.sortOrder),
+        asc(productCategories.name),
+        asc(productCategoryItems.sortOrder),
+        asc(products.name),
+      );
+
+    const sections = new Map<
+      string,
+      { publicId: string; name: string; sortOrder: number; colorCode: string | null; productIds: string[] }
+    >();
+    for (const row of rows) {
+      let section = sections.get(row.publicId);
+      if (!section) {
+        section = {
+          publicId: row.publicId,
+          name: row.name,
+          sortOrder: row.sortOrder,
+          colorCode: row.colorCode,
+          productIds: [],
+        };
+        sections.set(row.publicId, section);
+      }
+      section.productIds.push(row.productPublicId);
+    }
+    return [...sections.values()];
+  }
+
   async associationsForProductPublicId(publicId: string): Promise<ProductAssociations> {
     const product = await productsRepository.findByPublicId(publicId);
     if (!product) throw new NotFoundError("Product not found");

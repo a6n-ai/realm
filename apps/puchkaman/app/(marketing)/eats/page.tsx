@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import type { FileDetail } from "@realm/storage/model";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
+import { groupByCloverSections } from "@/lib/products/public-menu";
+import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
@@ -54,12 +56,47 @@ async function getEats(): Promise<{
   totalProducts: number;
   orderingEnabled: boolean;
 }> {
-  const [rows, orderable, orderingEnabled] = await Promise.all([
+  const [rows, orderable, orderingEnabled, cloverSections] = await Promise.all([
     productsService.listForPublicMenu(),
     ordersService.listOrderableCatalog(),
     isPublicOrderingEnabled(),
+    inventoryCatalogService.publicMenuSections(),
   ]);
   const orderableIds = new Set(orderable.map((o) => o.publicId));
+
+  const toItem = (row: (typeof rows)[number]) => ({
+    publicId: row.publicId,
+    name: row.name,
+    description: row.description,
+    price: Number(row.price),
+    image: (row.image as FileDetail | null) ?? null,
+    tags: row.tags ?? [],
+    orderable: orderingEnabled && orderableIds.has(row.publicId),
+    category: row.category,
+    cloverColorCode: row.cloverColorCode ?? null,
+  });
+
+  // Clover is the inventory source of truth, so when its catalog has been
+  // synced it also decides the menu's sections and their order. Before the
+  // first sync there is nothing to group by, and the local category enum below
+  // still drives the page.
+  if (cloverSections.length) {
+    const grouped = groupByCloverSections(rows, cloverSections);
+    const categories: EatsCategory[] = grouped.sections.map((section) => ({
+      ...section,
+      items: section.items.map(toItem),
+    }));
+    if (grouped.unplaced.length) {
+      categories.push({
+        id: "uncategorised",
+        name: "More from the kitchen",
+        emoji: "🍽️",
+        note: "",
+        items: grouped.unplaced.map(toItem),
+      });
+    }
+    return { categories, totalProducts: rows.length, orderingEnabled };
+  }
 
   const byCategory = new Map<string, typeof rows>();
   for (const row of rows) {
