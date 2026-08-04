@@ -5,6 +5,7 @@ import { Loader2Icon, RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
+import { toastSyncErrors } from "@/lib/http/sync-errors";
 import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 type SyncResponse = {
@@ -39,9 +40,7 @@ export function CloverEmployeesSyncActions({
           r.inactivated ? ` (${r.inactivated} inactivated)` : ""
         }`,
       );
-      if (r.errors?.length) {
-        toast.warning(`${r.errors.length} sync warning(s)`);
-      }
+      toastSyncErrors(r.errors);
       window.location.reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");

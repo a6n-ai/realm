@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon, PlusIcon } from "lucide-react";
-import { toast } from "sonner";
 import { ResponsiveDialog, SectionCard } from "@realm/design-system";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { apiFetch } from "@/lib/http/api-fetch";
+import { toastSyncErrors } from "@/lib/http/sync-errors";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
 import type { AssociationKind, AssociationRef } from "@/lib/services/inventory.service";
 
@@ -73,9 +73,7 @@ export function AssociationSection({
         method: "PUT",
         body: JSON.stringify({ kind, publicIds: [...selected] }),
       });
-      if (res.pushed?.errors.length) {
-        toast.warning(`Saved locally; ${res.pushed.errors.length} Clover push error(s)`);
-      }
+      toastSyncErrors(res.pushed?.errors, "Saved locally, but Clover rejected the push");
       setOpen(false);
       router.refresh();
     } catch {

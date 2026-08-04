@@ -5,6 +5,7 @@ import { Loader2Icon, RefreshCwIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
+import { toastSyncErrors } from "@/lib/http/sync-errors";
 import { SyncLoadingOverlay } from "./sync-loading-overlay";
 
 type SyncResponse = {
@@ -53,18 +54,7 @@ export function CloverCatalogSyncActions({
           `Pushed categories: ${r.created?.length ?? 0} created, ${r.updated?.length ?? 0} updated`,
         );
       }
-      if (r.errors?.length) {
-        // A partial sync used to report only a count, which meant a real
-        // failure ("Developer App Id is required for get menus from provider")
-        // was only readable by querying the audit log. Show what Clover said.
-        const first = r.errors[0]!;
-        toast.warning(
-          [first.entity, first.message].filter(Boolean).join(": "),
-          r.errors.length > 1
-            ? { description: `+${r.errors.length - 1} more sync warning(s)`, duration: 10000 }
-            : { duration: 10000 },
-        );
-      }
+      toastSyncErrors(r.errors);
       window.location.reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
