@@ -410,6 +410,59 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return { items, page: page.page, size: page.size, total: count };
   }
 
+  // Full (unpaginated) export of every inquiry matching the pipeline's current
+  // filter condition — same predicate/resolver as listForPipeline, but no
+  // limit/offset and a wider column set (contact + interest + resolution
+  // detail) since this feeds an Excel download, not the on-screen table.
+  async listForExport(condition: Condition | undefined) {
+    const where = conditionToSql(condition, inquiriesResolver());
+
+    const agg = db
+      .select({
+        inquiryId: inquiryActivities.inquiryId,
+        lastTouchAt: sql<number>`max(${inquiryActivities.createdAt})`.as("last_touch_at"),
+      })
+      .from(inquiryActivities)
+      .groupBy(inquiryActivities.inquiryId)
+      .as("agg");
+
+    const rows = await db
+      .select({
+        fullName: inquiries.fullName,
+        phone: inquiries.phone,
+        email: inquiries.email,
+        source: leadSources.label,
+        subSource: leadSubsources.label,
+        stage: inquiries.stage,
+        ownerName: users.name,
+        createdAt: inquiries.createdAt,
+        lastTouchAt: agg.lastTouchAt,
+        nextFollowUpAt: sql<number | null>`(
+          select a.next_follow_up_at from inquiry_activities a
+          where a.inquiry_id = ${inquiries.id}
+          order by a.created_at desc limit 1
+        )`,
+        planInterest: inquiries.planInterest,
+        mealSizeInterest: inquiries.mealSizeInterest,
+        personsInterest: inquiries.personsInterest,
+        postalCode: inquiries.postalCode,
+        preferredStart: inquiries.preferredStart,
+        quotedPrice: inquiries.quotedPrice,
+        lostReason: inquiries.lostReason,
+        notes: inquiries.notes,
+      })
+      .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .leftJoin(leadSubsources, eq(inquiries.subSourceId, leadSubsources.id))
+      .leftJoin(users, eq(inquiries.currentOwner, users.id))
+      .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
+      .where(where)
+      .orderBy(desc(inquiries.createdAt));
+
+    const now = Date.now();
+    return rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+  }
+
   async listActivities(publicId: string) {
     const inq = await this.read(publicId);
     return db
