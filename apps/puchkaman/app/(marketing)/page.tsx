@@ -201,7 +201,10 @@ export default async function HomePage() {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap">
           <SectionHead kicker="Crowd Favourites" title="The Best Sellers" sub="The dishes Scarborough keeps coming back for. Tap any to see the full menu." />
-          <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+          {/* 320px floor, not 280px: at the 1200px content width that resolves to
+              three columns, so six best sellers fill two complete rows. A 280px
+              floor gave four columns and left the second row two-thirds empty. */}
+          <div className="grid bs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
             {cards.map((d, i) => (
               <Reveal key={d.key} delay={i * 60}>
                 <Link href="/eats" className="card card--lift" style={{ display: "block", overflow: "hidden", height: "100%" }}>

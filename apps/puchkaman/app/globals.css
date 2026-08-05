@@ -418,8 +418,13 @@ section { position: relative; }
 .stars { display: inline-flex; gap: 2px; color: var(--ink); }
 
 /* ---------- reveal animation ---------- */
-.reveal { opacity: 0; transform: translateY(22px); }
-.reveal.in { opacity: 1; transform: none; transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+/* Gated behind `.anim-ready` (set on <html> after mount, same gate `.anim` and
+   `.hero-art` already use) so the hidden state only exists once the observer
+   that clears it is running. Without the gate, a visitor whose JS fails or is
+   blocked gets a homepage that is blank below the hero — and so does anything
+   that renders the HTML without executing scripts. */
+.anim-ready .reveal { opacity: 0; transform: translateY(22px); }
+.anim-ready .reveal.in { opacity: 1; transform: none; transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
 
 /* ---------- entrance: chunky pop-in with overshoot ---------- */
 @keyframes pop-in {
@@ -472,7 +477,8 @@ section { position: relative; }
 .ribbon:hover .ribbon__track { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .reveal.in { opacity: 1 !important; transform: none !important; transition: none; }
+  .reveal, .reveal.in,
+  .anim-ready .reveal, .anim-ready .reveal.in { opacity: 1 !important; transform: none !important; transition: none; }
   .marquee__track, .ribbon__track { animation: none; }
   .anim { opacity: 1 !important; animation: none !important; }
   .hero-art, .float-l, .float-r, .logo-dot { animation: none !important; }
@@ -738,6 +744,15 @@ header a:active .logo-mark {
   .header-icons { gap: 6px !important; }
 }
 .nav-link:hover { background: var(--white) !important; border-color: var(--ink) !important; }
+/* Footer links were 23px tall — under the 24x24 WCAG 2.5.8 AA minimum, and a
+   genuinely awkward thumb target in a stacked list. Padding rather than
+   line-height so the text rhythm is unchanged. */
+.foot-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 2px 0;
+}
 .foot-link:hover { color: var(--yellow); }
 
 /* ============================================================
@@ -1624,6 +1639,10 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 .eats-results { min-width: 0; }
 .eats-section { margin-bottom: clamp(36px, 9vw, 56px); scroll-margin-top: 140px; }
+/* Section headings sit in a flex row beside their emoji, and a flex item's
+   default `min-width: auto` refuses to shrink below its longest word — a long
+   category name pushed the whole page 89px wider than a 375px phone. */
+.eats-section > .flex > .display { min-width: 0; }
 .eats-section__note {
   font-weight: 500;
   opacity: 0.75;
