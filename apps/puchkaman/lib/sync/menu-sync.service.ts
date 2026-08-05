@@ -1,3 +1,4 @@
+import { normalizeProductName } from "@/lib/sync/clover-inventory-match";
 import type { MenuSource, MenuSourceItem } from "@/lib/sync/menu-source";
 import { rehostImage } from "@/lib/sync/rehost-image";
 import { uniqueSlug } from "@/lib/products/slug";
@@ -34,14 +35,9 @@ export type SyncResult = {
   errors: { item: string; message: string }[];
 };
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s]/g, "")
-    .trim()
-    .replace(/\s+/g, " ");
-}
+// Single definition shared with the Clover matcher — two copies of this rule would
+// drift, and they have to agree on what counts as the same dish.
+const normalizeName = normalizeProductName;
 
 export type SyncOptions = {
   // Re-download + re-host every synced item's image even when its Uber Eats

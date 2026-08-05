@@ -10,6 +10,29 @@ describe("normalizeProductName", () => {
   it("collapses punctuation and case", () => {
     expect(normalizeProductName("  Spicy Puchka!! ")).toBe("spicy puchka");
   });
+
+  // Clover carries a portion note the Uber Eats menu does not, which was enough to
+  // stop the same dish matching itself.
+  it("ignores a trailing portion note", () => {
+    expect(normalizeProductName("Kolkata’s Special Aloo Puchka(6 Pieces)")).toBe(
+      normalizeProductName("Kolkata’s Special Aloo Puchka"),
+    );
+    expect(normalizeProductName("Steam Momo (10 pcs)")).toBe(normalizeProductName("Steam Momo"));
+  });
+
+  it("only drops a parenthetical at the end", () => {
+    // Mid-string parentheses can be the thing that distinguishes two products.
+    expect(normalizeProductName("Combo (large) with fries")).toBe("combo large with fries");
+  });
+
+  it("still separates genuinely different dishes", () => {
+    expect(normalizeProductName("Spicy Prawn Puchka")).not.toBe(
+      normalizeProductName("Spicy Chicken Blast Puchka"),
+    );
+    expect(normalizeProductName("Momo platter")).not.toBe(
+      normalizeProductName("SUNDAY - Mixed Momo Platter"),
+    );
+  });
 });
 
 describe("mapCloverCategoryToLocal", () => {

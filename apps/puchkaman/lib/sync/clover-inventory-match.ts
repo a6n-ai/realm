@@ -8,8 +8,17 @@ export type MatchableProduct = {
   price: string | number;
 };
 
+/**
+ * A trailing portion note, e.g. "Kolkata's Special Aloo Puchka(6 Pieces)".
+ * Clover names carry these; the Uber Eats menu does not, which is enough to stop
+ * the same dish matching itself. Only a *trailing* parenthetical is dropped, so a
+ * name that distinguishes itself mid-string is left intact.
+ */
+const TRAILING_PORTION_NOTE = /\s*\([^()]*\)\s*$/;
+
 export function normalizeProductName(name: string): string {
   return name
+    .replace(TRAILING_PORTION_NOTE, "")
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^\w\s]/g, "")
