@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { phoneSchema } from "@realm/commons";
 
 const cartLineSchema = z.object({
   productPublicId: z.string().min(1),
@@ -14,7 +15,10 @@ const cartLineSchema = z.object({
 const contactSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(200),
-  phone: z.string().trim().max(40).optional().nullable(),
+  // Required: the kitchen calls the customer when a pickup order stalls, and
+  // couriers need it for delivery. Stored E.164 so the country code survives
+  // whatever the browser sent (a bare "416…" is assumed Canadian).
+  phone: phoneSchema("CA"),
   note: z.string().trim().max(500).optional().nullable(),
 });
 

@@ -9,6 +9,26 @@ describe("checkout schemas", () => {
     });
     expect(parsed.items[0]?.quantity).toBe(2);
     expect(parsed.contact.email).toBe("ada@example.com");
+    expect(parsed.contact.phone).toBe("+14165550000");
+  });
+
+  it("keeps a non-Canadian country code instead of assuming CA", () => {
+    const parsed = createCheckoutSchema.parse({
+      items: [{ productPublicId: "prd_abc", quantity: 1 }],
+      contact: { name: "Ada", email: "ada@example.com", phone: "+919833098330" },
+    });
+    expect(parsed.contact.phone).toBe("+919833098330");
+  });
+
+  it("requires a usable phone number", () => {
+    for (const phone of [undefined, "", "12"]) {
+      expect(() =>
+        createCheckoutSchema.parse({
+          items: [{ productPublicId: "prd_abc", quantity: 1 }],
+          contact: { name: "Ada", email: "ada@example.com", phone },
+        }),
+      ).toThrow();
+    }
   });
 
   it("rejects empty cart", () => {
