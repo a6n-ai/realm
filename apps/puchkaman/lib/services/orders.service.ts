@@ -31,8 +31,10 @@ import { geocodeAddress } from "@/lib/delivery/geocode";
 import {
   createCheckoutSchema,
   payCheckoutSchema,
+  quoteCartSchema,
   type CreateCheckoutInput,
   type PayCheckoutInput,
+  type QuoteCartInput,
 } from "@/lib/orders/checkout-schema";
 import { loadModifierGroupsByProduct, resolveSelectedModifiers } from "@/lib/orders/modifiers";
 import { resolveSettlement } from "@/lib/orders/settlement";
@@ -58,8 +60,10 @@ export type { OrderListRow, OrderSortColumn } from "./orders.repository";
 export {
   createCheckoutSchema,
   payCheckoutSchema,
+  quoteCartSchema,
   type CreateCheckoutInput,
   type PayCheckoutInput,
+  type QuoteCartInput,
 } from "@/lib/orders/checkout-schema";
 
 function resolveOrderFacet(f: FilterCondition) {
@@ -100,6 +104,15 @@ export type CheckoutCreateResult = {
   fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled";
   discountAmount?: number;
   scheduledFor?: string;
+};
+
+export type CartQuoteResult = {
+  subtotal: number;
+  /** Forecast from the mirrored Clover tax rates. Clover re-prices at checkout. */
+  tax: number;
+  total: number;
+  currency: "CAD";
+  taxLines: { name: string; amount: number }[];
 };
 
 export type CheckoutPayResult = {
@@ -189,6 +202,97 @@ async function loadTaxContext(productIds: bigint[]): Promise<{
   return { rates, rateIdsByProduct };
 }
 
+type ProductRow = typeof products.$inferSelect;
+
+/**
+ * Server-price a cart: resolve every product and modifier from our Clover mirror
+ * and total the lines. The browser only ever sends ids and quantities, so this is
+ * the single place cart money is computed — both the live quote and the real
+ * checkout go through it, which is what stops the quoted total from drifting from
+ * the charged one.
+ */
+async function priceCart(items: CreateCheckoutInput["items"]): Promise<{
+  lines: OrderPricingSnapshot["lines"];
+  subtotal: number;
+  byPublic: Map<string, ProductRow>;
+}> {
+  const publicIds = [...new Set(items.map((i) => i.productPublicId))];
+  const productRows = await db
+    .select()
+    .from(products)
+    .where(and(inArray(products.publicId, publicIds), eq(products.active, true)));
+
+  const byPublic = new Map(productRows.map((p) => [p.publicId, p]));
+  // Modifier prices come from our Clover mirror, never from the request — whatever
+  // amount we send is what Clover bills, so a client-supplied price would be free money.
+  const groupsByProduct = await loadModifierGroupsByProduct(productRows.map((p) => p.id));
+  const lines: OrderPricingSnapshot["lines"] = [];
+
+  for (const line of items) {
+    const product = byPublic.get(line.productPublicId);
+    if (!product) {
+      throw new ValidationError(`Product not available: ${line.productPublicId}`);
+    }
+    if (!product.cloverItemId) {
+      throw new ValidationError(`Product not linked to Clover: ${product.name}`);
+    }
+    if (product.cloverAvailable === false) {
+      throw new ValidationError(`Product unavailable: ${product.name}`);
+    }
+    if (product.cloverStockQty != null && Number(product.cloverStockQty) < line.quantity) {
+      throw new ValidationError(`Insufficient stock for ${product.name}`);
+    }
+    const unitPrice = Number(product.price);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new ValidationError(`Invalid price for ${product.name}`);
+    }
+    const selected = resolveSelectedModifiers(
+      product.name,
+      groupsByProduct.get(product.id.toString()) ?? [],
+      line.modifiers,
+    );
+    const modifierTotal = selected.reduce((s, m) => s + m.price, 0);
+
+    lines.push({
+      productPublicId: product.publicId,
+      cloverItemId: product.cloverItemId,
+      name: product.name,
+      unitPrice,
+      quantity: line.quantity,
+      lineTotal: Number(money((unitPrice + modifierTotal) * line.quantity)),
+      ...(selected.length ? { modifiers: selected } : {}),
+    });
+  }
+
+  return { lines, subtotal: Number(money(lines.reduce((s, l) => s + l.lineTotal, 0))), byPublic };
+}
+
+/**
+ * Local tax forecast for a priced cart, from the Clover tax rates we mirror on sync.
+ * Never authoritative — Clover bills its own figure — but it is what lets the bag
+ * show a tax line before we round-trip to Clover.
+ */
+async function forecastCartTax(
+  lines: OrderPricingSnapshot["lines"],
+  byPublic: Map<string, ProductRow>,
+  discountAmount = 0,
+) {
+  const taxCtx = await loadTaxContext(lines.map((l) => byPublic.get(l.productPublicId)!.id));
+  return computeTax(
+    lines.map<TaxableLine>((l) => {
+      const product = byPublic.get(l.productPublicId)!;
+      return {
+        lineTotal: l.lineTotal,
+        quantity: l.quantity,
+        useDefaultRates: product.cloverDefaultTaxRates ?? true,
+        rateIds: taxCtx.rateIdsByProduct.get(product.id.toString()) ?? [],
+      };
+    }),
+    taxCtx.rates,
+    discountAmount,
+  );
+}
+
 /**
  * Pickup orders + Clover Ecommerce settlement.
  * Extends SessionUpdatableService for order row updates (+ audit_log);
@@ -197,6 +301,24 @@ async function loadTaxContext(productIds: bigint[]): Promise<{
 class OrdersService extends SessionUpdatableService<typeof orders> {
   constructor(private readonly ordersRepo: OrdersRepository) {
     super(ordersRepo);
+  }
+
+  /**
+   * Price a bag without creating anything: server prices, plus tax from the Clover
+   * rates we mirror on sync. No Clover round-trip, so it is cheap enough to call on
+   * every quantity change — and no discount, because fulfillment isn't chosen yet.
+   */
+  async quoteCart(input: QuoteCartInput): Promise<CartQuoteResult> {
+    const parsed = quoteCartSchema.parse(input);
+    const { lines, subtotal, byPublic } = await priceCart(parsed.items);
+    const forecast = await forecastCartTax(lines, byPublic);
+    return {
+      subtotal,
+      tax: forecast.tax,
+      total: Number(money(subtotal + forecast.tax)),
+      currency: "CAD",
+      taxLines: forecast.perRate.map((r) => ({ name: r.name, amount: r.amount })),
+    };
   }
 
   /** Active products available for pickup. Empty until Clover client-ready; then SoT rules apply. */
@@ -375,55 +497,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const pakms = await client.getPakmsApiKey();
     const environment = client.environment();
 
-    const publicIds = [...new Set(parsed.items.map((i) => i.productPublicId))];
-    const productRows = await db
-      .select()
-      .from(products)
-      .where(and(inArray(products.publicId, publicIds), eq(products.active, true)));
-
-    const byPublic = new Map(productRows.map((p) => [p.publicId, p]));
-    // Modifier prices come from our Clover mirror, never from the request — whatever
-    // amount we send is what Clover bills, so a client-supplied price would be free money.
-    const groupsByProduct = await loadModifierGroupsByProduct(productRows.map((p) => p.id));
-    const lines: OrderPricingSnapshot["lines"] = [];
-
-    for (const line of parsed.items) {
-      const product = byPublic.get(line.productPublicId);
-      if (!product) {
-        throw new ValidationError(`Product not available: ${line.productPublicId}`);
-      }
-      if (!product.cloverItemId) {
-        throw new ValidationError(`Product not linked to Clover: ${product.name}`);
-      }
-      if (product.cloverAvailable === false) {
-        throw new ValidationError(`Product unavailable: ${product.name}`);
-      }
-      if (product.cloverStockQty != null && Number(product.cloverStockQty) < line.quantity) {
-        throw new ValidationError(`Insufficient stock for ${product.name}`);
-      }
-      const unitPrice = Number(product.price);
-      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-        throw new ValidationError(`Invalid price for ${product.name}`);
-      }
-      const selected = resolveSelectedModifiers(
-        product.name,
-        groupsByProduct.get(product.id.toString()) ?? [],
-        line.modifiers,
-      );
-      const modifierTotal = selected.reduce((s, m) => s + m.price, 0);
-
-      lines.push({
-        productPublicId: product.publicId,
-        cloverItemId: product.cloverItemId,
-        name: product.name,
-        unitPrice,
-        quantity: line.quantity,
-        lineTotal: Number(money((unitPrice + modifierTotal) * line.quantity)),
-        ...(selected.length ? { modifiers: selected } : {}),
-      });
-    }
-
-    const subtotal = Number(money(lines.reduce((s, l) => s + l.lineTotal, 0)));
+    const { lines, subtotal, byPublic } = await priceCart(parsed.items);
 
     // Delivery is resolved server-side from a fresh geocode — the client only ever
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
@@ -497,20 +571,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     };
 
     // Local forecast, used only to detect drift — Clover's numbers are what get charged.
-    const taxCtx = await loadTaxContext(lines.map((l) => byPublic.get(l.productPublicId)!.id));
-    const forecast = computeTax(
-      lines.map<TaxableLine>((l) => {
-        const product = byPublic.get(l.productPublicId)!;
-        return {
-          lineTotal: l.lineTotal,
-          quantity: l.quantity,
-          useDefaultRates: product.cloverDefaultTaxRates ?? true,
-          rateIds: taxCtx.rateIdsByProduct.get(product.id.toString()) ?? [],
-        };
-      }),
-      taxCtx.rates,
-      discountAmount,
-    );
+    const forecast = await forecastCartTax(lines, byPublic, discountAmount);
 
     // Clover is the authority on price and tax for `item: {id}` lines, so we ask it
     // what this cart actually costs before writing an order we might not be able to honour.

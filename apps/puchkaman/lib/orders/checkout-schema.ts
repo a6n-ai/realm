@@ -42,6 +42,11 @@ export const createCheckoutSchema = z.object({
   fulfillment: fulfillmentSchema,
 });
 
+/** Live bag pricing. Same lines as a real checkout, no contact or fulfillment yet. */
+export const quoteCartSchema = z.object({
+  items: z.array(cartLineSchema).min(1).max(40),
+});
+
 export const payCheckoutSchema = z.object({
   orderPublicId: z.string().min(1),
   /** Tokenized card source from Clover iframe (`clv_…`). */
@@ -50,4 +55,5 @@ export const payCheckoutSchema = z.object({
 });
 
 export type CreateCheckoutInput = z.infer<typeof createCheckoutSchema>;
+export type QuoteCartInput = z.infer<typeof quoteCartSchema>;
 export type PayCheckoutInput = z.infer<typeof payCheckoutSchema>;

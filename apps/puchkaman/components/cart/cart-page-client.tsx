@@ -6,9 +6,11 @@ import { useCart } from "@/components/cart/cart-provider";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
 import { OrderSummary } from "@/components/order/order-summary";
 import { money } from "@/lib/cart/types";
+import { useCartQuote } from "@/lib/cart/use-cart-quote";
 
 export function CartPageClient() {
   const { items, count, subtotal, hydrated, clear, orderingEnabled } = useCart();
+  const quote = useCartQuote(items);
 
   if (!hydrated) {
     return <div className="card card--cream checkout-skeleton" aria-busy="true" />;
@@ -47,7 +49,13 @@ export function CartPageClient() {
       </section>
 
       <aside className="card cart-summary">
-        <OrderSummary subtotal={subtotal} priced={false} />
+        <OrderSummary
+          subtotal={quote?.subtotal ?? subtotal}
+          tax={quote?.tax}
+          total={quote?.total}
+          taxLines={quote?.taxLines}
+          stage={quote ? "quoted" : "estimate"}
+        />
         <Btn page="checkout" variant="green" size="lg" block className="checkout-submit">
           Checkout →
         </Btn>
@@ -60,8 +68,8 @@ export function CartPageClient() {
           sitting under the last line item. */}
       <div className="cart-stickybar">
         <div className="cart-stickybar__total">
-          <span>Est. total</span>
-          <strong>{money(subtotal)}</strong>
+          <span>{quote ? "Total with tax" : "Est. total"}</span>
+          <strong>{money(quote?.total ?? subtotal)}</strong>
         </div>
         <Btn page="checkout" variant="green" size="lg">
           Checkout →

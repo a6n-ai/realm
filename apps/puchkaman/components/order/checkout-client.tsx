@@ -8,6 +8,7 @@ import { CloverCardForm } from "@/components/order/clover-card-form";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { money } from "@/lib/cart/types";
+import { useCartQuote } from "@/lib/cart/use-cart-quote";
 import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 
 type CheckoutSession = {
@@ -82,6 +83,9 @@ export function CheckoutClient({
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
+  const quote = useCartQuote(items, !session);
+  /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
+  const runningTotal = session?.total ?? quote?.total ?? subtotal;
 
   async function checkAddress() {
     if (!address.trim()) return;
@@ -278,7 +282,7 @@ export function CheckoutClient({
     <>
       <div className="checkout-aside__head">
         <h2 className="display">Your bag</h2>
-        <strong>{money(session?.subtotal ?? subtotal)}</strong>
+        <strong>{money(runningTotal)}</strong>
       </div>
       {items.length === 0 && !session ? (
         <div>
@@ -293,11 +297,12 @@ export function CheckoutClient({
         <>
           <CartLines items={items} compact />
           <OrderSummary
-            subtotal={session?.subtotal ?? subtotal}
-            tax={session?.tax}
-            total={session?.total}
+            subtotal={session?.subtotal ?? quote?.subtotal ?? subtotal}
+            tax={session?.tax ?? quote?.tax}
+            total={session?.total ?? quote?.total}
             discountAmount={session?.discountAmount}
-            priced={Boolean(session)}
+            taxLines={session ? undefined : quote?.taxLines}
+            stage={session ? "final" : quote ? "quoted" : "estimate"}
           />
         </>
       )}
@@ -316,7 +321,7 @@ export function CheckoutClient({
             <span>
               {count} item{count === 1 ? "" : "s"} in your bag
             </span>
-            <strong>{money(session?.total ?? subtotal)}</strong>
+            <strong>{money(runningTotal)}</strong>
           </summary>
           <div className="checkout-bag-mobile__body">{bag}</div>
         </details>
@@ -492,7 +497,7 @@ export function CheckoutClient({
               disabled={busy || items.length === 0}
               className="checkout-submit"
             >
-              {busy ? "Pricing your order…" : `Continue to payment · ${money(subtotal)}`}
+              {busy ? "Pricing your order…" : `Continue to payment · ${money(runningTotal)}`}
             </Btn>
             <p className="checkout-hint checkout-hint--center">
               Nothing is charged until you enter a card on the next step.

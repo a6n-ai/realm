@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCheckoutSchema, payCheckoutSchema } from "../../orders/checkout-schema";
+import { createCheckoutSchema, payCheckoutSchema, quoteCartSchema } from "../../orders/checkout-schema";
 
 describe("checkout schemas", () => {
   it("accepts a valid create payload", () => {
@@ -38,6 +38,14 @@ describe("checkout schemas", () => {
         contact: { name: "Ada", email: "ada@example.com" },
       }),
     ).toThrow();
+  });
+
+  it("quotes a bag without contact details, but still rejects an empty one", () => {
+    const parsed = quoteCartSchema.parse({
+      items: [{ productPublicId: "prd_abc", quantity: 3, modifiers: ["mod_1"] }],
+    });
+    expect(parsed.items[0]?.modifiers).toEqual(["mod_1"]);
+    expect(() => quoteCartSchema.parse({ items: [] })).toThrow();
   });
 
   it("requires source token for pay", () => {
