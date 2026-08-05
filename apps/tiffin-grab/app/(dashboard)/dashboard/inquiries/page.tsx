@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { count, eq } from "drizzle-orm";
-import { ClipboardListIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
+import { ClipboardListIcon, PlusIcon, DownloadIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon } from "lucide-react";
+import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -49,9 +50,20 @@ export default function InquiriesPage({ searchParams }: { searchParams: SearchPa
         icon={ClipboardListIcon}
         title="Inquiries"
         actions={
-          <Suspense fallback={<Skeleton className="h-9 w-32" />}>
-            <NewInquiryAction />
-          </Suspense>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/inquiries/import">
+                <UploadIcon className="size-4" />
+                Import
+              </Link>
+            </Button>
+            <Suspense fallback={<Skeleton className="h-9 w-24" />}>
+              <ExportAction searchParams={searchParams} />
+            </Suspense>
+            <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+              <NewInquiryAction />
+            </Suspense>
+          </div>
         }
       />
 
@@ -117,6 +129,30 @@ function newInquiryTrigger() {
     <Button>
       <PlusIcon className="size-4" />
       New inquiry
+    </Button>
+  );
+}
+
+// Plain-link download rather than client-side xlsx generation: the pipeline list is
+// paginated (only one page of rows ever reaches the client), so the export has to hit
+// the server for the full matching set. Forward every filter param except page/size so
+// "Export" downloads what's currently filtered, not just what's currently in view.
+async function ExportAction({ searchParams }: { searchParams: SearchParams }) {
+  await requireStaff();
+
+  const sp = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (value && key !== "page" && key !== "size") qs.set(key, value);
+  }
+  const href = qs.size > 0 ? `/api/inquiries/export?${qs.toString()}` : "/api/inquiries/export";
+
+  return (
+    <Button variant="outline" asChild>
+      <a href={href}>
+        <DownloadIcon className="size-4" />
+        Export
+      </a>
     </Button>
   );
 }
