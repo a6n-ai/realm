@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-06T00:00:00.000Z",
+  "title": "Design System: Tiffin Grab",
+  "extensions": {
+    "colorMeta": {
+      "saffron": {
+        "role": "primary",
+        "displayName": "Saffron",
+        "canonical": "oklch(0.66 0.16 60)",
+        "tonalRamp": [
+          "oklch(0.20 0.06 60)", "oklch(0.31 0.09 60)", "oklch(0.42 0.12 60)", "oklch(0.54 0.15 60)",
+          "oklch(0.66 0.16 60)", "oklch(0.77 0.13 60)", "oklch(0.87 0.08 60)", "oklch(0.95 0.03 60)"
+        ]
+      },
+      "warm-white": { "role": "neutral", "displayName": "Warm White", "canonical": "oklch(0.995 0.002 60)" },
+      "warm-ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "oklch(0.16 0.006 60)",
+        "tonalRamp": [
+          "oklch(0.16 0.006 60)", "oklch(0.27 0.008 60)", "oklch(0.38 0.010 60)", "oklch(0.49 0.012 60)",
+          "oklch(0.60 0.012 60)", "oklch(0.73 0.008 60)", "oklch(0.86 0.005 60)", "oklch(0.97 0.004 60)"
+        ]
+      },
+      "muted-ink": { "role": "neutral", "displayName": "Muted Ink", "canonical": "oklch(0.55 0.012 60)" },
+      "warm-wash": { "role": "neutral", "displayName": "Warm Wash", "canonical": "oklch(0.97 0.004 60)" },
+      "warm-panel": { "role": "neutral", "displayName": "Warm Panel", "canonical": "oklch(0.975 0.006 60)" },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.92 0.004 60)" },
+      "destructive": { "role": "tertiary", "displayName": "Destructive", "canonical": "oklch(0.577 0.245 27.325)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Page Title", "purpose": "One per page. Semibold, tight tracking. No distinct display treatment exists yet." },
+      "body": { "displayName": "Body", "purpose": "Running text, usually set in muted ink." },
+      "label": { "displayName": "Label", "purpose": "Form labels and table headers." }
+    },
+    "shadows": [
+      { "name": "none", "value": "none", "purpose": "The application layer is flat. Depth is tonal steps plus hairlines; only shadcn popovers and dialogs carry default elevation." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Tailwind default easing; no custom motion language has been established." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Stock shadcn button carrying the saffron accent. Unmodified beyond tokens.",
+      "html": "<button class=\"ds-btn-primary\">Build your plan</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1rem; height: 2.25rem; background: oklch(0.66 0.16 60); color: oklch(0.985 0.01 60); border: none; border-radius: 0.5rem; cursor: pointer; transition: opacity 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.66 0.13 60); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": null,
+      "description": "Low-emphasis action on the warm wash surface.",
+      "html": "<button class=\"ds-btn-secondary\">Skip this day</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1rem; height: 2.25rem; background: oklch(0.97 0.004 60); color: oklch(0.205 0 0); border: none; border-radius: 0.5rem; cursor: pointer; transition: opacity 0.15s ease; } .ds-btn-secondary:hover { opacity: 0.85; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat surface separated by a hairline, not a shadow.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">This week's menu</h3><p class=\"ds-card-body\">Pick what arrives on each day.</p></div>",
+      "css": ".ds-card { background: oklch(0.995 0.003 60); color: oklch(0.16 0.006 60); border: 1px solid oklch(0.92 0.004 60); border-radius: 0.625rem; padding: 1.5rem; } .ds-card-title { font-family: Geist, system-ui, sans-serif; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 0.5rem; } .ds-card-body { font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; line-height: 1.5; color: oklch(0.55 0.012 60); margin: 0; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline stroke, saffron focus ring.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Delivery address</span><input class=\"ds-input\" placeholder=\"Street, city, postal code\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.5rem; } .ds-field-label { font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; color: oklch(0.16 0.006 60); } .ds-input { font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; padding: 0.5rem 0.75rem; height: 2.25rem; background: oklch(0.995 0.002 60); color: oklch(0.16 0.006 60); border: 1px solid oklch(0.92 0.004 60); border-radius: 0.5rem; width: 100%; } .ds-input::placeholder { color: oklch(0.55 0.012 60); } .ds-input:focus-visible { outline: 2px solid oklch(0.66 0.13 60); outline-offset: -1px; border-color: oklch(0.66 0.13 60); }"
+    },
+    {
+      "name": "Sidebar Item",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Navigation on the deeper warm panel. Active state is a wash plus weight, not a colour block.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">Deliveries</a><a class=\"ds-nav-item\" href=\"#\">Menu</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 0.125rem; background: oklch(0.975 0.006 60); padding: 0.5rem; border-radius: 0.625rem; } .ds-nav-item { font-family: Geist, system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; color: oklch(0.16 0.006 60); padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; transition: background 0.15s ease; } .ds-nav-item:hover { background: oklch(0.97 0.004 60); } .ds-nav-item-active { background: oklch(0.97 0.004 60); font-weight: 500; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "Status marker on delivery and order rows.",
+      "html": "<span class=\"ds-badge\">Scheduled</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; font-family: Geist, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; padding: 0.125rem 0.5rem; border: 1px solid oklch(0.92 0.004 60); border-radius: 0.375rem; background: oklch(0.97 0.004 60); color: oklch(0.205 0 0); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Weekly Planner",
+    "overview": "What exists today is a stock shadcn/Tailwind v4 installation with one deliberate change: every neutral has been warmed to hue 60, and the accent is a saffron orange. It is competent and consistent, and it is not an identity. The operator has confirmed it as a placeholder.\n\nThe direction to grow toward is The Weekly Planner: calm, gridded and legible, because the product is a schedule someone has to trust. A subscriber configures a plan once and then lives inside a calendar for weeks. That makes clarity and predictability the real brief, and it means the identity should come from the calendar and the plan builder rather than from a marketing hero.\n\nOne thing is worth preserving through any replacement: the warm neutral bias. Every grey carries a trace of hue 60 rather than being cold, which is what keeps a food product from reading like a finance dashboard.",
+    "keyCharacteristics": [
+      "Stock shadcn primitives; no custom component language yet",
+      "Warm-biased neutrals throughout (hue 60, chroma 0.002-0.012)",
+      "Single saffron accent; no secondary or tertiary accent exists",
+      "Full light and dark themes, both maintained",
+      "Geist Sans and Geist Mono",
+      "Flat surfaces separated by hairlines rather than shadow"
+    ],
+    "rules": [
+      { "name": "The Warm Neutral Rule", "body": "Every neutral carries hue 60. A cool grey dropped into this palette reads instantly as foreign and makes the food product feel clinical. If the identity is replaced, this bias is the one thing worth carrying forward.", "section": "colors" },
+      { "name": "The Single Accent Rule", "body": "Saffron is the only accent that exists. Charts are deliberately greyscale so data never competes with an action.", "section": "colors" }
+    ],
+    "dos": [
+      "Do keep every neutral warm (hue 60). It is the one deliberate decision in the current palette.",
+      "Do keep charts greyscale so saffron always means 'action'.",
+      "Do maintain both light and dark themes; both are currently complete.",
+      "Do treat the plan builder, delivery calendar and weekly menu as the surfaces where an identity should be established first.",
+      "Do replace this system rather than decorate it, when identity work begins."
+    ],
+    "donts": [
+      "Don't treat this file as a brand commitment. It is a record of what shipped, and the operator has marked it a placeholder.",
+      "Don't introduce a cool grey.",
+      "Don't add a second accent colour without deciding what it means; there is currently exactly one and no semantic slot for another.",
+      "Don't invent a component language piecemeal across screens. The next identity should be established once and applied, not accreted.",
+      "Don't copy Puchkaman's neobrutalist system here. It belongs to a different product with a different audience."
+    ]
+  }
+}

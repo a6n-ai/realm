@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-06T00:00:00.000Z",
+  "title": "Design System: Puchkaman",
+  "extensions": {
+    "colorMeta": {
+      "signal-yellow": {
+        "role": "primary",
+        "displayName": "Signal Yellow",
+        "canonical": "#FCD807",
+        "tonalRamp": ["#241F01", "#4A4002", "#6F6003", "#948004", "#B99F05", "#DEBF06", "#FCD807", "#FEEE9B"]
+      },
+      "chutney-green": {
+        "role": "secondary",
+        "displayName": "Chutney Green",
+        "canonical": "#1F7A34",
+        "tonalRamp": ["#08290F", "#0F4A1F", "#17612A", "#1F7A34", "#2A9B44", "#3EC75C", "#7BDE92", "#C4F1CE"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#16140D",
+        "tonalRamp": ["#16140D", "#2E2A1C", "#47412C", "#60583C", "#7A714E", "#A79C74", "#D2C9AA", "#F0EADA"]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#FFF4DA",
+        "tonalRamp": ["#3A3115", "#5C4E22", "#7E6B2F", "#A08840", "#C7AC64", "#E2CE9C", "#FFF4DA", "#FFFBF0"]
+      },
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#FFFBF0" },
+      "mint-pop": { "role": "tertiary", "displayName": "Mint Pop", "canonical": "#16C79A" },
+      "sticker-pink": { "role": "tertiary", "displayName": "Sticker Pink", "canonical": "#FF8BA7" },
+      "alert-red": { "role": "tertiary", "displayName": "Alert Red", "canonical": "#DE2A1A" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page banners and section heroes. Uppercase, weight 900, line-height 0.9." },
+      "headline": { "displayName": "Headline", "purpose": "Every public h1-h4 inherits this automatically. Not uppercase." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and running text at weight 500." },
+      "label": { "displayName": "Label", "purpose": "Space Mono, uppercase, wide-tracked. Kickers, pills, counts, ids." }
+    },
+    "shadows": [
+      { "name": "hard-standard", "value": "7px 7px 0 var(--sh-c)", "purpose": "Cards and panels at rest." },
+      { "name": "hard-small", "value": "4px 4px 0 var(--sh-c)", "purpose": "Buttons, pills, focused inputs." },
+      { "name": "hard-large", "value": "12px 12px 0 var(--sh-c)", "purpose": "Hero surfaces that sit forward of everything." },
+      { "name": "hard-press", "value": "1px 1px 0 var(--sh-c)", "purpose": "Active/pressed state, paired with translate(2px,2px)." }
+    ],
+    "motion": [
+      { "name": "press", "value": "transform .08s ease, box-shadow .08s ease", "purpose": "Button lift on hover and sink on active. The signature interaction." },
+      { "name": "reveal", "value": "opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1)", "purpose": "Scroll-in reveal for sections." }
+    ],
+    "breakpoints": [
+      { "name": "phone-max", "value": "879px" },
+      { "name": "checkout-split", "value": "900px" },
+      { "name": "menu-sidebar", "value": "980px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The go action. Green fill, white text, lifts on hover and sinks on press.",
+      "html": "<button class=\"ds-btn-primary\">Continue to payment</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: -0.01em; padding: 14px 22px; background: #1F7A34; color: #fff; border: 3px solid #16140D; border-radius: 10px; box-shadow: 4px 4px 0 #16140D; cursor: pointer; transition: transform .08s ease, box-shadow .08s ease, background .12s ease; } .ds-btn-primary:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #16140D; } .ds-btn-primary:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #16140D; } .ds-btn-primary:focus-visible { outline: 3px solid #16140D; outline-offset: 3px; }"
+    },
+    {
+      "name": "Yellow Button",
+      "kind": "button",
+      "refersTo": "button-yellow",
+      "description": "Secondary emphasis on ink or green surfaces.",
+      "html": "<button class=\"ds-btn-yellow\">Back to menu</button>",
+      "css": ".ds-btn-yellow { display: inline-flex; align-items: center; justify-content: center; font-family: Archivo, system-ui, sans-serif; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: -0.01em; padding: 14px 22px; background: #FCD807; color: #16140D; border: 3px solid #16140D; border-radius: 10px; box-shadow: 4px 4px 0 #16140D; cursor: pointer; transition: transform .08s ease, box-shadow .08s ease; } .ds-btn-yellow:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #16140D; } .ds-btn-yellow:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #16140D; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The universal surface. 3px ink border, 16px radius, hard 7px shadow.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Fusion Puchkas</h3><p class=\"ds-card-body\">Global flavours, OG crunch.</p></div>",
+      "css": ".ds-card { background: #fff; border: 3px solid #16140D; border-radius: 16px; box-shadow: 7px 7px 0 #16140D; padding: 22px; min-width: 0; } .ds-card-title { font-family: Archivo, system-ui, sans-serif; font-weight: 900; font-size: 1.4rem; line-height: 0.95; letter-spacing: -0.02em; margin: 0 0 8px; color: #16140D; } .ds-card-body { font-family: Archivo, system-ui, sans-serif; font-weight: 500; font-size: 0.95rem; line-height: 1.5; margin: 0; color: #16140D; opacity: 0.82; }"
+    },
+    {
+      "name": "Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Monospace status and category marker. Green means available, ink means informational.",
+      "html": "<span class=\"ds-pill ds-pill-green\">Available</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; font-family: 'Space Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 11px; border: 2.5px solid #16140D; border-radius: 999px; background: #fff; color: #16140D; } .ds-pill-green { background: #1F7A34; color: #fff; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Label always visible above. Focus lifts the field instead of drawing a ring.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Phone *</span><input class=\"ds-input\" type=\"tel\" placeholder=\"416 000 0000\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 7px; } .ds-field-label { font-family: 'Space Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: #16140D; } .ds-input { font-family: Archivo, system-ui, sans-serif; font-size: 1rem; font-weight: 500; padding: 13px 14px; min-height: 48px; border: 3px solid #16140D; border-radius: 10px; background: #fff; color: #16140D; width: 100%; transition: box-shadow .1s ease, transform .1s ease; } .ds-input:focus { outline: none; box-shadow: 4px 4px 0 #16140D; transform: translate(-1px,-1px); }"
+    },
+    {
+      "name": "Tape Kicker",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature accent: a yellow label rotated off-grid as if stuck to the page.",
+      "html": "<span class=\"ds-tape\">Why we're here</span>",
+      "css": ".ds-tape { display: inline-block; font-family: 'Space Mono', ui-monospace, monospace; font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; background: #FCD807; color: #16140D; border: 2.5px solid #16140D; padding: 2px 10px; transform: rotate(-1.5deg); box-shadow: 3px 3px 0 #16140D; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Street Cart Sign",
+    "overview": "This is a food stall rendered as an interface. Hand-painted stall signage is the whole reference: thick outlines drawn so they read from across a street, colour laid flat and loud, shadows that fall like a physical board rather than a rendered surface. The page should feel built, not composited.\n\nThe system is yellow-dominant and unafraid of it. Signal yellow is the page itself, not an accent, and the work of the design is keeping that much saturation legible: warm cream and paper carry the reading surfaces, ink does every border and every shadow, and green is the one colour allowed to mean 'go'.\n\nRestraint lives in the type, not the colour. Archivo at weight 900, uppercase and tracked tight, does the shouting; Space Mono handles every small label at wide tracking so the voice drops the moment a detail matters. There is no gradient, no blur, no soft shadow anywhere in this system.",
+    "keyCharacteristics": [
+      "Flat colour, zero gradients, zero blur",
+      "3px ink border on every surface, without exception",
+      "Hard offset shadows at 0 blur - the board, not the glow",
+      "Yellow as ground, green as the only 'go', red reserved for failure",
+      "Display type uppercase and heavy; every label monospace and wide-tracked",
+      "Buttons that physically move under the press"
+    ],
+    "rules": [
+      { "name": "The One Go Rule", "body": "Green means 'this action proceeds' and nothing else. A green surface that is not an action steals the only signal the customer has for what to press.", "section": "colors" },
+      { "name": "The Red Is Failure Rule", "body": "Red never decorates. If it appears, something is wrong, closed, or required. A red used for emphasis makes every genuine error invisible.", "section": "colors" },
+      { "name": "The Yellow Is Ground Rule", "body": "Yellow is where the page starts, not what you add at the end. Reading surfaces sit on it in cream, paper or white; long-form text never sits directly on yellow.", "section": "colors" },
+      { "name": "The Two Voices Rule", "body": "Archivo shouts, Space Mono annotates. A label set in Archivo loses the annotation quality; a heading set in Space Mono loses the signage quality. There is no third voice.", "section": "typography" },
+      { "name": "The Negative Tracking Rule", "body": "Display and headline type always tracks negative (-0.02em to -0.03em). Positive tracking is reserved exclusively for monospace labels, where it is always generous.", "section": "typography" },
+      { "name": "The Zero Blur Rule", "body": "Every shadow in this system has a blur radius of 0. A blurred shadow anywhere breaks the physical metaphor instantly and reads as a different design language.", "section": "elevation" },
+      { "name": "The Contrast Shadow Rule", "body": "A shadow must contrast with the surface it falls on. Never hardcode an ink shadow; use the surface-scoped variable so ink-on-ink and green-on-green cannot happen.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do put a 3px ink border on every surface. The stroke is the system.",
+      "Do use hard shadows at zero blur (7px 7px 0, 4px 4px 0, 12px 12px 0).",
+      "Do keep the press interaction on interactive elements: lift on hover, sink on active.",
+      "Do set every small label in Space Mono, uppercase, with wide tracking.",
+      "Do reach for a .surface-* class when building a new section, so nested borders and shadows recolour themselves.",
+      "Do put long-form reading on cream, paper or white - never directly on yellow.",
+      "Do keep the storefront and the admin CRM visually separate."
+    ],
+    "donts": [
+      "Don't introduce gradients, blur, frosted glass, or any soft shadow.",
+      "Don't use green for anything that is not an action, or red for anything that is not an error.",
+      "Don't use pure black (#000) or a cool grey. Ink is warm (#16140D) and there are no greys in this palette.",
+      "Don't set body text in weight 900 or headings in Space Mono.",
+      "Don't hardcode an ink shadow colour; a surface-scoped shadow can land on ink.",
+      "Don't let the mint or pink accents spread beyond their markers and stickers.",
+      "Don't collapse product grids to one column on phones.",
+      "Don't bring neobrutalist styling into the admin CRM, or CRM component styling onto the public storefront."
+    ]
+  }
+}
