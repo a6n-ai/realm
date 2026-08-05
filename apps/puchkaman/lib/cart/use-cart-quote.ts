@@ -8,13 +8,26 @@ export type CartQuote = {
   tax: number;
   total: number;
   taxLines: { name: string; amount: number }[];
+  discountAmount: number;
+  discountLines: { name: string; amount: number }[];
+  /** A code was typed and matched nothing live. Not an error, just unredeemed. */
+  invalidCode: boolean;
 };
 
+/** Ids and a typed code only — the server derives every amount. */
+export type DiscountSelection = {
+  offerPublicIds: string[];
+  code?: string;
+};
+
+const NO_DISCOUNTS: DiscountSelection = { offerPublicIds: [] };
+
 /** Everything the price depends on, so a quote can be matched to the bag it priced. */
-function bagKey(items: CartItem[]): string {
-  return items
+function bagKey(items: CartItem[], discounts: DiscountSelection): string {
+  const lines = items
     .map((i) => `${i.productPublicId}:${i.quantity}:${i.modifiers.map((m) => m.cloverModifierId).join("+")}`)
     .join("|");
+  return `${lines}#${discounts.offerPublicIds.join(",")}#${discounts.code ?? ""}`;
 }
 
 /**
@@ -26,9 +39,13 @@ function bagKey(items: CartItem[]): string {
  * total can never be shown against different items. Returns null until the first
  * quote lands — callers fall back to the client-side subtotal, which has no tax.
  */
-export function useCartQuote(items: CartItem[], enabled = true): CartQuote | null {
+export function useCartQuote(
+  items: CartItem[],
+  enabled = true,
+  discounts: DiscountSelection = NO_DISCOUNTS,
+): CartQuote | null {
   const [priced, setPriced] = useState<{ key: string; quote: CartQuote } | null>(null);
-  const key = useMemo(() => bagKey(items), [items]);
+  const key = useMemo(() => bagKey(items, discounts), [items, discounts]);
   // Once Clover has priced a real order there is nothing left to forecast.
   const active = enabled && items.length > 0;
 
@@ -48,6 +65,10 @@ export function useCartQuote(items: CartItem[], enabled = true): CartQuote | nul
                 quantity: i.quantity,
                 modifiers: i.modifiers.map((m) => m.cloverModifierId),
               })),
+              discounts: {
+                offerPublicIds: discounts.offerPublicIds,
+                code: discounts.code ?? null,
+              },
             }),
           });
           // A stale or unavailable product 400s here. Stay on the estimate —
@@ -64,7 +85,7 @@ export function useCartQuote(items: CartItem[], enabled = true): CartQuote | nul
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [items, key, active]);
+  }, [items, key, active, discounts]);
 
   return active && priced?.key === key ? priced.quote : null;
 }

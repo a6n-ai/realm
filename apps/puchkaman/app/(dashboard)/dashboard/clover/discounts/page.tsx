@@ -15,6 +15,7 @@ import {
 import { redirect } from "next/navigation";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requireAdmin } from "@/lib/auth/guards";
+import { DiscountOfferControls } from "./discount-offer-row";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
@@ -26,7 +27,7 @@ export default function CloverDiscountsPage() {
       <PageHeader
         icon={PercentIcon}
         title="Discounts"
-        subtitle="Clover inventory discounts. Checkout discount engine deferred."
+        subtitle="Clover inventory discounts. Toggle one to offer it at checkout, or give it a coupon code."
         actions={
           <Suspense fallback={null}>
             <HeaderActions />
@@ -88,6 +89,7 @@ async function DiscountsTable() {
           <TableHead>Name</TableHead>
           <TableHead>Value</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead>Offer at checkout / code</TableHead>
           <TableHead>Clover id</TableHead>
         </TableRow>
       </TableHeader>
@@ -100,6 +102,13 @@ async function DiscountsTable() {
               <Badge variant={r.active ? "default" : "outline"}>
                 {r.active ? "Active" : "Inactive"}
               </Badge>
+            </TableCell>
+            <TableCell>
+              <DiscountOfferControls
+                publicId={r.publicId}
+                publicOffer={r.publicOffer}
+                couponCode={r.couponCode}
+              />
             </TableCell>
             <TableCell className="text-muted-foreground font-mono text-xs">
               {r.cloverDiscountId ?? "—"}

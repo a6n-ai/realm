@@ -112,6 +112,21 @@ export const discounts = pgTable("discounts", {
   /** Percent off 0–100. */
   percentage: numeric("percentage", { precision: 6, scale: 2 }),
   active: boolean("active").notNull().default(true),
+  /**
+   * Offered to customers at checkout as a pick-one option. Off by default: a
+   * merchant's Clover discounts include staff and comp discounts that must never
+   * be self-servable.
+   */
+  publicOffer: boolean("public_offer").notNull().default(false),
+  /**
+   * Redeemable by typing this code. Stored uppercase and matched
+   * case-insensitively. Null means the discount has no code.
+   *
+   * Clover has no coupon primitive, so the code lives here while the money still
+   * comes from the synced Clover discount — deactivating it in Clover kills the
+   * code on the next sync, which keeps Clover the source of truth.
+   */
+  couponCode: text("coupon_code").unique(),
   cloverDiscountId: text("clover_discount_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
 });

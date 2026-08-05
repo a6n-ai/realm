@@ -433,6 +433,22 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
   async listAll(): Promise<DiscountRow[]> {
     return this.repo.findAll().then((rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)));
   }
+
+  /**
+   * Everything a customer could redeem: published offers and coded coupons.
+   * Checkout resolves against this, so a staff or comp discount synced from
+   * Clover is never in the set to begin with.
+   */
+  async listRedeemable(): Promise<DiscountRow[]> {
+    const rows = await this.listAll();
+    return rows.filter((r) => r.active && (r.publicOffer || r.couponCode));
+  }
+
+  /** Just the ones to show as pick-one options — codes stay unlisted. */
+  async listPublicOffers(): Promise<DiscountRow[]> {
+    const rows = await this.listAll();
+    return rows.filter((r) => r.active && r.publicOffer);
+  }
 }
 
 class TaxRatesService extends SessionUpdatableService<typeof taxRates> {

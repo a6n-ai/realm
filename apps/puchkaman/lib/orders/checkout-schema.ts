@@ -36,15 +36,28 @@ const fulfillmentSchema = z
   ])
   .default({ type: "pickup" });
 
+/**
+ * Ids and a typed code only. The amount is always re-derived server-side from
+ * the synced Clover discount — see lib/orders/discounts.ts.
+ */
+const discountRequestSchema = z
+  .object({
+    offerPublicIds: z.array(z.string().min(1)).max(5).default([]),
+    code: z.string().trim().max(40).optional().nullable(),
+  })
+  .default({ offerPublicIds: [] });
+
 export const createCheckoutSchema = z.object({
   items: z.array(cartLineSchema).min(1).max(40),
   contact: contactSchema,
   fulfillment: fulfillmentSchema,
+  discounts: discountRequestSchema,
 });
 
 /** Live bag pricing. Same lines as a real checkout, no contact or fulfillment yet. */
 export const quoteCartSchema = z.object({
   items: z.array(cartLineSchema).min(1).max(40),
+  discounts: discountRequestSchema,
 });
 
 export const payCheckoutSchema = z.object({

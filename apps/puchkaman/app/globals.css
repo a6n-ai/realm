@@ -1443,6 +1443,38 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 .checkout-address__ok { font-weight: 600; font-size: 0.86rem; margin: 0; }
 
+.checkout-offers { display: grid; gap: 14px; }
+.checkout-offers__group { border: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.checkout-offers__group legend {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 0 6px;
+}
+.checkout-offer {
+  border: var(--border);
+  border-radius: var(--r-sm);
+  background: var(--white);
+  padding: 8px 12px;
+  min-height: 48px;
+}
+.checkout-offer__value {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--green-deep);
+  flex-shrink: 0;
+}
+.checkout-code {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.checkout-code .input { text-transform: uppercase; min-width: 0; }
+.checkout-code .btn { flex-shrink: 0; }
+
 .checkout-pay-actions { display: grid; gap: 10px; }
 .checkout-submit { min-height: 52px; }
 

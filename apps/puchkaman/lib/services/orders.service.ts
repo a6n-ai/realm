@@ -36,12 +36,18 @@ import {
   type PayCheckoutInput,
   type QuoteCartInput,
 } from "@/lib/orders/checkout-schema";
+import {
+  resolveDiscounts,
+  type AppliedDiscount,
+  type DiscountRequest,
+} from "@/lib/orders/discounts";
 import { loadModifierGroupsByProduct, resolveSelectedModifiers } from "@/lib/orders/modifiers";
 import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
@@ -113,6 +119,10 @@ export type CartQuoteResult = {
   total: number;
   currency: "CAD";
   taxLines: { name: string; amount: number }[];
+  discountAmount: number;
+  discountLines: { name: string; amount: number }[];
+  /** True when a code was typed and matched nothing live. Not an error. */
+  invalidCode: boolean;
 };
 
 export type CheckoutPayResult = {
@@ -294,6 +304,17 @@ async function forecastCartTax(
 }
 
 /**
+ * Turn a discount request into money. The browser sends offer ids and a typed
+ * code; every amount is re-derived here from the synced Clover rows.
+ */
+async function resolveCartDiscounts(request: DiscountRequest, subtotal: number) {
+  if (!request.offerPublicIds.length && !request.code) {
+    return { applied: [] as AppliedDiscount[], total: 0, invalidCode: false };
+  }
+  return resolveDiscounts(await inventoryCatalogService.discounts.listRedeemable(), request, subtotal);
+}
+
+/**
  * Pickup orders + Clover Ecommerce settlement.
  * Extends SessionUpdatableService for order row updates (+ audit_log);
  * create/pay are transactional.
@@ -311,13 +332,19 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   async quoteCart(input: QuoteCartInput): Promise<CartQuoteResult> {
     const parsed = quoteCartSchema.parse(input);
     const { lines, subtotal, byPublic } = await priceCart(parsed.items);
-    const forecast = await forecastCartTax(lines, byPublic);
+    const discounts = await resolveCartDiscounts(parsed.discounts, subtotal);
+    // Clover applies discounts before tax, so the forecast has to as well or the
+    // quoted tax will not match what the card is charged.
+    const forecast = await forecastCartTax(lines, byPublic, discounts.total);
     return {
       subtotal,
       tax: forecast.tax,
-      total: Number(money(subtotal + forecast.tax)),
+      total: Number(money(subtotal - discounts.total + forecast.tax)),
       currency: "CAD",
       taxLines: forecast.perRate.map((r) => ({ name: r.name, amount: r.amount })),
+      discountAmount: discounts.total,
+      discountLines: discounts.applied.map((d) => ({ name: d.name, amount: d.amount })),
+      invalidCode: discounts.invalidCode,
     };
   }
 
@@ -507,7 +534,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let deliveryLng: number | null = null;
     let deliveryDistanceKm: number | null = null;
     let scheduledForMs: number | null = null;
-    let discountAmount = 0;
+
+    // Customer-claimed offers and coupons. They stack with the instant-delivery
+    // discount below, and the combined stack is capped at the subtotal.
+    const claimed = await resolveCartDiscounts(parsed.discounts, subtotal);
+    const cloverDiscounts: { name: string; amount: number }[] = claimed.applied.map((d) => ({
+      name: d.code ? `${d.name} (${d.code})` : d.name,
+      amount: d.amount,
+    }));
+    let discountAmount = claimed.total;
 
     if (parsed.fulfillment.type === "delivery") {
       const point = await geocodeAddress(parsed.fulfillment.address);
@@ -521,7 +556,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
       if (deliveryDistanceKm <= INSTANT_DELIVERY_RADIUS_KM) {
         fulfillment = "delivery_instant";
-        discountAmount = Number(money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT));
+        const deliveryOff = Number(money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT));
+        cloverDiscounts.push({
+          name: `Instant delivery (${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}%)`,
+          amount: deliveryOff,
+        });
+        discountAmount = Number(money(discountAmount + deliveryOff));
       } else {
         fulfillment = "delivery_scheduled";
         if (subtotal < SCHEDULED_DELIVERY_MIN_SUBTOTAL) {
@@ -558,14 +598,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           })),
         })),
       ),
-      ...(discountAmount > 0
+      ...(cloverDiscounts.length
         ? {
-            discounts: [
-              {
-                name: `Instant delivery (${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}%)`,
-                amount: -dollarsToCloverCents(discountAmount),
-              },
-            ],
+            // One Clover line per discount so the name shows on Register and the
+            // receipt, rather than a single opaque deduction.
+            discounts: cloverDiscounts.map((d) => ({
+              name: d.name,
+              amount: -dollarsToCloverCents(d.amount),
+            })),
           }
         : {}),
     };
@@ -608,7 +648,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       lines,
       subtotal: subtotalCharged,
       tax,
-      ...(discountAmount > 0 ? { discountPct: INSTANT_DELIVERY_DISCOUNT_PCT, discountAmount } : {}),
+      ...(discountAmount > 0 ? { discountAmount, discountLines: cloverDiscounts } : {}),
       total,
     };
 
@@ -668,7 +708,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           direction: "debit",
           type: "discount",
           amount: discountAmount,
-          memo: `${(INSTANT_DELIVERY_DISCOUNT_PCT * 100).toFixed(0)}% instant delivery discount`,
+          memo: cloverDiscounts.map((d) => d.name).join(" + ") || "Discount",
         });
       }
 

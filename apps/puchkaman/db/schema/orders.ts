@@ -65,9 +65,16 @@ export type OrderPricingSnapshot = {
   }[];
   subtotal: number;
   tax: number;
-  /** Instant "from us" delivery discount (15% off) — omitted when no discount applies. */
+  /**
+   * Legacy: back when the instant-delivery 15% was the only possible discount,
+   * one percentage described it. Orders can now stack offers and coupons, so new
+   * rows carry `discountLines` instead. Kept for orders written before that.
+   */
   discountPct?: number;
+  /** Total taken off, whatever the mix. */
   discountAmount?: number;
+  /** One entry per applied discount, in the order Clover received them. */
+  discountLines?: { name: string; amount: number }[];
   total: number;
 };
 

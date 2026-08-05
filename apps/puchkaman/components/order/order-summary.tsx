@@ -15,6 +15,7 @@ export function OrderSummary({
   tax,
   total,
   discountAmount,
+  discountLines,
   taxLines,
   stage,
 }: {
@@ -22,6 +23,8 @@ export function OrderSummary({
   tax?: number;
   total?: number;
   discountAmount?: number;
+  /** Named lines when known; falls back to one lump "Discount" row. */
+  discountLines?: { name: string; amount: number }[];
   taxLines?: { name: string; amount: number }[];
   stage: SummaryStage;
 }) {
@@ -36,12 +39,21 @@ export function OrderSummary({
         <dt>Subtotal</dt>
         <dd>{money(subtotal)}</dd>
       </div>
-      {discountAmount ? (
-        <div className="order-summary__row order-summary__row--credit">
-          <dt>Instant delivery discount</dt>
-          <dd>-{money(discountAmount)}</dd>
-        </div>
-      ) : null}
+      {discountLines?.length
+        ? discountLines.map((d, i) => (
+            <div className="order-summary__row order-summary__row--credit" key={`${d.name}-${i}`}>
+              <dt>{d.name}</dt>
+              <dd>-{money(d.amount)}</dd>
+            </div>
+          ))
+        : discountAmount
+          ? (
+              <div className="order-summary__row order-summary__row--credit">
+                <dt>Discount</dt>
+                <dd>-{money(discountAmount)}</dd>
+              </div>
+            )
+          : null}
       {itemised ? (
         taxLines!.map((t) => (
           <div className="order-summary__row" key={t.name}>

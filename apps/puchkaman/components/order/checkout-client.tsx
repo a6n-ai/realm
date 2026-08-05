@@ -5,10 +5,11 @@ import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
 import { CloverCardForm } from "@/components/order/clover-card-form";
+import { DiscountPicker, type PublicOffer } from "@/components/order/discount-picker";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { money } from "@/lib/cart/types";
-import { useCartQuote } from "@/lib/cart/use-cart-quote";
+import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
 import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 
 type CheckoutSession = {
@@ -59,9 +60,12 @@ function StepTrack({ step }: { step: Step }) {
 
 export function CheckoutClient({
   initialFulfillment = "pickup",
+  offers = [],
 }: {
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
+  /** Clover discounts the merchant published as self-servable. */
+  offers?: PublicOffer[];
 }) {
   const { items, subtotal, count, clear, hydrated } = useCart();
   const formId = useId();
@@ -83,7 +87,8 @@ export function CheckoutClient({
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
-  const quote = useCartQuote(items, !session);
+  const [discounts, setDiscounts] = useState<DiscountSelection>({ offerPublicIds: [] });
+  const quote = useCartQuote(items, !session, discounts);
   /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
   const runningTotal = session?.total ?? quote?.total ?? subtotal;
 
@@ -166,6 +171,9 @@ export function CheckoutClient({
             phone: joinPhone(dial, phone),
             note: note.trim() || null,
           },
+          // Ids and a typed code only — the server re-derives every amount from
+          // the synced Clover discounts.
+          discounts: { offerPublicIds: discounts.offerPublicIds, code: discounts.code ?? null },
           fulfillment:
             fulfillment === "delivery"
               ? {
@@ -300,7 +308,8 @@ export function CheckoutClient({
             subtotal={session?.subtotal ?? quote?.subtotal ?? subtotal}
             tax={session?.tax ?? quote?.tax}
             total={session?.total ?? quote?.total}
-            discountAmount={session?.discountAmount}
+            discountAmount={session?.discountAmount ?? quote?.discountAmount}
+            discountLines={session ? undefined : quote?.discountLines}
             taxLines={session ? undefined : quote?.taxLines}
             stage={session ? "final" : quote ? "quoted" : "estimate"}
           />
@@ -482,6 +491,15 @@ export function CheckoutClient({
                 />
               </div>
             </div>
+
+            <h2 className="display checkout-panel__title">Offers &amp; codes</h2>
+            <DiscountPicker
+              offers={offers}
+              value={discounts}
+              onChange={setDiscounts}
+              applied={quote?.discountLines.map((d) => d.name) ?? []}
+              invalidCode={quote?.invalidCode ?? false}
+            />
 
             {error ? (
               <p className="checkout-error" role="alert" aria-live="assertive">

@@ -128,7 +128,16 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <dt className="text-muted-foreground">Tax</dt>
               <dd className="tabular-nums">{formatMoney(Number(order.tax))}</dd>
             </div>
-            {order.pricingSnapshot.discountAmount ? (
+            {/* New orders itemise every applied discount; orders written before
+                stacking existed only recorded a single percentage. */}
+            {order.pricingSnapshot.discountLines?.length ? (
+              order.pricingSnapshot.discountLines.map((d, i) => (
+                <div className="flex justify-between gap-4" key={`${d.name}-${i}`}>
+                  <dt className="text-muted-foreground">{d.name}</dt>
+                  <dd className="tabular-nums">-{formatMoney(d.amount)}</dd>
+                </div>
+              ))
+            ) : order.pricingSnapshot.discountAmount ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Discount ({(order.pricingSnapshot.discountPct ?? 0) * 100}%)</dt>
                 <dd className="tabular-nums">-{formatMoney(order.pricingSnapshot.discountAmount)}</dd>
