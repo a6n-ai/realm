@@ -30,6 +30,10 @@ export type SyncResult = {
   // connected and owns which products exist. Reported, never silently dropped:
   // this is the list to check when something is on Uber Eats but not the site.
   skippedNotInClover: { name: string; rawCategory: string }[];
+  // Uber items whose name matches more than one product, so there is no single
+  // right place to hang the photo. Clover holds real duplicates (e.g. "Dahi
+  // Puchka" twice), and guessing between them would put a photo on the wrong row.
+  ambiguousName: { name: string; matches: number }[];
   duplicates: DuplicateCandidate[];
   categoryIssues: { rawCategory: string; items: string[] }[];
   errors: { item: string; message: string }[];
@@ -95,10 +99,18 @@ export class MenuSyncService {
     }
     // Only unlinked rows are candidates for the "looks like a duplicate" flow —
     // a row already tracking some other externalId can't also be this item.
-    const unlinkedByKey = new Map<string, ProductRow>();
+    //
+    // Keyed on name alone. Category used to be part of the key, which silently
+    // blocked most matches: Clover's own category labels do not map onto our fixed
+    // set, so Clover-synced products nearly all land in `extra` while the Uber item
+    // maps to `combos`/`trad`/`drinks`/... The two never agree, and a dish we can
+    // identify by name went unmatched. The name is the identifier; the category is
+    // not evidence about which dish this is.
+    const unlinkedByName = new Map<string, ProductRow[]>();
     for (const row of existingRows) {
       if (row.source === "uber_eats" && row.externalId) continue;
-      unlinkedByKey.set(`${normalizeName(row.name)}::${row.category}`, row);
+      const key = normalizeName(row.name);
+      unlinkedByName.set(key, [...(unlinkedByName.get(key) ?? []), row]);
     }
 
     const takenSlugs = new Set(existingRows.map((r) => r.slug).filter((s): s is string => !!s));
@@ -109,6 +121,7 @@ export class MenuSyncService {
       fieldsUpdated: [],
       unchangedCount: 0,
       skippedNotInClover: [],
+      ambiguousName: [],
       duplicates: [],
       categoryIssues: [],
       errors: [],
@@ -137,8 +150,13 @@ export class MenuSyncService {
           continue;
         }
 
-        const dupKey = `${normalizeName(item.name)}::${item.category}`;
-        const duplicate = unlinkedByKey.get(dupKey);
+        const nameMatches = unlinkedByName.get(normalizeName(item.name)) ?? [];
+        if (nameMatches.length > 1) {
+          // Ambiguous on purpose: report it rather than pick one at random.
+          result.ambiguousName.push({ name: item.name, matches: nameMatches.length });
+          continue;
+        }
+        const duplicate = nameMatches[0];
         if (duplicate) {
           result.duplicates.push({
             existingPublicId: duplicate.publicId,

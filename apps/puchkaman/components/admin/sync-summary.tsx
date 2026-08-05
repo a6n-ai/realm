@@ -20,6 +20,7 @@ const STAT_META: Record<string, { label: string; tone: Tone }> = {
   fieldsUpdated: { label: "Details updated", tone: "ok" },
   unchanged: { label: "Unchanged", tone: "muted" },
   skippedNotInClover: { label: "Not in Clover (skipped)", tone: "warn" },
+  ambiguousName: { label: "Duplicate name in Clover (skipped)", tone: "warn" },
   duplicates: { label: "Duplicates to resolve", tone: "warn" },
   categoryIssues: { label: "Category issues", tone: "bad" },
   errors: { label: "Errors", tone: "bad" },
@@ -52,6 +53,11 @@ export function SyncSummary({ result }: { result: SyncResult }) {
       key: "skippedNotInClover",
       count: result.skippedNotInClover.length,
       items: result.skippedNotInClover.map((i) => `${i.name} (${i.rawCategory})`),
+    },
+    {
+      key: "ambiguousName",
+      count: result.ambiguousName.length,
+      items: result.ambiguousName.map((i) => `${i.name} (${i.matches} products share this name)`),
     },
     {
       key: "duplicates",
