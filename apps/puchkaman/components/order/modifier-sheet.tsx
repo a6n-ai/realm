@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Btn } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
 import { ModifierPicker } from "@/components/order/modifier-picker";
@@ -53,7 +54,13 @@ export function ModifierSheet({
     onClose();
   }
 
-  return (
+  // Portalled to <body>. The menu cards carry a hover-lift `transform`, and a
+  // transformed ancestor becomes the containing block for `position: fixed` — so
+  // rendered in place the sheet lays itself out against the card instead of the
+  // viewport, clipped and shifting every time the hover transform toggles.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="mod-sheet-root">
       <button type="button" className="mod-sheet-backdrop" aria-label="Close options" onClick={onClose} />
       <aside className="mod-sheet" role="dialog" aria-modal="true" aria-label={`Options for ${item.name}`}>
@@ -94,6 +101,7 @@ export function ModifierSheet({
           </Btn>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
