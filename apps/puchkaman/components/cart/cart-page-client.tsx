@@ -4,46 +4,68 @@ import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
+import { OrderSummary } from "@/components/order/order-summary";
 import { money } from "@/lib/cart/types";
 
 export function CartPageClient() {
   const { items, count, subtotal, hydrated, clear, orderingEnabled } = useCart();
 
   if (!hydrated) {
-    return <p style={{ fontWeight: 600 }}>Loading cart…</p>;
+    return <div className="card card--cream checkout-skeleton" aria-busy="true" />;
   }
 
   if (!orderingEnabled) {
     return <OrderingUnavailableNotice title="Cart coming soon" />;
   }
 
-  return (
-    <div className="card card--cream" style={{ padding: "clamp(20px,3.5vw,32px)" }}>
-      <div className="flex center between" style={{ marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <h2 className="display" style={{ fontSize: "1.5rem", margin: 0 }}>
-          {count === 0 ? "Nothing here yet" : `${count} item${count === 1 ? "" : "s"}`}
-        </h2>
-        <strong style={{ fontSize: "1.3rem" }}>{money(subtotal)}</strong>
-      </div>
-
-      <CartLines items={items} />
-
-      <div style={{ marginTop: 22, display: "grid", gap: 12 }}>
-        <p style={{ fontSize: "0.85rem", fontWeight: 500, opacity: 0.75, margin: 0 }}>
-          Est. subtotal only. Final charge is priced on the server when you place the order.
+  if (count === 0) {
+    return (
+      <div className="card card--cream cart-panel">
+        <h2 className="display cart-panel__title">Nothing here yet</h2>
+        <p className="checkout-hint">
+          Puchkas, chaats and drinks are all on the menu — add a couple and come back.
         </p>
-        <Btn page="checkout" variant="green" size="lg" block disabled={count === 0} style={{ minHeight: 52 }}>
+        <Btn page="eats" variant="green" size="lg" block>
+          Browse menu →
+        </Btn>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cart-layout">
+      <section className="card card--cream cart-panel">
+        <div className="cart-panel__head">
+          <h2 className="display cart-panel__title" style={{ margin: 0 }}>
+            {count} item{count === 1 ? "" : "s"}
+          </h2>
+          <button type="button" className="cart-remove" onClick={clear}>
+            Clear cart
+          </button>
+        </div>
+        <CartLines items={items} />
+      </section>
+
+      <aside className="card cart-summary">
+        <OrderSummary subtotal={subtotal} priced={false} />
+        <Btn page="checkout" variant="green" size="lg" block className="checkout-submit">
           Checkout →
         </Btn>
-        {count > 0 ? (
-          <Btn variant="cream" onClick={clear}>
-            Clear cart
-          </Btn>
-        ) : (
-          <Btn page="eats" variant="ink" size="lg" block>
-            Browse menu
-          </Btn>
-        )}
+        <Btn page="eats" variant="cream" block>
+          Add more
+        </Btn>
+      </aside>
+
+      {/* Mobile only: the CTA follows the customer down a long cart instead of
+          sitting under the last line item. */}
+      <div className="cart-stickybar">
+        <div className="cart-stickybar__total">
+          <span>Est. total</span>
+          <strong>{money(subtotal)}</strong>
+        </div>
+        <Btn page="checkout" variant="green" size="lg">
+          Checkout →
+        </Btn>
       </div>
     </div>
   );

@@ -31,16 +31,13 @@ export default async function CartPage() {
         surface="surface-yellow"
       />
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
-        <div className="wrap" style={{ maxWidth: 720 }}>
+        <div className="wrap" style={{ maxWidth: 1000 }}>
           <Reveal>
             <CartPageClient />
           </Reveal>
-          <div style={{ marginTop: 22, display: "flex", flexWrap: "wrap", gap: 10 }}>
-            <Btn page="eats" variant="cream">
-              ← Menu
-            </Btn>
-            <Btn page="order" variant="ink">
-              Order hub
+          <div style={{ marginTop: 22 }}>
+            <Btn page="order" variant="cream">
+              ← Order hub
             </Btn>
           </div>
         </div>

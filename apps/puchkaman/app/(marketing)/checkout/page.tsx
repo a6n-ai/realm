@@ -35,7 +35,7 @@ export default async function CheckoutPage({
         title="Pay & Pickup"
         sub={
           orderingEnabled
-            ? "Contact details, then Clover card pay. Only active Clover-linked in-stock items go through."
+            ? "Two steps: your details, then a Clover-secured card. Nothing is charged until step two."
             : "Online pickup checkout is coming soon."
         }
         bg="var(--page-bg)"
@@ -43,7 +43,7 @@ export default async function CheckoutPage({
         surface="surface-yellow"
       />
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
-        <div className="wrap" style={{ maxWidth: 960 }}>
+        <div className="wrap" style={{ maxWidth: 1040 }}>
           <Reveal>
             {orderingEnabled ? (
               <CheckoutClient initialFulfillment={initialFulfillment} />

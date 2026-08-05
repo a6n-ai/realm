@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
 import { CloverCardForm } from "@/components/order/clover-card-form";
+import { OrderSummary } from "@/components/order/order-summary";
+import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { money } from "@/lib/cart/types";
 import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 
@@ -26,9 +28,33 @@ type CheckoutSession = {
 
 type Step = "review" | "pay" | "done";
 type Fulfillment = "pickup" | "delivery";
+type FieldKey = "name" | "email" | "phone" | "address" | "scheduledFor";
 type AddressCheck =
   | { eligible: true; tier: "instant" | "scheduled"; distanceKm: number; minSubtotal?: number }
   | { eligible: false; reason: string };
+
+const STEPS: { key: Step; label: string }[] = [
+  { key: "review", label: "Details" },
+  { key: "pay", label: "Payment" },
+  { key: "done", label: "Done" },
+];
+
+function StepTrack({ step }: { step: Step }) {
+  const activeIndex = STEPS.findIndex((s) => s.key === step);
+  return (
+    <ol className="checkout-steps" aria-label="Checkout progress">
+      {STEPS.map((s, i) => {
+        const state = i < activeIndex ? "done" : i === activeIndex ? "current" : "todo";
+        return (
+          <li key={s.key} className={`checkout-steps__item is-${state}`} aria-current={state === "current" ? "step" : undefined}>
+            <span className="checkout-steps__num">{state === "done" ? "✓" : i + 1}</span>
+            <span className="checkout-steps__label">{s.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function CheckoutClient({
   initialFulfillment = "pickup",
@@ -36,9 +62,11 @@ export function CheckoutClient({
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
 }) {
-  const { items, subtotal, clear, hydrated } = useCart();
+  const { items, subtotal, count, clear, hydrated } = useCart();
+  const formId = useId();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [dial, setDial] = useState(DEFAULT_DIAL_CODE);
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
   const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
@@ -50,6 +78,7 @@ export function CheckoutClient({
   const [stepState, setStep] = useState<Step>("review");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
@@ -83,25 +112,37 @@ export function CheckoutClient({
   // for a cart that has nothing in it.
   const step = stepState === "pay" && items.length === 0 && !session ? "review" : stepState;
 
+  /** Inline per-field validation. The server re-validates all of this — this pass
+   *  exists so the customer sees which field is wrong, next to that field. */
+  function validate(): Partial<Record<FieldKey, string>> {
+    const errs: Partial<Record<FieldKey, string>> = {};
+    if (!name.trim()) errs.name = "Tell us who's picking up.";
+    if (!email.trim()) errs.email = "We email your receipt here.";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) errs.email = "That email looks incomplete.";
+    const digits = phone.replace(/[^\d]/g, "");
+    if (!digits) errs.phone = "Phone is required for order updates.";
+    else if (digits.length < 7) errs.phone = "That number is too short.";
+    if (fulfillment === "delivery") {
+      if (!addressCheck?.eligible) errs.address = "Check your delivery address first.";
+      else if (addressCheck.tier === "scheduled" && !scheduledFor) errs.scheduledFor = "Pick a delivery time.";
+    }
+    return errs;
+  }
+
   async function startCheckout() {
     setError(null);
-    if (!name.trim() || !email.trim()) {
-      setError("Name and email are required");
+    const errs = validate();
+    setFieldErrors(errs);
+    const firstBad = (["name", "email", "phone", "address", "scheduledFor"] as FieldKey[]).find((k) => errs[k]);
+    if (firstBad) {
+      // useId() values contain ':' so they are not valid CSS selectors — look the
+      // field up by id directly rather than through querySelector.
+      document.getElementById(`${formId}-${firstBad}`)?.focus();
       return;
     }
     if (items.length === 0) {
       setError("Add at least one item from the menu");
       return;
-    }
-    if (fulfillment === "delivery") {
-      if (!addressCheck?.eligible) {
-        setError("Check your delivery address first");
-        return;
-      }
-      if (addressCheck.tier === "scheduled" && !scheduledFor) {
-        setError("Pick a delivery time");
-        return;
-      }
     }
     setBusy(true);
     try {
@@ -118,7 +159,7 @@ export function CheckoutClient({
           contact: {
             name: name.trim(),
             email: email.trim(),
-            phone: phone.trim() || null,
+            phone: joinPhone(dial, phone),
             note: note.trim() || null,
           },
           fulfillment:
@@ -183,7 +224,12 @@ export function CheckoutClient({
   }
 
   if (!hydrated) {
-    return <p style={{ fontWeight: 600 }}>Loading checkout…</p>;
+    return (
+      <div className="checkout-layout" aria-busy="true">
+        <div className="card card--cream checkout-skeleton" />
+        <div className="card checkout-skeleton" style={{ background: "var(--white)" }} />
+      </div>
+    );
   }
 
   if (step === "done") {
@@ -202,6 +248,11 @@ export function CheckoutClient({
               ? `Scheduled for delivery ${new Date(session.scheduledFor).toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" })}.`
               : "Ready in about 15 minutes at 3315 Danforth Ave."}
         </p>
+        {session ? (
+          <p className="checkout-orderid" style={{ marginTop: 14 }}>
+            Order {session.orderPublicId}
+          </p>
+        ) : null}
         <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Btn page="eats" variant="yellow">
             Back to menu
@@ -213,6 +264,7 @@ export function CheckoutClient({
               setSession(null);
               setPaidTotal(null);
               setError(null);
+              setFieldErrors({});
             }}
           >
             Start another order
@@ -222,243 +274,266 @@ export function CheckoutClient({
     );
   }
 
-  return (
-    <div className="checkout-grid">
-      <section className="card card--cream" style={{ padding: "clamp(18px,3vw,26px)" }}>
-        <h2 className="display" style={{ fontSize: "1.45rem", marginBottom: 14 }}>
-          Your bag
-        </h2>
-        {items.length === 0 ? (
-          <div>
-            <p style={{ fontWeight: 600, marginBottom: 16 }}>
-              Cart is empty. Add Clover-linked in-stock items from the menu first.
-            </p>
-            <Btn page="eats" variant="green">
-              Browse menu →
-            </Btn>
-          </div>
-        ) : (
-          <CartLines items={items} />
-        )}
-      </section>
-
-      <section className="card" style={{ padding: "clamp(18px,3vw,26px)", background: "var(--white)" }}>
-        <div className="flex center between" style={{ marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-          <h2 className="display" style={{ fontSize: "1.45rem", margin: 0 }}>
-            {step === "pay" ? "Pay with card" : "Contact & pay"}
-          </h2>
-          <strong style={{ fontSize: "1.25rem" }}>{money(session?.total ?? subtotal)}</strong>
-        </div>
-
-        {/* Totals come from Clover, which is what the card is actually charged. Before
-            the server has priced the cart we only know the subtotal, so say so. */}
-        {session ? (
-          <dl className="checkout-totals" style={{ margin: "0 0 14px", fontSize: "0.95rem" }}>
-            <div className="flex center between">
-              <dt>Subtotal</dt>
-              <dd style={{ margin: 0 }}>{money(session.subtotal)}</dd>
-            </div>
-            {session.discountAmount ? (
-              <div className="flex center between">
-                <dt>Instant delivery discount</dt>
-                <dd style={{ margin: 0 }}>−{money(session.discountAmount)}</dd>
-              </div>
-            ) : null}
-            <div className="flex center between">
-              <dt>Tax</dt>
-              <dd style={{ margin: 0 }}>{money(session.tax)}</dd>
-            </div>
-            <div className="flex center between" style={{ fontWeight: 700 }}>
-              <dt>Total</dt>
-              <dd style={{ margin: 0 }}>{money(session.total)}</dd>
-            </div>
-          </dl>
-        ) : (
-          <p style={{ margin: "0 0 14px", fontSize: "0.9rem", opacity: 0.75 }}>
-            {money(subtotal)} subtotal — tax is added when we price your order in the next step.
+  const bag = (
+    <>
+      <div className="checkout-aside__head">
+        <h2 className="display">Your bag</h2>
+        <strong>{money(session?.subtotal ?? subtotal)}</strong>
+      </div>
+      {items.length === 0 && !session ? (
+        <div>
+          <p style={{ fontWeight: 600, marginBottom: 16 }}>
+            Cart is empty. Add Clover-linked in-stock items from the menu first.
           </p>
-        )}
+          <Btn page="eats" variant="green">
+            Browse menu →
+          </Btn>
+        </div>
+      ) : (
+        <>
+          <CartLines items={items} compact />
+          <OrderSummary
+            subtotal={session?.subtotal ?? subtotal}
+            tax={session?.tax}
+            total={session?.total}
+            discountAmount={session?.discountAmount}
+            priced={Boolean(session)}
+          />
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <div className="checkout-layout">
+      <div className="checkout-main">
+        <StepTrack step={step} />
+
+        {/* Mobile: the bag collapses so the form is the first thing in reach.
+            Desktop gets the always-open <aside> below instead. */}
+        <details className="card card--cream checkout-bag-mobile">
+          <summary>
+            <span>
+              {count} item{count === 1 ? "" : "s"} in your bag
+            </span>
+            <strong>{money(session?.total ?? subtotal)}</strong>
+          </summary>
+          <div className="checkout-bag-mobile__body">{bag}</div>
+        </details>
 
         {step === "review" ? (
-          <>
-            <div className="flex wrap-gap" style={{ gap: 8, marginBottom: 14 }}>
-              <button
-                type="button"
-                className={`pill ${fulfillment === "pickup" ? "pill--green" : ""}`}
-                style={{ border: "2.5px solid var(--ink)", cursor: "pointer" }}
-                onClick={() => setFulfillment("pickup")}
-              >
-                🏠 Pickup
-              </button>
-              <button
-                type="button"
-                className={`pill ${fulfillment === "delivery" ? "pill--green" : ""}`}
-                style={{ border: "2.5px solid var(--ink)", cursor: "pointer" }}
-                onClick={() => setFulfillment("delivery")}
-              >
-                🛵 Delivery
-              </button>
+          <form
+            className="card checkout-panel"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void startCheckout();
+            }}
+          >
+            <h2 className="display checkout-panel__title">How are you getting it?</h2>
+
+            <div className="checkout-fulfillment" role="radiogroup" aria-label="Fulfillment">
+              {(
+                [
+                  ["pickup", "Pickup", "3315 Danforth Ave · ~15 min"],
+                  ["delivery", "Delivery", "Within 7km, or book a slot"],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={fulfillment === value}
+                  className={`checkout-choice ${fulfillment === value ? "is-active" : ""}`}
+                  onClick={() => setFulfillment(value)}
+                >
+                  <span className="checkout-choice__label">{label}</span>
+                  <span className="checkout-choice__hint">{hint}</span>
+                </button>
+              ))}
             </div>
 
-            {fulfillment === "pickup" ? (
-              <p style={{ fontWeight: 500, opacity: 0.8, marginBottom: 16, fontSize: "0.9rem" }}>
-                Pickup at 3315 Danforth Ave · ~15 min. Final total is calculated on the server —
-                client prices are estimates only.
-              </p>
-            ) : (
-              <div style={{ marginBottom: 16 }}>
-                <label className="field" style={{ marginBottom: 10 }}>
-                  <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>Delivery address</span>
-                  <textarea
-                    className="textarea"
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      setAddressCheck(null);
-                    }}
-                    placeholder="Street, city, postal code"
-                    style={{ minHeight: 60 }}
-                  />
-                </label>
-                <Btn
-                  variant="cream"
-                  size="sm"
-                  disabled={!address.trim() || addressChecking}
-                  onClick={() => void checkAddress()}
-                >
-                  {addressChecking ? "Checking…" : "Check address"}
-                </Btn>
-
-                {addressCheck?.eligible === true ? (
-                  <p style={{ fontWeight: 600, marginTop: 10, fontSize: "0.88rem" }}>
-                    {addressCheck.tier === "instant" ? (
-                      <>
-                        ✓ You&apos;re {addressCheck.distanceKm}km away — instant delivery, 15% off
-                        (~{money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT)} off applied at checkout).
-                      </>
-                    ) : (
-                      <>
-                        You&apos;re {addressCheck.distanceKm}km away — outside instant delivery. Scheduled
-                        delivery available, ${addressCheck.minSubtotal} minimum order. Pick a time below.
-                      </>
-                    )}
-                  </p>
-                ) : addressCheck?.eligible === false ? (
-                  <p style={{ fontWeight: 600, marginTop: 10, fontSize: "0.88rem", color: "var(--red)" }}>
-                    {addressCheck.reason}
-                  </p>
-                ) : null}
-
-                {addressCheck?.eligible === true && addressCheck.tier === "scheduled" ? (
-                  <label className="field" style={{ marginTop: 12 }}>
-                    <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>Delivery time</span>
-                    <input
-                      type="datetime-local"
-                      className="input"
-                      value={scheduledFor}
-                      onChange={(e) => setScheduledFor(e.target.value)}
-                      min={minScheduledFor}
-                    />
-                  </label>
+            {fulfillment === "delivery" ? (
+              <div className={`field checkout-field ${fieldErrors.address ? "field--err" : ""}`}>
+                <label htmlFor={`${formId}-address`}>Delivery address *</label>
+                <textarea
+                  id={`${formId}-address`}
+                  className="textarea checkout-address"
+                  value={address}
+                  autoComplete="street-address"
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setAddressCheck(null);
+                  }}
+                  placeholder="Street, city, postal code"
+                  aria-invalid={fieldErrors.address ? true : undefined}
+                />
+                <div className="checkout-address__actions">
+                  <Btn
+                    variant="cream"
+                    size="sm"
+                    disabled={!address.trim() || addressChecking}
+                    onClick={() => void checkAddress()}
+                  >
+                    {addressChecking ? "Checking…" : "Check address"}
+                  </Btn>
+                  {addressCheck?.eligible === true ? (
+                    <p className="checkout-address__ok">
+                      {addressCheck.tier === "instant"
+                        ? `✓ ${addressCheck.distanceKm}km away — instant delivery, ${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}% off (about ${money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT)}).`
+                        : `${addressCheck.distanceKm}km away — outside instant delivery. Scheduled delivery, $${addressCheck.minSubtotal} minimum. Pick a time below.`}
+                    </p>
+                  ) : addressCheck?.eligible === false ? (
+                    <p className="err-msg" role="alert">
+                      {addressCheck.reason}
+                    </p>
+                  ) : null}
+                </div>
+                {fieldErrors.address ? (
+                  <span className="err-msg" role="alert">
+                    {fieldErrors.address}
+                  </span>
                 ) : null}
               </div>
-            )}
+            ) : null}
 
-            <div className="checkout-fields">
-              <label className="checkout-label">
-                Name *
+            {addressCheck?.eligible === true && addressCheck.tier === "scheduled" ? (
+              <div className={`field checkout-field ${fieldErrors.scheduledFor ? "field--err" : ""}`}>
+                <label htmlFor={`${formId}-scheduledFor`}>Delivery time *</label>
                 <input
+                  id={`${formId}-scheduledFor`}
+                  type="datetime-local"
+                  className="input"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  min={minScheduledFor}
+                  aria-invalid={fieldErrors.scheduledFor ? true : undefined}
+                />
+                {fieldErrors.scheduledFor ? (
+                  <span className="err-msg" role="alert">
+                    {fieldErrors.scheduledFor}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            <h2 className="display checkout-panel__title">Who&apos;s it for?</h2>
+            <div className="checkout-fields">
+              <div className={`field checkout-field ${fieldErrors.name ? "field--err" : ""}`}>
+                <label htmlFor={`${formId}-name`}>Name *</label>
+                <input
+                  id={`${formId}-name`}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="input"
                   autoComplete="name"
+                  aria-invalid={fieldErrors.name ? true : undefined}
                   required
                 />
-              </label>
-              <label className="checkout-label">
-                Email *
+                {fieldErrors.name ? (
+                  <span className="err-msg" role="alert">
+                    {fieldErrors.name}
+                  </span>
+                ) : null}
+              </div>
+              <div className={`field checkout-field ${fieldErrors.email ? "field--err" : ""}`}>
+                <label htmlFor={`${formId}-email`}>Email *</label>
                 <input
+                  id={`${formId}-email`}
                   type="email"
+                  inputMode="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input"
                   autoComplete="email"
+                  aria-invalid={fieldErrors.email ? true : undefined}
                   required
                 />
-              </label>
-              <label className="checkout-label">
-                Phone
+                {fieldErrors.email ? (
+                  <span className="err-msg" role="alert">
+                    {fieldErrors.email}
+                  </span>
+                ) : (
+                  <span className="checkout-hint">Your receipt lands here.</span>
+                )}
+              </div>
+              <PhoneField
+                id={`${formId}-phone`}
+                dial={dial}
+                national={phone}
+                onDialChange={setDial}
+                onNationalChange={setPhone}
+                error={fieldErrors.phone}
+              />
+              <div className="field checkout-field">
+                <label htmlFor={`${formId}-note`}>Note for kitchen</label>
                 <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="input"
-                  autoComplete="tel"
-                />
-              </label>
-              <label className="checkout-label">
-                Note for kitchen
-                <input
+                  id={`${formId}-note`}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="input"
                   maxLength={500}
+                  placeholder="Extra spicy, no coriander…"
                 />
-              </label>
+              </div>
             </div>
+
             {error ? (
-              <p
-                className="checkout-error"
-                role="alert"
-                aria-live="assertive"
-                style={{ color: "var(--red)", fontWeight: 700, marginTop: 14 }}
-              >
+              <p className="checkout-error" role="alert" aria-live="assertive">
                 {error}
               </p>
             ) : null}
+
             <Btn
               variant="green"
               size="lg"
               block
+              type="submit"
               disabled={busy || items.length === 0}
-              onClick={() => void startCheckout()}
-              className={busy ? "opacity-70" : ""}
-              style={{ marginTop: 16, minHeight: 52 }}
+              className="checkout-submit"
             >
-              {busy ? "Creating order…" : "Continue to payment →"}
+              {busy ? "Pricing your order…" : `Continue to payment · ${money(subtotal)}`}
             </Btn>
-          </>
-        ) : session ? (
-          <>
-            <p style={{ fontWeight: 500, marginBottom: 14, opacity: 0.85, fontSize: "0.9rem" }}>
-              Order {session.orderPublicId}
-              {session.environment === "sandbox" ? " · sandbox" : ""}
+            <p className="checkout-hint checkout-hint--center">
+              Nothing is charged until you enter a card on the next step.
             </p>
+          </form>
+        ) : session ? (
+          <div className="card checkout-panel">
+            <div className="checkout-panel__head">
+              <h2 className="display checkout-panel__title" style={{ margin: 0 }}>
+                Pay with card
+              </h2>
+              <Pill variant="green">Secured by Clover</Pill>
+            </div>
+            <p className="checkout-hint">
+              Order {session.orderPublicId}
+              {session.environment === "sandbox" ? " · sandbox" : ""}. Card details go straight to
+              Clover — this site never sees them.
+            </p>
+
             <CloverCardForm
               pakmsKey={session.pakmsKey}
               sdkUrl={session.checkoutSdkUrl}
               onReady={onCardReady}
             />
+
             {error ? (
-              <p
-                className="checkout-error"
-                role="alert"
-                aria-live="assertive"
-                style={{ color: "var(--red)", fontWeight: 700, marginTop: 14 }}
-              >
+              <p className="checkout-error" role="alert" aria-live="assertive">
                 {error}
               </p>
             ) : null}
-            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+
+            <div className="checkout-pay-actions">
               <Btn
                 variant="green"
                 size="lg"
                 block
-                disabled={busy}
+                disabled={busy || !tokenize}
                 onClick={() => void pay()}
-                style={{ minHeight: 52 }}
+                className="checkout-submit"
               >
-                {busy ? "Processing…" : `Pay ${money(session.total)}`}
+                {busy ? "Processing…" : !tokenize ? "Loading card form…" : `Pay ${money(session.total)}`}
               </Btn>
               <Btn
                 variant="cream"
@@ -469,12 +544,14 @@ export function CheckoutClient({
                   setError(null);
                 }}
               >
-                ← Back to contact
+                ← Back to details
               </Btn>
             </div>
-          </>
+          </div>
         ) : null}
-      </section>
+      </div>
+
+      <aside className="card card--cream checkout-aside">{bag}</aside>
     </div>
   );
 }
