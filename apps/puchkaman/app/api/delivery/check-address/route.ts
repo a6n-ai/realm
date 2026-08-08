@@ -1,34 +1,36 @@
 import { z } from "zod";
 import { handler, json, problem } from "@realm/routes";
-import { geocodeAddress } from "@/lib/delivery/geocode";
-import {
-  distanceFromStoreKm,
-  INSTANT_DELIVERY_RADIUS_KM,
-  SCHEDULED_DELIVERY_MIN_SUBTOTAL,
-} from "@/lib/delivery/distance";
+import { haversineKm } from "@/lib/delivery/distance";
+import { resolveAddress } from "@/lib/delivery/resolve-address";
+import { availableTypes, deliveryLimitKm } from "@/lib/delivery/zones";
+import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 
-const checkAddressSchema = z.object({ address: z.string().trim().min(5) });
+const checkAddressSchema = z.object({
+  address: z.string().trim().min(5),
+  placeId: z.string().trim().min(1).optional(),
+});
 
-// Public (unauthenticated) — lets the checkout form give instant feedback on
-// whether an address is in the instant-delivery radius before the customer
-// fills out the rest of checkout. This is advisory only: createCheckout()
-// re-derives the tier server-side from a fresh geocode, never trusting this.
+// Public (unauthenticated) — lets checkout and the public "do we deliver to
+// you?" checker ask what delivery types an address qualifies for before the
+// customer commits. This is advisory only: createCheckout() re-derives the
+// zone/type/distance server-side from a fresh geocode, never trusting this.
 export const POST = handler(async (request: Request): Promise<Response> => {
   const parsed = checkAddressSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
 
-  const point = await geocodeAddress(parsed.data.address);
-  if (!point) {
-    return json({ eligible: false, reason: "Couldn't find that address — try adding city and postal code." });
-  }
+  const resolved = await resolveAddress(parsed.data);
+  if (!resolved) return json({ resolved: false });
 
-  const distanceKm = distanceFromStoreKm(point.lat, point.lng);
-  const tier = distanceKm <= INSTANT_DELIVERY_RADIUS_KM ? "instant" : "scheduled";
+  const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
+  const distanceKm = Number(
+    haversineKm(origin.lat, origin.lng, resolved.lat, resolved.lng).toFixed(2),
+  );
 
   return json({
-    eligible: true,
-    tier,
-    distanceKm: Math.round(distanceKm * 10) / 10,
-    ...(tier === "scheduled" ? { minSubtotal: SCHEDULED_DELIVERY_MIN_SUBTOTAL } : {}),
+    resolved: true,
+    formattedAddress: resolved.formattedAddress,
+    distanceKm,
+    limitKm: deliveryLimitKm(zones),
+    types: availableTypes(distanceKm, zones),
   });
 });
