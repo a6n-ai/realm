@@ -2289,19 +2289,20 @@ git commit -m "feat(tiffin-grab): add a Google reviews section to the public sit
 
 ### Task 9: `review_nudges` table, store port, and eligibility
 
+**Modularity ruling (binding):** the table definition AND the Drizzle store live in `@realm/google-reviews`. A Drizzle `pgTable` is a declaration, not an app dependency — the package can own it, and each app re-exports it from its schema barrel so `drizzle-kit` discovers it and generates that app's own migration. Neither app writes any nudge query code.
+
 **Files:**
-- Create: `packages/google-reviews/src/nudge.ts`
+- Create: `packages/google-reviews/src/nudge.ts` (port + pure helpers)
+- Create: `packages/google-reviews/src/db.ts` (table + Drizzle store factory)
+- Modify: `packages/google-reviews/package.json` (add `drizzle-orm`, `./db` export)
 - Test: `packages/google-reviews/src/__tests__/nudge.test.ts`
-- Create: `apps/puchkaman/db/schema/review-nudges.ts`
-- Create: `apps/tiffin-grab/db/schema/review-nudges.ts`
-- Modify: `apps/puchkaman/db/schema/index.ts`, `apps/tiffin-grab/db/schema/index.ts`
-- Create: `apps/puchkaman/lib/services/review-nudge.service.ts`
-- Create: `apps/tiffin-grab/lib/services/review-nudge.service.ts`
+- Modify: `apps/puchkaman/db/schema/index.ts`, `apps/tiffin-grab/db/schema/index.ts` (one re-export line each)
+- Create: `apps/puchkaman/lib/services/review-nudge.service.ts`, `apps/tiffin-grab/lib/services/review-nudge.service.ts` (two lines each — bind the app's `db`)
 - Modify: `packages/google-reviews/src/index.ts`
 
 **Interfaces:**
 - Consumes: nothing new.
-- Produces: `ReviewNudgeState`, `ReviewNudgeStore`, `shouldNudge`, `writeReviewUrl` from `@realm/google-reviews`; `reviewNudgeStore` per app.
+- Produces: `ReviewNudgeState`, `ReviewNudgeStore`, `shouldNudge`, `writeReviewUrl` from `@realm/google-reviews`; `reviewNudges` (table) and `drizzleReviewNudgeStore(db)` from `@realm/google-reviews/db`; `reviewNudgeStore` per app.
 
 **Why a table and not columns on `users`:** puchkaman has no customer accounts — public orders are guest checkout carrying `orders.customer_email` (`apps/puchkaman/db/schema/orders.ts:90`). Keying nudges on email works for both apps, and adding a table avoids an `ALTER` on the live auth `users` table.
 
@@ -2389,16 +2390,22 @@ export * from "./nudge";
 Run: `pnpm --filter @realm/google-reviews test`
 Expected: PASS — 15 tests.
 
-- [ ] **Step 5: Add the table to both apps**
+- [ ] **Step 5: Put the table and the store in the package**
 
-Create `apps/puchkaman/db/schema/review-nudges.ts`:
+Create `packages/google-reviews/src/db.ts`:
 
 ```ts
+import { eq, sql } from "drizzle-orm";
 import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import type { ReviewNudgeStore, ReviewNudgeState } from "./nudge";
 
 /**
- * One row per customer email, ever. Email is the key because puchkaman orders
- * are guest checkout — there is no user row to hang this on.
+ * One row per customer email, ever. Email is the key rather than a user id
+ * because puchkaman orders are guest checkout — there is no user row to hang
+ * this on, and email is the one identifier both apps always have.
+ *
+ * Each app re-exports this from its own schema barrel so drizzle-kit generates
+ * that app's migration; the table definition itself is shared.
  */
 export const reviewNudges = pgTable(
   "review_nudges",
@@ -2410,14 +2417,71 @@ export const reviewNudges = pgTable(
   },
   (t) => [index("review_nudges_sent_idx").on(t.sentAt)],
 );
+
+function normalize(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * Bind the store to an app's Drizzle client. `db` is typed loosely on purpose:
+ * the two apps construct their clients separately and this package must not
+ * depend on either app's schema barrel.
+ */
+export function drizzleReviewNudgeStore(db: {
+  select: (...args: never[]) => never;
+  insert: (table: typeof reviewNudges) => never;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): ReviewNudgeStore {
+  // The narrow structural type above documents intent; the calls below need
+  // Drizzle's full builder, so the handle is widened once, here, and never
+  // leaks out of this factory.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = db as any;
+
+  return {
+    async get(email: string): Promise<ReviewNudgeState | undefined> {
+      const [row] = await d
+        .select({ sentAt: reviewNudges.sentAt, doneAt: reviewNudges.doneAt })
+        .from(reviewNudges)
+        .where(eq(reviewNudges.email, normalize(email)))
+        .limit(1);
+      return row ?? undefined;
+    },
+
+    // Upsert, not read-then-write: two concurrent triggers for the same
+    // customer would both see "never nudged" and both send. COALESCE keeps the
+    // first timestamp, so the primary key makes a double send impossible.
+    async markSent(email: string): Promise<void> {
+      await d
+        .insert(reviewNudges)
+        .values({ email: normalize(email), sentAt: new Date() })
+        .onConflictDoUpdate({
+          target: reviewNudges.email,
+          set: { sentAt: sql`COALESCE(${reviewNudges.sentAt}, EXCLUDED.sent_at)` },
+        });
+    },
+
+    async markDone(email: string): Promise<void> {
+      await d
+        .insert(reviewNudges)
+        .values({ email: normalize(email), doneAt: new Date() })
+        .onConflictDoUpdate({
+          target: reviewNudges.email,
+          set: { doneAt: sql`COALESCE(${reviewNudges.doneAt}, EXCLUDED.done_at)` },
+        });
+    },
+  };
+}
 ```
 
-Create the identical file at `apps/tiffin-grab/db/schema/review-nudges.ts`.
+If the loose `db` typing above proves awkward, prefer importing Drizzle's `NodePgDatabase` type and typing the parameter as `NodePgDatabase<Record<string, never>>` — that is strictly better than `any` and still app-agnostic. Report which you used.
 
-Export it from each app's `db/schema/index.ts`:
+Add to `packages/google-reviews/package.json`: `"drizzle-orm"` in `dependencies` (match the version the apps already use — check `apps/tiffin-grab/package.json`), and `"./db": "./src/db.ts"` in `exports`.
+
+Re-export the table from each app's `db/schema/index.ts` so drizzle-kit sees it:
 
 ```ts
-export * from "./review-nudges";
+export { reviewNudges } from "@realm/google-reviews/db";
 ```
 
 - [ ] **Step 6: Generate and apply the migrations**
@@ -2436,56 +2500,18 @@ pnpm --filter puchkaman db:migrate
 pnpm --filter tiffin-grab db:migrate
 ```
 
-- [ ] **Step 7: Implement the store in both apps**
+- [ ] **Step 7: Bind the store in each app**
 
-Create `apps/puchkaman/lib/services/review-nudge.service.ts`:
+The whole app-side implementation is now two lines. Create `apps/puchkaman/lib/services/review-nudge.service.ts`:
 
 ```ts
-import { eq, sql } from "drizzle-orm";
-import type { ReviewNudgeStore, ReviewNudgeState } from "@realm/google-reviews";
+import { drizzleReviewNudgeStore } from "@realm/google-reviews/db";
 import { db } from "@/db/client";
-import { reviewNudges } from "@/db/schema";
 
-function normalize(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-export const reviewNudgeStore: ReviewNudgeStore = {
-  async get(email: string): Promise<ReviewNudgeState | undefined> {
-    const [row] = await db
-      .select({ sentAt: reviewNudges.sentAt, doneAt: reviewNudges.doneAt })
-      .from(reviewNudges)
-      .where(eq(reviewNudges.email, normalize(email)))
-      .limit(1);
-    return row ?? undefined;
-  },
-
-  async markSent(email: string): Promise<void> {
-    await db
-      .insert(reviewNudges)
-      .values({ email: normalize(email), sentAt: new Date() })
-      .onConflictDoUpdate({
-        target: reviewNudges.email,
-        // COALESCE keeps the first send time — a race must not reset the clock.
-        set: { sentAt: sql`COALESCE(${reviewNudges.sentAt}, EXCLUDED.sent_at)` },
-      });
-  },
-
-  async markDone(email: string): Promise<void> {
-    await db
-      .insert(reviewNudges)
-      .values({ email: normalize(email), doneAt: new Date() })
-      .onConflictDoUpdate({
-        target: reviewNudges.email,
-        set: { doneAt: sql`COALESCE(${reviewNudges.doneAt}, EXCLUDED.done_at)` },
-      });
-  },
-};
+export const reviewNudgeStore = drizzleReviewNudgeStore(db);
 ```
 
-Create the identical file in `apps/tiffin-grab/lib/services/`.
-
-`markSent` uses an upsert rather than read-then-write because two concurrent triggers for the same customer would otherwise both see "never nudged" and both send. The unique primary key plus `COALESCE` makes a double send impossible.
+Create the same file in `apps/tiffin-grab/lib/services/`. If `@realm/google-reviews` is not yet in an app's `package.json` from Task 6, add `"@realm/google-reviews": "workspace:*"` and run `pnpm install`.
 
 - [ ] **Step 8: Verify**
 
@@ -2504,7 +2530,7 @@ git commit -m "feat(google-reviews): add review nudge storage, port, and eligibi
 ### Task 10: Send the nudge — email in both apps, in-app card in tiffin-grab
 
 **Files:**
-- Create: `packages/google-reviews/src/nudge-email.tsx`
+- Create: `packages/google-reviews/src/nudge-email.ts`
 - Create: `packages/google-reviews/src/ui/review-nudge-card.tsx`
 - Modify: `packages/google-reviews/src/ui/index.ts`, `packages/google-reviews/src/index.ts`
 - Create: `apps/puchkaman/lib/services/review-nudge-dispatch.ts`
@@ -2532,29 +2558,38 @@ import { describe, it, expect } from "vitest";
 import { renderReviewNudgeEmail } from "../nudge-email";
 
 describe("renderReviewNudgeEmail", () => {
-  const rendered = renderReviewNudgeEmail({
-    businessName: "Puchkaman",
-    customerName: "Priya",
-    placeId: "ChIJabc",
+  it("addresses the customer by name", async () => {
+    const r = await renderReviewNudgeEmail({
+      businessName: "Puchkaman",
+      customerName: "Priya",
+      placeId: "ChIJabc",
+    });
+    expect(r.html).toContain("Priya");
   });
 
-  it("addresses the customer by name", () => {
-    expect(rendered.html).toContain("Priya");
+  it("links to the Google write-review page", async () => {
+    const r = await renderReviewNudgeEmail({
+      businessName: "Puchkaman",
+      customerName: "Priya",
+      placeId: "ChIJabc",
+    });
+    expect(r.html).toContain("https://search.google.com/local/writereview?placeid=ChIJabc");
   });
 
-  it("links to the Google write-review page", () => {
-    expect(rendered.html).toContain(
-      "https://search.google.com/local/writereview?placeid=ChIJabc",
-    );
+  it("names the business in the subject", async () => {
+    const r = await renderReviewNudgeEmail({ businessName: "Puchkaman", placeId: "ChIJabc" });
+    expect(r.subject).toContain("Puchkaman");
   });
 
-  it("names the business in the subject", () => {
-    expect(rendered.subject).toContain("Puchkaman");
+  it("falls back to a neutral greeting with no customer name", async () => {
+    const r = await renderReviewNudgeEmail({ businessName: "Puchkaman", placeId: "ChIJabc" });
+    expect(r.html).toContain("Hi there");
   });
 
-  it("falls back to a neutral greeting with no customer name", () => {
-    const anon = renderReviewNudgeEmail({ businessName: "Puchkaman", placeId: "ChIJabc" });
-    expect(anon.html).toContain("Hi there");
+  it("produces a plaintext alternative alongside the HTML", async () => {
+    const r = await renderReviewNudgeEmail({ businessName: "Puchkaman", placeId: "ChIJabc" });
+    expect(r.text).toContain("Puchkaman");
+    expect(r.text).not.toContain("<p>");
   });
 });
 ```
@@ -2566,34 +2601,48 @@ Expected: FAIL — cannot resolve `../nudge-email`.
 
 - [ ] **Step 3: Write the email renderer**
 
-Create `packages/google-reviews/src/nudge-email.tsx`:
+**Ruling (binding):** use `@realm/email`'s renderer, not a hand-rolled string template — it gives branded chrome, a real plaintext alternative, and consistency with every other transactional mail in the repo.
 
-```tsx
+`renderEmailTemplate` (`packages/email/src/render/email.tsx:21`) takes `{ subject, body, vars, appName }`, interpolates `{{vars}}` into a markdown body, and returns `{ subject, html, text }`.
+
+Create `packages/google-reviews/src/nudge-email.ts`:
+
+```ts
+import { renderEmailTemplate } from "@realm/email";
 import { writeReviewUrl } from "./nudge";
 
-/**
- * Plain string template rather than react-email: this is one paragraph and a
- * link, and keeping it dependency-free means the package needs no React on the
- * server path. Upgrade to @react-email/components if the design grows.
- */
-export function renderReviewNudgeEmail(input: {
+const SUBJECT = "How was your order from {{businessName}}?";
+
+const BODY = `{{greeting}},
+
+Thanks for ordering from {{businessName}}. If you enjoyed it, would you leave us a Google review? It takes about a minute and helps enormously.
+
+[Leave a Google review]({{reviewUrl}})
+
+Thank you,
+{{businessName}}`;
+
+export async function renderReviewNudgeEmail(input: {
   businessName: string;
   customerName?: string;
   placeId: string;
-}): { subject: string; html: string; text: string } {
-  const greeting = input.customerName?.trim()
-    ? `Hi ${input.customerName.trim()}`
-    : "Hi there";
-  const url = writeReviewUrl(input.placeId);
-
-  const subject = `How was your order from ${input.businessName}?`;
-  const text = `${greeting},\n\nThanks for ordering from ${input.businessName}. If you enjoyed it, would you leave us a Google review? It takes about a minute and helps enormously.\n\n${url}\n\nThank you,\n${input.businessName}`;
-
-  const html = `<p>${greeting},</p><p>Thanks for ordering from ${input.businessName}. If you enjoyed it, would you leave us a Google review? It takes about a minute and helps enormously.</p><p><a href="${url}">Leave a Google review</a></p><p>Thank you,<br/>${input.businessName}</p>`;
-
-  return { subject, html, text };
+}): Promise<{ subject: string; html: string; text: string }> {
+  return renderEmailTemplate({
+    subject: SUBJECT,
+    body: BODY,
+    appName: input.businessName,
+    vars: {
+      businessName: input.businessName,
+      greeting: input.customerName?.trim() ? `Hi ${input.customerName.trim()}` : "Hi there",
+      reviewUrl: writeReviewUrl(input.placeId),
+    },
+  });
 }
 ```
+
+Add `"@realm/email": "workspace:*"` to `packages/google-reviews/package.json` dependencies and run `pnpm install`.
+
+Because this is now async, every caller must `await` it — the dispatch helper and the cron below already do.
 
 Append to `packages/google-reviews/src/index.ts`:
 
@@ -2635,7 +2684,7 @@ export async function dispatchReviewNudge(input: {
 
     if (!shouldNudge(await reviewNudgeStore.get(input.email))) return;
 
-    const mail = renderReviewNudgeEmail({
+    const mail = await renderReviewNudgeEmail({
       businessName: "Puchkaman",
       customerName: input.name,
       placeId: cfg.placeId,
@@ -2726,7 +2775,7 @@ async function handle(request: Request): Promise<Response> {
     if (!c.email) continue;
     if (!shouldNudge(await reviewNudgeStore.get(c.email))) continue;
     try {
-      const mail = renderReviewNudgeEmail({
+      const mail = await renderReviewNudgeEmail({
         businessName: "Tiffin Grab",
         customerName: c.name ?? undefined,
         placeId: cfg.placeId,
