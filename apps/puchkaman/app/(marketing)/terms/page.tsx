@@ -54,7 +54,7 @@ export default function TermsPage() {
 
             <h2 style={{ fontSize: "1.3rem", marginBottom: 10 }}>Payments</h2>
             <p style={{ fontWeight: 500, opacity: 0.88, marginBottom: 20 }}>
-              Online payments are processed securely through Clover. By submitting payment, you authorize us to
+              Online payments are processed securely through a third-party payment processor. By submitting payment, you authorize us to
               charge the amount shown at checkout.
             </p>
 

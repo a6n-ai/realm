@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
             <h2 style={{ fontSize: "1.3rem", marginBottom: 10 }}>Payment processing</h2>
             <p style={{ fontWeight: 500, opacity: 0.88, marginBottom: 20 }}>
-              Online payments are processed by Clover, a third-party payment processor. We do not store your full
+              Online payments are processed by a third-party payment processor. We do not store your full
               card details on our servers.
             </p>
 

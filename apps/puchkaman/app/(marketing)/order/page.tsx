@@ -76,7 +76,7 @@ export default function OrderPage() {
       <PageBanner
         kicker="Order Online"
         title="Get Your Puchka Fix"
-        sub="Pickup, instant delivery within 7km, or scheduled delivery beyond that — all with real Clover checkout."
+        sub="Pickup, instant delivery within 7km, or scheduled delivery beyond that — all with secure online checkout."
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"

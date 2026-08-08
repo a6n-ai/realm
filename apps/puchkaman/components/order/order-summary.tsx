@@ -77,10 +77,10 @@ export function OrderSummary({
       </div>
       <p className="order-summary__note">
         {stage === "final"
-          ? "Priced by Clover. This is exactly what your card is charged."
+          ? "This is exactly what your card is charged."
           : stage === "quoted"
-            ? "Tax from your Clover rates. Clover confirms the total before you pay."
-            : "Estimate. Clover prices the order server-side before you pay."}
+            ? "Tax from your local rates. We confirm the total before you pay."
+            : "Estimate. We price the order server-side before you pay."}
       </p>
     </dl>
   );

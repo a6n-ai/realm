@@ -48,7 +48,7 @@ export default async function CheckoutPage({
         title="Pay & Pickup"
         sub={
           orderingEnabled
-            ? "Two steps: your details, then a Clover-secured card. Nothing is charged until step two."
+            ? "Two steps: your details, then a secure card form. Nothing is charged until step two."
             : "Online pickup checkout is coming soon."
         }
         bg="var(--page-bg)"
