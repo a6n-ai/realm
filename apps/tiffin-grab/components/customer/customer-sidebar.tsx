@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3Icon,
   CalendarDaysIcon,
   ChefHatIcon,
   HomeIcon,
@@ -47,7 +48,10 @@ export const CUSTOMER_NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Finances",
-    items: [{ title: "Finances", href: "/me/wallet", icon: WalletIcon }],
+    items: [
+      { title: "Finances", href: "/me/wallet", icon: WalletIcon },
+      { title: "Usage", href: "/me/usage", icon: BarChart3Icon },
+    ],
   },
   {
     label: "Account",
