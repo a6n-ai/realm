@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ADDRESS, PHONE_TEL } from "@/lib/links";
-import { STORE_LAT, STORE_LNG } from "@/lib/delivery/distance";
+import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 
 export const SITE_NAME = "Puchkaman";
 export const SITE_URL = "https://puchkaman.ca";
@@ -78,8 +78,8 @@ export function localBusinessJsonLd() {
     },
     geo: {
       "@type": "GeoCoordinates",
-      latitude: STORE_LAT,
-      longitude: STORE_LNG,
+      latitude: DEFAULT_STORE_LAT,
+      longitude: DEFAULT_STORE_LNG,
     },
     openingHoursSpecification: OPENING_HOURS.map((h) => ({
       "@type": "OpeningHoursSpecification",

@@ -1,6 +1,7 @@
 import { baseColumns, updatableColumns } from "@realm/database";
 import { bigint, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { deliveryZones } from "./delivery-zones";
 import { employees } from "./employees";
 import { products } from "./products";
 
@@ -95,6 +96,8 @@ export const orders = pgTable(
     deliveryLat: numeric("delivery_lat", { precision: 9, scale: 6 }),
     deliveryLng: numeric("delivery_lng", { precision: 9, scale: 6 }),
     deliveryDistanceKm: numeric("delivery_distance_km", { precision: 6, scale: 2 }),
+    deliveryFee: numeric("delivery_fee", { precision: 10, scale: 2 }),
+    deliveryZoneId: bigint("delivery_zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
     /** Only set for delivery_scheduled orders — the customer-picked delivery time (ms). */
     scheduledFor: bigint("scheduled_for", { mode: "number" }),
     subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),

@@ -1,11 +1,8 @@
 // Store location (3315 Danforth Ave, Scarborough, ON) — reused from the
 // geocoded coords already baked into the /contact map embed (lib/links.ts).
-export const STORE_LAT = 43.69234;
-export const STORE_LNG = -79.28251;
-
-export const INSTANT_DELIVERY_RADIUS_KM = 7;
-export const SCHEDULED_DELIVERY_MIN_SUBTOTAL = 35;
-export const INSTANT_DELIVERY_DISCOUNT_PCT = 0.15;
+// Fallback when `app.storeLat`/`storeLng` are unset.
+export const DEFAULT_STORE_LAT = 43.69234;
+export const DEFAULT_STORE_LNG = -79.28251;
 
 /** Great-circle distance between two lat/lng points, in kilometers. */
 export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -19,5 +16,5 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 export function distanceFromStoreKm(lat: number, lng: number): number {
-  return haversineKm(STORE_LAT, STORE_LNG, lat, lng);
+  return haversineKm(DEFAULT_STORE_LAT, DEFAULT_STORE_LNG, lat, lng);
 }
