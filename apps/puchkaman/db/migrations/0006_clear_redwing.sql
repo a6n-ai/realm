@@ -22,5 +22,8 @@ ALTER TABLE "orders" ADD COLUMN "delivery_fee" numeric(10, 2);--> statement-brea
 ALTER TABLE "orders" ADD COLUMN "delivery_zone_id" bigint;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_delivery_zone_id_delivery_zones_id_fk" FOREIGN KEY ("delivery_zone_id") REFERENCES "public"."delivery_zones"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
-INSERT INTO "delivery_zones" ("name", "radius_km", "fee_amount", "discount_pct", "min_subtotal", "requires_scheduling")
-VALUES ('Standard', 7.00, 0, 15.00, 0, false);
+INSERT INTO "delivery_zones"
+  ("public_id", "created_at", "updated_at", "name", "radius_km", "fee_amount", "discount_pct", "min_subtotal", "requires_scheduling")
+VALUES
+  ('zon_seedstandard', (EXTRACT(EPOCH FROM now()) * 1000)::bigint, (EXTRACT(EPOCH FROM now()) * 1000)::bigint,
+   'Standard', 7.00, 0, 15.00, 0, false);
