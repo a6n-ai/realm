@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, UserIcon } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
+import type { PluginCatalogStatus } from "@realm/crm";
 import { signOut } from "@/lib/auth/client";
 import { getNavSections } from "./app-sidebar";
 
@@ -11,16 +12,14 @@ import { getNavSections } from "./app-sidebar";
 export function MoreDrawer({
   open,
   onOpenChange,
-  cloverInstalled = false,
-  cloverConnected = false,
+  statuses = {},
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  cloverInstalled?: boolean;
-  cloverConnected?: boolean;
+  statuses?: Record<string, PluginCatalogStatus>;
 }) {
   const router = useRouter();
-  const sections = getNavSections({ cloverInstalled, cloverConnected });
+  const sections = getNavSections({ statuses });
   const rowClass =
     "hover:bg-accent flex min-h-11 items-center gap-3 rounded-md px-2 text-left text-sm transition-colors";
 

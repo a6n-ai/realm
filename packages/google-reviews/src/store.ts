@@ -1,4 +1,4 @@
-import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore } from "@realm/commons/plugin";
 import {
   DEFAULT_GOOGLE_REVIEWS_CONFIG,
   parseGoogleReviewsConfig,

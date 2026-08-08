@@ -1,18 +1,7 @@
-import type { LucideIcon } from "lucide-react";
-
 /**
- * Client-safe plugin catalog metadata. Imported directly by client components —
- * `icon` is a function and cannot cross the RSC server→client props boundary,
- * which is why install/uninstall live in `plugin.server.ts` instead.
+ * The plugin contract itself lives in `@realm/commons/plugin` (floor layer) so
+ * `@realm/payments` and other domain packages don't have to depend up into
+ * `@realm/crm` just for these types. Re-exported here for compatibility —
+ * `@realm/crm` keeps owning the components that render them.
  */
-export type PluginMeta = {
-  id: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  /** Settings route revealed once installed. */
-  settingsHref?: string;
-};
-
-export type PluginNavItem = { title: string; href: string; icon: LucideIcon };
-export type PluginNavSection = { label: string; items: PluginNavItem[] };
+export type { PluginMeta, PluginNavItem, PluginNavSection } from "@realm/commons/plugin";

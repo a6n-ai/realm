@@ -1,4 +1,4 @@
-import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore } from "@realm/commons/plugin";
 import { placesProvider } from "./places-provider";
 import { getGoogleReviewsConfig } from "./store";
 import type { ReviewsProvider, ReviewsSummary } from "./types";

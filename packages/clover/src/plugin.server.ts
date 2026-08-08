@@ -1,7 +1,5 @@
-import { CreditCardIcon } from "lucide-react";
-import type { PluginNavSection } from "@realm/crm";
-import type { PluginServer, PluginStatus } from "@realm/crm/server";
-import { CLOVER_PLUGIN } from "./plugin";
+import type { PluginServer, PluginStatus } from "@realm/commons/plugin";
+import { CLOVER_PLUGIN, cloverNavSections } from "./plugin";
 import { getCloverConnection, installCloverPlugin, uninstallCloverPlugin } from "./store";
 import type { IntegrationsConfigStore } from "./store";
 
@@ -20,16 +18,6 @@ export function cloverPlugin(store: IntegrationsConfigStore): PluginServer {
     install: () => installCloverPlugin(store),
     uninstall: () => uninstallCloverPlugin(store),
 
-    nav(status): PluginNavSection[] {
-      if (!status.installed) return [];
-      return [
-        {
-          label: "Clover",
-          items: [
-            { title: "Connection", href: "/dashboard/settings/clover", icon: CreditCardIcon },
-          ],
-        },
-      ];
-    },
+    nav: cloverNavSections,
   };
 }

@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@realm/commons": "workspace:*",
     "@realm/crm": "workspace:*",
     "@realm/design-system": "workspace:*",
     "@realm/ui": "workspace:*",

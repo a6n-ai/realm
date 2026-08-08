@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@realm/commons": "workspace:*",
-    "@realm/crm": "workspace:*",
     "@realm/email": "workspace:*",
     "@realm/ui": "workspace:*",
     "lucide-react": "^1.20.0",

@@ -4,7 +4,7 @@ import type {
   CloverConnection,
   IntegrationsConfig,
 } from "./config";
-import type { IntegrationsConfigStore as BaseStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore as BaseStore } from "@realm/commons/plugin";
 
 export type IntegrationsConfigStore = BaseStore<IntegrationsConfig>;
 

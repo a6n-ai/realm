@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore } from "@realm/commons/plugin";
 import {
   getGoogleReviewsConfig,
   installGoogleReviews,

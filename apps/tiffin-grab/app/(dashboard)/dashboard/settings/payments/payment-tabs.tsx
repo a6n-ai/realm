@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CreditCardIcon, type LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
-import { findPaymentProvider } from "@realm/payments";
+import { findPaymentProvider } from "@realm/payments/providers";
 
 export type PaymentTab = {
   id: string;

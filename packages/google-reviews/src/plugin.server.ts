@@ -1,5 +1,4 @@
-import type { IntegrationsConfigStore } from "@realm/crm/server";
-import type { PluginServer, PluginStatus } from "@realm/crm/server";
+import type { IntegrationsConfigStore, PluginServer, PluginStatus } from "@realm/commons/plugin";
 import { GOOGLE_REVIEWS_PLUGIN_ID } from "./plugin";
 import { getGoogleReviewsConfig, installGoogleReviews, uninstallGoogleReviews } from "./store";
 

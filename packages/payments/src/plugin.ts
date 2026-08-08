@@ -1,5 +1,5 @@
 import { CreditCardIcon } from "lucide-react";
-import type { PluginMeta } from "@realm/crm";
+import type { PluginMeta } from "@realm/commons/plugin";
 
 export const PAYMENTS_PLUGIN_ID = "payments" as const;
 

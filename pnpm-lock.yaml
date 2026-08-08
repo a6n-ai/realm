@@ -480,6 +480,9 @@ importers:
 
   packages/clover:
     dependencies:
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
       '@realm/crm':
         specifier: workspace:*
         version: link:../crm
@@ -530,6 +533,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -539,6 +545,9 @@ importers:
 
   packages/crm:
     dependencies:
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
       '@realm/ui':
         specifier: workspace:*
         version: link:../ui
@@ -657,9 +666,6 @@ importers:
       '@realm/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/crm':
-        specifier: workspace:*
-        version: link:../crm
       '@realm/email':
         specifier: workspace:*
         version: link:../email
@@ -703,9 +709,9 @@ importers:
 
   packages/payments:
     dependencies:
-      '@realm/crm':
+      '@realm/commons':
         specifier: workspace:*
-        version: link:../crm
+        version: link:../commons
       lucide-react:
         specifier: ^1.20.0
         version: 1.21.0(react@19.2.4)

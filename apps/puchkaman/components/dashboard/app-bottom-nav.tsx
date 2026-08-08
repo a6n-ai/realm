@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { LayoutDashboardIcon, MenuIcon, PackageIcon } from "lucide-react";
 import { BottomNav, type BottomNavItem } from "@realm/design-system";
+import type { PluginCatalogStatus } from "@realm/crm";
 import { MoreDrawer } from "./more-drawer";
 
 const TABS = [
@@ -13,11 +14,9 @@ const TABS = [
 
 /** Mobile bottom nav — sidebar is desktop-only (CrmShell hideSidebarOnMobile). */
 export function AppBottomNav({
-  cloverInstalled = false,
-  cloverConnected = false,
+  statuses = {},
 }: {
-  cloverInstalled?: boolean;
-  cloverConnected?: boolean;
+  statuses?: Record<string, PluginCatalogStatus>;
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -35,12 +34,7 @@ export function AppBottomNav({
   return (
     <>
       <BottomNav items={items} />
-      <MoreDrawer
-        open={moreOpen}
-        onOpenChange={setMoreOpen}
-        cloverInstalled={cloverInstalled}
-        cloverConnected={cloverConnected}
-      />
+      <MoreDrawer open={moreOpen} onOpenChange={setMoreOpen} statuses={statuses} />
     </>
   );
 }

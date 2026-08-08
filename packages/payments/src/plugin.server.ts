@@ -1,4 +1,4 @@
-import type { PluginServer, PluginStatus } from "@realm/crm/server";
+import type { PluginServer, PluginStatus } from "@realm/commons/plugin";
 import type { PaymentConfig } from "./config";
 import { PAYMENTS_PLUGIN_ID } from "./plugin";
 

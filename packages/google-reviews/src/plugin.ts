@@ -1,5 +1,5 @@
 import { StarIcon } from "lucide-react";
-import type { PluginMeta } from "@realm/crm";
+import type { PluginMeta } from "@realm/commons/plugin";
 
 /**
  * Client-safe Google Reviews plugin catalog metadata.

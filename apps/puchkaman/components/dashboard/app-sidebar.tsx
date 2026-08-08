@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BanknoteIcon,
   BookOpenIcon,
-  CreditCardIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
   LayersIcon,
@@ -22,6 +21,8 @@ import {
   UtensilsCrossedIcon,
   type LucideIcon,
 } from "lucide-react";
+import { CLOVER_PLUGIN_ID, cloverNavSections } from "@realm/clover/plugin";
+import type { PluginCatalogStatus } from "@realm/crm";
 import { signOut } from "@/lib/auth/client";
 import {
   Sidebar,
@@ -74,15 +75,19 @@ const CLOVER_CATALOG_ITEMS: NavItem[] = [
 ];
 
 /**
- * Build sidebar/more-drawer sections.
+ * Build sidebar/more-drawer sections from the plugin registry's resolved
+ * statuses (see `@/lib/plugins.server`) instead of an app-local boolean —
+ * `PLUGINS` is server-only (DB-backed store), so the layout resolves statuses
+ * once and this client component composes nav from the plain-JSON result.
+ *
  * When Clover is installed, Products / Orders / Finance live under the Clover
- * group (puchkaman commerce is Clover-centric). Catalog tools + Connection
- * join that group. Before install, commerce stays under Operations.
+ * group (puchkaman commerce is Clover-centric) alongside the catalog tools and
+ * whatever nav Clover's plugin itself contributes (today: Connection). Before
+ * install, commerce stays under Operations. Ordering: Overview first, plugin
+ * sections, Administration last.
  */
 export function getNavSections(opts: {
-  cloverInstalled: boolean;
-  /** Reserved — connection status no longer drives nav badges. */
-  cloverConnected?: boolean;
+  statuses: Record<string, PluginCatalogStatus>;
 }): NavSection[] {
   const sections: NavSection[] = [
     {
@@ -91,18 +96,12 @@ export function getNavSections(opts: {
     },
   ];
 
-  if (opts.cloverInstalled) {
+  const cloverStatus = opts.statuses[CLOVER_PLUGIN_ID] ?? { installed: false };
+  if (cloverStatus.installed) {
+    const cloverItems = cloverNavSections(cloverStatus).flatMap((s) => s.items);
     sections.push({
       label: "Clover",
-      items: [
-        ...COMMERCE_ITEMS,
-        ...CLOVER_CATALOG_ITEMS,
-        {
-          title: "Connection",
-          href: "/dashboard/settings/clover",
-          icon: CreditCardIcon,
-        },
-      ],
+      items: [...COMMERCE_ITEMS, ...CLOVER_CATALOG_ITEMS, ...cloverItems],
     });
   } else {
     sections.push({
@@ -125,25 +124,20 @@ export function getNavSections(opts: {
 }
 
 /** @deprecated Prefer getNavSections — kept for any static consumers. */
-export const SECTIONS: NavSection[] = getNavSections({
-  cloverInstalled: false,
-  cloverConnected: false,
-});
+export const SECTIONS: NavSection[] = getNavSections({ statuses: {} });
 
 export function AppSidebar({
   user,
-  cloverInstalled = false,
-  cloverConnected = false,
+  statuses = {},
 }: {
   user: { email: string; name?: string | null };
-  cloverInstalled?: boolean;
-  cloverConnected?: boolean;
+  statuses?: Record<string, PluginCatalogStatus>;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const label = user.name?.trim() || user.email;
   const initials = label.slice(0, 2).toUpperCase();
-  const sections = getNavSections({ cloverInstalled, cloverConnected });
+  const sections = getNavSections({ statuses });
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
     // Avoid Settings lighting up while on Connection (/dashboard/settings/clover).

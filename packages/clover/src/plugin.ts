@@ -1,5 +1,5 @@
 import { CreditCardIcon } from "lucide-react";
-import type { PluginMeta } from "@realm/crm";
+import type { PluginMeta, PluginNavSection, PluginStatus } from "@realm/commons/plugin";
 
 /**
  * Client-safe Clover plugin catalog metadata.
@@ -22,3 +22,20 @@ export const CLOVER_PLUGIN_META: PluginMeta = {
   icon: CreditCardIcon,
   settingsHref: "/dashboard/settings/clover",
 };
+
+/**
+ * Pure, client-safe nav contribution — a sync function of status only, so an
+ * app sidebar (a client component) can call it directly to compose its nav
+ * without pulling the store-bound `cloverPlugin(store)` factory into the
+ * client bundle. `plugin.server.ts`'s `PluginServer.nav` delegates to this
+ * same implementation so there is exactly one copy of the logic.
+ */
+export function cloverNavSections(status: PluginStatus): PluginNavSection[] {
+  if (!status.installed) return [];
+  return [
+    {
+      label: "Clover",
+      items: [{ title: "Connection", href: "/dashboard/settings/clover", icon: CreditCardIcon }],
+    },
+  ];
+}
