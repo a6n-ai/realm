@@ -1,30 +1,23 @@
 "use client";
 
-import {
-  CloverIntegrationsCard,
-  CloverIntegrationsCardSkeleton,
-} from "@realm/clover/ui";
-import type { CloverConnectionPublic } from "@realm/clover";
-import { installCloverAction, uninstallCloverAction } from "./actions";
+import { PluginCatalog, PluginCatalogSkeleton, type PluginCatalogStatus } from "@realm/crm";
+import { PLUGIN_METAS } from "@/lib/plugins";
+import { setPluginInstalledAction } from "./actions";
 
-/** Shared Clover card + room for future integration plugins. */
-export function PluginsCatalog({ clover }: { clover: CloverConnectionPublic }) {
+export function PluginsCatalog({
+  statuses,
+}: {
+  statuses: Record<string, PluginCatalogStatus>;
+}) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <CloverIntegrationsCard
-        clover={clover}
-        settingsHref="/dashboard/settings/clover"
-        onInstall={installCloverAction}
-        onUninstall={uninstallCloverAction}
-      />
-    </div>
+    <PluginCatalog
+      metas={PLUGIN_METAS}
+      statuses={statuses}
+      setInstalled={setPluginInstalledAction}
+    />
   );
 }
 
 export function PluginsCatalogSkeleton() {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <CloverIntegrationsCardSkeleton />
-    </div>
-  );
+  return <PluginCatalogSkeleton count={PLUGIN_METAS.length} />;
 }

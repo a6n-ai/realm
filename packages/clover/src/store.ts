@@ -4,16 +4,9 @@ import type {
   CloverConnection,
   IntegrationsConfig,
 } from "./config";
+import type { IntegrationsConfigStore as BaseStore } from "@realm/crm/server";
 
-/**
- * App-injected persistence for integrations config.
- * Mirrors tiffin-grab's getPaymentConfig / setPaymentConfig pattern —
- * the package never imports an app or DB.
- */
-export type IntegrationsConfigStore = {
-  get(): Promise<IntegrationsConfig>;
-  set(cfg: IntegrationsConfig): Promise<void>;
-};
+export type IntegrationsConfigStore = BaseStore<IntegrationsConfig>;
 
 export async function getCloverConnection(
   store: IntegrationsConfigStore,

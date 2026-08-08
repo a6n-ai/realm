@@ -11,45 +11,58 @@ import {
   getCloverConnection,
   installCloverPlugin,
   loadCloverAppCredentialsFromEnv,
-  uninstallCloverPlugin,
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
   type CloverApiTokenConnectResult,
 } from "@realm/clover";
+import { blockedBy, resolveStatuses } from "@realm/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { PLUGINS } from "@/lib/plugins.server";
 
-function revalidateCloverPaths() {
+function revalidatePluginPaths() {
   revalidatePath("/dashboard/settings/integrations");
   revalidatePath("/dashboard/settings/clover");
   revalidatePath("/dashboard/settings");
 }
 
-export async function installCloverAction(): Promise<void> {
+/**
+ * Install/uninstall any plugin in the app registry.
+ * Returns errors rather than throwing — a thrown Server Action error reaches
+ * the client as an opaque digest with no usable message.
+ */
+export async function setPluginInstalledAction(
+  id: string,
+  installed: boolean,
+): Promise<{ error?: string }> {
   await requireAdmin();
-  await installCloverPlugin(integrationsConfigStore);
-  await recordAudit({
-    entity: "integrations",
-    entityPublicId: "clover",
-    operation: "create",
-    changes: { _action: "clover_install" },
-    createdBy: await currentUserId(),
-  });
-  revalidateCloverPaths();
-}
 
-export async function uninstallCloverAction(): Promise<void> {
-  await requireAdmin();
-  await uninstallCloverPlugin(integrationsConfigStore);
+  const plugin = PLUGINS.find((p) => p.id === id);
+  if (!plugin) return { error: "Unknown plugin" };
+
+  const statuses = await resolveStatuses(PLUGINS);
+
+  if (installed) {
+    const missing = blockedBy(PLUGINS, id, statuses);
+    if (missing.length) {
+      return { error: `Install ${missing.join(", ")} first` };
+    }
+    await plugin.install();
+  } else {
+    await plugin.uninstall();
+  }
+
   await recordAudit({
     entity: "integrations",
-    entityPublicId: "clover",
-    operation: "delete",
-    changes: { _action: "clover_uninstall" },
+    entityPublicId: id,
+    operation: installed ? "create" : "delete",
+    changes: { _action: installed ? `${id}_install` : `${id}_uninstall` },
     createdBy: await currentUserId(),
   });
-  revalidateCloverPaths();
+
+  revalidatePluginPaths();
+  return {};
 }
 
 export async function disconnectCloverAction(): Promise<void> {
@@ -62,7 +75,7 @@ export async function disconnectCloverAction(): Promise<void> {
     changes: { _action: "clover_disconnect" },
     createdBy: await currentUserId(),
   });
-  revalidateCloverPaths();
+  revalidatePluginPaths();
 }
 
 /**
@@ -103,7 +116,7 @@ export async function connectCloverApiTokenAction(
     },
     createdBy: await currentUserId(),
   });
-  revalidateCloverPaths();
+  revalidatePluginPaths();
   return { ok: true };
 }
 

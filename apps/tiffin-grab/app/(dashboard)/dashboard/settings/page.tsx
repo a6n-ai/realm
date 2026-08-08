@@ -61,7 +61,7 @@ export default async function SettingsPage() {
     {
       key: "integrations",
       label: "Integrations",
-      description: "Install and remove plugins (payment methods, Clover, and more).",
+      description: "Install and remove plugins (Payments, Clover, and more).",
       icon: PuzzleIcon,
       href: "/dashboard/settings/integrations",
     },
@@ -71,7 +71,7 @@ export default async function SettingsPage() {
     sections.push({
       key: "payments",
       label: "Payment",
-      description: "Configure installed payment plugins — taxes, payee, and enablement.",
+      description: "Configure installed payment providers — taxes, payee, and enablement.",
       icon: CreditCardIcon,
       href: "/dashboard/settings/payments",
     });

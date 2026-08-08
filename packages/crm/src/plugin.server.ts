@@ -1,5 +1,7 @@
 import type { PluginNavSection } from "./plugin";
 
+export type { IntegrationsConfigStore } from "./config-store";
+
 export type PluginStatus = {
   installed: boolean;
   /** e.g. "Installed" / "Connected" — shown on the catalog card. */

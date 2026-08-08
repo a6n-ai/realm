@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { getCloverConnection, toPublicCloverConnection } from "@realm/clover";
+import { resolveStatuses } from "@realm/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { PLUGINS } from "@/lib/plugins.server";
 import { PluginsCatalog, PluginsCatalogSkeleton } from "./plugins-catalog";
 
 export default async function IntegrationsPage() {
@@ -14,6 +14,6 @@ export default async function IntegrationsPage() {
 }
 
 async function PluginsCatalogLoader() {
-  const connection = await getCloverConnection(integrationsConfigStore);
-  return <PluginsCatalog clover={toPublicCloverConnection(connection)} />;
+  const statuses = await resolveStatuses(PLUGINS);
+  return <PluginsCatalog statuses={statuses} />;
 }

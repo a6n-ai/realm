@@ -9,7 +9,6 @@ import {
   getCloverConnection,
   installCloverPlugin,
   loadCloverAppCredentialsFromEnv,
-  uninstallCloverPlugin,
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
   type CloverApiTokenConnectResult,
@@ -23,18 +22,6 @@ function revalidateCloverPaths() {
   revalidatePath("/dashboard/settings/integrations");
   revalidatePath("/dashboard/settings/clover");
   revalidatePath("/dashboard/settings");
-}
-
-export async function installCloverAction(): Promise<void> {
-  await requireAdmin();
-  await installCloverPlugin(integrationsConfigStore);
-  revalidateCloverPaths();
-}
-
-export async function uninstallCloverAction(): Promise<void> {
-  await requireAdmin();
-  await uninstallCloverPlugin(integrationsConfigStore);
-  revalidateCloverPaths();
 }
 
 export async function disconnectCloverAction(): Promise<void> {
