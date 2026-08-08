@@ -2,6 +2,7 @@
 
 **Date:** 2026-08-08
 **Status:** Approved design, not yet planned
+**Status:** SUPERSEDED by `2026-08-09-puchkaman-delivery-types-zones-address-search-design.md` — the single-zone model was replaced by delivery types + zones with a many-to-many join.
 **Scope:** `apps/puchkaman` only. No shared package, no tiffin-grab change.
 
 ## Problem
