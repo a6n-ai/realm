@@ -313,9 +313,13 @@ export default async function HomePage() {
                       <div>
                         <div style={{ fontWeight: 800 }}>{rv.author}</div>
                         <div className="mono" style={{ fontSize: "0.7rem", opacity: 0.6 }}>
-                          <a href={reviews.attributionUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-                            Google Review
-                          </a>
+                          {reviews.attributionUrl ? (
+                            <a href={reviews.attributionUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                              Google Review
+                            </a>
+                          ) : (
+                            "Google Review"
+                          )}
                           {rv.relativeTime ? ` · ${rv.relativeTime}` : null}
                         </div>
                       </div>
