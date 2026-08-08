@@ -556,7 +556,13 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         );
       }
 
-      deliveryAddress = resolved.formattedAddress;
+      // Keep the customer's typed text (unit/apt numbers Google's formatter drops)
+      // as the address of record; the resolved string is appended only to confirm
+      // the match — couriers and kitchen staff need the typed unit number.
+      deliveryAddress =
+        parsed.fulfillment.address === resolved.formattedAddress
+          ? resolved.formattedAddress
+          : `${parsed.fulfillment.address} (${resolved.formattedAddress})`;
       deliveryLat = resolved.lat;
       deliveryLng = resolved.lng;
       deliveryDistanceKm = Number(
