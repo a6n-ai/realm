@@ -339,32 +339,45 @@ A social-proof block silently showing wrong numbers is worse than no block.
 
 ### Nudge (C) — email and in-app, once per customer
 
-Two additive nullable columns on `users`, in each app:
+One additive table per app, `review_nudges`, keyed by customer email:
 
 | Column | Meaning |
 |---|---|
-| `review_nudge_sent_at` | stamped when the email is dispatched |
-| `review_nudge_done_at` | stamped on click or dismiss; suppresses **both** channels permanently |
+| `email` | primary key, lowercased |
+| `sent_at` | stamped when the email is dispatched |
+| `done_at` | stamped on click or dismiss; suppresses **both** channels permanently |
 
-**Trigger:** when a delivery/order transitions to `delivered`, if both columns are
-null, send the email via `@realm/email` (SES) and stamp `sent_at`. The in-app card
-renders in the customer app under the same condition and hides once `done_at` is
-set.
+**Why a table keyed by email, not columns on `users`:** puchkaman has no customer
+accounts — public orders are guest checkout carrying `orders.customer_email`
+(`apps/puchkaman/db/schema/orders.ts:90`), so there is no user row to hang the
+state on. Email works for both apps, and a new table avoids an `ALTER` on a live
+auth table.
+
+**Trigger — different per app, because the data differs:**
+
+- **puchkaman** — `order_status` has a real `fulfilled` state
+  (`db/schema/orders.ts:8`). Fire on that transition.
+- **tiffin-grab** — `delivery_status` is `scheduled | paused | skipped |
+  cancelled` (`db/schema/deliveries.ts:6`); there is no `delivered` state.
+  "Delivered" means a past-dated `scheduled` delivery, so there is no transition
+  to hook. A daily cron sweeps for customers with a past delivery and no nudge
+  row, alongside the existing `optimoroute-sync` cron.
+
+The in-app card is **tiffin-grab only** — puchkaman has no customer app.
 
 **Link target:** `https://search.google.com/local/writereview?placeid=<placeId>`.
 
-**Deliberate simplification:** the in-app card links through
-`/api/reviews/nudge/click`, which stamps `done_at` from the authenticated session
-and redirects — so in-app click-through is tracked. The **email** link goes
-directly to Google with no tracking, because tracking an unauthenticated
-recipient requires signed tokens. A `ponytail:` comment will name the ceiling;
-add HMAC'd email tracking if the funnel number turns out to matter.
+**Deliberate simplification:** the in-app card calls a server action that stamps
+`done_at` from the authenticated session, on both click-through and dismiss — so
+in-app click-through is tracked. The **email** link goes directly to Google with
+no tracking, because tracking an unauthenticated recipient requires signed
+tokens. A `ponytail:` comment will name the ceiling; add HMAC'd email tracking if
+the funnel number turns out to matter.
 
-**Why columns and not a table:** "once per customer, forever" is 1:1 with the
-user, so a join table would hold zero or one row per user — pure overhead plus an
-extra query on a per-request render. If the requirement later becomes "re-ask
-after 12 months" or per-order nudges, the cardinality becomes 1:N and a table
-becomes correct. Two nullable timestamps are cheap to add and cheap to drop.
+**Write-once semantics:** `markSent` and `markDone` are upserts with `COALESCE`
+on the existing timestamp, so two concurrent triggers for the same customer
+cannot produce a second email — the primary key plus `COALESCE` makes the double
+send impossible rather than merely unlikely.
 
 ### Verification
 
@@ -389,8 +402,8 @@ Each step green before the next.
    half, settings panel, install/uninstall. Invisible until installed.
 4. **Display (A)** — puchkaman homepage swaps fabricated reviews and counts for
    live data; tiffin-grab surface added.
-5. **Nudge (C)** — additive migration (2 columns per app), SES email, in-app card,
-   click route.
+5. **Nudge (C)** — additive `review_nudges` table per app, SES email, puchkaman
+   fulfilment hook, tiffin-grab daily cron, tiffin-grab in-app card.
 
 Steps 1–3 ship nothing user-visible and can land before the Places API key
 exists.
