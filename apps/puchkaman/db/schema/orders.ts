@@ -1,6 +1,7 @@
 import { baseColumns, updatableColumns } from "@realm/database";
 import { bigint, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
+import { deliveryTypes } from "./delivery-types";
 import { deliveryZones } from "./delivery-zones";
 import { employees } from "./employees";
 import { products } from "./products";
@@ -96,7 +97,9 @@ export const orders = pgTable(
     deliveryLat: numeric("delivery_lat", { precision: 9, scale: 6 }),
     deliveryLng: numeric("delivery_lng", { precision: 9, scale: 6 }),
     deliveryDistanceKm: numeric("delivery_distance_km", { precision: 6, scale: 2 }),
-    deliveryFee: numeric("delivery_fee", { precision: 10, scale: 2 }),
+    // No fee column: Clover line items need a real catalogue itemId, a fee
+    // could be priced and stored but never charged, silently underbilling.
+    deliveryTypeId: bigint("delivery_type_id", { mode: "bigint" }).references(() => deliveryTypes.id),
     deliveryZoneId: bigint("delivery_zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
     /** Only set for delivery_scheduled orders — the customer-picked delivery time (ms). */
     scheduledFor: bigint("scheduled_for", { mode: "number" }),

@@ -9,10 +9,6 @@ export type Zone = {
   id?: bigint;
   name: string;
   radiusKm: number;
-  feeAmount: number;
-  discountPct: number;
-  minSubtotal: number;
-  requiresScheduling: boolean;
   active: boolean;
 };
 
@@ -37,6 +33,9 @@ export function deliveryLimitKm(zones: Zone[]): number | null {
 
 /** A delivery option and its rules. Rules live on the type, geography on the zone. */
 export type DeliveryType = {
+  /** DB row id, when this DeliveryType came from a query — used to stamp
+   * `orders.delivery_type_id`. Absent on hand-built test fixtures. */
+  id?: bigint;
   key: string;
   label: string;
   requiresAddress: boolean;

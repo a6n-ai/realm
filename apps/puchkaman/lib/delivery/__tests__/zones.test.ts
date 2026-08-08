@@ -2,15 +2,7 @@ import { describe, it, expect } from "vitest";
 import { matchZone, deliveryLimitKm, availableTypes, zoneForType, type Zone, type DeliveryType, type ZoneWithTypes } from "../zones";
 
 function zone(name: string, radiusKm: number, active = true): Zone {
-  return {
-    name,
-    radiusKm,
-    feeAmount: 0,
-    discountPct: 0,
-    minSubtotal: 0,
-    requiresScheduling: false,
-    active,
-  };
+  return { name, radiusKm, active };
 }
 
 const zones = [zone("Outer", 15), zone("Inner", 7)]; // deliberately unsorted
@@ -64,8 +56,8 @@ const scheduled: DeliveryType = {
   minSubtotal: 35, discountPct: 0, sortOrder: 2, active: true,
 };
 
-const inner: ZoneWithTypes = { name: "Inner", radiusKm: 7, active: true, types: [instant, scheduled], feeAmount: 0, discountPct: 0, minSubtotal: 0, requiresScheduling: false };
-const outer: ZoneWithTypes = { name: "Outer", radiusKm: 20, active: true, types: [scheduled], feeAmount: 0, discountPct: 0, minSubtotal: 0, requiresScheduling: false };
+const inner: ZoneWithTypes = { name: "Inner", radiusKm: 7, active: true, types: [instant, scheduled] };
+const outer: ZoneWithTypes = { name: "Outer", radiusKm: 20, active: true, types: [scheduled] };
 const zonesWithTypes = [outer, inner]; // deliberately unsorted
 
 describe("availableTypes", () => {

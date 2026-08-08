@@ -1,19 +1,15 @@
 import { eq } from "drizzle-orm";
 import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
-import { app, deliveryZones } from "@/db/schema";
+import { app, deliveryTypes, deliveryZoneTypes, deliveryZones } from "@/db/schema";
 import { SessionUpdatableService } from "@/lib/services/session-service";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
-import type { Zone } from "./zones";
+import type { DeliveryType, Zone, ZoneWithTypes } from "./zones";
 
 type ZoneRow = {
   id?: bigint;
   name: string;
   radiusKm: string;
-  feeAmount: string;
-  discountPct: string;
-  minSubtotal: string;
-  requiresScheduling: boolean;
   active: boolean;
 };
 
@@ -23,10 +19,33 @@ export function rowToZone(row: ZoneRow): Zone {
     id: row.id,
     name: row.name,
     radiusKm: Number(row.radiusKm),
-    feeAmount: Number(row.feeAmount),
-    discountPct: Number(row.discountPct),
+    active: row.active,
+  };
+}
+
+type TypeRow = {
+  id?: bigint;
+  key: string;
+  label: string;
+  requiresAddress: boolean;
+  requiresSchedule: boolean;
+  minSubtotal: string;
+  discountPct: string;
+  sortOrder: number;
+  active: boolean;
+};
+
+/** Drizzle returns `numeric` as a string; convert once at the boundary, same discipline as {@link rowToZone}. */
+export function rowToType(row: TypeRow): DeliveryType {
+  return {
+    id: row.id,
+    key: row.key,
+    label: row.label,
+    requiresAddress: row.requiresAddress,
+    requiresSchedule: row.requiresSchedule,
     minSubtotal: Number(row.minSubtotal),
-    requiresScheduling: row.requiresScheduling,
+    discountPct: Number(row.discountPct),
+    sortOrder: row.sortOrder,
     active: row.active,
   };
 }
@@ -36,9 +55,46 @@ const zoneService = new ZoneService(
   new UpdatableRepository(db, deliveryZones, deliveryZones.publicId, deliveryZones.id),
 );
 
+class TypeService extends SessionUpdatableService<typeof deliveryTypes> {}
+const typeService = new TypeService(
+  new UpdatableRepository(db, deliveryTypes, deliveryTypes.publicId, deliveryTypes.id),
+);
+
 export async function getZones(): Promise<Zone[]> {
   const rows = await db.select().from(deliveryZones).where(eq(deliveryZones.active, true));
   return rows.map(rowToZone);
+}
+
+export async function getDeliveryTypes(): Promise<DeliveryType[]> {
+  const rows = await db
+    .select()
+    .from(deliveryTypes)
+    .where(eq(deliveryTypes.active, true))
+    .orderBy(deliveryTypes.sortOrder);
+  return rows.map(rowToType);
+}
+
+/**
+ * Every zone with the delivery types it offers, in one query (zones LEFT JOIN
+ * the join table LEFT JOIN types) grouped in JS — never N+1 per zone.
+ */
+export async function getZonesWithTypes(): Promise<ZoneWithTypes[]> {
+  const rows = await db
+    .select({ zone: deliveryZones, type: deliveryTypes })
+    .from(deliveryZones)
+    .leftJoin(deliveryZoneTypes, eq(deliveryZoneTypes.zoneId, deliveryZones.id))
+    .leftJoin(deliveryTypes, eq(deliveryTypes.id, deliveryZoneTypes.typeId));
+
+  const byZoneId = new Map<bigint, ZoneWithTypes>();
+  for (const row of rows) {
+    let entry = byZoneId.get(row.zone.id);
+    if (!entry) {
+      entry = { ...rowToZone(row.zone), types: [] };
+      byZoneId.set(row.zone.id, entry);
+    }
+    if (row.type) entry.types.push(rowToType(row.type));
+  }
+  return [...byZoneId.values()];
 }
 
 export async function getStoreOrigin(): Promise<{ lat: number; lng: number }> {
@@ -60,6 +116,33 @@ export async function saveZone(
 export async function retireZone(publicId: string): Promise<Zone> {
   const row = await zoneService.update(publicId, { active: false });
   return rowToZone(row as unknown as ZoneRow);
+}
+
+export async function saveDeliveryType(
+  publicId: string | null,
+  values: Record<string, unknown>,
+): Promise<DeliveryType> {
+  const row = publicId ? await typeService.update(publicId, values) : await typeService.create(values);
+  return rowToType(row as unknown as TypeRow);
+}
+
+export async function retireDeliveryType(publicId: string): Promise<DeliveryType> {
+  const row = await typeService.update(publicId, { active: false });
+  return rowToType(row as unknown as TypeRow);
+}
+
+/**
+ * Replaces a zone's offered types wholesale — the admin's checkbox state is
+ * authoritative, so this deletes then re-inserts inside one transaction
+ * rather than diffing.
+ */
+export async function setZoneTypes(zoneId: bigint, typeIds: bigint[]): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(deliveryZoneTypes).where(eq(deliveryZoneTypes.zoneId, zoneId));
+    if (typeIds.length > 0) {
+      await tx.insert(deliveryZoneTypes).values(typeIds.map((typeId) => ({ zoneId, typeId })));
+    }
+  });
 }
 
 /**
