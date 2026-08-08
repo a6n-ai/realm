@@ -26,7 +26,19 @@ This plan supersedes `2026-08-08-puchkaman-delivery-zones-address-search.md`, of
 - **Pricing is computed server-side only. Never trust client-submitted amounts.** The checkout schema must reject client `lat`/`lng`/`distanceKm`/`discountPct`.
 - **There is no delivery fee.** Clover line items need a real catalogue `itemId`; a fee could be stored but never charged, silently underbilling. No fee column anywhere.
 - Drizzle returns `numeric` as a **string**. Convert once at the service boundary or radii compare lexically.
-- A seed `INSERT` in a migration must supply `public_id`, `created_at` and `updated_at` explicitly — `$defaultFn` fires only through the JS driver, never raw SQL, and all three are NOT NULL with no database default.
+- **Seed INSERTs in migrations have two traps, both found the hard way on this branch:**
+  1. Supply `public_id`, `created_at` and `updated_at` explicitly. `$defaultFn` fires only through
+     the JS driver, never raw SQL, and all three are NOT NULL with no database default.
+  2. **`app_id` is `NOT NULL DEFAULT current_app_id()`, and `current_app_id()` returns NULL when the
+     `app` singleton row does not exist yet.** On a fresh database the seed therefore dies with
+     *"null value in column app_id violates not-null constraint"*. Production has an `app` row so it
+     survives there, which is exactly why this hid — it only breaks fresh environments and CI.
+     Guard every seed with `WHERE EXISTS (SELECT 1 FROM "app")`, so a database with no tenant row
+     skips seeding instead of failing the migration.
+- **The local dev database state is known-good as of this plan's start:** 28 tables, bookkeeping rows
+  for `0000`–`0005`, and `0006_clear_redwing` deliberately *unapplied* (it carries the buggy seed and
+  Task 2 replaces it). `drizzle-kit migrate` exits 1 with no error message on this repo — when a
+  migration fails, apply the file directly with `psql -v ON_ERROR_STOP=1` to see the real error.
 - Audit fields stamped from the session, never from input.
 - Server Actions **return** errors, never throw.
 - Soft delete only (`active = false`). The hard `delete()` inherited from `UpdatableService` must never be wired to a button — order FKs are `ON DELETE no action`.
@@ -293,28 +305,46 @@ Changes to `delivery_zones` itself are fine; it was created on this branch.
 Append the seed. **Every NOT NULL column without a database default must be supplied** — `public_id`,
 `created_at`, `updated_at` — because `$defaultFn` does not fire for raw SQL:
 
+Every seed is `SELECT … WHERE EXISTS (SELECT 1 FROM "app")` rather than a bare `VALUES`, because
+`app_id` defaults to `current_app_id()`, which is NULL until the tenant row exists — a bare INSERT
+dies on a fresh database. `now()` is captured once into `ms` so every row shares a timestamp.
+
 ```sql
 --> statement-breakpoint
 INSERT INTO "delivery_types"
   ("public_id","created_at","updated_at","key","label","requires_address","requires_schedule","min_subtotal","discount_pct","sort_order")
-VALUES
-  ('dty_pickup',    (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint, 'pickup',    'Pickup',             false, false,  0,  0, 0),
-  ('dty_instant',   (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint, 'instant',   'Instant delivery',   true,  false,  0, 15, 1),
-  ('dty_scheduled', (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint, 'scheduled', 'Scheduled delivery', true,  true,  35,  0, 2);
+SELECT v.public_id, ms.t, ms.t, v.key, v.label, v.req_addr, v.req_sched, v.min_sub, v.disc, v.sort
+FROM (SELECT (EXTRACT(EPOCH FROM now())*1000)::bigint AS t) ms,
+     (VALUES
+       ('dty_pickup',    'pickup',    'Pickup',             false, false,  0::numeric,  0::numeric, 0),
+       ('dty_instant',   'instant',   'Instant delivery',   true,  false,  0::numeric, 15::numeric, 1),
+       ('dty_scheduled', 'scheduled', 'Scheduled delivery', true,  true,  35::numeric,  0::numeric, 2)
+     ) AS v(public_id, key, label, req_addr, req_sched, min_sub, disc, sort)
+WHERE EXISTS (SELECT 1 FROM "app");
 --> statement-breakpoint
 INSERT INTO "delivery_zones" ("public_id","created_at","updated_at","name","radius_km")
-VALUES
-  ('zon_inner', (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint, 'Inner',  7.00),
-  ('zon_outer', (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint, 'Outer', 20.00);
+SELECT v.public_id, ms.t, ms.t, v.name, v.radius
+FROM (SELECT (EXTRACT(EPOCH FROM now())*1000)::bigint AS t) ms,
+     (VALUES
+       ('zon_inner', 'Inner',  7.00::numeric),
+       ('zon_outer', 'Outer', 20.00::numeric)
+     ) AS v(public_id, name, radius)
+WHERE EXISTS (SELECT 1 FROM "app");
 --> statement-breakpoint
 INSERT INTO "delivery_zone_types" ("public_id","created_at","updated_at","zone_id","type_id")
-SELECT 'dzt_' || z.name || '_' || t.key,
+SELECT 'dzt_' || lower(z.name) || '_' || t.key,
        (EXTRACT(EPOCH FROM now())*1000)::bigint, (EXTRACT(EPOCH FROM now())*1000)::bigint,
        z.id, t.id
-FROM "delivery_zones" z JOIN "delivery_types" t ON true
-WHERE (z.name = 'Inner' AND t.key IN ('instant','scheduled'))
-   OR (z.name = 'Outer' AND t.key = 'scheduled');
+FROM "delivery_zones" z
+JOIN "delivery_types" t
+  ON (z.name = 'Inner' AND t.key IN ('instant','scheduled'))
+  OR (z.name = 'Outer' AND t.key = 'scheduled');
 ```
+
+The join seed needs no `EXISTS` guard — if the two seeds above were skipped, it selects no rows.
+
+**Verify the seed on a database with no `app` row** as well as one with it. The failure mode being
+guarded against only appears on the former, which is exactly why it reached this branch unnoticed.
 
 Confirm the `public_id` literals match the format `makePublicId` produces for those prefixes
 (`packages/database/src/columns.ts`); adjust if it validates a shape.
