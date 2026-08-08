@@ -101,19 +101,32 @@ deliveryZoneId: bigint("delivery_zone_id", { mode: "bigint" }).references(() => 
 `delivery_lat` / `delivery_lng` already exist and are currently written but never read. They start
 being read for the zone recheck.
 
-### Seed preserves today's behaviour exactly
+### Seed — and a deliberate behaviour change
 
-The migration seeds two zones reproducing the current hardcoded rules, so nothing changes for
-customers at deploy time:
+The migration seeds **one** zone:
 
 | name | radiusKm | feeAmount | discountPct | minSubtotal | requiresScheduling |
 |---|---|---|---|---|---|
-| Inner | 7.00 | 0 | 15.00 | 0 | false |
-| Outer | 15.00 | 0 | 0 | 35.00 | true |
+| Standard | 7.00 | 0 | 15.00 | 0 | false |
 
-`15.00` is a new outer bound — today "outside 7 km" is unbounded provided the subtotal clears $35.
-This is a deliberate behaviour change: it makes the delivery limit explicit and refusable. The
-operator should set the real number before deploy if 15 km is wrong.
+**7 km is a hard delivery limit. Nothing is delivered beyond it.** The radius is per-zone, so the
+outermost active zone's radius *is* the limit — adding a second, larger zone extends coverage; there
+is no separate global setting.
+
+This intentionally removes an existing capability. Today `orders.service.ts:566-574` accepts orders
+*outside* 7 km when the subtotal clears $35 and a time is scheduled, with no upper bound at all.
+After this change those orders are refused. That is the operator's explicit decision, not a
+side effect — recorded here because it will show up as lost orders in the 7 km+ band.
+
+Consequences:
+
+- `SCHEDULED_DELIVERY_MIN_SUBTOTAL` (`lib/delivery/distance.ts:5`) is deleted; per-zone
+  `minSubtotal` replaces it.
+- The `delivery_scheduled` path is no longer reachable via the out-of-range branch. The
+  `order_fulfillment` enum value stays (historical orders reference it) and remains reachable if an
+  admin sets `requiresScheduling` on a zone.
+- `requiresScheduling` and `minSubtotal` are retained on the zone even though the seed leaves them
+  off — they are how the removed behaviour can be reinstated per zone without a migration.
 
 ### Matching
 
@@ -222,9 +235,12 @@ Not served:
 
 ```
 ✗ We don't deliver to 12 King St yet
-  (18 km — we deliver up to 15 km)
+  (9.2 km — we deliver up to 7 km)
   Pickup is available at 3315 Danforth Ave
 ```
+
+The stated limit is the largest active zone's radius, read from the data — never a hardcoded string,
+or it will drift the first time an admin changes a radius.
 
 Naming the distance and the limit makes a refusal read as policy rather than a failure, and points
 at pickup instead of dead-ending. Both surfaces call the same zone-aware
@@ -300,8 +316,9 @@ Places Details call.
 
 1. Create `NEXT_PUBLIC_GOOGLE_MAPS_KEY` in Google Cloud: enable Maps JavaScript API and Places API,
    restrict by HTTP referrer, set a daily quota cap. Add to puchkaman's env and SSM.
-2. Confirm the seeded outer radius (15 km) is the real delivery limit before deploy, or set the
-   correct value.
+2. The seeded limit is 7 km. Orders beyond it are refused from deploy onward — previously they were
+   accepted with a $35 minimum and a scheduled time. Expect lost orders in the 7 km+ band; add a
+   second, larger zone in the admin if that proves too tight.
 3. Apply the migration.
 4. Verify the shop pin position in Settings → Delivery zones after deploy.
 
