@@ -919,12 +919,48 @@ export const PLUGINS: PluginRegistry = [
 
 Clover is added to both files in Task 4 and Google Reviews in Task 6.
 
-- [ ] **Step 9: Verify**
+- [ ] **Step 9: Gate the settings hub entries**
+
+Restored: this step implements the spec's Section 2 requirement that "providers are enabled under Settings → Payments, which appears once the Payments plugin is installed". It was dropped in error during a plan amendment.
+
+In `apps/tiffin-grab/app/(dashboard)/dashboard/settings/page.tsx`, change the `integrations` section description to:
+
+```ts
+description: "Install and remove plugins (Payments, Clover, and more).",
+```
+
+Then gate the `payments` section on install status, mirroring the existing `clover.installed` block. Replace the static `payments` entry in the `sections` array with a conditional push after it:
+
+```ts
+const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
+if (paymentsStatus?.installed) {
+  sections.push({
+    key: "payments",
+    label: "Payment",
+    description: "Configure installed payment providers — taxes, payee, and enablement.",
+    icon: CreditCardIcon,
+    href: "/dashboard/settings/payments",
+  });
+}
+```
+
+The backfill from Step 4 is what makes this safe on live data: an existing tenant with configured methods reports installed, so the card does not vanish for them.
+
+- [ ] **Step 10: Verify**
 
 Run: `pnpm turbo typecheck && pnpm turbo test`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+If the full turbo run hangs, these scoped commands cover this task's blast radius:
+
+```bash
+pnpm --filter @realm/payments typecheck
+pnpm --filter @realm/payments test
+pnpm --filter @realm/crm test
+pnpm --filter tiffin-grab typecheck
+```
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add -A packages/payments apps/tiffin-grab pnpm-lock.yaml
