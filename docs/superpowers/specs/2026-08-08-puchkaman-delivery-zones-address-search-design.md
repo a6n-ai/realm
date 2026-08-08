@@ -24,8 +24,8 @@ Three separate weaknesses in puchkaman's delivery flow, which turn out to be one
 
 1. Replace the geolocation prompt with a Google Places address search, on both checkout and a
    public "do we deliver to you?" checker.
-2. Make delivery zones admin-editable rows with a radius, a fee, a discount and a minimum,
-   administered on an interactive map.
+2. Make delivery zones admin-editable rows with a radius and a discount, administered on an
+   interactive map. A zone answers one question: can we deliver here?
 3. Remove Nominatim from the critical path without removing it as a fallback.
 
 ## Non-goals
@@ -43,7 +43,7 @@ Three separate weaknesses in puchkaman's delivery flow, which turn out to be one
 | Decision | Choice | Why |
 |---|---|---|
 | Zone shape | Radius from the shop | What puchkaman already models, just hardcoded |
-| Zone payload | Fee **and** discount, plus min subtotal | User requirement; discount exists today and is not being dropped |
+| Zone payload | Radius + discount only | No delivery fee exists; a fee column could not reach Clover and would have underbilled (see revision note) |
 | Out of range | Reject | No inquiries model in puchkaman |
 | Maps SDK | Google (`@react-google-maps/api`) | Native editable `<Circle>`; one SDK for autocomplete + admin map |
 | Key strategy | New public browser key | Autocomplete and Maps JS both run client-side; the reviews key is server-only and must not be reused |
@@ -71,13 +71,24 @@ export const deliveryZones = pgTable("delivery_zones", {
   ...updatableColumns("zon"),
   name: text("name").notNull(),
   radiusKm: numeric("radius_km", { precision: 6, scale: 2 }).notNull(),
-  feeAmount: numeric("fee_amount", { precision: 10, scale: 2 }).notNull().default("0"),
   discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull().default("0"),
-  minSubtotal: numeric("min_subtotal", { precision: 10, scale: 2 }).notNull().default("0"),
-  requiresScheduling: boolean("requires_scheduling").notNull().default(false),
   active: boolean("active").notNull().default(true),
 });
 ```
+
+**Revised mid-implementation.** The model originally carried `fee_amount`, `min_subtotal` and
+`requires_scheduling`. All three are removed:
+
+- **`fee_amount`** — Clover's atomic-order line items require a real catalogue `itemId`, and no
+  "delivery fee" item exists. A fee could therefore be priced and stored but never charged, so any
+  non-zero fee would have silently **underbilled** every order in that zone, detectable only by
+  reconciling `orders.delivery_fee` against Clover payouts. The operator confirmed there is no
+  delivery fee, so the column is removed rather than guarded — no column, no trap.
+- **`min_subtotal`** — no minimum applies.
+- **`requires_scheduling`** — 7 km is a hard limit, so there is no beyond-zone path left for it to
+  serve. The `delivery_scheduled` enum value stays (historical orders reference it); nothing sets it.
+
+A zone now answers one question — *can we deliver here* — plus the discount that already applies.
 
 Soft delete (`active = false`) rather than hard delete, so historical orders keep a resolvable zone.
 
@@ -88,15 +99,16 @@ singleton, defaulting to the current constants. Every radius is measured from th
 admin must be able to move it. The constants remain exported as defaults and for
 `lib/seo.ts:81-82`'s LocalBusiness JSON-LD.
 
-### Orders gain a fee column
-
-`orders` has `discount_amount` but no delivery fee — the only current money effect of distance is a
-discount. Add:
+### Orders record their zone
 
 ```ts
-deliveryFee: numeric("delivery_fee", { precision: 10, scale: 2 }),
 deliveryZoneId: bigint("delivery_zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
 ```
+
+No fee column — see the revision note above. The only money effect of distance remains a discount,
+as it is today. `deliveryZoneId` must be asserted non-null at the persist site rather than defaulted
+to `null`: every zone there is DB-sourced, so a `?? null` fallback would turn a future query
+regression into silently unattributed delivery orders instead of a caught error.
 
 `delivery_lat` / `delivery_lng` already exist and are currently written but never read. They start
 being read for the zone recheck.
@@ -105,9 +117,13 @@ being read for the zone recheck.
 
 The migration seeds **one** zone:
 
-| name | radiusKm | feeAmount | discountPct | minSubtotal | requiresScheduling |
-|---|---|---|---|---|---|
-| Standard | 7.00 | 0 | 15.00 | 0 | false |
+| name | radiusKm | discountPct |
+|---|---|---|
+| Standard | 7.00 | 15.00 |
+
+The seed INSERT must supply `public_id`, `created_at` and `updated_at` explicitly. Drizzle's
+`$defaultFn` fires only through the JS driver, never for raw SQL in a migration, and all three are
+NOT NULL with no database default — omitting them fails at migrate time.
 
 **7 km is a hard delivery limit. Nothing is delivered beyond it.** The radius is per-zone, so the
 outermost active zone's radius *is* the limit — adding a second, larger zone extends coverage; there
@@ -120,13 +136,11 @@ side effect — recorded here because it will show up as lost orders in the 7 km
 
 Consequences:
 
-- `SCHEDULED_DELIVERY_MIN_SUBTOTAL` (`lib/delivery/distance.ts:5`) is deleted; per-zone
-  `minSubtotal` replaces it.
-- The `delivery_scheduled` path is no longer reachable via the out-of-range branch. The
-  `order_fulfillment` enum value stays (historical orders reference it) and remains reachable if an
-  admin sets `requiresScheduling` on a zone.
-- `requiresScheduling` and `minSubtotal` are retained on the zone even though the seed leaves them
-  off — they are how the removed behaviour can be reinstated per zone without a migration.
+- `SCHEDULED_DELIVERY_MIN_SUBTOTAL` (`lib/delivery/distance.ts:5`) is deleted. Nothing replaces it —
+  there is no minimum.
+- The `delivery_scheduled` path is no longer reachable at all. The `order_fulfillment` enum value
+  stays because historical orders reference it, but nothing sets it; every in-zone delivery is
+  `delivery_instant`.
 
 ### Matching
 
@@ -164,7 +178,7 @@ client  →  { placeId, addressText }        ← never lat/lng, never distanceKm
 server  →  Places Details (server key, place_id)
         →  lat/lng
         →  distanceFromStoreKm()
-        →  matchZone()  →  fee, discount, minSubtotal, requiresScheduling
+        →  matchZone()  →  zone (or null = refuse)  →  discount
 ```
 
 Distance decides a discount and a fee, both real money. A client-supplied coordinate pair would let
@@ -201,8 +215,6 @@ readable. Per the repo's existing rule, Clover remains the authority on the fina
 
 ### Gates
 
-- `subtotal < zone.minSubtotal` → reject with the zone's minimum named.
-- `zone.requiresScheduling && !scheduledFor` → reject asking for a time.
 - `matchZone(...) === null` → reject: *"We don't deliver to that address yet — pickup is available
   at 3315 Danforth Ave."* No lead written.
 
@@ -277,7 +289,7 @@ The map is the weak point, so it is never the only control:
 ### Admin order detail
 
 `/dashboard/orders/[id]` (`page.tsx:69-88`) already shows address, distance and scheduled time. It
-gains zone name and delivery fee.
+gains the zone name.
 
 ---
 
