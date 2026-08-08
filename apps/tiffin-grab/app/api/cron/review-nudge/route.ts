@@ -23,6 +23,14 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ skipped: "plugin not configured" }, { status: 503 });
   }
 
+  // Signs the CASL-required unsubscribe link — reuses BETTER_AUTH_SECRET (the
+  // app's one server signing secret) rather than adding a second one just for this.
+  const unsubscribeSecret = process.env.BETTER_AUTH_SECRET;
+  const baseUrl = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  if (!unsubscribeSecret || !baseUrl) {
+    return Response.json({ error: "BETTER_AUTH_SECRET/BETTER_AUTH_URL not configured" }, { status: 500 });
+  }
+
   const today = new Date().toISOString().slice(0, 10);
 
   // deliveries has no userId — it hangs off orders, and orders.userId is nullable
@@ -59,6 +67,8 @@ async function handle(request: Request): Promise<Response> {
       configStore: integrationsConfigStore,
       nudgeStore: reviewNudgeStore,
       emailProvider: getEmailProvider(),
+      unsubscribeSecret,
+      baseUrl,
     });
   }
 

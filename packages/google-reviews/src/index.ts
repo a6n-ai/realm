@@ -8,3 +8,4 @@ export * from "./summary";
 export * from "./nudge";
 export * from "./nudge-email";
 export * from "./dispatch";
+export * from "./unsubscribe";

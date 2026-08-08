@@ -1,9 +1,10 @@
-import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore } from "@realm/commons/plugin";
 import type { EmailProvider } from "@realm/email";
 import { createLogger } from "@realm/commons/logger";
 import { getGoogleReviewsConfig } from "./store";
 import { renderReviewNudgeEmail } from "./nudge-email";
 import { shouldNudge, type ReviewNudgeStore } from "./nudge";
+import { buildUnsubscribeUrl } from "./unsubscribe";
 
 const log = createLogger("review-nudge-dispatch");
 
@@ -26,6 +27,9 @@ export async function dispatchReviewNudge(input: {
   configStore: IntegrationsConfigStore;
   nudgeStore: ReviewNudgeStore;
   emailProvider: EmailProvider;
+  /** App origin + signing secret for the CASL-required unsubscribe link. */
+  unsubscribeSecret: string;
+  baseUrl: string;
 }): Promise<void> {
   try {
     const cfg = await getGoogleReviewsConfig(input.configStore);
@@ -37,6 +41,7 @@ export async function dispatchReviewNudge(input: {
       businessName: input.businessName,
       customerName: input.name,
       placeId: cfg.placeId,
+      unsubscribeUrl: buildUnsubscribeUrl(input.baseUrl, input.unsubscribeSecret, input.email),
     });
 
     await input.nudgeStore.markSent(input.email);

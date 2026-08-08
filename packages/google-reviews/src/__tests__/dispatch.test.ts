@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { IntegrationsConfigStore } from "@realm/commons/plugin";
 import type { EmailProvider } from "@realm/email";
 import { dispatchReviewNudge } from "../dispatch";
 import { GOOGLE_REVIEWS_PLUGIN_ID } from "../plugin";
@@ -38,11 +38,15 @@ describe("dispatchReviewNudge", () => {
         configStore: configStore(),
         nudgeStore: store,
         emailProvider,
+        unsubscribeSecret: "test-secret",
+        baseUrl: "https://example.com",
       }),
     ).resolves.toBeUndefined();
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(await store.get("customer@example.com")).toMatchObject({ sentAt: expect.any(Date) });
+    const sent = send.mock.calls[0]![0];
+    expect(sent.html).toContain("/api/review-nudge/unsubscribe");
   });
 
   it("never sends a second time for the same customer, even after a prior send failed", async () => {
@@ -55,6 +59,8 @@ describe("dispatchReviewNudge", () => {
       configStore: configStore(),
       nudgeStore: store,
       emailProvider,
+      unsubscribeSecret: "test-secret",
+      baseUrl: "https://example.com",
     };
 
     await dispatchReviewNudge(input);
