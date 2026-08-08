@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import type { CloverConnectionPublic } from "@realm/clover";
 import { CloverIntegrationsCard } from "@realm/clover/ui";
 import { Button } from "@realm/ui/button";
-import { PAYMENT_PLUGIN_CATALOG } from "./registry";
+import { PAYMENT_PROVIDERS } from "@realm/payments";
 import { installPaymentPlugin, uninstallPaymentPlugin } from "../payments/actions";
 import { installCloverAction, uninstallCloverAction } from "./clover-actions";
 
@@ -22,7 +22,7 @@ export function PluginsCatalog({
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {PAYMENT_PLUGIN_CATALOG.map((plugin) => {
+      {PAYMENT_PROVIDERS.map((plugin) => {
         const isOn = installed.has(plugin.id);
         return (
           <div

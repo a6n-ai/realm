@@ -648,6 +648,12 @@ importers:
 
   packages/payments:
     dependencies:
+      '@realm/crm':
+        specifier: workspace:*
+        version: link:../crm
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
       zod:
         specifier: ^4.4.3
         version: 4.4.3

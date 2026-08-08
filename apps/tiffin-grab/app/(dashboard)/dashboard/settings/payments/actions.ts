@@ -2,10 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { ValidationError } from "@realm/commons";
-import { paymentConfigSchema, type PaymentConfig } from "@realm/payments";
+import { findPaymentProvider, paymentConfigSchema, type PaymentConfig } from "@realm/payments";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
-import { findPaymentPlugin } from "../integrations/registry";
 
 // Saves the whole payment config in one shot (the blob is small). Beyond the schema shape,
 // enforce app-level rules the shared schema can't know: unique method ids and a payee handle
@@ -36,7 +35,7 @@ export async function savePaymentConfig(cfg: PaymentConfig) {
 /** Install a catalog payment plugin (adds its method stub to payment_config). */
 export async function installPaymentPlugin(pluginId: string) {
   await requireAdmin();
-  const plugin = findPaymentPlugin(pluginId);
+  const plugin = findPaymentProvider(pluginId);
   if (!plugin) throw new ValidationError("Unknown payment plugin");
 
   const cfg = await getPaymentConfig();
@@ -51,7 +50,7 @@ export async function installPaymentPlugin(pluginId: string) {
 /** Uninstall a payment plugin and drop its method config. */
 export async function uninstallPaymentPlugin(pluginId: string) {
   await requireAdmin();
-  const plugin = findPaymentPlugin(pluginId);
+  const plugin = findPaymentProvider(pluginId);
   if (!plugin) throw new ValidationError("Unknown payment plugin");
 
   const cfg = await getPaymentConfig();

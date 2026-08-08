@@ -10,9 +10,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getCloverConnection } from "@realm/clover";
+import { PAYMENTS_PLUGIN_ID } from "@realm/payments/plugin";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { PLUGINS } from "@/lib/plugins.server";
 
 type SettingsSection = {
   key: string;
@@ -25,6 +27,7 @@ type SettingsSection = {
 export default async function SettingsPage() {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
+  const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
 
   const sections: SettingsSection[] = [
     {
@@ -62,14 +65,17 @@ export default async function SettingsPage() {
       icon: PuzzleIcon,
       href: "/dashboard/settings/integrations",
     },
-    {
+  ];
+
+  if (paymentsStatus?.installed) {
+    sections.push({
       key: "payments",
       label: "Payment",
       description: "Configure installed payment plugins — taxes, payee, and enablement.",
       icon: CreditCardIcon,
       href: "/dashboard/settings/payments",
-    },
-  ];
+    });
+  }
 
   if (clover.installed) {
     sections.push({

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CreditCardIcon, type LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
-import { findPaymentPlugin } from "../integrations/registry";
+import { findPaymentProvider } from "@realm/payments";
 
 export type PaymentTab = {
   id: string;
@@ -16,7 +16,7 @@ function methodHref(id: string) {
 }
 
 function methodIcon(id: string): LucideIcon {
-  return findPaymentPlugin(id)?.icon ?? CreditCardIcon;
+  return findPaymentProvider(id)?.icon ?? CreditCardIcon;
 }
 
 /** Routed sub-tabs (wallet-style) — one tab per installed payment method. */

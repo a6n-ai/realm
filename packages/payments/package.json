@@ -3,9 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin.ts",
+    "./server": "./src/plugin.server.ts"
+  },
   "types": "./src/index.ts",
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
-  "dependencies": { "lucide-react": "^1.20.0", "zod": "^4.4.3" },
+  "dependencies": { "@realm/crm": "workspace:*", "lucide-react": "^1.20.0", "zod": "^4.4.3" },
   "devDependencies": { "typescript": "^5", "vitest": "^4.1.9" }
 }
