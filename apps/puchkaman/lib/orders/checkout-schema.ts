@@ -34,10 +34,13 @@ const fulfillmentSchema = z
     z
       .object({
         type: z.literal("delivery"),
+        /** Which delivery type the customer picked — re-verified server-side against
+         * availableTypes() at the resolved distance, never trusted for price/eligibility. */
+        deliveryTypeKey: z.string().trim().min(1),
         address: z.string().trim().min(5).max(300),
         /** Google Places id — preferred resolution path in resolveAddress(). */
         placeId: z.string().trim().min(1).optional(),
-        /** Required once the server determines the zone requires scheduling. */
+        /** Required once the server determines the type requires scheduling. */
         scheduledFor: z.string().datetime().optional(),
       })
       .strict(),

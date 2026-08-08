@@ -23,9 +23,9 @@ import {
 } from "@/lib/clover/public-ordering";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
-import { applyZonePricing } from "@/lib/delivery/zone-pricing";
-import { matchZone, deliveryLimitKm } from "@/lib/delivery/zones";
-import { getStoreOrigin, getZones } from "@/lib/delivery/zones.service";
+import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
+import { availableTypes, deliveryLimitKm, zoneForType } from "@/lib/delivery/zones";
+import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
   payCheckoutSchema,
@@ -531,7 +531,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let deliveryLat: number | null = null;
     let deliveryLng: number | null = null;
     let deliveryDistanceKm: number | null = null;
-    let deliveryFee: number | null = null;
+    let deliveryTypeId: bigint | null = null;
     let deliveryZoneId: bigint | null = null;
     let scheduledForMs: number | null = null;
 
@@ -545,7 +545,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let discountAmount = claimed.total;
 
     if (parsed.fulfillment.type === "delivery") {
-      const [zones, origin] = await Promise.all([getZones(), getStoreOrigin()]);
+      const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
       const resolved = await resolveAddress({
         placeId: parsed.fulfillment.placeId,
         address: parsed.fulfillment.address,
@@ -563,24 +563,25 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         haversineKm(origin.lat, origin.lng, resolved.lat, resolved.lng).toFixed(2),
       );
 
-      const zone = matchZone(deliveryDistanceKm, zones);
-      if (!zone) {
+      // Re-derive what is genuinely offered here. The client sent only a key.
+      const { deliveryTypeKey } = parsed.fulfillment;
+      const offered = availableTypes(deliveryDistanceKm, zones);
+      const type = offered.find((t) => t.key === deliveryTypeKey);
+      if (!type) {
         const limit = deliveryLimitKm(zones);
         throw new ValidationError(
-          limit == null
-            ? "Delivery is unavailable right now — pickup is available."
-            : `We don't deliver that far yet (${deliveryDistanceKm} km — we deliver up to ${limit} km). Pickup is available.`,
+          offered.length === 0 && limit != null
+            ? `We don't deliver that far yet (${deliveryDistanceKm} km — we deliver up to ${limit} km). Pickup is available.`
+            : "That delivery option isn't available for this address.",
         );
       }
 
-      if (subtotal < zone.minSubtotal) {
-        throw new ValidationError(
-          `Orders over $${zone.minSubtotal} required for delivery to that address.`,
-        );
+      if (subtotal < type.minSubtotal) {
+        throw new ValidationError(`${type.label} requires an order over $${type.minSubtotal}.`);
       }
-      if (zone.requiresScheduling) {
+      if (type.requiresSchedule) {
         if (!parsed.fulfillment.scheduledFor) {
-          throw new ValidationError("Pick a delivery time for that address.");
+          throw new ValidationError(`Pick a delivery time for ${type.label}.`);
         }
         const scheduled = new Date(parsed.fulfillment.scheduledFor);
         if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
@@ -589,15 +590,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         scheduledForMs = scheduled.getTime();
       }
 
-      fulfillment = zone.requiresScheduling ? "delivery_scheduled" : "delivery_instant";
+      const zone = zoneForType(deliveryDistanceKm, type.key, zones);
+      if (!zone?.id) throw new ValidationError("Could not resolve a delivery zone for that address.");
 
-      const { discountAmount: zoneOff, feeAmount } = applyZonePricing({ subtotal, zone });
-      if (zoneOff > 0) {
-        cloverDiscounts.push({ name: `${zone.name} delivery discount`, amount: zoneOff });
-        discountAmount = Number(money(discountAmount + zoneOff));
+      fulfillment = type.requiresSchedule ? "delivery_scheduled" : "delivery_instant";
+
+      const { discountAmount: typeOff } = applyTypeDiscount({ subtotal, type });
+      if (typeOff > 0) {
+        cloverDiscounts.push({ name: `${type.label} discount`, amount: typeOff });
+        discountAmount = Number(money(discountAmount + typeOff));
       }
-      deliveryFee = feeAmount;
-      deliveryZoneId = zone.id ?? null;
+
+      if (!type.id) throw new ValidationError("Could not resolve a delivery type for that address.");
+      deliveryTypeId = type.id;
+      deliveryZoneId = zone.id;
     }
 
     // The discount has to reach Clover: `POST /v1/orders/{id}/pay` bills the Clover
@@ -629,16 +635,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           }
         : {}),
     };
-    // NEEDS_CONTEXT: a non-zero zone.feeAmount is priced and persisted below
-    // (`deliveryFee`), but is NOT yet added to `atomicInput` as a Clover line —
-    // `CloverAtomicLineItemInput` (packages/clover) requires a real inventory
-    // `itemId`, and there is no Clover catalog item for "delivery fee" to
-    // reference. Do not fabricate one here; either provision a real Clover
-    // item and reference it, or extend the shared package with a price-only
-    // ad-hoc line type. Today's only zone has feeAmount: 0, so this has no
-    // live effect — but it means a future fee-bearing zone would be quoted
-    // locally and NOT charged by Clover until this is wired up.
-
     // Local forecast, used only to detect drift — Clover's numbers are what get charged.
     const forecast = await forecastCartTax(lines, byPublic, discountAmount);
 
@@ -695,7 +691,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           deliveryLat: deliveryLat != null ? deliveryLat.toFixed(6) : null,
           deliveryLng: deliveryLng != null ? deliveryLng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
-          deliveryFee: deliveryFee != null ? deliveryFee.toFixed(2) : null,
+          deliveryTypeId,
           deliveryZoneId,
           scheduledFor: scheduledForMs,
           subtotal: money(subtotalCharged),
