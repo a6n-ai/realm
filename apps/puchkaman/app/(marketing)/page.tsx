@@ -10,6 +10,8 @@ import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 import { buildMetadata } from "@/lib/seo";
+import { getReviewsSummary } from "@realm/google-reviews";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Toronto's First Fusion Puchka Spot · Scarborough",
@@ -45,12 +47,6 @@ const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
   { key: "kathi-rolls", name: "Kathi Rolls", tag: "Wrapped", desc: "Flaky paratha rolled with smoky fillings.", price: "$9" },
 ];
 
-const REVIEWS = [
-  { n: "Priya S.", t: "The fusion puchkas are unreal. Chicken corn cheese changed my life. Best chaat in Scarborough hands down.", r: 5 },
-  { n: "Rahul M.", t: "Tastes exactly like Kolkata streets. The puchka water is *perfect*. We come every weekend now.", r: 5 },
-  { n: "Aisha K.", t: "Booked them for my daughter's birthday — live puchka station was the hit of the party!", r: 5 },
-];
-
 // Real reels from @puchkamancanada, picked by hand, each with its actual cover
 // frame (the reel's public og:image, downloaded once into public/instagram/
 // rather than hotlinked — Instagram has no public API for this and gates
@@ -72,6 +68,8 @@ const COMBOS = [
 ];
 
 export default async function HomePage() {
+  const reviews = await getReviewsSummary(integrationsConfigStore);
+
   // Curated "featured" products first; if none are flagged, fall back to real
   // active products that have a photo (so home shows the actual menu, not empty
   // placeholder tiles). Static BEST_SELLERS is the last resort for a fresh DB.
@@ -128,7 +126,7 @@ export default async function HomePage() {
           {[0, 1].map((k) => (
             <span key={k}>
               <span>🔥 Now serving fusion puchkas</span>
-              <span>★ 4.8 on Google · 119+ reviews</span>
+              {reviews && <span>{`★ ${reviews.rating.toFixed(1)} on Google · ${reviews.total}+ reviews`}</span>}
               <span>🛵 Order pickup & skip the fees</span>
               <span>📍 3315 Danforth Ave, Scarborough</span>
             </span>
@@ -142,7 +140,7 @@ export default async function HomePage() {
           <div className="hero-grid" style={{ display: "grid", gap: 48, alignItems: "center" }}>
             <div>
               <div className="flex wrap-gap anim" style={{ marginBottom: 22, "--d": ".05s" } as CSSProperties}>
-                <Pill variant="green">★ 4.8 · 119+ Google Reviews</Pill>
+                {reviews && <Pill variant="green">{`★ ${reviews.rating.toFixed(1)} · ${reviews.total}+ Google Reviews`}</Pill>}
                 <Pill variant="ink">Scarborough · GTA</Pill>
               </div>
               <h1 className="display anim" style={{ fontSize: "clamp(2.6rem, 8vw, 5rem)", "--d": ".13s" } as CSSProperties}>
@@ -185,11 +183,13 @@ export default async function HomePage() {
               />
               <span className="sticker float-l" style={{ top: -16, left: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>FRESH DAILY</span>
               <span className="sticker float-r" style={{ bottom: 22, right: -14, fontSize: "0.95rem" }}>🔥 NEW: SUMMER DRINKS</span>
-              <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
-                <Stars value={4.8} size={20} />
-                <span style={{ fontWeight: 900, fontSize: "1.15rem" }}>4.8</span>
-                <span className="mono" style={{ fontSize: "0.72rem", opacity: 0.7 }}>119+<br />reviews</span>
-              </div>
+              {reviews && (
+                <div className="card" style={{ position: "absolute", bottom: -22, left: -18, padding: "12px 16px", background: "var(--white)", display: "flex", alignItems: "center", gap: 10, zIndex: 4 }}>
+                  <Stars value={reviews.rating} size={20} />
+                  <span style={{ fontWeight: 900, fontSize: "1.15rem" }}>{reviews.rating.toFixed(1)}</span>
+                  <span className="mono" style={{ fontSize: "0.72rem", opacity: 0.7 }}>{`${reviews.total}+`}<br />reviews</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -291,30 +291,42 @@ export default async function HomePage() {
       </section>
 
       {/* ===== REVIEWS ===== */}
-      <section className="section-pad surface-ink" style={{ background: "var(--ink)", color: "var(--cream)", borderBottom: "var(--border)" }}>
-        <div className="wrap">
-          <SectionHead kicker="Social Proof" title="Scarborough Is Obsessed" light sub="4.8★ across 119+ Google reviews. Here's what the neighbourhood says." />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))" }}>
-            {REVIEWS.map((rv, i) => (
-              <Reveal key={rv.n} delay={i * 70}>
-                <div className="card" style={{ background: "var(--white)", color: "var(--ink)", padding: 24, height: "100%" }}>
-                  <Stars value={rv.r} size={18} />
-                  <p style={{ fontWeight: 600, fontSize: "1.05rem", margin: "14px 0 18px", lineHeight: 1.5 }}>&ldquo;{rv.t}&rdquo;</p>
-                  <div className="flex center" style={{ gap: 10 }}>
-                    <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--yellow)", border: "2.5px solid var(--ink)", display: "grid", placeItems: "center", fontWeight: 900 }}>
-                      {rv.n[0]}
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{rv.n}</div>
-                      <div className="mono" style={{ fontSize: "0.7rem", opacity: 0.6 }}>Google Review · Verified</div>
+      {reviews && reviews.reviews.length > 0 ? (
+        <section className="section-pad surface-ink" style={{ background: "var(--ink)", color: "var(--cream)", borderBottom: "var(--border)" }}>
+          <div className="wrap">
+            <SectionHead
+              kicker="Social Proof"
+              title="Scarborough Is Obsessed"
+              light
+              sub={`${reviews.rating.toFixed(1)}★ across ${reviews.total}+ Google reviews. Here's what the neighbourhood says.`}
+            />
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))" }}>
+              {reviews.reviews.map((rv, i) => (
+                <Reveal key={`${rv.author}-${i}`} delay={i * 70}>
+                  <div className="card" style={{ background: "var(--white)", color: "var(--ink)", padding: 24, height: "100%" }}>
+                    <Stars value={rv.rating} size={18} />
+                    <p style={{ fontWeight: 600, fontSize: "1.05rem", margin: "14px 0 18px", lineHeight: 1.5 }}>&ldquo;{rv.text}&rdquo;</p>
+                    <div className="flex center" style={{ gap: 10 }}>
+                      <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--yellow)", border: "2.5px solid var(--ink)", display: "grid", placeItems: "center", fontWeight: 900 }}>
+                        {rv.author[0]}
+                      </span>
+                      <div>
+                        <div style={{ fontWeight: 800 }}>{rv.author}</div>
+                        <div className="mono" style={{ fontSize: "0.7rem", opacity: 0.6 }}>
+                          <a href={reviews.attributionUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                            Google Review
+                          </a>
+                          {rv.relativeTime ? ` · ${rv.relativeTime}` : null}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* ===== INSTAGRAM ===== */}
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
