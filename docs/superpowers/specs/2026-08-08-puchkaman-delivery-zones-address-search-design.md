@@ -1,8 +1,7 @@
 # puchkaman delivery zones and Google address search
 
 **Date:** 2026-08-08
-**Status:** Approved design, not yet planned
-**Status:** SUPERSEDED by `2026-08-09-puchkaman-delivery-types-zones-address-search-design.md` — the single-zone model was replaced by delivery types + zones with a many-to-many join.
+**Status:** SUPERSEDED by `2026-08-09-puchkaman-delivery-types-zones-address-search-design.md` — the single-zone model was replaced by delivery types + zones with a many-to-many join. Kept for the reasoning it records: why there is no delivery fee, and why a seed INSERT must supply `public_id`/`created_at`/`updated_at`.
 **Scope:** `apps/puchkaman` only. No shared package, no tiffin-grab change.
 
 ## Problem
