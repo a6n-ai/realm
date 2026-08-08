@@ -3,3 +3,10 @@ export {
   IntegrationPluginCard,
   IntegrationPluginCardSkeleton,
 } from "./integration-plugin-card";
+export type { PluginMeta, PluginNavItem, PluginNavSection } from "./plugin";
+export {
+  PluginCatalog,
+  PluginCatalogSkeleton,
+  type PluginCatalogStatus,
+  type SetPluginInstalled,
+} from "./plugin-catalog";
