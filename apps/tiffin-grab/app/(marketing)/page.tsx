@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@realm/ui/button";
+import { GoogleReviewsSection } from "@/components/marketing/google-reviews-section";
 import { Hero } from "@/components/marketing/hero";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
@@ -43,6 +44,7 @@ export default async function LandingPage() {
         <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
         <Button asChild size="lg" className="hover-lift animate-pulse-ring"><Link href="/subscribe">Start your plan</Link></Button>
       </Section>
+      <GoogleReviewsSection />
     </>
   );
 }
