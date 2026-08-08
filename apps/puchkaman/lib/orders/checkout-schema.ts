@@ -22,17 +22,25 @@ const contactSchema = z.object({
   note: z.string().trim().max(500).optional().nullable(),
 });
 
-// Instant vs. scheduled delivery is derived server-side from a fresh geocode of
-// `address`, not asserted by the client — see orders.service.ts createCheckout().
+// Zone (radius/fee/discount/scheduling) is derived server-side from a fresh
+// resolveAddress() geocode, not asserted by the client — see
+// orders.service.ts createCheckout(). `.strict()` on the delivery branch is
+// load-bearing: it rejects a client-supplied `lat`/`lng`, which is the only
+// thing standing between "distance decides the discount" and "post a point
+// next to the shop for 15% off".
 const fulfillmentSchema = z
   .discriminatedUnion("type", [
     z.object({ type: z.literal("pickup") }),
-    z.object({
-      type: z.literal("delivery"),
-      address: z.string().trim().min(5).max(300),
-      /** Required once the server determines the address is outside the instant radius. */
-      scheduledFor: z.string().datetime().optional(),
-    }),
+    z
+      .object({
+        type: z.literal("delivery"),
+        address: z.string().trim().min(5).max(300),
+        /** Google Places id — preferred resolution path in resolveAddress(). */
+        placeId: z.string().trim().min(1).optional(),
+        /** Required once the server determines the zone requires scheduling. */
+        scheduledFor: z.string().datetime().optional(),
+      })
+      .strict(),
   ])
   .default({ type: "pickup" });
 

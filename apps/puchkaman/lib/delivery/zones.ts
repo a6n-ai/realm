@@ -4,6 +4,9 @@
  * converts on read.
  */
 export type Zone = {
+  /** DB row id, when this Zone came from a query that selected it — used to
+   * stamp `orders.delivery_zone_id`. Absent on hand-built test fixtures. */
+  id?: bigint;
   name: string;
   radiusKm: number;
   feeAmount: number;

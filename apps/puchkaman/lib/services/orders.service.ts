@@ -21,13 +21,11 @@ import {
   isPublicOrderingEnabled,
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
-import {
-  distanceFromStoreKm,
-  INSTANT_DELIVERY_DISCOUNT_PCT,
-  INSTANT_DELIVERY_RADIUS_KM,
-  SCHEDULED_DELIVERY_MIN_SUBTOTAL,
-} from "@/lib/delivery/distance";
-import { geocodeAddress } from "@/lib/delivery/geocode";
+import { haversineKm } from "@/lib/delivery/distance";
+import { resolveAddress } from "@/lib/delivery/resolve-address";
+import { applyZonePricing } from "@/lib/delivery/zone-pricing";
+import { matchZone, deliveryLimitKm } from "@/lib/delivery/zones";
+import { getStoreOrigin, getZones } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
   payCheckoutSchema,
@@ -533,6 +531,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let deliveryLat: number | null = null;
     let deliveryLng: number | null = null;
     let deliveryDistanceKm: number | null = null;
+    let deliveryFee: number | null = null;
+    let deliveryZoneId: bigint | null = null;
     let scheduledForMs: number | null = null;
 
     // Customer-claimed offers and coupons. They stack with the instant-delivery
@@ -545,32 +545,42 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     let discountAmount = claimed.total;
 
     if (parsed.fulfillment.type === "delivery") {
-      const point = await geocodeAddress(parsed.fulfillment.address);
-      if (!point) {
-        throw new ValidationError("Couldn't find that delivery address — try adding city and postal code.");
+      const [zones, origin] = await Promise.all([getZones(), getStoreOrigin()]);
+      const resolved = await resolveAddress({
+        placeId: parsed.fulfillment.placeId,
+        address: parsed.fulfillment.address,
+      });
+      if (!resolved) {
+        throw new ValidationError(
+          "Couldn't find that delivery address — try adding city and postal code.",
+        );
       }
-      deliveryAddress = parsed.fulfillment.address;
-      deliveryLat = point.lat;
-      deliveryLng = point.lng;
-      deliveryDistanceKm = Number(distanceFromStoreKm(point.lat, point.lng).toFixed(2));
 
-      if (deliveryDistanceKm <= INSTANT_DELIVERY_RADIUS_KM) {
-        fulfillment = "delivery_instant";
-        const deliveryOff = Number(money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT));
-        cloverDiscounts.push({
-          name: `Instant delivery (${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}%)`,
-          amount: deliveryOff,
-        });
-        discountAmount = Number(money(discountAmount + deliveryOff));
-      } else {
-        fulfillment = "delivery_scheduled";
-        if (subtotal < SCHEDULED_DELIVERY_MIN_SUBTOTAL) {
-          throw new ValidationError(
-            `Orders over $${SCHEDULED_DELIVERY_MIN_SUBTOTAL} required for delivery outside ${INSTANT_DELIVERY_RADIUS_KM}km.`,
-          );
-        }
+      deliveryAddress = resolved.formattedAddress;
+      deliveryLat = resolved.lat;
+      deliveryLng = resolved.lng;
+      deliveryDistanceKm = Number(
+        haversineKm(origin.lat, origin.lng, resolved.lat, resolved.lng).toFixed(2),
+      );
+
+      const zone = matchZone(deliveryDistanceKm, zones);
+      if (!zone) {
+        const limit = deliveryLimitKm(zones);
+        throw new ValidationError(
+          limit == null
+            ? "Delivery is unavailable right now — pickup is available."
+            : `We don't deliver that far yet (${deliveryDistanceKm} km — we deliver up to ${limit} km). Pickup is available.`,
+        );
+      }
+
+      if (subtotal < zone.minSubtotal) {
+        throw new ValidationError(
+          `Orders over $${zone.minSubtotal} required for delivery to that address.`,
+        );
+      }
+      if (zone.requiresScheduling) {
         if (!parsed.fulfillment.scheduledFor) {
-          throw new ValidationError("Pick a delivery time — you're outside our instant-delivery zone.");
+          throw new ValidationError("Pick a delivery time for that address.");
         }
         const scheduled = new Date(parsed.fulfillment.scheduledFor);
         if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
@@ -578,6 +588,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         }
         scheduledForMs = scheduled.getTime();
       }
+
+      fulfillment = zone.requiresScheduling ? "delivery_scheduled" : "delivery_instant";
+
+      const { discountAmount: zoneOff, feeAmount } = applyZonePricing({ subtotal, zone });
+      if (zoneOff > 0) {
+        cloverDiscounts.push({ name: `${zone.name} delivery discount`, amount: zoneOff });
+        discountAmount = Number(money(discountAmount + zoneOff));
+      }
+      deliveryFee = feeAmount;
+      deliveryZoneId = zone.id ?? null;
     }
 
     // The discount has to reach Clover: `POST /v1/orders/{id}/pay` bills the Clover
@@ -609,6 +629,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           }
         : {}),
     };
+    // NEEDS_CONTEXT: a non-zero zone.feeAmount is priced and persisted below
+    // (`deliveryFee`), but is NOT yet added to `atomicInput` as a Clover line —
+    // `CloverAtomicLineItemInput` (packages/clover) requires a real inventory
+    // `itemId`, and there is no Clover catalog item for "delivery fee" to
+    // reference. Do not fabricate one here; either provision a real Clover
+    // item and reference it, or extend the shared package with a price-only
+    // ad-hoc line type. Today's only zone has feeAmount: 0, so this has no
+    // live effect — but it means a future fee-bearing zone would be quoted
+    // locally and NOT charged by Clover until this is wired up.
 
     // Local forecast, used only to detect drift — Clover's numbers are what get charged.
     const forecast = await forecastCartTax(lines, byPublic, discountAmount);
@@ -666,6 +695,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           deliveryLat: deliveryLat != null ? deliveryLat.toFixed(6) : null,
           deliveryLng: deliveryLng != null ? deliveryLng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
+          deliveryFee: deliveryFee != null ? deliveryFee.toFixed(2) : null,
+          deliveryZoneId,
           scheduledFor: scheduledForMs,
           subtotal: money(subtotalCharged),
           tax: money(tax),

@@ -7,6 +7,7 @@ import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
 import type { Zone } from "./zones";
 
 type ZoneRow = {
+  id?: bigint;
   name: string;
   radiusKm: string;
   feeAmount: string;
@@ -19,6 +20,7 @@ type ZoneRow = {
 /** Drizzle returns `numeric` as a string; convert once at the boundary. */
 export function rowToZone(row: ZoneRow): Zone {
   return {
+    id: row.id,
     name: row.name,
     radiusKm: Number(row.radiusKm),
     feeAmount: Number(row.feeAmount),
