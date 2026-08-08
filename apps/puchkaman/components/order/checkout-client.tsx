@@ -4,13 +4,14 @@ import { useCallback, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { AddressAutocomplete } from "@/components/order/address-autocomplete";
 import { CloverCardForm } from "@/components/order/clover-card-form";
+import { DeliveryTypePicker, type CheckoutDeliveryType } from "@/components/order/delivery-type-picker";
 import { DiscountPicker, type PublicOffer } from "@/components/order/discount-picker";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
-import { INSTANT_DELIVERY_DISCOUNT_PCT } from "@/lib/delivery/distance";
 
 type CheckoutSession = {
   orderPublicId: string;
@@ -30,10 +31,10 @@ type CheckoutSession = {
 
 type Step = "review" | "pay" | "done";
 type Fulfillment = "pickup" | "delivery";
-type FieldKey = "name" | "email" | "phone" | "address" | "scheduledFor";
+type FieldKey = "name" | "email" | "phone" | "address" | "deliveryType" | "scheduledFor";
 type AddressCheck =
-  | { eligible: true; tier: "instant" | "scheduled"; distanceKm: number; minSubtotal?: number }
-  | { eligible: false; reason: string };
+  | { resolved: true; formattedAddress: string; distanceKm: number; limitKm: number | null; types: CheckoutDeliveryType[] }
+  | { resolved: false; error?: boolean };
 
 const STEPS: { key: Step; label: string }[] = [
   { key: "review", label: "Details" },
@@ -76,8 +77,10 @@ export function CheckoutClient({
   const [note, setNote] = useState("");
   const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
   const [address, setAddress] = useState("");
+  const [placeId, setPlaceId] = useState<string | undefined>(undefined);
   const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
   const [addressChecking, setAddressChecking] = useState(false);
+  const [deliveryTypeKey, setDeliveryTypeKey] = useState<string | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
   const [minScheduledFor] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16));
   const [stepState, setStep] = useState<Step>("review");
@@ -96,21 +99,26 @@ export function CheckoutClient({
     if (!address.trim()) return;
     setAddressChecking(true);
     setAddressCheck(null);
+    setDeliveryTypeKey(null);
     setScheduledFor("");
     try {
       const res = await fetch("/api/delivery/check-address", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: address.trim() }),
+        body: JSON.stringify({ address: address.trim(), ...(placeId ? { placeId } : {}) }),
       });
       const data = (await res.json().catch(() => null)) as AddressCheck | null;
-      setAddressCheck(data ?? { eligible: false, reason: "Couldn't check that address — try again." });
+      setAddressCheck(data ?? { resolved: false, error: true });
     } catch {
-      setAddressCheck({ eligible: false, reason: "Couldn't check that address — try again." });
+      setAddressCheck({ resolved: false, error: true });
     } finally {
       setAddressChecking(false);
     }
   }
+
+  const selectedType = addressCheck?.resolved
+    ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
+    : undefined;
 
   const onCardReady = useCallback((fn: () => Promise<string>) => {
     setTokenize(() => fn);
@@ -132,8 +140,13 @@ export function CheckoutClient({
     if (!digits) errs.phone = "Phone is required for order updates.";
     else if (digits.length < 7) errs.phone = "That number is too short.";
     if (fulfillment === "delivery") {
-      if (!addressCheck?.eligible) errs.address = "Check your delivery address first.";
-      else if (addressCheck.tier === "scheduled" && !scheduledFor) errs.scheduledFor = "Pick a delivery time.";
+      if (!addressCheck?.resolved || addressCheck.types.length === 0) {
+        errs.address = "Check your delivery address first.";
+      } else if (!selectedType) {
+        errs.deliveryType = "Choose a delivery type.";
+      } else if (selectedType.requiresSchedule && !scheduledFor) {
+        errs.scheduledFor = "Pick a delivery time.";
+      }
     }
     return errs;
   }
@@ -142,7 +155,9 @@ export function CheckoutClient({
     setError(null);
     const errs = validate();
     setFieldErrors(errs);
-    const firstBad = (["name", "email", "phone", "address", "scheduledFor"] as FieldKey[]).find((k) => errs[k]);
+    const firstBad = (
+      ["name", "email", "phone", "address", "deliveryType", "scheduledFor"] as FieldKey[]
+    ).find((k) => errs[k]);
     if (firstBad) {
       // useId() values contain ':' so they are not valid CSS selectors — look the
       // field up by id directly rather than through querySelector.
@@ -175,10 +190,12 @@ export function CheckoutClient({
           // the synced Clover discounts.
           discounts: { offerPublicIds: discounts.offerPublicIds, code: discounts.code ?? null },
           fulfillment:
-            fulfillment === "delivery"
+            fulfillment === "delivery" && deliveryTypeKey
               ? {
                   type: "delivery",
+                  deliveryTypeKey,
                   address: address.trim(),
+                  ...(placeId ? { placeId } : {}),
                   ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
                 }
               : { type: "pickup" },
@@ -370,17 +387,20 @@ export function CheckoutClient({
             {fulfillment === "delivery" ? (
               <div className={`field checkout-field ${fieldErrors.address ? "field--err" : ""}`}>
                 <label htmlFor={`${formId}-address`}>Delivery address *</label>
-                <textarea
+                <AddressAutocomplete
                   id={`${formId}-address`}
-                  className="textarea checkout-address"
+                  className="input"
                   value={address}
-                  autoComplete="street-address"
-                  onChange={(e) => {
-                    setAddress(e.target.value);
+                  onChange={(v) => {
+                    setAddress(v);
+                    setPlaceId(undefined);
                     setAddressCheck(null);
+                    setDeliveryTypeKey(null);
                   }}
-                  placeholder="Street, city, postal code"
-                  aria-invalid={fieldErrors.address ? true : undefined}
+                  onPick={({ address: a, placeId: p }) => {
+                    setAddress(a);
+                    setPlaceId(p);
+                  }}
                 />
                 <div className="checkout-address__actions">
                   <Btn
@@ -391,15 +411,22 @@ export function CheckoutClient({
                   >
                     {addressChecking ? "Checking…" : "Check address"}
                   </Btn>
-                  {addressCheck?.eligible === true ? (
+                  {addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
                     <p className="checkout-address__ok">
-                      {addressCheck.tier === "instant"
-                        ? `✓ ${addressCheck.distanceKm}km away — instant delivery, ${Math.round(INSTANT_DELIVERY_DISCOUNT_PCT * 100)}% off (about ${money(subtotal * INSTANT_DELIVERY_DISCOUNT_PCT)}).`
-                        : `${addressCheck.distanceKm}km away — outside instant delivery. Scheduled delivery, $${addressCheck.minSubtotal} minimum. Pick a time below.`}
+                      ✓ {addressCheck.distanceKm}km away — {addressCheck.types.length} delivery
+                      option{addressCheck.types.length === 1 ? "" : "s"} available below.
                     </p>
-                  ) : addressCheck?.eligible === false ? (
+                  ) : addressCheck?.resolved === true ? (
                     <p className="err-msg" role="alert">
-                      {addressCheck.reason}
+                      {addressCheck.distanceKm}km away
+                      {addressCheck.limitKm != null ? ` — outside our ${addressCheck.limitKm}km delivery range.` : " — outside our delivery range."}{" "}
+                      Try pickup instead.
+                    </p>
+                  ) : addressCheck?.resolved === false ? (
+                    <p className="err-msg" role="alert">
+                      {addressCheck.error
+                        ? "Couldn't check that address — try again."
+                        : "Couldn't find that address — double check it."}
                     </p>
                   ) : null}
                 </div>
@@ -411,7 +438,24 @@ export function CheckoutClient({
               </div>
             ) : null}
 
-            {addressCheck?.eligible === true && addressCheck.tier === "scheduled" ? (
+            {fulfillment === "delivery" && addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
+              <div className="field checkout-field">
+                <label id={`${formId}-deliveryType-label`}>Delivery type *</label>
+                <DeliveryTypePicker
+                  types={addressCheck.types}
+                  subtotal={subtotal}
+                  value={deliveryTypeKey}
+                  onChange={setDeliveryTypeKey}
+                />
+                {fieldErrors.deliveryType ? (
+                  <span className="err-msg" role="alert">
+                    {fieldErrors.deliveryType}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {selectedType?.requiresSchedule ? (
               <div className={`field checkout-field ${fieldErrors.scheduledFor ? "field--err" : ""}`}>
                 <label htmlFor={`${formId}-scheduledFor`}>Delivery time *</label>
                 <input

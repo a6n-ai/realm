@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Btn, PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
-import { OrderDirectCta } from "@/components/order/order-direct-cta";
+import { DeliveryChecker } from "@/components/order/delivery-checker";
 import { OrderPickupCta } from "@/components/order/order-pickup-cta";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
@@ -161,7 +161,7 @@ export default function OrderPage() {
                 <p style={{ fontWeight: 500, opacity: 0.92, marginBottom: 20 }}>
                   Skip the app fees — order direct and we deliver it ourselves, 15% cheaper.
                 </p>
-                <OrderDirectCta />
+                <DeliveryChecker />
               </div>
             </Reveal>
           </div>
