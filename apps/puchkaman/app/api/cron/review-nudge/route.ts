@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { getGoogleReviewsConfig } from "@realm/google-reviews";
 import { db } from "@/db/client";
 import { orders, reviewNudges } from "@/db/schema";
@@ -39,7 +39,10 @@ async function handle(request: Request): Promise<Response> {
     .leftJoin(reviewNudges, eq(reviewNudges.email, orders.customerEmail))
     .where(
       and(
-        eq(orders.status, "paid"),
+        // "fulfilled" is a later stage of the same delivered order — nothing writes it
+        // today, but the day something does, those are exactly the customers who
+        // received food and should still be nudged.
+        inArray(orders.status, ["paid", "fulfilled"]),
         lt(orders.paidAt, cutoff),
         isNull(reviewNudges.email),
       ),
