@@ -1269,18 +1269,12 @@ In `apps/tiffin-grab/app/(dashboard)/dashboard/settings/page.tsx`, the `integrat
 description: "Install and remove plugins (Payments, Clover, and more).",
 ```
 
-Gate the `payments` section on the Payments plugin being installed, mirroring how `clover` is gated. Replace the static `payments` entry in the `sections` array with a conditional push after it:
+The `payments` section gating itself was already implemented in Task 3 Step 9 — leave it alone here. Do **not** call `paymentsPlugin()` with no arguments; since Task 3 it takes required injected stores, so resolve status through the app registry instead:
 
 ```ts
-const paymentsStatus = await paymentsPlugin().status();
-if (paymentsStatus.installed) {
-  sections.push({
-    key: "payments",
-    label: "Payment",
-    description: "Configure installed payment providers — taxes, payee, and enablement.",
-    icon: CreditCardIcon,
-    href: "/dashboard/settings/payments",
-  });
+const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
+if (paymentsStatus?.installed) {
+  // …push the Payment section
 }
 ```
 
