@@ -66,11 +66,6 @@ const typeService = new TypeService(
   new UpdatableRepository(db, deliveryTypes, deliveryTypes.publicId, deliveryTypes.id),
 );
 
-export async function getZones(): Promise<Zone[]> {
-  const rows = await db.select().from(deliveryZones).where(eq(deliveryZones.active, true));
-  return rows.map(rowToZone);
-}
-
 export async function getDeliveryTypes(): Promise<DeliveryType[]> {
   const rows = await db
     .select()
