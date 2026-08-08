@@ -1,7 +1,7 @@
 import { MapPinnedIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
+import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import { ZoneEditor, type TypeOption, type ZoneRow } from "./zone-editor";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function DeliveryZonesPage() {
   await requireAdmin();
   const [zones, types, origin] = await Promise.all([
     getZonesWithTypes(),
-    getDeliveryTypes(),
+    getAllDeliveryTypes(),
     getStoreOrigin(),
   ]);
 

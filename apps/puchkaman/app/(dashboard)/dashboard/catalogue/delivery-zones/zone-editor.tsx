@@ -152,9 +152,17 @@ function ZoneCard({
                 key={t.publicId}
                 className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
               >
-                <span className="text-sm font-medium">{t.label}</span>
+                <span className="text-sm font-medium">
+                  {t.label}
+                  {!t.active ? (
+                    <Badge variant="secondary" className="ml-2 align-middle">
+                      Retired
+                    </Badge>
+                  ) : null}
+                </span>
                 <Switch
                   checked={selectedTypes.includes(t.publicId)}
+                  disabled={!t.active && !selectedTypes.includes(t.publicId)}
                   onCheckedChange={() => toggleType(t.publicId)}
                 />
               </label>
