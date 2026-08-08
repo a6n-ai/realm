@@ -367,7 +367,7 @@ export function CheckoutClient({
               {(
                 [
                   ["pickup", "Pickup", "3315 Danforth Ave · ~15 min"],
-                  ["delivery", "Delivery", "Within 7km, or book a slot"],
+                  ["delivery", "Delivery", "Enter your address to see what's available"],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button
