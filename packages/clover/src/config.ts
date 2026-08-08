@@ -100,9 +100,18 @@ export const DEFAULT_CLOVER_CONNECTION: CloverConnection = {
   authMode: "oauth",
 };
 
+/**
+ * Never substitute `{}` on a parse failure — every plugin install/uninstall is a
+ * read-modify-write through this (get → merge own key → set), and the merged
+ * result gets PERSISTED. Falling back to `{}` here would silently wipe every
+ * other plugin's config (e.g. live Clover merchant tokens) the next time any
+ * unrelated plugin toggles. Best-effort preserve the raw blob instead — an
+ * unparseable sibling key round-trips unchanged rather than vanishing.
+ */
 export function parseIntegrationsConfig(raw: unknown): IntegrationsConfig {
   const parsed = integrationsConfigSchema.safeParse(raw ?? {});
-  return parsed.success ? parsed.data : DEFAULT_INTEGRATIONS_CONFIG;
+  if (parsed.success) return parsed.data;
+  return raw && typeof raw === "object" ? (raw as IntegrationsConfig) : DEFAULT_INTEGRATIONS_CONFIG;
 }
 
 export function parseCloverConnection(raw: unknown): CloverConnection {

@@ -84,6 +84,26 @@ describe("config helpers", () => {
     expect(parseIntegrationsConfig(undefined)).toEqual({});
   });
 
+  it("never substitutes {} on a parse failure — an unrelated read-modify-write must not wipe an unparseable sibling key", () => {
+    // Simulates a corrupted `clover` sub-object (fails cloverConnectionSchema)
+    // sitting alongside a valid, unrelated plugin key.
+    const corrupted = { clover: { installed: "not-a-boolean" }, optimoRoute: { apiKey: "live-key" } };
+    const parsed = parseIntegrationsConfig(corrupted);
+    // The clover-flavoured API-token surface (installed) fails whole-schema
+    // parsing, so parseIntegrationsConfig falls back to preserving the raw
+    // blob rather than {} — the sibling key must still be there afterward.
+    expect(parsed).toMatchObject({ optimoRoute: { apiKey: "live-key" } });
+
+    // And a plugin's read-modify-write (get → merge own key → set → reparse
+    // on the way in) must round-trip that sibling key unchanged.
+    const merged = { ...parsed, googleReviews: { installed: true } };
+    const reparsed = parseIntegrationsConfig(merged);
+    expect(reparsed).toMatchObject({
+      optimoRoute: { apiKey: "live-key" },
+      googleReviews: { installed: true },
+    });
+  });
+
   it("strips tokens from public projection", () => {
     const pub = toPublicCloverConnection({
       installed: true,
