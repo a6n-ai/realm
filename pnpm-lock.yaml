@@ -654,6 +654,9 @@ importers:
 
   packages/google-reviews:
     dependencies:
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
       '@realm/crm':
         specifier: workspace:*
         version: link:../crm

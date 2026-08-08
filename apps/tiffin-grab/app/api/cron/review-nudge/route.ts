@@ -1,17 +1,10 @@
 import { and, eq, isNull, lt } from "drizzle-orm";
-import {
-  getGoogleReviewsConfig,
-  renderReviewNudgeEmail,
-  shouldNudge,
-} from "@realm/google-reviews";
-import { createLogger } from "@realm/commons/logger";
+import { dispatchReviewNudge, getGoogleReviewsConfig } from "@realm/google-reviews";
 import { db } from "@/db/client";
 import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 import { getEmailProvider } from "@/lib/email/provider";
-
-const log = createLogger("review-nudge-cron");
 
 // Scheduler-agnostic protected route, same fail-closed contract as optimoroute-sync.
 export const dynamic = "force-dynamic";
@@ -34,6 +27,10 @@ async function handle(request: Request): Promise<Response> {
 
   // deliveries has no userId — it hangs off orders, and orders.userId is nullable
   // (guest/legacy rows), so candidates without a joined user are dropped below.
+  // This join is raw-case against users.email, not lower(users.email) — a mixed-case
+  // stored address can miss the reviewNudges prefilter here. Harmless: dispatchReviewNudge
+  // re-checks shouldNudge, which normalizes email before reading the store, so a false
+  // "not yet nudged" here still resolves correctly, just does one extra store read.
   const candidates = await db
     .selectDistinct({ email: users.email, name: users.name })
     .from(deliveries)
@@ -45,37 +42,27 @@ async function handle(request: Request): Promise<Response> {
         eq(deliveries.status, "scheduled"),
         lt(deliveries.deliveryDate, today),
         isNull(reviewNudges.email),
+        // Opted-out users are never mailed — same rule notifications/policy.ts
+        // applies to the outbox (email defers to this flag with no pref row).
+        eq(users.notifyEmail, true),
       ),
     )
     // ponytail: capped batch, add a cursor if the backlog ever exceeds one run
     .limit(200);
 
-  let sent = 0;
   for (const c of candidates) {
     if (!c.email) continue;
-    if (!shouldNudge(await reviewNudgeStore.get(c.email))) continue;
-    try {
-      const mail = await renderReviewNudgeEmail({
-        businessName: "Tiffin Grab",
-        customerName: c.name ?? undefined,
-        placeId: cfg.placeId,
-      });
-      // Claim first: an upsert before send means a crash mid-send cannot produce
-      // a second email later. One missed nudge beats nagging a customer twice.
-      await reviewNudgeStore.markSent(c.email);
-      await getEmailProvider().send({
-        to: { email: c.email, name: c.name?.trim() || undefined },
-        subject: mail.subject,
-        html: mail.html,
-        text: mail.text,
-      });
-      sent += 1;
-    } catch (err) {
-      log.error({ err, email: c.email }, "review nudge send failed");
-    }
+    await dispatchReviewNudge({
+      email: c.email,
+      name: c.name ?? undefined,
+      businessName: "Tiffin Grab",
+      configStore: integrationsConfigStore,
+      nudgeStore: reviewNudgeStore,
+      emailProvider: getEmailProvider(),
+    });
   }
 
-  return Response.json({ candidates: candidates.length, sent });
+  return Response.json({ candidates: candidates.length });
 }
 
 export const GET = handle;

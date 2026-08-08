@@ -30,6 +30,9 @@ async function handle(request: Request): Promise<Response> {
   const cutoff = Date.now() - NUDGE_DELAY_MS;
 
   // Puchkaman is guest checkout — no user row, so the email lives on the order itself.
+  // This join is raw-case against orders.customerEmail, not lower(). Harmless: a
+  // mixed-case address can miss the reviewNudges prefilter here, but dispatchReviewNudge
+  // re-checks shouldNudge, which normalizes email before reading the store.
   const candidates = await db
     .selectDistinct({ email: orders.customerEmail, name: orders.customerName })
     .from(orders)

@@ -7,3 +7,4 @@ export * from "./store";
 export * from "./summary";
 export * from "./nudge";
 export * from "./nudge-email";
+export * from "./dispatch";
