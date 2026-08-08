@@ -1,9 +1,10 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { PuzzleIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { resolveStatuses } from "@realm/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { PLUGINS } from "@/lib/plugins.server";
+import { ProviderCatalog, ProviderCatalogSkeleton } from "./provider-catalog";
 
 export default async function PaymentsSettingsIndex() {
   await requireAdmin();
@@ -12,20 +13,25 @@ export default async function PaymentsSettingsIndex() {
   if (first) redirect(`/dashboard/settings/payments/${first.id}`);
 
   return (
-    <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-6">
-      <span className="bg-muted text-muted-foreground grid size-10 place-items-center rounded-lg">
-        <PuzzleIcon className="size-5" />
-      </span>
+    <div className="space-y-4">
       <div className="space-y-1">
-        <p className="font-medium">No payment plugins installed</p>
+        <p className="font-medium">Add a payment provider</p>
         <p className="text-muted-foreground text-sm">
-          Method tabs show up here after you add a payment plugin under Integrations. Until then
-          the app stays in simulated mode.
+          Install one below to start accepting payments — this is the Payments plugin's own
+          settings surface, separate from Integrations.
         </p>
       </div>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/dashboard/settings/integrations">Browse plugins</Link>
-      </Button>
+      <Suspense fallback={<ProviderCatalogSkeleton />}>
+        <ProviderCatalogLoader />
+      </Suspense>
     </div>
   );
+}
+
+async function ProviderCatalogLoader() {
+  const statuses = await resolveStatuses(PLUGINS);
+  const blockedPluginIds = Object.entries(statuses)
+    .filter(([, s]) => !s.installed)
+    .map(([id]) => id);
+  return <ProviderCatalog blockedPluginIds={blockedPluginIds} />;
 }

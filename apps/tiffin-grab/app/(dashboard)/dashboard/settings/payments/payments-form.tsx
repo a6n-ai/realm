@@ -71,8 +71,8 @@ export function PaymentsForm({
     return (
       <p className="text-muted-foreground text-sm">
         This payment method is not installed.{" "}
-        <Link href="/dashboard/settings/integrations" className="underline">
-          Browse plugins
+        <Link href="/dashboard/settings/payments" className="underline">
+          Add a provider
         </Link>
       </p>
     );
