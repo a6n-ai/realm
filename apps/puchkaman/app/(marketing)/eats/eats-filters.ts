@@ -42,6 +42,10 @@ export const EMPTY_FILTERS: EatsFilterState = {
   sort: "menu",
 };
 
+/** Initial page state — in-stock items only. "Clear filters" still resets to
+ * EMPTY_FILTERS (truly nothing applied), not back to this. */
+export const DEFAULT_FILTERS: EatsFilterState = { ...EMPTY_FILTERS, availableOnly: true };
+
 /** Sort is not a filter: it reorders the menu but never hides anything. */
 export function activeFilterCount(f: EatsFilterState): number {
   return (

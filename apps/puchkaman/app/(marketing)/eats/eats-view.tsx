@@ -10,6 +10,7 @@ import {
   activeFilterCount,
   availableTags,
   countItems,
+  DEFAULT_FILTERS,
   EMPTY_FILTERS,
   filterCategories,
   type EatsCategory,
@@ -28,7 +29,7 @@ export function EatsView({
   /** When false, browse-only: no Add to cart / Available / Out of stock CTAs. */
   orderingEnabled: boolean;
 }) {
-  const [filters, setFilters] = useState<EatsFilterState>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<EatsFilterState>(DEFAULT_FILTERS);
   const [panelOpen, setPanelOpen] = useState(false);
 
   const tags = useMemo(() => availableTags(categories), [categories]);
@@ -54,8 +55,7 @@ export function EatsView({
               No products yet
             </h2>
             <p style={{ fontWeight: 500, marginBottom: 16, opacity: 0.85 }}>
-              The menu is empty because there are no products in the catalog. Add products in admin,
-              or sync from Uber Eats / Clover — then items will show here.
+              The menu is empty because there are no products in the catalog. Check back soon.
             </p>
             <Btn page="order" variant="green">
               Other ways to order →
@@ -131,7 +131,7 @@ export function EatsView({
                     }))
                   }
                 >
-                  <span aria-hidden="true">{c.emoji}</span> {c.name}
+                  {c.name}
                 </button>
               );
             })}
