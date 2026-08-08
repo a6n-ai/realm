@@ -7,6 +7,8 @@ export type Zone = {
   /** DB row id, when this Zone came from a query that selected it — used to
    * stamp `orders.delivery_zone_id`. Absent on hand-built test fixtures. */
   id?: bigint;
+  /** Stable public id, when this Zone came from a query — the admin UI's edit/retire target. */
+  publicId?: string;
   name: string;
   radiusKm: number;
   active: boolean;
@@ -36,8 +38,11 @@ export type DeliveryType = {
   /** DB row id, when this DeliveryType came from a query — used to stamp
    * `orders.delivery_type_id`. Absent on hand-built test fixtures. */
   id?: bigint;
+  /** Stable public id, when this DeliveryType came from a query — the admin UI's edit/retire target. */
+  publicId?: string;
   key: string;
   label: string;
+  description?: string | null;
   requiresAddress: boolean;
   requiresSchedule: boolean;
   minSubtotal: number;

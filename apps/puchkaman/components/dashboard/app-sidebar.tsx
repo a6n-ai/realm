@@ -8,7 +8,9 @@ import {
   FolderTreeIcon,
   LayoutDashboardIcon,
   LayersIcon,
+  ListTreeIcon,
   LogOutIcon,
+  MapPinnedIcon,
   PackageIcon,
   PercentIcon,
   PrinterIcon,
@@ -60,6 +62,11 @@ const COMMERCE_ITEMS: NavItem[] = [
   { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon },
 ];
 
+const CATALOGUE_ITEMS: NavItem[] = [
+  { title: "Delivery types", href: "/dashboard/catalogue/delivery-types", icon: ListTreeIcon },
+  { title: "Delivery zones", href: "/dashboard/catalogue/delivery-zones", icon: MapPinnedIcon },
+];
+
 const CLOVER_CATALOG_ITEMS: NavItem[] = [
   { title: "Categories", href: "/dashboard/clover/categories", icon: FolderTreeIcon },
   {
@@ -95,6 +102,8 @@ export function getNavSections(opts: {
       items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon }],
     },
   ];
+
+  sections.push({ label: "Catalogue", items: CATALOGUE_ITEMS });
 
   const cloverStatus = opts.statuses[CLOVER_PLUGIN_ID] ?? { installed: false };
   if (cloverStatus.installed) {

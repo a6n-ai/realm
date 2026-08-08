@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@react-google-maps/api": "^2.20.3",
     "@realm/auth": "workspace:*",
     "@realm/auth-ui": "workspace:*",
     "@realm/clover": "workspace:*",

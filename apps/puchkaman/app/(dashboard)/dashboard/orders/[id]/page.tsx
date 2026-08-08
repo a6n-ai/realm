@@ -9,6 +9,7 @@ import { Button } from "@realm/ui/button";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
 import { requireAdmin } from "@/lib/auth/guards";
+import { getDeliveryLabelsForOrder } from "@/lib/delivery/zones.service";
 import { employeesService } from "@/lib/services/employees.service";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { ordersService } from "@/lib/services/orders.service";
@@ -29,6 +30,10 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   if (!detailResult.ok) notFound();
   const { order, items, payments, assignedEmployee } = detailResult.d;
   const cloverEnabled = Boolean(clover.installed);
+  const { typeLabel: deliveryTypeLabel, zoneName: deliveryZoneName } = await getDeliveryLabelsForOrder(
+    order.deliveryTypeId,
+    order.deliveryZoneId,
+  );
   const canCheckStatus =
     cloverEnabled && Boolean(order.cloverOrderId || payments.some((p) => p.cloverChargeId));
 
@@ -66,6 +71,17 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
               <dt className="text-muted-foreground">Fulfillment</dt>
               <dd className="capitalize">{order.fulfillment.replace(/_/g, " ")}</dd>
             </div>
+            {deliveryTypeLabel ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Delivery type</dt>
+                <dd>
+                  {deliveryTypeLabel}
+                  {deliveryZoneName ? (
+                    <span className="text-muted-foreground"> ({deliveryZoneName})</span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
             {order.deliveryAddress ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Delivery address</dt>

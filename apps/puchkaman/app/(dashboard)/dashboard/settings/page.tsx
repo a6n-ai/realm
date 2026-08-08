@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   CreditCardIcon,
+  MapPinnedIcon,
   PuzzleIcon,
   SettingsIcon,
   StarIcon,
@@ -58,6 +59,14 @@ export default async function SettingsPage() {
       href: "/dashboard/settings/google-reviews",
     });
   }
+
+  sections.push({
+    key: "delivery-zones",
+    label: "Delivery zones",
+    description: "Delivery types, zone radii, and the shop's map origin.",
+    icon: MapPinnedIcon,
+    href: "/dashboard/catalogue/delivery-zones",
+  });
 
   sections.push({
     key: "users",

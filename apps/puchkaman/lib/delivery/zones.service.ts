@@ -8,6 +8,7 @@ import type { DeliveryType, Zone, ZoneWithTypes } from "./zones";
 
 type ZoneRow = {
   id?: bigint;
+  publicId?: string;
   name: string;
   radiusKm: string;
   active: boolean;
@@ -17,6 +18,7 @@ type ZoneRow = {
 export function rowToZone(row: ZoneRow): Zone {
   return {
     id: row.id,
+    publicId: row.publicId,
     name: row.name,
     radiusKm: Number(row.radiusKm),
     active: row.active,
@@ -25,8 +27,10 @@ export function rowToZone(row: ZoneRow): Zone {
 
 type TypeRow = {
   id?: bigint;
+  publicId?: string;
   key: string;
   label: string;
+  description?: string | null;
   requiresAddress: boolean;
   requiresSchedule: boolean;
   minSubtotal: string;
@@ -39,8 +43,10 @@ type TypeRow = {
 export function rowToType(row: TypeRow): DeliveryType {
   return {
     id: row.id,
+    publicId: row.publicId,
     key: row.key,
     label: row.label,
+    description: row.description,
     requiresAddress: row.requiresAddress,
     requiresSchedule: row.requiresSchedule,
     minSubtotal: Number(row.minSubtotal),
@@ -71,6 +77,12 @@ export async function getDeliveryTypes(): Promise<DeliveryType[]> {
     .from(deliveryTypes)
     .where(eq(deliveryTypes.active, true))
     .orderBy(deliveryTypes.sortOrder);
+  return rows.map(rowToType);
+}
+
+/** Every delivery type, retired included — the catalogue admin manages both, unlike {@link getDeliveryTypes}. */
+export async function getAllDeliveryTypes(): Promise<DeliveryType[]> {
+  const rows = await db.select().from(deliveryTypes).orderBy(deliveryTypes.sortOrder);
   return rows.map(rowToType);
 }
 
@@ -143,6 +155,34 @@ export async function setZoneTypes(zoneId: bigint, typeIds: bigint[]): Promise<v
       await tx.insert(deliveryZoneTypes).values(typeIds.map((typeId) => ({ zoneId, typeId })));
     }
   });
+}
+
+/**
+ * {@link setZoneTypes} keys on internal bigint ids; the admin UI only ever
+ * holds public ids client-side, so the server action resolves through these
+ * before calling it. `read()` throws NotFoundError on a bad public id.
+ */
+export async function resolveZoneId(publicId: string): Promise<bigint> {
+  return (await zoneService.read(publicId)).id;
+}
+
+export async function resolveTypeIds(publicIds: string[]): Promise<bigint[]> {
+  const rows = await Promise.all(publicIds.map((id) => typeService.read(id)));
+  return rows.map((r) => r.id);
+}
+
+/** Type/zone labels for an order's delivery — resolves the FK ids the order row carries. */
+export async function getDeliveryLabelsForOrder(
+  typeId: bigint | null,
+  zoneId: bigint | null,
+): Promise<{ typeLabel: string | null; zoneName: string | null }> {
+  const [typeRow] = typeId
+    ? await db.select({ label: deliveryTypes.label }).from(deliveryTypes).where(eq(deliveryTypes.id, typeId)).limit(1)
+    : [];
+  const [zoneRow] = zoneId
+    ? await db.select({ name: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.id, zoneId)).limit(1)
+    : [];
+  return { typeLabel: typeRow?.label ?? null, zoneName: zoneRow?.name ?? null };
 }
 
 /**
