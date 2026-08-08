@@ -1,27 +1,25 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
-import { ProviderCatalogSkeleton } from "./provider-catalog";
-import { ProviderCatalogLoader } from "./provider-catalog-loader";
+import { ProviderCatalogSkeleton } from "../provider-catalog";
+import { ProviderCatalogLoader } from "../provider-catalog-loader";
 
-export default async function PaymentsSettingsIndex() {
+/** Reachable from PaymentTabs' "Add provider" trigger — the only way to gain a
+ * second/third provider once the index route redirects past the catalog. */
+export default async function AddPaymentProviderPage() {
   await requireAdmin();
   const cfg = await getPaymentConfig();
-  const first = cfg.methods[0];
-  if (first) redirect(`/dashboard/settings/payments/${first.id}`);
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <p className="font-medium">Add a payment provider</p>
         <p className="text-muted-foreground text-sm">
-          Install one below to start accepting payments — this is the Payments plugin's own
-          settings surface, separate from Integrations.
+          Every installed method already gets its own tab above.
         </p>
       </div>
       <Suspense fallback={<ProviderCatalogSkeleton />}>
-        <ProviderCatalogLoader installedIds={[]} />
+        <ProviderCatalogLoader installedIds={cfg.methods.map((m) => m.id)} />
       </Suspense>
     </div>
   );
