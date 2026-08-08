@@ -23,8 +23,8 @@ import {
 } from "@/lib/clover/public-ordering";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
+import { chooseDelivery } from "@/lib/delivery/choose-delivery";
 import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
-import { availableTypes, deliveryLimitKm, zoneForType } from "@/lib/delivery/zones";
 import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
@@ -564,34 +564,24 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       );
 
       // Re-derive what is genuinely offered here. The client sent only a key.
-      const { deliveryTypeKey } = parsed.fulfillment;
-      const offered = availableTypes(deliveryDistanceKm, zones);
-      const type = offered.find((t) => t.key === deliveryTypeKey);
-      if (!type) {
-        const limit = deliveryLimitKm(zones);
-        throw new ValidationError(
-          offered.length === 0 && limit != null
-            ? `We don't deliver that far yet (${deliveryDistanceKm} km — we deliver up to ${limit} km). Pickup is available.`
-            : "That delivery option isn't available for this address.",
-        );
-      }
+      const choice = chooseDelivery({
+        distanceKm: deliveryDistanceKm,
+        typeKey: parsed.fulfillment.deliveryTypeKey,
+        zones,
+        subtotal,
+        scheduledFor: parsed.fulfillment.scheduledFor,
+      });
+      if (!choice.ok) throw new ValidationError(choice.message);
+      const { type, zone } = choice;
+      if (!zone.id) throw new ValidationError("Could not resolve a delivery zone for that address.");
 
-      if (subtotal < type.minSubtotal) {
-        throw new ValidationError(`${type.label} requires an order over $${type.minSubtotal}.`);
-      }
       if (type.requiresSchedule) {
-        if (!parsed.fulfillment.scheduledFor) {
-          throw new ValidationError(`Pick a delivery time for ${type.label}.`);
-        }
-        const scheduled = new Date(parsed.fulfillment.scheduledFor);
+        const scheduled = new Date(parsed.fulfillment.scheduledFor!);
         if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
           throw new ValidationError("Pick a delivery time in the future.");
         }
         scheduledForMs = scheduled.getTime();
       }
-
-      const zone = zoneForType(deliveryDistanceKm, type.key, zones);
-      if (!zone?.id) throw new ValidationError("Could not resolve a delivery zone for that address.");
 
       fulfillment = type.requiresSchedule ? "delivery_scheduled" : "delivery_instant";
 
