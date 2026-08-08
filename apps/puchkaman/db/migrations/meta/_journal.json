@@ -36,6 +36,13 @@
       "when": 1785962129797,
       "tag": "0004_overjoyed_starfox",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786201526338,
+      "tag": "0005_real_proudstar",
+      "breakpoints": true
     }
   ]
 }

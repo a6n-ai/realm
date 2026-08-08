@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./plugin": "./src/plugin.ts",
     "./server": "./src/plugin.server.ts",
-    "./ui": "./src/ui/index.ts"
+    "./ui": "./src/ui/index.ts",
+    "./db": "./src/db.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
@@ -23,12 +24,15 @@
   },
   "peerDependencies": {
     "react": "^19",
-    "next": "16.2.9"
+    "next": "16.2.9",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.9",
+    "postgres": "^3.4.9",
     "react": "19.2.4",
     "typescript": "^5",
     "vitest": "^4.1.9"
