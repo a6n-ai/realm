@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
-  transpilePackages: ["@realm/commons", "@realm/database", "@realm/routes", "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm", "@realm/realtime", "@realm/auth-ui", "@realm/clover"],
+  transpilePackages: ["@realm/commons", "@realm/database", "@realm/routes", "@realm/themes", "@realm/ui", "@realm/design-system", "@realm/crm", "@realm/realtime", "@realm/auth-ui", "@realm/clover", "@realm/google-reviews"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   // Product photos are rehosted via S3 + CloudFront (FILES_PUBLIC_BASE_URL) — when

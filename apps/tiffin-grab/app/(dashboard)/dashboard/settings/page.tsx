@@ -4,12 +4,14 @@ import {
   CreditCardIcon,
   PuzzleIcon,
   SettingsIcon,
+  StarIcon,
   UsersIcon,
   UtensilsCrossedIcon,
   Webhook,
   type LucideIcon,
 } from "lucide-react";
 import { getCloverConnection } from "@realm/clover";
+import { getGoogleReviewsConfig } from "@realm/google-reviews";
 import { PAYMENTS_PLUGIN_ID } from "@realm/payments/plugin";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
@@ -28,6 +30,7 @@ export default async function SettingsPage() {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
   const paymentsStatus = await PLUGINS.find((p) => p.id === PAYMENTS_PLUGIN_ID)?.status();
+  const googleReviews = await getGoogleReviewsConfig(integrationsConfigStore);
 
   const sections: SettingsSection[] = [
     {
@@ -84,6 +87,16 @@ export default async function SettingsPage() {
       description: "Merchant connection, reconnect, and disconnect.",
       icon: CreditCardIcon,
       href: "/dashboard/settings/clover",
+    });
+  }
+
+  if (googleReviews.installed) {
+    sections.push({
+      key: "google-reviews",
+      label: "Google Reviews",
+      description: "Place ID and public review display.",
+      icon: StarIcon,
+      href: "/dashboard/settings/google-reviews",
     });
   }
 

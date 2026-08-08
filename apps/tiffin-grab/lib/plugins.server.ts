@@ -1,6 +1,7 @@
 import type { PluginRegistry } from "@realm/crm/server";
 import { cloverPlugin } from "@realm/clover/server";
 import { paymentsPlugin } from "@realm/payments/server";
+import { googleReviewsPlugin } from "@realm/google-reviews/server";
 import {
   getIntegrationsConfig,
   setIntegrationsConfig,
@@ -14,4 +15,5 @@ export const PLUGINS: PluginRegistry = [
     payments: { get: getPaymentConfig },
   }),
   cloverPlugin(integrationsConfigStore),
+  googleReviewsPlugin(integrationsConfigStore),
 ];
