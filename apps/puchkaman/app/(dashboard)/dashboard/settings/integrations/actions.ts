@@ -48,9 +48,15 @@ export async function setPluginInstalledAction(
     if (missing.length) {
       return { error: `Install ${missing.join(", ")} first` };
     }
-    await plugin.install();
-  } else {
-    await plugin.uninstall();
+  }
+
+  // The store write can fail (DB down, constraint). Returning the message keeps
+  // the constraint true end-to-end — an uncaught throw here would reach the
+  // admin as an opaque digest with nothing actionable in it.
+  try {
+    installed ? await plugin.install() : await plugin.uninstall();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not update plugin" };
   }
 
   await recordAudit({
