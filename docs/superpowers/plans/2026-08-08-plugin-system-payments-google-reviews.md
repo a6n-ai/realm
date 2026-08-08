@@ -635,26 +635,30 @@ git commit -m "feat(payments): move the payment catalog into the package as prov
 
 ---
 
-### Task 3: Payments becomes one plugin in tiffin-grab
+### Task 3: Payments becomes one plugin
+
+**Modularity ruling (binding):** the plugin adapter lives in `@realm/payments`, **not** in the app. The package never imports an app — every app-specific thing (both config stores) is injected, exactly like `@realm/clover`'s existing `IntegrationsConfigStore`. The app's only job is to call `paymentsPlugin({...})` with its own stores.
 
 **Files:**
-- Create: `apps/tiffin-grab/lib/plugins/payments-plugin.ts`
-- Create: `apps/tiffin-grab/lib/plugins.server.ts`
-- Test: `apps/tiffin-grab/lib/plugins/__tests__/payments-plugin.test.ts`
+- Create: `packages/payments/src/plugin.ts` (client-safe meta)
+- Create: `packages/payments/src/plugin.server.ts` (adapter)
+- Test: `packages/payments/src/__tests__/plugin.server.test.ts`
+- Modify: `packages/payments/package.json` (add `@realm/crm` dep, `./plugin` + `./server` exports)
+- Create: `apps/tiffin-grab/lib/plugins.ts`, `apps/tiffin-grab/lib/plugins.server.ts`
 - Modify: `apps/tiffin-grab/app/(dashboard)/dashboard/settings/payments/actions.ts`
 - Delete: `apps/tiffin-grab/app/(dashboard)/dashboard/settings/integrations/registry.ts`
 
 **Interfaces:**
 - Consumes: `PluginServer` / `PluginRegistry` from `@realm/crm/server` (Task 1); `PAYMENT_PROVIDERS`, `findPaymentProvider` from `@realm/payments` (Task 2); `getPaymentConfig`, `setPaymentConfig`, `getIntegrationsConfig`, `setIntegrationsConfig` from `apps/tiffin-grab/lib/services/app-settings.service.ts`.
-- Produces: `PAYMENTS_PLUGIN_ID`, `PAYMENTS_PLUGIN` (meta), `paymentsPlugin()` from `apps/tiffin-grab/lib/plugins/payments-plugin.ts`; `PLUGINS` registry from `apps/tiffin-grab/lib/plugins.server.ts`.
+- Produces: `PAYMENTS_PLUGIN_ID`, `PAYMENTS_PLUGIN` from `@realm/payments/plugin`; `paymentsInstalledFrom`, `paymentsPlugin(deps)`, `PaymentsPluginDeps` from `@realm/payments/server`; `PLUGINS` / `PLUGIN_METAS` from the tiffin-grab registry files.
 
 - [ ] **Step 1: Write the failing test for install-state backfill**
 
-Create `apps/tiffin-grab/lib/plugins/__tests__/payments-plugin.test.ts`:
+Create `packages/payments/src/__tests__/plugin.server.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { paymentsInstalledFrom } from "../payments-plugin";
+import { paymentsInstalledFrom } from "../plugin.server";
 
 describe("paymentsInstalledFrom", () => {
   it("is true when the explicit flag is set", () => {
@@ -686,27 +690,20 @@ describe("paymentsInstalledFrom", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `pnpm --filter tiffin-grab test -- payments-plugin`
-Expected: FAIL — cannot resolve `../payments-plugin`.
+Run: `pnpm --filter @realm/payments test -- plugin.server`
+Expected: FAIL — cannot resolve `../plugin.server`.
 
-- [ ] **Step 3: Write the payments plugin adapter**
+- [ ] **Step 3: Write the client-safe meta**
 
-Create `apps/tiffin-grab/lib/plugins/payments-plugin.ts`:
+Create `packages/payments/src/plugin.ts`:
 
 ```ts
 import { CreditCardIcon } from "lucide-react";
 import type { PluginMeta } from "@realm/crm";
-import type { PluginServer, PluginStatus } from "@realm/crm/server";
-import type { PaymentConfig } from "@realm/payments";
-import {
-  getIntegrationsConfig,
-  setIntegrationsConfig,
-  getPaymentConfig,
-  setPaymentConfig,
-} from "@/lib/services/app-settings.service";
 
 export const PAYMENTS_PLUGIN_ID = "payments" as const;
 
+/** Client-safe catalog metadata. No secrets, no fetch, no store. */
 export const PAYMENTS_PLUGIN: PluginMeta = {
   id: PAYMENTS_PLUGIN_ID,
   label: "Payments",
@@ -714,6 +711,33 @@ export const PAYMENTS_PLUGIN: PluginMeta = {
     "Accept payments. Configure providers — e-Transfer, cash, manual — under Settings → Payment.",
   icon: CreditCardIcon,
   settingsHref: "/dashboard/settings/payments",
+};
+```
+
+- [ ] **Step 4: Write the adapter with injected stores**
+
+Create `packages/payments/src/plugin.server.ts`. **Both stores are injected** — this package must never import an app:
+
+```ts
+import type { PluginServer, PluginStatus } from "@realm/crm/server";
+import type { PaymentConfig } from "./config";
+import { PAYMENTS_PLUGIN_ID } from "./plugin";
+
+/**
+ * App-injected persistence. Mirrors @realm/clover's IntegrationsConfigStore:
+ * the package never imports an app or a DB client.
+ *
+ * `integrations` is the shared plugin blob (JSONB on the tenant row);
+ * `payments` is the separate payment_config blob holding provider rows.
+ */
+export type PaymentsPluginDeps = {
+  integrations: {
+    get(): Promise<Record<string, unknown>>;
+    set(cfg: Record<string, unknown>): Promise<void>;
+  };
+  payments: {
+    get(): Promise<PaymentConfig>;
+  };
 };
 
 type PaymentsPluginConfig = { installed: boolean } | undefined;
@@ -731,47 +755,112 @@ export function paymentsInstalledFrom(
   return payments.methods.length > 0;
 }
 
-export function paymentsPlugin(): PluginServer {
+export function paymentsPlugin(deps: PaymentsPluginDeps): PluginServer {
+  const setInstalled = async (installed: boolean): Promise<void> => {
+    const cfg = await deps.integrations.get();
+    await deps.integrations.set({ ...cfg, [PAYMENTS_PLUGIN_ID]: { installed } });
+  };
+
   return {
     id: PAYMENTS_PLUGIN_ID,
 
     async status(): Promise<PluginStatus> {
       const [integrations, payments] = await Promise.all([
-        getIntegrationsConfig(),
-        getPaymentConfig(),
+        deps.integrations.get(),
+        deps.payments.get(),
       ]);
       const cfg = integrations[PAYMENTS_PLUGIN_ID] as PaymentsPluginConfig;
       const installed = paymentsInstalledFrom(cfg, payments);
+      const n = payments.methods.length;
       return {
         installed,
-        statusLabel: installed
-          ? `Installed · ${payments.methods.length} provider${payments.methods.length === 1 ? "" : "s"}`
-          : undefined,
+        statusLabel: installed ? `Installed · ${n} provider${n === 1 ? "" : "s"}` : undefined,
       };
     },
 
-    async install(): Promise<void> {
-      const cfg = await getIntegrationsConfig();
-      await setIntegrationsConfig({ ...cfg, [PAYMENTS_PLUGIN_ID]: { installed: true } });
-    },
+    install: () => setInstalled(true),
 
-    async uninstall(): Promise<void> {
-      // Providers and their tax/payee config stay in payment_config untouched —
-      // uninstalling hides the Payment settings surface, it does not destroy
-      // money configuration. Reinstalling restores exactly what was there.
-      const cfg = await getIntegrationsConfig();
-      await setIntegrationsConfig({ ...cfg, [PAYMENTS_PLUGIN_ID]: { installed: false } });
-    },
+    // Providers and their tax/payee config stay in payment_config untouched —
+    // uninstalling hides the Payment settings surface, it does not destroy
+    // money configuration. Reinstalling restores exactly what was there.
+    uninstall: () => setInstalled(false),
   };
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+Add to `packages/payments/package.json`: `"@realm/crm": "workspace:*"` in `dependencies`, and extend `exports`:
 
-Run: `pnpm --filter tiffin-grab test -- payments-plugin`
-Expected: PASS — 4 tests.
+```json
+"exports": {
+  ".": "./src/index.ts",
+  "./plugin": "./src/plugin.ts",
+  "./server": "./src/plugin.server.ts"
+}
+```
 
-- [ ] **Step 5: Repoint the payment actions at the package**
+Do **not** re-export `plugin.server.ts` from `src/index.ts` — keeping it on its own subpath is what stops a client component pulling it in.
+
+Run: `pnpm install`
+
+- [ ] **Step 5: Extend the test for the injected-store behaviour**
+
+Append to `packages/payments/src/__tests__/plugin.server.test.ts`:
+
+```ts
+import { paymentsPlugin } from "../plugin.server";
+
+function deps(integrations: Record<string, unknown> = {}, methods: PaymentConfig["methods"] = []) {
+  let cfg = { ...integrations };
+  return {
+    store: {
+      integrations: {
+        get: async () => cfg,
+        set: async (next: Record<string, unknown>) => {
+          cfg = next;
+        },
+      },
+      payments: { get: async () => ({ methods }) as PaymentConfig },
+    },
+    raw: () => cfg,
+  };
+}
+
+describe("paymentsPlugin", () => {
+  it("install sets the flag without clobbering another plugin's key", async () => {
+    const d = deps({ clover: { installed: true } });
+    await paymentsPlugin(d.store).install();
+    expect(d.raw()).toEqual({ clover: { installed: true }, payments: { installed: true } });
+  });
+
+  it("uninstall clears the flag and leaves payment methods alone", async () => {
+    const d = deps({ payments: { installed: true } }, [
+      { id: "cash", kind: "manual", enabled: false, label: "Cash", taxes: [] },
+    ]);
+    await paymentsPlugin(d.store).uninstall();
+    expect(d.raw()).toEqual({ payments: { installed: false } });
+    expect(await paymentsPlugin(d.store).status()).toEqual({ installed: false });
+  });
+
+  it("status counts providers when installed", async () => {
+    const d = deps({ payments: { installed: true } }, [
+      { id: "cash", kind: "manual", enabled: false, label: "Cash", taxes: [] },
+    ]);
+    expect(await paymentsPlugin(d.store).status()).toEqual({
+      installed: true,
+      statusLabel: "Installed · 1 provider",
+    });
+  });
+});
+```
+
+Add `import type { PaymentConfig } from "../config";` to the test's imports.
+
+- [ ] **Step 6: Run the test to verify it passes**
+
+Run: `pnpm --filter @realm/payments test`
+Expected: PASS — 7 new tests plus the existing suites.
+
+- [ ] **Step 7: Repoint the payment actions at the package**
 
 In `apps/tiffin-grab/app/(dashboard)/dashboard/settings/payments/actions.ts`, replace the import on line 8:
 
@@ -793,15 +882,15 @@ Delete the now-unused file:
 git rm apps/tiffin-grab/app/\(dashboard\)/dashboard/settings/integrations/registry.ts
 ```
 
-- [ ] **Step 6: Create the app registry**
+- [ ] **Step 8: Create the app registry**
 
-Two files, deliberately split so a client component can never reach the DB by importing the wrong one.
+Two files, deliberately split so a client component can never reach the DB by importing the wrong one. Note how thin the app side now is — the app supplies stores, nothing else.
 
 Create `apps/tiffin-grab/lib/plugins.ts` — **client-safe**, types and icons only:
 
 ```ts
 import type { PluginMeta } from "@realm/crm";
-import { PAYMENTS_PLUGIN } from "./plugins/payments-plugin";
+import { PAYMENTS_PLUGIN } from "@realm/payments/plugin";
 
 /** Order here is the order cards render in. */
 export const PLUGIN_METAS: readonly PluginMeta[] = [PAYMENTS_PLUGIN];
@@ -811,36 +900,50 @@ Create `apps/tiffin-grab/lib/plugins.server.ts` — **server-only**:
 
 ```ts
 import type { PluginRegistry } from "@realm/crm/server";
-import { paymentsPlugin } from "./plugins/payments-plugin";
+import { paymentsPlugin } from "@realm/payments/server";
+import {
+  getIntegrationsConfig,
+  setIntegrationsConfig,
+  getPaymentConfig,
+} from "@/lib/services/app-settings.service";
 
-export const PLUGINS: PluginRegistry = [paymentsPlugin()];
+export const PLUGINS: PluginRegistry = [
+  paymentsPlugin({
+    integrations: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+    payments: { get: getPaymentConfig },
+  }),
+];
 ```
 
-`PAYMENTS_PLUGIN` (the meta) and `paymentsPlugin()` (the server half) both live in `payments-plugin.ts`. That file is server-only because of its service imports, so `plugins.ts` must import **only the meta** — verify the import in `plugins.ts` is `import { PAYMENTS_PLUGIN }` and nothing else. If bundling ever complains, split the meta into `plugins/payments-plugin.meta.ts` and re-export it from both.
+`getIntegrationsConfig` returns the typed `IntegrationsConfig`, which is structurally compatible with the `Record<string, unknown>` the port expects because the schema is `.loose()`. If TypeScript objects to the `set` direction, cast at the injection site here — in the app, never inside the package.
 
 Clover is added to both files in Task 4 and Google Reviews in Task 6.
 
-- [ ] **Step 7: Verify**
+- [ ] **Step 9: Verify**
 
 Run: `pnpm turbo typecheck && pnpm turbo test`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add -A apps/tiffin-grab
-git commit -m "feat(tiffin-grab): model payments as a single plugin over @realm/payments providers"
+git add -A packages/payments apps/tiffin-grab pnpm-lock.yaml
+git commit -m "feat(payments): model payments as a single plugin with injected stores"
 ```
 
 ---
 
 ### Task 4: Clover onto the contract, and both Integrations pages rewritten
 
+**Modularity ruling (binding):** the Clover adapter lives in `@realm/clover`, written **once**, not copied into each app. This task also moves `IntegrationsConfigStore` down into `@realm/crm/server` so plugin packages share one port instead of each importing `@realm/clover` for a type; `@realm/clover` re-exports it so nothing existing breaks.
+
 **Files:**
-- Create: `apps/puchkaman/lib/plugins/clover-plugin.ts`
-- Create: `apps/puchkaman/lib/plugins.server.ts`
-- Create: `apps/tiffin-grab/lib/plugins/clover-plugin.ts`
-- Modify: `apps/tiffin-grab/lib/plugins.server.ts`
+- Create: `packages/crm/src/config-store.ts` (the shared port, re-exported from `@realm/crm/server`)
+- Modify: `packages/clover/src/store.ts` (re-export the port from `@realm/crm/server` instead of declaring it)
+- Create: `packages/clover/src/plugin.server.ts` (the adapter)
+- Modify: `packages/clover/package.json` (add `./server` export)
+- Create: `apps/puchkaman/lib/plugins.ts`, `apps/puchkaman/lib/plugins.server.ts`
+- Modify: `apps/tiffin-grab/lib/plugins.ts`, `apps/tiffin-grab/lib/plugins.server.ts`
 - Modify: `apps/puchkaman/app/(dashboard)/dashboard/settings/integrations/actions.ts`
 - Modify: `apps/puchkaman/app/(dashboard)/dashboard/settings/integrations/page.tsx`
 - Modify: `apps/puchkaman/app/(dashboard)/dashboard/settings/integrations/plugins-catalog.tsx`
@@ -852,21 +955,48 @@ git commit -m "feat(tiffin-grab): model payments as a single plugin over @realm/
 - Consumes: `PLUGINS`/`PLUGIN_METAS` (Task 3), `PluginCatalog`/`resolveStatuses`/`blockedBy` (Task 1), `@realm/clover` store functions.
 - Produces: `cloverPlugin(store)` in each app; `setPluginInstalledAction(id, installed)` in each app's integrations `actions.ts`.
 
-- [ ] **Step 1: Write the Clover adapter (puchkaman)**
+- [ ] **Step 1a: Move the config-store port into `@realm/crm`**
 
-Create `apps/puchkaman/lib/plugins/clover-plugin.ts`:
+Create `packages/crm/src/config-store.ts`:
+
+```ts
+/**
+ * App-injected persistence for the shared plugin config blob (JSONB on the
+ * tenant row). Every plugin package takes this; none imports an app or a DB.
+ * `.loose()` parsing on the app side is what lets plugins coexist in one blob.
+ */
+export type IntegrationsConfigStore<T = Record<string, unknown>> = {
+  get(): Promise<T>;
+  set(cfg: T): Promise<void>;
+};
+```
+
+Re-export it from `packages/crm/src/plugin.server.ts`:
+
+```ts
+export type { IntegrationsConfigStore } from "./config-store";
+```
+
+In `packages/clover/src/store.ts`, delete the local `IntegrationsConfigStore` declaration and replace it with a re-export, so every existing `import { type IntegrationsConfigStore } from "@realm/clover"` keeps working:
+
+```ts
+import type { IntegrationsConfigStore as BaseStore } from "@realm/crm/server";
+import type { IntegrationsConfig } from "./config";
+
+export type IntegrationsConfigStore = BaseStore<IntegrationsConfig>;
+```
+
+- [ ] **Step 1b: Write the Clover adapter — once, in the package**
+
+Create `packages/clover/src/plugin.server.ts`:
 
 ```ts
 import { CreditCardIcon } from "lucide-react";
-import {
-  CLOVER_PLUGIN,
-  getCloverConnection,
-  installCloverPlugin,
-  uninstallCloverPlugin,
-  type IntegrationsConfigStore,
-} from "@realm/clover";
 import type { PluginMeta, PluginNavSection } from "@realm/crm";
 import type { PluginServer, PluginStatus } from "@realm/crm/server";
+import { CLOVER_PLUGIN } from "./plugin";
+import { getCloverConnection, installCloverPlugin, uninstallCloverPlugin } from "./store";
+import type { IntegrationsConfigStore } from "./store";
 
 export const CLOVER_PLUGIN_META: PluginMeta = {
   id: CLOVER_PLUGIN.id,
@@ -906,17 +1036,30 @@ export function cloverPlugin(store: IntegrationsConfigStore): PluginServer {
 }
 ```
 
+Add the `./server` entrypoint to `packages/clover/package.json`:
+
+```json
+"exports": {
+  ".": "./src/index.ts",
+  "./plugin": "./src/plugin.ts",
+  "./server": "./src/plugin.server.ts",
+  "./ui": "./src/ui/index.ts"
+}
+```
+
+`CLOVER_PLUGIN_META` carries a `LucideIcon` and so must stay importable by client code; export it from `./plugin` as well by re-exporting there, or move the meta into `src/plugin.ts` and have `plugin.server.ts` import it. Either is fine — pick one and be consistent with what `@realm/payments` did in Task 3.
+
 The existing `getNavSections` in `apps/puchkaman/components/dashboard/app-sidebar.tsx` is **not** changed in this task — it keeps its `cloverInstalled` prop and its own section building. `nav()` is wired up in a later, separate change; leaving the sidebar alone here keeps this task's blast radius to the Integrations page.
 
 - [ ] **Step 2: Create the puchkaman registry**
 
-Same two-file split as tiffin-grab.
+Same two-file split as tiffin-grab. Note there is no per-app adapter file — the app only supplies its store.
 
 Create `apps/puchkaman/lib/plugins.ts`:
 
 ```ts
 import type { PluginMeta } from "@realm/crm";
-import { CLOVER_PLUGIN_META } from "./plugins/clover-plugin";
+import { CLOVER_PLUGIN_META } from "@realm/clover/plugin";
 
 export const PLUGIN_METAS: readonly PluginMeta[] = [CLOVER_PLUGIN_META];
 ```
@@ -925,8 +1068,8 @@ Create `apps/puchkaman/lib/plugins.server.ts`:
 
 ```ts
 import type { PluginRegistry } from "@realm/crm/server";
+import { cloverPlugin } from "@realm/clover/server";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { cloverPlugin } from "./plugins/clover-plugin";
 
 export const PLUGINS: PluginRegistry = [cloverPlugin(integrationsConfigStore)];
 ```
@@ -1042,15 +1185,13 @@ async function PluginsCatalogLoader() {
 
 - [ ] **Step 6: Mirror all of the above in tiffin-grab**
 
-Create `apps/tiffin-grab/lib/plugins/clover-plugin.ts` with the same content as Step 1, but importing `integrationsConfigStore` from `@/lib/services/app-settings.service`.
-
-Update `apps/tiffin-grab/lib/plugins.server.ts` and `apps/tiffin-grab/lib/plugins.ts`:
+No adapter file is created — `cloverPlugin` already exists in the package. Only the two registry files grow by one entry each:
 
 ```ts
 // apps/tiffin-grab/lib/plugins.ts
 import type { PluginMeta } from "@realm/crm";
-import { PAYMENTS_PLUGIN } from "./plugins/payments-plugin";
-import { CLOVER_PLUGIN_META } from "./plugins/clover-plugin";
+import { PAYMENTS_PLUGIN } from "@realm/payments/plugin";
+import { CLOVER_PLUGIN_META } from "@realm/clover/plugin";
 
 export const PLUGIN_METAS: readonly PluginMeta[] = [PAYMENTS_PLUGIN, CLOVER_PLUGIN_META];
 ```
@@ -1058,15 +1199,25 @@ export const PLUGIN_METAS: readonly PluginMeta[] = [PAYMENTS_PLUGIN, CLOVER_PLUG
 ```ts
 // apps/tiffin-grab/lib/plugins.server.ts
 import type { PluginRegistry } from "@realm/crm/server";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
-import { paymentsPlugin } from "./plugins/payments-plugin";
-import { cloverPlugin } from "./plugins/clover-plugin";
+import { cloverPlugin } from "@realm/clover/server";
+import { paymentsPlugin } from "@realm/payments/server";
+import {
+  getIntegrationsConfig,
+  setIntegrationsConfig,
+  getPaymentConfig,
+  integrationsConfigStore,
+} from "@/lib/services/app-settings.service";
 
 export const PLUGINS: PluginRegistry = [
-  paymentsPlugin(),
+  paymentsPlugin({
+    integrations: { get: getIntegrationsConfig, set: setIntegrationsConfig },
+    payments: { get: getPaymentConfig },
+  }),
   cloverPlugin(integrationsConfigStore),
 ];
 ```
+
+**This is the modularity payoff to check by eye:** adding a plugin to an app is now one line in each registry file. If this task leaves any per-app copy of an adapter behind, it has failed its ruling.
 
 Create `apps/tiffin-grab/app/(dashboard)/dashboard/settings/integrations/actions.ts` with the same `setPluginInstalledAction` as Step 3, using tiffin-grab's `requireAdmin` from `@/lib/auth/guards`, its `recordAudit`/`currentUserId`, and revalidating `/dashboard/settings/integrations`, `/dashboard/settings/payments`, `/dashboard/settings/clover`, `/dashboard/settings`. **This is the bug fix noted in the spec** — tiffin-grab's Clover install/uninstall recorded no audit at all.
 
@@ -1759,33 +1910,36 @@ export {
 } from "./google-reviews-settings-panel";
 ```
 
-- [ ] **Step 6: Write the per-app plugin adapter**
+- [ ] **Step 6: Write the plugin adapter — once, in the package**
 
-Create `apps/puchkaman/lib/plugins/google-reviews-plugin.ts` (and the identical file in `apps/tiffin-grab/lib/plugins/`, changing only the store import):
+**Modularity ruling (binding):** the adapter lives in the package, not in either app.
+
+Add `GOOGLE_REVIEWS_PLUGIN_META` to `packages/google-reviews/src/plugin.ts` (client-safe, alongside the existing meta constant):
 
 ```ts
 import { StarIcon } from "lucide-react";
-import type { IntegrationsConfigStore } from "@realm/clover";
 import type { PluginMeta } from "@realm/crm";
-import type { PluginServer, PluginStatus } from "@realm/crm/server";
-import {
-  GOOGLE_REVIEWS_PLUGIN,
-  getGoogleReviewsConfig,
-  installGoogleReviews,
-  uninstallGoogleReviews,
-} from "@realm/google-reviews";
 
 export const GOOGLE_REVIEWS_PLUGIN_META: PluginMeta = {
-  id: GOOGLE_REVIEWS_PLUGIN.id,
+  id: GOOGLE_REVIEWS_PLUGIN_ID,
   label: GOOGLE_REVIEWS_PLUGIN.label,
   description: GOOGLE_REVIEWS_PLUGIN.description,
   icon: StarIcon,
   settingsHref: "/dashboard/settings/google-reviews",
 };
+```
+
+Create `packages/google-reviews/src/plugin.server.ts`:
+
+```ts
+import type { IntegrationsConfigStore } from "@realm/crm/server";
+import type { PluginServer, PluginStatus } from "@realm/crm/server";
+import { GOOGLE_REVIEWS_PLUGIN_ID } from "./plugin";
+import { getGoogleReviewsConfig, installGoogleReviews, uninstallGoogleReviews } from "./store";
 
 export function googleReviewsPlugin(store: IntegrationsConfigStore): PluginServer {
   return {
-    id: GOOGLE_REVIEWS_PLUGIN.id,
+    id: GOOGLE_REVIEWS_PLUGIN_ID,
 
     async status(): Promise<PluginStatus> {
       const cfg = await getGoogleReviewsConfig(store);
@@ -1802,7 +1956,21 @@ export function googleReviewsPlugin(store: IntegrationsConfigStore): PluginServe
 }
 ```
 
-Add it to both apps' `lib/plugins.ts` (`GOOGLE_REVIEWS_PLUGIN_META` appended to `PLUGIN_METAS`) and `lib/plugins.server.ts` (`googleReviewsPlugin(integrationsConfigStore)` appended to `PLUGINS`).
+Add `"./server": "./src/plugin.server.ts"` to the package's `exports`.
+
+**Note on the `@realm/clover` dependency:** Task 4 moved `IntegrationsConfigStore` down into `@realm/crm/server`, so this package imports the port from `@realm/crm` and the `@realm/clover` dependency added in Task 5 is no longer needed. Remove `"@realm/clover": "workspace:*"` from `packages/google-reviews/package.json` and repoint `src/store.ts` and `src/summary.ts` to import the port from `@realm/crm/server`. A plugin package must not depend on an unrelated plugin package.
+
+Each app then adds exactly one line to each registry file:
+
+```ts
+// lib/plugins.ts
+import { GOOGLE_REVIEWS_PLUGIN_META } from "@realm/google-reviews/plugin";
+// …append GOOGLE_REVIEWS_PLUGIN_META to PLUGIN_METAS
+
+// lib/plugins.server.ts
+import { googleReviewsPlugin } from "@realm/google-reviews/server";
+// …append googleReviewsPlugin(integrationsConfigStore) to PLUGINS
+```
 
 - [ ] **Step 7: Write the settings route (both apps)**
 
