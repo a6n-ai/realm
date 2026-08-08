@@ -417,7 +417,7 @@ export function CheckoutClient({
                       option{addressCheck.types.length === 1 ? "" : "s"} available below.
                     </p>
                   ) : addressCheck?.resolved === true ? (
-                    <p className="err-msg" role="alert">
+                    <p className="checkout-address__ok">
                       {addressCheck.distanceKm}km away
                       {addressCheck.limitKm != null ? ` — outside our ${addressCheck.limitKm}km delivery range.` : " — outside our delivery range."}{" "}
                       Try pickup instead.
@@ -445,7 +445,12 @@ export function CheckoutClient({
                   types={addressCheck.types}
                   subtotal={subtotal}
                   value={deliveryTypeKey}
-                  onChange={setDeliveryTypeKey}
+                  onChange={(key) => {
+                    setDeliveryTypeKey(key);
+                    if (!addressCheck.types.find((t) => t.key === key)?.requiresSchedule) {
+                      setScheduledFor("");
+                    }
+                  }}
                 />
                 {fieldErrors.deliveryType ? (
                   <span className="err-msg" role="alert">
