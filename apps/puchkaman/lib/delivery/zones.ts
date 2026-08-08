@@ -34,3 +34,46 @@ export function deliveryLimitKm(zones: Zone[]): number | null {
   const radii = zones.filter((z) => z.active).map((z) => z.radiusKm);
   return radii.length ? Math.max(...radii) : null;
 }
+
+/** A delivery option and its rules. Rules live on the type, geography on the zone. */
+export type DeliveryType = {
+  key: string;
+  label: string;
+  requiresAddress: boolean;
+  requiresSchedule: boolean;
+  minSubtotal: number;
+  discountPct: number;
+  sortOrder: number;
+  active: boolean;
+};
+
+export type ZoneWithTypes = Zone & { types: DeliveryType[] };
+
+/**
+ * Every active type offered by every active zone covering this distance, deduplicated by key
+ * and ordered by sortOrder. Empty means no delivery here — the caller offers pickup instead.
+ */
+export function availableTypes(distanceKm: number, zones: ZoneWithTypes[]): DeliveryType[] {
+  const byKey = new Map<string, DeliveryType>();
+  for (const zone of zones) {
+    if (!zone.active || distanceKm > zone.radiusKm) continue;
+    for (const type of zone.types) {
+      if (type.active && !byKey.has(type.key)) byKey.set(type.key, type);
+    }
+  }
+  return [...byKey.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** Smallest active zone covering this distance that offers the given type. */
+export function zoneForType(
+  distanceKm: number,
+  typeKey: string,
+  zones: ZoneWithTypes[],
+): Zone | null {
+  return (
+    zones
+      .filter((z) => z.active && distanceKm <= z.radiusKm)
+      .filter((z) => z.types.some((t) => t.active && t.key === typeKey))
+      .sort((a, b) => a.radiusKm - b.radiusKm)[0] ?? null
+  );
+}
