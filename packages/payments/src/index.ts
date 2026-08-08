@@ -3,3 +3,4 @@ export * from "./tax";
 export * from "./provider";
 export * from "./manual";
 export * from "./lifecycle";
+export * from "./providers";
