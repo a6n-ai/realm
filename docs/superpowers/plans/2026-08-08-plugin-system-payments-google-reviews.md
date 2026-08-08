@@ -2197,9 +2197,15 @@ Replace the REVIEWS `<section>` (lines 293-320) so the whole section is conditio
                 <div>
                   <div style={{ fontWeight: 800 }}>{rv.author}</div>
                   <div className="mono" style={{ fontSize: "0.7rem", opacity: 0.6 }}>
-                    <a href={reviews.attributionUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-                      Google Review
-                    </a>
+                    {/* attributionUrl is "" when Google omits googleMapsUri; href="" would
+                        resolve to this page, making the credit a silent no-op reload. */}
+                    {reviews.attributionUrl ? (
+                      <a href={reviews.attributionUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                        Google Review
+                      </a>
+                    ) : (
+                      "Google Review"
+                    )}
                     {rv.relativeTime ? ` · ${rv.relativeTime}` : null}
                   </div>
                 </div>
