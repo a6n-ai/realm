@@ -208,6 +208,7 @@ export function ZoneEditor({
   const [addingNew, setAddingNew] = useState(false);
   const [newRadius, setNewRadius] = useState(5);
   const [originPending, startOrigin] = useTransition();
+  const [, startRadiusCommit] = useTransition();
 
   // Colours assigned by sorted radius so the smallest ring keeps its hue across renders.
   const colorByPublicId = useMemo(() => {
@@ -244,13 +245,18 @@ export function ZoneEditor({
   function commitRadius(publicId: string, radiusKm: number) {
     const zone = initialZones.find((z) => z.publicId === publicId);
     if (!zone) return;
-    void saveZoneAction({ publicId, name: zone.name, radiusKm, active: true }).then((res) => {
-      if (res.error) {
-        toast.error(res.error);
-        return;
+    startRadiusCommit(async () => {
+      try {
+        const res = await saveZoneAction({ publicId, name: zone.name, radiusKm, active: true });
+        if (res.error) {
+          toast.error(res.error);
+          return;
+        }
+        if (res.radiusKm != null) setRadii((r) => ({ ...r, [publicId]: res.radiusKm! }));
+        router.refresh();
+      } catch {
+        toast.error("Couldn't save the radius change — try again");
       }
-      if (res.radiusKm != null) setRadii((r) => ({ ...r, [publicId]: res.radiusKm! }));
-      router.refresh();
     });
   }
 

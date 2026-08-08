@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import { retireDeliveryType, saveDeliveryType } from "@/lib/delivery/zones.service";
-import { currentUserId, recordAudit } from "@/lib/services/session-service";
 
 const typeSchema = z.object({
   publicId: z.string().nullable(),
@@ -61,14 +60,8 @@ export async function saveDeliveryTypeAction(values: TypeFormValues): Promise<{ 
     return { error: err instanceof Error ? err.message : "Save failed" };
   }
 
-  await recordAudit({
-    entity: "delivery_types",
-    entityPublicId: v.publicId ?? v.key,
-    operation: v.publicId ? "update" : "create",
-    changes: patch,
-    createdBy: await currentUserId(),
-  });
-
+  // saveDeliveryType routes through SessionUpdatableService.create/update, which
+  // already writes an audit row with a real before/after diff — no manual one here.
   revalidate();
   return {};
 }
@@ -80,13 +73,7 @@ export async function retireDeliveryTypeAction(publicId: string): Promise<{ erro
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Retire failed" };
   }
-  await recordAudit({
-    entity: "delivery_types",
-    entityPublicId: publicId,
-    operation: "update",
-    changes: { active: false },
-    createdBy: await currentUserId(),
-  });
+  // retireDeliveryType also routes through the service's auto-audited update.
   revalidate();
   return {};
 }

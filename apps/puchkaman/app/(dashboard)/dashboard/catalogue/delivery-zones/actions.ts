@@ -61,14 +61,9 @@ export async function saveZoneAction(
   const radiusKm = v.active ? await clampRadius(v.radiusKm, v.publicId) : v.radiusKm;
 
   try {
+    // saveZone routes through SessionUpdatableService.create/update, which
+    // already writes an audit row with a real before/after diff.
     const zone = await saveZone(v.publicId, { name: v.name, radiusKm, active: v.active });
-    await recordAudit({
-      entity: "delivery_zones",
-      entityPublicId: zone.publicId ?? v.name,
-      operation: v.publicId ? "update" : "create",
-      changes: { name: v.name, radiusKm, active: v.active },
-      createdBy: await currentUserId(),
-    });
     revalidate();
     return { radiusKm, publicId: zone.publicId };
   } catch (err) {
@@ -83,13 +78,7 @@ export async function retireZoneAction(publicId: string): Promise<{ error?: stri
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Retire failed" };
   }
-  await recordAudit({
-    entity: "delivery_zones",
-    entityPublicId: publicId,
-    operation: "update",
-    changes: { active: false },
-    createdBy: await currentUserId(),
-  });
+  // retireZone also routes through the service's auto-audited update.
   revalidate();
   return {};
 }
@@ -127,14 +116,9 @@ export async function saveStoreOriginAction(
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return { error: "Invalid coordinates" };
   }
+  // saveStoreOrigin routes through SessionUpdatableService.create/update, which
+  // already writes an audit row with a real before/after diff.
   await saveStoreOrigin(lat, lng);
-  await recordAudit({
-    entity: "app",
-    entityPublicId: "store_origin",
-    operation: "update",
-    changes: { lat, lng },
-    createdBy: await currentUserId(),
-  });
   revalidate();
   return {};
 }
