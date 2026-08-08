@@ -21,6 +21,7 @@ import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-const
 import { HomeIcon } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/ds";
 import { HOME_SECTIONS } from "./home-sections";
+import { ReviewNudge } from "./review-nudge";
 
 const HOME_WEEK_DAYS = 14;
 
@@ -37,6 +38,11 @@ export default async function MePage() {
         title="Home"
         subtitle="Everything for your meals, all in one place."
       />
+
+      {/* Never delays the customer home render — it's a courtesy nudge, not content. */}
+      <Suspense fallback={null}>
+        <ReviewNudge />
+      </Suspense>
 
       {/* Mobile stacks; desktop uses the width for week + plan side-by-side. */}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
