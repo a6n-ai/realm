@@ -100,7 +100,7 @@ export function DeliveryChecker() {
             {result.types.map((t) => (
               <li key={t.key} style={{ fontSize: "0.84rem", fontWeight: 600 }}>
                 {t.label}
-                {t.discountPct > 0 ? ` · ${Math.round(t.discountPct * 100)}% off` : ""}
+                {t.discountPct > 0 ? ` · ${Math.round(t.discountPct)}% off` : ""}
                 {t.minSubtotal > 0 ? ` · ${money(t.minSubtotal)} minimum` : ""}
                 {t.requiresSchedule ? " · pick a time" : ""}
               </li>

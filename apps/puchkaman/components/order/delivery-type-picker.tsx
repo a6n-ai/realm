@@ -36,7 +36,7 @@ export function DeliveryTypePicker({
         const hint = disabled
           ? `Add ${money(shortfall)} more to qualify`
           : [
-              type.discountPct > 0 ? `${Math.round(type.discountPct * 100)}% off` : null,
+              type.discountPct > 0 ? `${Math.round(type.discountPct)}% off` : null,
               type.minSubtotal > 0 ? `${money(type.minSubtotal)} minimum` : null,
               type.requiresSchedule ? "pick a time" : null,
             ]
