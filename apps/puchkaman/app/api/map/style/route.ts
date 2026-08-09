@@ -37,9 +37,7 @@ const OSM_FALLBACK = {
  * without putting an AWS credential (or an Amazon Location API key) in page
  * source, which is the property Phase 1 established and this preserves.
  */
-export async function GET(request: Request): Promise<Response> {
-  const origin = new URL(request.url).origin;
-
+export async function GET(): Promise<Response> {
   try {
     const out = await geoMapsClient().send(
       new GetStyleDescriptorCommand({ Style: MAP_STYLE, ColorScheme: MAP_COLOR_SCHEME }),
@@ -53,12 +51,16 @@ export async function GET(request: Request): Promise<Response> {
       glyphs?: string;
     };
 
+    // Root-relative, NOT built from request.url. Behind Caddy the app only ever
+    // sees its internal bind address, so deriving an origin here produced
+    // https://0.0.0.0:3000/... and the browser fetched nothing. MapLibre
+    // resolves these against the page, which is the correct public origin.
     for (const source of Object.values(style.sources ?? {})) {
-      if (source.tiles) source.tiles = [`${origin}/api/map/tiles/{z}/{x}/{y}`];
+      if (source.tiles) source.tiles = ["/api/map/tiles/{z}/{x}/{y}"];
     }
     // MapLibre appends .json/.png/@2x.png to the sprite base itself.
-    style.sprite = `${origin}/api/map/sprites/sprites`;
-    style.glyphs = `${origin}/api/map/glyphs/{fontstack}/{range}.pbf`;
+    style.sprite = "/api/map/sprites/sprites";
+    style.glyphs = "/api/map/glyphs/{fontstack}/{range}.pbf";
 
     return Response.json(style, { headers: { "cache-control": MAP_CACHE_CONTROL } });
   } catch (e) {
