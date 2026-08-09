@@ -94,8 +94,9 @@ export const orders = pgTable(
     note: text("note"),
     /** Delivery-only fields — null for pickup orders. */
     deliveryAddress: text("delivery_address"),
-    deliveryLat: numeric("delivery_lat", { precision: 9, scale: 6 }),
-    deliveryLng: numeric("delivery_lng", { precision: 9, scale: 6 }),
+    // No lat/lng columns: nothing ever read them, and persisting geocoded
+    // coordinates is the one call that needs a storage-licensed (~8x) bucket.
+    // The distance below is derived at checkout and is not itself geocoder output.
     deliveryDistanceKm: numeric("delivery_distance_km", { precision: 6, scale: 2 }),
     // No fee column: Clover line items need a real catalogue itemId, a fee
     // could be priced and stored but never charged, silently underbilling.

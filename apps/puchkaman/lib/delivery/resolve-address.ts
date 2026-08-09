@@ -28,15 +28,11 @@ function buildAdvisoryProviders(): PlaceProvider[] {
   return process.env.PLACES_PROVIDER === "aws" ? [aws, google, nominatim] : [google, aws, nominatim];
 }
 
-// The ONLY chain resolveAddressForStorage may use. Google is excluded
-// outright — Places API (New) has no storage-licensed bucket distinct from
-// Core, so its coordinates can never legally be written to a database (the
-// provider also refuses persist: true itself now, but this chain shouldn't
-// offer it the chance). AWS (IntendedUse: "Storage") and Nominatim (OSM/ODbL,
-// which permits storage) are the two providers licensed for this bucket.
-function buildStorageProviders(): PlaceProvider[] {
-  return [awsPlaceProvider({ region: process.env.AWS_REGION }), nominatimProvider()];
-}
+// No storage chain exists here on purpose. Nothing in this app persists
+// coordinates any more, so every call is advisory and no provider ever needs
+// a storage-licensed bucket. Reintroducing a column that stores a geocoded
+// lat/lng means reintroducing that chain — Google can never be in it, because
+// Places API (New) has no storage-licensed bucket at any price.
 
 // Built lazily, not at module load — awsPlaceProvider() constructs a real
 // GeoPlacesClient even when PLACES_PROVIDER never selects AWS. SDK v3 defers
@@ -49,12 +45,6 @@ let advisoryProviders: PlaceProvider[] | null = null;
 function getAdvisoryProviders(): PlaceProvider[] {
   if (!advisoryProviders) advisoryProviders = buildAdvisoryProviders();
   return advisoryProviders;
-}
-
-let storageProviders: PlaceProvider[] | null = null;
-function getStorageProviders(): PlaceProvider[] {
-  if (!storageProviders) storageProviders = buildStorageProviders();
-  return storageProviders;
 }
 
 // Fires once per process, not once per request — a missing key otherwise
@@ -85,26 +75,12 @@ const SUGGEST_OPTS = { country: "CA", near: { lat: DEFAULT_STORE_LAT, lng: DEFAU
  * is resolved server-side so a client can never assert its own lat/lng — distance
  * from here decides a discount and a delivery fee.
  *
- * `persist: false` — the mid-cost bucket, for advisory checks (the public "do we
- * deliver here?" check) that store nothing. Use `resolveAddressForStorage` for
- * anything written to the database.
+ * Always `persist: false` — the mid-cost bucket. Both callers (the public "do we
+ * deliver here?" check and checkout) use the coordinates to derive a distance and
+ * then discard them, so nothing here is ever written to the database.
  */
 export async function resolveAddress(input: { placeId?: string; address: string }): Promise<ResolvedAddress | null> {
   return resolvePlace(getAdvisoryProviders(), { ...input, persist: false });
-}
-
-/**
- * Same resolution, `persist: true` — AWS's storage-licensed bucket (~8x Core),
- * required whenever the result is written to a database. Use only where
- * coordinates are persisted (currently: order creation's delivery_lat/delivery_lng).
- * Uses `getStorageProviders()`, not the advisory chain — Google is never
- * offered this call, on either side of the persist boundary.
- */
-export async function resolveAddressForStorage(input: {
-  placeId?: string;
-  address: string;
-}): Promise<ResolvedAddress | null> {
-  return resolvePlace(getStorageProviders(), { ...input, persist: true });
 }
 
 /**

@@ -50,6 +50,13 @@
       "when": 1786220257732,
       "tag": "0006_deep_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786282269972,
+      "tag": "0007_clean_vance_astro",
+      "breakpoints": true
     }
   ]
 }

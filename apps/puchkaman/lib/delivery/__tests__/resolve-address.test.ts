@@ -25,7 +25,7 @@ vi.mock("@realm/places", async () => {
   };
 });
 
-const { resolveAddress, resolveAddressForStorage, suggestAddresses } = await import("../resolve-address");
+const { resolveAddress, suggestAddresses } = await import("../resolve-address");
 
 const hit: ResolvedPlace = { lat: 43.7, lng: -79.3, formattedAddress: "3315 Danforth Ave" };
 
@@ -65,24 +65,16 @@ describe("resolveAddress", () => {
   });
 });
 
-describe("resolveAddressForStorage", () => {
-  it("sends persist: true to aws — the storage-licensed bucket — and never calls google", async () => {
-    awsResolve.mockResolvedValueOnce(hit);
-    expect(await resolveAddressForStorage({ address: "12 King St" })).toEqual(hit);
-    expect(awsResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
-    expect(googleResolve).not.toHaveBeenCalled();
-  });
-
-  it("falls through to nominatim when aws misses, still never calling google", async () => {
-    nominatimResolve.mockResolvedValueOnce(hit);
-    expect(await resolveAddressForStorage({ address: "12 King St" })).toEqual(hit);
-    expect(nominatimResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
-    expect(googleResolve).not.toHaveBeenCalled();
-  });
-
-  it("returns null when both storage providers miss", async () => {
-    expect(await resolveAddressForStorage({ address: "nowhere" })).toBeNull();
-    expect(googleResolve).not.toHaveBeenCalled();
+// The app persists no coordinates, so no call may ever ask for the
+// storage-licensed bucket. This is the cost and licensing guarantee: a
+// reintroduced persist: true would be a ~8x price rise with no functional
+// symptom, which is exactly the kind of regression nothing else catches.
+describe("the storage bucket is never requested", () => {
+  it("sends persist: false on every provider in the chain", async () => {
+    await resolveAddress({ address: "12 King St" });
+    for (const spy of [googleResolve, awsResolve, nominatimResolve]) {
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ persist: false }));
+    }
   });
 });
 

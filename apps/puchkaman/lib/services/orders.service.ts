@@ -22,7 +22,7 @@ import {
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
 import { haversineKm } from "@/lib/delivery/distance";
-import { resolveAddressForStorage } from "@/lib/delivery/resolve-address";
+import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
 import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
 import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
@@ -528,8 +528,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
     let fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled" = "pickup";
     let deliveryAddress: string | null = null;
-    let deliveryLat: number | null = null;
-    let deliveryLng: number | null = null;
     let deliveryDistanceKm: number | null = null;
     let deliveryTypeId: bigint | null = null;
     let deliveryZoneId: bigint | null = null;
@@ -546,9 +544,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     if (parsed.fulfillment.type === "delivery") {
       const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
-      // Storage bucket (~8x Core) — deliberate: this result is written to
-      // delivery_lat/delivery_lng below.
-      const resolved = await resolveAddressForStorage({
+      // Core bucket, not storage-licensed: the coordinates are used to derive
+      // deliveryDistanceKm and then discarded, never written to a column.
+      const resolved = await resolveAddress({
         placeId: parsed.fulfillment.placeId,
         address: parsed.fulfillment.address,
       });
@@ -565,8 +563,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         parsed.fulfillment.address === resolved.formattedAddress
           ? resolved.formattedAddress
           : `${parsed.fulfillment.address} (${resolved.formattedAddress})`;
-      deliveryLat = resolved.lat;
-      deliveryLng = resolved.lng;
       deliveryDistanceKm = Number(
         haversineKm(origin.lat, origin.lng, resolved.lat, resolved.lng).toFixed(2),
       );
@@ -686,8 +682,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           customerPhone: parsed.contact.phone ?? null,
           note: parsed.contact.note ?? null,
           deliveryAddress,
-          deliveryLat: deliveryLat != null ? deliveryLat.toFixed(6) : null,
-          deliveryLng: deliveryLng != null ? deliveryLng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
           deliveryTypeId,
           deliveryZoneId,

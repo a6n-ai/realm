@@ -23,7 +23,7 @@ const contactSchema = z.object({
 });
 
 // Zone (radius/fee/discount/scheduling) is derived server-side from a fresh
-// resolveAddressForStorage() geocode, not asserted by the client — see
+// resolveAddress() geocode, not asserted by the client — see
 // orders.service.ts createCheckout(). `.strict()` on the delivery branch is
 // load-bearing: it rejects a client-supplied `lat`/`lng`, which is the only
 // thing standing between "distance decides the discount" and "post a point
@@ -38,7 +38,7 @@ const fulfillmentSchema = z
          * availableTypes() at the resolved distance, never trusted for price/eligibility. */
         deliveryTypeKey: z.string().trim().min(1),
         address: z.string().trim().min(5).max(300),
-        /** Places id — preferred resolution path in resolveAddress()/resolveAddressForStorage(). */
+        /** Places id — preferred resolution path in resolveAddress(). */
         placeId: z.string().trim().min(1).optional(),
         /** Required once the server determines the type requires scheduling. */
         scheduledFor: z.string().datetime().optional(),
