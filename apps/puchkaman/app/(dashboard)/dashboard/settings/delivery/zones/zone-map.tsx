@@ -152,6 +152,7 @@ export function ZoneMap({
   // the server for its initial HTML like any other client component.
   useEffect(() => {
     let cancelled = false;
+    let failTimer: ReturnType<typeof setTimeout> | undefined;
     let map: MapLibreMap | null = null;
 
     void (async () => {
@@ -169,7 +170,14 @@ export function ZoneMap({
         map = instance;
         mapRef.current = instance;
         instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
-        instance.on("error", () => setFailed(true));
+        // NOT fatal. MapLibre emits `error` for plenty of recoverable things (a
+        // single missing tile, a font it had to substitute), and flipping to the
+        // fallback unmounts this container — which killed a perfectly good
+        // vector map before it fetched its first tile. Only a map that never
+        // becomes ready is treated as failed, via the timer below.
+        instance.on("error", (e) => {
+          if (process.env.NODE_ENV !== "production") console.warn("maplibre", e?.error ?? e);
+        });
 
         // Gate on the STYLE being ready, not the map's "load" event. `load`
         // waits for every source and tile to settle, and with a remote raster
@@ -179,8 +187,10 @@ export function ZoneMap({
         //
         // styledata fires more than once, so the getSource guard makes this
         // idempotent, and it is invoked directly when the style is already in.
+        let layersReady = false;
         const initLayers = () => {
           if (cancelled || instance.getSource("zones")) return;
+          layersReady = true;
           instance.addSource("zones", {
             type: "geojson",
             data: zonesToGeoJson(
@@ -222,6 +232,12 @@ export function ZoneMap({
 
         if (instance.isStyleLoaded()) initLayers();
         instance.on("styledata", initLayers);
+
+        // A map that never becomes ready IS broken — that is the only case the
+        // fallback should claim, rather than every transient error event.
+        failTimer = setTimeout(() => {
+          if (!cancelled && !layersReady) setFailed(true);
+        }, 12_000);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -230,6 +246,7 @@ export function ZoneMap({
     const handles = handleMarkersRef.current;
     return () => {
       cancelled = true;
+      clearTimeout(failTimer);
       handles.forEach((m) => m.remove());
       handles.clear();
       originMarkerRef.current?.remove();

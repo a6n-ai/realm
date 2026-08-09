@@ -39,6 +39,7 @@ export function StaticMap({
   // mount. Callers that need a different view remount via a `key`.
   useEffect(() => {
     let cancelled = false;
+    let failTimer: ReturnType<typeof setTimeout> | undefined;
     let map: MapLibreMap | null = null;
     const placedMarkers: MapLibreMarker[] = [];
 
@@ -56,7 +57,14 @@ export function StaticMap({
         });
         map = instance;
         instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
-        instance.on("error", () => setFailed(true));
+        // NOT fatal. MapLibre emits `error` for plenty of recoverable things (a
+        // single missing tile, a font it had to substitute), and flipping to the
+        // fallback unmounts this container — which killed a perfectly good
+        // vector map before it fetched its first tile. Only a map that never
+        // becomes ready is treated as failed, via the timer below.
+        instance.on("error", (e) => {
+          if (process.env.NODE_ENV !== "production") console.warn("maplibre", e?.error ?? e);
+        });
 
         // Gate on style readiness, not "load" — with a remote raster basemap
         // "load" may never fire. See zone-map.tsx for the production incident.
@@ -92,6 +100,12 @@ export function StaticMap({
 
         if (instance.isStyleLoaded()) init();
         instance.on("styledata", init);
+
+        // A map that never becomes ready IS broken — that is the only case the
+        // fallback should claim, rather than every transient error event.
+        failTimer = setTimeout(() => {
+          if (!cancelled && !placed) setFailed(true);
+        }, 12_000);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -99,6 +113,7 @@ export function StaticMap({
 
     return () => {
       cancelled = true;
+      clearTimeout(failTimer);
       placedMarkers.forEach((m) => m.remove());
       map?.remove();
     };
