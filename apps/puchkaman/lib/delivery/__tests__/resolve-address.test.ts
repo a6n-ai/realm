@@ -66,10 +66,23 @@ describe("resolveAddress", () => {
 });
 
 describe("resolveAddressForStorage", () => {
-  it("sends persist: true — the storage-licensed bucket", async () => {
-    googleResolve.mockResolvedValueOnce(hit);
-    await resolveAddressForStorage({ address: "12 King St" });
-    expect(googleResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
+  it("sends persist: true to aws — the storage-licensed bucket — and never calls google", async () => {
+    awsResolve.mockResolvedValueOnce(hit);
+    expect(await resolveAddressForStorage({ address: "12 King St" })).toEqual(hit);
+    expect(awsResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
+    expect(googleResolve).not.toHaveBeenCalled();
+  });
+
+  it("falls through to nominatim when aws misses, still never calling google", async () => {
+    nominatimResolve.mockResolvedValueOnce(hit);
+    expect(await resolveAddressForStorage({ address: "12 King St" })).toEqual(hit);
+    expect(nominatimResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
+    expect(googleResolve).not.toHaveBeenCalled();
+  });
+
+  it("returns null when both storage providers miss", async () => {
+    expect(await resolveAddressForStorage({ address: "nowhere" })).toBeNull();
+    expect(googleResolve).not.toHaveBeenCalled();
   });
 });
 

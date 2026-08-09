@@ -79,8 +79,11 @@ async function fetchAutocomplete(query: string, apiKey: string): Promise<PlaceSu
 
 /**
  * Places Details by placeId, then text search — same resolution order as the
- * resolveAddress() this was ported from. `persist` is unused: Google's Places
- * API (New) has no storage-licensed bucket distinct from Core the way AWS does.
+ * resolveAddress() this was ported from. Google's Places API (New) has no
+ * storage-licensed bucket distinct from Core the way AWS does, so persisting
+ * its coordinates would violate Google's Terms of Service. resolve() refuses
+ * outright when persist is true — belt and braces alongside callers composing
+ * the storage chain without this provider in it.
  */
 export function googlePlaceProvider(): PlaceProvider {
   return {
@@ -94,7 +97,10 @@ export function googlePlaceProvider(): PlaceProvider {
       return fetchAutocomplete(query, apiKey);
     },
 
-    async resolve({ placeId, address }) {
+    async resolve({ placeId, address, persist }) {
+      // Google has no storage-licensed bucket — see the doc comment above.
+      if (persist) return null;
+
       const apiKey = process.env.GOOGLE_PLACES_API_KEY;
       if (!apiKey) return null;
 

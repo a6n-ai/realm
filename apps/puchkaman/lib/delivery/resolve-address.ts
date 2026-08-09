@@ -14,12 +14,24 @@ export type ResolvedAddress = ResolvedPlace;
 // provider and Nominatim follow as fallback so a single vendor outage
 // degrades checkout instead of blocking it. Default (unset) keeps Google
 // primary — Task 5 decides whether AWS's Canadian subpremise data is good
-// enough to flip this.
-function buildProviders(): PlaceProvider[] {
+// enough to flip this. Used for the advisory buckets only (suggest, and
+// resolve with persist: false) — see buildStorageProviders below for why
+// the storage bucket is a separate, shorter chain.
+function buildAdvisoryProviders(): PlaceProvider[] {
   const aws = awsPlaceProvider({ region: process.env.AWS_REGION });
   const google = googlePlaceProvider();
   const nominatim = nominatimProvider();
   return process.env.PLACES_PROVIDER === "aws" ? [aws, google, nominatim] : [google, aws, nominatim];
+}
+
+// The ONLY chain resolveAddressForStorage may use. Google is excluded
+// outright — Places API (New) has no storage-licensed bucket distinct from
+// Core, so its coordinates can never legally be written to a database (the
+// provider also refuses persist: true itself now, but this chain shouldn't
+// offer it the chance). AWS (IntendedUse: "Storage") and Nominatim (OSM/ODbL,
+// which permits storage) are the two providers licensed for this bucket.
+function buildStorageProviders(): PlaceProvider[] {
+  return [awsPlaceProvider({ region: process.env.AWS_REGION }), nominatimProvider()];
 }
 
 // Built lazily, not at module load — awsPlaceProvider() constructs a real
@@ -29,10 +41,16 @@ function buildProviders(): PlaceProvider[] {
 // first use is the same eagerness pattern that made an earlier test build a
 // real AWS client unexpectedly — mirrors the memoised-client pattern already
 // in aws-provider.ts's getSharedClient().
-let providers: PlaceProvider[] | null = null;
-function getProviders(): PlaceProvider[] {
-  if (!providers) providers = buildProviders();
-  return providers;
+let advisoryProviders: PlaceProvider[] | null = null;
+function getAdvisoryProviders(): PlaceProvider[] {
+  if (!advisoryProviders) advisoryProviders = buildAdvisoryProviders();
+  return advisoryProviders;
+}
+
+let storageProviders: PlaceProvider[] | null = null;
+function getStorageProviders(): PlaceProvider[] {
+  if (!storageProviders) storageProviders = buildStorageProviders();
+  return storageProviders;
 }
 
 /**
@@ -45,19 +63,21 @@ function getProviders(): PlaceProvider[] {
  * anything written to the database.
  */
 export async function resolveAddress(input: { placeId?: string; address: string }): Promise<ResolvedAddress | null> {
-  return resolvePlace(getProviders(), { ...input, persist: false });
+  return resolvePlace(getAdvisoryProviders(), { ...input, persist: false });
 }
 
 /**
  * Same resolution, `persist: true` — AWS's storage-licensed bucket (~8x Core),
  * required whenever the result is written to a database. Use only where
  * coordinates are persisted (currently: order creation's delivery_lat/delivery_lng).
+ * Uses `getStorageProviders()`, not the advisory chain — Google is never
+ * offered this call, on either side of the persist boundary.
  */
 export async function resolveAddressForStorage(input: {
   placeId?: string;
   address: string;
 }): Promise<ResolvedAddress | null> {
-  return resolvePlace(getProviders(), { ...input, persist: true });
+  return resolvePlace(getStorageProviders(), { ...input, persist: true });
 }
 
 /**
@@ -66,7 +86,7 @@ export async function resolveAddressForStorage(input: {
  * a typeahead service) so it's a harmless no-op at the end of the chain.
  */
 export async function suggestAddresses(query: string): Promise<PlaceSuggestion[]> {
-  for (const provider of getProviders()) {
+  for (const provider of getAdvisoryProviders()) {
     const hits = await provider.suggest(query);
     if (hits.length > 0) return hits;
   }

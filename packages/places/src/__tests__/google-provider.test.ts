@@ -95,6 +95,16 @@ describe("googlePlaceProvider", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("resolve() returns null when persist: true — Google has no storage-licensed bucket", async () => {
+    const fetchSpy = vi.fn(async () =>
+      okJson({ location: { latitude: 43.7, longitude: -79.3 }, formattedAddress: "3315 Danforth Ave" }),
+    );
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const provider = googlePlaceProvider();
+    expect(await provider.resolve({ placeId: "ChIJabc", address: "typed", persist: true })).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("resolve() never calls fetch for a whitespace-only address with no placeId — the empty-input guard", async () => {
     const fetchSpy = vi.fn(async () => okJson({ places: [{ location: { latitude: 43.6, longitude: -79.4 }, formattedAddress: "x" }] }));
     global.fetch = fetchSpy as unknown as typeof fetch;
