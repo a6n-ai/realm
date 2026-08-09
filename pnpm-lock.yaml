@@ -734,6 +734,9 @@ importers:
       '@aws-sdk/client-geo-places':
         specifier: ^3.700.0
         version: 3.1106.0
+      '@realm/commons':
+        specifier: workspace:*
+        version: link:../commons
       zod:
         specifier: ^4.4.3
         version: 4.4.3

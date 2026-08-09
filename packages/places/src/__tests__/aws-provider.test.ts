@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
+import { AutocompleteCommand } from "@aws-sdk/client-geo-places";
 import { awsPlaceProvider } from "../aws-provider";
+import type { GeoPlacesSendClient } from "../aws-provider";
+import { runProviderConformance, UPSTREAM_FAILURE_QUERY, UPSTREAM_SUCCESS_QUERY } from "./provider-conformance";
 
 function fakeClient(response: unknown) {
   const sent: unknown[] = [];
@@ -105,3 +108,21 @@ describe("awsPlaceProvider mapping and coordinate order", () => {
     await expect(p.resolve({ address: "x", persist: false })).resolves.toBeNull();
   });
 });
+
+function makeConformanceClient(): GeoPlacesSendClient {
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    send: vi.fn(async (cmd: any) => {
+      const queryText: string | undefined = cmd.input?.QueryText;
+      if (queryText === UPSTREAM_FAILURE_QUERY) throw new Error("network down");
+      if (queryText === "") return { ResultItems: [] }; // AWS returns no hits for an empty query
+      if (cmd instanceof AutocompleteCommand) {
+        return { ResultItems: [{ PlaceId: "p1", Title: UPSTREAM_SUCCESS_QUERY }] };
+      }
+      return { ResultItems: [{ Position: [-79.3872, 43.6853], Address: { Label: UPSTREAM_SUCCESS_QUERY } }] };
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+runProviderConformance("aws", () => awsPlaceProvider({ client: makeConformanceClient() }));
