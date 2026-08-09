@@ -88,7 +88,9 @@ export function googlePlaceProvider(): PlaceProvider {
 
     async suggest(query) {
       const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-      if (!apiKey) return [];
+      // A debounced typeahead fires on every keystroke, including backspace-to-empty
+      // — an empty/whitespace query must never become a billable Autocomplete call.
+      if (!apiKey || !query.trim()) return [];
       return fetchAutocomplete(query, apiKey);
     },
 
@@ -100,6 +102,7 @@ export function googlePlaceProvider(): PlaceProvider {
         const details = await fetchPlaceDetails(placeId, apiKey);
         if (details) return details;
       }
+      if (!address.trim()) return null;
       return fetchTextSearch(address, apiKey);
     },
   };

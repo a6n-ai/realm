@@ -12,11 +12,22 @@ export const UPSTREAM_SUCCESS_QUERY = "3315 Danforth Ave";
  *  - fails (throws or returns a non-ok/malformed response) for UPSTREAM_FAILURE_QUERY
  *  - returns a valid hit for UPSTREAM_SUCCESS_QUERY
  *
+ * getUpstreamCallCount must report how many times that same stub has been
+ * invoked since the most recent makeProvider() call — this is what lets the
+ * empty-input assertions prove the guard lives in the provider, not in the
+ * test double. A prior version of this suite asserted only the return value,
+ * which would still pass if every provider fired a live request on empty
+ * input and the double just happened to answer with no results.
+ *
  * An interface with two implementations where only one is tested is
  * indirection, not an interface — this is called from both aws-provider.test.ts
  * and google-provider.test.ts.
  */
-export function runProviderConformance(name: string, makeProvider: () => PlaceProvider): void {
+export function runProviderConformance(
+  name: string,
+  makeProvider: () => PlaceProvider,
+  getUpstreamCallCount: () => number,
+): void {
   describe(`${name} provider conformance`, () => {
     it("suggest() returns [] (never throws) when the upstream fails", async () => {
       const provider = makeProvider();
@@ -26,6 +37,12 @@ export function runProviderConformance(name: string, makeProvider: () => PlacePr
     it("suggest() returns [] for an empty query", async () => {
       const provider = makeProvider();
       await expect(provider.suggest("")).resolves.toEqual([]);
+    });
+
+    it("suggest() returns [] for a whitespace-only query without calling the upstream", async () => {
+      const provider = makeProvider();
+      await expect(provider.suggest("   ")).resolves.toEqual([]);
+      expect(getUpstreamCallCount()).toBe(0);
     });
 
     it("resolve() returns null (never throws) when the upstream fails", async () => {
@@ -38,6 +55,12 @@ export function runProviderConformance(name: string, makeProvider: () => PlacePr
     it("resolve() returns null for an empty address with no placeId", async () => {
       const provider = makeProvider();
       await expect(provider.resolve({ address: "", persist: false })).resolves.toBeNull();
+    });
+
+    it("resolve() returns null for a whitespace-only address without calling the upstream", async () => {
+      const provider = makeProvider();
+      await expect(provider.resolve({ address: "   ", persist: false })).resolves.toBeNull();
+      expect(getUpstreamCallCount()).toBe(0);
     });
 
     it("a successful resolve() returns finite lat/lng and a non-empty formattedAddress", async () => {

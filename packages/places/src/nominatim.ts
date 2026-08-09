@@ -22,6 +22,8 @@ export function nominatimProvider(): PlaceProvider {
     // `persist` is ignored: OSM data has no "Stored" bucket equivalent — Nominatim
     // is keyless and unlicensed either way, so there's nothing to gate on.
     async resolve({ address }) {
+      if (!address.trim()) return null;
+
       const url = new URL("https://nominatim.openstreetmap.org/search");
       url.searchParams.set("format", "jsonv2");
       url.searchParams.set("limit", "1");

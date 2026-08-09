@@ -48,4 +48,11 @@ describe("nominatimProvider", () => {
     const withPersist = await nominatimProvider().resolve({ address: "somewhere", persist: true });
     expect(withoutPersist).toEqual(withPersist);
   });
+
+  it("resolve() never calls fetch for a whitespace-only address — the empty-input guard", async () => {
+    const fetchSpy = vi.fn(async () => okJson([{ lat: "43.5", lon: "-79.5" }]));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    await expect(nominatimProvider().resolve({ address: "   ", persist: false })).resolves.toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

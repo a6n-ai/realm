@@ -86,6 +86,22 @@ describe("googlePlaceProvider", () => {
     const provider = googlePlaceProvider();
     expect(await provider.suggest("danfor")).toEqual([]);
   });
+
+  it("suggest() never calls fetch for a whitespace-only query — the empty-input guard", async () => {
+    const fetchSpy = vi.fn(async () => okJson({ suggestions: [{ placePrediction: { placeId: "p1", text: { text: "x" } } }] }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const provider = googlePlaceProvider();
+    expect(await provider.suggest("   ")).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("resolve() never calls fetch for a whitespace-only address with no placeId — the empty-input guard", async () => {
+    const fetchSpy = vi.fn(async () => okJson({ places: [{ location: { latitude: 43.6, longitude: -79.4 }, formattedAddress: "x" }] }));
+    global.fetch = fetchSpy as unknown as typeof fetch;
+    const provider = googlePlaceProvider();
+    expect(await provider.resolve({ address: "   ", persist: false })).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -93,20 +109,22 @@ describe("googlePlaceProvider", () => {
  * text-search requests by URL suffix, and fails only for the sentinel query —
  * mirrors how the AWS fake client keys off command type / QueryText.
  */
+let conformanceCallCount = 0;
+
 function makeConformanceProvider() {
-  global.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+  conformanceCallCount = 0;
+  global.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    conformanceCallCount++;
     const urlStr = String(url);
     const bodyStr = typeof init?.body === "string" ? init.body : "";
     if (bodyStr.includes(UPSTREAM_FAILURE_QUERY)) throw new Error("network down");
 
     if (urlStr.endsWith(":autocomplete")) {
-      if (bodyStr.includes('"input":""')) return okJson({ suggestions: [] }); // empty query -> no hits
       return okJson({
         suggestions: [{ placePrediction: { placeId: "p1", text: { text: UPSTREAM_SUCCESS_QUERY } } }],
       });
     }
     if (urlStr.endsWith(":searchText")) {
-      if (bodyStr.includes('"textQuery":""')) return okJson({ places: [] }); // empty address -> no hits
       return okJson({
         places: [{ location: { latitude: 43.6853, longitude: -79.3872 }, formattedAddress: UPSTREAM_SUCCESS_QUERY }],
       });
@@ -117,4 +135,4 @@ function makeConformanceProvider() {
   return googlePlaceProvider();
 }
 
-runProviderConformance("google", makeConformanceProvider);
+runProviderConformance("google", makeConformanceProvider, () => conformanceCallCount);
