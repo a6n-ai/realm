@@ -101,7 +101,9 @@ export function CheckoutClient({
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
   const [discounts, setDiscounts] = useState<DiscountSelection>({ offerPublicIds: [] });
-  const quote = useCartQuote(items, !session, discounts);
+  // Delivery choice feeds the quote so the bag shows the same total the card
+  // will be charged; the server reads the percentage, we only send the key.
+  const quote = useCartQuote(items, !session, discounts, fulfillment === "delivery" ? deliveryTypeKey : null);
   /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
   const runningTotal = session?.total ?? quote?.total ?? subtotal;
 

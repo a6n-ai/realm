@@ -43,9 +43,14 @@ export function useCartQuote(
   items: CartItem[],
   enabled = true,
   discounts: DiscountSelection = NO_DISCOUNTS,
+  /** Picked delivery option, so its discount is part of the quoted total. */
+  deliveryTypeKey: string | null = null,
 ): CartQuote | null {
   const [priced, setPriced] = useState<{ key: string; quote: CartQuote } | null>(null);
-  const key = useMemo(() => bagKey(items, discounts), [items, discounts]);
+  const key = useMemo(
+    () => `${bagKey(items, discounts)}#${deliveryTypeKey ?? ""}`,
+    [items, discounts, deliveryTypeKey],
+  );
   // Once Clover has priced a real order there is nothing left to forecast.
   const active = enabled && items.length > 0;
 
@@ -69,6 +74,7 @@ export function useCartQuote(
                 offerPublicIds: discounts.offerPublicIds,
                 code: discounts.code ?? null,
               },
+              deliveryTypeKey,
             }),
           });
           // A stale or unavailable product 400s here. Stay on the estimate —
@@ -85,7 +91,7 @@ export function useCartQuote(
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [items, key, active, discounts]);
+  }, [items, key, active, discounts, deliveryTypeKey]);
 
   return active && priced?.key === key ? priced.quote : null;
 }

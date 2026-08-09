@@ -258,7 +258,7 @@ export function Footer() {
               Explore
             </h2>
             <div style={{ display: "grid", gap: 10 }}>
-              {NAV_LINKS.concat([["order", "Order Online", "Order"]]).map(([p, label]) => (
+              {NAV_LINKS.concat([["order", "Order Online", "Order"], ["reviews", "Reviews", "Reviews"]]).map(([p, label]) => (
                 <Link key={p} href={hrefFor(p)} style={{ fontWeight: 600, opacity: 0.9 }} className="foot-link">
                   {label}
                 </Link>
