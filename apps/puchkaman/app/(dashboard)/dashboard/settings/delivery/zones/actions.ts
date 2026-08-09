@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
+import { resolveAddress } from "@/lib/delivery/resolve-address";
 import {
   getZonesWithTypes,
   resolveTypeIds,
@@ -106,6 +107,31 @@ export async function setZoneTypesAction(
   });
   revalidate();
   return {};
+}
+
+/**
+ * Set the shop origin from a typed address instead of dragging the pin.
+ * Geocoding happens here, not in the browser: the client sends only text, so it
+ * can never assert its own coordinates — the same rule checkout follows, and
+ * this origin is what every delivery distance is measured from.
+ *
+ * persist: false — the coordinates are written to app settings, not kept as
+ * geocoder output, so the storage-licensed bucket does not apply.
+ */
+export async function saveStoreOriginFromAddressAction(input: {
+  placeId?: string;
+  address: string;
+}): Promise<{ error?: string; lat?: number; lng?: number; formattedAddress?: string }> {
+  await requireAdmin();
+  const address = input.address.trim();
+  if (!address && !input.placeId) return { error: "Enter an address first." };
+
+  const hit = await resolveAddress({ placeId: input.placeId, address });
+  if (!hit) return { error: "Couldn't find that address — try adding city and postal code." };
+
+  await saveStoreOrigin(hit.lat, hit.lng);
+  revalidate();
+  return { lat: hit.lat, lng: hit.lng, formattedAddress: hit.formattedAddress };
 }
 
 export async function saveStoreOriginAction(

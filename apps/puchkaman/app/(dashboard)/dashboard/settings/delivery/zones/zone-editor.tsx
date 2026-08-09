@@ -8,6 +8,7 @@ import { Button } from "@realm/ui/button";
 import { ZoneMap, clampRadiusKm, type MapZone } from "./zone-map";
 import { ZonesTable } from "./zones-table";
 import { ZoneEditDialog } from "./zone-edit-dialog";
+import { StoreOriginField } from "./store-origin-field";
 import { saveStoreOriginAction, saveZoneAction } from "./actions";
 import type { TypeOption, ZoneRow } from "./types";
 
@@ -97,6 +98,14 @@ export function ZoneEditor({
 
   return (
     <div className="space-y-4">
+      <StoreOriginField
+        origin={origin}
+        onOriginResolved={(lat, lng) => {
+          // The action already persisted it; just move the pin and rings.
+          setOrigin({ lat, lng });
+          router.refresh();
+        }}
+      />
       <ZoneMap
         origin={origin}
         zones={mapZones}
