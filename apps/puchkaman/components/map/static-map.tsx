@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 // Pinned to maplibre-gl v5 — see zone-map.tsx for why (v6's worker loading
 // breaks under Next's bundler). Same import-by-name, same dynamic-import,
 // same styledata-not-load gating; this is a read-only sibling of that map.
-import type { MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 /** Keyless raster basemap — copied from zone-map.tsx, attribution required by
@@ -51,6 +51,7 @@ export function StaticMap({
   useEffect(() => {
     let cancelled = false;
     let map: MapLibreMap | null = null;
+    const placedMarkers: MapLibreMarker[] = [];
 
     void (async () => {
       try {
@@ -70,12 +71,32 @@ export function StaticMap({
 
         // Gate on style readiness, not "load" — with a remote raster basemap
         // "load" may never fire. See zone-map.tsx for the production incident.
+        // styledata fires repeatedly, so this must be idempotent — without the
+        // guard every event appends another set of markers on top of the last.
+        let placed = false;
         const init = () => {
-          if (cancelled) return;
+          if (cancelled || placed) return;
+          placed = true;
           for (const m of markers) {
             const marker = new Marker({ color: m.color ?? "#111" }).setLngLat([m.lng, m.lat]);
             if (m.title) marker.setPopup(new Popup({ closeButton: false, offset: 24 }).setText(m.title));
             marker.addTo(instance);
+            placedMarkers.push(marker);
+          }
+          // Frame every marker rather than trusting `zoom`. A fixed zoom around
+          // the midpoint puts both pins off-screen as soon as they are a few km
+          // apart — the map then shows anonymous streets between two points you
+          // cannot see, which is worse than no map at all.
+          if (markers.length > 1) {
+            const lats = markers.map((m) => m.lat);
+            const lngs = markers.map((m) => m.lng);
+            instance.fitBounds(
+              [
+                [Math.min(...lngs), Math.min(...lats)],
+                [Math.max(...lngs), Math.max(...lats)],
+              ],
+              { padding: 56, duration: 0, maxZoom: zoom },
+            );
           }
           setReady(true);
         };
@@ -89,6 +110,7 @@ export function StaticMap({
 
     return () => {
       cancelled = true;
+      placedMarkers.forEach((m) => m.remove());
       map?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
