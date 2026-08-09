@@ -198,12 +198,13 @@ function ZoneCard({
 }
 
 export function ZoneEditor({
-  apiKey,
+  mapStyleUrl,
   origin: initialOrigin,
   zones: initialZones,
   types,
 }: {
-  apiKey: string | null;
+  /** Vector style URL for the basemap; null falls back to keyless OSM raster. */
+  mapStyleUrl: string | null;
   origin: { lat: number; lng: number };
   zones: ZoneRow[];
   types: TypeOption[];
@@ -271,21 +272,14 @@ export function ZoneEditor({
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
       <div className="lg:sticky lg:top-4 lg:self-start">
-        {apiKey ? (
-          <ZoneMap
-            apiKey={apiKey}
-            origin={origin}
-            zones={mapZones}
-            onRadiusChange={(publicId, radiusKm) => setRadii((r) => ({ ...r, [publicId]: radiusKm }))}
-            onRadiusCommit={commitRadius}
-            onOriginChange={commitOrigin}
-          />
-        ) : (
-          <div className="text-muted-foreground flex min-h-[420px] items-center justify-center rounded-lg border p-6 text-center text-sm">
-            Set NEXT_PUBLIC_GOOGLE_MAPS_KEY to show the map. Every value below is still editable
-            without it.
-          </div>
-        )}
+        <ZoneMap
+          origin={origin}
+          zones={mapZones}
+          onRadiusChange={(publicId, radiusKm) => setRadii((r) => ({ ...r, [publicId]: radiusKm }))}
+          onRadiusCommit={commitRadius}
+          onOriginChange={commitOrigin}
+          styleUrl={mapStyleUrl}
+        />
         <p className="text-muted-foreground mt-2 text-xs">
           Drag the shop pin to move the origin, or drag a ring&rsquo;s edge to resize it — every
           field is also editable from the cards on the right, keyboard only.

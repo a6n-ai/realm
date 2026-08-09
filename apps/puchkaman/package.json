@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
-    "@react-google-maps/api": "^2.20.3",
     "@realm/auth": "workspace:*",
     "@realm/auth-ui": "workspace:*",
     "@realm/clover": "workspace:*",
@@ -41,6 +40,7 @@
     "ioredis": "^5.4.1",
     "jose": "^6.2.3",
     "lucide-react": "^1.20.0",
+    "maplibre-gl": "^6.2.0",
     "motion": "^12.0.0",
     "nanoid": "^5.1.14",
     "next": "16.2.9",

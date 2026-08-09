@@ -145,6 +145,17 @@ Resources:
                 Effect: Allow
                 Action: [geo-places:Autocomplete, geo-places:Geocode, geo-places:GetPlace]
                 Resource: !Sub "arn:aws:geo-places:${AWS::Region}::provider/default"
+              # Basemap tiles for the admin delivery-zone map. Granted ahead of
+              # its consumer, unlike geo-places:Suggest which was deliberately
+              # left out: the admin map runs on keyless OSM tiles today, and
+              # moving it to Amazon Location needs a same-origin tile proxy that
+              # is not built yet. Included because applying this stack needs a
+              # privileged credential that is not routinely on hand, and GetTile
+              # grants nothing beyond fetching map imagery.
+              - Sid: GeoMaps
+                Effect: Allow
+                Action: [geo-maps:GetTile]
+                Resource: !Sub "arn:aws:geo-maps:${AWS::Region}::provider/default"
 
   BoxInstanceProfile:
     Type: AWS::IAM::InstanceProfile

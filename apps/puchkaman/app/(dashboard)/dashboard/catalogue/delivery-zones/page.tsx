@@ -40,7 +40,7 @@ export default async function DeliveryZonesPage() {
       />
       <SectionCard title="Zones">
         <ZoneEditor
-          apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? null}
+          mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
           origin={origin}
           zones={zoneRows}
           types={typeOptions}

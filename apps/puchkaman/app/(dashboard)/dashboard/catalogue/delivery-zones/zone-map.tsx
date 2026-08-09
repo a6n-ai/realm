@@ -1,11 +1,20 @@
 "use client";
 
-import { useCallback, useRef } from "react";
-import { Circle, GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { useEffect, useRef, useState } from "react";
+// maplibre-gl v6 has no default export — named only. It also exports the map
+// class as MapLibreMap, which is what we use: plain `Map` would shadow the
+// global Map used for the marker registry below.
+import type { MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { Skeleton } from "@realm/ui/skeleton";
+import { destinationPoint, haversineKm } from "@/lib/delivery/distance";
 
-const CONTAINER_STYLE: React.CSSProperties = { width: "100%", height: "100%", minHeight: 420 };
 const RING_GAP_KM = 0.01;
+/** Points per ring. 96 is smooth at every zoom the admin map allows without
+ *  making the GeoJSON payload worth thinking about. */
+const RING_STEPS = 96;
+/** Bearing the resize handle sits on. East keeps it clear of the zone label. */
+const HANDLE_BEARING = 90;
 
 export type MapZone = {
   publicId: string;
@@ -30,15 +39,64 @@ export function clampRadiusKm(radiusKm: number, zones: MapZone[], excludePublicI
   return Math.min(Math.max(radiusKm, lower), Math.max(lower, upper));
 }
 
+/**
+ * A zone ring as a GeoJSON polygon. MapLibre has no circle primitive — unlike
+ * Google's <Circle>, which is why this file is hand-rolled rather than a
+ * like-for-like port. Built from destinationPoint so the drawn ring and the
+ * server's haversine distance check agree on the same globe.
+ */
+export function ringPolygon(
+  center: { lat: number; lng: number },
+  radiusKm: number,
+  steps = RING_STEPS,
+): [number, number][] {
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const p = destinationPoint(center.lat, center.lng, radiusKm, (i * 360) / steps);
+    coords.push([p.lng, p.lat]);
+  }
+  return coords;
+}
+
+function zonesToGeoJson(origin: { lat: number; lng: number }, zones: MapZone[]) {
+  // Largest first so smaller rings paint on top and stay clickable — fills are
+  // translucent and later layers win the pointer.
+  const ordered = [...zones].filter((z) => z.active).sort((a, b) => b.radiusKm - a.radiusKm);
+  return {
+    type: "FeatureCollection" as const,
+    features: ordered.map((z) => ({
+      type: "Feature" as const,
+      properties: { publicId: z.publicId, name: z.name, color: z.color },
+      geometry: { type: "Polygon" as const, coordinates: [ringPolygon(origin, z.radiusKm)] },
+    })),
+  };
+}
+
+/** Keyless raster basemap. Works with no credential and no AWS grant, which is
+ *  what makes the map render at all today. Swapped for Amazon Location vector
+ *  tiles by setting NEXT_PUBLIC_MAP_STYLE_URL — see the styleUrl prop. */
+const OSM_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+};
+
 export function ZoneMap({
-  apiKey,
   origin,
   zones,
   onRadiusChange,
   onRadiusCommit,
   onOriginChange,
+  styleUrl = null,
 }: {
-  apiKey: string;
   origin: { lat: number; lng: number };
   zones: MapZone[];
   /** Fires continuously while a ring's resize handle is dragged, already clamped, in km. */
@@ -46,67 +104,195 @@ export function ZoneMap({
   /** Fires once when the drag ends — the point to persist. */
   onRadiusCommit: (publicId: string, radiusKm: number) => void;
   onOriginChange: (lat: number, lng: number) => void;
+  /** Vector style URL (Amazon Location, proxied same-origin). Null = keyless OSM raster. */
+  styleUrl?: string | null;
 }) {
-  const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: apiKey });
-  // Google fires onRadiusChanged with no argument — the current radius has to
-  // be read off the live Circle instance via its ref, one per zone.
-  const circleRefs = useRef(new Map<string, google.maps.Circle>());
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const originMarkerRef = useRef<MapLibreMarker | null>(null);
+  const handleMarkersRef = useRef(new Map<string, MapLibreMarker>());
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const handleRadiusChanged = useCallback(
-    (zone: MapZone) => {
-      const circle = circleRefs.current.get(zone.publicId);
-      if (!circle) return;
-      const meters = circle.getRadius();
-      const clampedKm = clampRadiusKm(meters / 1000, zones, zone.publicId);
-      // Snap the circle itself back to the clamped value so the drag handle
-      // can't visually sit past a neighbour while the mouse is still down.
-      circle.setRadius(clampedKm * 1000);
-      onRadiusChange(zone.publicId, clampedKm);
-    },
-    [zones, onRadiusChange],
-  );
+  // MapLibre event handlers are registered once against a live map instance, so
+  // they would capture the first render's props forever. Everything they read
+  // goes through this ref instead.
+  const latest = useRef({ origin, zones, onRadiusChange, onRadiusCommit, onOriginChange });
+  // Written in an effect, not during render: a render-phase ref write is unsafe
+  // under concurrent rendering, where a render can be discarded before commit.
+  // Declared before the map effect so the first commit populates it first.
+  useEffect(() => {
+    latest.current = { origin, zones, onRadiusChange, onRadiusCommit, onOriginChange };
+  });
 
-  if (loadError) {
+  // Map creation, once. maplibre-gl touches `window` at import time, so it is
+  // imported here rather than at module scope — this component is rendered on
+  // the server for its initial HTML like any other client component.
+  useEffect(() => {
+    let cancelled = false;
+    let map: MapLibreMap | null = null;
+
+    void (async () => {
+      try {
+        const { MapLibreMap: MapCtor, Marker, NavigationControl } = await import("maplibre-gl");
+        if (cancelled || !containerRef.current) return;
+
+        const instance = new MapCtor({
+          container: containerRef.current,
+          style: styleUrl ?? OSM_STYLE,
+          center: [latest.current.origin.lng, latest.current.origin.lat],
+          zoom: 11,
+          attributionControl: { compact: true },
+        });
+        map = instance;
+        mapRef.current = instance;
+        instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
+        instance.on("error", () => setFailed(true));
+
+        instance.on("load", () => {
+          if (cancelled) return;
+          instance.addSource("zones", {
+            type: "geojson",
+            data: zonesToGeoJson(latest.current.origin, latest.current.zones),
+          });
+          instance.addLayer({
+            id: "zones-fill",
+            type: "fill",
+            source: "zones",
+            paint: { "fill-color": ["get", "color"], "fill-opacity": 0.15 },
+          });
+          instance.addLayer({
+            id: "zones-line",
+            type: "line",
+            source: "zones",
+            paint: { "line-color": ["get", "color"], "line-width": 2 },
+          });
+
+          const originMarker = new Marker({ draggable: true, color: "#111" })
+            .setLngLat([latest.current.origin.lng, latest.current.origin.lat])
+            .addTo(instance);
+          originMarker.on("dragend", () => {
+            const { lng, lat } = originMarker.getLngLat();
+            latest.current.onOriginChange(lat, lng);
+          });
+          originMarkerRef.current = originMarker;
+
+          setReady(true);
+        });
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+
+    const handles = handleMarkersRef.current;
+    return () => {
+      cancelled = true;
+      handles.forEach((m) => m.remove());
+      handles.clear();
+      originMarkerRef.current?.remove();
+      originMarkerRef.current = null;
+      map?.remove();
+      mapRef.current = null;
+    };
+    // styleUrl is deployment config, not reactive state — rebuilding the map on
+    // a change to it is not a case that occurs at runtime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Redraw rings and reposition handles whenever the zones or the origin move.
+  // This is also what pulls the map back in line after a number-input edit —
+  // the input stays the authoritative control, the map follows it.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+
+    const source = map.getSource("zones");
+    if (source && "setData" in source) {
+      (source as { setData: (d: unknown) => void }).setData(zonesToGeoJson(origin, zones));
+    }
+    originMarkerRef.current?.setLngLat([origin.lng, origin.lat]);
+
+    void (async () => {
+      const { Marker } = await import("maplibre-gl");
+      const live = new Set<string>();
+
+      for (const zone of zones.filter((z) => z.active)) {
+        live.add(zone.publicId);
+        const at = destinationPoint(origin.lat, origin.lng, zone.radiusKm, HANDLE_BEARING);
+        const existing = handleMarkersRef.current.get(zone.publicId);
+
+        if (existing) {
+          existing.setLngLat([at.lng, at.lat]);
+        } else {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.className = "zone-handle";
+          el.style.cssText = `width:14px;height:14px;border-radius:9999px;border:2px solid #fff;background:${zone.color};box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:ew-resize;padding:0`;
+          // The number input is the accessible control for radius; this handle
+          // is a pointer-only convenience and must not become a tab stop that
+          // does nothing on Enter.
+          el.tabIndex = -1;
+          el.setAttribute("aria-hidden", "true");
+          el.title = `Drag to resize ${zone.name}`;
+
+          const marker = new Marker({ element: el, draggable: true })
+            .setLngLat([at.lng, at.lat])
+            .addTo(map);
+
+          const publicId = zone.publicId;
+          marker.on("drag", () => {
+            const m = handleMarkersRef.current.get(publicId);
+            if (!m) return;
+            const { lng, lat } = m.getLngLat();
+            const o = latest.current.origin;
+            const clamped = clampRadiusKm(
+              haversineKm(o.lat, o.lng, lat, lng),
+              latest.current.zones,
+              publicId,
+            );
+            // Snap the handle back onto its bearing at the clamped radius so it
+            // cannot visually sit past a neighbour while the mouse is still down.
+            const snapped = destinationPoint(o.lat, o.lng, clamped, HANDLE_BEARING);
+            m.setLngLat([snapped.lng, snapped.lat]);
+            latest.current.onRadiusChange(publicId, clamped);
+          });
+          marker.on("dragend", () => {
+            const m = handleMarkersRef.current.get(publicId);
+            if (!m) return;
+            const { lng, lat } = m.getLngLat();
+            const o = latest.current.origin;
+            latest.current.onRadiusCommit(
+              publicId,
+              clampRadiusKm(haversineKm(o.lat, o.lng, lat, lng), latest.current.zones, publicId),
+            );
+          });
+
+          handleMarkersRef.current.set(zone.publicId, marker);
+        }
+      }
+
+      // Drop handles for zones that were deactivated or deleted.
+      for (const [publicId, marker] of handleMarkersRef.current) {
+        if (!live.has(publicId)) {
+          marker.remove();
+          handleMarkersRef.current.delete(publicId);
+        }
+      }
+    })();
+  }, [ready, origin, zones]);
+
+  if (failed) {
     return (
-      <div className="text-destructive flex h-full min-h-[420px] items-center justify-center rounded-lg border p-6 text-center text-sm">
-        Google Maps failed to load. Check NEXT_PUBLIC_GOOGLE_MAPS_KEY.
+      <div className="text-muted-foreground flex h-full min-h-[420px] items-center justify-center rounded-lg border p-6 text-center text-sm">
+        The map could not be loaded. Every value below is still editable without it.
       </div>
     );
   }
-  if (!isLoaded) {
-    return <Skeleton className="min-h-[420px] w-full rounded-lg" />;
-  }
 
   return (
-    <div className="overflow-hidden rounded-lg border" style={{ minHeight: 420 }}>
-      <GoogleMap mapContainerStyle={CONTAINER_STYLE} center={origin} zoom={11}>
-        <Marker
-          position={origin}
-          draggable
-          onDragEnd={(e) => {
-            if (e.latLng) onOriginChange(e.latLng.lat(), e.latLng.lng());
-          }}
-        />
-        {zones
-          .filter((z) => z.active)
-          .map((z) => (
-            <Circle
-              key={z.publicId}
-              center={origin}
-              radius={z.radiusKm * 1000}
-              editable
-              draggable={false}
-              options={{ fillColor: z.color, fillOpacity: 0.15, strokeColor: z.color, strokeWeight: 2 }}
-              onLoad={(circle) => circleRefs.current.set(z.publicId, circle)}
-              onUnmount={() => circleRefs.current.delete(z.publicId)}
-              onRadiusChanged={() => handleRadiusChanged(z)}
-              onMouseUp={() => {
-                const circle = circleRefs.current.get(z.publicId);
-                if (circle) onRadiusCommit(z.publicId, circle.getRadius() / 1000);
-              }}
-            />
-          ))}
-      </GoogleMap>
+    <div className="relative overflow-hidden rounded-lg border" style={{ minHeight: 420 }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: 420 }} />
+      {!ready && <Skeleton className="absolute inset-0 min-h-[420px] w-full rounded-lg" />}
     </div>
   );
 }

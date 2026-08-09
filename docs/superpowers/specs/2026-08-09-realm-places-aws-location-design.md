@@ -263,6 +263,54 @@ geo-maps:GetTile          (Phase 2 only)
 4. Watch the first month's Location bill against the model above. A figure materially over ~$7 at
    ~1,000 orders means a call landed in the wrong bucket.
 
+## Amendment, 2026-08-09 — Phase 2 shipped, on OSM tiles rather than Amazon Location
+
+Phase 2 is done: `zone-map.tsx` is MapLibre, `@react-google-maps/api` is removed,
+and no Google dependency remains anywhere in the repo.
+
+It diverges from the plan above in the tile source. Amazon Location was the
+intended basemap, but both of its browser auth routes — an API key via
+`geo:CreateKey`, or a same-origin proxy using `geo-maps:GetTile` — need a
+privileged credential that is not currently available (the same wall the
+`geo-places` grant is behind). Building against Amazon Location alone would have
+produced a map that renders nothing, trading one blank box for another.
+
+So the basemap is **keyless OpenStreetMap raster tiles**, with the source
+selected by `NEXT_PUBLIC_MAP_STYLE_URL`. The interaction layer is identical
+either way, so moving to Amazon Location later is a config change plus a tile
+proxy, not a rewrite. Tiles are $0.04/1k when that happens — the basemap was
+never the expensive part.
+
+The circle-editor question the plan flagged as ship-blocking resolved better
+than feared. Neither researched route was needed:
+
+- Rings are `destinationPoint`-generated GeoJSON polygons in one source, styled
+  data-driven off each zone's colour. No Turf dependency.
+- Resize is a draggable MapLibre `Marker` sitting on each ring at bearing 90°,
+  not polygon hit-testing. Radius is the marker's haversine distance from the
+  origin, clamped, then the marker is snapped back onto its bearing so it cannot
+  visually cross a neighbour mid-drag.
+
+`destinationPoint` was added next to `haversineKm` in `lib/delivery/distance.ts`
+and is tested as its exact inverse across all bearings. That property is
+load-bearing: rings are *drawn* with one and *measured* with the other, so drift
+between them would paint a boundary the server disagrees with.
+
+The invariants the plan called non-negotiable both hold. The radius number input
+remains the source of truth and the only keyboard-accessible control — the drag
+handle is `aria-hidden` with `tabIndex -1` so it never becomes a tab stop that
+does nothing on Enter. The server-side clamp in `actions.ts` remains
+authoritative; the client clamp is live visual feedback only.
+
+Two notes for whoever picks this up:
+
+- `maplibre-gl` v6 has **no default export**. Import named
+  (`{ MapLibreMap, Marker, NavigationControl }`); v4/v5 examples showing
+  `import maplibregl from "maplibre-gl"` do not compile against v6.
+- OSM's tile usage policy expects modest traffic and attribution. One
+  authenticated admin screen is comfortably within it; a public-facing map would
+  not be, and is the point at which Amazon Location stops being optional.
+
 ## Amendment, 2026-08-09 — the Stored bucket is gone
 
 Everything above describes the design as approved. Two things changed during
