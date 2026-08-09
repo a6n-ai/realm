@@ -1,18 +1,15 @@
 import { GetTileCommand } from "@aws-sdk/client-geo-maps";
 import { MAP_TILESET, bodyToResponse, geoMapsClient, mapsLog } from "@/lib/maps/geo-maps";
+import { isValidTile } from "@/lib/maps/tile-bounds";
 
 export const dynamic = "force-dynamic";
-
-/** z/x/y are path segments straight from MapLibre; reject anything non-numeric
- *  before it reaches AWS so the proxy can't be used to probe other tilesets. */
-const isCoord = (v: string) => /^\d{1,3}$/.test(v);
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ z: string; x: string; y: string }> },
 ): Promise<Response> {
   const { z, x, y } = await params;
-  if (!isCoord(z) || !isCoord(x) || !isCoord(y)) {
+  if (!isValidTile(z, x, y)) {
     return new Response("Bad tile coordinates", { status: 400 });
   }
 
