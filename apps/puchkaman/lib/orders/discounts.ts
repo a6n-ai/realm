@@ -12,6 +12,8 @@
  * negative.
  */
 
+import { couponValue, resolveCoupons, type CouponCandidate } from "@realm/coupons";
+
 export type DiscountSource = {
   publicId: string;
   name: string;
@@ -50,15 +52,27 @@ export function normalizeCouponCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
-/** Percentage wins when a row somehow carries both — it is what Clover bills. */
-function valueOf(row: DiscountSource, subtotal: number): number {
-  const pct = row.percentage == null ? 0 : Number(row.percentage);
-  if (Number.isFinite(pct) && pct > 0) {
-    return Number(((subtotal * pct) / 100).toFixed(2));
-  }
-  const amount = row.amount == null ? 0 : Number(row.amount);
-  // Clover stores deductions as negatives; we deal in positive money off.
-  return Number.isFinite(amount) ? Math.abs(Number(amount.toFixed(2))) : 0;
+/**
+ * A Clover-synced discount as a neutral candidate for the shared engine.
+ *
+ * Clover stores deductions as negatives and has no notion of a validity window,
+ * usage limit or stacking rule — so those fields go in unset, which the engine
+ * reads as "unbounded". They become real the moment the discount row carries
+ * them; nothing here needs to change to switch them on.
+ */
+function toCandidate(row: DiscountSource, subtotal: number, code?: string): CouponCandidate {
+  return {
+    id: row.publicId,
+    name: row.name,
+    code,
+    percentOff: row.percentage == null ? null : Number(row.percentage),
+    // Clover's negatives normalised to positive money off — the engine's contract.
+    amountOff: row.amount == null ? null : Math.abs(Number(row.amount)),
+    active: row.active,
+    // Everything Clover can express stacks; puchkaman has never had an
+    // exclusive discount, and the previous implementation simply summed them.
+    stackable: true,
+  };
 }
 
 export function resolveDiscounts(
@@ -68,36 +82,45 @@ export function resolveDiscounts(
 ): ResolvedDiscounts {
   const live = rows.filter((r) => r.active);
   const byPublicId = new Map(live.map((r) => [r.publicId, r]));
-  const wanted = new Map<string, AppliedDiscount>();
+  const wanted = new Map<string, { row: DiscountSource; code?: string }>();
 
   for (const publicId of request.offerPublicIds) {
     const row = byPublicId.get(publicId);
     // Only a discount the merchant published is self-servable. Staff and comp
-    // discounts sync from Clover too and must never be claimable by id.
+    // discounts sync from Clover too and must never be claimable by id. This
+    // stays here rather than in the engine: publicOffer is a Clover concept.
     if (!row || !row.publicOffer) continue;
-    const amount = valueOf(row, subtotal);
-    if (amount <= 0) continue;
-    wanted.set(row.publicId, { publicId: row.publicId, name: row.name, amount });
+    wanted.set(row.publicId, { row });
   }
 
   const typed = request.code ? normalizeCouponCode(request.code) : "";
   let invalidCode = false;
   if (typed) {
     const row = live.find((r) => r.couponCode && normalizeCouponCode(r.couponCode) === typed);
-    const amount = row ? valueOf(row, subtotal) : 0;
-    if (!row || amount <= 0) {
+    // A code that matches nothing, or matches something worth nothing, reads the
+    // same to the customer: the code did not work.
+    if (!row || couponValue(toCandidate(row, subtotal), subtotal) <= 0) {
       invalidCode = true;
     } else {
       // A code for something already picked as an offer shouldn't apply twice.
-      wanted.set(row.publicId, { publicId: row.publicId, name: row.name, amount, code: typed });
+      wanted.set(row.publicId, { row, code: typed });
     }
   }
 
-  const applied = [...wanted.values()];
-  const raw = applied.reduce((s, d) => s + d.amount, 0);
+  const entries = [...wanted.values()];
+  const resolution = resolveCoupons(
+    entries.map(({ row, code }) => toCandidate(row, subtotal, code)),
+    { subtotal, now: Date.now() },
+  );
+
   return {
-    applied,
-    total: Number(Math.min(raw, subtotal).toFixed(2)),
+    applied: resolution.applied.map((a) => ({
+      publicId: a.id,
+      name: a.name,
+      amount: a.amount,
+      ...(a.code ? { code: a.code } : {}),
+    })),
+    total: resolution.total,
     invalidCode,
   };
 }
