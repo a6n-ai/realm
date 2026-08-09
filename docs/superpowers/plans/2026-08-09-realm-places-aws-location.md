@@ -361,7 +361,7 @@ git commit -m "feat(places): move Google and Nominatim behind the provider inter
 POST /api/delivery/suggest   { query: string }  →  { suggestions: PlaceSuggestion[] }
 ```
 
-- Public, throttled with the **existing** `isRateLimited` + `clientIp` from `lib/http/`. Use a **tighter limit than check-address** (which is 20/min) — suggest is per-keystroke: 60/min is a reasonable start. Define the constants beside the route like `CHECK_ADDRESS_LIMIT`.
+- Public, throttled with the **existing** `isRateLimited` + `clientIp` from `lib/http/`. Use a **higher raw ceiling than check-address** (which is 20/min) — suggest is per-keystroke, so a single debounced address entry is ~8 calls. 60/min allows roughly seven address entries a minute, which is generous for a human and still bounds abuse. Define the constants beside the route like `CHECK_ADDRESS_LIMIT`.
 - Returns `{ suggestions: [] }` on no match — **never** an error status.
 - Never returns coordinates. Suggestions are `{ placeId, label }` only; coordinates are the server's business and arrive at resolve time.
 
