@@ -39,6 +39,21 @@ PLACES_PROVIDER back the delivery address lookup (`@realm/places`) — see
 `apps/puchkaman/.env.example` for what each does when unset. Never commit a
 real key value; this repo is public.
 
+Neither is set in prod today, so checkout's address field is a plain text input
+with no autocomplete — the same behaviour the site has always had, since the old
+browser widget's key was never deployed either. Geocoding falls through to
+Nominatim, which needs no credential. To turn autocomplete on via AWS rather
+than Google, both of these are required — `AWS_REGION` alone is not enough:
+
+1. The instance role needs `geo-places` (GeoPlaces statement in
+   `infra/puchkaman-prod.yaml`). Apply with the step-1 deploy command; it needs
+   IAM permissions that the day-to-day `realm-admin` credential does not have.
+2. Set `PLACES_PROVIDER=aws`.
+
+Without step 1 the SDK returns AccessDeniedException per request and the
+dropdown stays empty — it fails quietly from the customer's side, so check the
+logs rather than the UI when confirming the flip worked.
+
 ## 3. First-time box bring-up
 
 EC2: Amazon Linux 2023, **x86_64**, t3.small, 30 GiB gp3 encrypted, tag

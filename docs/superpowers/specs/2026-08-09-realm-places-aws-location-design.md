@@ -263,6 +263,44 @@ geo-maps:GetTile          (Phase 2 only)
 4. Watch the first month's Location bill against the model above. A figure materially over ~$7 at
    ~1,000 orders means a call landed in the wrong bucket.
 
+## Amendment, 2026-08-09 — the Stored bucket is gone
+
+Everything above describes the design as approved. Two things changed during
+implementation; the text above is left as written, this section is what shipped.
+
+**`orders.delivery_lat` / `delivery_lng` were dropped** (migration `0007`). The
+whole-branch review found them to be write-only — nothing in the codebase ever
+read them. They were the sole reason checkout needed the storage-licensed bucket,
+so the design's central cost split no longer applies:
+
+| Call site | As designed | As shipped |
+|---|---|---|
+| Autocomplete | Label, $0.20/1k | unchanged |
+| Checkout resolve | **Stored, $4.00/1k** | **Core, $0.50/1k** |
+| Public checker | Core, $0.50/1k | unchanged |
+
+Modelled at 1,000 delivery orders/month: ~8,000 Label ($1.60) + ~3,000 Core
+($1.50) ≈ **$3.10/month**, against the $6.60 projected above.
+
+Checkout still geocodes. The coordinates derive `delivery_distance_km` — which is
+read, by zone matching and the admin UI — and are then discarded. A derived
+distance is not geocoder output, so no storage licence attaches to it.
+
+Consequences worth knowing before anyone reverses this:
+
+- `resolveAddressForStorage` and its separate AWS+Nominatim chain are deleted.
+  Persisting a coordinate again means restoring both, and Google can never be in
+  that chain at any price.
+- `persist` remains in the `PlaceProvider` interface. It is the package's
+  contract and tiffin-grab may need it; no puchkaman caller sets it true, and a
+  test asserts every provider in the chain receives `persist: false`.
+- The "cache placeId → ResolvedPlace" follow-up below is now a latency
+  optimisation, not a cost one — repeat resolves are Core, not Stored.
+
+**`geo-places:Suggest` was not granted.** The IAM list above names four actions;
+`aws-provider.ts` only ever issues `Autocomplete`, `Geocode`, and `GetPlace`. The
+policy grants those three.
+
 ## Follow-ups
 
 - Cache `placeId → ResolvedPlace` — `placeId` is stable and cacheable, and would cut repeat Stored
