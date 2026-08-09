@@ -1,92 +1,63 @@
-import { createLogger } from "@realm/commons/logger";
-import { geocodeAddress } from "./geocode";
+import {
+  awsPlaceProvider,
+  googlePlaceProvider,
+  nominatimProvider,
+  resolvePlace,
+  type PlaceProvider,
+  type PlaceSuggestion,
+  type ResolvedPlace,
+} from "@realm/places";
 
-const log = createLogger("delivery-resolve-address");
+export type ResolvedAddress = ResolvedPlace;
 
-const PLACES_ENDPOINT = "https://places.googleapis.com/v1/places";
-const DETAILS_FIELD_MASK = "location,formattedAddress";
-const SEARCH_TEXT_FIELD_MASK = "places.location,places.formattedAddress";
-
-export type ResolvedAddress = { lat: number; lng: number; formattedAddress: string };
-
-type RawPlace = { location?: { latitude?: number; longitude?: number }; formattedAddress?: string };
-
-function toResolved(raw: RawPlace | undefined): ResolvedAddress | null {
-  const lat = raw?.location?.latitude;
-  const lng = raw?.location?.longitude;
-  const formattedAddress = raw?.formattedAddress;
-  if (typeof lat !== "number" || typeof lng !== "number" || !formattedAddress) return null;
-  return { lat, lng, formattedAddress };
+// PLACES_PROVIDER picks which paid provider goes first; the other paid
+// provider and Nominatim follow as fallback so a single vendor outage
+// degrades checkout instead of blocking it. Default (unset) keeps Google
+// primary — Task 5 decides whether AWS's Canadian subpremise data is good
+// enough to flip this.
+function buildProviders(): PlaceProvider[] {
+  const aws = awsPlaceProvider({ region: process.env.AWS_REGION });
+  const google = googlePlaceProvider();
+  const nominatim = nominatimProvider();
+  return process.env.PLACES_PROVIDER === "aws" ? [aws, google, nominatim] : [google, aws, nominatim];
 }
 
-// ponytail: this hits Places Details uncached on every call. place_id is the
-// one field Google permits caching indefinitely — cache by place_id if request
-// volume ever makes it worth it.
-async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<ResolvedAddress | null> {
-  try {
-    const res = await fetch(`${PLACES_ENDPOINT}/${encodeURIComponent(placeId)}`, {
-      headers: { "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": DETAILS_FIELD_MASK },
-    });
-    if (!res.ok) return null;
-    return toResolved((await res.json()) as RawPlace);
-  } catch (e) {
-    log.error({ err: e instanceof Error ? e.message : e }, "places details request failed");
-    return null;
-  }
-}
-
-async function fetchTextSearch(address: string, apiKey: string): Promise<ResolvedAddress | null> {
-  try {
-    const res = await fetch(`${PLACES_ENDPOINT}:searchText`, {
-      method: "POST",
-      headers: {
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": SEARCH_TEXT_FIELD_MASK,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ textQuery: address }),
-    });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { places?: RawPlace[] };
-    return toResolved(body.places?.[0]);
-  } catch (e) {
-    log.error({ err: e instanceof Error ? e.message : e }, "places text search request failed");
-    return null;
-  }
-}
-
-async function fetchNominatim(address: string): Promise<ResolvedAddress | null> {
-  const result = await geocodeAddress(address);
-  if (!result) return null;
-  return { lat: result.lat, lng: result.lng, formattedAddress: address };
-}
+const providers = buildProviders();
 
 /**
  * The only way coordinates enter the system. A client-supplied place_id/address
  * is resolved server-side so a client can never assert its own lat/lng — distance
  * from here decides a discount and a delivery fee.
  *
- * Order: place_id (Places Details) → text search → Nominatim → null. Never
- * throws — every failure path falls through, so a Google or Nominatim outage
- * degrades checkout rather than taking it down.
+ * `persist: false` — the mid-cost bucket, for advisory checks (the public "do we
+ * deliver here?" check) that store nothing. Use `resolveAddressForStorage` for
+ * anything written to the database.
  */
-export async function resolveAddress({
-  placeId,
-  address,
-}: {
+export async function resolveAddress(input: { placeId?: string; address: string }): Promise<ResolvedAddress | null> {
+  return resolvePlace(providers, { ...input, persist: false });
+}
+
+/**
+ * Same resolution, `persist: true` — AWS's storage-licensed bucket (~8x Core),
+ * required whenever the result is written to a database. Use only where
+ * coordinates are persisted (currently: order creation's delivery_lat/delivery_lng).
+ */
+export async function resolveAddressForStorage(input: {
   placeId?: string;
   address: string;
 }): Promise<ResolvedAddress | null> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  return resolvePlace(providers, { ...input, persist: true });
+}
 
-  if (apiKey) {
-    if (placeId) {
-      const details = await fetchPlaceDetails(placeId, apiKey);
-      if (details) return details;
-    }
-    const search = await fetchTextSearch(address, apiKey);
-    if (search) return search;
+/**
+ * Cheapest bucket — typeahead, fires on every keystroke. First provider with a
+ * non-empty result wins; Nominatim never has anything to offer here (it isn't
+ * a typeahead service) so it's a harmless no-op at the end of the chain.
+ */
+export async function suggestAddresses(query: string): Promise<PlaceSuggestion[]> {
+  for (const provider of providers) {
+    const hits = await provider.suggest(query);
+    if (hits.length > 0) return hits;
   }
-
-  return fetchNominatim(address);
+  return [];
 }

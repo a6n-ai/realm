@@ -1,59 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
-import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import type { PlaceSuggestion } from "@realm/places";
 
-// Loose shape of the bits of the legacy `google.maps.places.Autocomplete`
-// widget this component uses — no @types/google.maps in this workspace, and
-// pulling it in for one widget isn't worth the dependency.
-type PlaceResult = { formatted_address?: string; place_id?: string };
-type AutocompleteInstance = {
-  addListener: (event: string, handler: () => void) => void;
-  getPlace: () => PlaceResult;
-};
-type GoogleMapsWindow = Window & {
-  google?: {
-    maps?: {
-      places?: {
-        Autocomplete: new (
-          input: HTMLInputElement,
-          opts: Record<string, unknown>,
-        ) => AutocompleteInstance;
-      };
-    };
-  };
-};
-
-const SCRIPT_ID = "google-maps-places-script";
-// ponytail: module-scoped singleton promise. Every mount reuses the same
-// load, so two autocomplete inputs on one page (or a remount) never inject
-// the script twice.
-let loadPromise: Promise<void> | null = null;
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (loadPromise) return loadPromise;
-  loadPromise = new Promise((resolve, reject) => {
-    const w = window as GoogleMapsWindow;
-    if (w.google?.maps?.places) {
-      resolve();
-      return;
-    }
-    const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    const script = existing ?? document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    if (!existing) document.head.appendChild(script);
-  });
-  return loadPromise;
-}
+const DEBOUNCE_MS = 250;
 
 /**
- * Places Autocomplete over a plain text input. Degrades to a plain input
- * (still submittable — `placeId` is optional everywhere downstream) when the
- * key is missing or the script fails to load.
+ * Plain input + a debounced fetch to the server-side suggest route (cheapest
+ * Places bucket — never returns coordinates, resolve() does that separately).
+ * Degrades gracefully: a typed address with no suggestion picked still
+ * submits, `placeId` stays optional everywhere downstream.
  */
 export function AddressAutocomplete({
   value,
@@ -68,61 +24,119 @@ export function AddressAutocomplete({
   id?: string;
   className?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against a stale response (from an earlier keystroke) landing after
+  // a newer one and clobbering the dropdown with outdated suggestions.
+  const requestIdRef = useRef(0);
   const autoId = useId();
   const inputId = id ?? autoId;
+  const listId = `${inputId}-suggestions`;
 
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-    if (!apiKey || !inputRef.current) return;
-    let cancelled = false;
-    let autocomplete: AutocompleteInstance | null = null;
-
-    loadGoogleMaps(apiKey)
-      .then(() => {
-        if (cancelled || !inputRef.current) return;
-        const w = window as GoogleMapsWindow;
-        const Autocomplete = w.google?.maps?.places?.Autocomplete;
-        if (!Autocomplete) return;
-        autocomplete = new Autocomplete(inputRef.current, {
-          fields: ["formatted_address", "place_id"],
-          componentRestrictions: { country: "ca" },
-          // Bias (not restrict) toward the shop — a loose box around it,
-          // wide enough to cover the scheduled-delivery zone.
-          bounds: {
-            north: DEFAULT_STORE_LAT + 0.5,
-            south: DEFAULT_STORE_LAT - 0.5,
-            east: DEFAULT_STORE_LNG + 0.5,
-            west: DEFAULT_STORE_LNG - 0.5,
-          },
-        });
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete?.getPlace();
-          if (!place?.place_id) return;
-          const address = place.formatted_address ?? inputRef.current?.value ?? "";
-          onChange(address);
-          onPick({ address, placeId: place.place_id });
-        });
-      })
-      .catch(() => {
-        // Script failed to load — the plain input still works fine.
-      });
-
     return () => {
-      cancelled = true;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- wire the widget once per mount
   }, []);
 
+  function scheduleFetch(query: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      requestIdRef.current++;
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const requestId = ++requestIdRef.current;
+      try {
+        const res = await fetch("/api/delivery/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: trimmed }),
+        });
+        const body = (await res.json().catch(() => null)) as { suggestions?: PlaceSuggestion[] } | null;
+        if (requestId !== requestIdRef.current) return;
+        const next = body?.suggestions ?? [];
+        setSuggestions(next);
+        setOpen(next.length > 0);
+        setActiveIndex(-1);
+      } catch {
+        // A failed typeahead request is silent — the plain input still submits.
+      }
+    }, DEBOUNCE_MS);
+  }
+
+  function pick(suggestion: PlaceSuggestion) {
+    onChange(suggestion.label);
+    onPick({ address: suggestion.label, placeId: suggestion.placeId });
+    requestIdRef.current++;
+    setSuggestions([]);
+    setOpen(false);
+    setActiveIndex(-1);
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!open || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        pick(suggestions[activeIndex]!);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  }
+
   return (
-    <input
-      ref={inputRef}
-      id={inputId}
-      className={className}
-      value={value}
-      autoComplete="street-address"
-      placeholder="Street, city, postal code"
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <div className="address-suggest">
+      <input
+        id={inputId}
+        className={className}
+        value={value}
+        autoComplete="street-address"
+        placeholder="Street, city, postal code"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        aria-controls={listId}
+        onChange={(e) => {
+          onChange(e.target.value);
+          scheduleFetch(e.target.value);
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => setOpen(false)}
+      />
+      {open && suggestions.length > 0 && (
+        <ul id={listId} role="listbox" className="address-suggest__list">
+          {suggestions.map((suggestion, i) => (
+            <li
+              key={suggestion.placeId}
+              role="option"
+              aria-selected={i === activeIndex}
+              className="address-suggest__item"
+              // onMouseDown (not onClick) fires before the input's onBlur, so
+              // the pick registers before the dropdown closes itself away.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pick(suggestion);
+              }}
+            >
+              {suggestion.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

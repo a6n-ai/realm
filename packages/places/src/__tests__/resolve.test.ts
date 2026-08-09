@@ -38,4 +38,15 @@ describe("resolvePlace", () => {
     await resolvePlace([p], { address: "x", persist: true });
     expect(spy).toHaveBeenCalledWith({ address: "x", persist: true });
   });
+
+  // Regression: a picked suggestion carries a placeId with no typed text — the
+  // primary checkout path (client autocomplete → onPick, no further typing).
+  // resolvePlace must forward straight to the provider rather than treating
+  // the empty address as a reason to short-circuit.
+  it("reaches the provider for a picked suggestion with an empty typed address", async () => {
+    const p = provider("aws", hit);
+    const spy = vi.spyOn(p, "resolve");
+    expect(await resolvePlace([p], { placeId: "x", address: "", persist: true })).toEqual(hit);
+    expect(spy).toHaveBeenCalledWith({ placeId: "x", address: "", persist: true });
+  });
 });

@@ -1,67 +1,97 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { resolveAddress } from "../resolve-address";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ResolvedPlace } from "@realm/places";
 
-const ORIGINAL_FETCH = global.fetch;
-const ORIGINAL_KEY = process.env.GOOGLE_PLACES_API_KEY;
+// resolve-address.ts builds its provider chain from real awsPlaceProvider()/
+// googlePlaceProvider()/nominatimProvider() at module load — the real AWS
+// provider talks to a live AWS SDK client, not `fetch`, so stubbing
+// global.fetch can't control it (and letting it run for real risks live
+// network/credentialed calls in CI). Replace all three factories with fakes
+// so this file tests resolve-address.ts's own logic — which provider is
+// consulted in which order, and which persist value each export sends —
+// not the providers themselves (that's packages/places's job).
+const awsResolve = vi.hoisted(() => vi.fn());
+const awsSuggest = vi.hoisted(() => vi.fn());
+const googleResolve = vi.hoisted(() => vi.fn());
+const googleSuggest = vi.hoisted(() => vi.fn());
+const nominatimResolve = vi.hoisted(() => vi.fn());
+
+vi.mock("@realm/places", async () => {
+  const actual = await vi.importActual<typeof import("@realm/places")>("@realm/places");
+  return {
+    ...actual,
+    awsPlaceProvider: () => ({ id: "aws", resolve: awsResolve, suggest: awsSuggest }),
+    googlePlaceProvider: () => ({ id: "google", resolve: googleResolve, suggest: googleSuggest }),
+    nominatimProvider: () => ({ id: "nominatim", resolve: nominatimResolve, suggest: async () => [] }),
+  };
+});
+
+const { resolveAddress, resolveAddressForStorage, suggestAddresses } = await import("../resolve-address");
+
+const hit: ResolvedPlace = { lat: 43.7, lng: -79.3, formattedAddress: "3315 Danforth Ave" };
 
 beforeEach(() => {
-  process.env.GOOGLE_PLACES_API_KEY = "test-key";
+  awsResolve.mockReset().mockResolvedValue(null);
+  awsSuggest.mockReset().mockResolvedValue([]);
+  googleResolve.mockReset().mockResolvedValue(null);
+  googleSuggest.mockReset().mockResolvedValue([]);
+  nominatimResolve.mockReset().mockResolvedValue(null);
 });
-
-afterEach(() => {
-  global.fetch = ORIGINAL_FETCH;
-  process.env.GOOGLE_PLACES_API_KEY = ORIGINAL_KEY;
-  vi.restoreAllMocks();
-});
-
-function okJson(body: unknown) {
-  return { ok: true, json: async () => body } as Response;
-}
 
 describe("resolveAddress", () => {
-  it("resolves a place_id via Places Details", async () => {
-    global.fetch = vi.fn(async () =>
-      okJson({ location: { latitude: 43.7, longitude: -79.3 }, formattedAddress: "3315 Danforth Ave" }),
-    ) as unknown as typeof fetch;
-
-    expect(await resolveAddress({ placeId: "ChIJabc", address: "typed" })).toEqual({
-      lat: 43.7,
-      lng: -79.3,
-      formattedAddress: "3315 Danforth Ave",
-    });
+  it("resolves via the primary provider (google, by default) without persisting", async () => {
+    googleResolve.mockResolvedValueOnce(hit);
+    expect(await resolveAddress({ placeId: "ChIJabc", address: "typed" })).toEqual(hit);
+    expect(googleResolve).toHaveBeenCalledWith({ placeId: "ChIJabc", address: "typed", persist: false });
+    expect(awsResolve).not.toHaveBeenCalled();
   });
 
-  it("falls back to text search when there is no place_id", async () => {
-    global.fetch = vi.fn(async () =>
-      okJson({ places: [{ location: { latitude: 43.6, longitude: -79.4 }, formattedAddress: "12 King St" }] }),
-    ) as unknown as typeof fetch;
-
-    expect(await resolveAddress({ address: "12 King St" })).toEqual({
-      lat: 43.6,
-      lng: -79.4,
-      formattedAddress: "12 King St",
-    });
-  });
-
-  it("falls back to Nominatim when Google fails", async () => {
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false } as Response)
-      .mockResolvedValueOnce(okJson([{ lat: "43.5", lon: "-79.5" }])) as unknown as typeof fetch;
-
+  it("falls through aws to Nominatim when google misses", async () => {
+    nominatimResolve.mockResolvedValueOnce({ lat: 43.5, lng: -79.5, formattedAddress: "somewhere" });
     const out = await resolveAddress({ address: "somewhere" });
-    expect(out?.lat).toBeCloseTo(43.5);
-    expect(out?.lng).toBeCloseTo(-79.5);
+    expect(out).toEqual({ lat: 43.5, lng: -79.5, formattedAddress: "somewhere" });
+    expect(googleResolve).toHaveBeenCalledTimes(1);
+    expect(awsResolve).toHaveBeenCalledTimes(1);
+    expect(nominatimResolve).toHaveBeenCalledTimes(1);
   });
 
-  it("returns null when every source fails", async () => {
-    global.fetch = vi.fn(async () => ({ ok: false }) as Response) as unknown as typeof fetch;
+  it("returns null when every provider misses", async () => {
     expect(await resolveAddress({ address: "nowhere" })).toBeNull();
   });
 
-  it("returns null when the API key is missing and Nominatim also fails", async () => {
-    delete process.env.GOOGLE_PLACES_API_KEY;
-    global.fetch = vi.fn(async () => ({ ok: false }) as Response) as unknown as typeof fetch;
-    expect(await resolveAddress({ placeId: "ChIJabc", address: "x" })).toBeNull();
+  it("reaches the provider for a picked suggestion with an empty typed address", async () => {
+    googleResolve.mockResolvedValueOnce(hit);
+    expect(await resolveAddress({ placeId: "ChIJabc", address: "" })).toEqual(hit);
+    expect(googleResolve).toHaveBeenCalledWith({ placeId: "ChIJabc", address: "", persist: false });
+  });
+});
+
+describe("resolveAddressForStorage", () => {
+  it("sends persist: true — the storage-licensed bucket", async () => {
+    googleResolve.mockResolvedValueOnce(hit);
+    await resolveAddressForStorage({ address: "12 King St" });
+    expect(googleResolve).toHaveBeenCalledWith({ placeId: undefined, address: "12 King St", persist: true });
+  });
+});
+
+describe("suggestAddresses", () => {
+  it("returns the first provider's non-empty result", async () => {
+    googleSuggest.mockResolvedValueOnce([{ placeId: "p1", label: "3315 Danforth Ave" }]);
+    expect(await suggestAddresses("danfor")).toEqual([{ placeId: "p1", label: "3315 Danforth Ave" }]);
+    expect(awsSuggest).not.toHaveBeenCalled();
+  });
+
+  it("never returns coordinates — suggestions are placeId/label only", async () => {
+    googleSuggest.mockResolvedValueOnce([{ placeId: "p1", label: "3315 Danforth Ave" }]);
+    const result = await suggestAddresses("danfor");
+    expect(result[0]).toEqual({ placeId: "p1", label: "3315 Danforth Ave" });
+  });
+
+  it("falls through to the next provider when the primary has nothing", async () => {
+    awsSuggest.mockResolvedValueOnce([{ placeId: "p2", label: "12 King St" }]);
+    expect(await suggestAddresses("king")).toEqual([{ placeId: "p2", label: "12 King St" }]);
+  });
+
+  it("returns [] when every provider has nothing", async () => {
+    expect(await suggestAddresses("nowhere")).toEqual([]);
   });
 });

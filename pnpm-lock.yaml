@@ -65,6 +65,9 @@ importers:
       '@realm/google-reviews':
         specifier: workspace:*
         version: link:../../packages/google-reviews
+      '@realm/places':
+        specifier: workspace:*
+        version: link:../../packages/places
       '@realm/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime

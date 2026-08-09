@@ -1407,6 +1407,36 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   margin: 0;
 }
 
+/* ---------- address autocomplete ---------- */
+.address-suggest { position: relative; }
+.address-suggest__list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--white);
+  border: var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-sm);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.address-suggest__item {
+  padding: 10px 12px;
+  border-radius: calc(var(--r-sm) - 4px);
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.address-suggest__item:hover,
+.address-suggest__item[aria-selected="true"] {
+  background: var(--paper);
+}
+
 .phone-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

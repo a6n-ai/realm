@@ -22,7 +22,7 @@ import {
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
 import { haversineKm } from "@/lib/delivery/distance";
-import { resolveAddress } from "@/lib/delivery/resolve-address";
+import { resolveAddressForStorage } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
 import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
 import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
@@ -546,7 +546,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     if (parsed.fulfillment.type === "delivery") {
       const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
-      const resolved = await resolveAddress({
+      // Storage bucket (~8x Core) — deliberate: this result is written to
+      // delivery_lat/delivery_lng below.
+      const resolved = await resolveAddressForStorage({
         placeId: parsed.fulfillment.placeId,
         address: parsed.fulfillment.address,
       });
