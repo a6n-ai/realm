@@ -11,6 +11,7 @@ import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getDeliveryLabelsForOrder } from "@/lib/delivery/zones.service";
 import { employeesService } from "@/lib/services/employees.service";
+import { listCustomerRequests } from "@/lib/order-tracking/customer-requests";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { ordersService } from "@/lib/services/orders.service";
 
@@ -29,6 +30,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   ]);
   if (!detailResult.ok) notFound();
   const { order, items, payments, assignedEmployee } = detailResult.d;
+  const customerRequests = await listCustomerRequests(order.publicId);
   const cloverEnabled = Boolean(clover.installed);
   const { typeLabel: deliveryTypeLabel, zoneName: deliveryZoneName } = await getDeliveryLabelsForOrder(
     order.deliveryTypeId,
@@ -196,6 +198,26 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           )}
         </SectionCard>
       </div>
+
+      {customerRequests.length > 0 ? (
+        <SectionCard title="From the customer">
+          <ul className="divide-y text-sm">
+            {customerRequests.map((req) => (
+              <li key={`${req.action}-${req.at}`} className="flex items-start justify-between gap-4 py-2">
+                <div>
+                  <Badge variant={req.action === "tracking_cancel_requested" ? "destructive" : "secondary"}>
+                    {req.action === "tracking_cancel_requested" ? "Cancellation requested" : "Note"}
+                  </Badge>
+                  {req.text ? <p className="mt-1">{req.text}</p> : null}
+                </div>
+                <span className="text-muted-foreground shrink-0">
+                  {new Date(req.at).toLocaleString("en-CA", { timeZone: "America/Toronto" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Line items">
         <ul className="divide-y text-sm">

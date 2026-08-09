@@ -293,6 +293,11 @@ export function CheckoutClient({
           </p>
         ) : null}
         <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {session ? (
+            <Btn href={`/track/${session.orderPublicId}`} variant="ink">
+              Track this order
+            </Btn>
+          ) : null}
           <Btn page="eats" variant="yellow">
             Back to menu
           </Btn>

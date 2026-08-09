@@ -23,6 +23,10 @@ const ACTION_LABELS: Record<string, string> = {
   clover_catalog_push: "Pushed categories to Clover",
   clover_employees_pull: "Synced Clover employees",
   order_assign_employee: "Assigned order employee",
+  // Written by the customer from the public tracking page, so these rows have
+  // no actor — the trail shows them with a blank actor by design.
+  tracking_cancel_requested: "Customer requested cancellation",
+  tracking_note_added: "Customer added a note",
   payment_check_status: "Checked payment status",
   uber_images_sync: "Synced Uber Eats images",
   uber_resolve_duplicate: "Resolved Uber image duplicate",

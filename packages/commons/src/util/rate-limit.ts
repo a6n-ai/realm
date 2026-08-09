@@ -36,9 +36,22 @@ function normalizeKey(key: string): string {
   return groups.slice(0, 4).join(":");
 }
 
-/** Returns true if `key` has exceeded `max` calls within `windowMs`. */
-export function isRateLimited(rawKey: string, max: number, windowMs: number): boolean {
-  const key = normalizeKey(rawKey);
+/**
+ * Returns true if `key` has exceeded `max` calls within `windowMs`.
+ *
+ * `namespace` buckets a caller's counters separately while still letting an IP
+ * key go through the /64 folding above — prefixing the namespace onto the raw
+ * key yourself would make it unrecognisable as an address and hand an IPv6
+ * client a fresh bucket per request.
+ */
+export function isRateLimited(
+  rawKey: string,
+  max: number,
+  windowMs: number,
+  namespace?: string,
+): boolean {
+  const normalized = normalizeKey(rawKey);
+  const key = namespace ? `${namespace}|${normalized}` : normalized;
   const now = Date.now();
 
   if (++callsSinceSweep >= SWEEP_INTERVAL) {

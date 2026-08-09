@@ -5,6 +5,8 @@ import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
 import { createLogger } from "@realm/commons/logger";
 import { authAuditAction } from "@realm/auth";
+import { orderTracking } from "@realm/order-tracking";
+import { resolveTrackingSubject } from "@/lib/order-tracking/subject";
 import { Role } from "@realm/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -62,6 +64,11 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    // Public order tracking. Guests exchange the last 4 digits of the phone on
+    // the order for a signed, order-scoped grant cookie; logged-in owners skip
+    // the PIN. Deliberately not the anonymous plugin — that would mint a user
+    // row per guest into a table this app surfaces in admin listings.
+    orderTracking({ resolve: resolveTrackingSubject }),
     // Email OTP: 6-digit codes for password reset. Codes are stored hashed and
     // expire in 10 min. sendVerificationOTP routes the code via SES.
     emailOTP({

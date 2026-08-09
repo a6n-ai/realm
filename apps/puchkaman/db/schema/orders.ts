@@ -90,7 +90,9 @@ export const orders = pgTable(
     fulfillment: orderFulfillment("fulfillment").notNull().default("pickup"),
     customerName: text("customer_name").notNull(),
     customerEmail: text("customer_email").notNull(),
-    customerPhone: text("customer_phone"),
+    // Required: it is the only factor guarding the public tracking page, whose
+    // PIN is the last 4 digits of this number. Checkout has always demanded it.
+    customerPhone: text("customer_phone").notNull(),
     note: text("note"),
     /** Delivery-only fields — null for pickup orders. */
     deliveryAddress: text("delivery_address"),

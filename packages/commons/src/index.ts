@@ -10,5 +10,7 @@ export * from "./util/contact";
 export * from "./util/address";
 export * from "./util/password";
 export * from "./util/pin";
+export * from "./util/rate-limit";
+export * from "./util/client-ip";
 export * from "./util/money";
 export * from "./cache";

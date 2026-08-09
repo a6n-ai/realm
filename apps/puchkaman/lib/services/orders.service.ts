@@ -855,6 +855,30 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   /**
+   * Iframe config for paying an already-created order (the tracking page's
+   * "pay balance"). Returns only the public PAKMS key and SDK URL — the same
+   * pair `createCheckout` hands the checkout page, never an OAuth token.
+   *
+   * Nothing about the amount is returned or accepted: `payCheckout` charges the
+   * Clover order total regardless of what any client believes it owes.
+   */
+  async getPaymentIframeConfig(
+    orderPublicId: string,
+  ): Promise<{ pakmsKey: string; checkoutSdkUrl: string }> {
+    const order = await this.ordersRepo.findByPublicId(orderPublicId);
+    if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
+
+    const client = await createCloverClient();
+    if (!client) throw new ValidationError(PUBLIC_ORDERING_UNAVAILABLE_MESSAGE);
+
+    const pakms = await client.getPakmsApiKey();
+    return {
+      pakmsKey: pakms.apiAccessKey,
+      checkoutSdkUrl: cloverCheckoutSdkUrl(client.environment()),
+    };
+  }
+
+  /**
    * Admin / fallback: pull live Clover status and sync local payment + order
    * (+ ledger credit once if newly paid).
    */
