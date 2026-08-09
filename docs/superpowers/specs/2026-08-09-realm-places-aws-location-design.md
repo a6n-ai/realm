@@ -28,7 +28,7 @@ IAM instead of a key, and one bill.
 | **Label** | Autocomplete, Suggest | **$0.20** / 1,000 | ❌ |
 | **Core** | Autocomplete, Geocode, SearchText, GetPlace | **$0.50** / 1,000 | ❌ |
 | **Advanced** | + hours, contacts, timezone | $1.50 / 1,000 | ❌ |
-| **Stored** | any of the above with `intendedUse = Stored` | **$4.00** / 1,000 | ✅ indefinitely |
+| **Stored** | any of the above with `IntendedUse = "Storage"` | **$4.00** / 1,000 | ✅ indefinitely |
 | Maps | map tile | **$0.04** / 1,000 tiles | — |
 
 Google, for comparison: Autocomplete ~$2.83/1k, Geocoding $5.00/1k, Dynamic Maps $7.00/1k *loads*,
@@ -117,7 +117,7 @@ export type PlaceProvider = {
   suggest(query: string, opts: { near?: { lat: number; lng: number }; country?: string }): Promise<PlaceSuggestion[]>;
   /**
    * Resolve to coordinates. `persist: true` selects the storage-licensed bucket
-   * (AWS `intendedUse = Stored`) and costs ~8× more — set it only when the
+   * (AWS `IntendedUse = "Storage"`) and costs ~8× more — set it only when the
    * result is written to the database.
    */
   resolve(input: { placeId?: string; address: string; persist: boolean }): Promise<ResolvedPlace | null>;
@@ -245,7 +245,7 @@ geo-maps:GetTile          (Phase 2 only)
 
 - `PlaceProvider` conformance tests run against **both** implementations from one shared suite —
   the interface only earns its keep if both sides genuinely satisfy it.
-- Bucket selection pinned: `persist: true` must produce `intendedUse = Stored`, `persist: false` must
+- Bucket selection pinned: `persist: true` must produce `IntendedUse = "Storage"`, `persist: false` must
   not. Assert on the request the SDK is handed, stubbed — this is the cost control, and a silent
   regression here is a 20× bill increase with no functional symptom.
 - Fallback chain: primary fails → Google → Nominatim → `null`; never throws.

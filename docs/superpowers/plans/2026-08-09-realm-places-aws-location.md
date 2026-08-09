@@ -155,7 +155,7 @@ export type PlaceProvider = {
   /** Typeahead. Cheapest bucket — id + text only, never persisted. */
   suggest(query: string, opts?: { near?: { lat: number; lng: number }; country?: string }): Promise<PlaceSuggestion[]>;
   /**
-   * `persist: true` selects the storage-licensed bucket (AWS `intendedUse = Stored`),
+   * `persist: true` selects the storage-licensed bucket (AWS `IntendedUse = "Storage"`),
    * ~8x the price of Core. Set it ONLY when the result is written to a database —
    * it is both the legal and the cost boundary.
    */
@@ -246,16 +246,16 @@ describe("awsPlaceProvider bucket selection", () => {
     const p = awsPlaceProvider({ client: f.client as any });
     await p.resolve({ address: "3315 Danforth Ave", persist: false });
     const input = (f.sent[0] as { input: Record<string, unknown> }).input;
-    expect(input.IntendedUse).not.toBe("Stored");
+    expect(input.IntendedUse).not.toBe("Storage");
   });
 
-  it("resolve with persist:true sets IntendedUse Stored", async () => {
+  it("resolve with persist:true sets IntendedUse Storage", async () => {
     const f = fakeClient({ ResultItems: [{ Position: [-79.3, 43.7], Address: { Label: "3315 Danforth Ave" } }] });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = awsPlaceProvider({ client: f.client as any });
     await p.resolve({ address: "3315 Danforth Ave", persist: true });
     const input = (f.sent[0] as { input: Record<string, unknown> }).input;
-    expect(input.IntendedUse).toBe("Stored");
+    expect(input.IntendedUse).toBe("Storage");
   });
 });
 ```
@@ -274,7 +274,8 @@ Create `packages/places/src/aws-provider.ts` using `@aws-sdk/client-geo-places`:
 Rules:
 - **Client construction matches `@realm/email`'s `SESv2Client`:** `new GeoPlacesClient({ region })`, credentials from the default provider chain. Accept an injected `client` for tests. Never hardcode credentials.
 - `suggest` sends **no** `AdditionalFeatures` and **no** `IntendedUse` — that is what selects Label.
-- `resolve` sets `IntendedUse: "Stored"` **only** when `persist` is true.
+- `resolve` sets `IntendedUse: "Storage"` **only** when `persist` is true.
+- **Verified against the installed SDK:** the enum is `SINGLE_USE: "SingleUse"` / `STORAGE: "Storage"`. The AWS *docs* say `Stored`; the SDK says `Storage`. Trust the SDK. Sending `SingleUse` explicitly for the non-persisting path is clearer than omitting it — prefer explicit.
 - Bias `suggest` to `near` and restrict to `country` when supplied.
 - **Never throw.** Wrap every call; return `[]` from `suggest` and `null` from `resolve` on any failure.
 - Map `Position` `[lng, lat]` → `{ lat, lng }` explicitly, with a comment naming the order.
