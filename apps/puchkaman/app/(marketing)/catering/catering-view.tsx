@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Btn, Ph, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 
-const EVENT_TYPES = ["Birthday Party", "Office Event", "Wedding", "Private Party", "Community Event", "Watch Party", "Other"];
+const EVENT_TYPES = ["Birthday Party", "Office Event", "Wedding", "Private Party", "Community Event", "Other"];
 
 const STATIONS: [string, string, string, string?][] = [
   ["💧", "Live Puchka Station", "A server assembling fresh puchkas to order — the showstopper at any event.", "/catering/live-puchka-station.png"],
@@ -13,8 +13,8 @@ const STATIONS: [string, string, string, string?][] = [
   ["🌯", "Kathi Roll / Street Food", "Rolls, vada pav, momos & more cooked on-site.", "/catering/kathi-roll-station.png"],
 ];
 
-const OCCASIONS = ["Birthday Parties", "Office Events", "Weddings", "Private Parties", "Community Events", "Watch Parties"];
-const OCCASION_EMOJI = ["🎂", "💼", "💍", "🎊", "🤝", "📺"];
+const OCCASIONS = ["Birthday Parties", "Office Events", "Weddings", "Private Parties", "Community Events"];
+const OCCASION_EMOJI = ["🎂", "💼", "💍", "🎊", "🤝"];
 
 type CForm = { name: string; phone: string; email: string; date: string; location: string; guests: string; type: string; allergies: string; message: string };
 const EMPTY: CForm = { name: "", phone: "", email: "", date: "", location: "", guests: "", type: "", allergies: "", message: "" };
@@ -222,12 +222,6 @@ export function CateringView() {
               </Reveal>
             ))}
           </div>
-          <p style={{ marginTop: 20, fontWeight: 500, opacity: 0.85 }}>
-            Hosting a watch party instead? See our{" "}
-            <Btn page="events" variant="ink" size="sm">
-              upcoming events →
-            </Btn>
-          </p>
         </div>
       </section>
 

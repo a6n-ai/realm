@@ -57,7 +57,7 @@ export function OrderPickupCta() {
         Order Pickup
       </h2>
       <p style={{ fontWeight: 500, fontSize: "1.1rem", margin: "0 0 18px", maxWidth: 480 }}>
-        Menu → cart → card → kitchen. Only active Clover-linked in-stock items. Totals priced
+        Menu → cart → card → kitchen. Only in-stock items shown. Totals priced
         server-side.
       </p>
 

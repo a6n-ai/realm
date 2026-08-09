@@ -39,7 +39,7 @@ function loadScript(src: string): Promise<void> {
       } else {
         existing.addEventListener("load", () => resolve());
         existing.addEventListener("error", () =>
-          reject(new Error("Failed to load Clover checkout SDK")),
+          reject(new Error("Failed to load the payment form")),
         );
       }
       return;
@@ -48,7 +48,7 @@ function loadScript(src: string): Promise<void> {
     s.src = src;
     s.async = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Clover checkout SDK"));
+    s.onerror = () => reject(new Error("Failed to load the payment form"));
     document.head.appendChild(s);
   });
 
@@ -82,7 +82,7 @@ export function CloverCardForm({
         await loadScript(sdkUrl);
         if (destroyed) return;
         if (!window.Clover) {
-          setError("Clover payment form unavailable");
+          setError("Payment form unavailable");
           return;
         }
         const clover = new window.Clover(pakmsKey, { locale: "en-US" });

@@ -61,13 +61,15 @@ export function EatsFilterPanel({
       </div>
 
       {orderingEnabled ? (
-        <label className="eats-check eats-check--solo">
+        <label className={`eats-check eats-check--solo ${value.availableOnly ? "is-on" : ""}`}>
           <input
             type="checkbox"
+            className="eats-vh-input"
             checked={value.availableOnly}
             onChange={(e) => onChange({ ...value, availableOnly: e.target.checked })}
           />
-          <span>Available right now</span>
+          <span className="eats-check__label">Available right now</span>
+          <span className="eats-toggle-switch" aria-hidden="true" />
         </label>
       ) : null}
 
@@ -96,19 +98,21 @@ export function EatsFilterPanel({
       <fieldset className="eats-filters__group">
         <legend>Sections</legend>
         <div className="eats-checklist">
-          {categories.map((c) => (
-            <label key={c.id} className="eats-check">
-              <input
-                type="checkbox"
-                checked={value.categoryIds.includes(c.id)}
-                onChange={() => onChange({ ...value, categoryIds: toggle(value.categoryIds, c.id) })}
-              />
-              <span className="eats-check__label">
-                <span aria-hidden="true">{c.emoji}</span> {c.name}
-              </span>
-              <span className="eats-check__count">{c.items.length}</span>
-            </label>
-          ))}
+          {categories.map((c) => {
+            const on = value.categoryIds.includes(c.id);
+            return (
+              <label key={c.id} className={`eats-check ${on ? "is-on" : ""}`}>
+                <input
+                  type="checkbox"
+                  className="eats-vh-input"
+                  checked={on}
+                  onChange={() => onChange({ ...value, categoryIds: toggle(value.categoryIds, c.id) })}
+                />
+                <span className="eats-check__label">{c.name}</span>
+                <span className="eats-check__count">{c.items.length}</span>
+              </label>
+            );
+          })}
         </div>
       </fieldset>
 

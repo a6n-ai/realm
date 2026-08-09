@@ -312,7 +312,7 @@ export function CheckoutClient({
       {items.length === 0 && !session ? (
         <div>
           <p style={{ fontWeight: 600, marginBottom: 16 }}>
-            Cart is empty. Add Clover-linked in-stock items from the menu first.
+            Cart is empty. Add in-stock items from the menu first.
           </p>
           <Btn page="eats" variant="green">
             Browse menu →
@@ -576,12 +576,12 @@ export function CheckoutClient({
               <h2 className="display checkout-panel__title" style={{ margin: 0 }}>
                 Pay with card
               </h2>
-              <Pill variant="green">Secured by Clover</Pill>
+              <Pill variant="green">Secure checkout</Pill>
             </div>
             <p className="checkout-hint">
               Order {session.orderPublicId}
               {session.environment === "sandbox" ? " · sandbox" : ""}. Card details go straight to
-              Clover — this site never sees them.
+              our payment processor — this site never sees them.
             </p>
 
             <CloverCardForm
