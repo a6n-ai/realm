@@ -34,6 +34,8 @@ export function AddressAutocomplete({
   const autoId = useId();
   const inputId = id ?? autoId;
   const listId = `${inputId}-suggestions`;
+  const optionId = (suggestion: PlaceSuggestion) => `${inputId}-option-${suggestion.placeId}`;
+  const activeId = activeIndex >= 0 ? optionId(suggestions[activeIndex]!) : undefined;
 
   useEffect(() => {
     return () => {
@@ -110,6 +112,7 @@ export function AddressAutocomplete({
         aria-expanded={open}
         aria-autocomplete="list"
         aria-controls={listId}
+        aria-activedescendant={activeId}
         onChange={(e) => {
           onChange(e.target.value);
           scheduleFetch(e.target.value);
@@ -122,6 +125,7 @@ export function AddressAutocomplete({
           {suggestions.map((suggestion, i) => (
             <li
               key={suggestion.placeId}
+              id={optionId(suggestion)}
               role="option"
               aria-selected={i === activeIndex}
               className="address-suggest__item"

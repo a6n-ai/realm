@@ -22,7 +22,18 @@ function buildProviders(): PlaceProvider[] {
   return process.env.PLACES_PROVIDER === "aws" ? [aws, google, nominatim] : [google, aws, nominatim];
 }
 
-const providers = buildProviders();
+// Built lazily, not at module load — awsPlaceProvider() constructs a real
+// GeoPlacesClient even when PLACES_PROVIDER never selects AWS. SDK v3 defers
+// credential/network work until the first .send(), so building it eagerly
+// isn't billable, but doing costly-looking work at import time rather than on
+// first use is the same eagerness pattern that made an earlier test build a
+// real AWS client unexpectedly — mirrors the memoised-client pattern already
+// in aws-provider.ts's getSharedClient().
+let providers: PlaceProvider[] | null = null;
+function getProviders(): PlaceProvider[] {
+  if (!providers) providers = buildProviders();
+  return providers;
+}
 
 /**
  * The only way coordinates enter the system. A client-supplied place_id/address
@@ -34,7 +45,7 @@ const providers = buildProviders();
  * anything written to the database.
  */
 export async function resolveAddress(input: { placeId?: string; address: string }): Promise<ResolvedAddress | null> {
-  return resolvePlace(providers, { ...input, persist: false });
+  return resolvePlace(getProviders(), { ...input, persist: false });
 }
 
 /**
@@ -46,7 +57,7 @@ export async function resolveAddressForStorage(input: {
   placeId?: string;
   address: string;
 }): Promise<ResolvedAddress | null> {
-  return resolvePlace(providers, { ...input, persist: true });
+  return resolvePlace(getProviders(), { ...input, persist: true });
 }
 
 /**
@@ -55,7 +66,7 @@ export async function resolveAddressForStorage(input: {
  * a typeahead service) so it's a harmless no-op at the end of the chain.
  */
 export async function suggestAddresses(query: string): Promise<PlaceSuggestion[]> {
-  for (const provider of providers) {
+  for (const provider of getProviders()) {
     const hits = await provider.suggest(query);
     if (hits.length > 0) return hits;
   }
