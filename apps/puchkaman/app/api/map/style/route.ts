@@ -51,16 +51,19 @@ export async function GET(): Promise<Response> {
       glyphs?: string;
     };
 
-    // Root-relative, NOT built from request.url. Behind Caddy the app only ever
-    // sees its internal bind address, so deriving an origin here produced
-    // https://0.0.0.0:3000/... and the browser fetched nothing. MapLibre
-    // resolves these against the page, which is the correct public origin.
+    // Absolute, and NOT from request.url: behind Caddy the app only sees its
+    // internal bind address (that produced https://0.0.0.0:3000/...). Relative
+    // URLs don't work either — MapLibre parses tile templates with `new URL()`,
+    // which throws without a base, so the source silently never loads and no
+    // tile request is ever made. BETTER_AUTH_URL is the public origin the app
+    // already relies on being correct.
+    const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
     for (const source of Object.values(style.sources ?? {})) {
-      if (source.tiles) source.tiles = ["/api/map/tiles/{z}/{x}/{y}"];
+      if (source.tiles) source.tiles = [`${origin}/api/map/tiles/{z}/{x}/{y}`];
     }
     // MapLibre appends .json/.png/@2x.png to the sprite base itself.
-    style.sprite = "/api/map/sprites/sprites";
-    style.glyphs = "/api/map/glyphs/{fontstack}/{range}.pbf";
+    style.sprite = `${origin}/api/map/sprites/sprites`;
+    style.glyphs = `${origin}/api/map/glyphs/{fontstack}/{range}.pbf`;
 
     return Response.json(style, { headers: { "cache-control": MAP_CACHE_CONTROL } });
   } catch (e) {
