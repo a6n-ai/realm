@@ -157,8 +157,16 @@ export function ZoneMap({
         instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
         instance.on("error", () => setFailed(true));
 
-        instance.on("load", () => {
-          if (cancelled) return;
+        // Gate on the STYLE being ready, not the map's "load" event. `load`
+        // waits for every source and tile to settle, and with a remote raster
+        // basemap it may never fire — observed in production: isStyleLoaded()
+        // true, tiles painting, loaded() stuck false forever. The skeleton then
+        // never lifts and the working map sits invisible underneath it.
+        //
+        // styledata fires more than once, so the getSource guard makes this
+        // idempotent, and it is invoked directly when the style is already in.
+        const initLayers = () => {
+          if (cancelled || instance.getSource("zones")) return;
           instance.addSource("zones", {
             type: "geojson",
             data: zonesToGeoJson(latest.current.origin, latest.current.zones),
@@ -186,7 +194,10 @@ export function ZoneMap({
           originMarkerRef.current = originMarker;
 
           setReady(true);
-        });
+        };
+
+        if (instance.isStyleLoaded()) initLayers();
+        instance.on("styledata", initLayers);
       } catch {
         if (!cancelled) setFailed(true);
       }

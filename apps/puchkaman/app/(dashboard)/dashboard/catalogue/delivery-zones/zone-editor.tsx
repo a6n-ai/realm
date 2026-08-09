@@ -176,8 +176,12 @@ function ZoneCard({
                 field ignoring you. Naming the neighbour explains why. */}
             <p id={`radius-help-${zone?.publicId ?? "new"}`} className="text-muted-foreground text-xs">
               {bounds.max === undefined
-                ? `Outermost ring — anything past ${fmt(innerEdgeKm)} km.`
-                : `Kept between ${fmt(bounds.min)} and ${fmt(bounds.max)} km so it can't cross the next ring.`}
+                ? innerEdgeKm > 0
+                  ? `Outermost ring — anything past ${fmt(innerEdgeKm)} km.`
+                  : "The only ring — any distance from the shop."
+                : innerEdgeKm > 0
+                  ? `Kept between ${fmt(innerEdgeKm)} and ${fmt(bounds.max)} km so it can't cross its neighbours.`
+                  : `Kept under ${fmt(bounds.max)} km so it can't cross the next ring.`}
             </p>
           </div>
         </div>
