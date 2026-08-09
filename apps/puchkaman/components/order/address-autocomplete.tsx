@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import type { PlaceSuggestion } from "@realm/places";
+import type { PlaceSuggestion } from "@realm/places/types";
 
 const DEBOUNCE_MS = 250;
 
