@@ -24,8 +24,12 @@ const CHECK_ADDRESS_WINDOW_MS = 60_000;
 // customer commits. This is advisory only: createCheckout() re-derives the
 // zone/type/distance server-side from a fresh geocode, never trusting this.
 export const POST = handler(async (request: Request): Promise<Response> => {
-  const ip = clientIp(request);
-  if (ip && isRateLimited(ip, CHECK_ADDRESS_LIMIT, CHECK_ADDRESS_WINDOW_MS)) {
+  // Never skip the check for a missing IP (fail-open) — traffic without
+  // x-real-ip (proxy misconfiguration, or anything bypassing Caddy) is
+  // bucketed under one sentinel key so it's still throttled collectively,
+  // without hard-blocking any single real customer on a header hiccup.
+  const ip = clientIp(request) ?? "unknown";
+  if (isRateLimited(ip, CHECK_ADDRESS_LIMIT, CHECK_ADDRESS_WINDOW_MS)) {
     return problem(429, "Too many address checks — try again in a minute.");
   }
 
