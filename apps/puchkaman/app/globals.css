@@ -1666,7 +1666,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   .eats-sidebar { display: none; }
 }
 
-.eats-filters { display: grid; gap: 16px; }
+.eats-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .eats-filters__head {
   display: flex;
   align-items: baseline;
@@ -1719,6 +1719,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 
 .eats-checklist {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   max-height: 340px;
   overflow-y: auto;
