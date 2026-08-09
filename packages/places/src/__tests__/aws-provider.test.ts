@@ -107,22 +107,38 @@ describe("awsPlaceProvider mapping and coordinate order", () => {
     const p = awsPlaceProvider({ client: { send: vi.fn(async () => { throw new Error("network"); }) } as any });
     await expect(p.resolve({ address: "x", persist: false })).resolves.toBeNull();
   });
+
+  it("suggest never calls the client for a whitespace-only query — the empty-input guard", async () => {
+    const f = fakeClient({ ResultItems: [{ PlaceId: "p1", Title: "should not be reached" }] });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    expect(await p.suggest("   ")).toEqual([]);
+    expect(f.client.send).not.toHaveBeenCalled();
+  });
+
+  it("resolve never calls the client for a whitespace-only address with no placeId — the empty-input guard", async () => {
+    const f = fakeClient({ ResultItems: [{ Position: [-79.3, 43.7], Address: { Label: "should not be reached" } }] });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    expect(await p.resolve({ address: "   ", persist: false })).toBeNull();
+    expect(f.client.send).not.toHaveBeenCalled();
+  });
 });
 
-function makeConformanceClient(): GeoPlacesSendClient {
-  return {
+let conformanceSendSpy: ReturnType<typeof vi.fn>;
+
+function makeConformanceProvider() {
+  conformanceSendSpy = vi.fn(async (cmd: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    send: vi.fn(async (cmd: any) => {
-      const queryText: string | undefined = cmd.input?.QueryText;
-      if (queryText === UPSTREAM_FAILURE_QUERY) throw new Error("network down");
-      if (queryText === "") return { ResultItems: [] }; // AWS returns no hits for an empty query
-      if (cmd instanceof AutocompleteCommand) {
-        return { ResultItems: [{ PlaceId: "p1", Title: UPSTREAM_SUCCESS_QUERY }] };
-      }
-      return { ResultItems: [{ Position: [-79.3872, 43.6853], Address: { Label: UPSTREAM_SUCCESS_QUERY } }] };
-    }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+    const queryText: string | undefined = (cmd as any).input?.QueryText;
+    if (queryText === UPSTREAM_FAILURE_QUERY) throw new Error("network down");
+    if (cmd instanceof AutocompleteCommand) {
+      return { ResultItems: [{ PlaceId: "p1", Title: UPSTREAM_SUCCESS_QUERY }] };
+    }
+    return { ResultItems: [{ Position: [-79.3872, 43.6853], Address: { Label: UPSTREAM_SUCCESS_QUERY } }] };
+  });
+  const client = { send: conformanceSendSpy } as unknown as GeoPlacesSendClient;
+  return awsPlaceProvider({ client });
 }
 
-runProviderConformance("aws", () => awsPlaceProvider({ client: makeConformanceClient() }));
+runProviderConformance("aws", makeConformanceProvider, () => conformanceSendSpy.mock.calls.length);
