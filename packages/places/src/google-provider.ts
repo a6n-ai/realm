@@ -53,12 +53,28 @@ async function fetchTextSearch(address: string, apiKey: string): Promise<Resolve
   }
 }
 
-async function fetchAutocomplete(query: string, apiKey: string): Promise<PlaceSuggestion[]> {
+async function fetchAutocomplete(
+  query: string,
+  apiKey: string,
+  opts?: { near?: { lat: number; lng: number }; country?: string },
+): Promise<PlaceSuggestion[]> {
   try {
     const res = await fetch(`${PLACES_ENDPOINT}:autocomplete`, {
       method: "POST",
       headers: { "X-Goog-Api-Key": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ input: query }),
+      body: JSON.stringify({
+        input: query,
+        ...(opts?.country ? { includedRegionCodes: [opts.country.toLowerCase()] } : {}),
+        // 10km circle — a ~7km delivery radius plus slack, biases (doesn't
+        // restrict) results toward the shop the way the old widget's bounds did.
+        ...(opts?.near
+          ? {
+              locationBias: {
+                circle: { center: { latitude: opts.near.lat, longitude: opts.near.lng }, radius: 10_000 },
+              },
+            }
+          : {}),
+      }),
     });
     if (!res.ok) return [];
     const body = (await res.json()) as {
@@ -89,12 +105,12 @@ export function googlePlaceProvider(): PlaceProvider {
   return {
     id: "google",
 
-    async suggest(query) {
+    async suggest(query, opts) {
       const apiKey = process.env.GOOGLE_PLACES_API_KEY;
       // A debounced typeahead fires on every keystroke, including backspace-to-empty
       // — an empty/whitespace query must never become a billable Autocomplete call.
       if (!apiKey || !query.trim()) return [];
-      return fetchAutocomplete(query, apiKey);
+      return fetchAutocomplete(query, apiKey, opts);
     },
 
     async resolve({ placeId, address, persist }) {

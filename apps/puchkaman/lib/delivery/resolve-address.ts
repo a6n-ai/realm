@@ -1,3 +1,4 @@
+import { createLogger } from "@realm/commons/logger";
 import {
   awsPlaceProvider,
   googlePlaceProvider,
@@ -7,6 +8,9 @@ import {
   type PlaceSuggestion,
   type ResolvedPlace,
 } from "@realm/places";
+import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
+
+const log = createLogger("delivery-address");
 
 export type ResolvedAddress = ResolvedPlace;
 
@@ -53,6 +57,29 @@ function getStorageProviders(): PlaceProvider[] {
   return storageProviders;
 }
 
+// Fires once per process, not once per request — a missing key otherwise
+// produces total silence (only AWS's per-request error path logs anything;
+// Google returns [] unlogged, Nominatim never does suggest at all), which
+// left checkout's address dropdown dead with nothing pointing at why.
+let warnedNoSuggestProvider = false;
+function warnIfNoSuggestProviderConfigured(): void {
+  if (warnedNoSuggestProvider) return;
+  // Region is the pragmatic env-based signal for "AWS is set up" — actual
+  // credentials are usually ambient (IAM role) and not directly observable here.
+  if (process.env.AWS_REGION || process.env.GOOGLE_PLACES_API_KEY) return;
+  warnedNoSuggestProvider = true;
+  log.warn(
+    "no address-suggest provider is configured — AWS_REGION and GOOGLE_PLACES_API_KEY are both unset, so checkout's address dropdown will silently return no suggestions",
+  );
+}
+
+// Old browser widget restricted to Canada and biased toward the shop with a
+// bounds box; the server-side port lost both. DEFAULT_STORE_LAT/LNG (not the
+// admin-configured store origin) are the right call here — suggest fires on
+// every keystroke, and a per-keystroke DB read to fetch the real origin isn't
+// worth it for a bias hint.
+const SUGGEST_OPTS = { country: "CA", near: { lat: DEFAULT_STORE_LAT, lng: DEFAULT_STORE_LNG } };
+
 /**
  * The only way coordinates enter the system. A client-supplied place_id/address
  * is resolved server-side so a client can never assert its own lat/lng — distance
@@ -86,8 +113,9 @@ export async function resolveAddressForStorage(input: {
  * a typeahead service) so it's a harmless no-op at the end of the chain.
  */
 export async function suggestAddresses(query: string): Promise<PlaceSuggestion[]> {
+  warnIfNoSuggestProviderConfigured();
   for (const provider of getAdvisoryProviders()) {
-    const hits = await provider.suggest(query);
+    const hits = await provider.suggest(query, SUGGEST_OPTS);
     if (hits.length > 0) return hits;
   }
   return [];
