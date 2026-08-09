@@ -57,6 +57,13 @@
       "when": 1786282269972,
       "tag": "0007_clean_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786313790639,
+      "tag": "0008_military_shiver_man",
+      "breakpoints": true
     }
   ]
 }

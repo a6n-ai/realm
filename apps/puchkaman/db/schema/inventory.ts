@@ -127,6 +127,20 @@ export const discounts = pgTable("discounts", {
    * code on the next sync, which keeps Clover the source of truth.
    */
   couponCode: text("coupon_code").unique(),
+  /**
+   * Local validity window — Clover discounts have no notion of a start/end
+   * date, so these live here. Epoch ms; null on either side is unbounded.
+   */
+  startsAt: bigint("starts_at", { mode: "number" }),
+  expiresAt: bigint("expires_at", { mode: "number" }),
+  /** Local minimum-spend gate; Clover has no such primitive. Dollars. */
+  minSubtotal: numeric("min_subtotal", { precision: 10, scale: 2 }),
+  /**
+   * Local stacking rule; Clover has no such primitive. Must default true —
+   * puchkaman has always summed discounts, so a false default would silently
+   * change live pricing for every existing row.
+   */
+  stackable: boolean("stackable").notNull().default(true),
   cloverDiscountId: text("clover_discount_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
 });

@@ -24,6 +24,12 @@ export type DiscountSource = {
   active: boolean;
   publicOffer: boolean;
   couponCode: string | null;
+  /** Epoch ms; null = unbounded on that side. */
+  startsAt: number | null;
+  expiresAt: number | null;
+  /** Dollars, arrives from drizzle numeric as a string. Null = no minimum. */
+  minSubtotal: string | number | null;
+  stackable: boolean;
 };
 
 export type DiscountRequest = {
@@ -56,9 +62,8 @@ export function normalizeCouponCode(code: string): string {
  * A Clover-synced discount as a neutral candidate for the shared engine.
  *
  * Clover stores deductions as negatives and has no notion of a validity window,
- * usage limit or stacking rule — so those fields go in unset, which the engine
- * reads as "unbounded". They become real the moment the discount row carries
- * them; nothing here needs to change to switch them on.
+ * usage limit or stacking rule — those are local columns layered on top (see
+ * db/schema/inventory.ts) and mapped straight through here.
  */
 function toCandidate(row: DiscountSource, subtotal: number, code?: string): CouponCandidate {
   return {
@@ -69,9 +74,12 @@ function toCandidate(row: DiscountSource, subtotal: number, code?: string): Coup
     // Clover's negatives normalised to positive money off — the engine's contract.
     amountOff: row.amount == null ? null : Math.abs(Number(row.amount)),
     active: row.active,
-    // Everything Clover can express stacks; puchkaman has never had an
-    // exclusive discount, and the previous implementation simply summed them.
-    stackable: true,
+    startsAt: row.startsAt,
+    expiresAt: row.expiresAt,
+    // Drizzle numeric columns arrive as strings — Number() them or a "10.00" >
+    // 5 minimum-spend comparison silently does string comparison.
+    minSubtotal: row.minSubtotal == null ? null : Number(row.minSubtotal),
+    stackable: row.stackable,
   };
 }
 
