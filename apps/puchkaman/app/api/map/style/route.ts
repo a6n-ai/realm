@@ -1,6 +1,5 @@
 import { GetStyleDescriptorCommand } from "@aws-sdk/client-geo-maps";
 import {
-  MAP_CACHE_CONTROL,
   MAP_COLOR_SCHEME,
   MAP_STYLE,
   geoMapsClient,
@@ -65,7 +64,13 @@ export async function GET(): Promise<Response> {
     style.sprite = `${origin}/api/map/sprites/sprites`;
     style.glyphs = `${origin}/api/map/glyphs/{fontstack}/{range}.pbf`;
 
-    return Response.json(style, { headers: { "cache-control": MAP_CACHE_CONTROL } });
+    // Deliberately short, unlike the assets. The descriptor embeds absolute
+    // URLs to this app, so a bad one is poison: a day-long cache pinned a
+    // broken style in every visitor's browser for a day, and no redeploy could
+    // reach it. Tiles and sprites keep the long cache — they are immutable.
+    return Response.json(style, {
+      headers: { "cache-control": "public, max-age=300, stale-while-revalidate=3600" },
+    });
   } catch (e) {
     // Logged, not thrown: the fallback keeps maps working, so an unnoticed
     // permission problem would otherwise only show as a different-looking map.
