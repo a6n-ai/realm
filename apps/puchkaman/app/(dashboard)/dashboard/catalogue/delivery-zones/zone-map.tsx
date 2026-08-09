@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// maplibre-gl v6 has no default export — named only. It also exports the map
-// class as MapLibreMap, which is what we use: plain `Map` would shadow the
-// global Map used for the marker registry below.
+// Pinned to maplibre-gl v5, deliberately — do not bump to v6 without testing a
+// production build. v6 loads its worker as a separate file via
+// `new Worker(new URL("./maplibre-gl-worker.mjs", import.meta.url))`, and under
+// Next's bundler import.meta.url resolves to the built chunk, where that sibling
+// does not exist. The worker then silently never starts: raster tiles still
+// paint (main thread) but every GeoJSON source stays unloaded, so the zone rings
+// vanish with no error, no failed request, and isStyleLoaded() stuck false.
+// v5 inlines the worker as a blob and is bundler-agnostic.
+//
+// Imported by name (both versions export these); `Map` would shadow the global
+// Map used for the marker registry below, hence the MapLibreMap alias.
 import type { MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Skeleton } from "@realm/ui/skeleton";

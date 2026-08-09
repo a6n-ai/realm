@@ -106,12 +106,40 @@ function ZoneCard({
 
   const busy = pending || retiring;
 
+  // A zone is a concentric band, not a bare radius: "20 km" alone doesn't say
+  // where it starts. The inner edge is the next active ring inwards, so the
+  // card can state the range the way staff actually reason about it.
+  const innerEdgeKm = allZones
+    .filter((z) => z.active && z.publicId !== zone?.publicId && z.radiusKm < radiusKm)
+    .reduce((max, z) => Math.max(max, z.radiusKm), 0);
+  // Same colour the map paints this ring — the only thing tying a card to a
+  // ring on screen. Decorative here (aria-hidden): the band text below carries
+  // the meaning, so colour is never the sole signal.
+  const ringColor = allZones.find((z) => z.publicId === zone?.publicId)?.color ?? null;
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          <span>{isNew ? "Add zone" : name || "Untitled zone"}</span>
-          {!isNew && !active ? <Badge variant="secondary">Retired</Badge> : null}
+        <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            {ringColor ? (
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+                style={{ background: ringColor }}
+              />
+            ) : null}
+            <span className="truncate">{isNew ? "Add zone" : name || "Untitled zone"}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            {active ? (
+              <Badge variant="outline" className="font-normal tabular-nums">
+                {fmt(innerEdgeKm)}–{fmt(radiusKm)} km
+              </Badge>
+            ) : null}
+            {!isNew && !active ? <Badge variant="secondary">Retired</Badge> : null}
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -126,14 +154,17 @@ function ZoneCard({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`radius-${zone?.publicId ?? "new"}`}>Radius (km)</Label>
+            <Label htmlFor={`radius-${zone?.publicId ?? "new"}`}>Outer radius (km)</Label>
             <Input
               id={`radius-${zone?.publicId ?? "new"}`}
               type="number"
+              inputMode="decimal"
               min={bounds.min}
               max={bounds.max}
               step={0.5}
               value={radiusKm}
+              aria-describedby={`radius-help-${zone?.publicId ?? "new"}`}
+              className="tabular-nums"
               onChange={(e) => {
                 const raw = Number(e.target.value);
                 onRadiusKmChange(
@@ -141,6 +172,13 @@ function ZoneCard({
                 );
               }}
             />
+            {/* The input clamps as you type, which without this reads as the
+                field ignoring you. Naming the neighbour explains why. */}
+            <p id={`radius-help-${zone?.publicId ?? "new"}`} className="text-muted-foreground text-xs">
+              {bounds.max === undefined
+                ? `Outermost ring — anything past ${fmt(innerEdgeKm)} km.`
+                : `Kept between ${fmt(bounds.min)} and ${fmt(bounds.max)} km so it can't cross the next ring.`}
+            </p>
           </div>
         </div>
 
