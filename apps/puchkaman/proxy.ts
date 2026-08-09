@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
-const PUBLIC_API = [
+export const PUBLIC_API = [
   "/api/auth",
   "/api/checkout",
   "/api/catering-inquiries",
   "/api/integrations/clover/webhook",
   "/api/delivery/check-address",
+  // Checkout's address typeahead. Public for the same reason check-address is:
+  // customers order without an account. Abuse is bounded by the per-IP throttle
+  // in the handler, not by auth.
+  "/api/delivery/suggest",
   // GET is intentionally public (product photos load for anonymous visitors —
   // see app/api/files/[...key]/route.ts); POST /upload still enforces
   // requireAdmin() inside the handler itself, so this doesn't weaken it.
