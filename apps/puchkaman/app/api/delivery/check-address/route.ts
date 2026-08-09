@@ -47,6 +47,10 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   return json({
     resolved: true,
     formattedAddress: resolved.formattedAddress,
+    // Resolved coordinates, so checkout can show the customer where their
+    // address landed on the map.
+    lat: resolved.lat,
+    lng: resolved.lng,
     distanceKm,
     limitKm: deliveryLimitKm(zones),
     types: availableTypes(distanceKm, zones),

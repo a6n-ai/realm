@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
-import { ADDRESS, MAP_DIRECTIONS_URL, MAP_EMBED_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
+import { StaticMap } from "@/components/map/static-map";
+import { ADDRESS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
+import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 import { INSTAGRAM_URL } from "@/lib/seo";
 
 const HOURS: [string, string][] = [
@@ -100,13 +102,11 @@ export function ContactView() {
             {/* map + catering cta */}
             <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
               <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-                <iframe
-                  title={`Puchkaman location — ${ADDRESS}`}
-                  src={MAP_EMBED_URL}
-                  style={{ display: "block", width: "100%", aspectRatio: "4 / 3.4", minHeight: 300, border: "none" }}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
+                <StaticMap
+                  center={{ lat: DEFAULT_STORE_LAT, lng: DEFAULT_STORE_LNG }}
+                  markers={[{ lat: DEFAULT_STORE_LAT, lng: DEFAULT_STORE_LNG, color: "#111", title: ADDRESS }]}
+                  zoom={14}
+                  heightPx={320}
                 />
                 <div style={{ padding: 16, borderTop: "var(--border)", background: "var(--white)" }}>
                   <a href={MAP_DIRECTIONS_URL} target="_blank" rel="noopener noreferrer" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>

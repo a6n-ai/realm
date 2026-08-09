@@ -10,9 +10,4 @@ export const ADDRESS = "3315 Danforth Ave, Scarborough, ON";
 export const PHONE_DISPLAY = "(416) 738-3833";
 export const PHONE_TEL = "+14167383833";
 
-// Keyless map embed. Google's `output=embed` sends X-Frame-Options: SAMEORIGIN
-// and refuses to render in an iframe, so use OpenStreetMap (no key, iframe-safe).
-// bbox + marker are centered on the geocoded address (43.69234, -79.28251).
-export const MAP_EMBED_URL =
-  "https://www.openstreetmap.org/export/embed.html?bbox=-79.2865%2C43.6903%2C-79.2785%2C43.6943&layer=mapnik&marker=43.69234%2C-79.28251";
 export const MAP_DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ADDRESS)}`;

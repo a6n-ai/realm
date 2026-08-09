@@ -10,8 +10,10 @@ import { DeliveryTypePicker, type CheckoutDeliveryType } from "@/components/orde
 import { DiscountPicker, type PublicOffer } from "@/components/order/discount-picker";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
+import { StaticMap } from "@/components/map/static-map";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
+import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 
 type CheckoutSession = {
   orderPublicId: string;
@@ -33,7 +35,15 @@ type Step = "review" | "pay" | "done";
 type Fulfillment = "pickup" | "delivery";
 type FieldKey = "name" | "email" | "phone" | "address" | "deliveryType" | "scheduledFor";
 type AddressCheck =
-  | { resolved: true; formattedAddress: string; distanceKm: number; limitKm: number | null; types: CheckoutDeliveryType[] }
+  | {
+      resolved: true;
+      formattedAddress: string;
+      lat: number;
+      lng: number;
+      distanceKm: number;
+      limitKm: number | null;
+      types: CheckoutDeliveryType[];
+    }
   | { resolved: false; error?: boolean };
 
 const STEPS: { key: Step; label: string }[] = [
@@ -434,6 +444,22 @@ export function CheckoutClient({
                   <span className="err-msg" role="alert">
                     {fieldErrors.address}
                   </span>
+                ) : null}
+                {addressCheck?.resolved === true ? (
+                  <div className="card" style={{ marginTop: 10, padding: 0, overflow: "hidden" }}>
+                    <StaticMap
+                      center={{
+                        lat: (DEFAULT_STORE_LAT + addressCheck.lat) / 2,
+                        lng: (DEFAULT_STORE_LNG + addressCheck.lng) / 2,
+                      }}
+                      markers={[
+                        { lat: DEFAULT_STORE_LAT, lng: DEFAULT_STORE_LNG, color: "#111", title: "Puchkaman" },
+                        { lat: addressCheck.lat, lng: addressCheck.lng, color: "var(--green)", title: "Your address" },
+                      ]}
+                      zoom={12}
+                      heightPx={220}
+                    />
+                  </div>
                 ) : null}
               </div>
             ) : null}

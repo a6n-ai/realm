@@ -33,9 +33,12 @@ export function ZoneEditor({
 }) {
   const router = useRouter();
   const [origin, setOrigin] = useState(initialOrigin);
-  const [radii, setRadii] = useState<Record<string, number>>(() =>
-    Object.fromEntries(initialZones.map((z) => [z.publicId, z.radiusKm])),
-  );
+  // Drag-time overrides ONLY — the server value is the default, so a radius
+  // saved elsewhere (the edit dialog) shows up after router.refresh(). Seeding
+  // this from props instead meant useState kept the mount-time number forever:
+  // saving 7km left the table reading 3.45 until a full page reload, which is
+  // indistinguishable from the save having failed.
+  const [radiusOverrides, setRadiusOverrides] = useState<Record<string, number>>({});
   const [editing, setEditing] = useState<ZoneRow | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const [, startOrigin] = useTransition();
@@ -50,7 +53,7 @@ export function ZoneEditor({
   const mapZones: MapZone[] = initialZones.map((z) => ({
     publicId: z.publicId,
     name: z.name,
-    radiusKm: radii[z.publicId] ?? z.radiusKm,
+    radiusKm: radiusOverrides[z.publicId] ?? z.radiusKm,
     active: z.active,
     color: colorByPublicId.get(z.publicId) ?? "#2563eb",
   }));
@@ -86,11 +89,14 @@ export function ZoneEditor({
         toast.error(res.error);
         return;
       }
-      // The server re-clamps; adopt its number so a drag that overshot a
-      // neighbour snaps back to what was actually stored.
-      if (res.radiusKm != null) {
-        setRadii((r) => ({ ...r, [publicId]: res.radiusKm as number }));
-      }
+      // Clear the override so the refreshed server value takes over — the
+      // server re-clamps, so a drag that overshot a neighbour lands on what was
+      // actually stored rather than what the pointer asked for.
+      setRadiusOverrides((r) => {
+        const next = { ...r };
+        delete next[publicId];
+        return next;
+      });
       toast.success(`${zone.name} updated`);
       router.refresh();
     });
@@ -110,7 +116,9 @@ export function ZoneEditor({
         origin={origin}
         zones={mapZones}
         focusedPublicId={focused}
-        onRadiusChange={(publicId, radiusKm) => setRadii((r) => ({ ...r, [publicId]: radiusKm }))}
+        onRadiusChange={(publicId, radiusKm) =>
+          setRadiusOverrides((r) => ({ ...r, [publicId]: radiusKm }))
+        }
         onRadiusCommit={commitRadius}
         onOriginChange={commitOrigin}
         styleUrl={mapStyleUrl}
