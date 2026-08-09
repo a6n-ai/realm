@@ -49,6 +49,12 @@ export type DataTableProps<Row, K extends string> = {
   idAccessor?: (r: Row) => string;
   /** Makes the ID cell a link to the row's detail page. */
   idHref?: (r: Row) => string;
+  /**
+   * Whole-row click for tables that *select* rather than navigate. Ignored when
+   * idHref is set — a row cannot both open a detail page and select in place.
+   * Clicks on interactive children are excluded, same as the idHref path.
+   */
+  onRowClick?: (r: Row) => void;
   /** ID column header label. Defaults to "ID". */
   idLabel?: string;
   search?: {
@@ -271,7 +277,7 @@ function MobileSort<K extends string>({ columns, sort }: { columns: readonly Col
 
 export function DataTable<Row, K extends string>({
   columns, rows, rowKey, renderRow, mobileCard, rowClassName,
-  sort, serial = true, idAccessor, idHref, idLabel = "ID",
+  sort, serial = true, idAccessor, idHref, onRowClick, idLabel = "ID",
   search, filters, actions,
   emptyIcon: EmptyIcon, emptyMessage, emptySearchMessage, emptyAction,
   pagination,
@@ -328,9 +334,9 @@ export function DataTable<Row, K extends string>({
               displayRows.map((r, i) => (
                 <TableRow
                   key={rowKey(r)}
-                  className={cn(idHref && "cursor-pointer", rowClassName?.(r))}
+                  className={cn((idHref || onRowClick) && "cursor-pointer", rowClassName?.(r))}
                   onClick={
-                    idHref
+                    idHref || onRowClick
                       ? (e) => {
                           // Whole row opens the detail — but don't hijack clicks on
                           // interactive controls (links, buttons, menus, inputs) inside it.
@@ -340,7 +346,8 @@ export function DataTable<Row, K extends string>({
                             )
                           )
                             return;
-                          router.push(idHref(r));
+                          if (idHref) router.push(idHref(r));
+                          else onRowClick?.(r);
                         }
                       : undefined
                   }

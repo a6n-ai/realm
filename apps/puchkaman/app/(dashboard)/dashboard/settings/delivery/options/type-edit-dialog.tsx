@@ -2,21 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import type { DeliveryType } from "@/lib/delivery/zones";
-import { Badge } from "@realm/ui/badge";
+import { ResponsiveDialog } from "@realm/design-system";
 import { Button } from "@realm/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@realm/ui/card";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Switch } from "@realm/ui/switch";
 import { Textarea } from "@realm/ui/textarea";
 import { retireDeliveryTypeAction, saveDeliveryTypeAction, type TypeFormValues } from "./actions";
-
-// Plain JSON in — publicId is always present here (rows came from a DB query).
-export type TypeRow = Required<Pick<DeliveryType, "publicId">> &
-  Omit<DeliveryType, "id" | "publicId">;
+import type { TypeRow } from "./types-table";
 
 function blankForm(): TypeFormValues {
   return {
@@ -48,16 +42,18 @@ function rowToForm(row: TypeRow): TypeFormValues {
   };
 }
 
-function TypeForm({
-  initial,
-  isNew,
-  onSaved,
+export function TypeEditDialog({
+  type,
+  onOpenChange,
 }: {
-  initial: TypeFormValues;
-  isNew: boolean;
-  onSaved: () => void;
+  type: TypeRow | null;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [form, setForm] = useState(initial);
+  const router = useRouter();
+  const isNew = type === null;
+  // Seeded straight from the row; the caller remounts on a new type via `key`,
+  // so there is no prop-to-state sync effect to keep in step.
+  const [form, setForm] = useState<TypeFormValues>(type ? rowToForm(type) : blankForm());
   const [pending, start] = useTransition();
   const [retiring, startRetire] = useTransition();
 
@@ -73,7 +69,8 @@ function TypeForm({
         return;
       }
       toast.success(isNew ? "Delivery type created" : "Delivery type saved");
-      onSaved();
+      onOpenChange(false);
+      router.refresh();
     });
   }
 
@@ -86,27 +83,30 @@ function TypeForm({
         return;
       }
       toast.success("Delivery type retired");
-      onSaved();
+      onOpenChange(false);
+      router.refresh();
     });
   }
 
   const busy = pending || retiring;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          <span>{isNew ? "Add delivery type" : form.label || form.key}</span>
-          {!isNew && !form.active ? <Badge variant="secondary">Retired</Badge> : null}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    // Table only mounts this dialog when it should be open, so `open` is always true here;
+    // onOpenChange(false) still tells the table to unmount on cancel/save/escape.
+    <ResponsiveDialog
+      open
+      onOpenChange={onOpenChange}
+      title={isNew ? "Add delivery type" : form.label || form.key}
+      description="What a customer can pick at checkout, and the rules this option carries."
+      contentClassName="sm:max-w-lg"
+    >
+      <div className="grid gap-4 px-4 py-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor={`key-${form.publicId ?? "new"}`}>Key</Label>
+            <Label htmlFor="type-key">Key</Label>
             {/* Immutable after creation — orders and fulfillment reference it. */}
             <Input
-              id={`key-${form.publicId ?? "new"}`}
+              id="type-key"
               value={form.key}
               onChange={(e) => set("key", e.target.value)}
               disabled={!isNew}
@@ -114,9 +114,9 @@ function TypeForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`label-${form.publicId ?? "new"}`}>Label</Label>
+            <Label htmlFor="type-label">Label</Label>
             <Input
-              id={`label-${form.publicId ?? "new"}`}
+              id="type-label"
               value={form.label}
               onChange={(e) => set("label", e.target.value)}
               placeholder="Instant delivery"
@@ -125,9 +125,9 @@ function TypeForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor={`desc-${form.publicId ?? "new"}`}>Description</Label>
+          <Label htmlFor="type-desc">Description</Label>
           <Textarea
-            id={`desc-${form.publicId ?? "new"}`}
+            id="type-desc"
             rows={2}
             value={form.description ?? ""}
             onChange={(e) => set("description", e.target.value)}
@@ -136,9 +136,9 @@ function TypeForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor={`min-${form.publicId ?? "new"}`}>Minimum subtotal ($)</Label>
+            <Label htmlFor="type-min">Minimum subtotal ($)</Label>
             <Input
-              id={`min-${form.publicId ?? "new"}`}
+              id="type-min"
               type="number"
               min={0}
               step={0.5}
@@ -147,9 +147,9 @@ function TypeForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`disc-${form.publicId ?? "new"}`}>Discount (%)</Label>
+            <Label htmlFor="type-disc">Discount (%)</Label>
             <Input
-              id={`disc-${form.publicId ?? "new"}`}
+              id="type-disc"
               type="number"
               min={0}
               max={100}
@@ -159,9 +159,9 @@ function TypeForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`sort-${form.publicId ?? "new"}`}>Sort order</Label>
+            <Label htmlFor="type-sort">Sort order</Label>
             <Input
-              id={`sort-${form.publicId ?? "new"}`}
+              id="type-sort"
               type="number"
               step={1}
               value={form.sortOrder}
@@ -209,42 +209,7 @@ function TypeForm({
             {pending ? "Saving…" : isNew ? "Create" : "Save"}
           </Button>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function TypeEditor({ types }: { types: TypeRow[] }) {
-  const router = useRouter();
-  const [addingNew, setAddingNew] = useState(false);
-  const [newKey, setNewKey] = useState(0);
-
-  function refresh() {
-    setAddingNew(false);
-    setNewKey((k) => k + 1);
-    router.refresh();
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={() => setAddingNew(true)} disabled={addingNew}>
-          <PlusIcon />
-          Add type
-        </Button>
       </div>
-
-      {addingNew ? (
-        <TypeForm key={`new-${newKey}`} initial={blankForm()} isNew onSaved={refresh} />
-      ) : null}
-
-      {types.length === 0 && !addingNew ? (
-        <p className="text-muted-foreground text-sm">No delivery types yet.</p>
-      ) : (
-        types.map((t) => (
-          <TypeForm key={t.publicId} initial={rowToForm(t)} isNew={false} onSaved={refresh} />
-        ))
-      )}
-    </div>
+    </ResponsiveDialog>
   );
 }

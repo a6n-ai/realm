@@ -66,7 +66,11 @@ export function ringPolygon(
   return coords;
 }
 
-function zonesToGeoJson(origin: { lat: number; lng: number }, zones: MapZone[]) {
+function zonesToGeoJson(
+  origin: { lat: number; lng: number },
+  zones: MapZone[],
+  focusedPublicId: string | null,
+) {
   // Largest first so smaller rings paint on top and stay clickable — fills are
   // translucent and later layers win the pointer.
   const ordered = [...zones].filter((z) => z.active).sort((a, b) => b.radiusKm - a.radiusKm);
@@ -74,7 +78,14 @@ function zonesToGeoJson(origin: { lat: number; lng: number }, zones: MapZone[]) 
     type: "FeatureCollection" as const,
     features: ordered.map((z) => ({
       type: "Feature" as const,
-      properties: { publicId: z.publicId, name: z.name, color: z.color },
+      properties: {
+        publicId: z.publicId,
+        name: z.name,
+        color: z.color,
+        // Drives the paint expressions rather than a second layer: one source
+        // means the emphasis can never drift out of sync with the geometry.
+        focused: focusedPublicId != null && z.publicId === focusedPublicId,
+      },
       geometry: { type: "Polygon" as const, coordinates: [ringPolygon(origin, z.radiusKm)] },
     })),
   };
@@ -104,6 +115,7 @@ export function ZoneMap({
   onRadiusCommit,
   onOriginChange,
   styleUrl = null,
+  focusedPublicId = null,
 }: {
   origin: { lat: number; lng: number };
   zones: MapZone[];
@@ -114,6 +126,8 @@ export function ZoneMap({
   onOriginChange: (lat: number, lng: number) => void;
   /** Vector style URL (Amazon Location, proxied same-origin). Null = keyless OSM raster. */
   styleUrl?: string | null;
+  /** Ring to emphasise and zoom to — set when a row in the table is selected. */
+  focusedPublicId?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -125,12 +139,12 @@ export function ZoneMap({
   // MapLibre event handlers are registered once against a live map instance, so
   // they would capture the first render's props forever. Everything they read
   // goes through this ref instead.
-  const latest = useRef({ origin, zones, onRadiusChange, onRadiusCommit, onOriginChange });
+  const latest = useRef({ origin, zones, onRadiusChange, onRadiusCommit, onOriginChange, focusedPublicId });
   // Written in an effect, not during render: a render-phase ref write is unsafe
   // under concurrent rendering, where a render can be discarded before commit.
   // Declared before the map effect so the first commit populates it first.
   useEffect(() => {
-    latest.current = { origin, zones, onRadiusChange, onRadiusCommit, onOriginChange };
+    latest.current = { origin, zones, onRadiusChange, onRadiusCommit, onOriginChange, focusedPublicId };
   });
 
   // Map creation, once. maplibre-gl touches `window` at import time, so it is
@@ -169,19 +183,29 @@ export function ZoneMap({
           if (cancelled || instance.getSource("zones")) return;
           instance.addSource("zones", {
             type: "geojson",
-            data: zonesToGeoJson(latest.current.origin, latest.current.zones),
+            data: zonesToGeoJson(
+              latest.current.origin,
+              latest.current.zones,
+              latest.current.focusedPublicId,
+            ),
           });
           instance.addLayer({
             id: "zones-fill",
             type: "fill",
             source: "zones",
-            paint: { "fill-color": ["get", "color"], "fill-opacity": 0.15 },
+            paint: {
+              "fill-color": ["get", "color"],
+              "fill-opacity": ["case", ["get", "focused"], 0.3, 0.12],
+            },
           });
           instance.addLayer({
             id: "zones-line",
             type: "line",
             source: "zones",
-            paint: { "line-color": ["get", "color"], "line-width": 2 },
+            paint: {
+              "line-color": ["get", "color"],
+              "line-width": ["case", ["get", "focused"], 3.5, 1.5],
+            },
           });
 
           const originMarker = new Marker({ draggable: true, color: "#111" })
@@ -227,7 +251,9 @@ export function ZoneMap({
 
     const source = map.getSource("zones");
     if (source && "setData" in source) {
-      (source as { setData: (d: unknown) => void }).setData(zonesToGeoJson(origin, zones));
+      (source as { setData: (d: unknown) => void }).setData(
+        zonesToGeoJson(origin, zones, focusedPublicId),
+      );
     }
     originMarkerRef.current?.setLngLat([origin.lng, origin.lat]);
 
@@ -298,7 +324,28 @@ export function ZoneMap({
         }
       }
     })();
-  }, [ready, origin, zones]);
+  }, [ready, origin, zones, focusedPublicId]);
+
+  // Zoom to the selected ring. Bounds come from the ring's own cardinal points
+  // rather than a fixed zoom, so a 3 km and a 20 km zone both land framed.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !focusedPublicId) return;
+    const zone = zones.find((z) => z.publicId === focusedPublicId && z.active);
+    if (!zone) return;
+
+    const north = destinationPoint(origin.lat, origin.lng, zone.radiusKm, 0);
+    const east = destinationPoint(origin.lat, origin.lng, zone.radiusKm, 90);
+    const south = destinationPoint(origin.lat, origin.lng, zone.radiusKm, 180);
+    const west = destinationPoint(origin.lat, origin.lng, zone.radiusKm, 270);
+    map.fitBounds(
+      [
+        [west.lng, south.lat],
+        [east.lng, north.lat],
+      ],
+      { padding: 48, duration: 600 },
+    );
+  }, [ready, focusedPublicId, origin, zones]);
 
   if (failed) {
     return (

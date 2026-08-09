@@ -1,7 +1,7 @@
 import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
-import { TypeEditor, type TypeRow } from "./type-editor";
+import { TypesTable, type TypeRow } from "./types-table";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export default async function DeliveryTypesPage() {
       title="Options"
       subtitle="What a customer can pick at checkout, and the rules each option carries."
     >
-      <TypeEditor types={rows} />
+      <TypesTable types={rows} />
     </SectionCard>
   );
 }

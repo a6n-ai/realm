@@ -1,0 +1,207 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@realm/ui/dialog";
+import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
+import { Label } from "@realm/ui/label";
+import { Switch } from "@realm/ui/switch";
+import { clampRadiusKm, type MapZone } from "./zone-map";
+import { retireZoneAction, saveZoneAction, setZoneTypesAction } from "./actions";
+import type { TypeOption, ZoneRow } from "./types";
+
+/**
+ * Radius bounds from the neighbouring rings. Mirrors the server-side clamp in
+ * actions.ts — this copy only drives the input's min/max and the hint, the
+ * server remains authoritative.
+ */
+function boundsFor(allZones: MapZone[], radiusKm: number, publicId: string | undefined) {
+  const others = allZones.filter((z) => z.active && z.publicId !== publicId);
+  const smaller = others.map((z) => z.radiusKm).filter((r) => r < radiusKm);
+  const larger = others.map((z) => z.radiusKm).filter((r) => r > radiusKm);
+  return {
+    innerEdgeKm: smaller.length ? Math.max(...smaller) : 0,
+    min: smaller.length ? Math.max(...smaller) + 0.01 : 0.01,
+    max: larger.length ? Math.min(...larger) - 0.01 : undefined,
+  };
+}
+
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+export function ZoneEditDialog({
+  zone,
+  allZones,
+  types,
+  onOpenChange,
+  onSaved,
+}: {
+  /** null closes the dialog; a zone with no publicId opens it in create mode. */
+  zone: ZoneRow | null;
+  allZones: MapZone[];
+  types: TypeOption[];
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const isNew = zone !== null && zone.publicId === "";
+  const [name, setName] = useState(zone?.name ?? "");
+  const [radiusKm, setRadiusKm] = useState(zone?.radiusKm ?? 5);
+  const [active, setActive] = useState(zone?.active ?? true);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(zone?.typePublicIds ?? []);
+  const [pending, start] = useTransition();
+  const [retiring, startRetire] = useTransition();
+
+  const bounds = boundsFor(allZones, radiusKm, zone?.publicId || undefined);
+  const busy = pending || retiring;
+
+  function toggleType(publicId: string) {
+    setSelectedTypes((prev) =>
+      prev.includes(publicId) ? prev.filter((id) => id !== publicId) : [...prev, publicId],
+    );
+  }
+
+  function save() {
+    start(async () => {
+      const res = await saveZoneAction({
+        publicId: isNew ? null : (zone?.publicId ?? null),
+        name,
+        radiusKm,
+        active,
+      });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      const publicId = isNew ? res.publicId : zone?.publicId;
+      if (publicId) {
+        const typesRes = await setZoneTypesAction(publicId, selectedTypes);
+        if (typesRes.error) {
+          toast.error(typesRes.error);
+          return;
+        }
+      }
+      toast.success(isNew ? "Zone created" : "Zone saved");
+      onSaved();
+      onOpenChange(false);
+    });
+  }
+
+  function retire() {
+    if (!zone || isNew) return;
+    startRetire(async () => {
+      const res = await retireZoneAction(zone.publicId);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Zone retired");
+      onSaved();
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Dialog open={zone !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isNew ? "Add zone" : `Edit ${zone?.name || "zone"}`}</DialogTitle>
+          <DialogDescription>
+            A ring measured out from the shop, and which options it offers.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="zone-name">Name</Label>
+              <Input
+                id="zone-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Inner"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="zone-radius">Outer radius (km)</Label>
+              <Input
+                id="zone-radius"
+                type="number"
+                inputMode="decimal"
+                min={bounds.min}
+                max={bounds.max}
+                step={0.5}
+                className="tabular-nums"
+                aria-describedby="zone-radius-help"
+                value={radiusKm}
+                onChange={(e) => {
+                  const raw = Number(e.target.value);
+                  setRadiusKm(
+                    Number.isFinite(raw)
+                      ? clampRadiusKm(raw, allZones, zone?.publicId || "__new__")
+                      : raw,
+                  );
+                }}
+              />
+              {/* The input clamps as you type, which without this reads as the
+                  field ignoring you. */}
+              <p id="zone-radius-help" className="text-muted-foreground text-xs">
+                {bounds.max === undefined
+                  ? bounds.innerEdgeKm > 0
+                    ? `Outermost ring — anything past ${fmt(bounds.innerEdgeKm)} km.`
+                    : "The only ring — any distance from the shop."
+                  : bounds.innerEdgeKm > 0
+                    ? `Kept between ${fmt(bounds.innerEdgeKm)} and ${fmt(bounds.max)} km so it can't cross its neighbours.`
+                    : `Kept under ${fmt(bounds.max)} km so it can't cross the next ring.`}
+              </p>
+            </div>
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Offered delivery types</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {types
+                .filter((t) => t.active)
+                .map((t) => (
+                  <label
+                    key={t.publicId}
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-2"
+                  >
+                    <span className="text-sm">{t.label}</span>
+                    <Switch
+                      checked={selectedTypes.includes(t.publicId)}
+                      onCheckedChange={() => toggleType(t.publicId)}
+                    />
+                  </label>
+                ))}
+            </div>
+          </fieldset>
+
+          <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+            <span className="text-sm font-medium">Active</span>
+            <Switch checked={active} onCheckedChange={setActive} />
+          </div>
+        </div>
+
+        <DialogFooter className="sm:justify-between">
+          {!isNew ? (
+            <Button type="button" variant="outline" disabled={busy || !active} onClick={retire}>
+              {active ? "Retire" : "Retired"}
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Button type="button" disabled={busy} onClick={save}>
+            {pending ? "Saving…" : isNew ? "Create" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
