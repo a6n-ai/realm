@@ -12,6 +12,10 @@ export const PUBLIC_API = [
   // customers order without an account. Abuse is bounded by the per-IP throttle
   // in the handler, not by auth.
   "/api/delivery/suggest",
+  // Basemap proxy — the contact page and checkout map are public, so their
+  // tiles, sprites and glyphs must be too. It serves only map assets and holds
+  // no credential the browser can extract.
+  "/api/map",
   // GET is intentionally public (product photos load for anonymous visitors —
   // see app/api/files/[...key]/route.ts); POST /upload still enforces
   // requireAdmin() inside the handler itself, so this doesn't weaken it.

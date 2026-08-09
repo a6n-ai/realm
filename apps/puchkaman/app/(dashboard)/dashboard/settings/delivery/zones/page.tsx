@@ -36,7 +36,7 @@ export default async function DeliveryZonesPage() {
       subtitle="Rings measured out from the shop. Each ring decides which options appear at that distance."
     >
       <ZoneEditor
-        mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
+        mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "/api/map/style"}
         origin={origin}
         zones={zoneRows}
         types={typeOptions}

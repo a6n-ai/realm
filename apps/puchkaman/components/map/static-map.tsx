@@ -4,24 +4,13 @@ import { useEffect, useRef, useState } from "react";
 // Pinned to maplibre-gl v5 — see zone-map.tsx for why (v6's worker loading
 // breaks under Next's bundler). Same import-by-name, same dynamic-import,
 // same styledata-not-load gating; this is a read-only sibling of that map.
-import type { MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
+import type { MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+
 import "maplibre-gl/dist/maplibre-gl.css";
 
-/** Keyless raster basemap — copied from zone-map.tsx, attribution required by
- *  OSM's usage policy. */
-const OSM_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-};
+/** Same-origin basemap proxy — signs Amazon Location server-side and falls back
+ *  to OpenStreetMap by itself, so this file needs no style config. */
+const MAP_STYLE_URL = "/api/map/style";
 
 export type StaticMapMarker = { lat: number; lng: number; color?: string; title?: string };
 
@@ -60,7 +49,7 @@ export function StaticMap({
 
         const instance = new MapCtor({
           container: containerRef.current,
-          style: OSM_STYLE,
+          style: MAP_STYLE_URL,
           center: [center.lng, center.lat],
           zoom,
           attributionControl: { compact: true },

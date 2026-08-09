@@ -14,6 +14,7 @@
     "reset-products": "node --experimental-strip-types scripts/reset-products.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-geo-maps": "^3.1106.0",
     "@hookform/resolvers": "^5.4.0",
     "@realm/auth": "workspace:*",
     "@realm/auth-ui": "workspace:*",
