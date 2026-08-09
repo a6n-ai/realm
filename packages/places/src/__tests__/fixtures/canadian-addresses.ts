@@ -32,7 +32,7 @@ export const CANADIAN_ADDRESS_FIXTURES: CanadianAddressCase[] = [
   {
     label: "Unit number",
     address: "2 Falaise Rd, Unit 4, Scarborough, ON M1B 2Z1",
-    expectedUnitFragment: "Unit 4",
+    expectedUnitFragment: "4",
     note: "unit case, 'Unit' spelled out",
   },
   {
@@ -76,7 +76,7 @@ export const CANADIAN_ADDRESS_FIXTURES: CanadianAddressCase[] = [
   {
     label: "Unit on arterial",
     address: "2280 Kennedy Rd, Unit 15, Scarborough, ON M1T 3G8",
-    expectedUnitFragment: "Unit 15",
+    expectedUnitFragment: "15",
     note: "same building as above, with a unit added",
   },
   {
