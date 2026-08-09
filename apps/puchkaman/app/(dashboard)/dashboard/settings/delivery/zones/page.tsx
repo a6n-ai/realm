@@ -1,5 +1,4 @@
-import { MapPinnedIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import { ZoneEditor, type TypeOption, type ZoneRow } from "./zone-editor";
@@ -32,20 +31,16 @@ export default async function DeliveryZonesPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={MapPinnedIcon}
-        title="Delivery zones"
-        subtitle="Concentric delivery rings measured from the shop, and which delivery types each offers."
+    <SectionCard
+      title="Coverage"
+      subtitle="Rings measured out from the shop. Each ring decides which options appear at that distance."
+    >
+      <ZoneEditor
+        mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
+        origin={origin}
+        zones={zoneRows}
+        types={typeOptions}
       />
-      <SectionCard title="Zones">
-        <ZoneEditor
-          mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
-          origin={origin}
-          zones={zoneRows}
-          types={typeOptions}
-        />
-      </SectionCard>
-    </PageShell>
+    </SectionCard>
   );
 }

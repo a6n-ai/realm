@@ -29,8 +29,8 @@ const zoneSchema = z.object({
 export type ZoneFormValues = z.input<typeof zoneSchema>;
 
 function revalidate() {
-  revalidatePath("/dashboard/catalogue/delivery-zones");
-  revalidatePath("/dashboard/catalogue/delivery-types");
+  revalidatePath("/dashboard/settings/delivery/zones");
+  revalidatePath("/dashboard/settings/delivery/options");
 }
 
 /**

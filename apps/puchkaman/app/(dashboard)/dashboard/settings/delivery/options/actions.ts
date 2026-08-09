@@ -26,8 +26,8 @@ const typeSchema = z.object({
 export type TypeFormValues = z.input<typeof typeSchema>;
 
 function revalidate() {
-  revalidatePath("/dashboard/catalogue/delivery-types");
-  revalidatePath("/dashboard/catalogue/delivery-zones");
+  revalidatePath("/dashboard/settings/delivery/options");
+  revalidatePath("/dashboard/settings/delivery/zones");
 }
 
 export async function saveDeliveryTypeAction(values: TypeFormValues): Promise<{ error?: string }> {

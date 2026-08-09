@@ -1,5 +1,4 @@
-import { ListTreeIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
 import { TypeEditor, type TypeRow } from "./type-editor";
@@ -25,15 +24,11 @@ export default async function DeliveryTypesPage() {
   }));
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={ListTreeIcon}
-        title="Delivery types"
-        subtitle="Pickup, instant and scheduled delivery options and their rules."
-      />
-      <SectionCard title="Types">
-        <TypeEditor types={rows} />
-      </SectionCard>
-    </PageShell>
+    <SectionCard
+      title="Options"
+      subtitle="What a customer can pick at checkout, and the rules each option carries."
+    >
+      <TypeEditor types={rows} />
+    </SectionCard>
   );
 }

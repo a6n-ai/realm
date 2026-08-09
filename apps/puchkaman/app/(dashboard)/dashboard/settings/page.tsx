@@ -65,7 +65,7 @@ export default async function SettingsPage() {
     label: "Delivery zones",
     description: "Delivery types, zone radii, and the shop's map origin.",
     icon: MapPinnedIcon,
-    href: "/dashboard/catalogue/delivery-zones",
+    href: "/dashboard/settings/delivery/zones",
   });
 
   sections.push({

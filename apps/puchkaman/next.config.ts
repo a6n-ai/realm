@@ -33,6 +33,22 @@ const nextConfig: NextConfig = {
     return [
       { source: "/menu", destination: "/eats", permanent: true },
       { source: "/productsmenu", destination: "/eats", permanent: true },
+      // Delivery settings moved out of Catalogue into Settings.
+      {
+        source: "/dashboard/catalogue/delivery-types",
+        destination: "/dashboard/settings/delivery/options",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/catalogue/delivery-zones",
+        destination: "/dashboard/settings/delivery/zones",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/settings/delivery",
+        destination: "/dashboard/settings/delivery/options",
+        permanent: false,
+      },
     ];
   },
 };
