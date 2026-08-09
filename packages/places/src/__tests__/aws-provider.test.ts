@@ -54,7 +54,27 @@ describe("awsPlaceProvider bucket selection", () => {
 });
 
 describe("awsPlaceProvider mapping and coordinate order", () => {
-  it("suggest maps PlaceId/Title to placeId/label", async () => {
+  it("suggest prefers Address.Label over Title", async () => {
+    // Real AWS shape: Title is ordered least-specific first, which reads badly
+    // in a dropdown; Address.Label is the customer-facing string and arrives
+    // in the same (cheap) response.
+    const f = fakeClient({
+      ResultItems: [
+        {
+          PlaceId: "p1",
+          Title: "Canada, ON, M1L 1B8, Toronto, Oakridge, 3315 Danforth Ave",
+          Address: { Label: "3315 Danforth Ave, Scarborough, ON M1L 1B8, Canada" },
+        },
+      ],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    expect(await p.suggest("danfor")).toEqual([
+      { placeId: "p1", label: "3315 Danforth Ave, Scarborough, ON M1L 1B8, Canada" },
+    ]);
+  });
+
+  it("suggest falls back to Title when Address is absent", async () => {
     const f = fakeClient({ ResultItems: [{ PlaceId: "p1", Title: "3315 Danforth Ave" }] });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = awsPlaceProvider({ client: f.client as any });

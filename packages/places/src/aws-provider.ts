@@ -103,7 +103,15 @@ export function awsPlaceProvider(opts: AwsPlaceProviderOptions = {}): PlaceProvi
         const items = out.ResultItems ?? [];
         const suggestions: PlaceSuggestion[] = [];
         for (const item of items) {
-          if (item.PlaceId && item.Title) suggestions.push({ placeId: item.PlaceId, label: item.Title });
+          // Address.Label, not Title. Title is ordered least-specific first
+          // ("Canada, ON, M1L 1B8, Toronto, Oakridge, 3315 Danforth Ave"),
+          // which puts the street at the end of every row in the dropdown.
+          // Address.Label reads the way a customer expects
+          // ("3315 Danforth Ave, Scarborough, ON M1L 1B8, Canada") and is
+          // returned by default — no AdditionalFeatures, so this stays in the
+          // cheap Label bucket rather than moving to Core.
+          const label = item.Address?.Label ?? item.Title;
+          if (item.PlaceId && label) suggestions.push({ placeId: item.PlaceId, label });
         }
         return suggestions;
       } catch (e) {
