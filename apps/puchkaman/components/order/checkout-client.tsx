@@ -15,6 +15,11 @@ import { StaticMap } from "@/components/map/static-map";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
+import {
+  SCHEDULE_MAX_AHEAD_MS,
+  SCHEDULE_MIN_AHEAD_MS,
+  scheduleWindowError,
+} from "@/lib/delivery/schedule";
 
 type CheckoutSession = {
   orderPublicId: string;
@@ -99,7 +104,14 @@ export function CheckoutClient({
   const [addressChecking, setAddressChecking] = useState(false);
   const [deliveryTypeKey, setDeliveryTypeKey] = useState<string | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
-  const [minScheduledFor] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16));
+  // datetime-local wants local wall-clock, and toISOString() is UTC — subtract
+  // the offset first or the picker bounds land hours off for anyone not on UTC.
+  const [scheduleBounds] = useState(() => {
+    const local = (ms: number) =>
+      new Date(ms - new Date(ms).getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    const now = Date.now();
+    return { min: local(now + SCHEDULE_MIN_AHEAD_MS), max: local(now + SCHEDULE_MAX_AHEAD_MS) };
+  });
   const [stepState, setStep] = useState<Step>("review");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +215,9 @@ export function CheckoutClient({
         errs.deliveryType = "Choose a delivery type.";
       } else if (selectedType.requiresSchedule && !scheduledFor) {
         errs.scheduledFor = "Pick a delivery time.";
+      } else if (selectedType.requiresSchedule) {
+        const windowError = scheduleWindowError(new Date(scheduledFor).toISOString());
+        if (windowError) errs.scheduledFor = windowError;
       }
     }
     return errs;
@@ -609,9 +624,13 @@ export function CheckoutClient({
                   className="input"
                   value={scheduledFor}
                   onChange={(e) => setScheduledFor(e.target.value)}
-                  min={minScheduledFor}
+                  min={scheduleBounds.min}
+                  max={scheduleBounds.max}
                   aria-invalid={fieldErrors.scheduledFor ? true : undefined}
                 />
+                <span className="checkout-hint">
+                  Anything from an hour out to this time tomorrow.
+                </span>
                 {fieldErrors.scheduledFor ? (
                   <span className="err-msg" role="alert">
                     {fieldErrors.scheduledFor}

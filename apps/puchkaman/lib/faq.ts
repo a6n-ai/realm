@@ -40,6 +40,6 @@ export const FAQS: Faq[] = [
   },
   {
     q: "Can I schedule an order?",
-    a: "Delivery beyond our instant 7km radius is scheduled — you pick a time slot at checkout. Pickup and instant delivery within 7km are same-day only (pickup is ready in about 15 minutes), not schedulable in advance.",
+    a: "Delivery beyond our instant 7km radius is scheduled — you pick a time slot at checkout, anywhere from an hour out to this time tomorrow. We don't book further than a day ahead. Pickup and instant delivery within 7km are same-day only (pickup is ready in about 15 minutes), not schedulable in advance.",
   },
 ];

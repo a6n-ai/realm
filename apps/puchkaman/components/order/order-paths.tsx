@@ -86,7 +86,7 @@ export function OrderPaths() {
           <h2 className="display order-path__title">Delivery</h2>
           <p className="order-path__lede">
             We deliver it ourselves, so none of it goes to an app. Within 7km it&apos;s instant and
-            15% cheaper; past that you pick a time slot, $35 minimum.
+            15% cheaper; past that you pick a time slot up to a day ahead, $35 minimum.
           </p>
         </div>
         <DeliveryChecker />

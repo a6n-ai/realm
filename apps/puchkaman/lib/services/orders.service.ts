@@ -24,6 +24,7 @@ import {
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
+import { scheduleWindowError } from "@/lib/delivery/schedule";
 import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
@@ -602,11 +603,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (!zone.id) throw new ValidationError("Could not resolve a delivery zone for that address.");
 
       if (type.requiresSchedule) {
-        const scheduled = new Date(parsed.fulfillment.scheduledFor!);
-        if (Number.isNaN(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
-          throw new ValidationError("Pick a delivery time in the future.");
-        }
-        scheduledForMs = scheduled.getTime();
+        // The form bounds the picker to the same window; this is the rule.
+        const windowError = scheduleWindowError(parsed.fulfillment.scheduledFor!);
+        if (windowError) throw new ValidationError(windowError);
+        scheduledForMs = new Date(parsed.fulfillment.scheduledFor!).getTime();
       }
 
       fulfillment = type.requiresSchedule ? "delivery_scheduled" : "delivery_instant";
