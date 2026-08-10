@@ -37,6 +37,9 @@ type CartContextValue = {
   addItem: (input: CartAddInput) => void;
   /** Both take a `cartLineKey`, not a product id — one product can span several lines. */
   setQty: (lineKey: string, quantity: number) => void;
+  /** Delta-based, reading current quantity from state at apply time — safe under rapid taps. */
+  incrementQty: (lineKey: string) => void;
+  decrementQty: (lineKey: string) => void;
   removeItem: (lineKey: string) => void;
   clear: () => void;
 };
@@ -178,6 +181,24 @@ export function CartProvider({
     });
   }, []);
 
+  // Compute the next quantity from the freshest state inside the updater itself —
+  // reading `item.quantity` from a render closure in the caller means rapid taps
+  // all see the same stale value and only one net change applies.
+  const incrementQty = useCallback((lineKey: string) => {
+    setItems((prev) =>
+      prev.map((i) => (cartLineKey(i) === lineKey ? { ...i, quantity: clampQty(i.quantity + 1) } : i)),
+    );
+  }, []);
+
+  const decrementQty = useCallback((lineKey: string) => {
+    setItems((prev) => {
+      const next = prev
+        .map((i) => (cartLineKey(i) === lineKey ? { ...i, quantity: clampQty(i.quantity - 1) } : i))
+        .filter((i) => i.quantity > 0);
+      return next;
+    });
+  }, []);
+
   const removeItem = useCallback((lineKey: string) => {
     setItems((prev) => prev.filter((i) => cartLineKey(i) !== lineKey));
   }, []);
@@ -197,6 +218,8 @@ export function CartProvider({
       closeDrawer,
       addItem,
       setQty,
+      incrementQty,
+      decrementQty,
       removeItem,
       clear,
     }),
@@ -210,6 +233,8 @@ export function CartProvider({
       closeDrawer,
       addItem,
       setQty,
+      incrementQty,
+      decrementQty,
       removeItem,
       clear,
     ],
