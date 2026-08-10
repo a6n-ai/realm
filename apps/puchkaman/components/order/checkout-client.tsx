@@ -43,6 +43,7 @@ type AddressCheck =
       distanceKm: number;
       limitKm: number | null;
       types: CheckoutDeliveryType[];
+      unavailableTypeLabels: string[];
     }
   | { resolved: false; error?: boolean };
 
@@ -69,16 +70,21 @@ function StepTrack({ step }: { step: Step }) {
   );
 }
 
+export type UpsellItem = { publicId: string; name: string; price: number; category: string };
+
 export function CheckoutClient({
   initialFulfillment = "pickup",
   offers = [],
+  upsellItems = [],
 }: {
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
   /** Clover discounts the merchant published as self-servable. */
   offers?: PublicOffer[];
+  /** Cheapest no-modifier items — one-tap add-ons offered when short of a delivery minimum. */
+  upsellItems?: UpsellItem[];
 }) {
-  const { items, subtotal, count, clear, hydrated } = useCart();
+  const { items, subtotal, count, clear, hydrated, addItem } = useCart();
   const formId = useId();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -130,6 +136,15 @@ export function CheckoutClient({
 
   const selectedType = addressCheck?.resolved
     ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
+    : undefined;
+
+  // Smallest gap to a delivery minimum the customer hasn't hit yet — the
+  // upsell nudge targets this one, not just whichever type is disabled first.
+  const nearestShortfall = addressCheck?.resolved
+    ? addressCheck.types
+        .map((t) => t.minSubtotal - subtotal)
+        .filter((gap) => gap > 0)
+        .sort((a, b) => a - b)[0]
     : undefined;
 
   const onCardReady = useCallback((fn: () => Promise<string>) => {
@@ -429,10 +444,18 @@ export function CheckoutClient({
                     {addressChecking ? "Checking…" : "Check address"}
                   </Btn>
                   {addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
-                    <p className="checkout-address__ok">
-                      ✓ {addressCheck.distanceKm}km away — {addressCheck.types.length} delivery
-                      option{addressCheck.types.length === 1 ? "" : "s"} available below.
-                    </p>
+                    <>
+                      <p className="checkout-address__ok">
+                        ✓ {addressCheck.distanceKm}km away — {addressCheck.types.length} delivery
+                        option{addressCheck.types.length === 1 ? "" : "s"} available below.
+                      </p>
+                      {addressCheck.unavailableTypeLabels.length > 0 ? (
+                        <p className="checkout-address__hint">
+                          {addressCheck.unavailableTypeLabels.join(", ")} isn&apos;t available this
+                          far — {addressCheck.types.map((t) => t.label).join(" or ")} instead.
+                        </p>
+                      ) : null}
+                    </>
                   ) : addressCheck?.resolved === true ? (
                     <p className="checkout-address__ok">
                       {addressCheck.distanceKm}km away
@@ -489,6 +512,32 @@ export function CheckoutClient({
                   <span className="err-msg" role="alert">
                     {fieldErrors.deliveryType}
                   </span>
+                ) : null}
+                {nearestShortfall != null && upsellItems.length > 0 ? (
+                  <div className="checkout-upsell">
+                    <p className="checkout-upsell__hint">
+                      Add one of these to qualify:
+                    </p>
+                    <div className="checkout-upsell__row">
+                      {upsellItems.map((item) => (
+                        <button
+                          key={item.publicId}
+                          type="button"
+                          className="checkout-upsell__chip"
+                          onClick={() =>
+                            addItem({
+                              productPublicId: item.publicId,
+                              name: item.name,
+                              price: item.price,
+                              category: item.category,
+                            })
+                          }
+                        >
+                          + {item.name} · {money(item.price)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </div>
             ) : null}

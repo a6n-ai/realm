@@ -5,8 +5,10 @@ import { CheckoutClient } from "@/components/order/checkout-client";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
+import { ordersService } from "@/lib/services/orders.service";
 import { buildMetadata } from "@/lib/seo";
 import type { PublicOffer } from "@/components/order/discount-picker";
+import type { UpsellItem } from "@/components/order/checkout-client";
 
 // Never indexable — transactional, per-session, and shouldn't be crawlable.
 export const metadata: Metadata = buildMetadata({
@@ -21,11 +23,20 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ fulfillment?: string }>;
 }) {
-  const [orderingEnabled, params, offerRows] = await Promise.all([
+  const [orderingEnabled, params, offerRows, catalog] = await Promise.all([
     isPublicOrderingEnabled(),
     searchParams,
     inventoryCatalogService.discounts.listPublicOffers(),
+    ordersService.listOrderableCatalog(),
   ]);
+  // Cheapest one-tap add-ons (no modifier picker needed) — surfaced when a
+  // delivery minimum is just out of reach, so the shortfall message doubles
+  // as an upsell instead of a dead end.
+  const upsellItems: UpsellItem[] = catalog
+    .filter((p) => p.modifierGroups.length === 0)
+    .sort((a, b) => a.price - b.price)
+    .slice(0, 3)
+    .map((p) => ({ publicId: p.publicId, name: p.name, price: p.price, category: p.category }));
   // Clover discounts the merchant published as self-servable. The label is
   // rendered here so the client never has to know Clover's amount encoding.
   const offers: PublicOffer[] = offerRows.map((r) => ({
@@ -59,7 +70,11 @@ export default async function CheckoutPage({
         <div className="wrap" style={{ maxWidth: 1040 }}>
           <Reveal>
             {orderingEnabled ? (
-              <CheckoutClient initialFulfillment={initialFulfillment} offers={offers} />
+              <CheckoutClient
+                initialFulfillment={initialFulfillment}
+                offers={offers}
+                upsellItems={upsellItems}
+              />
             ) : (
               <OrderingUnavailableNotice title="Checkout coming soon" />
             )}

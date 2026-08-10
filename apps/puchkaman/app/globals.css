@@ -1490,6 +1490,25 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   flex-wrap: wrap;
 }
 .checkout-address__ok { font-weight: 600; font-size: 0.86rem; margin: 0; }
+.checkout-address__hint { font-weight: 500; font-size: 0.8rem; opacity: 0.75; margin: 4px 0 0; }
+
+.checkout-upsell { margin-top: 10px; }
+.checkout-upsell__hint { font-weight: 700; font-size: 0.8rem; margin: 0 0 8px; }
+.checkout-upsell__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkout-upsell__chip {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.checkout-upsell__chip:hover { background: var(--yellow); transform: translateY(-1px); }
 
 .checkout-offers { display: grid; gap: 14px; }
 .checkout-offers__group { border: none; padding: 0; margin: 0; display: grid; gap: 4px; }
@@ -1867,6 +1886,10 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   min-width: 0;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  /* Fades the trailing chip so a partially-cut label reads as "more to scroll"
+     rather than looking like a rendering glitch. */
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 .eats-rail::-webkit-scrollbar { display: none; }
 .eats-railchip {

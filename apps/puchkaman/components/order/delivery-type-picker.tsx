@@ -33,10 +33,13 @@ export function DeliveryTypePicker({
       {types.map((type) => {
         const shortfall = type.minSubtotal - subtotal;
         const disabled = shortfall > 0;
+        const discountAmount = (subtotal * type.discountPct) / 100;
         const hint = disabled
           ? `Add ${money(shortfall)} more to qualify`
           : [
-              type.discountPct > 0 ? `${Math.round(type.discountPct)}% off` : null,
+              type.discountPct > 0
+                ? `${Math.round(type.discountPct)}% off — save ${money(discountAmount)}`
+                : null,
               type.minSubtotal > 0 ? `${money(type.minSubtotal)} minimum` : null,
               type.requiresSchedule ? "pick a time" : null,
             ]
