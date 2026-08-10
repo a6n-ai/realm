@@ -31,14 +31,24 @@ export type EatsFilterState = {
   categoryIds: string[];
   tags: string[];
   availableOnly: boolean;
+  /** Inclusive ceiling in dollars, or null for no price bound. */
+  maxPrice: number | null;
   sort: EatsSort;
 };
+
+/** Price bands the panel offers. Kept small — a slider is overkill on a menu
+ *  where almost everything sits between $1 and $13. */
+export const PRICE_BANDS: { id: string; label: string; maxPrice: number }[] = [
+  { id: "under5", label: "Under $5", maxPrice: 5 },
+  { id: "under10", label: "Under $10", maxPrice: 10 },
+];
 
 export const EMPTY_FILTERS: EatsFilterState = {
   query: "",
   categoryIds: [],
   tags: [],
   availableOnly: false,
+  maxPrice: null,
   sort: "menu",
 };
 
@@ -52,7 +62,8 @@ export function activeFilterCount(f: EatsFilterState): number {
     (f.query.trim() ? 1 : 0) +
     f.categoryIds.length +
     f.tags.length +
-    (f.availableOnly ? 1 : 0)
+    (f.availableOnly ? 1 : 0) +
+    (f.maxPrice != null ? 1 : 0)
   );
 }
 
@@ -85,6 +96,7 @@ export function filterCategories(
     .map((c) => {
       const items = c.items.filter((item) => {
         if (f.availableOnly && !item.orderable) return false;
+        if (f.maxPrice != null && item.price > f.maxPrice) return false;
         if (wantedTags.size && !item.tags.some((t) => wantedTags.has(t))) return false;
         return matchesQuery(item, f.query);
       });
@@ -108,4 +120,18 @@ export function availableTags(categories: EatsCategory[]): string[] {
   const seen = new Set<string>();
   for (const c of categories) for (const i of c.items) for (const t of i.tags) seen.add(t);
   return [...seen];
+}
+
+/**
+ * How many items the menu would show if `patch` were applied on top of the
+ * current filters. The panel prints this next to every option and greys out the
+ * ones that would return nothing — a filter that leads to an empty menu is
+ * better refused up front than discovered by clicking it.
+ */
+export function previewCount(
+  categories: EatsCategory[],
+  filters: EatsFilterState,
+  patch: Partial<EatsFilterState>,
+): number {
+  return countItems(filterCategories(categories, { ...filters, ...patch }));
 }

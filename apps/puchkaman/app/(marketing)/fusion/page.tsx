@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { FileDetail } from "@realm/storage/model";
 import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { AssemblyGuide } from "@/components/brutal/assembly-guide";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
@@ -39,13 +40,6 @@ const FUSION_ITEMS: [string, string, string, string][] = [
   ["Spicy Chicken Blast Puchka", "Built for heat-seekers. Proceed with water nearby.", "$10", "🌶️🌶️🌶️"],
   ["Veg Mo-Puchka", "Momo filling tucked into a crispy puchka.", "$9", "New"],
   ["Paneer Mo-Puchka", "Paneer momo meets puchka in one bite.", "$9", "New"],
-];
-
-const STEPS: [string, string][] = [
-  ["Pick your shell", "Grab a crispy puchka — we keep them fresh and shatter-crisp."],
-  ["Load the filling", "Each fusion comes pre-stuffed with its signature global flavour."],
-  ["Add the sauce", "Drizzle the matching sauce — schezwan, cheese, or tangy water."],
-  ["One bite, no pause", "Whole thing, all at once. No nibbling. That's the rule."],
 ];
 
 export default async function FusionPage() {
@@ -122,38 +116,19 @@ export default async function FusionPage() {
         </div>
       </section>
 
-      {/* How to eat */}
+      {/* How to assemble — per-puchka, replacing the generic four-step "how to
+          eat one" it used to carry. Same four beats, but the sauce and the
+          garnish actually differ per filling, and a single generic card
+          couldn't say which. */}
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap">
-          <SectionHead kicker="The Method" title="How To Eat One" align="center" sub="Four steps. Don't overthink it — the crunch waits for no one." />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
-            {STEPS.map(([t, d], i) => (
-              <Reveal key={t} delay={i * 70}>
-                <div className="card" style={{ padding: 24, height: "100%", background: i % 2 ? "var(--cream)" : "var(--white)" }}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: "50%",
-                      background: "var(--green)",
-                      color: "#fff",
-                      border: "var(--border)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontWeight: 900,
-                      fontSize: "1.5rem",
-                      boxShadow: "var(--sh-sm)",
-                      marginBottom: 16,
-                    }}
-                  >
-                    {i + 1}
-                  </div>
-                  <h3 style={{ fontSize: "1.3rem", marginBottom: 8 }}>{t}</h3>
-                  <p style={{ fontWeight: 500, opacity: 0.82 }}>{d}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <SectionHead
+            kicker="The Method"
+            title="How To Assemble Yours"
+            align="center"
+            sub="Pick your puchka — four steps from shell to first crunch."
+          />
+          <AssemblyGuide />
         </div>
       </section>
 

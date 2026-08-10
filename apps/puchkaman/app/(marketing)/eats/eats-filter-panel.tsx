@@ -4,7 +4,11 @@ import { useId } from "react";
 import { TAG_STYLE } from "@/lib/menu-categories";
 import {
   activeFilterCount,
+  countItems,
   EMPTY_FILTERS,
+  filterCategories,
+  PRICE_BANDS,
+  previewCount,
   type EatsCategory,
   type EatsFilterState,
   type EatsSort,
@@ -37,6 +41,39 @@ export function EatsFilterPanel({
   const id = useId();
   const count = activeFilterCount(value);
 
+  const shown = filterCategories(categories, value);
+  const shownItems = countItems(shown);
+
+  /** Every applied filter as one removable chip, so a narrowed menu can always
+   *  be widened one step at a time instead of only by clearing everything. */
+  const chips: { key: string; label: string; clear: () => void }[] = [
+    ...(value.query.trim()
+      ? [{ key: "q", label: `“${value.query.trim()}”`, clear: () => onChange({ ...value, query: "" }) }]
+      : []),
+    ...(value.availableOnly
+      ? [{ key: "avail", label: "Available right now", clear: () => onChange({ ...value, availableOnly: false }) }]
+      : []),
+    ...(value.maxPrice != null
+      ? [
+          {
+            key: "price",
+            label: PRICE_BANDS.find((b) => b.maxPrice === value.maxPrice)?.label ?? `Under $${value.maxPrice}`,
+            clear: () => onChange({ ...value, maxPrice: null }),
+          },
+        ]
+      : []),
+    ...value.tags.map((t) => ({
+      key: `tag-${t}`,
+      label: TAG_STYLE[t]?.label ?? t,
+      clear: () => onChange({ ...value, tags: value.tags.filter((x) => x !== t) }),
+    })),
+    ...value.categoryIds.map((cid) => ({
+      key: `cat-${cid}`,
+      label: categories.find((c) => c.id === cid)?.name ?? cid,
+      clear: () => onChange({ ...value, categoryIds: value.categoryIds.filter((x) => x !== cid) }),
+    })),
+  ];
+
   return (
     <div className="eats-filters">
       <div className="eats-filters__head">
@@ -60,6 +97,34 @@ export function EatsFilterPanel({
         />
       </div>
 
+      {chips.length ? (
+        <div className="eats-active">
+          <div className="eats-active__head">
+            <h3>Active ({count})</h3>
+            <button type="button" className="eats-filters__clear" onClick={() => onChange(EMPTY_FILTERS)}>
+              Clear all
+            </button>
+          </div>
+          <div className="eats-active__chips">
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className="eats-active__chip"
+                onClick={chip.clear}
+                aria-label={`Remove filter ${chip.label}`}
+              >
+                {chip.label} <span aria-hidden="true">✕</span>
+              </button>
+            ))}
+          </div>
+          <p className="eats-active__count" aria-live="polite">
+            {shownItems} item{shownItems === 1 ? "" : "s"} · {shown.length} section
+            {shown.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
       {orderingEnabled ? (
         <label className={`eats-check eats-check--solo ${value.availableOnly ? "is-on" : ""}`}>
           <input
@@ -79,15 +144,18 @@ export function EatsFilterPanel({
           <div className="eats-tagrow">
             {tags.map((t) => {
               const on = value.tags.includes(t);
+              const n = previewCount(categories, value, { tags: toggle(value.tags, t) });
               return (
                 <button
                   key={t}
                   type="button"
                   aria-pressed={on}
+                  disabled={!on && n === 0}
                   className={`eats-tag ${on ? "is-on" : ""}`}
                   onClick={() => onChange({ ...value, tags: toggle(value.tags, t) })}
                 >
                   {TAG_STYLE[t]?.label ?? t}
+                  <span className="eats-tag__count">{n}</span>
                 </button>
               );
             })}
@@ -96,20 +164,50 @@ export function EatsFilterPanel({
       ) : null}
 
       <fieldset className="eats-filters__group">
-        <legend>Sections</legend>
+        <legend>Price</legend>
         <div className="eats-checklist">
-          {categories.map((c) => {
-            const on = value.categoryIds.includes(c.id);
+          {PRICE_BANDS.map((band) => {
+            const on = value.maxPrice === band.maxPrice;
+            const n = previewCount(categories, value, { maxPrice: on ? null : band.maxPrice });
             return (
-              <label key={c.id} className={`eats-check ${on ? "is-on" : ""}`}>
+              <label key={band.id} className={`eats-check ${on ? "is-on" : ""} ${!on && n === 0 ? "is-empty" : ""}`}>
                 <input
                   type="checkbox"
                   className="eats-vh-input"
                   checked={on}
+                  disabled={!on && n === 0}
+                  onChange={() => onChange({ ...value, maxPrice: on ? null : band.maxPrice })}
+                />
+                <span className="eats-check__label">{band.label}</span>
+                <span className="eats-check__count">{n}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="eats-filters__group">
+        <legend>Sections</legend>
+        <div className="eats-checklist">
+          {categories.map((c) => {
+            const on = value.categoryIds.includes(c.id);
+            // What picking this section would actually show, not its raw size:
+            // with a search or a price band on, the raw count overpromises.
+            const n = previewCount(categories, value, { categoryIds: toggle(value.categoryIds, c.id) });
+            return (
+              <label
+                key={c.id}
+                className={`eats-check ${on ? "is-on" : ""} ${!on && n === 0 ? "is-empty" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  className="eats-vh-input"
+                  checked={on}
+                  disabled={!on && n === 0}
                   onChange={() => onChange({ ...value, categoryIds: toggle(value.categoryIds, c.id) })}
                 />
                 <span className="eats-check__label">{c.name}</span>
-                <span className="eats-check__count">{c.items.length}</span>
+                <span className="eats-check__count">{n}</span>
               </label>
             );
           })}

@@ -4,6 +4,7 @@ import {
   availableTags,
   countItems,
   EMPTY_FILTERS,
+  previewCount,
   filterCategories,
   type EatsCategory,
   type EatsItem,
@@ -84,5 +85,34 @@ describe("eats filters", () => {
 
   it("only offers tags that exist on the menu", () => {
     expect(availableTags(MENU).sort()).toEqual(["best", "viral"]);
+  });
+});
+
+describe("price band", () => {
+  it("keeps only items at or under the ceiling", () => {
+    const out = filterCategories(MENU, { ...EMPTY_FILTERS, maxPrice: 10 });
+    expect(countItems(out)).toBe(1);
+    expect(out.every((c) => c.items.every((i) => i.price <= 10))).toBe(true);
+  });
+
+  it("counts as one active filter", () => {
+    expect(activeFilterCount({ ...EMPTY_FILTERS, maxPrice: 10 })).toBe(1);
+  });
+});
+
+describe("previewCount", () => {
+  it("reports what a candidate filter would show, not the current view", () => {
+    expect(previewCount(MENU, EMPTY_FILTERS, { maxPrice: 10 })).toBe(1);
+    expect(countItems(filterCategories(MENU, EMPTY_FILTERS))).toBe(3);
+  });
+
+  it("respects the filters already applied", () => {
+    // Aloo Puchka is the only item under $10, and it is not viral — stacking
+    // the two can only reach zero.
+    expect(previewCount(MENU, { ...EMPTY_FILTERS, tags: ["viral"] }, { maxPrice: 10 })).toBe(0);
+  });
+
+  it("returns zero for a combination with nothing behind it, so the panel can disable it", () => {
+    expect(previewCount(MENU, EMPTY_FILTERS, { maxPrice: 1 })).toBe(0);
   });
 });

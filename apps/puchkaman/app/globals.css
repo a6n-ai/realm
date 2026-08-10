@@ -2271,3 +2271,139 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 @media (prefers-reduced-motion: reduce) {
   .savings__offer { transition: none; }
 }
+
+/* ============================================================
+   /fusion — per-puchka assembly guide. Four beats every fusion
+   follows, with the sauce and garnish that actually differ.
+   ============================================================ */
+.assembly__picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 26px;
+}
+.assembly__chip {
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  min-height: 42px;
+  padding: 9px 16px;
+  cursor: pointer;
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--ink);
+  transition: transform .1s ease, box-shadow .1s ease, background-color .1s ease;
+}
+.assembly__chip:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+.assembly__chip:active { transform: translate(1px, 1px); box-shadow: none; }
+.assembly__chip.is-on { background: var(--green); color: #fff; box-shadow: var(--sh-sm); }
+
+.assembly__panel { padding: clamp(20px, 4vw, 36px); background: var(--white); }
+.assembly__head { margin-bottom: 22px; }
+.assembly__title { font-size: clamp(1.4rem, 3.5vw, 2rem); margin: 0; }
+
+.assembly__steps {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: none;
+}
+.assembly__step { padding: 22px; height: 100%; }
+.assembly__step-head { gap: 12px; margin-bottom: 14px; }
+.assembly__num {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  border: var(--border);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 1.25rem;
+  box-shadow: var(--sh-sm);
+}
+.assembly__step-title { font-size: 1.05rem; line-height: 1.15; margin: 0; }
+.assembly__step-text { font-weight: 500; opacity: 0.85; margin: 0; text-wrap: pretty; }
+.assembly__tip {
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--yellow);
+  color: var(--ink-deep);
+  border: var(--border);
+  border-radius: 8px;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assembly__chip { transition: none; }
+}
+
+/* ---- /eats filter panel: active-filter chips + live option counts ---- */
+.eats-active {
+  border: var(--border);
+  border-radius: var(--r-sm);
+  background: var(--cream);
+  padding: 13px 14px;
+}
+.eats-active__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.eats-active__head h3 {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin: 0;
+}
+.eats-active__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.eats-active__chip {
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 5px 11px;
+  cursor: pointer;
+  background: var(--yellow);
+  color: var(--ink-deep);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+.eats-active__chip:hover { background: var(--yellow-deep); }
+.eats-active__count {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.7;
+  margin: 10px 0 0;
+}
+
+/* A count of what the option would actually show, so a dead end is visible
+   before it is clicked rather than after. */
+.eats-tag__count {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  opacity: 0.6;
+  margin-left: 6px;
+}
+.eats-tag.is-on .eats-tag__count { opacity: 0.85; }
+.eats-tag[disabled],
+.eats-check.is-empty {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.eats-tag[disabled]:hover,
+.eats-check.is-empty:hover { transform: none; box-shadow: none; }
