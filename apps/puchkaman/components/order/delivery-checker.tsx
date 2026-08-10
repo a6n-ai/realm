@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Btn } from "@/components/brutal/shared";
 import { AddressAutocomplete } from "@/components/order/address-autocomplete";
+import { useCart } from "@/components/cart/cart-provider";
 import { money } from "@/lib/cart/types";
 import type { CheckoutDeliveryType } from "@/components/order/delivery-type-picker";
 
@@ -24,9 +25,11 @@ type CheckResult =
  *  cart/subtotal context here, so it just lists what an address qualifies
  *  for rather than picking one. */
 export function DeliveryChecker() {
+  const { count, hydrated } = useCart();
   const [address, setAddress] = useState("");
   const [placeId, setPlaceId] = useState<string | undefined>(undefined);
   const [result, setResult] = useState<CheckResult>({ status: "idle" });
+  const fieldId = `${useId()}-delivery-address`;
 
   async function check() {
     if (!address.trim()) return;
@@ -73,10 +76,17 @@ export function DeliveryChecker() {
     }
   }
 
+  // An empty bag has nothing to check out, so a qualified address sends the
+  // customer to the menu — linking straight to checkout dead-ended on "Cart is
+  // empty. Add in-stock items from the menu first."
+  const hasItems = hydrated && count > 0;
+
   return (
     <div>
-      <div className="checkout-address__actions" style={{ marginBottom: 10 }}>
+      <div className="field" style={{ marginBottom: 12 }}>
+        <label htmlFor={fieldId}>Your delivery address</label>
         <AddressAutocomplete
+          id={fieldId}
           value={address}
           onChange={(v) => {
             setAddress(v);
@@ -87,11 +97,10 @@ export function DeliveryChecker() {
             setAddress(a);
             setPlaceId(p);
           }}
-          className="input"
         />
       </div>
       <Btn
-        variant="yellow"
+        variant="green"
         block
         disabled={!address.trim() || result.status === "checking"}
         onClick={() => void check()}
@@ -100,46 +109,54 @@ export function DeliveryChecker() {
       </Btn>
 
       {result.status === "served" ? (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.88rem" }}>
+        <div className="delivery-check__out">
+          <p className="delivery-check__ok">
             ✓ We deliver to {result.formattedAddress} — {result.distanceKm}km away.
           </p>
-          {result.unavailableTypeLabels.length > 0 ? (
-            <p style={{ fontWeight: 600, marginBottom: 10, fontSize: "0.8rem", opacity: 0.75 }}>
-              {result.unavailableTypeLabels.join(", ")} isn&apos;t available this far.
-            </p>
-          ) : null}
-          <ul style={{ display: "grid", gap: 6, listStyle: "none", padding: 0, margin: "0 0 10px" }}>
+          <ul className="delivery-check__types">
             {result.types.map((t) => (
-              <li key={t.key} style={{ fontSize: "0.84rem", fontWeight: 600 }}>
-                {t.label}
+              <li key={t.key}>
+                <strong>{t.label}</strong>
                 {t.discountPct > 0 ? ` · ${Math.round(t.discountPct)}% off` : ""}
                 {t.minSubtotal > 0 ? ` · ${money(t.minSubtotal)} minimum` : ""}
-                {t.requiresSchedule ? " · pick a time" : ""}
+                {t.requiresSchedule ? " · you pick a time slot" : ""}
               </li>
             ))}
           </ul>
-          <Btn href="/checkout?fulfillment=delivery" variant="yellow" block>
-            Continue to Checkout →
-          </Btn>
+          {result.unavailableTypeLabels.length > 0 ? (
+            <p className="delivery-check__hint">
+              {result.unavailableTypeLabels.join(", ")} isn&apos;t available this far.
+            </p>
+          ) : null}
+          {hasItems ? (
+            <Btn href="/checkout?fulfillment=delivery" variant="ink" block>
+              Continue to checkout →
+            </Btn>
+          ) : (
+            <Btn page="eats" variant="ink" block>
+              Pick your food →
+            </Btn>
+          )}
         </div>
       ) : result.status === "too-far" ? (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ fontWeight: 700, marginBottom: 10, fontSize: "0.84rem" }}>
+        <div className="delivery-check__out">
+          <p className="delivery-check__ok">
             {result.formattedAddress} is {result.distanceKm}km away
-            {result.limitKm != null ? ` — outside our ${result.limitKm}km delivery range.` : " — outside our delivery range."}{" "}
+            {result.limitKm != null
+              ? ` — outside our ${result.limitKm}km delivery range.`
+              : " — outside our delivery range."}{" "}
             Pickup at 3315 Danforth Ave is still ~15 min.
           </p>
-          <Btn page="eats" variant="cream" block>
+          <Btn page="eats" variant="ink" block>
             Order for pickup instead →
           </Btn>
         </div>
       ) : result.status === "not-found" ? (
-        <p style={{ fontWeight: 700, marginTop: 10, fontSize: "0.84rem" }}>
+        <p className="delivery-check__ok" style={{ marginTop: 12 }}>
           Couldn&apos;t find that address — double check it, or enter it again at checkout.
         </p>
       ) : result.status === "error" ? (
-        <p style={{ fontWeight: 700, marginTop: 10, fontSize: "0.84rem" }}>
+        <p className="delivery-check__ok" style={{ marginTop: 12 }}>
           Couldn&apos;t check that address — try again.
         </p>
       ) : null}
