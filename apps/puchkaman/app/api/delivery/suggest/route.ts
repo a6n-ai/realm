@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { clientIp, isRateLimited } from "@realm/commons";
 import { handler, json } from "@realm/routes";
 import { suggestAddresses } from "@/lib/delivery/resolve-address";
-import { clientIp } from "@/lib/http/client-ip";
-import { isRateLimited } from "@/lib/http/rate-limit";
 
 const suggestSchema = z.object({ query: z.string().trim().min(1) });
 

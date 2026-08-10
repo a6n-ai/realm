@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { isRateLimited } = await import("../rate-limit");
+const { isRateLimited } = await import("./rate-limit");
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

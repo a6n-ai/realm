@@ -1,11 +1,10 @@
 import { z } from "zod";
+import { clientIp, isRateLimited } from "@realm/commons";
 import { handler, json, problem } from "@realm/routes";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { availableTypes, deliveryLimitKm } from "@/lib/delivery/zones";
 import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
-import { clientIp } from "@/lib/http/client-ip";
-import { isRateLimited } from "@/lib/http/rate-limit";
 
 const checkAddressSchema = z.object({
   address: z.string().trim().min(5),

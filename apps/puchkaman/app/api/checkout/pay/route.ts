@@ -1,7 +1,6 @@
 import { handler, json, problem } from "@realm/routes";
-import { NotFoundError, ValidationError } from "@realm/commons";
+import { clientIp, NotFoundError, ValidationError } from "@realm/commons";
 import { ordersService, payCheckoutSchema } from "@/lib/services/orders.service";
-import { clientIp } from "@/lib/http/client-ip";
 
 /** Pay a pending checkout with a Clover iframe card token (`source`). */
 export const POST = handler(async (request: Request): Promise<Response> => {
