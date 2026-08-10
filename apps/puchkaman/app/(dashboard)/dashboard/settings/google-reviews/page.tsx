@@ -1,7 +1,7 @@
 import { StarIcon } from "lucide-react";
-import { PageHeader, PageShell } from "@realm/design-system";
-import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv } from "@realm/google-reviews";
-import { GoogleReviewsSettingsPanel } from "@realm/google-reviews/ui";
+import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv } from "@realm/google-reviews";
+import { GoogleReviewsList, GoogleReviewsSettingsPanel } from "@realm/google-reviews/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { saveGoogleReviewsPlaceId } from "./actions";
@@ -9,6 +9,9 @@ import { saveGoogleReviewsPlaceId } from "./actions";
 export default async function GoogleReviewsSettingsPage() {
   await requireAdmin();
   const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
+  // Same call the public site makes, so this page shows exactly what customers
+  // see — including the six-hour cache, rather than a fresher private view.
+  const summary = await getReviewsSummary(integrationsConfigStore);
 
   return (
     <PageShell>
@@ -22,6 +25,9 @@ export default async function GoogleReviewsSettingsPage() {
         apiKeyConfigured={Boolean(loadPlacesApiKeyFromEnv())}
         onSave={saveGoogleReviewsPlaceId}
       />
+      <SectionCard title="Reviews" subtitle="What Google is returning for this listing right now.">
+        <GoogleReviewsList summary={summary} />
+      </SectionCard>
     </PageShell>
   );
 }
