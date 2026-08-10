@@ -6,6 +6,7 @@ import {
   EMPTY_FILTERS,
   previewCount,
   filterCategories,
+  hasDietData,
   type EatsCategory,
   type EatsItem,
 } from "../eats-filters";
@@ -17,6 +18,7 @@ function item(over: Partial<EatsItem> & { name: string }): EatsItem {
     price: 10,
     image: null,
     tags: [],
+    veg: null,
     orderable: true,
     category: "trad",
     cloverColorCode: null,
@@ -114,5 +116,43 @@ describe("previewCount", () => {
 
   it("returns zero for a combination with nothing behind it, so the panel can disable it", () => {
     expect(previewCount(MENU, EMPTY_FILTERS, { maxPrice: 1 })).toBe(0);
+  });
+});
+
+describe("dietary filter", () => {
+  const DIET: EatsCategory[] = [
+    {
+      id: "trad",
+      name: "Traditional Puchkas",
+      emoji: "💧",
+      note: "",
+      items: [
+        item({ name: "Aloo Puchka", veg: true }),
+        item({ name: "Chicken Puchka", veg: false }),
+        item({ name: "Mystery Puchka" }),
+      ],
+    },
+  ];
+
+  it("shows only classified vegetarian items", () => {
+    const out = filterCategories(DIET, { ...EMPTY_FILTERS, diet: "veg" });
+    expect(out[0]!.items.map((i) => i.name)).toEqual(["Aloo Puchka"]);
+  });
+
+  it("shows only classified non-veg items", () => {
+    const out = filterCategories(DIET, { ...EMPTY_FILTERS, diet: "nonveg" });
+    expect(out[0]!.items.map((i) => i.name)).toEqual(["Chicken Puchka"]);
+  });
+
+  it("never files an unclassified item under either diet", () => {
+    const veg = filterCategories(DIET, { ...EMPTY_FILTERS, diet: "veg" });
+    const nonveg = filterCategories(DIET, { ...EMPTY_FILTERS, diet: "nonveg" });
+    const shown = [...veg, ...nonveg].flatMap((c) => c.items.map((i) => i.name));
+    expect(shown).not.toContain("Mystery Puchka");
+  });
+
+  it("is hidden until something on the menu is classified", () => {
+    expect(hasDietData(MENU)).toBe(false);
+    expect(hasDietData(DIET)).toBe(true);
   });
 });

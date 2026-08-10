@@ -2407,3 +2407,24 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 .eats-tag[disabled]:hover,
 .eats-check.is-empty:hover { transform: none; box-shadow: none; }
+
+/* Veg / non-veg mark on a menu card. Absent when the item is unclassified —
+   see EatsItem.veg; a default mark would be a dietary claim nobody made. */
+.eats-card__veg {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--mint);
+  border-radius: 4px;
+  background: var(--white);
+  display: grid;
+  place-items: center;
+}
+.eats-card__veg > span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: block;
+}

@@ -8,6 +8,8 @@ export type EatsItem = {
   price: number;
   image: FileDetail | null;
   tags: string[];
+  /** true = vegetarian, false = non-veg, null = nobody has classified it. */
+  veg: boolean | null;
   /** Active + Clover-linked + in stock — eligible for pickup cart. */
   orderable: boolean;
   category: string;
@@ -33,6 +35,8 @@ export type EatsFilterState = {
   availableOnly: boolean;
   /** Inclusive ceiling in dollars, or null for no price bound. */
   maxPrice: number | null;
+  /** Mutually exclusive — you are shopping for one or the other, never both. */
+  diet: "veg" | "nonveg" | null;
   sort: EatsSort;
 };
 
@@ -49,6 +53,7 @@ export const EMPTY_FILTERS: EatsFilterState = {
   tags: [],
   availableOnly: false,
   maxPrice: null,
+  diet: null,
   sort: "menu",
 };
 
@@ -63,7 +68,8 @@ export function activeFilterCount(f: EatsFilterState): number {
     f.categoryIds.length +
     f.tags.length +
     (f.availableOnly ? 1 : 0) +
-    (f.maxPrice != null ? 1 : 0)
+    (f.maxPrice != null ? 1 : 0) +
+    (f.diet ? 1 : 0)
   );
 }
 
@@ -97,6 +103,11 @@ export function filterCategories(
       const items = c.items.filter((item) => {
         if (f.availableOnly && !item.orderable) return false;
         if (f.maxPrice != null && item.price > f.maxPrice) return false;
+        // An unclassified item is hidden by either diet filter. Showing it
+        // under "Veg" would be a dietary claim nobody made, and showing it
+        // under "Non-veg" would be the same claim inverted.
+        if (f.diet === "veg" && item.veg !== true) return false;
+        if (f.diet === "nonveg" && item.veg !== false) return false;
         if (wantedTags.size && !item.tags.some((t) => wantedTags.has(t))) return false;
         return matchesQuery(item, f.query);
       });
@@ -134,4 +145,11 @@ export function previewCount(
   patch: Partial<EatsFilterState>,
 ): number {
   return countItems(filterCategories(categories, { ...filters, ...patch }));
+}
+
+/** Whether anything on the menu has been classified veg/non-veg yet. The panel
+ *  hides the dietary filter entirely until something has, rather than offering
+ *  two options that both return an empty menu. */
+export function hasDietData(categories: EatsCategory[]): boolean {
+  return categories.some((c) => c.items.some((i) => i.veg !== null));
 }

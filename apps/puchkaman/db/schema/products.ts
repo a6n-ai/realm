@@ -27,6 +27,13 @@ export const products = pgTable("products", {
   image: jsonb("image").$type<FileDetail>(),
   // "best" | "viral" | "new" badges, matching the pre-existing static menu.
   tags: text("tags").array(),
+  /**
+   * Vegetarian classification, owned locally — Clover has no such concept, so
+   * sync never reads or writes it. Deliberately nullable: null means nobody has
+   * classified the item yet, and the public dietary filter must not guess. A
+   * two-state boolean would silently file everything unclassified as non-veg.
+   */
+  veg: boolean("veg"),
   active: boolean("active").notNull().default(true),
   slug: text("slug").unique(),
   displayOrder: integer("display_order").notNull().default(0),

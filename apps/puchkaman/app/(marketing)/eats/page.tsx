@@ -74,6 +74,7 @@ async function getEats(): Promise<{
     price: Number(row.price),
     image: (row.image as FileDetail | null) ?? null,
     tags: row.tags ?? [],
+    veg: row.veg ?? null,
     orderable: orderingEnabled && orderableIds.has(row.publicId),
     category: row.category,
     cloverColorCode: row.cloverColorCode ?? null,

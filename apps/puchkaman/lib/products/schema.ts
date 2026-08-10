@@ -33,6 +33,8 @@ export const productSchema = z.object({
   price: reqNum(z.coerce.number().nonnegative("Price must be 0 or more")),
   image: fileDetail,
   tags: z.array(z.enum(["best", "viral", "new"])).optional(),
+  // Tri-state on purpose: null = unclassified. See db/schema/products.ts.
+  veg: z.boolean().nullable().optional(),
   active: z.boolean().optional(),
   featured: z.boolean().optional(),
   displayOrder: reqNum(z.coerce.number().int()).optional(),

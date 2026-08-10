@@ -43,6 +43,8 @@ export type ProductRow = {
   price: number;
   image: FileDetail | null;
   tags: string[] | null;
+  /** true = veg, false = non-veg, null = unclassified. */
+  veg: boolean | null;
   active: boolean;
   featured: boolean;
   source: "manual" | "uber_eats";

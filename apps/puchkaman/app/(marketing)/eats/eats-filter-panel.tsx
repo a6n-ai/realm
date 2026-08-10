@@ -7,6 +7,7 @@ import {
   countItems,
   EMPTY_FILTERS,
   filterCategories,
+  hasDietData,
   PRICE_BANDS,
   previewCount,
   type EatsCategory,
@@ -18,6 +19,11 @@ const SORTS: { value: EatsSort; label: string }[] = [
   { value: "menu", label: "Menu order" },
   { value: "price-asc", label: "Price: low to high" },
   { value: "price-desc", label: "Price: high to low" },
+];
+
+const DIET_OPTIONS: { id: "veg" | "nonveg"; label: string }[] = [
+  { id: "veg", label: "Vegetarian" },
+  { id: "nonveg", label: "Non-veg" },
 ];
 
 function toggle(list: string[], value: string): string[] {
@@ -41,6 +47,7 @@ export function EatsFilterPanel({
   const id = useId();
   const count = activeFilterCount(value);
 
+  const dietAvailable = hasDietData(categories);
   const shown = filterCategories(categories, value);
   const shownItems = countItems(shown);
 
@@ -52,6 +59,15 @@ export function EatsFilterPanel({
       : []),
     ...(value.availableOnly
       ? [{ key: "avail", label: "Available right now", clear: () => onChange({ ...value, availableOnly: false }) }]
+      : []),
+    ...(value.diet
+      ? [
+          {
+            key: "diet",
+            label: value.diet === "veg" ? "Vegetarian" : "Non-vegetarian",
+            clear: () => onChange({ ...value, diet: null }),
+          },
+        ]
       : []),
     ...(value.maxPrice != null
       ? [
@@ -155,6 +171,31 @@ export function EatsFilterPanel({
                   onClick={() => onChange({ ...value, tags: toggle(value.tags, t) })}
                 >
                   {TAG_STYLE[t]?.label ?? t}
+                  <span className="eats-tag__count">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : null}
+
+      {dietAvailable ? (
+        <fieldset className="eats-filters__group">
+          <legend>Dietary</legend>
+          <div className="eats-tagrow">
+            {DIET_OPTIONS.map((opt) => {
+              const on = value.diet === opt.id;
+              const n = previewCount(categories, value, { diet: on ? null : opt.id });
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!on && n === 0}
+                  className={`eats-tag ${on ? "is-on" : ""}`}
+                  onClick={() => onChange({ ...value, diet: on ? null : opt.id })}
+                >
+                  {opt.label}
                   <span className="eats-tag__count">{n}</span>
                 </button>
               );

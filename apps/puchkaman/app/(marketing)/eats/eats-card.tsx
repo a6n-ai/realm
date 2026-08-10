@@ -60,6 +60,21 @@ export function EatsCard({
             </span>
           ))}
         </div>
+        {/* The Indian veg/non-veg mark, top-right so it never collides with the
+            badge stack. Only drawn for a classified item — an absent mark reads
+            as "not stated", which is the truth, where a green dot would be a
+            dietary claim nobody made. */}
+        {item.veg !== null ? (
+          <span
+            className="eats-card__veg"
+            title={item.veg ? "Vegetarian" : "Non-vegetarian"}
+            aria-label={item.veg ? "Vegetarian" : "Non-vegetarian"}
+            role="img"
+            style={{ borderColor: item.veg ? "var(--mint)" : "var(--red)" }}
+          >
+            <span style={{ background: item.veg ? "var(--mint)" : "var(--red)" }} />
+          </span>
+        ) : null}
       </div>
       <div style={{ padding: "14px 15px 16px", flex: 1, display: "flex", flexDirection: "column" }}>
         <div

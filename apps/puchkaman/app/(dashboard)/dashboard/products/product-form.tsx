@@ -245,6 +245,35 @@ export function ProductForm({
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="veg"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Dietary</FormLabel>
+                <Select
+                  value={field.value == null ? "unset" : field.value ? "veg" : "nonveg"}
+                  onValueChange={(v) => field.onChange(v === "unset" ? null : v === "veg")}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Not set" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {/* "Not set" is a real option, not a placeholder: the public
+                        dietary filter hides unclassified items from BOTH sides
+                        rather than guessing, so leaving it unset is safe. */}
+                    <SelectItem value="unset">Not set</SelectItem>
+                    <SelectItem value="veg">Vegetarian</SelectItem>
+                    <SelectItem value="nonveg">Non-vegetarian</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <Controller
             control={form.control}
             name="featured"
@@ -271,6 +300,7 @@ function emptyForm(): FormInput {
     price: 0,
     image: null,
     tags: [],
+    veg: null,
     active: true,
     featured: false,
   };
@@ -284,6 +314,7 @@ function rowToForm(row: ProductRow): FormInput {
     price: row.price,
     image: (row.image as FormInput["image"]) ?? null,
     tags: (row.tags ?? []) as FormInput["tags"],
+    veg: row.veg ?? null,
     active: row.active,
     featured: row.featured,
   };

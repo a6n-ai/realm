@@ -60,6 +60,7 @@ export type ProductDetailDto = {
   price: number;
   image: ProductRow["image"];
   tags: string[] | null;
+  veg: boolean | null;
   active: boolean;
   featured: boolean;
   source: ProductRow["source"];
@@ -93,6 +94,7 @@ export function toProductDetailDto(row: ProductRow): ProductDetailDto {
     price: Number(row.price),
     image: row.image,
     tags: row.tags,
+    veg: row.veg ?? null,
     active: row.active,
     featured: row.featured,
     source: row.source,
