@@ -651,6 +651,20 @@ Add these two methods to `UsersService`, after `setStatus`:
   }
 
   /**
+   * Invite flow only: clear passwordSet so the invitee is routed to /set-password if
+   * they reach the dashboard before choosing a password.
+   *
+   * This exists as its own method rather than a usersService.update call because the
+   * sibling app filters update() through a writable-field whitelist that does not
+   * include passwordSet — there the patch is silently dropped. Keeping one named
+   * method on both services means the two users-invite.ts copies stay identical and
+   * neither can regress into the silent-no-op version.
+   */
+  async markPasswordUnset(publicId: string): Promise<UserRow> {
+    return super.update(publicId, { passwordSet: false });
+  }
+
+  /**
    * Soft delete: mark deleted, tombstone the email so the real address frees up, and
    * revoke every session. Business rows are never hard-deleted, which is also why the
    * admin plugin's removeUser endpoint is not exposed.
@@ -830,10 +844,12 @@ const liveDeps: InviteDeps = {
     return { publicId: created.publicId, email: created.email };
   },
   markPasswordUnset: async (publicId) => {
-    // passwordSet is not a better-auth field, so no plugin endpoint can write it.
-    // False routes the invitee through /set-password if they reach the dashboard
-    // before choosing a password.
-    await usersService.update(publicId, { passwordSet: false });
+    // A dedicated service method, NOT usersService.update: tiffin-grab's update()
+    // runs every patch through pickUserWritable, a whitelist of
+    // ["name","email","phone","role","status"] that silently DROPS passwordSet. The
+    // write would succeed, change nothing, and leave an invitee able to sign in with
+    // a plain email OTP and skip choosing a password entirely.
+    await usersService.markPasswordUnset(publicId);
   },
   sendResetOtp: async (email) => {
     await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
@@ -1644,12 +1660,49 @@ If `apps/tiffin-grab/components/ds`'s `PageHeader` has no `actions` prop, render
 `<InviteUserButton …/>` directly above the `SectionCard` instead — do not change the
 shared component's API for this.
 
+- [ ] **Step 6b: Pin the writable-whitelist trap with a test**
+
+`apps/tiffin-grab/lib/services/users-writable.ts` whitelists the fields
+`UsersService.update` may write. `passwordSet` is not among them, so a plain
+`usersService.update(id, { passwordSet: false })` succeeds and writes nothing — which
+is exactly the silent no-op `markPasswordUnset` exists to avoid. Pin it:
+
+```ts
+// apps/tiffin-grab/lib/services/__tests__/users-writable.test.ts
+import { describe, expect, it } from "vitest";
+import { pickUserWritable } from "../users-writable";
+
+describe("pickUserWritable", () => {
+  it("drops passwordSet, which is why markPasswordUnset bypasses update()", () => {
+    // If this ever starts passing passwordSet through, usersService.markPasswordUnset
+    // can collapse back into a plain update() call. Until then, an invite that used
+    // update() would silently leave passwordSet true and let the invitee skip
+    // choosing a password entirely.
+    expect(pickUserWritable({ passwordSet: false })).toEqual({});
+  });
+
+  it("keeps the fields an admin form is allowed to write", () => {
+    expect(pickUserWritable({ name: "Ada", email: "a@b.com", role: "member" })).toEqual({
+      name: "Ada",
+      email: "a@b.com",
+      role: "member",
+    });
+  });
+});
+```
+
+Run: `pnpm --filter tiffin-grab test -- users-writable`
+Expected: PASS, 2 tests.
+
 - [ ] **Step 7: Verify**
 
 Run: `pnpm --filter tiffin-grab typecheck && pnpm --filter tiffin-grab test`
-Expected: PASS. Note that `apps/tiffin-grab` has pre-existing checkout test failures
-unrelated to auth; compare the failure list against `git stash`-ed baseline if anything
-looks new, and do not fix unrelated ones here.
+Expected: PASS. Note that `apps/tiffin-grab` has pre-existing failures unrelated to
+auth — the checkout suite, inquiry fixtures missing `email`, a customer-layout
+`usersService.read` mock, and live-DB/Redis integration tests whose result depends on
+whether local Postgres and Redis are running. Classify failures by file rather than by
+count, and do not fix unrelated ones here. Do NOT `git stash` to get a baseline: a
+stash that outlives the turn looks exactly like lost work.
 
 - [ ] **Step 8: Commit**
 
