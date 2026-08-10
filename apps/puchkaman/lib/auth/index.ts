@@ -56,6 +56,17 @@ export const auth = betterAuth({
     requireEmailVerification: false,
     // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
+    // An invited account starts with passwordSet=false and no credential. Completing
+    // the OTP reset IS choosing a password, so clear the flag here — otherwise the
+    // dashboard layout keeps bouncing them to /set-password forever. onPasswordReset
+    // is better-auth's own hook for this; no ctx.path matching required.
+    onPasswordReset: async ({ user }) => {
+      try {
+        await db.update(users).set({ passwordSet: true }).where(eq(users.id, BigInt(user.id)));
+      } catch (e) {
+        log.error({ err: e }, "passwordSet flip after reset failed");
+      }
+    },
   },
   user: {
     fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
