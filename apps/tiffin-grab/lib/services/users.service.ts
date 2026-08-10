@@ -55,6 +55,20 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   /**
+   * Clear passwordSet on an invited account so the dashboard layout routes it to
+   * /set-password until the invitee completes an OTP reset.
+   *
+   * NOT built on this.update(): pickUserWritable's whitelist
+   * (["name","email","phone","role","status"]) does not include passwordSet, so a
+   * plain update() call would succeed and silently write nothing — leaving the
+   * invitee able to sign in with a plain email OTP and skip choosing a password
+   * entirely. This goes through super.update() directly to bypass that whitelist.
+   */
+  async markPasswordUnset(publicId: string): Promise<void> {
+    await super.update(publicId, { passwordSet: false });
+  }
+
+  /**
    * Change a user's account status, revoking every session when the new status is
    * anything but `active`.
    *

@@ -24,10 +24,12 @@ const liveDeps: InviteDeps = {
     return { publicId: created.publicId, email: created.email };
   },
   markPasswordUnset: async (publicId) => {
-    // passwordSet is not a better-auth field, so no plugin endpoint can write it.
-    // False routes the invitee through /set-password if they reach the dashboard
-    // before choosing a password.
-    await usersService.update(publicId, { passwordSet: false });
+    // A dedicated service method, NOT usersService.update: tiffin-grab's update()
+    // runs every patch through pickUserWritable, a whitelist of
+    // ["name","email","phone","role","status"] that silently DROPS passwordSet. The
+    // write would succeed, change nothing, and leave an invitee able to sign in with
+    // a plain email OTP and skip choosing a password entirely.
+    await usersService.markPasswordUnset(publicId);
   },
   sendResetOtp: async (email) => {
     await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });

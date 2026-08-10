@@ -32,6 +32,19 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   /**
+   * Clear passwordSet on an invited account so the dashboard layout routes it to
+   * /set-password until the invitee completes an OTP reset.
+   *
+   * This app has no update() whitelist to bypass, but the dedicated method keeps
+   * users-invite.ts identical to tiffin-grab's copy, where update() DOES filter
+   * passwordSet out silently — a plain update() call here would work today and
+   * quietly break the moment either app's update() gains a whitelist.
+   */
+  async markPasswordUnset(publicId: string): Promise<void> {
+    await super.update(publicId, { passwordSet: false });
+  }
+
+  /**
    * Suspend / reactivate. Revoking the sessions of a non-active account is what
    * makes this take effect immediately: the sign-in hook stops them getting a
    * NEW session, and the dashboard layout re-checks on read, but deleting the
