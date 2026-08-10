@@ -1989,3 +1989,195 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
     transform: translate(-2px, -2px);
   }
 }
+
+/* ============================================================
+   FAQ accordion — native <details>, used on /faq and the home
+   FAQ section. No JS: the disclosure, keyboard handling and
+   a11y semantics are the platform's.
+   ============================================================ */
+.faq-list { display: grid; gap: 14px; }
+
+/* The .card alongside supplies border / radius / hard shadow. */
+.faq { padding: 0; overflow: hidden; }
+
+.faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px;
+  min-height: 62px;               /* comfortably past the 40px hit-area floor */
+  font-weight: 800;
+  font-size: 1.08rem;      /* DESIGN.md Title step */
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  list-style: none;               /* kill the default disclosure triangle */
+  transition: background-color .14s ease;
+}
+.faq__q::-webkit-details-marker { display: none; }
+.faq__q-text { text-wrap: balance; }
+.faq__q:hover { background: color-mix(in srgb, var(--yellow) 32%, transparent); }
+.faq[open] .faq__q { background: color-mix(in srgb, var(--yellow) 55%, transparent); }
+/* <summary> isn't in the global focus-ring selector list, and an outset ring
+   would be clipped by the card's overflow:hidden — inset it. */
+.faq__q:focus-visible {
+  outline: 2.5px solid var(--ink);
+  outline-offset: -5px;
+  border-radius: 0;
+}
+[data-theme="dark"] .faq__q:focus-visible { outline-color: var(--yellow); }
+/* The same yellow wash that reads as a highlight on a white card turns to
+   olive over the dark caramel surface — carry far less of it in dark mode. */
+[data-theme="dark"] .faq__q:hover { background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+[data-theme="dark"] .faq[open] .faq__q { background: color-mix(in srgb, var(--yellow) 18%, transparent); }
+
+/* Plus that rotates into a cross. Drawn geometry, not a glyph, so it inherits
+   the same 2.5px stroke as every other small surface in the system. */
+.faq__mark {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;            /* concentric-ish inside the 16px card at 18px pad */
+  border: 2.5px solid var(--ink);
+  background: var(--yellow);
+  transition: background-color .2s ease;
+}
+/* The box stays axis-aligned — only the two strokes turn, so the plus becomes a
+   cross without the tile itself tipping into a diamond. */
+.faq__mark i {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 2.5px;
+  margin-top: -1.25px;
+  border-radius: 2px;
+  background: var(--ink-deep);
+  transition: transform .2s cubic-bezier(.2, 0, 0, 1), background-color .2s ease;
+}
+.faq__mark i + i { transform: rotate(90deg); }
+.faq[open] .faq__mark { background: var(--green); }
+.faq[open] .faq__mark i { background: #fff; transform: rotate(45deg); }
+.faq[open] .faq__mark i + i { transform: rotate(-45deg); }
+
+.faq__a { padding: 0 18px 18px; }
+.faq__a p {
+  font-weight: 500;
+  line-height: 1.55;
+  opacity: 0.85;
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+.faq[open] .faq__a { animation: faq-in .2s cubic-bezier(.2, 0, 0, 1) both; }
+@keyframes faq-in {
+  from { opacity: 0; transform: translateY(-5px); }
+}
+
+/* Home FAQ band: a sticky pitch column beside the questions, so the section
+   isn't another row of equal cards. Single column below the desktop breakpoint. */
+.faq-layout { display: grid; gap: 26px; align-items: start; }
+@media (min-width: 880px) {
+  .faq-layout { grid-template-columns: 0.82fr 1.18fr; gap: 44px; }
+  .faq-aside { position: sticky; top: calc(var(--header-h) + 24px); }
+}
+
+/* Reviews grid — exactly three across on desktop, one below. auto-fit left a
+   ragged 2 + 1 row through the tablet range, which is what made the section
+   look lopsided. Reviews are prose, so they take the full width on phones
+   (the two-column floor is a rule for product tiles, not for text). */
+.rev-grid { grid-template-columns: 1fr; }
+@media (min-width: 880px) {
+  .rev-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Home only: phones get the first five questions and a link to /faq for the
+   rest. The tail is hidden, not omitted — the answers stay in the HTML. */
+@media (max-width: 879px) {
+  .faq-list--home > .faq:nth-child(n + 6) { display: none; }
+}
+@media (min-width: 880px) {
+  .faq-more { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq__q, .faq__mark { transition: none; }
+  .faq[open] .faq__a { animation: none; }
+}
+
+/* ============================================================
+   /order — two direct paths (pickup + our own delivery), then
+   the persuasion strip, then the apps as a footnote.
+   ============================================================ */
+.order-paths { display: grid; gap: 20px; }
+@media (min-width: 880px) {
+  .order-paths { grid-template-columns: 1fr 1fr; }
+}
+.order-path {
+  padding: clamp(22px, 3vw, 30px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Content stays top-aligned rather than spread: the delivery card grows once
+   an address resolves, and space-between turned that extra height into a hole
+   between the pickup copy and its buttons. Left over as a flat colour field at
+   the bottom of the card, the same height difference reads as intentional. */
+.order-path__title { font-size: clamp(1.9rem, 4.5vw, 2.6rem); margin: 12px 0 8px; }
+.order-path__lede {
+  font-weight: 500;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 42ch;
+  text-wrap: pretty;
+}
+.order-path__meta { font-size: 0.72rem; opacity: 0.8; margin: 12px 0 0; }
+.order-path__bag { font-weight: 700; margin: 0 0 14px; }
+
+/* Address-check results. Sits inside a white card on the delivery path. */
+.delivery-check__out { margin-top: 14px; display: grid; gap: 10px; }
+.delivery-check__ok { font-weight: 700; font-size: 0.88rem; margin: 0; text-wrap: pretty; }
+.delivery-check__hint { font-weight: 500; font-size: 0.8rem; opacity: 0.75; margin: 0; }
+.delivery-check__types {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.order-why { padding: clamp(22px, 3vw, 32px); margin-top: 24px; }
+.order-why__grid { grid-template-columns: 1fr; gap: 18px; }
+@media (min-width: 700px) {
+  .order-why__grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* The apps, as real cards but visually junior to the two direct paths above:
+   white on paper, no colour fill, and below the persuasion strip. */
+.order-apps__head { font-size: 1.6rem; margin: 36px 0 6px; }
+.order-apps__sub { font-weight: 500; opacity: 0.78; font-size: 0.92rem; margin: 0 0 18px; max-width: 56ch; text-wrap: pretty; }
+.order-apps { display: grid; gap: 20px; }
+@media (min-width: 700px) {
+  .order-apps { grid-template-columns: 1fr 1fr; }
+}
+.order-app {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  height: 100%;
+  padding: clamp(20px, 2.6vw, 26px);
+  background: var(--white);
+  color: inherit;
+}
+.order-app__name { font-size: 1.5rem; margin: 2px 0 0; }
+.order-app__desc { font-weight: 500; opacity: 0.82; margin: 0 0 4px; text-wrap: pretty; }
+/* Pinned to the bottom so both cards' buttons line up even when one blurb
+   wraps to an extra line. */
+.order-app > .btn { margin-top: auto; }
+
+.order-path__actions { display: grid; gap: 10px; }

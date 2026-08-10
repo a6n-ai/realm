@@ -5,6 +5,8 @@ import type { CSSProperties } from "react";
 import type { FileDetail } from "@realm/storage/model";
 import { Btn, Marquee, Ph, Pill, SectionHead, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
+import { FaqAccordion } from "@/components/brutal/faq-accordion";
+import { FAQS } from "@/lib/faq";
 import { HeroVideo } from "@/components/brutal/hero-video";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
@@ -297,13 +299,16 @@ export default async function HomePage() {
             <SectionHead
               kicker="Social Proof"
               title="Scarborough Is Obsessed"
+              align="center"
               light
               sub={`${reviews.rating.toFixed(1)}★ across ${reviews.total}+ Google reviews. Here's what the neighbourhood says.`}
             />
             {/* Three, not all five. Five in a three-column grid leaves a ragged
                 second row with a gap where two cards should be; the homepage
-                teases and /reviews carries the rest. */}
-            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))" }}>
+                teases and /reviews carries the rest. `rev-grid` pins it to
+                exactly three across (one on phones) — the old auto-fit floor
+                broke to a lopsided 2 + 1 row through the tablet range. */}
+            <div className="grid rev-grid">
               {reviews.reviews.slice(0, 3).map((rv, i) => (
                 <Reveal key={`${rv.author}-${i}`} delay={i * 70}>
                   <div className="card" style={{ background: "var(--white)", color: "var(--ink)", padding: 24, height: "100%", display: "flex", flexDirection: "column" }}>
@@ -324,6 +329,7 @@ export default async function HomePage() {
                         WebkitLineClamp: 8,
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
+                        textWrap: "pretty",
                       }}
                     >
                       &ldquo;{rv.text}&rdquo;
@@ -370,6 +376,47 @@ export default async function HomePage() {
           </div>
         </section>
       ) : null}
+
+      {/* ===== FAQ ===== */}
+      {/* Objection handling sits right after the social proof and before the
+          Instagram wall: by here a visitor is convinced but still wondering
+          whether we deliver to them and how long pickup takes. Schema markup
+          deliberately stays on /faq only — two FAQPage entities for the same
+          questions is a duplicate, not extra coverage. */}
+      <section className="section-pad surface-yellow" style={{ background: "var(--page-bg)", borderBottom: "var(--border)" }}>
+        <div className="wrap">
+          <div className="faq-layout">
+            <div className="faq-aside">
+              <SectionHead
+                kicker="Before You Order"
+                title="Questions, Answered"
+                sub="Hours, delivery radius, pickup times — the things people ask us on the phone every night."
+              />
+              <div className="card card--cream" style={{ padding: 22 }}>
+                <p style={{ fontWeight: 700, marginBottom: 6 }}>Still stuck?</p>
+                <p style={{ fontWeight: 500, opacity: 0.85, marginBottom: 16, textWrap: "pretty" }}>
+                  Ask us directly — we answer catering quotes within 24 hours, and the kitchen picks up the phone until close.
+                </p>
+                <div className="flex wrap-gap">
+                  <Btn page="contact" variant="green">Contact us →</Btn>
+                  <Btn href="tel:+14167383833" variant="white">(416) 738-3833</Btn>
+                </div>
+              </div>
+            </div>
+
+            {/* Every question renders; below the desktop breakpoint CSS hides the
+                tail so the section doesn't turn into an endless phone scroll, and
+                the /faq link (desktop-hidden) carries the rest. Cutting server-side
+                instead would drop the answers out of the HTML entirely. */}
+            <Reveal>
+              <FaqAccordion items={FAQS} name="faq-home" defaultOpen={0} className="faq-list--home" />
+              <div className="tac faq-more" style={{ marginTop: 24 }}>
+                <Btn href="/faq" variant="ink" size="lg">Read all FAQs →</Btn>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
       {/* ===== INSTAGRAM ===== */}
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
