@@ -15,6 +15,7 @@ import { StaticMap } from "@/components/map/static-map";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
+import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import {
   SCHEDULE_MAX_AHEAD_MS,
   SCHEDULE_MIN_AHEAD_MS,
@@ -82,6 +83,7 @@ export function CheckoutClient({
   initialFulfillment = "pickup",
   offers = [],
   upsellItems = [],
+  pickupDiscountPct = 0,
 }: {
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
@@ -89,6 +91,8 @@ export function CheckoutClient({
   offers?: PublicOffer[];
   /** Cheapest no-modifier items — one-tap add-ons offered when short of a delivery minimum. */
   upsellItems?: UpsellItem[];
+  /** discount_pct on the pickup delivery_types row, so the choice can name it. */
+  pickupDiscountPct?: number;
 }) {
   const { items, subtotal, count, clear, hydrated, addItem } = useCart();
   const formId = useId();
@@ -122,7 +126,14 @@ export function CheckoutClient({
   const [discounts, setDiscounts] = useState<DiscountSelection>({ offerPublicIds: [] });
   // Delivery choice feeds the quote so the bag shows the same total the card
   // will be charged; the server reads the percentage, we only send the key.
-  const quote = useCartQuote(items, !session, discounts, fulfillment === "delivery" ? deliveryTypeKey : null);
+  // Pickup has a configurable discount of its own, so it gets quoted like any
+  // other type — passing null here is what kept it out of the bag entirely.
+  const quote = useCartQuote(
+    items,
+    !session,
+    discounts,
+    fulfillment === "delivery" ? deliveryTypeKey : PICKUP_TYPE_KEY,
+  );
   /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
   const runningTotal = session?.total ?? quote?.total ?? subtotal;
   const savedSoFar = session?.discountAmount ?? quote?.discountAmount ?? 0;
@@ -471,7 +482,13 @@ export function CheckoutClient({
             <div className="checkout-fulfillment" role="radiogroup" aria-label="Fulfillment">
               {(
                 [
-                  ["pickup", "Pickup", "3315 Danforth Ave · ~15 min"],
+                  [
+                    "pickup",
+                    "Pickup",
+                    pickupDiscountPct > 0
+                      ? `3315 Danforth Ave · ~15 min · ${Math.round(pickupDiscountPct)}% off`
+                      : "3315 Danforth Ave · ~15 min",
+                  ],
                   ["delivery", "Delivery", "Enter your address to see what's available"],
                 ] as const
               ).map(([value, label, hint]) => (

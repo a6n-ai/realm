@@ -25,7 +25,7 @@ import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
 import { scheduleWindowError } from "@/lib/delivery/schedule";
-import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
+import { applyTypeDiscount, PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
@@ -620,6 +620,21 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (!type.id) throw new ValidationError("Could not resolve a delivery type for that address.");
       deliveryTypeId = type.id;
       deliveryZoneId = zone.id;
+    } else {
+      // Pickup has its own delivery_types row and its own discount_pct. It used
+      // to be read by nobody: applyTypeDiscount was reached only on the delivery
+      // path, so a merchant who set a pickup discount in Settings watched it do
+      // nothing while the card was charged the full amount.
+      const pickupType = (await getAllDeliveryTypes()).find(
+        (t) => t.key === PICKUP_TYPE_KEY && t.active,
+      );
+      if (pickupType) {
+        const { discountAmount: pickupOff } = applyTypeDiscount({ subtotal, type: pickupType });
+        if (pickupOff > 0) {
+          cloverDiscounts.push({ name: `${pickupType.label} discount`, amount: pickupOff });
+          discountAmount = Number(money(discountAmount + pickupOff));
+        }
+      }
     }
 
     // The discount has to reach Clover: `POST /v1/orders/{id}/pay` bills the Clover

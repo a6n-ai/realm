@@ -4,6 +4,8 @@ import { Reveal } from "@/components/brutal/reveal";
 import { CheckoutClient } from "@/components/order/checkout-client";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
+import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
+import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
 import { buildMetadata } from "@/lib/seo";
@@ -23,12 +25,17 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ fulfillment?: string }>;
 }) {
-  const [orderingEnabled, params, offerRows, catalog] = await Promise.all([
+  const [orderingEnabled, params, offerRows, catalog, deliveryTypes] = await Promise.all([
     isPublicOrderingEnabled(),
     searchParams,
     inventoryCatalogService.discounts.listPublicOffers(),
     ordersService.listOrderableCatalog(),
+    getAllDeliveryTypes(),
   ]);
+  // Pickup's own discount, so the fulfillment choice can name it before the
+  // quote lands rather than leaving the saving to appear out of nowhere.
+  const pickupDiscountPct =
+    deliveryTypes.find((t) => t.key === PICKUP_TYPE_KEY && t.active)?.discountPct ?? 0;
   // Cheapest one-tap add-ons (no modifier picker needed) — surfaced when a
   // delivery minimum is just out of reach, so the shortfall message doubles
   // as an upsell instead of a dead end.
@@ -74,6 +81,7 @@ export default async function CheckoutPage({
                 initialFulfillment={initialFulfillment}
                 offers={offers}
                 upsellItems={upsellItems}
+                pickupDiscountPct={pickupDiscountPct}
               />
             ) : (
               <OrderingUnavailableNotice title="Checkout coming soon" />
