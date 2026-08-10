@@ -10,6 +10,7 @@ import { passwordSchema } from "@realm/commons";
 import { Button } from "@realm/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
+import { ForgotCurrentPassword, type ForgotCurrentPasswordProps } from "./forgot-current-password";
 
 const changePasswordSchema = z
   .object({
@@ -24,6 +25,12 @@ type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 /** Decoupled: the app supplies the actual better-auth call via `onChangePassword`. */
 export interface ChangePasswordFormProps {
   onChangePassword: (input: { currentPassword: string; newPassword: string }) => Promise<{ error?: unknown }>;
+  /**
+   * Enables the "forgot your current password" escape hatch. Omit it and the
+   * form behaves exactly as before — the toggle only appears when an app has
+   * actually wired the OTP callbacks.
+   */
+  forgotCurrent?: Omit<ForgotCurrentPasswordProps, "onDone">;
 }
 
 function RevealInput({ field, show, toggle }: { field: object; show: boolean; toggle: () => void }) {
@@ -41,8 +48,9 @@ function RevealInput({ field, show, toggle }: { field: object; show: boolean; to
   );
 }
 
-export function ChangePasswordForm({ onChangePassword }: ChangePasswordFormProps) {
+export function ChangePasswordForm({ onChangePassword, forgotCurrent }: ChangePasswordFormProps) {
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
+  const [forgot, setForgot] = useState(false);
   const form = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: { currentPassword: "", newPassword: "", confirm: "" },
@@ -59,6 +67,10 @@ export function ChangePasswordForm({ onChangePassword }: ChangePasswordFormProps
     }
     toast.success("Password updated.");
     form.reset();
+  }
+
+  if (forgot && forgotCurrent) {
+    return <ForgotCurrentPassword {...forgotCurrent} onDone={() => setForgot(false)} />;
   }
 
   return (
@@ -89,6 +101,15 @@ export function ChangePasswordForm({ onChangePassword }: ChangePasswordFormProps
         <Button type="submit" disabled={!form.formState.isDirty || form.formState.isSubmitting} className="w-full min-w-32 sm:w-auto">
           {form.formState.isSubmitting ? (<><Loader2 className="size-4 animate-spin" aria-hidden />Saving...</>) : "Change password"}
         </Button>
+        {forgotCurrent ? (
+          <button
+            type="button"
+            onClick={() => setForgot(true)}
+            className="text-muted-foreground hover:text-foreground justify-self-start text-sm underline underline-offset-4"
+          >
+            Forgot your current password?
+          </button>
+        ) : null}
       </form>
     </Form>
   );
