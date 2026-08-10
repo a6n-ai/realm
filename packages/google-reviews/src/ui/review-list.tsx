@@ -2,18 +2,23 @@ import { StarIcon } from "lucide-react";
 import { Badge } from "@realm/ui/badge";
 import type { ReviewsSummary } from "../types";
 
+/**
+ * The fill colour is an explicit value, not a Tailwind palette class: the CRM
+ * theme ships its own tokens and has no `amber`, so `fill-amber-400` resolved to
+ * nothing and every star rendered as an empty outline.
+ */
+const STAR_GOLD = "#f59e0b";
+
 function Stars({ value }: { value: number }) {
+  const filled = Math.round(value);
   return (
     <span className="flex items-center gap-0.5" aria-label={`${value} out of 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <StarIcon
           key={n}
           aria-hidden
-          className={
-            n <= Math.round(value)
-              ? "size-3.5 fill-amber-400 text-amber-400"
-              : "text-muted-foreground/40 size-3.5"
-          }
+          className={n <= filled ? "size-3.5" : "text-muted-foreground/40 size-3.5"}
+          style={n <= filled ? { fill: STAR_GOLD, color: STAR_GOLD } : undefined}
         />
       ))}
     </span>
