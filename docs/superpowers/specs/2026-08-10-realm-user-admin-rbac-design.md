@@ -7,7 +7,10 @@
 
 Neither app can create a user from the admin UI.
 
-- **puchkaman** has no users surface at all. The only way to make an account is
+- **puchkaman** has `/dashboard/settings/users` — a plain table (name, email, role,
+  status) with one action, suspend/reactivate, backed by `usersService.listAll` and
+  `usersService.setStatus`. It cannot create a user, change a role, remove an account,
+  or trigger a password reset. The only way to make an account is
   `apps/puchkaman/db/seed-admin.ts`, run by an operator with database access.
 - **tiffin-grab** has `/dashboard/users` (list, set status, set role, edit contact,
   feature flags, admin-triggered OTP password reset) but no create path. Accounts
@@ -165,22 +168,28 @@ as nullable, and never write them. Nothing sets `banned`, so it can never go sta
 
 Server action `inviteUser({ email, name, role })`, admin-only:
 
-1. `auth.api.createUser({ body: { email, name, role, password: <crypto-random, discarded> } })`.
-   The plugin hashes the password and writes the `account` credential row correctly.
-   The random value is never logged, returned, or persisted in plaintext.
+1. `auth.api.createUser({ body: { email, name, role } })` — **no `password` field.**
+   `password` is optional in the plugin's body schema, and when it is absent the plugin
+   creates the user with *no credential account at all*
+   (`dist/plugins/admin/routes.mjs`). So no password is generated, hashed, or discarded;
+   there is simply nothing to leak until the user picks one.
 2. `usersService.update(publicId, { passwordSet: false })` — the plugin cannot write
    this field (constraint 2). puchkaman already defaults it `false`; the patch is what
    makes the flow correct in tiffin-grab.
 3. `auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } })` — the
    same mail `resetStaffPassword` already sends in tiffin-grab.
 
-The invited user receives a 6-digit code, sets their own password, and signs in. No
-password crosses a channel the server does not control.
+`/email-otp/reset-password` handles the credential-less user correctly: it creates the
+credential account when none exists, and sets `emailVerified = true` on the way through
+(`dist/plugins/email-otp/routes.mjs`). That second part matters for tiffin-grab, where
+`requireEmailVerification` is on and the session hook rejects unverified users — an
+invited user is verified by the act of completing the reset.
 
-**Required new hook.** In `hooks.after`, on `ctx.path === "/email-otp/reset-password"`
-and on success, set `passwordSet = true` for that email. Without it an invited user who
-completes the reset is still `passwordSet: false` and the dashboard layout bounces them
-back to `/set-password` forever.
+**Required new hook.** Set `passwordSet = true` when a reset completes, via
+`emailAndPassword.onPasswordReset({ user })` — a first-class Better Auth option, rather
+than matching `ctx.path` in `hooks.after`. Without it an invited user who completes the
+reset is still `passwordSet: false` and the dashboard layout bounces them back to
+`/set-password` forever.
 
 The invite is audited through the existing `recordAudit` path, entity `auth`.
 
@@ -225,17 +234,20 @@ same two — the invite dialog provisions *staff*, and a customer account is cre
 checkout, not by an admin typing an email. `user` is never an invitable role in either
 app, even though tiffin-grab's permission map still defines it.
 
-**puchkaman** — new app-local `/dashboard/users` page: list with the existing
-server-side facet-filter framework, plus row actions for status, role, and
-admin-triggered password reset. Nav entry gated on the `user: ["list"]` permission.
+**puchkaman** — extend the existing `/dashboard/settings/users` page rather than build
+a new one. It already lists accounts and suspends them. It gains: an Invite button in
+the `PageHeader` actions slot, a role control per row, Remove (soft-delete), and Send
+password reset. No facet-filter framework — a staff roster is a handful of rows, and
+`listAll` already orders them.
 
 **tiffin-grab** — the shared invite dialog drops into the existing page. Nothing else
 is rewritten.
 
 The users list is deliberately **not** extracted into `@realm/crm`. tiffin-grab's is
-tangled with feature flags and customer-only columns; puchkaman's is a plain staff
-roster. Per AGENTS.md, code graduates to a package when a second client proves it is
-genuinely shared, and these two lists are not yet the same list.
+tangled with feature flags, customer columns, and sort state; puchkaman's is a plain
+staff roster. Per AGENTS.md, code graduates to a package when a second client proves it
+is genuinely shared, and these two lists are not yet the same list. The invite dialog
+is, which is why that one moves.
 
 ### 7. Error handling
 
