@@ -45,7 +45,12 @@ export default async function UsersSettingsPage() {
                 <TableCell className="font-medium">{r.name ?? "—"}</TableCell>
                 <TableCell>{r.email ?? "—"}</TableCell>
                 <TableCell>
-                  <RoleSelect publicId={r.publicId} role={r.role} isSelf={r.publicId === selfPublicId} />
+                  <RoleSelect
+                    publicId={r.publicId}
+                    role={r.role}
+                    status={r.status}
+                    isSelf={r.publicId === selfPublicId}
+                  />
                 </TableCell>
                 <TableCell>
                   <Badge variant={r.status === "active" ? "default" : "outline"}>
