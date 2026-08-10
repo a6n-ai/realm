@@ -10,3 +10,9 @@ export {
   type PluginCatalogStatus,
   type SetPluginInstalled,
 } from "./plugin-catalog";
+export {
+  UserInviteDialog,
+  type InviteRoleOption,
+  type InviteUserInput,
+  type UserInviteDialogProps,
+} from "./user-invite-dialog";
