@@ -4,8 +4,10 @@ import { UsersIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
+import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
+import { InviteUserButton } from "./invite-user-button";
 import { UsersList, UsersListSkeleton } from "./users-list";
 
 type SearchParams = Promise<{ sort?: string; dir?: string }>;
@@ -13,7 +15,15 @@ type SearchParams = Promise<{ sort?: string; dir?: string }>;
 export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
-      <PageHeader icon={UsersIcon} title="Users" />
+      <PageHeader
+        icon={UsersIcon}
+        title="Users"
+        actions={
+          <InviteUserButton
+            roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r === "admin" ? "Admin" : "Member" }))}
+          />
+        }
+      />
       <SectionCard title="All users">
         <Suspense fallback={<UsersListSkeleton />}>
           <UsersData searchParams={searchParams} />

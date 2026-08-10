@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { authAuditAction } from "@realm/auth";
@@ -10,6 +10,7 @@ import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
 import { account, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
+import { ac, roles } from "./permissions";
 import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp, sendVerification } from "./security-events";
 import { recordAudit } from "@/lib/services/session-service";
 
@@ -58,6 +59,16 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     // Password reset is OTP-based (emailOTP plugin below); no reset links.
     revokeSessionsOnPasswordReset: true,
+    // An invited staff account starts with passwordSet=false and no credential;
+    // completing the OTP reset is them choosing a password. Without this they are
+    // bounced to /set-password forever.
+    onPasswordReset: async ({ user }) => {
+      try {
+        await db.update(users).set({ passwordSet: true }).where(eq(users.id, BigInt(user.id)));
+      } catch (e) {
+        log.error({ err: e }, "passwordSet flip after reset failed");
+      }
+    },
   },
   emailVerification: {
     // Every account has an email now, so this always fires on signup.
@@ -105,6 +116,12 @@ export const auth = betterAuth({
         await sendAuthOtp(email, otp, type);
       },
     }),
+    // Admin user management — createUser and setUserPassword only. ban/unban,
+    // removeUser and impersonation stay unmounted: users.status is the single sign-in
+    // switch, softDelete is the only delete, and impersonation needs its own audit
+    // story. No adminClient(): it would pull @realm/auth (server-only, not in
+    // transpilePackages) into the browser bundle.
+    adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.

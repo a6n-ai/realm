@@ -4,10 +4,11 @@ import type { RoleValue } from "@realm/commons";
 import { ValidationError } from "@realm/commons";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireAdmin, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { userFeatureFlagsService } from "@/lib/services/user-feature-flags.service";
 import { usersService } from "@/lib/services/users.service";
+import { inviteUser } from "@/lib/services/users-invite";
 
 export type UserStatusValue = "active" | "inactive" | "suspended" | "deleted";
 
@@ -52,4 +53,10 @@ export async function resetStaffPassword(userId: string): Promise<{ email: strin
   const email = await usersService.assertStaffEmail(userId);
   await auth.api.sendVerificationOTP({ body: { email, type: "forget-password" } });
   return { email };
+}
+
+export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
+  await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
+  await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
+  revalidatePath("/dashboard/users");
 }

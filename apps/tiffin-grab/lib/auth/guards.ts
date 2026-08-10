@@ -1,12 +1,15 @@
 import { Role } from "@realm/commons";
-import { createRoleGuards } from "@realm/auth";
+import { createPermissionGuards, createRoleGuards } from "@realm/auth";
 import { getSession } from "./session";
+import { roles } from "./permissions";
 
 const { requireRole } = createRoleGuards(getSession);
+const { requirePermission, roleCan } = createPermissionGuards(getSession, roles);
 
-export { requireRole };
+export { requireRole, requirePermission, roleCan };
 
-// App-specific role groupings: what "admin"/"staff" mean for this client.
+// App-specific role groupings: what "admin"/"staff" mean for this client. Kept for the
+// existing call sites; new code should state the permission it needs.
 export function requireAdmin(): Promise<void> {
   return requireRole(Role.ADMIN);
 }

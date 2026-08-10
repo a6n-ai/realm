@@ -59,6 +59,12 @@ export const users = pgTable(
     notifyEmail: boolean("notify_email").notNull().default(true),
     notifySms: boolean("notify_sms").notNull().default(false),
     locale: locale("locale").notNull().default("en"),
+    // Declared by the better-auth admin plugin and never written by this app —
+    // users.status is the only sign-in switch (see the session.create.before hook).
+    // Present so the drizzle adapter can resolve every field the plugin declares.
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires"),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
@@ -81,6 +87,8 @@ export const session = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    // Declared by the admin plugin's schema; impersonation is not enabled here.
+    impersonatedBy: text("impersonated_by"),
     userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
