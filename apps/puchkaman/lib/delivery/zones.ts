@@ -55,6 +55,25 @@ export function availableTypes(distanceKm: number, zones: ZoneWithTypes[]): Deli
   return [...byKey.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/**
+ * Types offered somewhere (any active zone, any distance) but not at this
+ * particular distance — e.g. Instant only in the 7km zone, address is 9km
+ * out. Lets the UI say *why* a type vanished instead of just not showing it.
+ */
+export function unavailableTypesByDistance(distanceKm: number, zones: ZoneWithTypes[]): DeliveryType[] {
+  const offeredAnywhere = new Map<string, DeliveryType>();
+  for (const zone of zones) {
+    if (!zone.active) continue;
+    for (const type of zone.types) {
+      if (type.active && !offeredAnywhere.has(type.key)) offeredAnywhere.set(type.key, type);
+    }
+  }
+  const availableKeys = new Set(availableTypes(distanceKm, zones).map((t) => t.key));
+  return [...offeredAnywhere.values()]
+    .filter((t) => !availableKeys.has(t.key))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
 /** Smallest active zone covering this distance that offers the given type. */
 export function zoneForType(
   distanceKm: number,

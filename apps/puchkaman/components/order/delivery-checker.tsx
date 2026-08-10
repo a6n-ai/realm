@@ -9,7 +9,13 @@ import type { CheckoutDeliveryType } from "@/components/order/delivery-type-pick
 type CheckResult =
   | { status: "idle" }
   | { status: "checking" }
-  | { status: "served"; formattedAddress: string; distanceKm: number; types: CheckoutDeliveryType[] }
+  | {
+      status: "served";
+      formattedAddress: string;
+      distanceKm: number;
+      types: CheckoutDeliveryType[];
+      unavailableTypeLabels: string[];
+    }
   | { status: "too-far"; formattedAddress: string; distanceKm: number; limitKm: number | null }
   | { status: "not-found" }
   | { status: "error" };
@@ -39,6 +45,7 @@ export function DeliveryChecker() {
             distanceKm: number;
             limitKm: number | null;
             types: CheckoutDeliveryType[];
+            unavailableTypeLabels: string[];
           }
         | null;
       if (!data) {
@@ -51,6 +58,7 @@ export function DeliveryChecker() {
           formattedAddress: data.formattedAddress,
           distanceKm: data.distanceKm,
           types: data.types,
+          unavailableTypeLabels: data.unavailableTypeLabels,
         });
       } else {
         setResult({
@@ -96,6 +104,11 @@ export function DeliveryChecker() {
           <p style={{ fontWeight: 700, marginBottom: 8, fontSize: "0.88rem" }}>
             ✓ We deliver to {result.formattedAddress} — {result.distanceKm}km away.
           </p>
+          {result.unavailableTypeLabels.length > 0 ? (
+            <p style={{ fontWeight: 600, marginBottom: 10, fontSize: "0.8rem", opacity: 0.75 }}>
+              {result.unavailableTypeLabels.join(", ")} isn&apos;t available this far.
+            </p>
+          ) : null}
           <ul style={{ display: "grid", gap: 6, listStyle: "none", padding: 0, margin: "0 0 10px" }}>
             {result.types.map((t) => (
               <li key={t.key} style={{ fontSize: "0.84rem", fontWeight: 600 }}>
