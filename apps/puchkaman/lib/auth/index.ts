@@ -2,9 +2,10 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP } from "better-auth/plugins";
 import { createLogger } from "@realm/commons/logger";
 import { authAuditAction } from "@realm/auth";
+import { ac, roles } from "./permissions";
 import { orderTracking } from "@realm/order-tracking";
 import { resolveTrackingSubject } from "@/lib/order-tracking/subject";
 import { Role } from "@realm/commons";
@@ -59,7 +60,7 @@ export const auth = betterAuth({
   user: {
     fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
     additionalFields: {
-      role: { type: "string", required: false, defaultValue: Role.USER, input: false },
+      role: { type: "string", required: false, defaultValue: Role.MEMBER, input: false },
       publicId: { type: "string", required: false, input: false },
     },
   },
@@ -81,6 +82,19 @@ export const auth = betterAuth({
         await sendAuthOtp(email, otp, type);
       },
     }),
+    // Admin user management. Only createUser / setUserPassword / userHasPermission /
+    // the session endpoints are called from this app.
+    //
+    // Deliberately unused:
+    //   banUser / unbanUser — users.status is the single "cannot sign in" switch
+    //     (see session.create.before below). A second flag would drift out of sync.
+    //   removeUser        — hard delete; orders and payments reference these rows.
+    //                       usersService.softDelete is the supported path.
+    //   impersonateUser   — needs its own audit story before it is safe in a CRM
+    //                       holding customer PII.
+    // No adminClient() on the browser side: it would need `ac`/`roles`, which live in
+    // @realm/auth — a server-only package that is not in transpilePackages.
+    adminPlugin({ ac, roles, defaultRole: Role.MEMBER, adminRoles: [Role.ADMIN] }),
     nextCookies(),
   ],
   // Audit: session delete → logout (sign-out, revoke-on-password-reset, etc.).
