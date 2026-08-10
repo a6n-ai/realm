@@ -54,6 +54,21 @@ export function TypeEditDialog({
   // Seeded straight from the row; the caller remounts on a new type via `key`,
   // so there is no prop-to-state sync effect to keep in step.
   const [form, setForm] = useState<TypeFormValues>(type ? rowToForm(type) : blankForm());
+  // The three numeric fields show separate text, not the committed number: a
+  // controlled number input whose value round-trips through Number() on every
+  // keystroke can get stuck (typing "1" into a field showing "0" produces "01",
+  // and setting value="1" back is a no-op to the browser since "01" and "1"
+  // parse to the same number, so the field never visibly corrects and every
+  // further digit just appends). Same bug and same fix as the zone radius field.
+  const [minSubtotalText, setMinSubtotalText] = useState(
+    String(type ? type.minSubtotal : blankForm().minSubtotal),
+  );
+  const [discountPctText, setDiscountPctText] = useState(
+    String(type ? type.discountPct : blankForm().discountPct),
+  );
+  const [sortOrderText, setSortOrderText] = useState(
+    String(type ? type.sortOrder : blankForm().sortOrder),
+  );
   const [pending, start] = useTransition();
   const [retiring, startRetire] = useTransition();
 
@@ -61,9 +76,43 @@ export function TypeEditDialog({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  /** Parse, clamp and adopt on blur; restore the last good value if unparseable. */
+  function commitMinSubtotal(): number {
+    const parsed = Number(minSubtotalText.trim());
+    const next =
+      minSubtotalText.trim() && Number.isFinite(parsed) ? Math.max(0, parsed) : form.minSubtotal;
+    setMinSubtotalText(String(next));
+    set("minSubtotal", next);
+    return next;
+  }
+  function commitDiscountPct(): number {
+    const parsed = Number(discountPctText.trim());
+    const next =
+      discountPctText.trim() && Number.isFinite(parsed)
+        ? Math.min(100, Math.max(0, parsed))
+        : form.discountPct;
+    setDiscountPctText(String(next));
+    set("discountPct", next);
+    return next;
+  }
+  function commitSortOrder(): number {
+    const parsed = Number(sortOrderText.trim());
+    const next =
+      sortOrderText.trim() && Number.isFinite(parsed) ? Math.round(parsed) : form.sortOrder;
+    setSortOrderText(String(next));
+    set("sortOrder", next);
+    return next;
+  }
+
   function save() {
+    // Blur may not have fired if Save was clicked straight from a focused field —
+    // resolve straight from the text rather than reading form state, which
+    // setForm above won't have flushed into yet by the time this runs.
+    const minSubtotal = commitMinSubtotal();
+    const discountPct = commitDiscountPct();
+    const sortOrder = commitSortOrder();
     start(async () => {
-      const res = await saveDeliveryTypeAction(form);
+      const res = await saveDeliveryTypeAction({ ...form, minSubtotal, discountPct, sortOrder });
       if (res.error) {
         toast.error(res.error);
         return;
@@ -140,10 +189,12 @@ export function TypeEditDialog({
             <Input
               id="type-min"
               type="number"
+              inputMode="decimal"
               min={0}
               step={0.5}
-              value={form.minSubtotal}
-              onChange={(e) => set("minSubtotal", Number(e.target.value))}
+              value={minSubtotalText}
+              onChange={(e) => setMinSubtotalText(e.target.value)}
+              onBlur={commitMinSubtotal}
             />
           </div>
           <div className="space-y-1.5">
@@ -151,11 +202,13 @@ export function TypeEditDialog({
             <Input
               id="type-disc"
               type="number"
+              inputMode="decimal"
               min={0}
               max={100}
               step={1}
-              value={form.discountPct}
-              onChange={(e) => set("discountPct", Number(e.target.value))}
+              value={discountPctText}
+              onChange={(e) => setDiscountPctText(e.target.value)}
+              onBlur={commitDiscountPct}
             />
           </div>
           <div className="space-y-1.5">
@@ -163,9 +216,11 @@ export function TypeEditDialog({
             <Input
               id="type-sort"
               type="number"
+              inputMode="numeric"
               step={1}
-              value={form.sortOrder}
-              onChange={(e) => set("sortOrder", Number(e.target.value))}
+              value={sortOrderText}
+              onChange={(e) => setSortOrderText(e.target.value)}
+              onBlur={commitSortOrder}
             />
           </div>
         </div>
