@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Btn } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
 import { ModifierSheet } from "@/components/order/modifier-sheet";
@@ -20,10 +20,21 @@ export function AddToCartButton({
   size?: "sm" | "lg";
 }) {
   const { addItem } = useCart();
-  const [justAdded, setJustAdded] = useState(false);
+  // A counter, not a boolean: adding the same item twice in a row bumps it, so
+  // the effect below re-runs and the "Added" window restarts from the last tap
+  // instead of expiring on the first one's clock.
+  const [added, setAdded] = useState(0);
   const [picking, setPicking] = useState(false);
+  const justAdded = added > 0;
+
+  useEffect(() => {
+    if (!added) return;
+    const t = window.setTimeout(() => setAdded(0), 900);
+    return () => window.clearTimeout(t);
+  }, [added]);
 
   const needsChoice = groups.length > 0;
+  const label = needsChoice ? "Choose options" : justAdded ? "Added ✓" : "Add to cart";
 
   return (
     <>
@@ -44,12 +55,16 @@ export function AddToCartButton({
             return;
           }
           addItem(item);
-          setJustAdded(true);
-          window.setTimeout(() => setJustAdded(false), 900);
+          setAdded((n) => n + 1);
         }}
         style={{ minHeight: 44 }}
       >
-        {needsChoice ? "Choose options" : justAdded ? "Added ✓" : "Add to cart"}
+        {/* Keyed so each swap remounts and replays the blur. Without it you see
+            two distinct strings crossing; a brief blur reads as one label
+            becoming another. */}
+        <span className="label-swap" key={`${label}-${added}`}>
+          {label}
+        </span>
       </Btn>
       {/* Mounted only while open so each visit starts from a clean selection. */}
       {picking ? (

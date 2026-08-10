@@ -48,6 +48,14 @@
   --sh-lg: 12px 12px 0 var(--ink);
   --sh-green: 7px 7px 0 var(--green);
 
+  /* motion — one vocabulary, so nothing hand-rolls a curve. `--ease-out` is the
+     default for anything entering or exiting; `--ease-in-out` for something
+     already on screen moving from A to B. Never `ease-in` on UI: it delays the
+     first frame, which is the frame the user is watching. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   --maxw: 1240px;
   --font: var(--font-archivo), 'Archivo', system-ui, sans-serif;
   --mono: var(--font-space-mono), 'Space Mono', ui-monospace, monospace;
@@ -152,7 +160,12 @@ body:not(:has(.crm-app)) :is(h1, h2, h3, h4) {
 .display {
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -0.03em;
+  /* Tracking is size-specific. `.display` runs from ~1.1rem (a card price) to
+     5rem (the hero), and one flat em value cannot be right at both ends —
+     letters read too far apart as type grows. The px term barely registers on
+     the hero and cancels most of the negative on small labels, so the same
+     declaration lands near -0.026em at 18px and -0.043em at 80px. */
+  letter-spacing: calc(-0.048em + 0.4px);
   line-height: 0.9;
   overflow-wrap: break-word;
 }
@@ -266,7 +279,13 @@ section { position: relative; }
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
-.btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--sh-c); }
+/* Every lift below is gated on a fine pointer. A tap on a touchscreen latches
+   :hover until the next tap elsewhere, so an ungated lift leaves the button
+   raised with no pointer in the room. :active is the touch equivalent and
+   stays ungated — that one is the press feedback. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--sh-c); }
+}
 .btn:active { transform: translate(2px,2px);   box-shadow: 1px 1px 0 var(--sh-c); }
 .btn--white  { --btn-bg: var(--white);  --btn-fg: var(--ink); }
 .btn--yellow { --btn-bg: var(--yellow); --btn-fg: var(--ink); }
@@ -291,8 +310,21 @@ section { position: relative; }
 }
 .btn--block  { width: 100%; }
 .btn--sm     { padding: 9px 14px; font-size: 0.82rem; box-shadow: 3px 3px 0 var(--sh-c); }
-.btn--sm:hover  { box-shadow: 5px 5px 0 var(--sh-c); }
+@media (hover: hover) and (pointer: fine) {
+  .btn--sm:hover  { box-shadow: 5px 5px 0 var(--sh-c); }
+}
 .btn--sm:active { box-shadow: 1px 1px 0 var(--sh-c); }
+
+/* A label that morphs into another label (Add to cart → Added ✓). Blur bridges
+   the two strings so the eye reads one word changing rather than two words
+   swapping. Kept well under 20px — heavy blur is expensive, especially in Safari. */
+.label-swap { display: inline-block; animation: label-swap .18s var(--ease-out); }
+@keyframes label-swap {
+  from { filter: blur(2px); opacity: .55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .label-swap { animation: none; }
+}
 
 /* ---------- cards ---------- */
 .card {
@@ -312,7 +344,9 @@ section { position: relative; }
 .card--ink    { --card-bg: var(--ink);   color: var(--cream); }
 .card--cream  { --card-bg: var(--cream); }
 .card--lift { transition: transform .12s ease, box-shadow .12s ease; }
-.card--lift:hover { transform: translate(-3px,-3px); box-shadow: 12px 12px 0 var(--sh-c); }
+@media (hover: hover) and (pointer: fine) {
+  .card--lift:hover { transform: translate(-3px,-3px); box-shadow: 12px 12px 0 var(--sh-c); }
+}
 
 /* When a coloured card should ALSO act as the surface for its
    inner children, add a `surface-*` class alongside `card--*`:
@@ -403,8 +437,10 @@ section { position: relative; }
   width: 100%;
   transition: box-shadow .1s ease, transform .1s ease;
 }
+/* Shadow only — no lift. Focus is not a press: a checkout form is six or more
+   tab stops, and a field that jumps 1px on each one reads as jitter. */
 .input:focus, .select:focus, .textarea:focus {
-  outline: none; box-shadow: var(--sh-sm); transform: translate(-1px,-1px);
+  outline: none; box-shadow: var(--sh-sm);
 }
 .textarea { resize: vertical; min-height: 120px; }
 .field--err .input, .field--err .select, .field--err .textarea {
@@ -418,70 +454,75 @@ section { position: relative; }
 .stars { display: inline-flex; gap: 2px; color: var(--ink); }
 
 /* ---------- reveal animation ---------- */
-/* Gated behind `.anim-ready` (set on <html> after mount, same gate `.anim` and
-   `.hero-art` already use) so the hidden state only exists once the observer
-   that clears it is running. Without the gate, a visitor whose JS fails or is
-   blocked gets a homepage that is blank below the hero — and so does anything
-   that renders the HTML without executing scripts. */
+/* Gated behind `.anim-ready` (set on <html> after mount) so the hidden state
+   only exists once the observer that clears it is running. Without the gate, a
+   visitor whose JS fails or is blocked gets a homepage that is blank below the
+   hero — and so does anything that renders the HTML without executing scripts.
+   The stagger is `--d` here rather than a JS timer: transition-delay runs off
+   the main thread and needs nothing to clean up. */
 .anim-ready .reveal { opacity: 0; transform: translateY(22px); }
-.anim-ready .reveal.in { opacity: 1; transform: none; transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
-
-/* ---------- entrance: chunky pop-in with overshoot ---------- */
-@keyframes pop-in {
-  0%   { opacity: 0; transform: translateY(26px) scale(.94); }
-  55%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.anim { opacity: 1; }
-.anim-ready .anim {
-  opacity: 0;
-  animation: pop-in .6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--d, 0s);
+.anim-ready .reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity .35s var(--ease-out), transform .35s var(--ease-out);
+  transition-delay: var(--d, 0s);
 }
 
-/* hero image: drop in keeping its tilt, then idle-float */
-@keyframes drop-in {
-  0%   { opacity: 0; transform: translateY(38px) rotate(-3deg) scale(.92); }
-  100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+/* ---------- entrance: chunky pop-in ---------- */
+/* `@starting-style`, not a JS-gated keyframe. The old `.anim-ready .anim` rule
+   painted the content visible on the server, then set `opacity: 0` once
+   hydration landed and animated back in — a visible flash on a slow connection,
+   exactly where it hurts most. A starting style has no gate to arrive late.
+   Browsers without it (pre-2024) just get the settled state, which is fine. */
+.anim {
+  opacity: 1;
+  transform: none;
+  transition: opacity .45s var(--ease-out), transform .45s var(--ease-out);
+  transition-delay: var(--d, 0s);
 }
+@starting-style {
+  .anim { opacity: 0; transform: translateY(26px) scale(.94); }
+}
+
+/* hero image: drop in, then idle-float. The bob is delayed past the drop, and
+   an un-filled `animation-delay` leaves the transition in charge until it
+   starts — so the two never fight over `transform`. */
 @keyframes bob {
   0%,100% { transform: translateY(0); }
   50%     { transform: translateY(-9px); }
 }
-.anim-ready .hero-art {
-  animation: drop-in .7s cubic-bezier(0.16, 1, 0.3, 1) .15s both,
-             bob 5.5s ease-in-out 1s infinite;
+.hero-art {
+  opacity: 1;
+  transform: none;
+  transition: opacity .7s var(--ease-out) .15s, transform .7s var(--ease-out) .15s;
+  animation: bob 5.5s ease-in-out 1s infinite;
+}
+@starting-style {
+  .hero-art { opacity: 0; transform: translateY(38px) rotate(-3deg) scale(.92); }
 }
 
-/* floating stickers — keep their tilt while gently bobbing */
-@keyframes float-l {
-  0%,100% { transform: rotate(-3.5deg) translateY(0); }
-  50%     { transform: rotate(-3.5deg) translateY(-7px); }
-}
-@keyframes float-r {
-  0%,100% { transform: rotate(3.5deg) translateY(0); }
-  50%     { transform: rotate(3.5deg) translateY(-7px); }
-}
-.float-l { animation: float-l 4.2s ease-in-out infinite; }
-.float-r { animation: float-r 5s ease-in-out .6s infinite; }
-
-/* nav logo dot — slow breathing pulse */
-@keyframes dot-pulse {
-  0%,100% { transform: scale(1); }
-  50%     { transform: scale(1.28); }
-}
-.logo-dot { animation: dot-pulse 2.6s ease-in-out infinite; }
+/* Floating stickers keep their tilt, statically. The bobs they used to run were
+   4.2s and 5s loops sitting next to the hero's 5.5s one — three permanent
+   oscillations in the same viewport, two of them inside the ~0.2 Hz band that
+   reads as drift. One idle loop on the hero is the whole budget. */
+.float-l { transform: rotate(-3.5deg); }
+.float-r { transform: rotate(3.5deg); }
 
 /* pause scrolling strips on hover for readability */
 .marquee:hover .marquee__track,
 .ribbon:hover .ribbon__track { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Smooth scroll is vestibular motion like any other — the one animation on
+     the site that used to escape this block. */
+  html { scroll-behavior: auto; }
   .reveal, .reveal.in,
   .anim-ready .reveal, .anim-ready .reveal.in { opacity: 1 !important; transform: none !important; transition: none; }
   .marquee__track, .ribbon__track { animation: none; }
-  .anim { opacity: 1 !important; animation: none !important; }
-  .hero-art, .float-l, .float-r, .logo-dot { animation: none !important; }
+  .anim, .hero-art { transition: none !important; animation: none !important; }
+  @starting-style {
+    .anim, .hero-art { opacity: 1; transform: none; }
+  }
   .cart-drawer, .cart-drawer-backdrop, .nav-cart--pulse .nav-cart__badge {
     transition: none !important;
     animation: none !important;
@@ -645,7 +686,9 @@ section { position: relative; }
   color: var(--ink);
   flex-shrink: 0;
 }
-.theme-toggle:hover  { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .theme-toggle:hover  { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 var(--ink); }
+}
 .theme-toggle:active { transform: translate(1px,1px);   box-shadow: 1px 1px 0 var(--ink); }
 .theme-toggle svg { width: 20px; height: 20px; display: block; }
 .theme-toggle .icon-moon { display: none; }
@@ -692,13 +735,23 @@ section { position: relative; }
 header .logo-mark {
   transition: transform .08s ease, box-shadow .08s ease;
 }
-header a:hover .logo-mark,
+/* Split from the hover rule below, not merged with it: keyboard focus must
+   still tilt on a touch device, where :hover is a lie that sticks after a tap. */
 header a:focus-visible .logo-mark {
   transform: translate(-2px, -2px) rotate(-8deg);
   box-shadow:
     5px 5px 0 var(--logo-sh),
     inset 2px 2px 0 color-mix(in srgb, #fff 42%, transparent),
     inset -2px -2px 0 color-mix(in srgb, #000 20%, transparent);
+}
+@media (hover: hover) and (pointer: fine) {
+  header a:hover .logo-mark {
+    transform: translate(-2px, -2px) rotate(-8deg);
+    box-shadow:
+      5px 5px 0 var(--logo-sh),
+      inset 2px 2px 0 color-mix(in srgb, #fff 42%, transparent),
+      inset -2px -2px 0 color-mix(in srgb, #000 20%, transparent);
+  }
 }
 header a:active .logo-mark {
   transform: translate(1px, 1px) rotate(0deg);
@@ -714,6 +767,42 @@ header a:active .logo-mark {
   header a:active .logo-mark {
     transform: none;
   }
+}
+
+/* ---------- mobile nav drawer ----------
+   Full-viewport panel under the header. It used to be a bare conditional
+   render, so it teleported in and out; kept mounted it can fade both ways.
+   `visibility` is in the transition list so the closed panel leaves the
+   accessibility tree and stops swallowing scroll — delayed on exit so the
+   fade is visible, immediate on entry. Exit is faster than entry: by then
+   the user has already decided. */
+.nav-drawer {
+  position: fixed;
+  inset: var(--header-h) 0 0 0;
+  z-index: 49;
+  overflow-y: auto;
+  background: var(--page-bg);
+  border-top: var(--border);
+  opacity: 0;
+  transform: translateY(-8px);
+  visibility: hidden;
+  transition:
+    opacity .14s var(--ease-out),
+    transform .14s var(--ease-out),
+    visibility 0s linear .14s;
+}
+.nav-drawer[data-open] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity .2s var(--ease-out),
+    transform .2s var(--ease-out),
+    visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-drawer,
+  .nav-drawer[data-open] { transform: none; }
 }
 
 /* ============================================================
@@ -966,7 +1055,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   box-shadow: 2px 2px 0 var(--ink);
   transition: transform .08s ease, box-shadow .08s ease, background .12s ease;
 }
-.icon-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+}
 .icon-btn:active { transform: translate(1px,1px); box-shadow: 0 0 0 var(--ink); }
 .icon-btn--danger:hover { background: var(--red); color: #fff; }
 
@@ -1069,9 +1160,11 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   height: 20px;
   display: block;
 }
-.nav-cart:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .nav-cart:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
 }
 .nav-cart:active {
   transform: translate(1px, 1px);
@@ -1185,7 +1278,11 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 
 /* Modifier sheet — bottom sheet on phones, centred panel from tablet up.
-   Mounted only while open, so it needs no closed/`is-open` state like the cart drawer. */
+   Transitions with `@starting-style` rather than a one-way keyframe: the sheet
+   now leaves the same edge it arrived from (it used to slide up and then just
+   vanish), and a transition can be caught and reversed mid-flight where a
+   keyframe restarts from zero. `[data-closing]` is set by the component, which
+   holds the unmount until the exit finishes. */
 .mod-sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -1195,7 +1292,13 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   margin: 0;
   background: color-mix(in srgb, var(--ink) 45%, transparent);
   cursor: pointer;
+  opacity: 1;
+  transition: opacity .22s var(--ease-out);
 }
+@starting-style {
+  .mod-sheet-backdrop { opacity: 0; }
+}
+.mod-sheet-backdrop[data-closing] { opacity: 0; }
 .mod-sheet {
   position: fixed;
   z-index: 71;
@@ -1208,25 +1311,40 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   background: var(--paper);
   border-top: var(--border);
   box-shadow: 0 -8px 0 var(--ink);
-  animation: mod-sheet-up 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: none;
+  transition: transform .26s var(--ease-drawer);
 }
-@keyframes mod-sheet-up {
-  from {
-    transform: translate3d(0, 100%, 0);
-  }
+@starting-style {
+  .mod-sheet { transform: translate3d(0, 100%, 0); }
+}
+/* Exit is quicker than entry — the user has already committed to closing. */
+.mod-sheet[data-closing] {
+  transform: translate3d(0, 100%, 0);
+  transition: transform .18s var(--ease-out);
 }
 @media (min-width: 720px) {
+  /* Centred, so it is not anchored to an edge and has nowhere to slide from:
+     it scales up in place instead. Used to have no entrance at all here. */
   .mod-sheet {
     left: 50%;
     right: auto;
     bottom: auto;
     top: 50%;
     width: min(94vw, 460px);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
     border: var(--border);
     border-radius: 14px;
     box-shadow: 8px 8px 0 var(--ink);
-    animation: none;
+    transition: transform .18s var(--ease-out), opacity .18s var(--ease-out);
+  }
+  @starting-style {
+    .mod-sheet { transform: translate(-50%, -50%) scale(.97); opacity: 0; }
+  }
+  .mod-sheet[data-closing] {
+    transform: translate(-50%, -50%) scale(.97);
+    opacity: 0;
+    transition: transform .14s var(--ease-out), opacity .14s var(--ease-out);
   }
 }
 .mod-sheet__head {
@@ -1263,8 +1381,19 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   background: var(--cream);
 }
 @media (prefers-reduced-motion: reduce) {
-  .mod-sheet {
-    animation: none;
+  /* Opacity survives, movement does not — the backdrop still tells you a layer
+     arrived, the sheet just stops sliding. */
+  .mod-sheet,
+  .mod-sheet[data-closing] {
+    transition: none;
+    transform: none;
+  }
+  @media (min-width: 720px) {
+    .mod-sheet,
+    .mod-sheet[data-closing] { transform: translate(-50%, -50%); opacity: 1; }
+  }
+  @starting-style {
+    .mod-sheet { transform: none; }
   }
 }
 
@@ -1508,7 +1637,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
 }
-.checkout-upsell__chip:hover { background: var(--yellow); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .checkout-upsell__chip:hover { background: var(--yellow); transform: translateY(-1px); }
+}
 
 .checkout-offers { display: grid; gap: 14px; }
 .checkout-offers__group { border: none; padding: 0; margin: 0; display: grid; gap: 4px; }
@@ -1794,7 +1925,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, color 0.12s ease;
 }
-.eats-check:hover { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .eats-check:hover { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 var(--ink); }
+}
 .eats-check:has(.eats-vh-input:focus-visible) { outline: 2px solid var(--green); outline-offset: 2px; }
 .eats-check.is-on {
   background: var(--green);
@@ -1984,7 +2117,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
     gap: 10px !important;
   }
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .eats-card:hover {
     transform: translate(-2px, -2px);
   }
@@ -2241,7 +2374,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   border-radius: 999px;
   transition: transform .1s ease, box-shadow .1s ease, background-color .1s ease;
 }
-.savings__offer:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+@media (hover: hover) and (pointer: fine) {
+  .savings__offer:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+}
 .savings__offer:active { transform: translate(1px, 1px); box-shadow: none; }
 .savings__offer.is-on {
   background: var(--green);
@@ -2296,7 +2431,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   color: var(--ink);
   transition: transform .1s ease, box-shadow .1s ease, background-color .1s ease;
 }
-.assembly__chip:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+@media (hover: hover) and (pointer: fine) {
+  .assembly__chip:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+}
 .assembly__chip:active { transform: translate(1px, 1px); box-shadow: none; }
 .assembly__chip.is-on { background: var(--green); color: #fff; box-shadow: var(--sh-sm); }
 

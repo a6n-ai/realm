@@ -182,50 +182,42 @@ export function Nav() {
         </div>
       </div>
 
-      {open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: "var(--header-h) 0 0 0",
-            background: "var(--page-bg)",
-            zIndex: 49,
-            overflowY: "auto",
-            borderTop: "var(--border)",
-          }}
-        >
-          <div className="wrap" style={{ padding: "22px 20px 40px", display: "grid", gap: 12 }}>
-            {NAV_LINKS.map(([p, label]) => (
-              <Link
-                key={p}
-                href={hrefFor(p)}
-                className="card"
-                style={{
-                  padding: "16px 18px",
-                  fontSize: "1.3rem",
-                  fontWeight: 800,
-                  background: current === p ? "var(--ink)" : "var(--white)",
-                  color: current === p ? "var(--yellow)" : "var(--ink)",
-                  textTransform: "uppercase",
-                  letterSpacing: "-0.02em",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                {label} <span style={{ opacity: 0.5 }}>→</span>
-              </Link>
-            ))}
-            <Btn page="eats" variant="yellow" size="lg" block style={{ marginTop: 8 }}>
-              Browse menu
-            </Btn>
-            <MobileCartLink />
-            <Btn page="order" variant="green" size="lg" block>
-              <IconBike />
-              Order Now
-            </Btn>
-          </div>
+      {/* Stays mounted so it can animate both ways — the same pattern the cart
+          drawer uses. `inert` while closed keeps it out of the tab order and
+          off the accessibility tree, which a conditional render did for free. */}
+      <div className="nav-drawer" data-open={open || undefined} inert={!open || undefined}>
+        <div className="wrap" style={{ padding: "22px 20px 40px", display: "grid", gap: 12 }}>
+          {NAV_LINKS.map(([p, label]) => (
+            <Link
+              key={p}
+              href={hrefFor(p)}
+              className="card"
+              style={{
+                padding: "16px 18px",
+                fontSize: "1.3rem",
+                fontWeight: 800,
+                background: current === p ? "var(--ink)" : "var(--white)",
+                color: current === p ? "var(--yellow)" : "var(--ink)",
+                textTransform: "uppercase",
+                letterSpacing: "-0.02em",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {label} <span style={{ opacity: 0.5 }}>→</span>
+            </Link>
+          ))}
+          <Btn page="eats" variant="yellow" size="lg" block style={{ marginTop: 8 }}>
+            Browse menu
+          </Btn>
+          <MobileCartLink />
+          <Btn page="order" variant="green" size="lg" block>
+            <IconBike />
+            Order Now
+          </Btn>
         </div>
-      )}
+      </div>
     </header>
   );
 }
