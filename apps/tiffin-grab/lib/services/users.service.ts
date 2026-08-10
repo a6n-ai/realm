@@ -1,5 +1,5 @@
 import { UpdatableRepository } from "@realm/database";
-import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema } from "@realm/commons";
+import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@realm/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, session, users } from "@/db/schema";
@@ -52,6 +52,24 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
   async update(id: string, patch: Record<string, unknown>) {
     return super.update(id, pickUserWritable(patch));
+  }
+
+  /**
+   * Change a user's role, never your own.
+   *
+   * Demoting yourself out of `admin` locks you out of the users page that is the only
+   * way back, so recovery is a database edit. The rule lives here rather than in the
+   * server action so every caller inherits it — the same reason setStatus's self-guard
+   * exists. Mirrors puchkaman's setRole.
+   */
+  async setRole(userId: string, role: RoleValue) {
+    const actorId = await this.currentUserId();
+    const [target] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, userId)).limit(1);
+    if (!target) throw new ValidationError("User not found");
+    if (actorId && target.id === actorId) {
+      throw new ValidationError("You cannot change your own role.");
+    }
+    return this.update(userId, { role });
   }
 
   /**

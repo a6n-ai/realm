@@ -27,7 +27,9 @@ export async function setUserStatus(userId: string, status: UserStatusValue) {
 
 export async function setUserRole(userId: string, role: RoleValue) {
   await requireAdmin();
-  await usersService.update(userId, { role });
+  // setRole, not update: demoting your own row out of admin locks you out of this
+  // page, and the guard lives in the service so every caller inherits it.
+  await usersService.setRole(userId, role);
   revalidatePath("/dashboard/users");
 }
 
