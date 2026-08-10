@@ -53,12 +53,30 @@ export function ZoneEditDialog({
   const isNew = zone !== null && zone.publicId === "";
   const [name, setName] = useState(zone?.name ?? "");
   const [radiusKm, setRadiusKm] = useState(zone?.radiusKm ?? 5);
+  // The text the field shows is separate from the committed number: a partially
+  // typed value ("", "1", "1.") is not a radius yet, and treating it as one is
+  // what broke this field.
+  const [radiusText, setRadiusText] = useState(String(zone?.radiusKm ?? 5));
   const [active, setActive] = useState(zone?.active ?? true);
   const [selectedTypes, setSelectedTypes] = useState<string[]>(zone?.typePublicIds ?? []);
   const [pending, start] = useTransition();
   const [retiring, startRetire] = useTransition();
 
+  // Bounds come from the COMMITTED radius, so the hint stays stable while typing
+  // rather than describing whatever half-entered number is on screen.
   const bounds = boundsFor(allZones, radiusKm, zone?.publicId || undefined);
+
+  /** Parse, clamp and adopt on blur; restore the last good value if unparseable. */
+  function commitRadius() {
+    const parsed = Number(radiusText.trim());
+    if (!radiusText.trim() || !Number.isFinite(parsed) || parsed <= 0) {
+      setRadiusText(String(radiusKm));
+      return;
+    }
+    const clamped = clampRadiusKm(parsed, allZones, zone?.publicId || "__new__");
+    setRadiusKm(clamped);
+    setRadiusText(String(clamped));
+  }
   const busy = pending || retiring;
 
   function toggleType(publicId: string) {
@@ -68,11 +86,17 @@ export function ZoneEditDialog({
   }
 
   function save() {
+    // Blur may not have fired if Save was clicked straight from the field.
+    const typed = Number(radiusText.trim());
+    const radiusToSave =
+      radiusText.trim() && Number.isFinite(typed) && typed > 0
+        ? clampRadiusKm(typed, allZones, zone?.publicId || "__new__")
+        : radiusKm;
     start(async () => {
       const res = await saveZoneAction({
         publicId: isNew ? null : (zone?.publicId ?? null),
         name,
-        radiusKm,
+        radiusKm: radiusToSave,
         active,
       });
       if (res.error) {
@@ -139,18 +163,15 @@ export function ZoneEditDialog({
                 step={0.5}
                 className="tabular-nums"
                 aria-describedby="zone-radius-help"
-                value={radiusKm}
-                onChange={(e) => {
-                  const raw = Number(e.target.value);
-                  setRadiusKm(
-                    Number.isFinite(raw)
-                      ? clampRadiusKm(raw, allZones, zone?.publicId || "__new__")
-                      : raw,
-                  );
-                }}
+                value={radiusText}
+                onChange={(e) => setRadiusText(e.target.value)}
+                onBlur={commitRadius}
               />
-              {/* The input clamps as you type, which without this reads as the
-                  field ignoring you. */}
+              {/* Clamped on blur, never per keystroke. Clamping as you type made
+                  the field unusable: clearing it to retype gives Number("") === 0,
+                  which clamps to the 0.01 floor, and the bounds then recompute
+                  against 0.01 — so the outermost ring rendered as though it were
+                  the innermost, ceiling and all, and no new number could be typed. */}
               <p id="zone-radius-help" className="text-muted-foreground text-xs">
                 {bounds.max === undefined
                   ? bounds.innerEdgeKm > 0
