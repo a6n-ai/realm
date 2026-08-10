@@ -15,7 +15,12 @@ const nextConfig: NextConfig = {
   // unset, files fall back to same-origin /api/files, which next/image handles
   // natively without remotePatterns.
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "*.cloudfront.net" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "*.cloudfront.net" },
+      // Google review author avatars (authorAttribution.photoUri). Without this
+      // next/image refuses the host and every avatar renders as a broken image.
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+    ],
     // Next defaults /_next/image responses to Content-Disposition: attachment
     // (XSS defense for unoptimized/passthrough SVG delivery). Safari honours
     // that even for <img> embeds and refuses to render the image inline,

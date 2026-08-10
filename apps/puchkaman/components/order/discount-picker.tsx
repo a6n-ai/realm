@@ -69,7 +69,7 @@ export function DiscountPicker({
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
-            placeholder="SUMMER15"
+            placeholder="Enter code"
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;

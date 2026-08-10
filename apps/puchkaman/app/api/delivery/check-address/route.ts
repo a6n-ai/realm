@@ -3,7 +3,7 @@ import { clientIp, isRateLimited } from "@realm/commons";
 import { handler, json, problem } from "@realm/routes";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
-import { availableTypes, deliveryLimitKm } from "@/lib/delivery/zones";
+import { availableTypes, deliveryLimitKm, unavailableTypesByDistance } from "@/lib/delivery/zones";
 import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 
 const checkAddressSchema = z.object({
@@ -53,5 +53,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     distanceKm,
     limitKm: deliveryLimitKm(zones),
     types: availableTypes(distanceKm, zones),
+    // Labels only — enough for the UI to say "Instant delivery isn't available
+    // this far" instead of silently omitting it from the list.
+    unavailableTypeLabels: unavailableTypesByDistance(distanceKm, zones).map((t) => t.label),
   });
 });

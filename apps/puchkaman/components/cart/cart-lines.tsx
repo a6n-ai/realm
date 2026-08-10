@@ -11,7 +11,7 @@ export function CartLines({
   items: CartItem[];
   compact?: boolean;
 }) {
-  const { setQty, removeItem } = useCart();
+  const { incrementQty, decrementQty, removeItem } = useCart();
 
   if (items.length === 0) {
     return (
@@ -93,7 +93,7 @@ export function CartLines({
                 variant="cream"
                 size="sm"
                 aria-label={`Decrease ${item.name}`}
-                onClick={() => setQty(lineKey, item.quantity - 1)}
+                onClick={() => decrementQty(lineKey)}
                 style={{ minWidth: 44, minHeight: 44 }}
               >
                 −
@@ -108,7 +108,7 @@ export function CartLines({
                 variant="ink"
                 size="sm"
                 aria-label={`Increase ${item.name}`}
-                onClick={() => setQty(lineKey, item.quantity + 1)}
+                onClick={() => incrementQty(lineKey)}
                 style={{ minWidth: 44, minHeight: 44 }}
               >
                 +

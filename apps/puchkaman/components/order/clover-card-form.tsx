@@ -131,7 +131,15 @@ export function CloverCardForm({
         <div
           id="clover-card-number"
           className="card"
-          style={{ marginTop: 6, padding: 12, minHeight: 44, background: "var(--white)" }}
+          style={{
+            marginTop: 6,
+            padding: "0 12px",
+            height: 44,
+            display: "flex",
+            alignItems: "center",
+            overflow: "hidden",
+            background: "var(--white)",
+          }}
         />
       </label>
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -140,7 +148,15 @@ export function CloverCardForm({
           <div
             id="clover-card-date"
             className="card"
-            style={{ marginTop: 6, padding: 12, minHeight: 44, background: "var(--white)" }}
+            style={{
+              marginTop: 6,
+              padding: "0 12px",
+              height: 44,
+              display: "flex",
+              alignItems: "center",
+              overflow: "hidden",
+              background: "var(--white)",
+            }}
           />
         </label>
         <label style={{ fontWeight: 700, fontSize: "0.85rem" }}>
@@ -148,7 +164,15 @@ export function CloverCardForm({
           <div
             id="clover-card-cvv"
             className="card"
-            style={{ marginTop: 6, padding: 12, minHeight: 44, background: "var(--white)" }}
+            style={{
+              marginTop: 6,
+              padding: "0 12px",
+              height: 44,
+              display: "flex",
+              alignItems: "center",
+              overflow: "hidden",
+              background: "var(--white)",
+            }}
           />
         </label>
         <label style={{ fontWeight: 700, fontSize: "0.85rem" }}>
@@ -156,7 +180,15 @@ export function CloverCardForm({
           <div
             id="clover-card-postal"
             className="card"
-            style={{ marginTop: 6, padding: 12, minHeight: 44, background: "var(--white)" }}
+            style={{
+              marginTop: 6,
+              padding: "0 12px",
+              height: 44,
+              display: "flex",
+              alignItems: "center",
+              overflow: "hidden",
+              background: "var(--white)",
+            }}
           />
         </label>
       </div>
