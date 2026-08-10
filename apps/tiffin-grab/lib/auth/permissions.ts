@@ -23,7 +23,13 @@ export const roles = {
     // permissions.ts for why: ban / impersonate / delete authorize plugin endpoints
     // this app does not mount, and granting them would bypass users.status and
     // usersService.softDelete over raw HTTP.
-    user: ["create", "list", "get", "set-role"],
+    //
+    // `list` and `get` are withheld too, unlike puchkaman. They authorize
+    // /admin/list-users and /admin/get-user, and this is the CUSTOMER origin — that
+    // endpoint would page through every customer's PII without touching audit_log.
+    // Nothing here needs them: the users page queries the database directly, so the
+    // only effect of granting them would be an unaudited read channel.
+    user: ["create", "set-role"],
     session: ["list", "revoke", "delete"],
     staff: ["invite", "suspend", "remove"],
     settings: ["read", "write"],

@@ -105,7 +105,14 @@ export const auth = betterAuth({
     //                       holding customer PII.
     // No adminClient() on the browser side: it would need `ac`/`roles`, which live in
     // @realm/auth — a server-only package that is not in transpilePackages.
-    adminPlugin({ ac, roles, defaultRole: Role.MEMBER, adminRoles: [Role.ADMIN] }),
+    // defaultRole is Role.USER, which this app's `roles` map deliberately omits, so a
+    // caller whose role is somehow missing authorizes as nothing. MEMBER here would be
+    // fail-OPEN — better-auth falls back to defaultRole when a session carries no role,
+    // and member holds order:write and finance:read. Unreachable while users.role is
+    // NOT NULL, but it sits next to a roleCan() that fails closed and should agree with
+    // it. This is NOT the creation default: a row created without a role still becomes
+    // a member, via the column default and user.additionalFields above.
+    adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
     nextCookies(),
   ],
   // Audit: session delete → logout (sign-out, revoke-on-password-reset, etc.).
