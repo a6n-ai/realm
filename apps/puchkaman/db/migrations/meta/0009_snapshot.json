@@ -1,6 +1,6 @@
 {
-  "id": "f23f3084-fd50-4bff-88db-6bbc526406b2",
-  "prevId": "71c0a010-ee28-45a3-922f-8f44369f840c",
+  "id": "b1aa89b9-6cbb-43e8-aaa7-6c0cefd995ff",
+  "prevId": "f23f3084-fd50-4bff-88db-6bbc526406b2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3759,7 +3759,7 @@
           "name": "customer_phone",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "note": {
           "name": "note",

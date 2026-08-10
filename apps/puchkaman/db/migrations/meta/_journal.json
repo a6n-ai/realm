@@ -61,8 +61,15 @@
     {
       "idx": 8,
       "version": "7",
-      "when": 1786311763259,
-      "tag": "0008_plain_jack_power",
+      "when": 1786313790639,
+      "tag": "0008_military_shiver_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786342221529,
+      "tag": "0009_big_juggernaut",
       "breakpoints": true
     }
   ]

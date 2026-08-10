@@ -25,7 +25,7 @@ import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
 import { applyTypeDiscount } from "@/lib/delivery/type-pricing";
-import { getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
+import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import {
   createCheckoutSchema,
   payCheckoutSchema,
@@ -331,17 +331,39 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const parsed = quoteCartSchema.parse(input);
     const { lines, subtotal, byPublic } = await priceCart(parsed.items);
     const discounts = await resolveCartDiscounts(parsed.discounts, subtotal);
+
+    // Fold in the picked delivery option's discount so the quoted total matches
+    // what createCheckout will charge. Without this the bag quoted a total that
+    // ignored instant delivery's 15%, i.e. higher than the card is debited.
+    // Only the key came from the client; the percentage is read here, and the
+    // line is named exactly as order creation names it.
+    const deliveryLines: { name: string; amount: number }[] = [];
+    let deliveryOff = 0;
+    if (parsed.deliveryTypeKey) {
+      const type = (await getAllDeliveryTypes()).find(
+        (t) => t.key === parsed.deliveryTypeKey && t.active,
+      );
+      if (type) {
+        deliveryOff = applyTypeDiscount({ subtotal, type }).discountAmount;
+        if (deliveryOff > 0) deliveryLines.push({ name: `${type.label} discount`, amount: deliveryOff });
+      }
+    }
+
+    const discountTotal = Number(money(discounts.total + deliveryOff));
     // Clover applies discounts before tax, so the forecast has to as well or the
     // quoted tax will not match what the card is charged.
-    const forecast = await forecastCartTax(lines, byPublic, discounts.total);
+    const forecast = await forecastCartTax(lines, byPublic, discountTotal);
     return {
       subtotal,
       tax: forecast.tax,
-      total: Number(money(subtotal - discounts.total + forecast.tax)),
+      total: Number(money(subtotal - discountTotal + forecast.tax)),
       currency: "CAD",
       taxLines: forecast.perRate.map((r) => ({ name: r.name, amount: r.amount })),
-      discountAmount: discounts.total,
-      discountLines: discounts.applied.map((d) => ({ name: d.name, amount: d.amount })),
+      discountAmount: discountTotal,
+      discountLines: [
+        ...discounts.applied.map((d) => ({ name: d.name, amount: d.amount })),
+        ...deliveryLines,
+      ],
       invalidCode: discounts.invalidCode,
     };
   }

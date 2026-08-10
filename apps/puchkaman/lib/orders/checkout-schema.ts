@@ -69,6 +69,16 @@ export const createCheckoutSchema = z.object({
 export const quoteCartSchema = z.object({
   items: z.array(cartLineSchema).min(1).max(40),
   discounts: discountRequestSchema,
+  /**
+   * Which delivery option the customer has picked, so the quoted total includes
+   * its discount instead of showing a total higher than what gets charged. Only
+   * the KEY crosses the wire — the server reads the percentage from the
+   * database, exactly as order creation does. Eligibility for that key is not
+   * re-checked here (it would cost a geocode per keystroke); createCheckout
+   * re-derives everything before any money moves, so a spoofed key only ever
+   * misleads the person sending it.
+   */
+  deliveryTypeKey: z.string().min(1).max(64).optional().nullable(),
 });
 
 export const payCheckoutSchema = z.object({
