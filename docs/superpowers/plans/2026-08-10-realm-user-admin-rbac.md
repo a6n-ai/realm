@@ -376,8 +376,18 @@ describe("puchkaman permission map", () => {
     expect(INVITABLE_ROLES).toEqual(["admin", "member"]);
   });
 
-  it("lets admin manage users", () => {
-    expect(roles.admin.authorize({ user: ["create", "set-role", "delete"] }).success).toBe(true);
+  it("lets admin create users and set roles", () => {
+    expect(roles.admin.authorize({ user: ["create", "set-role"] }).success).toBe(true);
+    expect(roles.admin.authorize({ staff: ["invite", "suspend", "remove"] }).success).toBe(true);
+  });
+
+  it("denies admin the plugin endpoints this app deliberately does not mount", () => {
+    // ban / impersonate / delete authorize /admin/ban-user, /admin/impersonate-user
+    // and /admin/remove-user, which better-auth mounts unconditionally. If a future
+    // edit spreads adminAc.statements back in, these turn red — which is the point.
+    for (const action of ["ban", "impersonate", "impersonate-admins", "delete", "set-password", "set-email", "update"]) {
+      expect(roles.admin.authorize({ user: [action] }).success).toBe(false);
+    }
   });
 
   it("does not let member manage users", () => {
@@ -406,7 +416,7 @@ Expected: FAIL — cannot resolve `../permissions`.
 Create `apps/puchkaman/lib/auth/permissions.ts`:
 
 ```ts
-import { adminAc, baseStatement, createAccessControl } from "@realm/auth";
+import { baseStatement, createAccessControl } from "@realm/auth";
 import { Role } from "@realm/commons";
 
 // Resource/action vocabulary for this app. `baseStatement` brings better-auth's own
@@ -414,6 +424,11 @@ import { Role } from "@realm/commons";
 // shared CRM `settings` and `audit`.
 export const statement = {
   ...baseStatement,
+  // This app's own user-management actions. Deliberately NOT better-auth's `user`
+  // resource: `user: ["ban"]` and `user: ["delete"]` are what authorize the plugin's
+  // /admin/ban-user and /admin/remove-user endpoints, so gating our soft-delete on
+  // them would hand out the hard delete alongside it.
+  staff: ["invite", "suspend", "remove"],
   product: ["read", "write", "sync"],
   order: ["read", "write", "refund", "cancel"],
   finance: ["read"],
@@ -426,7 +441,21 @@ export const ac = createAccessControl(statement);
 // entry here and roleCan() denies it by construction.
 export const roles = {
   admin: ac.newRole({
-    ...adminAc.statements,
+    // An explicit subset of adminAc.statements, NOT a spread of it. The admin plugin
+    // mounts ban-user, unban-user, impersonate-user and remove-user unconditionally —
+    // there is no config flag that omits them — and each authorizes against this map.
+    // Spreading adminAc would make all four reachable over raw HTTP by any admin
+    // session, which defeats two invariants this design rests on: users.status is the
+    // only sign-in switch (better-auth's own sign-in check reads `banned`, a flag no
+    // UI here shows or clears), and softDelete is the only delete (orders and payments
+    // reference these rows).
+    //
+    // Granted: create + set-role (createUser needs both), list and get (read-only),
+    // and the session endpoints. Omitted: ban, impersonate, impersonate-admins,
+    // delete, set-password, set-email, update — none of which this app calls.
+    user: ["create", "list", "get", "set-role"],
+    session: ["list", "revoke", "delete"],
+    staff: ["invite", "suspend", "remove"],
     settings: ["read", "write"],
     audit: ["read"],
     product: ["read", "write", "sync"],
@@ -1113,10 +1142,9 @@ import { usersService, type UserStatusValue } from "@/lib/services/users.service
 const PATH = "/dashboard/settings/users";
 
 export async function setUserStatus(publicId: string, status: UserStatusValue): Promise<void> {
-  // `ban` is better-auth's vocabulary for "disable an account". The ban COLUMNS stay
-  // unused — status is the switch — but the permission name is the right one to gate
-  // this action on, and reusing it keeps the statement free of a near-duplicate verb.
-  await requirePermission({ user: ["ban"] });
+  // staff:suspend, NOT user:ban — the latter also authorizes the plugin's
+  // /admin/ban-user endpoint, which this app deliberately does not mount.
+  await requirePermission({ staff: ["suspend"] });
   // The self-suspension guard lives in the service, not here, so it holds for
   // every caller rather than just this button.
   await usersService.setStatus(publicId, status);
@@ -1130,7 +1158,9 @@ export async function setUserRole(publicId: string, role: RoleValue): Promise<vo
 }
 
 export async function removeUser(publicId: string): Promise<void> {
-  await requirePermission({ user: ["delete"] });
+  // staff:remove, NOT user:delete — user:delete authorizes /admin/remove-user, a hard
+  // delete that would orphan the orders and payments referencing this row.
+  await requirePermission({ staff: ["remove"] });
   // Soft delete — never the plugin's removeUser, which is a hard delete and would
   // orphan the orders and payments that reference this row.
   await usersService.softDelete(publicId);
@@ -1138,7 +1168,10 @@ export async function removeUser(publicId: string): Promise<void> {
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
-  await requirePermission({ user: ["set-password"] });
+  // staff:invite covers onboarding and recovery alike. user:set-password would also
+  // authorize /admin/set-user-password — an admin issuing a password directly, which
+  // is the exact out-of-band handoff this whole design avoids.
+  await requirePermission({ staff: ["invite"] });
   if (!email || email.endsWith("@deleted.invalid")) {
     throw new ValidationError("This account has no reachable email address.");
   }
@@ -1149,7 +1182,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
 }
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
-  await requirePermission({ user: ["create", "set-role"] });
+  await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
   await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
   revalidatePath(PATH);
 }
@@ -1409,11 +1442,15 @@ guards on the permission layer.
 Create `apps/tiffin-grab/lib/auth/permissions.ts`:
 
 ```ts
-import { adminAc, baseStatement, createAccessControl } from "@realm/auth";
+import { baseStatement, createAccessControl } from "@realm/auth";
 import { Role } from "@realm/commons";
 
 export const statement = {
   ...baseStatement,
+  // This app's own user-management actions — see the same comment in puchkaman's
+  // permissions.ts. Gating them on better-auth's `user` resource would also authorize
+  // the plugin's ban/impersonate/remove endpoints, which are mounted unconditionally.
+  staff: ["invite", "suspend", "remove"],
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
@@ -1426,7 +1463,13 @@ export const ac = createAccessControl(statement);
 // holds no dashboard permissions; it is the role a customer carries.
 export const roles = {
   admin: ac.newRole({
-    ...adminAc.statements,
+    // An explicit subset, NOT a spread of adminAc.statements. See puchkaman's
+    // permissions.ts for why: ban / impersonate / delete authorize plugin endpoints
+    // this app does not mount, and granting them would bypass users.status and
+    // usersService.softDelete over raw HTTP.
+    user: ["create", "list", "get", "set-role"],
+    session: ["list", "revoke", "delete"],
+    staff: ["invite", "suspend", "remove"],
     settings: ["read", "write"],
     audit: ["read"],
     order: ["read", "write", "cancel"],
@@ -1543,7 +1586,7 @@ import { inviteUser } from "@/lib/services/users-invite";
 import { requirePermission } from "@/lib/auth/guards";
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
-  await requirePermission({ user: ["create", "set-role"] });
+  await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
   await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
   revalidatePath("/dashboard/users");
 }
