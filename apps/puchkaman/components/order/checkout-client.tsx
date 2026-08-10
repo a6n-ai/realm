@@ -7,7 +7,8 @@ import { useCart } from "@/components/cart/cart-provider";
 import { AddressAutocomplete } from "@/components/order/address-autocomplete";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import { DeliveryTypePicker, type CheckoutDeliveryType } from "@/components/order/delivery-type-picker";
-import { DiscountPicker, type PublicOffer } from "@/components/order/discount-picker";
+import { type PublicOffer } from "@/components/order/discount-picker";
+import { SavingsPanel } from "@/components/order/savings-panel";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
 import { StaticMap } from "@/components/map/static-map";
@@ -112,6 +113,7 @@ export function CheckoutClient({
   const quote = useCartQuote(items, !session, discounts, fulfillment === "delivery" ? deliveryTypeKey : null);
   /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
   const runningTotal = session?.total ?? quote?.total ?? subtotal;
+  const savedSoFar = session?.discountAmount ?? quote?.discountAmount ?? 0;
 
   async function checkAddress() {
     if (!address.trim()) return;
@@ -127,6 +129,20 @@ export function CheckoutClient({
       });
       const data = (await res.json().catch(() => null)) as AddressCheck | null;
       setAddressCheck(data ?? { resolved: false, error: true });
+      // Preselect the best option the bag can actually afford, so the summary
+      // shows the delivery discount straight away instead of waiting for a
+      // click the customer had no reason to think was load-bearing. Ties go to
+      // the option that doesn't also demand a time slot.
+      if (data?.resolved) {
+        const best = data.types
+          .filter((t) => t.minSubtotal <= subtotal)
+          .sort(
+            (a, b) =>
+              b.discountPct - a.discountPct ||
+              Number(a.requiresSchedule) - Number(b.requiresSchedule),
+          )[0];
+        if (best) setDeliveryTypeKey(best.key);
+      }
     } catch {
       setAddressCheck({ resolved: false, error: true });
     } finally {
@@ -146,6 +162,20 @@ export function CheckoutClient({
         .filter((gap) => gap > 0)
         .sort((a, b) => a - b)[0]
     : undefined;
+
+  // A cheaper option is sitting there unselected — say so next to the total
+  // rather than leaving the customer to compare percentages in the picker.
+  const betterType =
+    fulfillment === "delivery" && addressCheck?.resolved
+      ? addressCheck.types
+          .filter((t) => t.minSubtotal <= subtotal && t.key !== deliveryTypeKey)
+          .find((t) => t.discountPct > (selectedType?.discountPct ?? 0))
+      : undefined;
+  const savingsNudge = betterType
+    ? `${betterType.label} would save ${money((subtotal * betterType.discountPct) / 100)} — pick it above.`
+    : fulfillment === "delivery" && !deliveryTypeKey && !addressCheck
+      ? "Check your address to see the delivery discount."
+      : null;
 
   const onCardReady = useCallback((fn: () => Promise<string>) => {
     setTokenize(() => fn);
@@ -358,9 +388,32 @@ export function CheckoutClient({
             tax={session?.tax ?? quote?.tax}
             total={session?.total ?? quote?.total}
             discountAmount={session?.discountAmount ?? quote?.discountAmount}
-            discountLines={session ? undefined : quote?.discountLines}
+            /* Deliberately the lump row, not the named lines: the savings
+               panel right below itemises them, and printing both put every
+               discount on screen twice. */
+            discountLines={undefined}
             taxLines={session ? undefined : quote?.taxLines}
             stage={session ? "final" : quote ? "quoted" : "estimate"}
+          />
+          <SavingsPanel
+            offers={offers}
+            value={discounts}
+            onChange={setDiscounts}
+            quote={
+              session
+                ? {
+                    subtotal: session.subtotal,
+                    tax: session.tax,
+                    total: session.total,
+                    taxLines: [],
+                    discountAmount: session.discountAmount ?? 0,
+                    discountLines: [],
+                    invalidCode: false,
+                  }
+                : quote
+            }
+            locked={!!session}
+            nudge={session ? null : savingsNudge}
           />
         </>
       )}
@@ -378,6 +431,11 @@ export function CheckoutClient({
           <summary>
             <span>
               {count} item{count === 1 ? "" : "s"} in your bag
+              {/* Surfaced on the closed summary too — a saving nobody sees
+                  buys no goodwill, and the bag is collapsed by default here. */}
+              {savedSoFar > 0 ? (
+                <span className="checkout-bag-mobile__saved">saving {money(savedSoFar)}</span>
+              ) : null}
             </span>
             <strong>{money(runningTotal)}</strong>
           </summary>
@@ -622,15 +680,6 @@ export function CheckoutClient({
                 />
               </div>
             </div>
-
-            <h2 className="display checkout-panel__title">Offers &amp; codes</h2>
-            <DiscountPicker
-              offers={offers}
-              value={discounts}
-              onChange={setDiscounts}
-              applied={quote?.discountLines.map((d) => d.name) ?? []}
-              invalidCode={quote?.invalidCode ?? false}
-            />
 
             {error ? (
               <p className="checkout-error" role="alert" aria-live="assertive">

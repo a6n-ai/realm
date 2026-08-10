@@ -2181,3 +2181,93 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 .order-app > .btn { margin-top: auto; }
 
 .order-path__actions { display: grid; gap: 10px; }
+
+/* ============================================================
+   Checkout savings — every discount (offers, coupon, delivery
+   type) directly under the bag total, where the money is.
+   ============================================================ */
+.savings {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2.5px solid var(--ink);
+}
+.savings__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.savings__head h3 { font-size: 1.05rem; margin: 0; }
+.savings__amount {
+  font-size: 1.05rem;
+  color: var(--green-deep);
+  font-variant-numeric: tabular-nums;
+}
+.savings__lines {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.savings__lines li { display: flex; justify-content: space-between; gap: 12px; }
+.savings__line-amount { color: var(--green-deep); font-variant-numeric: tabular-nums; }
+.savings__empty { font-size: 0.86rem; font-weight: 500; opacity: 0.7; margin: 0 0 10px; }
+.savings__nudge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--green-deep);
+  text-wrap: pretty;
+}
+
+/* Toggle chips: same control adds and removes, per DESIGN.md's selected-chip
+   rule — green fill with a hard shadow when on, cream and flat when off. */
+.savings__offers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.savings__offer {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 13px;
+  cursor: pointer;
+  background: var(--white);
+  color: var(--ink);
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  transition: transform .1s ease, box-shadow .1s ease, background-color .1s ease;
+}
+.savings__offer:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+.savings__offer:active { transform: translate(1px, 1px); box-shadow: none; }
+.savings__offer.is-on {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 3px 3px 0 var(--sh-c);
+}
+.savings__offer-name { font-weight: 800; font-size: 0.86rem; }
+.savings__offer-value {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.checkout-bag-mobile__saved {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green-deep);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .savings__offer { transition: none; }
+}

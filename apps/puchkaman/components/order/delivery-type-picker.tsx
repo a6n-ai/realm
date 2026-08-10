@@ -28,6 +28,10 @@ export function DeliveryTypePicker({
   value: string | null;
   onChange: (key: string) => void;
 }) {
+  // Only worth saying "no discount" when another option on this list does
+  // carry one — otherwise it reads as bad news about the only choice there is.
+  const someTypeDiscounts = types.some((t) => t.discountPct > 0);
+
   return (
     <div className="checkout-fulfillment" role="radiogroup" aria-label="Delivery type">
       {types.map((type) => {
@@ -39,7 +43,9 @@ export function DeliveryTypePicker({
           : [
               type.discountPct > 0
                 ? `${Math.round(type.discountPct)}% off — save ${money(discountAmount)}`
-                : null,
+                : someTypeDiscounts
+                  ? "No delivery discount"
+                  : null,
               type.minSubtotal > 0 ? `${money(type.minSubtotal)} minimum` : null,
               type.requiresSchedule ? "pick a time" : null,
             ]
