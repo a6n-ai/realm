@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Geist, Geist_Mono, Space_Mono } from "next/font/google";
 import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@realm/themes";
 import { SITE_NAME, SITE_URL, buildMetadata, localBusinessJsonLd } from "@/lib/seo";
+import { InlineScript } from "@/components/inline-script";
 import "./globals.css";
 import "./crm.css";
 
@@ -54,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${archivo.variable} ${spaceMono.variable} ${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+        <InlineScript html={THEME_BOOT} />
         {filesOrigin && <link rel="preconnect" href={filesOrigin} />}
         <script
           type="application/ld+json"

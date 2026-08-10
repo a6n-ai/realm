@@ -1288,6 +1288,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 .cart-layout,
 .checkout-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -1300,6 +1301,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 .checkout-panel {
   padding: clamp(18px, 3vw, 26px);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-content: start;
 }
@@ -1322,6 +1324,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 
 .checkout-main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-content: start;
   min-width: 0;
