@@ -14,7 +14,7 @@ import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { Switch } from "@realm/ui/switch";
-import { clampRadiusKm, type MapZone } from "./zone-map";
+import { ZoneMap, clampRadiusKm, type MapZone } from "./zone-map";
 import { retireZoneAction, saveZoneAction, setZoneTypesAction } from "./actions";
 import type { TypeOption, ZoneRow } from "./types";
 
@@ -40,6 +40,8 @@ export function ZoneEditDialog({
   zone,
   allZones,
   types,
+  origin,
+  mapStyleUrl,
   onOpenChange,
   onSaved,
 }: {
@@ -47,6 +49,9 @@ export function ZoneEditDialog({
   zone: ZoneRow | null;
   allZones: MapZone[];
   types: TypeOption[];
+  /** Shared shop origin — shown, never moved from here. */
+  origin: { lat: number; lng: number };
+  mapStyleUrl: string | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
@@ -78,6 +83,26 @@ export function ZoneEditDialog({
     setRadiusText(String(clamped));
   }
   const busy = pending || retiring;
+
+  // Every ring for context, with THIS one carrying the value being edited — so
+  // dragging the handle and typing in the field drive the same circle.
+  const editingId = zone?.publicId || "__new__";
+  const mapZones: MapZone[] = [
+    ...allZones.filter((z) => z.publicId !== editingId),
+    {
+      publicId: editingId,
+      name: name || "This zone",
+      radiusKm,
+      active: true,
+      color: allZones.find((z) => z.publicId === editingId)?.color ?? "#2563eb",
+    },
+  ];
+
+  /** Drag updates both the committed number and the text the field shows. */
+  function adoptRadius(_publicId: string, next: number) {
+    setRadiusKm(next);
+    setRadiusText(String(Math.round(next * 100) / 100));
+  }
 
   function toggleType(publicId: string) {
     setSelectedTypes((prev) =>
@@ -142,6 +167,22 @@ export function ZoneEditDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
+          {/* Drag the ring's edge or type a number — both write the same value.
+              The shop pin is fixed here: the origin is shared by every ring, so
+              moving it from inside one zone's dialog would silently reshape the
+              others. */}
+          <ZoneMap
+            origin={origin}
+            zones={mapZones}
+            focusedPublicId={editingId}
+            onRadiusChange={adoptRadius}
+            onRadiusCommit={adoptRadius}
+            onOriginChange={() => {}}
+            originDraggable={false}
+            styleUrl={mapStyleUrl}
+            heightPx={220}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="zone-name">Name</Label>

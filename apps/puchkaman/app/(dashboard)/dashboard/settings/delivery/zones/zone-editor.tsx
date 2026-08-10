@@ -150,6 +150,8 @@ export function ZoneEditor({
         zone={editing}
         allZones={mapZones}
         types={types}
+        origin={origin}
+        mapStyleUrl={mapStyleUrl}
         onOpenChange={(open) => !open && setEditing(null)}
         onSaved={refresh}
       />

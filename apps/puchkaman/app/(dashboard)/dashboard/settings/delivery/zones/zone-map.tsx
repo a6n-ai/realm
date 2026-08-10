@@ -116,6 +116,8 @@ export function ZoneMap({
   onOriginChange,
   styleUrl = null,
   focusedPublicId = null,
+  originDraggable = true,
+  heightPx = 420,
 }: {
   origin: { lat: number; lng: number };
   zones: MapZone[];
@@ -128,6 +130,9 @@ export function ZoneMap({
   styleUrl?: string | null;
   /** Ring to emphasise and zoom to — set when a row in the table is selected. */
   focusedPublicId?: string | null;
+  /** The origin is shared by every ring, so editing one zone must not move it. */
+  originDraggable?: boolean;
+  heightPx?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -221,7 +226,7 @@ export function ZoneMap({
             },
           });
 
-          const originMarker = new Marker({ draggable: true, color: "#111" })
+          const originMarker = new Marker({ draggable: originDraggable, color: "#111" })
             .setLngLat([latest.current.origin.lng, latest.current.origin.lat])
             .addTo(instance);
           originMarker.on("dragend", () => {
@@ -376,9 +381,9 @@ export function ZoneMap({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-lg border" style={{ minHeight: 420 }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: 420 }} />
-      {!ready && <Skeleton className="absolute inset-0 min-h-[420px] w-full rounded-lg" />}
+    <div className="relative overflow-hidden rounded-lg border" style={{ minHeight: heightPx }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: heightPx }} />
+      {!ready && <Skeleton className="absolute inset-0 h-full w-full rounded-lg" />}
     </div>
   );
 }
