@@ -300,12 +300,34 @@ export default async function HomePage() {
               light
               sub={`${reviews.rating.toFixed(1)}★ across ${reviews.total}+ Google reviews. Here's what the neighbourhood says.`}
             />
+            {/* Three, not all five. Five in a three-column grid leaves a ragged
+                second row with a gap where two cards should be; the homepage
+                teases and /reviews carries the rest. */}
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))" }}>
-              {reviews.reviews.map((rv, i) => (
+              {reviews.reviews.slice(0, 3).map((rv, i) => (
                 <Reveal key={`${rv.author}-${i}`} delay={i * 70}>
-                  <div className="card" style={{ background: "var(--white)", color: "var(--ink)", padding: 24, height: "100%" }}>
+                  <div className="card" style={{ background: "var(--white)", color: "var(--ink)", padding: 24, height: "100%", display: "flex", flexDirection: "column" }}>
                     <Stars value={rv.rating} size={18} />
-                    <p style={{ fontWeight: 600, fontSize: "1.05rem", margin: "14px 0 18px", lineHeight: 1.5 }}>&ldquo;{rv.text}&rdquo;</p>
+                    {/* Clamped to eight lines: these run from one sentence to a
+                        paragraph, and unclamped they gave every card a different
+                        height and a jagged baseline. The full text lives on
+                        /reviews. flex-1 pins the author to the bottom so the
+                        attribution lines up across the row either way. */}
+                    <p
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "1.05rem",
+                        margin: "14px 0 18px",
+                        lineHeight: 1.5,
+                        flex: 1,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 8,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      &ldquo;{rv.text}&rdquo;
+                    </p>
                     <div className="flex center" style={{ gap: 10 }}>
                       <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--yellow)", border: "2.5px solid var(--ink)", display: "grid", placeItems: "center", fontWeight: 900 }}>
                         {rv.author[0]}
@@ -327,6 +349,23 @@ export default async function HomePage() {
                   </div>
                 </Reveal>
               ))}
+            </div>
+            {/* The section used to dead-end: nothing linked to /reviews, and the
+                Google listing was reachable only via tiny per-card text. */}
+            <div className="flex center wrap-gap" style={{ gap: 14, marginTop: 28, justifyContent: "center" }}>
+              <Btn href="/reviews" variant="yellow" size="lg">
+                {`Read all ${reviews.total}+ reviews →`}
+              </Btn>
+              {reviews.attributionUrl ? (
+                <a
+                  href={reviews.attributionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn--ink"
+                >
+                  See on Google ↗
+                </a>
+              ) : null}
             </div>
           </div>
         </section>
