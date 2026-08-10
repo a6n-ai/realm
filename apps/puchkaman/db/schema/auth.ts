@@ -4,16 +4,18 @@ import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex }
 
 const nextIdText = sql`(next_id())::text`;
 
-// Single-role app: only "admin" logs in today. Kept as an enum (not just
-// "admin") so a future member/customer role doesn't need a schema migration.
+// Staff only. Orders never provision an account here — guest checkout plus the
+// order-tracking plugin covers customers deliberately — so "user" is retained in the
+// enum for compatibility but is never assigned. The default is "member" so a row that
+// somehow arrives without an explicit role still lands on a role the permission map
+// knows; "user" would fail every check silently.
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
 // Account lifecycle. Only "active" may obtain a session — enforced in
-// lib/auth/index.ts's session.create.before hook (which fires after the
-// credential check but before a session row exists, so it covers every sign-in
-// method at once) and re-checked on the read path so an already-issued session
-// dies too rather than surviving until expiry.
-export const userStatus = pgEnum("user_status", ["active", "inactive", "suspended"]);
+// lib/auth/index.ts's session.create.before hook and re-checked on the read path.
+// "deleted" is a soft delete: the row and its business references survive, the
+// contact details are tombstoned. Matches tiffin-grab.
+export const userStatus = pgEnum("user_status", ["active", "inactive", "suspended", "deleted"]);
 
 export const users = pgTable(
   "users",
@@ -23,12 +25,18 @@ export const users = pgTable(
     email: text("email"),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    role: userRole("role").notNull().default("user"),
+    role: userRole("role").notNull().default("member"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
     // own on first login. The dashboard gate redirects to /set-password while
     // this is false; setOwnPassword flips it true.
     passwordSet: boolean("password_set").notNull().default(false),
+    // Declared by the better-auth admin plugin and never written by this app —
+    // users.status is the only sign-in switch (see the session.create.before hook).
+    // Present so the drizzle adapter can resolve every field the plugin declares.
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires"),
     bauthCreatedAt: timestamp("bauth_created_at").notNull().defaultNow(),
     bauthUpdatedAt: timestamp("bauth_updated_at").notNull().defaultNow(),
   },
@@ -48,6 +56,8 @@ export const session = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    // Declared by the admin plugin's schema; impersonation is not enabled here.
+    impersonatedBy: text("impersonated_by"),
     userId: bigint("user_id", { mode: "bigint" })
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

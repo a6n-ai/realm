@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { setUserStatus } from "./actions";
 import type { UserStatusValue } from "@/lib/services/users.service";
+import type { UserRow } from "@/lib/services/users.repository";
 
 export function StatusActions({
   publicId,
@@ -12,7 +13,9 @@ export function StatusActions({
   isSelf,
 }: {
   publicId: string;
-  status: UserStatusValue;
+  // The full column type (includes "deleted"), not just the settable subset —
+  // this only ever compares against "active" so a wider read-side type is safe.
+  status: UserRow["status"];
   isSelf: boolean;
 }) {
   const [pending, start] = useTransition();
