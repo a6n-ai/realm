@@ -1223,10 +1223,12 @@ import type { UserStatusValue } from "@/lib/services/users.service";
 export function RoleSelect({
   publicId,
   role,
+  status,
   isSelf,
 }: {
   publicId: string;
   role: RoleValue;
+  status: UserStatusValue;
   isSelf: boolean;
 }) {
   const [pending, start] = useTransition();
@@ -1234,6 +1236,9 @@ export function RoleSelect({
   // Demoting yourself is how the last admin locks everyone out; the service refuses
   // it too, but a disabled control explains why before the click.
   if (isSelf) return <span className="text-muted-foreground text-xs uppercase">{role}</span>;
+  // A removed account is a tombstone. Re-roling one would succeed silently — setRole
+  // has no status guard — and mean nothing, since it can never hold a session again.
+  if (status === "deleted") return <span className="text-muted-foreground text-xs uppercase">{role}</span>;
 
   return (
     <Select
@@ -1375,7 +1380,12 @@ Replace the role cell and the actions cell in the table body:
 
 ```tsx
                 <TableCell>
-                  <RoleSelect publicId={r.publicId} role={r.role} isSelf={r.publicId === selfPublicId} />
+                  <RoleSelect
+                    publicId={r.publicId}
+                    role={r.role}
+                    status={r.status}
+                    isSelf={r.publicId === selfPublicId}
+                  />
                 </TableCell>
                 <TableCell>
                   <Badge variant={r.status === "active" ? "default" : "outline"}>
