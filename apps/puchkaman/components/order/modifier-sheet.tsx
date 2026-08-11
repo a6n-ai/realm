@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Btn } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
+import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { ModifierPicker } from "@/components/order/modifier-picker";
 import { money, type CartAddInput } from "@/lib/cart/types";
 import {
@@ -38,8 +39,25 @@ export function ModifierSheet({
   const { addItem } = useCart();
   const [selected, setSelected] = useState<string[]>(() => defaultSelection(groups));
   const [closing, setClosing] = useState(false);
+  // Only the phone layout is a bottom sheet with an edge to leave by. From 720px
+  // up it is a centred dialog anchored to nothing, so there is no direction a
+  // drag could mean.
+  const [isSheet, setIsSheet] = useState(false);
+  const sheet = useRef<HTMLElement | null>(null);
 
   const close = useCallback(() => setClosing(true), []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 719px)");
+    const sync = () => setIsSheet(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Drag down to dismiss, by the sheet's chrome only — the body between them
+  // scrolls, and a y-drag starting there belongs to the scroller.
+  const grab = useDragDismiss(sheet, { axis: "y", enabled: isSheet && !closing, onDismiss: close });
 
   useEffect(() => {
     if (!closing) return;
@@ -87,13 +105,14 @@ export function ModifierSheet({
         data-closing={closing || undefined}
       />
       <aside
+        ref={sheet}
         className="mod-sheet"
         role="dialog"
         aria-modal="true"
         aria-label={`Options for ${item.name}`}
         data-closing={closing || undefined}
       >
-        <div className="mod-sheet__head">
+        <div className="mod-sheet__head" {...grab}>
           <div style={{ minWidth: 0 }}>
             <p className="kicker" style={{ marginBottom: 4 }}>
               Choose options
@@ -116,7 +135,7 @@ export function ModifierSheet({
           />
         </div>
 
-        <div className="mod-sheet__foot">
+        <div className="mod-sheet__foot" {...grab}>
           {missing.length ? (
             <p
               role="status"

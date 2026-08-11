@@ -1231,10 +1231,22 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   border-left: var(--border);
   box-shadow: -8px 0 0 var(--ink);
   transform: translate3d(104%, 0, 0);
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.28s var(--ease-out);
+  /* The drag is horizontal, the content scrolls vertically — declaring that
+     split lets the browser start the scroll without waiting to see whether this
+     gesture turns out to be a swipe. */
+  touch-action: pan-y;
 }
 .cart-drawer-root.is-open .cart-drawer {
   transform: translate3d(0, 0, 0);
+}
+/* Under the finger there is nothing to ease — the transform is the pointer. */
+.cart-drawer[data-dragging] {
+  transition: none;
+}
+/* Exit is quicker than entry: by the time it closes the user has decided. */
+.cart-drawer-root:not(.is-open) .cart-drawer {
+  transition-duration: 0.18s;
 }
 .cart-drawer__head {
   display: flex;
@@ -1316,6 +1328,15 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 @starting-style {
   .mod-sheet { transform: translate3d(0, 100%, 0); }
+}
+.mod-sheet[data-dragging] {
+  transition: none;
+}
+/* The sheet is dragged by its chrome, so those two strips own the gesture
+   outright; the scrolling body between them is left alone. */
+.mod-sheet__head,
+.mod-sheet__foot {
+  touch-action: none;
 }
 /* Exit is quicker than entry — the user has already committed to closing. */
 .mod-sheet[data-closing] {
@@ -2038,7 +2059,14 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   color: var(--ink);
   flex-shrink: 0;
   cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease,
+    transform 0.1s var(--ease-out);
+}
+/* Colour alone reads as "the page decided"; the nudge reads as "I pressed it".
+   Ungated by pointer type on purpose — :active is the touch equivalent of the
+   hover lifts elsewhere, and touch is how the rail is mostly used. */
+.eats-railchip:active {
+  transform: translate(1px, 1px);
 }
 .eats-railchip.is-on {
   background: var(--ink-bg);
@@ -2060,6 +2088,17 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   background: var(--yellow);
   color: var(--ink-deep);
   cursor: pointer;
+  /* `--sh-c`, not a literal ink: the shadow system picks a colour that reads
+     against whatever surface this bar sits on, in either theme. */
+  box-shadow: 3px 3px 0 var(--sh-c);
+  transition: transform 0.1s var(--ease-out), box-shadow 0.1s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .eats-filterbtn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--sh-c); }
+}
+.eats-filterbtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--sh-c);
 }
 .eats-filterbtn__count {
   display: inline-grid;
@@ -2098,7 +2137,13 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   box-shadow: 2px 2px 0 var(--ink);
 }
 .eats-card {
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s var(--ease-out);
+}
+/* The hover lift below is fine-pointer-gated, which left the menu's primary
+   target with no feedback at all on touch. This is that feedback. */
+.eats-card:active {
+  transform: translate(1px, 1px);
+  transition-duration: 0.1s;
 }
 @media (max-width: 879px) {
   /* Two columns instead of one on phones — these grids' original px floors

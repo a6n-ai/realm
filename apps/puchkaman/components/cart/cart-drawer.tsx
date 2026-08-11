@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { money } from "@/lib/cart/types";
 
 export function CartDrawer() {
   const { items, count, subtotal, drawerOpen, closeDrawer } = useCart();
+  const panel = useRef<HTMLElement | null>(null);
+  // Swipe right to close — the direction it entered from, so the gesture and
+  // the animation tell the same story. The panel only scrolls vertically, so an
+  // x-axis drag never fights the body's scroll (`touch-action: pan-y`).
+  const grab = useDragDismiss(panel, { axis: "x", enabled: drawerOpen, onDismiss: closeDrawer });
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -37,11 +43,13 @@ export function CartDrawer() {
         onClick={closeDrawer}
       />
       <aside
+        ref={panel}
         className="cart-drawer"
         role="dialog"
         aria-modal="true"
         aria-label="Your cart"
         inert={!drawerOpen ? true : undefined}
+        {...grab}
       >
         <div className="cart-drawer__head">
           <div>
