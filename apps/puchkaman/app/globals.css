@@ -1188,13 +1188,19 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   line-height: 1;
   box-shadow: 2px 2px 0 var(--ink);
 }
-.nav-cart--pulse .nav-cart__badge {
-  animation: cart-badge-pop 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+/* A transition, not a keyframe: items get added in bursts, and a keyframe
+   restarts from zero on every retrigger (or, if the class never dropped, does
+   not replay at all). This pops up on add and settles back when the flag
+   clears, and a second add mid-pop simply retargets. */
+.nav-cart__badge {
+  transition: transform 0.16s var(--ease-out);
 }
-@keyframes cart-badge-pop {
-  0% { transform: scale(0.7); }
-  55% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+.nav-cart--pulse .nav-cart__badge {
+  transform: scale(1.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-cart__badge { transition: none; }
+  .nav-cart--pulse .nav-cart__badge { transform: none; }
 }
 
 .cart-drawer-root {
@@ -1275,6 +1281,10 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   overflow-y: auto;
   padding: 16px 18px;
   -webkit-overflow-scrolling: touch;
+  /* Without this, scrolling past the end of the cart carries on into the page
+     behind it — `body { overflow: hidden }` is set on open but is not reliable
+     on iOS Safari. */
+  overscroll-behavior: contain;
 }
 .cart-drawer__foot {
   padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px));
@@ -1395,6 +1405,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   overflow-y: auto;
   padding: 16px 18px;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .mod-sheet__foot {
   padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px));
@@ -1415,6 +1426,65 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   }
   @starting-style {
     .mod-sheet { transform: none; }
+  }
+}
+
+/* Cart lines enter and leave rather than blinking in and out of the list.
+   Transitions, not keyframes: quantity taps and adds come in bursts, and a
+   keyframe would restart from zero each time. Exit is faster than entry — by
+   then the user has already decided the item is going. */
+.cart-line {
+  opacity: 1;
+  transform: none;
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out);
+}
+@starting-style {
+  .cart-line { opacity: 0; transform: translateY(-6px); }
+}
+.cart-line[data-removing] {
+  opacity: 0;
+  transform: translateX(10px);
+  transition: opacity .15s var(--ease-out), transform .15s var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The fade still says "this left"; only the movement goes. */
+  .cart-line,
+  .cart-line[data-removing] { transform: none; }
+  @starting-style {
+    .cart-line { transform: none; }
+  }
+}
+
+/* Paid. The one rare, high-emotion moment on the site, and the only place a
+   stagger is worth the beats it costs. */
+.checkout-done {
+  opacity: 1;
+  transform: none;
+  transition: opacity .32s var(--ease-out), transform .32s var(--ease-out);
+}
+@starting-style {
+  .checkout-done { opacity: 0; transform: translateY(10px) scale(.98); }
+}
+.checkout-done > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity .3s var(--ease-out) var(--d, 0s),
+    transform .3s var(--ease-out) var(--d, 0s);
+}
+@starting-style {
+  .checkout-done > * { opacity: 0; transform: translateY(6px); }
+}
+.checkout-done > *:nth-child(2) { --d: .06s; }
+.checkout-done > *:nth-child(3) { --d: .12s; }
+.checkout-done > *:nth-child(4) { --d: .18s; }
+.checkout-done > *:nth-child(5) { --d: .24s; }
+@media (prefers-reduced-motion: reduce) {
+  .checkout-done,
+  .checkout-done > * { transition: none; transform: none; }
+  @starting-style {
+    .checkout-done,
+    .checkout-done > * { transform: none; }
   }
 }
 
@@ -1552,6 +1622,14 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   color: var(--red-deep);
   font-weight: 700;
   margin: 0;
+  /* Arrives rather than pops. It is rendered only when there is an error, so
+     the entrance never replays on an unrelated re-render. */
+  opacity: 1;
+  transform: none;
+  transition: opacity .15s var(--ease-out), transform .15s var(--ease-out);
+}
+@starting-style {
+  .checkout-error { opacity: 0; transform: translateY(-4px); }
 }
 .checkout-orderid {
   font-family: var(--mono);
@@ -2046,6 +2124,10 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
 }
 .eats-rail::-webkit-scrollbar { display: none; }
+/* `proximity`, never `mandatory`: mandatory fights a fast flick across the rail
+   by yanking it back to the nearest chip. */
+.eats-rail { scroll-snap-type: x proximity; }
+.eats-railchip { scroll-snap-align: start; }
 .eats-railchip {
   white-space: nowrap;
   font: inherit;
@@ -2111,11 +2193,48 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   color: #fff;
   font-size: 0.7rem;
 }
+/* Kept mounted so it can collapse both ways instead of teleporting the grid up
+   and down. `grid-template-rows: 0fr -> 1fr` is the animatable form of height:
+   auto; the inner element carries the padding, so nothing jumps at the ends,
+   and `visibility` (delayed on exit, immediate on entry) takes the closed panel
+   out of the accessibility tree. */
 .eats-railbar__panel {
-  padding: 4px 20px 18px;
+  display: grid;
+  grid-template-rows: 0fr;
   border-top: var(--border);
+  visibility: hidden;
+  opacity: 0;
+  padding: 0;
+  transition:
+    grid-template-rows .2s var(--ease-out),
+    opacity .2s var(--ease-out),
+    visibility 0s linear .2s;
+}
+/* The wrapper only clips; padding and scrolling live one level further in.
+   Padding on the clipped element would survive the collapse (it is not part of
+   the row height) and leave a 22px stub behind. */
+.eats-railbar__panel > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.eats-railbar__panel .eats-filters {
   max-height: 62dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 18px;
+}
+.eats-railbar__panel[data-open] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  opacity: 1;
+  transition:
+    grid-template-rows .2s var(--ease-out),
+    opacity .2s var(--ease-out),
+    visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .eats-railbar__panel,
+  .eats-railbar__panel[data-open] { transition: visibility 0s; }
 }
 
 .eats-count {
@@ -2315,7 +2434,20 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 .order-path__bag { font-weight: 700; margin: 0 0 14px; }
 
 /* Address-check results. Sits inside a white card on the delivery path. */
-.delivery-check__out { margin-top: 14px; display: grid; gap: 10px; }
+/* The answer lands after a network round trip, so it would otherwise appear out
+   of nowhere. It rises 6px and stops — this is text to be read, so it must not
+   still be moving once it is there. */
+.delivery-check__out {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  opacity: 1;
+  transform: none;
+  transition: opacity .18s var(--ease-out), transform .18s var(--ease-out);
+}
+@starting-style {
+  .delivery-check__out { opacity: 0; transform: translateY(6px); }
+}
 .delivery-check__ok { font-weight: 700; font-size: 0.88rem; margin: 0; text-wrap: pretty; }
 .delivery-check__hint { font-weight: 500; font-size: 0.8rem; opacity: 0.75; margin: 0; }
 .delivery-check__types {

@@ -146,9 +146,11 @@ export function EatsView({
             {activeCount ? <span className="eats-filterbtn__count">{activeCount}</span> : null}
           </button>
         </div>
-        {panelOpen ? (
-          <div className="wrap eats-railbar__panel">{panel}</div>
-        ) : null}
+        {/* Kept mounted so it collapses both ways; `inert` keeps the closed
+            panel's inputs out of the tab order, which unmounting did for free. */}
+        <div className="wrap eats-railbar__panel" data-open={panelOpen || undefined} inert={!panelOpen || undefined}>
+          <div>{panel}</div>
+        </div>
       </div>
 
       <div style={{ background: "var(--paper)" }}>

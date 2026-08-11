@@ -1,8 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { cartLineKey, cartUnitPrice, money, type CartItem } from "@/lib/cart/types";
 import { useCart } from "@/components/cart/cart-provider";
+
+/** Matches the `[data-removing]` transition in globals.css. */
+const EXIT_MS = 150;
 
 export function CartLines({
   items,
@@ -12,6 +16,29 @@ export function CartLines({
   compact?: boolean;
 }) {
   const { incrementQty, decrementQty, removeItem } = useCart();
+  // Removal is held for the length of the exit so the line leaves rather than
+  // vanishing. Keyed by line, because two lines can be on their way out at once.
+  const [removing, setRemoving] = useState<string[]>([]);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((t) => window.clearTimeout(t));
+  }, []);
+
+  const remove = useCallback(
+    (lineKey: string) => {
+      setRemoving((prev) => (prev.includes(lineKey) ? prev : [...prev, lineKey]));
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      timers.current.push(
+        window.setTimeout(() => {
+          removeItem(lineKey);
+          setRemoving((prev) => prev.filter((k) => k !== lineKey));
+        }, reduced ? 0 : EXIT_MS),
+      );
+    },
+    [removeItem],
+  );
 
   if (items.length === 0) {
     return (
@@ -39,7 +66,8 @@ export function CartLines({
         return (
         <li
           key={lineKey}
-          className="card"
+          className="card cart-line"
+          data-removing={removing.includes(lineKey) || undefined}
           style={{
             padding: compact ? "12px 14px" : "16px 18px",
             background: "var(--white)",
@@ -83,7 +111,7 @@ export function CartLines({
                 </ul>
               ) : null}
             </div>
-            <strong style={{ fontSize: "1.05rem", flexShrink: 0 }}>
+            <strong style={{ fontSize: "1.05rem", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
               {money(unitPrice * item.quantity)}
             </strong>
           </div>
@@ -93,14 +121,23 @@ export function CartLines({
                 variant="cream"
                 size="sm"
                 aria-label={`Decrease ${item.name}`}
-                onClick={() => decrementQty(lineKey)}
+                // At one, "decrease" IS removal — routed through the same exit so
+                // the line leaves the same way either button takes it.
+                onClick={() => (item.quantity <= 1 ? remove(lineKey) : decrementQty(lineKey))}
                 style={{ minWidth: 44, minHeight: 44 }}
               >
                 −
               </Btn>
               <span
                 aria-live="polite"
-                style={{ fontWeight: 800, minWidth: 28, textAlign: "center", fontSize: "1.05rem" }}
+                style={{
+                  fontWeight: 800,
+                  minWidth: 28,
+                  textAlign: "center",
+                  fontSize: "1.05rem",
+                  // Tabular figures so 1 -> 2 does not shift the +/- buttons.
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {item.quantity}
               </span>
@@ -117,7 +154,7 @@ export function CartLines({
             <button
               type="button"
               className="cart-remove"
-              onClick={() => removeItem(lineKey)}
+              onClick={() => remove(lineKey)}
               aria-label={`Remove ${item.name}`}
             >
               Remove

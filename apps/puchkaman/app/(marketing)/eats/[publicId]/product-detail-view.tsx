@@ -115,7 +115,9 @@ export function ProductDetailView({
                 ) : null}
 
                 <Btn variant={added ? "yellow" : "green"} size="lg" block disabled={blocked} onClick={add}>
-                  {added ? "Added ✓" : `Add to cart · ${money(unitPrice)}`}
+                  <span className="label-swap" key={added ? "added" : "idle"}>
+                    {added ? "Added ✓" : `Add to cart · ${money(unitPrice)}`}
+                  </span>
                 </Btn>
               </div>
             ) : (

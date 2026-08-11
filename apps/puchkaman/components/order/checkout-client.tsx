@@ -731,7 +731,11 @@ export function CheckoutClient({
               disabled={busy || items.length === 0}
               className="checkout-submit"
             >
-              {busy ? "Pricing your order…" : `Continue to payment · ${money(runningTotal)}`}
+              {/* Keyed so the swap replays: the blur reads as one label becoming
+                  another rather than two strings crossing. */}
+              <span className="label-swap" key={busy ? "busy" : "idle"}>
+                {busy ? "Pricing your order…" : `Continue to payment · ${money(runningTotal)}`}
+              </span>
             </Btn>
             <p className="checkout-hint checkout-hint--center">
               Nothing is charged until you enter a card on the next step.
@@ -772,7 +776,9 @@ export function CheckoutClient({
                 onClick={() => void pay()}
                 className="checkout-submit"
               >
-                {busy ? "Processing…" : !tokenize ? "Loading card form…" : `Pay ${money(session.total)}`}
+                <span className="label-swap" key={busy ? "busy" : tokenize ? "ready" : "loading"}>
+                  {busy ? "Processing…" : !tokenize ? "Loading card form…" : `Pay ${money(session.total)}`}
+                </span>
               </Btn>
               <Btn
                 variant="cream"

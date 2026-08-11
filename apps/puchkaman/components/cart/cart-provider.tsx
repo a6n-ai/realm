@@ -101,7 +101,10 @@ export function CartProvider({
   // Storage is read once during the lazy initialiser rather than in an effect.
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [badgePulse, setBadgePulse] = useState(false);
+  // A counter, not a boolean: adding twice inside the pulse window has to restart
+  // the window, and a stuck-true flag would leave the second add with no feedback
+  // at all (the same trap `AddToCartButton` solves for its label).
+  const [pulse, setPulse] = useState(0);
 
   // False on the server AND on the hydration pass, true immediately after. Consumers
   // therefore render an empty cart while hydrating — matching the server output — and
@@ -124,10 +127,10 @@ export function CartProvider({
   }, [items, hydrated]);
 
   useEffect(() => {
-    if (!badgePulse) return;
-    const t = window.setTimeout(() => setBadgePulse(false), 420);
+    if (!pulse) return;
+    const t = window.setTimeout(() => setPulse(0), 180);
     return () => window.clearTimeout(t);
-  }, [badgePulse]);
+  }, [pulse]);
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
@@ -166,7 +169,7 @@ export function CartProvider({
           },
         ];
       });
-      setBadgePulse(true);
+      setPulse((n) => n + 1);
       setDrawerOpen(true);
     },
     [orderingEnabled],
@@ -212,7 +215,7 @@ export function CartProvider({
       count: cartCount(visibleItems),
       subtotal: cartSubtotal(visibleItems),
       drawerOpen,
-      badgePulse,
+      badgePulse: pulse > 0,
       orderingEnabled,
       openDrawer,
       closeDrawer,
@@ -227,7 +230,7 @@ export function CartProvider({
       visibleItems,
       hydrated,
       drawerOpen,
-      badgePulse,
+      pulse,
       orderingEnabled,
       openDrawer,
       closeDrawer,
