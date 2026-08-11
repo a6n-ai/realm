@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Btn } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
+import { useModalFocus } from "@/lib/a11y/use-modal-focus";
 import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { ModifierPicker } from "@/components/order/modifier-picker";
 import { money, type CartAddInput } from "@/lib/cart/types";
@@ -58,6 +59,9 @@ export function ModifierSheet({
   // Drag down to dismiss, by the sheet's chrome only — the body between them
   // scrolls, and a y-drag starting there belongs to the scroller.
   const grab = useDragDismiss(sheet, { axis: "y", enabled: isSheet && !closing, onDismiss: close });
+  // Held through the exit as well: dropping the trap the moment closing starts
+  // would strand the keyboard on a surface that is still on screen.
+  useModalFocus(sheet, true);
 
   useEffect(() => {
     if (!closing) return;

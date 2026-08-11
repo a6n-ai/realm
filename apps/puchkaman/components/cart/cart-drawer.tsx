@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { useModalFocus } from "@/lib/a11y/use-modal-focus";
 import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { money } from "@/lib/cart/types";
 
@@ -15,6 +16,7 @@ export function CartDrawer() {
   // the animation tell the same story. The panel only scrolls vertically, so an
   // x-axis drag never fights the body's scroll (`touch-action: pan-y`).
   const grab = useDragDismiss(panel, { axis: "x", enabled: drawerOpen, onDismiss: closeDrawer });
+  useModalFocus(panel, drawerOpen);
 
   useEffect(() => {
     if (!drawerOpen) return;
