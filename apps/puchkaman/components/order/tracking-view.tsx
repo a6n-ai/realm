@@ -122,15 +122,25 @@ function PayBalance({ order }: { order: TrackedOrder }) {
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Fetching the payment config is a server round trip that used to happen in
+  // silence — the button sat there looking unpressed, and a second press fired
+  // a second request.
+  const [starting, setStarting] = useState(false);
 
   async function start() {
+    if (starting) return;
+    setStarting(true);
     setError(null);
-    const res = await getPaymentConfig(order.reference);
-    if (!res.ok) {
-      setError(res.error);
-      return;
+    try {
+      const res = await getPaymentConfig(order.reference);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setConfig({ pakmsKey: res.pakmsKey, sdkUrl: res.sdkUrl });
+    } finally {
+      setStarting(false);
     }
-    setConfig({ pakmsKey: res.pakmsKey, sdkUrl: res.sdkUrl });
   }
 
   async function pay() {
@@ -165,21 +175,25 @@ function PayBalance({ order }: { order: TrackedOrder }) {
         <Pill>{money(order.totals.balanceDue)} outstanding</Pill>
       </p>
       {!config ? (
-        <Btn variant="ink" onClick={start}>
-          Pay by card
+        <Btn variant="ink" onClick={start} disabled={starting}>
+          <span className="label-swap" key={starting ? "busy" : "idle"}>
+            {starting ? "Opening card form…" : "Pay by card"}
+          </span>
         </Btn>
       ) : (
         <>
           <CloverCardForm pakmsKey={config.pakmsKey} sdkUrl={config.sdkUrl} onReady={(t) => setTokenize(() => t)} />
           <div style={{ marginTop: 14 }}>
             <Btn variant="ink" onClick={pay} disabled={busy || !tokenize} block>
-              {busy ? "Charging…" : `Pay ${money(order.totals.balanceDue)}`}
+              <span className="label-swap" key={busy ? "busy" : "idle"}>
+                {busy ? "Charging…" : `Pay ${money(order.totals.balanceDue)}`}
+              </span>
             </Btn>
           </div>
         </>
       )}
       {error && (
-        <p role="alert" style={{ color: "var(--red)", marginTop: 12 }}>
+        <p className="form-error" role="alert" aria-live="assertive" style={{ marginTop: 12 }}>
           {error}
         </p>
       )}
@@ -221,7 +235,7 @@ function RequestForm({ orderId, kind }: { orderId: string; kind: "note" | "cance
 
   if (status === "sent") {
     return (
-      <p role="status" style={{ marginBottom: 18 }}>
+      <p className="track-sent" role="status" style={{ marginBottom: 18 }}>
         {kind === "note"
           ? "Sent — the kitchen will see your note."
           : "Cancellation requested. We'll call you to confirm; the order is not cancelled until we do."}
@@ -242,13 +256,16 @@ function RequestForm({ orderId, kind }: { orderId: string; kind: "note" | "cance
         required={kind === "note"}
         onChange={(e) => setText(e.target.value)}
         placeholder={kind === "note" ? "Leave it at the door…" : "Reason (optional)"}
-        style={{ width: "100%", border: "var(--border)", padding: 12, margin: "8px 0 12px", background: "var(--white)" }}
+        className="textarea"
+        style={{ width: "100%", margin: "8px 0 12px" }}
       />
       <Btn type="submit" variant={kind === "note" ? "white" : "yellow"} size="sm" disabled={status === "busy"}>
-        {status === "busy" ? "Sending…" : kind === "note" ? "Send note" : "Request cancellation"}
+        <span className="label-swap" key={status === "busy" ? "busy" : "idle"}>
+          {status === "busy" ? "Sending…" : kind === "note" ? "Send note" : "Request cancellation"}
+        </span>
       </Btn>
       {error && (
-        <p role="alert" style={{ color: "var(--red)", marginTop: 10 }}>
+        <p className="form-error" role="alert" aria-live="assertive" style={{ marginTop: 10 }}>
           {error}
         </p>
       )}

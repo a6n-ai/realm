@@ -466,6 +466,23 @@ section { position: relative; }
   }
 }
 
+/* Order-tracking confirmation. Replaces the form it came from, so it needs to
+   read as an answer arriving rather than the form blinking into other words. */
+.track-sent {
+  opacity: 1;
+  transform: none;
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out);
+}
+@starting-style {
+  .track-sent { opacity: 0; transform: translateY(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-sent { transition: none; transform: none; }
+  @starting-style {
+    .track-sent { transform: none; }
+  }
+}
+
 /* Contact rows (tap-to-copy phone, WhatsApp, Instagram). Styled inline rather
    than as `.btn`, so they never picked up the press feedback every other
    pressable surface has. */
@@ -1650,7 +1667,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   margin: 0;
 }
 .checkout-hint--center { text-align: center; }
-.checkout-error {
+/* Submit-level errors, as opposed to the per-field `.err-msg`. Shared by
+   checkout and order tracking. */
+.form-error {
   color: var(--red-deep);
   font-weight: 700;
   margin: 0;
@@ -1661,7 +1680,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   transition: opacity .15s var(--ease-out), transform .15s var(--ease-out);
 }
 @starting-style {
-  .checkout-error { opacity: 0; transform: translateY(-4px); }
+  .form-error { opacity: 0; transform: translateY(-4px); }
 }
 .checkout-orderid {
   font-family: var(--mono);

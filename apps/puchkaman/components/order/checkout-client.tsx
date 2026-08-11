@@ -718,7 +718,7 @@ export function CheckoutClient({
             </div>
 
             {error ? (
-              <p className="checkout-error" role="alert" aria-live="assertive">
+              <p className="form-error" role="alert" aria-live="assertive">
                 {error}
               </p>
             ) : null}
@@ -762,7 +762,7 @@ export function CheckoutClient({
             />
 
             {error ? (
-              <p className="checkout-error" role="alert" aria-live="assertive">
+              <p className="form-error" role="alert" aria-live="assertive">
                 {error}
               </p>
             ) : null}
