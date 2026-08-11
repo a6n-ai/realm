@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { StaticMap } from "@/components/map/static-map";
 import { ADDRESS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
@@ -14,10 +14,22 @@ const HOURS: [string, string][] = [
 
 export function ContactView() {
   const [copied, setCopied] = useState("");
+  // One timer, cleared on each copy: without it a second copy inherited the
+  // first one's clock and the "Copied" label vanished a moment after the tap.
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
   const copy = (label: string, text: string) => {
-    if (navigator.clipboard) navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(""), 1600);
+    // Only claim success if the write actually succeeded — an insecure context
+    // or a denied permission used to still say "Copied".
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => {
+        setCopied(label);
+        window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => setCopied(""), 1600);
+      })
+      .catch(() => setCopied(""));
   };
 
   return (
@@ -43,8 +55,10 @@ export function ContactView() {
                   <br />
                   Scarborough, ON
                 </p>
-                <button onClick={() => copy("addr", "3315 Danforth Ave, Scarborough, ON")} className="btn btn--sm" style={{ marginTop: 14 }}>
-                  {copied === "addr" ? "✓ Copied!" : "📋 Copy Address"}
+                <button type="button" onClick={() => copy("addr", "3315 Danforth Ave, Scarborough, ON")} className="btn btn--sm" style={{ marginTop: 14 }}>
+                  <span className="label-swap" key={copied === "addr" ? "copied" : "idle"}>
+                    {copied === "addr" ? "✓ Copied!" : "📋 Copy Address"}
+                  </span>
                 </button>
               </div>
 
@@ -52,18 +66,21 @@ export function ContactView() {
                 <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📞 Contact</h3>
                 <div style={{ display: "grid", gap: 10 }}>
                   <button
+                    type="button"
                     onClick={() => copy("phone", PHONE_TEL)}
-                    className="flex center between"
+                    className="flex center between contact-row"
                     style={{ background: "var(--cream)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700, flexWrap: "wrap", gap: 6 }}
                   >
                     <span>📱 {PHONE_DISPLAY}</span>
-                    <span className="mono" style={{ fontSize: "0.7rem" }}>{copied === "phone" ? "✓ COPIED" : "TAP TO COPY"}</span>
+                    <span className="mono label-swap" key={copied === "phone" ? "copied" : "idle"} style={{ fontSize: "0.7rem" }}>
+                      {copied === "phone" ? "✓ COPIED" : "TAP TO COPY"}
+                    </span>
                   </button>
                   <a
                     href={`https://wa.me/${PHONE_TEL.replace("+", "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex center between"
+                    className="flex center between contact-row"
                     style={{ background: "#25D366", color: "#fff", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
                   >
                     <span>💬 WhatsApp Us</span>
@@ -73,7 +90,7 @@ export function ContactView() {
                     href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex center between"
+                    className="flex center between contact-row"
                     style={{ background: "var(--ink)", color: "var(--yellow)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
                   >
                     <span>📸 @puchkamancanada</span>

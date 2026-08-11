@@ -346,7 +346,7 @@ export function CheckoutClient({
 
   if (step === "done") {
     return (
-      <div className="card card--green surface-green checkout-done" style={{ color: "#fff", padding: 28 }}>
+      <div className="card card--green surface-green done-panel" style={{ color: "#fff", padding: 28 }}>
         <Pill variant="yellow">PAID</Pill>
         <h2 className="display" style={{ fontSize: "clamp(1.8rem,4vw,2.4rem)", margin: "12px 0" }}>
           Order locked in

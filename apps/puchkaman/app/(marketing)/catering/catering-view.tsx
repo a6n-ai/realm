@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ChangeEvent, useId } from "react";
+import { useRef, useState, type ChangeEvent, useId } from "react";
 import Image from "next/image";
 import { Btn, Ph, PageBanner, SectionHead } from "@/components/brutal/shared";
+import { focusFirstError } from "@/lib/a11y/focus-first-error";
 import { Reveal } from "@/components/brutal/reveal";
 
 const EVENT_TYPES = ["Birthday Party", "Office Event", "Wedding", "Private Party", "Community Event", "Other"];
@@ -74,7 +75,7 @@ function Field({
         {REQUIRED.includes(k) && <span style={{ color: "var(--red)" }}> *</span>}
       </label>
       {options ? (
-        <select id={id} className="select" value={value} onChange={onChange} aria-describedby={errorId}>
+        <select id={id} className="select" value={value} onChange={onChange} aria-invalid={error ? true : undefined} aria-describedby={errorId}>
           <option value="">Select…</option>
           {options.map((o) => (
             <option key={o} value={o}>
@@ -83,7 +84,7 @@ function Field({
           ))}
         </select>
       ) : type === "textarea" ? (
-        <textarea id={id} className="textarea" value={value} onChange={onChange} placeholder={placeholder} aria-describedby={errorId} />
+        <textarea id={id} className="textarea" value={value} onChange={onChange} placeholder={placeholder} aria-invalid={error ? true : undefined} aria-describedby={errorId} />
       ) : (
         <input
           id={id}
@@ -93,6 +94,7 @@ function Field({
           onChange={onChange}
           placeholder={placeholder}
           min={type === "number" ? 1 : undefined}
+          aria-invalid={error ? true : undefined}
           aria-describedby={errorId}
         />
       )}
@@ -127,28 +129,32 @@ function CateringForm() {
     return Object.keys(er).length === 0;
   };
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (validate()) {
-      // Opened synchronously inside this click-triggered handler so browsers
-      // don't treat it as an unsolicited popup.
-      window.open(whatsAppUrlFor(form), "_blank", "noopener,noreferrer");
-      // Fire-and-forget: email is a best-effort second channel. A failure here
-      // (logged server-side) never blocks the form or alarms the customer —
-      // the WhatsApp message above is the one guaranteed delivery.
-      fetch("/api/catering-inquiries", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(form),
-      }).catch(() => {});
-      setSent(true);
-      window.scrollTo({ top: e.currentTarget.getBoundingClientRect().top + window.scrollY - 120, behavior: "smooth" });
+    if (!validate()) {
+      focusFirstError(formRef.current);
+      return;
     }
+    // Opened synchronously inside this click-triggered handler so browsers
+    // don't treat it as an unsolicited popup.
+    window.open(whatsAppUrlFor(form), "_blank", "noopener,noreferrer");
+    // Fire-and-forget: email is a best-effort second channel. A failure here
+    // (logged server-side) never blocks the form or alarms the customer —
+    // the WhatsApp message above is the one guaranteed delivery.
+    fetch("/api/catering-inquiries", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(form),
+    }).catch(() => {});
+    setSent(true);
+    window.scrollTo({ top: e.currentTarget.getBoundingClientRect().top + window.scrollY - 120, behavior: "smooth" });
   };
 
   if (sent) {
     return (
-      <div className="card card--ink surface-ink" style={{ color: "var(--cream)", padding: "clamp(28px,5vw,52px)", textAlign: "center" }}>
+      <div className="card card--ink surface-ink done-panel" style={{ color: "var(--cream)", padding: "clamp(28px,5vw,52px)", textAlign: "center" }}>
         <div style={{ fontSize: 56, marginBottom: 10 }}>🎉</div>
         <h3 className="display" style={{ fontSize: "clamp(1.8rem,5vw,2.8rem)", color: "var(--yellow)" }}>Almost done!</h3>
         <p style={{ fontWeight: 500, margin: "14px auto 0", maxWidth: 420, fontSize: "1.05rem" }}>
@@ -176,7 +182,7 @@ function CateringForm() {
   }
 
   return (
-    <form onSubmit={submit} className="card" style={{ background: "var(--white)", padding: "clamp(22px,4vw,36px)" }} noValidate>
+    <form ref={formRef} onSubmit={submit} className="card" style={{ background: "var(--white)", padding: "clamp(22px,4vw,36px)" }} noValidate>
       <h3 className="display" style={{ fontSize: "1.7rem", marginBottom: 6 }}>Request a Catering Quote</h3>
       <p style={{ fontWeight: 500, opacity: 0.75, marginBottom: 24, fontSize: "0.95rem" }}>Tell us about your event — we reply within 24 hours.</p>
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 18 }}>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useState, type ChangeEvent } from "react";
+import { useId, useRef, useState, type ChangeEvent } from "react";
 import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
+import { focusFirstError } from "@/lib/a11y/focus-first-error";
 import { Reveal } from "@/components/brutal/reveal";
 
 export type Ev = { date: string; day: string; title: string; tag: string; spots: number; full: boolean; combo: string };
@@ -27,6 +28,8 @@ function RSVPForm({ preselect }: { preselect?: string }) {
   const [sent, setSent] = useState(false);
   const set = (k: keyof RForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const er: Partial<Record<keyof RForm, string>> = {};
@@ -35,11 +38,12 @@ function RSVPForm({ preselect }: { preselect?: string }) {
     if (!form.event) er.event = "Pick an event";
     setErrors(er);
     if (Object.keys(er).length === 0) setSent(true);
+    else focusFirstError(formRef.current);
   };
 
   if (sent) {
     return (
-      <div className="card card--green surface-green" style={{ color: "#fff", padding: "clamp(26px,5vw,46px)", textAlign: "center" }}>
+      <div className="card card--green surface-green done-panel" style={{ color: "#fff", padding: "clamp(26px,5vw,46px)", textAlign: "center" }}>
         <div style={{ fontSize: 50, marginBottom: 8 }}>📺🎉</div>
         <h3 className="display" style={{ fontSize: "clamp(1.7rem,5vw,2.6rem)" }}>Spot Reserved!</h3>
         <p style={{ fontWeight: 500, margin: "12px auto 0", maxWidth: 400 }}>
@@ -55,22 +59,22 @@ function RSVPForm({ preselect }: { preselect?: string }) {
 
   const open = UPCOMING.filter((e) => !e.full);
   return (
-    <form onSubmit={submit} className="card" style={{ background: "var(--white)", padding: "clamp(22px,4vw,34px)" }} noValidate>
+    <form ref={formRef} onSubmit={submit} className="card" style={{ background: "var(--white)", padding: "clamp(22px,4vw,34px)" }} noValidate>
       <h3 className="display" style={{ fontSize: "1.6rem", marginBottom: 18 }}>Reserve Your Spot</h3>
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))", gap: 16 }}>
         <div className={`field ${errors.name ? "field--err" : ""}`}>
           <label htmlFor={`${formId}-name`}>Name *</label>
-          <input id={`${formId}-name`} className="input" value={form.name} onChange={set("name")} placeholder="Your name" aria-describedby={errors.name ? `${formId}-name-error` : undefined} />
+          <input id={`${formId}-name`} className="input" value={form.name} onChange={set("name")} placeholder="Your name" aria-invalid={errors.name ? true : undefined} aria-describedby={errors.name ? `${formId}-name-error` : undefined} />
           {errors.name && <span id={`${formId}-name-error`} className="err-msg">↑ {errors.name}</span>}
         </div>
         <div className={`field ${errors.phone ? "field--err" : ""}`}>
           <label htmlFor={`${formId}-phone`}>Phone *</label>
-          <input id={`${formId}-phone`} className="input" type="tel" value={form.phone} onChange={set("phone")} placeholder="(416) 000-0000" aria-describedby={errors.phone ? `${formId}-phone-error` : undefined} />
+          <input id={`${formId}-phone`} className="input" type="tel" value={form.phone} onChange={set("phone")} placeholder="(416) 000-0000" aria-invalid={errors.phone ? true : undefined} aria-describedby={errors.phone ? `${formId}-phone-error` : undefined} />
           {errors.phone && <span id={`${formId}-phone-error`} className="err-msg">↑ {errors.phone}</span>}
         </div>
         <div className={`field ${errors.event ? "field--err" : ""}`}>
           <label htmlFor={`${formId}-event`}>Which Event *</label>
-          <select id={`${formId}-event`} className="select" value={form.event} onChange={set("event")} aria-describedby={errors.event ? `${formId}-event-error` : undefined}>
+          <select id={`${formId}-event`} className="select" value={form.event} onChange={set("event")} aria-invalid={errors.event ? true : undefined} aria-describedby={errors.event ? `${formId}-event-error` : undefined}>
             <option value="">Select…</option>
             {open.map((e) => (
               <option key={e.title} value={e.title}>

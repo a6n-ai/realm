@@ -448,6 +448,38 @@ section { position: relative; }
 }
 .err-msg {
   font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--red-deep);
+  /* One rule covers every public form — catering, events and checkout all render
+     their field errors through this class. Rendered only when there is an error,
+     so the entrance cannot replay on an unrelated re-render. */
+  display: inline-block;
+  opacity: 1;
+  transform: none;
+  transition: opacity .15s var(--ease-out), transform .15s var(--ease-out);
+}
+@starting-style {
+  .err-msg { opacity: 0; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .err-msg { transition: none; transform: none; }
+  @starting-style {
+    .err-msg { transform: none; }
+  }
+}
+
+/* Contact rows (tap-to-copy phone, WhatsApp, Instagram). Styled inline rather
+   than as `.btn`, so they never picked up the press feedback every other
+   pressable surface has. */
+.contact-row {
+  width: 100%;
+  cursor: pointer;
+  transition: transform .1s var(--ease-out), box-shadow .1s var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .contact-row:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--sh-c); }
+}
+.contact-row:active { transform: translate(1px, 1px); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  .contact-row { transition: none; }
 }
 
 /* ---------- star rating ---------- */
@@ -1455,17 +1487,17 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   }
 }
 
-/* Paid. The one rare, high-emotion moment on the site, and the only place a
-   stagger is worth the beats it costs. */
-.checkout-done {
+/* Paid, quote requested, seat reserved — the rare, high-emotion end of each
+   public flow, and the only place a stagger is worth the beats it costs. */
+.done-panel {
   opacity: 1;
   transform: none;
   transition: opacity .32s var(--ease-out), transform .32s var(--ease-out);
 }
 @starting-style {
-  .checkout-done { opacity: 0; transform: translateY(10px) scale(.98); }
+  .done-panel { opacity: 0; transform: translateY(10px) scale(.98); }
 }
-.checkout-done > * {
+.done-panel > * {
   opacity: 1;
   transform: none;
   transition:
@@ -1473,18 +1505,18 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
     transform .3s var(--ease-out) var(--d, 0s);
 }
 @starting-style {
-  .checkout-done > * { opacity: 0; transform: translateY(6px); }
+  .done-panel > * { opacity: 0; transform: translateY(6px); }
 }
-.checkout-done > *:nth-child(2) { --d: .06s; }
-.checkout-done > *:nth-child(3) { --d: .12s; }
-.checkout-done > *:nth-child(4) { --d: .18s; }
-.checkout-done > *:nth-child(5) { --d: .24s; }
+.done-panel > *:nth-child(2) { --d: .06s; }
+.done-panel > *:nth-child(3) { --d: .12s; }
+.done-panel > *:nth-child(4) { --d: .18s; }
+.done-panel > *:nth-child(5) { --d: .24s; }
 @media (prefers-reduced-motion: reduce) {
-  .checkout-done,
-  .checkout-done > * { transition: none; transform: none; }
+  .done-panel,
+  .done-panel > * { transition: none; transform: none; }
   @starting-style {
-    .checkout-done,
-    .checkout-done > * { transform: none; }
+    .done-panel,
+    .done-panel > * { transform: none; }
   }
 }
 
