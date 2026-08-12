@@ -256,6 +256,9 @@ importers:
       '@realm/google-reviews':
         specifier: workspace:*
         version: link:../../packages/google-reviews
+      '@realm/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@realm/payments':
         specifier: workspace:*
         version: link:../../packages/payments
