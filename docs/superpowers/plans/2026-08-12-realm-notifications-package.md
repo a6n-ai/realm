@@ -342,9 +342,9 @@ describe("makeNotificationTables", () => {
     expect(event.notNull).toBe(false);
   });
 
-  it("keys suppression on the address, not a user", () => {
+  it("keys suppression on the address, not a user, and scopes it", () => {
     expect(columns(t.messageSuppression)).toEqual(
-      ["address", "app_id", "channel", "created_at", "created_by", "id", "public_id", "reason"],
+      ["address", "app_id", "channel", "created_at", "created_by", "id", "public_id", "reason", "scope"],
     );
   });
 
@@ -390,6 +390,9 @@ export const outboxStatus = pgEnum("notification_outbox_status", [
 
 /** Consent regime. Drives drain priority, opt-out scope and unsubscribe obligations. */
 export const messageKind = pgEnum("message_kind", ["transactional", "marketing"]);
+
+/** How far a suppression reaches. See messageSuppression for why this is not a boolean. */
+export const suppressionScope = pgEnum("suppression_scope", ["all", "marketing"]);
 
 /**
  * Build the notification tables against one app's `users` table and event enum.
@@ -482,16 +485,26 @@ export function makeNotificationTables(deps: {
    * Suppression is a fact about an ADDRESS, not a preference of a user: SES
    * reports a bounce for an email, a carrier reports STOP for a number, and an
    * imported contact has no user row to hang either on.
+   *
+   * `scope` exists because the two sources differ in reach. A hard bounce or a
+   * spam complaint must stop EVERYTHING to that address. An unsubscribe must
+   * stop marketing only — a receipt for an order the person actually placed is
+   * still owed to them, and withholding it is the wrong kind of compliance.
+   * A plain boolean would conflate the two and silently suppress receipts.
    */
   const messageSuppression = pgTable("message_suppression", {
     ...baseColumns("msp"),
     /** Normalized: lowercased email, or E.164 phone. */
     address: text("address").notNull(),
     channel: notificationChannel("channel").notNull(),
+    /** "all" = bounce/complaint/STOP. "marketing" = unsubscribe. */
+    scope: suppressionScope("scope").notNull().default("all"),
     /** bounce | complaint | unsubscribe | manual */
     reason: text("reason").notNull(),
   }, (t) => [
-    uniqueIndex("message_suppression_address_channel_idx").on(t.address, t.channel),
+    // Non-null scope on purpose: a nullable "applies to everything" column would
+    // need NULLS NOT DISTINCT for the unique index to behave.
+    uniqueIndex("message_suppression_address_channel_scope_idx").on(t.address, t.channel, t.scope),
   ]);
 
   /**
@@ -517,7 +530,7 @@ export function makeNotificationTables(deps: {
   ]);
 
   return {
-    notificationChannel, outboxStatus, messageKind,
+    notificationChannel, outboxStatus, messageKind, suppressionScope,
     notifications, notificationOutbox, notificationPrefs,
     notificationTemplate, messageSuppression,
   };
@@ -552,7 +565,7 @@ drizzle-kit generates that app's migration."
 
 **Interfaces:**
 - Consumes: `NotificationTables` (Task 2), `Channel` (Task 1).
-- Produces: `normalizeAddress(address: string): string`; `suppress(db, tables, input: { address: string; channel: Channel; reason: string }): Promise<void>`; `suppressedChannelsFor(db, tables, addresses: string[]): Promise<Channel[]>`.
+- Produces: `SuppressionScope = "all" | "marketing"`; `normalizeAddress(address: string): string`; `suppress(db, tables, input: { address: string; channel: Channel; reason: string; scope?: SuppressionScope }): Promise<void>`; `suppressedChannelsFor(db, tables, addresses: string[], kind?: Kind): Promise<Channel[]>`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -587,10 +600,10 @@ Expected: FAIL — `Failed to resolve import "./suppression"`.
 - [ ] **Step 3: Write `src/suppression.ts`**
 
 ```ts
-import { inArray } from "drizzle-orm";
+import { and, inArray } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { NotificationTables } from "./schema";
-import type { Channel } from "./types";
+import type { Channel, Kind } from "./types";
 
 // Schema generic is loose (matches @realm/database's Database type): these
 // helpers only use the core query builder, and pinning a concrete schema would
@@ -610,37 +623,61 @@ export function normalizeAddress(address: string): string {
   return trimmed.startsWith("+") ? `+${digits}` : digits;
 }
 
-/** Record a bounce, complaint, unsubscribe or manual block. Idempotent. */
+export type SuppressionScope = "all" | "marketing";
+
+/**
+ * Record a bounce, complaint, unsubscribe or manual block. Idempotent.
+ *
+ * `scope` defaults to "all" — the conservative direction. A caller that means
+ * "marketing only" has to say so, because getting it backwards silently
+ * suppresses receipts.
+ */
 export async function suppress(
   db: Db,
   tables: NotificationTables,
-  input: { address: string; channel: Channel; reason: string },
+  input: { address: string; channel: Channel; reason: string; scope?: SuppressionScope },
 ): Promise<void> {
   await db
     .insert(tables.messageSuppression)
     .values({
       address: normalizeAddress(input.address),
       channel: input.channel,
+      scope: input.scope ?? "all",
       reason: input.reason,
     })
     .onConflictDoUpdate({
-      target: [tables.messageSuppression.address, tables.messageSuppression.channel],
+      target: [
+        tables.messageSuppression.address,
+        tables.messageSuppression.channel,
+        tables.messageSuppression.scope,
+      ],
       set: { reason: input.reason },
     });
 }
 
-/** Channels blocked for ANY of the given addresses (a recipient's email + phone). */
+/**
+ * Channels blocked for ANY of the given addresses (a recipient's email + phone),
+ * for a message of this kind. A "marketing"-scoped row blocks only marketing;
+ * an "all"-scoped row blocks both.
+ */
 export async function suppressedChannelsFor(
   db: Db,
   tables: NotificationTables,
   addresses: string[],
+  kind: Kind = "transactional",
 ): Promise<Channel[]> {
   const normalized = addresses.filter(Boolean).map(normalizeAddress);
   if (normalized.length === 0) return [];
+  const scopes: SuppressionScope[] = kind === "marketing" ? ["all", "marketing"] : ["all"];
   const rows = await db
     .select({ channel: tables.messageSuppression.channel })
     .from(tables.messageSuppression)
-    .where(inArray(tables.messageSuppression.address, normalized));
+    .where(
+      and(
+        inArray(tables.messageSuppression.address, normalized),
+        inArray(tables.messageSuppression.scope, scopes),
+      ),
+    );
   return [...new Set(rows.map((r) => r.channel as Channel))];
 }
 ```
@@ -901,7 +938,7 @@ export async function enqueue(
     notifyEmail = user?.notifyEmail as boolean | undefined;
   }
 
-  const suppressed = await suppressedChannelsFor(tx, tables, [email, phone].filter(Boolean) as string[]);
+  const suppressed = await suppressedChannelsFor(tx, tables, [email, phone].filter(Boolean) as string[], kind);
   const allowed = resolveChannels(wanted, prefs, { kind, suppressed, notifyEmail });
   if (allowed.length === 0) return;
 
@@ -1976,7 +2013,9 @@ const log = createLogger("ses-suppression");
  * user id, and an address with no account still must not be retried.
  */
 export async function suppressEmailRecipient(email: string, reason: string): Promise<boolean> {
-  await suppress(db, notificationTables, { address: email, channel: "email", reason });
+  // Bounce/complaint reaches everything: a dead or hostile address must not
+  // receive receipts either.
+  await suppress(db, notificationTables, { address: email, channel: "email", reason, scope: "all" });
   log.info(`suppressed email channel for a bounced/complained address: ${reason}`);
   return true;
 }
