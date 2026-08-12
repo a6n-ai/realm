@@ -508,8 +508,11 @@ Known lead times, for planning only:
 
 ### Parallel, not blocking
 
-- Add `ses:GetAccount` (and SES read actions) to the `realm-admin` IAM policy —
-  only the root-credentialed `default` profile can read send quota today.
+- ~~Add SES read actions to the `realm-admin` IAM policy.~~ **Done** —
+  managed policy `realm-ses-read` (`ses:Get*`/`List*`/`Describe*`, tagged
+  `app=shared`) created and attached. Phase 1 step 8 additionally needs
+  `ses:PutConfigurationSetEventDestination` and SNS write, granted at that point
+  rather than up front.
 - Rotate off root access keys. The `default` profile is
   `arn:aws:iam::<acct>:root`; root access keys are the one credential AWS
   advises deleting outright. Out of scope here, but it is the highest-severity
