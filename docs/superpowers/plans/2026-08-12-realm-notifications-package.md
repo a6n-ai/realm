@@ -2083,8 +2083,15 @@ export interface RealtimeNotification {
 }
 
 export interface UseNotificationsOptions {
-  /** Realtime transport. Returns an unsubscribe function. */
-  subscribe?: (onEvent: (n: RealtimeNotification) => void) => Promise<() => void>;
+  /**
+   * Realtime transport. Returns an unsubscribe function.
+   *
+   * The callback takes an OPTIONAL notification: a transport that carries the
+   * payload (tiffin-grab's AppSync) passes it and the hook prepends it, while a
+   * ping-only transport (@realm/realtime's `{ type: "message" }` frame carries
+   * no payload) calls it with nothing and the hook refetches the feed.
+   */
+  subscribe?: (onEvent: (n?: RealtimeNotification) => void) => Promise<() => void>;
   /** Feed endpoint. Defaults to the convention both apps use. */
   endpoint?: string;
 }
@@ -2093,7 +2100,9 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const endpoint = options.endpoint ?? "/api/notifications";
   // …existing body, with `subscribeNotifications` replaced by `options.subscribe`
   // (skip the live-push effect entirely when it is undefined), and the
-  // markAllRead POST using plain fetch against `endpoint`.
+  // markAllRead POST using plain fetch against `endpoint`. In the live-push
+  // effect, the handler becomes:
+  //   const onEvent = (n?: RealtimeNotification) => { if (n) prepend(n); else void refresh(); };
 }
 ```
 
