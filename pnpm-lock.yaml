@@ -734,12 +734,39 @@ importers:
 
   packages/notifications:
     dependencies:
+      '@react-email/components':
+        specifier: ^1.0.12
+        version: 1.0.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@react-email/editor':
+        specifier: ^1.5.10
+        version: 1.5.10(patch_hash=6c9d940248f055e16e00c9f705e5440d3c75801c7ce0bd34343a8b06df8dfa0b)(@floating-ui/dom@1.7.6)(@tiptap/extension-list@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(happy-dom@20.10.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
+      '@react-email/render':
+        specifier: ^2.0.9
+        version: 2.0.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@realm/commons':
         specifier: workspace:*
         version: link:../commons
       '@realm/database':
         specifier: workspace:*
         version: link:../database
+      '@realm/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@uiw/react-md-editor':
+        specifier: ^4.0.7
+        version: 4.1.1(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
+      prettier:
+        specifier: ^3.9.1
+        version: 3.9.1
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      sucrase:
+        specifier: ^3.35.1
+        version: 3.35.1
     devDependencies:
       '@types/node':
         specifier: ^22

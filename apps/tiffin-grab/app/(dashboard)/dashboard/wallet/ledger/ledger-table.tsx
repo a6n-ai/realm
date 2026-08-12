@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ScrollTextIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
-import { eventLabel } from "@/components/notifications/template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";

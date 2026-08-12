@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
 import { ScrollArea } from "@realm/ui/scroll-area";
 import { Separator } from "@realm/ui/separator";
 import { cn } from "@realm/ui/cn";
-import { useNotifications } from "./use-notifications";
+import { useNotifications, type UseNotificationsOptions } from "./use-notifications";
 
 function timeAgo(ms: number): string {
   const s = Math.max(1, Math.round((Date.now() - ms) / 1000));
@@ -19,8 +19,8 @@ function timeAgo(ms: number): string {
   return `${Math.round(h / 24)}d`;
 }
 
-export function NotificationBell() {
-  const { items, unread, markAllRead } = useNotifications();
+export function NotificationBell(props: UseNotificationsOptions = {}) {
+  const { items, unread, markAllRead } = useNotifications(props);
 
   return (
     <Popover onOpenChange={(open) => open && markAllRead()}>

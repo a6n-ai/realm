@@ -15,7 +15,7 @@ import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { eventLabel } from "./template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
 export interface TemplateChannel {
