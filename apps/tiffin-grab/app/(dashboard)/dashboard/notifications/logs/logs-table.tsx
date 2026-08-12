@@ -12,7 +12,8 @@ import type { LogSortColumn } from "./page";
 
 type Row = {
   publicId: string;
-  event: string;
+  /** Null for a campaign row, which has no business event. */
+  event: string | null;
   channel: string;
   status: string;
   attempts: number;
