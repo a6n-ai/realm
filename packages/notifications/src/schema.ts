@@ -13,6 +13,16 @@ import {
   type PgEnum,
 } from "drizzle-orm/pg-core";
 
+// Re-exported so an app can build both table sets from one import path
+// (`@realm/notifications/schema`), which is what drizzle.config resolves.
+export {
+  makeCampaignTables,
+  campaignStatus,
+  consentSource,
+  type AudienceDef,
+  type CampaignTables,
+} from "./campaign-schema";
+
 /** Delivery channels. email + in_app have handlers; sms/whatsapp are declared for later. */
 export const notificationChannel = pgEnum("notification_channel", [
   "email", "in_app", "sms", "whatsapp",

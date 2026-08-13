@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./policy";
 export * from "./schema";
+export * from "./campaign-schema";
 export * from "./interpolate";
 export * from "./template";
 export * from "./suppression";
