@@ -78,7 +78,11 @@ Resources:
     Properties:
       ConfigurationSetName: !Ref ConfigurationSet
       EventDestination:
-        Name: sns-bounce-complaint
+        # Unique per account, NOT per configuration set: CloudFormation treats
+        # an event destination's physical id as the bare Name, so reusing
+        # tiffin-grab's "sns-bounce-complaint" made CFN believe the resource
+        # already belonged to that stack and the update rolled back.
+        Name: puchkaman-sns-feedback
         Enabled: true
         MatchingEventTypes:
           - BOUNCE
