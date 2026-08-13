@@ -180,10 +180,27 @@ export function makeNotificationTables<
     uniqueIndex("notification_template_key_idx").on(t.event, t.channel, t.locale),
   ]);
 
+  /**
+   * Short-lived phone verification codes. Separate from the auth OTP tables:
+   * this verifies a NUMBER, not an identity, and a customer with no login must
+   * be able to complete it.
+   */
+  const phoneVerification = pgTable("phone_verification", {
+    ...baseColumns("phv"),
+    phone: text("phone").notNull(),
+    /** Hashed, never the plaintext code. */
+    codeHash: text("code_hash").notNull(),
+    expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    consumedAt: bigint("consumed_at", { mode: "number" }),
+  }, (t) => [
+    index("phone_verification_phone_idx").on(t.phone, t.expiresAt),
+  ]);
+
   return {
     notificationChannel, outboxStatus, messageKind, suppressionScope,
     notifications, notificationOutbox, notificationPrefs,
-    notificationTemplate, messageSuppression,
+    notificationTemplate, messageSuppression, phoneVerification,
   };
 }
 

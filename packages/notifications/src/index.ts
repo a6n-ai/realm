@@ -9,6 +9,7 @@ export * from "./unsubscribe";
 export * from "./audience";
 export * from "./campaign";
 export * from "./csv";
+export * from "./phone";
 export * from "./enqueue";
 export * from "./handlers";
 export * from "./drain";

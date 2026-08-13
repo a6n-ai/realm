@@ -33,4 +33,5 @@ export const {
   notificationPrefs,
   notificationTemplate,
   messageSuppression,
+  phoneVerification,
 } = baseNotificationTables;
