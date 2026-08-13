@@ -1,5 +1,5 @@
 import { createLogger } from "@realm/commons/logger";
-import { drainPending } from "@/lib/notifications/drain";
+import { drainPending, materializeDue } from "@/lib/notifications/drain";
 
 const log = createLogger("notify-drainer");
 
@@ -10,6 +10,8 @@ export interface DrainLoopOptions {
   signal?: AbortSignal;
   /** Injected for tests. */
   drain?: () => Promise<number>;
+  /** Injected for tests. */
+  materialize?: () => Promise<number>;
 }
 
 /**
@@ -26,7 +28,16 @@ export interface DrainLoopOptions {
  */
 export async function drainLoop(opts: DrainLoopOptions): Promise<void> {
   const drain = opts.drain ?? (() => drainPending());
+  const materialize = opts.materialize ?? materializeDue;
   while (!opts.signal?.aborted) {
+    try {
+      const queued = await materialize();
+      if (queued > 0) log.info({ queued }, "campaign materialized");
+    } catch (err) {
+      // Kept separate from the drain try/catch below: a broken segment query
+      // must not stop transactional mail from going out.
+      log.error({ err }, "campaign materialization failed");
+    }
     try {
       const n = await drain();
       if (n > 0) log.info({ processed: n }, "drained");

@@ -24,3 +24,36 @@ describe("drainLoop", () => {
     expect(drain).not.toHaveBeenCalled();
   });
 });
+
+describe("drainLoop campaign materialization", () => {
+  it("materializes due campaigns before draining", async () => {
+    const controller = new AbortController();
+    const order: string[] = [];
+    const materialize = vi.fn(async () => {
+      order.push("materialize");
+      return 0;
+    });
+    const drain = vi.fn(async () => {
+      order.push("drain");
+      controller.abort();
+      return 0;
+    });
+
+    await drainLoop({ intervalMs: 0, signal: controller.signal, drain, materialize });
+    expect(order).toEqual(["materialize", "drain"]);
+  });
+
+  it("still drains when campaign materialization throws", async () => {
+    const controller = new AbortController();
+    const materialize = vi.fn(async () => {
+      throw new Error("segment query blew up");
+    });
+    const drain = vi.fn(async () => {
+      controller.abort();
+      return 0;
+    });
+
+    await drainLoop({ intervalMs: 0, signal: controller.signal, drain, materialize });
+    expect(drain).toHaveBeenCalled();
+  });
+});
