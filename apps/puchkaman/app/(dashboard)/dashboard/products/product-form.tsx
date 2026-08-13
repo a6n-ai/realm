@@ -280,7 +280,7 @@ export function ProductForm({
             render={({ field }) => (
               <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-3">
                 <span className="text-sm font-medium">
-                  Featured — shown in Best Sellers on the home page
+                  Best Selling Product — shown in Best Sellers on the home page
                 </span>
                 <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
               </label>

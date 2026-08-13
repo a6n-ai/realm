@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { ADDRESS, PHONE_TEL } from "@/lib/links";
-import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
+import { ADDRESS, LOCATIONS, PHONE_TEL } from "@/lib/links";
 
 export const SITE_NAME = "Puchkaman";
 export const SITE_URL = "https://puchkaman.ca";
@@ -56,39 +55,55 @@ export function buildMetadata({
   };
 }
 
-/** Site-wide Organization + Restaurant (LocalBusiness) structured data — injected once in the root layout. */
+/**
+ * One Restaurant entry per LOCATIONS entry — injected once in the root layout
+ * (one <script> per location, see app/layout.tsx). Search engines model a
+ * multi-location business as multiple LocalBusiness/Restaurant nodes sharing
+ * a brand name, not one node with two addresses.
+ *
+ * Only Scarborough has known phone/hours (it's the operating location — see
+ * the comment on ADDRESS in lib/links.ts); Delta's entry omits those fields
+ * rather than guessing them. Both entries share `sameAs`/branding.
+ */
 export function localBusinessJsonLd() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Restaurant",
-    "@id": `${SITE_URL}/#business`,
-    name: SITE_NAME,
-    url: SITE_URL,
-    image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
-    logo: `${SITE_URL}/logo.webp`,
-    telephone: PHONE_TEL,
-    servesCuisine: ["Indian Street Food", "Fusion", "Chaat"],
-    priceRange: "$$",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "3315 Danforth Ave",
-      addressLocality: "Scarborough",
-      addressRegion: "ON",
-      addressCountry: "CA",
-    },
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: DEFAULT_STORE_LAT,
-      longitude: DEFAULT_STORE_LNG,
-    },
-    openingHoursSpecification: OPENING_HOURS.map((h) => ({
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: h.days,
-      opens: h.opens,
-      closes: h.closes,
-    })),
-    sameAs: [INSTAGRAM_URL],
-  };
+  return LOCATIONS.map((loc) => {
+    const isScarborough = loc.city === "Scarborough";
+    return {
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "@id": `${SITE_URL}/#business-${loc.city.toLowerCase()}`,
+      name: `${SITE_NAME} — ${loc.city}, ${loc.province}`,
+      url: SITE_URL,
+      image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
+      logo: `${SITE_URL}/logo.webp`,
+      ...(isScarborough ? { telephone: PHONE_TEL } : {}),
+      servesCuisine: ["Indian Street Food", "Fusion", "Chaat"],
+      priceRange: "$$",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: loc.addressLines[0],
+        addressLocality: loc.city,
+        addressRegion: loc.province,
+        addressCountry: "CA",
+      },
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: loc.lat,
+        longitude: loc.lng,
+      },
+      ...(isScarborough
+        ? {
+            openingHoursSpecification: OPENING_HOURS.map((h) => ({
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: h.days,
+              opens: h.opens,
+              closes: h.closes,
+            })),
+          }
+        : {}),
+      sameAs: [INSTAGRAM_URL],
+    };
+  });
 }
 
 /** Home → current page breadcrumb, matching the small visible breadcrumb rendered on inner pages. */

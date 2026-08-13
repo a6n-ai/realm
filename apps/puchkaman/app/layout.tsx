@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   ...buildMetadata({
     title: `${SITE_NAME} · Toronto's First Fusion Puchka Spot · Scarborough`,
     description:
-      "Puchkaman — Scarborough's fusion puchka & Indian street food spot. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering across the GTA.",
+      "Puchkaman — fusion puchka & Indian street food, now in two cities: Scarborough, ON and Delta, BC. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering.",
     path: "/",
   }),
   // No icons override here — app/icon.png already handles the favicon via
@@ -29,6 +29,9 @@ export const metadata: Metadata = {
 };
 
 const businessJsonLd = localBusinessJsonLd();
+// One node per storefront (see localBusinessJsonLd's doc comment) — each gets
+// its own <script>, not one array in a single tag, since Google's structured
+// data tooling expects one JSON-LD object (or one top-level @graph) per block.
 
 // Migrate legacy marketing-only key → shared @realm/themes key, then apply
 // `.dark` + `data-theme` before first paint (same contract as tiffin-grab).
@@ -57,10 +60,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <InlineScript html={THEME_BOOT} />
         {filesOrigin && <link rel="preconnect" href={filesOrigin} />}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
-        />
+        {/* businessJsonLd is built entirely from static, developer-authored
+            config (SITE_NAME, LOCATIONS, PHONE_TEL) in lib/seo.ts — no user
+            input reaches this JSON.stringify, same as the single-object
+            version this replaces. */}
+        {businessJsonLd.map((biz) => (
+          <script
+            key={biz["@id"]}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(biz) }}
+          />
+        ))}
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>

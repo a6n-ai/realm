@@ -4,24 +4,41 @@ import { Reveal } from "@/components/brutal/reveal";
 import { OrderPaths } from "@/components/order/order-paths";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { getDeliveryTypes } from "@/lib/delivery/zones.service";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Order Puchkaman Online — Pickup & Delivery in Scarborough",
-  description:
-    "Order Puchkaman for pickup in ~15 min, instant delivery within 7km at 15% off, or scheduled delivery across the GTA. Also on Uber Eats & DoorDash.",
-  path: "/order",
-});
+// Reads live delivery-type config (instant discount %, scheduled minimum) so
+// the numbers this page advertises can never drift from what checkout
+// actually charges. force-dynamic for the same reason as the homepage (see
+// its identical comment) — the CI build has no real DB, so a static/ISR page
+// here would fail to prerender.
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const types = await getDeliveryTypes();
+  const instantPct = types.find((t) => t.key === "instant")?.discountPct ?? 0;
+  return buildMetadata({
+    title: "Order Puchkaman Online — Pickup & Delivery in Scarborough",
+    description:
+      `Order Puchkaman for pickup in ~15 min, instant delivery within 7km${instantPct > 0 ? ` at ${Math.round(instantPct)}% off` : ""}, or scheduled delivery across the GTA. Also on Uber Eats & DoorDash.`,
+    path: "/order",
+  });
+}
 
 const breadcrumb = breadcrumbJsonLd([
   { name: "Home", path: "/" },
   { name: "Order Online", path: "/order" },
 ]);
 
-const WHY: [string, string][] = [
-  ["No app fees", "Ordering direct is 15% cheaper nearby, and every dollar goes to the food."],
-  ["Freshest crunch", "Puchkas eaten minutes after assembly hit different. Shorter trip, better bite."],
-  ["Straight to the kitchen", "Your order lands on the counter POS the moment it's paid — nothing gets relayed."],
-];
+function buildWhy(instantPct: number): [string, string][] {
+  return [
+    [
+      "No app fees",
+      `Ordering direct is${instantPct > 0 ? ` ${Math.round(instantPct)}% cheaper nearby, and` : ""} every dollar goes to the food.`,
+    ],
+    ["Freshest crunch", "Puchkas eaten minutes after assembly hit different. Shorter trip, better bite."],
+    ["Straight to the kitchen", "Your order lands on the counter POS the moment it's paid — nothing gets relayed."],
+  ];
+}
 
 // Secondary channel by design: the apps exist for people already in them, and
 // for addresses outside our own delivery range. SkipTheDishes is not live.
@@ -40,9 +57,16 @@ const APPS = [
   },
 ];
 
-export default function OrderPage() {
+export default async function OrderPage() {
+  const types = await getDeliveryTypes();
+  const instantType = types.find((t) => t.key === "instant");
+  const scheduledType = types.find((t) => t.key === "scheduled");
+  const why = buildWhy(instantType?.discountPct ?? 0);
+
   return (
     <div>
+      {/* breadcrumb is static, developer-authored JSON-LD (see breadcrumbJsonLd
+          in lib/seo.ts) — no user input reaches this JSON.stringify. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageBanner
         kicker="Order Online"
@@ -57,7 +81,10 @@ export default function OrderPage() {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap" style={{ maxWidth: 1040 }}>
           <Reveal>
-            <OrderPaths />
+            <OrderPaths
+              instantDiscountPct={instantType?.discountPct ?? 0}
+              scheduledMinSubtotal={scheduledType?.minSubtotal ?? 0}
+            />
           </Reveal>
 
           <div className="card card--cream order-why">
@@ -65,7 +92,7 @@ export default function OrderPage() {
               Why Order Direct?
             </h2>
             <div className="grid order-why__grid">
-              {WHY.map(([title, body]) => (
+              {why.map(([title, body]) => (
                 <div key={title}>
                   <h3 style={{ fontSize: "1.08rem", marginBottom: 6 }}>{title}</h3>
                   <p style={{ fontWeight: 500, opacity: 0.82, fontSize: "0.92rem", textWrap: "pretty" }}>

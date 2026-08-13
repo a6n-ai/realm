@@ -2410,7 +2410,7 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 .faq[open] .faq__mark i { background: #fff; transform: rotate(45deg); }
 .faq[open] .faq__mark i + i { transform: rotate(-45deg); }
 
-.faq__a { padding: 0 18px 18px; }
+.faq__a { padding: 14px 18px 18px; }
 .faq__a p {
   font-weight: 500;
   line-height: 1.55;

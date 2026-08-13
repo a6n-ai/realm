@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { StaticMap } from "@/components/map/static-map";
-import { ADDRESS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
+import { ADDRESS, LOCATIONS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 import { INSTAGRAM_URL } from "@/lib/seo";
+
+// Only Scarborough (the operating location) has known phone/hours — Delta
+// gets its own, lighter card below rather than a fabricated symmetric one.
+const DELTA = LOCATIONS.find((l) => l.city === "Delta")!;
 
 const HOURS: [string, string][] = [
   ["Sun – Thu", "3:00pm – 2:00am"],
@@ -37,7 +41,7 @@ export function ContactView() {
       <PageBanner
         kicker="Find Us"
         title="Come Say Hi"
-        sub="We're on Danforth Ave in Scarborough. Pull up, call ahead, or slide into our DMs."
+        sub="We're on Danforth Ave in Scarborough, and now in Delta, BC too. Pull up, call ahead, or slide into our DMs."
         bg="var(--ink)"
         color="var(--cream)"
         crumb="Contact"
@@ -49,7 +53,7 @@ export function ContactView() {
             {/* info column */}
             <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
               <div className="card" style={{ background: "var(--white)", padding: 24 }}>
-                <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Location</h3>
+                <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Scarborough, ON</h3>
                 <p style={{ fontWeight: 600, fontSize: "1.05rem" }}>
                   3315 Danforth Ave
                   <br />
@@ -136,6 +140,38 @@ export function ContactView() {
                   Live puchka & chaat catering across the GTA — birthdays, offices, weddings & watch parties.
                 </p>
                 <Btn page="catering" variant="green" size="lg" block>Request a Catering Quote →</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* second storefront — lighter card than Scarborough's above since only
+          the address is confirmed yet (no published phone/hours for Delta). */}
+      <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
+        <div className="wrap">
+          <h2 className="display" style={{ fontSize: "1.7rem", marginBottom: 20 }}>Also in Delta, BC</h2>
+          <div className="contact-grid" style={{ display: "grid", gap: 24 }}>
+            <div className="card" style={{ background: "var(--white)", padding: 24, alignSelf: "start" }}>
+              <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC</h3>
+              <p style={{ fontWeight: 600, fontSize: "1.05rem" }}>
+                {DELTA.addressLines[0]}
+                <br />
+                {DELTA.addressLines[1]}
+              </p>
+              <button onClick={() => copy("delta-addr", DELTA.fullAddress)} className="btn btn--sm" style={{ marginTop: 14 }}>
+                {copied === "delta-addr" ? "✓ Copied!" : "📋 Copy Address"}
+              </button>
+            </div>
+            <div className="card" style={{ overflow: "hidden", padding: 0 }}>
+              <StaticMap
+                center={{ lat: DELTA.lat, lng: DELTA.lng }}
+                markers={[{ lat: DELTA.lat, lng: DELTA.lng, color: "#111", title: DELTA.fullAddress }]}
+                zoom={14}
+                heightPx={260}
+              />
+              <div style={{ padding: 16, borderTop: "var(--border)", background: "var(--white)" }}>
+                <a href={DELTA.directionsUrl} target="_blank" rel="noopener noreferrer" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>
               </div>
             </div>
           </div>
