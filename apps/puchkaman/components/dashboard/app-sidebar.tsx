@@ -15,6 +15,7 @@ import {
   ReceiptIcon,
   PuzzleIcon,
   ScrollTextIcon,
+  BellIcon,
   SettingsIcon,
   TruckIcon,
   UserIcon,
@@ -115,6 +116,7 @@ export function getNavSections(opts: {
     label: "Administration",
     items: [
       { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon },
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
       { title: "Delivery", href: "/dashboard/settings/delivery/options", icon: TruckIcon },
       { title: "Integrations", href: "/dashboard/settings/integrations", icon: PuzzleIcon },
