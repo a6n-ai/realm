@@ -83,6 +83,13 @@ Resources:
         MatchingEventTypes:
           - BOUNCE
           - COMPLAINT
+          # DELIVERY/OPEN/CLICK feed campaign stats. OPEN and CLICK additionally
+          # need the configuration set's TrackingOptions; without a validated
+          # CustomRedirectDomain SES uses its own awstrack.me domain, which works
+          # but shows that host on link hover.
+          - DELIVERY
+          - OPEN
+          - CLICK
         SnsDestination:
           TopicARN: !Ref FeedbackTopic
 
