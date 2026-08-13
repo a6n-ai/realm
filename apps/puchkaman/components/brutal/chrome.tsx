@@ -9,7 +9,7 @@ import { NavCartButton } from "@/components/cart/nav-cart-button";
 import { useCart } from "@/components/cart/cart-provider";
 import { IconBike } from "./icons";
 import { Btn } from "./shared";
-import { PHONE_DISPLAY } from "@/lib/links";
+import { LOCATIONS, PHONE_DISPLAY } from "@/lib/links";
 
 /* [route-name, long label, short label] */
 export const NAV_LINKS: [string, string, string][] = [
@@ -262,14 +262,16 @@ export function Footer() {
             <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
               Visit Us
             </h2>
-            <div style={{ display: "grid", gap: 12, fontWeight: 500 }}>
-              <p>
-                📍 3315 Danforth Ave,
-                <br />
-                Scarborough, ON
-              </p>
-              <p>📞 {PHONE_DISPLAY}</p>
-              <p>🕑 Sun–Thu 3pm–2am · Fri–Sat 3pm–3am</p>
+            <div style={{ display: "grid", gap: 16, fontWeight: 500 }}>
+              {LOCATIONS.map((loc) => (
+                <p key={loc.city} style={{ margin: 0 }}>
+                  📍 {loc.addressLines[0]},
+                  <br />
+                  {loc.addressLines[1]}
+                </p>
+              ))}
+              <p style={{ margin: 0 }}>📞 {PHONE_DISPLAY}</p>
+              <p style={{ margin: 0 }}>🕑 Sun–Thu 3pm–2am · Fri–Sat 3pm–3am <span style={{ opacity: 0.7 }}>(Scarborough)</span></p>
               <div className="flex wrap-gap" style={{ marginTop: 4 }}>
                 <Link href="/contact" className="pill pill--yellow">
                   Instagram ↗
@@ -293,7 +295,7 @@ export function Footer() {
             fontFamily: "var(--mono)",
           }}
         >
-          <span>© 2026 Puchkaman · Scarborough, GTA</span>
+          <span>© 2026 Puchkaman · Scarborough, ON & Delta, BC</span>
           <div className="flex wrap-gap" style={{ gap: 14 }}>
             <Link href="/faq" className="foot-link">
               FAQ

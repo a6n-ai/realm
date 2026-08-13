@@ -8,6 +8,7 @@ import { Reveal } from "@/components/brutal/reveal";
 import { FaqAccordion } from "@/components/brutal/faq-accordion";
 import { FAQS } from "@/lib/faq";
 import { HeroVideo } from "@/components/brutal/hero-video";
+import { LocationsSection } from "@/components/brutal/locations-section";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
@@ -16,9 +17,9 @@ import { getReviewsSummary } from "@realm/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Puchkaman · Toronto's First Fusion Puchka Spot · Scarborough",
+  title: "Puchkaman · Toronto's First Fusion Puchka Spot · Scarborough & Delta",
   description:
-    "Puchkaman — Scarborough's fusion puchka & Indian street food spot. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering across the GTA.",
+    "Puchkaman — fusion puchka & Indian street food, now in two cities: Scarborough, ON and Delta, BC. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering.",
   path: "/",
 });
 
@@ -291,6 +292,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <LocationsSection />
 
       {/* ===== REVIEWS ===== */}
       {reviews && reviews.reviews.length > 0 ? (
