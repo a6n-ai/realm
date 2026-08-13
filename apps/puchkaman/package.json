@@ -30,6 +30,7 @@
     "@realm/places": "workspace:*",
     "@realm/realtime": "workspace:*",
     "@realm/routes": "workspace:*",
+    "@realm/sms": "workspace:*",
     "@realm/storage": "workspace:*",
     "@realm/themes": "workspace:*",
     "@realm/ui": "workspace:*",
