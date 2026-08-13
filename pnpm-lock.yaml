@@ -66,6 +66,9 @@ importers:
       '@realm/google-reviews':
         specifier: workspace:*
         version: link:../../packages/google-reviews
+      '@realm/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@realm/order-tracking':
         specifier: workspace:*
         version: link:../../packages/order-tracking
