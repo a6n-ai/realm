@@ -1,7 +1,15 @@
 import { eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { CampaignTables } from "./campaign-schema";
 import type { NotificationTables } from "./schema";
-import { renderEmailForEvent, renderInAppForEvent } from "./template";
+import {
+  appendUnsubscribeFooter,
+  renderCampaignEmail,
+  renderCampaignText,
+  renderEmailForEvent,
+  renderInAppForEvent,
+} from "./template";
+import { buildUnsubscribeUrl } from "./unsubscribe";
 import type { Channel, ChannelProvider } from "./types";
 import type { UsersRef } from "./enqueue";
 
@@ -60,6 +68,15 @@ export interface HandlerDeps {
   users: UsersRef;
   providers: Partial<Record<Channel, ChannelProvider>>;
   broadcast: BroadcastFn;
+  /**
+   * Campaign tables + the footer every commercial message must carry. Omitted,
+   * campaign rows are skipped rather than sent without an unsubscribe link.
+   */
+  campaigns?: {
+    tables: CampaignTables;
+    unsubscribe: { baseUrl: string; secret: string };
+    sender: { name: string; postalAddress: string };
+  };
 }
 
 function payloadParts(row: OutboxRow) {
@@ -94,9 +111,16 @@ export function buildHandlers(deps: HandlerDeps): Record<Channel, ChannelHandler
     if (row.recipientId === null) return null; // no feed without an account
     const { href, vars } = payloadParts(row);
     const user = await loadUser(row.recipientId);
-    const rendered = row.event
-      ? await renderInAppForEvent(db, tables, row.event, user?.locale ?? "en", vars)
-      : { title: row.payload.title as string, body: row.payload.body as string };
+    const locale = user?.locale ?? "en";
+    // A campaign row carries no event and empty payload title/body — its copy
+    // lives in campaign_content, so rendering from the payload would insert a
+    // blank feed row.
+    const rendered =
+      row.campaignId && deps.campaigns
+        ? await renderCampaignText(db, deps.campaigns.tables, row.campaignId, "in_app", locale, vars)
+        : row.event
+          ? await renderInAppForEvent(db, tables, row.event, locale, vars)
+          : { title: row.payload.title as string, body: row.payload.body as string };
     if (!rendered) return null;
 
     const [n] = await db
@@ -132,9 +156,29 @@ export function buildHandlers(deps: HandlerDeps): Record<Channel, ChannelHandler
       if (!target) return null;
 
       if (channel === "email") {
-        const rendered = row.event
-          ? await renderEmailForEvent(db, tables, row.event, target.locale, vars)
-          : null;
+        let rendered: { subject: string; html: string; text: string } | null = null;
+        if (row.campaignId && deps.campaigns) {
+          const base = await renderCampaignEmail(
+            db,
+            deps.campaigns.tables,
+            row.campaignId,
+            target.locale,
+            vars,
+          );
+          if (base) {
+            const { unsubscribe, sender } = deps.campaigns;
+            rendered = {
+              subject: base.subject,
+              ...appendUnsubscribeFooter(base, {
+                url: buildUnsubscribeUrl(unsubscribe.baseUrl, unsubscribe.secret, target.address),
+                sender: sender.name,
+                address: sender.postalAddress,
+              }),
+            };
+          }
+        } else if (row.event) {
+          rendered = await renderEmailForEvent(db, tables, row.event, target.locale, vars);
+        }
         if (!rendered) return null; // no DB template → don't send
         return provider.send({
           to: { email: target.address },
@@ -145,6 +189,23 @@ export function buildHandlers(deps: HandlerDeps): Record<Channel, ChannelHandler
       }
 
       // sms / whatsapp: body text plus an optional provider-side template id.
+      if (row.campaignId && deps.campaigns) {
+        const c = await renderCampaignText(
+          db,
+          deps.campaigns.tables,
+          row.campaignId,
+          channel,
+          target.locale,
+          vars,
+        );
+        if (!c) return null;
+        return provider.send({
+          to: { phone: target.address },
+          text: c.body,
+          providerTemplateId: c.providerTemplateId ?? undefined,
+          vars,
+        });
+      }
       const rendered = row.event
         ? await renderInAppForEvent(db, tables, row.event, target.locale, vars)
         : null;
