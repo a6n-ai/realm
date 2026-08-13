@@ -14,6 +14,7 @@ import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
+import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -51,7 +52,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             />
           }
           breadcrumbs={<AppBreadcrumbs />}
-          actions={<ModeToggle />}
+          actions={
+            <>
+              <NotificationBellMount userPublicId={session.user.id} />
+              <ModeToggle />
+            </>
+          }
           bottomNav={<AppBottomNav statuses={statuses} />}
         >
           {children}
