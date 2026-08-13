@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
@@ -66,14 +67,16 @@ const typeService = new TypeService(
   new UpdatableRepository(db, deliveryTypes, deliveryTypes.publicId, deliveryTypes.id),
 );
 
-export async function getDeliveryTypes(): Promise<DeliveryType[]> {
+// Cached per-request (React cache()) — order/page.tsx calls this from both
+// generateMetadata() and the page body, and both run within the same request.
+export const getDeliveryTypes = cache(async (): Promise<DeliveryType[]> => {
   const rows = await db
     .select()
     .from(deliveryTypes)
     .where(eq(deliveryTypes.active, true))
     .orderBy(deliveryTypes.sortOrder);
   return rows.map(rowToType);
-}
+});
 
 /** Every delivery type, retired included — the catalogue admin manages both, unlike {@link getDeliveryTypes}. */
 export async function getAllDeliveryTypes(): Promise<DeliveryType[]> {

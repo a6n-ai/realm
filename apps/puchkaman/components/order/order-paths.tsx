@@ -12,7 +12,15 @@ import { money } from "@/lib/cart/types";
  * checkout, so the page's job is only to route — the delivery card asks for an
  * address because that's the one thing pickup doesn't need.
  */
-export function OrderPaths() {
+export function OrderPaths({
+  instantDiscountPct,
+  scheduledMinSubtotal,
+}: {
+  /** delivery_types.discount_pct for the "instant" (≤7km) type — admin-configured, see Settings → Delivery. */
+  instantDiscountPct: number;
+  /** delivery_types.min_subtotal for the "scheduled" (>7km) type. */
+  scheduledMinSubtotal: number;
+}) {
   const { count, subtotal, openDrawer, hydrated, orderingEnabled } = useCart();
   const hasItems = hydrated && count > 0;
 
@@ -82,11 +90,17 @@ export function OrderPaths() {
           check is what decides which one the customer gets. */}
       <div className="card order-path" style={{ background: "var(--white)" }}>
         <div>
-          <Pill variant="green">15% off nearby</Pill>
+          {instantDiscountPct > 0 ? (
+            <Pill variant="green">{Math.round(instantDiscountPct)}% off nearby</Pill>
+          ) : (
+            <Pill variant="green">Delivered by us</Pill>
+          )}
           <h2 className="display order-path__title">Delivery</h2>
           <p className="order-path__lede">
-            We deliver it ourselves, so none of it goes to an app. Within 7km it&apos;s instant and
-            15% cheaper; past that you pick a time slot up to a day ahead, $35 minimum.
+            We deliver it ourselves, so none of it goes to an app. Within 7km it&apos;s instant
+            {instantDiscountPct > 0 ? ` and ${Math.round(instantDiscountPct)}% cheaper` : ""}; past
+            that you pick a time slot up to a day ahead
+            {scheduledMinSubtotal > 0 ? `, ${money(scheduledMinSubtotal)} minimum` : ""}.
           </p>
         </div>
         <DeliveryChecker />
