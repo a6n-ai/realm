@@ -19,6 +19,31 @@ import { sendAuthOtp } from "./security-events";
 const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
+/**
+ * Sign-in gate. Only an ACTIVE STAFF account may obtain a session.
+ *
+ * Runs after the credential check but before a session row is written, so it
+ * covers every sign-in method at once rather than each route separately.
+ * `role: "user"` is a customer record provisioned by checkout — it has no
+ * credential, but this is the guard that must hold if one is ever added,
+ * because an OTP or social flow mints a session without ever consulting the
+ * account table. Exported for tests.
+ */
+export async function assertSessionAllowed(userId: bigint): Promise<void> {
+  const [u] = await db
+    .select({ status: users.status, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!u) return;
+  if (u.role === "user") {
+    throw new APIError("FORBIDDEN", { message: "This account has no sign-in access." });
+  }
+  if (u.status !== "active") {
+    throw new APIError("FORBIDDEN", { message: "This account is not active. Contact an administrator." });
+  }
+}
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
@@ -126,14 +151,7 @@ export const auth = betterAuth({
       // (see the dashboard layout).
       create: {
         before: async (sess) => {
-          const [u] = await db
-            .select({ status: users.status })
-            .from(users)
-            .where(eq(users.id, BigInt(sess.userId as string)))
-            .limit(1);
-          if (u && u.status !== "active") {
-            throw new APIError("FORBIDDEN", { message: "This account is not active. Contact an administrator." });
-          }
+          await assertSessionAllowed(BigInt(sess.userId as string));
         },
       },
       delete: {
