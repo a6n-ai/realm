@@ -20,6 +20,25 @@ export const PUBLIC_API = [
   // see app/api/files/[...key]/route.ts); POST /upload still enforces
   // requireAdmin() inside the handler itself, so this doesn't weaken it.
   "/api/files",
+  // Machine-to-machine callbacks. None of these can carry a session cookie, and
+  // each authenticates itself in the handler rather than relying on one:
+  // /webhooks/ses verifies the SNS signature, /webhooks/twilio/* verifies the
+  // Twilio signature. Without this entry SNS's subscription confirmation POST
+  // gets a 401 and the subscription never confirms — bounces would silently
+  // never reach the database.
+  "/api/webhooks",
+  // Clicked from an email by someone who may have no account at all. The HMAC
+  // token IS the auth (see @realm/notifications/unsubscribe); requiring a
+  // session would make the unsubscribe link non-functional, which is the one
+  // thing CASL does not forgive.
+  "/api/unsubscribe",
+  // Operator/worker kick for the outbox. Guarded by the DRAIN_SECRET header.
+  // Exact-match only, so it does not open /api/notifications/templates or
+  // /api/notifications/campaigns — those stay behind the cookie gate.
+  "/api/notifications/drain",
+  // Customers have no login, so phone verification cannot sit behind a session.
+  // Both routes are rate limited per number and per IP in the handler.
+  "/api/account/phone",
 ];
 
 function unauthorized(): NextResponse {
