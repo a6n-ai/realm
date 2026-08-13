@@ -797,6 +797,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         title: "New order",
         body: `${parsed.contact.name} — ${row.publicId}`,
         href: `/dashboard/orders/${row.publicId}`,
+        // Staff templates render from the same vars as the customer's. Omitting
+        // `data` is silent: {{order.publicId}} interpolates to an empty string
+        // rather than failing, so the notification just reads "Order ".
+        data: {
+          order: { publicId: row.publicId, total: String(row.total), name: parsed.contact.name },
+        },
         dedupeKey: `${row.publicId}:order_placed:staff`,
       });
 
@@ -1228,6 +1234,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       title: "Payment failed",
       body: order.publicId,
       href: `/dashboard/orders/${order.publicId}`,
+      data: { order: { publicId: order.publicId, total: String(order.total) } },
       dedupeKey: `${order.publicId}:payment_failed:${cloverChargeId ?? "none"}`,
     });
 
@@ -1334,6 +1341,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       title: "Order paid",
       body: order.publicId,
       href: `/dashboard/orders/${order.publicId}`,
+      data: { order: { publicId: order.publicId, total: String(order.total) } },
       dedupeKey: `${order.publicId}:order_paid:staff`,
     });
 
