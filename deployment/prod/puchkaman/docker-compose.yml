@@ -46,6 +46,17 @@ services:
     profiles:
       - tools
 
+  # Outbox drainer. Deliberately has NO `profiles:` key — unlike migrate this is
+  # a long-lived service that must come up with the stack, not a one-shot tool.
+  # Polls rather than using LISTEN/NOTIFY: pgbouncer runs in transaction pooling
+  # mode, where a LISTEN binds to a backend that gets handed to the next client.
+  drainer:
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/puchkaman-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
+    env_file: .env.production
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "puchkaman", "exec", "tsx", "workers/notify-drainer.ts"]
+
 # Box B's own edge network — created once (`docker network create edge`) and
 # joined by ../proxy's Caddy and this web service.
 networks:
