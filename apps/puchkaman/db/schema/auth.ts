@@ -4,12 +4,18 @@ import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex }
 
 const nextIdText = sql`(next_id())::text`;
 
-// Staff only. Orders never provision an account here — guest checkout plus the
-// order-tracking plugin covers customers deliberately — so "user" is retained in the
-// enum for compatibility but is never assigned. The default is "member" so a row that
-// somehow arrives without an explicit role still lands on a role the permission map
-// knows; "user" would fail every check silently.
+// Staff sign in; customers do not. "admin" and "member" are staff roles. "user" is a
+// CUSTOMER record provisioned by checkout so notifications have a recipient and orders
+// have an owner — it is created with NO credential row and is rejected outright by the
+// session.create.before hook, so it can never obtain a session. The default is "member"
+// so a row that somehow arrives without an explicit role still lands on a role the
+// permission map knows.
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
+
+// Template locale. `en` only today; the column exists so notification_template's
+// (event, channel, locale) key has a real domain and adding a language later is
+// a migration rather than a redesign.
+export const locale = pgEnum("locale", ["en", "fr"]);
 
 // Account lifecycle. Only "active" may obtain a session — enforced in
 // lib/auth/index.ts's session.create.before hook and re-checked on the read path.
@@ -25,6 +31,11 @@ export const users = pgTable(
     email: text("email"),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
+    locale: locale("locale").notNull().default("en"),
+    // Customers arrive by guest checkout, so the phone is the order's phone
+    // until someone verifies it. Unverified numbers must never receive SMS.
+    phone: text("phone"),
+    phoneVerified: boolean("phone_verified").notNull().default(false),
     role: userRole("role").notNull().default("member"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
