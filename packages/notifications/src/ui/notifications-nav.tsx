@@ -4,18 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@realm/ui/cn";
 
-const TABS = [
+export interface NavTab {
+  href: string;
+  label: string;
+}
+
+/** Every app has these; campaigns are opt-in per app (see the `tabs` prop). */
+const DEFAULT_TABS: NavTab[] = [
   { href: "/dashboard/notifications/templates", label: "Templates" },
   { href: "/dashboard/notifications/emails", label: "Emails" },
   { href: "/dashboard/notifications/logs", label: "Logs" },
   { href: "/dashboard/notifications/analytics", label: "Analytics" },
 ];
 
-export function NotificationsNav() {
+export function NotificationsNav({ tabs = DEFAULT_TABS }: { tabs?: NavTab[] } = {}) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 border-b">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const active = pathname.startsWith(t.href);
         return (
           <Link
