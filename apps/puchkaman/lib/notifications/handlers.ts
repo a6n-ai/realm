@@ -3,6 +3,7 @@ import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { broadcastNotification } from "./broadcast";
+import { getSmsProvider } from "./sms-provider";
 
 /** Adapt @realm/email's EmailProvider to the package's ChannelProvider shape. */
 function emailChannelProvider(): ChannelProvider {
@@ -43,7 +44,7 @@ export function buildAppHandlers() {
     db,
     tables: notificationTables,
     users: usersRef,
-    providers: { email: emailChannelProvider() },
+    providers: { email: emailChannelProvider(), sms: getSmsProvider() },
     broadcast: (input) => broadcastNotification({ userId: input.userId }),
     campaigns: campaignConfig(),
   });
