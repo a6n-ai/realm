@@ -20,6 +20,7 @@ import {
 } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
+import { landingPathFor } from "@/lib/auth/landing";
 
 const schema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email"),
@@ -34,7 +35,7 @@ const otpEmailSchema = z.object({
 
 type Mode = "password" | "email-otp";
 
-/** Admin login — same Card split as tiffin-grab; yellow panel + green CTAs, red wordmark. */
+/** Staff and customer login — same Card split as tiffin-grab; yellow panel + green CTAs, red wordmark. */
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("password");
 
@@ -52,7 +53,9 @@ export function LoginForm() {
           {/* Yellow brand panel + green CTAs (crm primary); wordmark stays red. */}
           <div className="relative hidden flex-col items-center justify-center gap-2 border-l border-[var(--green)] bg-[var(--yellow)] p-8 text-[var(--ink)] md:flex">
             <span className="text-2xl font-bold text-[var(--red)]">Puchkaman</span>
-            <p className="text-balance text-center text-sm opacity-80">Operations console for staff.</p>
+            <p className="text-balance text-center text-sm opacity-80">
+              Sign in to track your orders — or to reach the operations console.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -77,7 +80,8 @@ function PasswordPanel({ onUseEmailOtp }: { onUseEmailOtp: () => void }) {
       setError("Invalid email or password");
       return;
     }
-    router.push(params.get("callbackUrl") ?? "/dashboard");
+    const role = (result?.data?.user as { role?: string } | undefined)?.role;
+    router.push(landingPathFor(role, params.get("callbackUrl")));
     router.refresh();
   }
 
@@ -188,7 +192,8 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
       setError("Invalid or expired code");
       return;
     }
-    router.push(params.get("callbackUrl") ?? "/dashboard");
+    const role = (result?.data?.user as { role?: string } | undefined)?.role;
+    router.push(landingPathFor(role, params.get("callbackUrl")));
     router.refresh();
   }
 
