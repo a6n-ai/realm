@@ -9,6 +9,7 @@ import { CrmShell } from "@realm/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { PLUGINS } from "@/lib/plugins.server";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
@@ -47,6 +48,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (u.status !== "active") redirect("/login?suspended=1");
   if (!u.passwordSet) redirect("/set-password");
 
+  const granted = grantedKeys(session.user.role);
+
   return (
     <div className="crm-app">
       <TooltipProvider>
@@ -57,6 +60,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <AppSidebar
               user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
               statuses={statuses}
+              granted={granted}
             />
           }
           breadcrumbs={<AppBreadcrumbs />}
@@ -66,7 +70,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <ModeToggle />
             </>
           }
-          bottomNav={<AppBottomNav statuses={statuses} />}
+          bottomNav={<AppBottomNav statuses={statuses} granted={granted} />}
         >
           {children}
         </CrmShell>

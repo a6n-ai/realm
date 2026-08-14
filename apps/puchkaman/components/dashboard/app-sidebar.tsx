@@ -53,27 +53,30 @@ export type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
+  /** "resource:action" this destination needs. Absent means always visible. */
+  permission?: string;
 };
 export type NavSection = { label: string; items: NavItem[] };
 
 const COMMERCE_ITEMS: NavItem[] = [
-  { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon },
-  { title: "Orders", href: "/dashboard/orders", icon: PackageIcon },
-  { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon },
+  { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon, permission: "product:read" },
+  { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, permission: "order:read" },
+  { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon, permission: "finance:read" },
 ];
 
 const CLOVER_CATALOG_ITEMS: NavItem[] = [
-  { title: "Categories", href: "/dashboard/clover/categories", icon: FolderTreeIcon },
+  { title: "Categories", href: "/dashboard/clover/categories", icon: FolderTreeIcon, permission: "clover:read" },
   {
     title: "Modifier groups",
     href: "/dashboard/clover/modifier-groups",
     icon: LayersIcon,
+    permission: "clover:read",
   },
-  { title: "Menus", href: "/dashboard/clover/menus", icon: BookOpenIcon },
-  { title: "Taxes and fees", href: "/dashboard/clover/taxes", icon: ReceiptIcon },
-  { title: "Printer labels", href: "/dashboard/clover/labels", icon: PrinterIcon },
-  { title: "Discounts", href: "/dashboard/clover/discounts", icon: PercentIcon },
-  { title: "Employees", href: "/dashboard/clover/employees", icon: UsersIcon },
+  { title: "Menus", href: "/dashboard/clover/menus", icon: BookOpenIcon, permission: "clover:read" },
+  { title: "Taxes and fees", href: "/dashboard/clover/taxes", icon: ReceiptIcon, permission: "clover:read" },
+  { title: "Printer labels", href: "/dashboard/clover/labels", icon: PrinterIcon, permission: "clover:read" },
+  { title: "Discounts", href: "/dashboard/clover/discounts", icon: PercentIcon, permission: "clover:read" },
+  { title: "Employees", href: "/dashboard/clover/employees", icon: UsersIcon, permission: "clover:read" },
 ];
 
 /**
@@ -90,6 +93,8 @@ const CLOVER_CATALOG_ITEMS: NavItem[] = [
  */
 export function getNavSections(opts: {
   statuses: Record<string, PluginCatalogStatus>;
+  /** Granted "resource:action" keys. Omitted means unfiltered — existing callers keep today's behaviour. */
+  granted?: string[];
 }): NavSection[] {
   const sections: NavSection[] = [
     {
@@ -100,7 +105,9 @@ export function getNavSections(opts: {
 
   const cloverStatus = opts.statuses[CLOVER_PLUGIN_ID] ?? { installed: false };
   if (cloverStatus.installed) {
-    const cloverItems = cloverNavSections(cloverStatus).flatMap((s) => s.items);
+    const cloverItems = cloverNavSections(cloverStatus)
+      .flatMap((s) => s.items)
+      .map((item) => ({ ...item, permission: "clover:read" }));
     sections.push({
       label: "Clover",
       items: [...COMMERCE_ITEMS, ...CLOVER_CATALOG_ITEMS, ...cloverItems],
@@ -115,16 +122,31 @@ export function getNavSections(opts: {
   sections.push({
     label: "Administration",
     items: [
-      { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon },
-      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
-      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
-      { title: "Delivery", href: "/dashboard/settings/delivery/options", icon: TruckIcon },
-      { title: "Integrations", href: "/dashboard/settings/integrations", icon: PuzzleIcon },
+      { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon, permission: "audit:read" },
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, permission: "settings:read" },
+      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:read" },
+      {
+        title: "Delivery",
+        href: "/dashboard/settings/delivery/options",
+        icon: TruckIcon,
+        permission: "settings:read",
+      },
+      {
+        title: "Integrations",
+        href: "/dashboard/settings/integrations",
+        icon: PuzzleIcon,
+        permission: "settings:read",
+      },
       { title: "Account", href: "/dashboard/account", icon: UserIcon },
     ],
   });
 
-  return sections;
+  if (!opts.granted) return sections;
+  const allowed = new Set(opts.granted);
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => !i.permission || allowed.has(i.permission)) }))
+    // An empty section would render as a heading with nothing under it.
+    .filter((s) => s.items.length > 0);
 }
 
 /** @deprecated Prefer getNavSections — kept for any static consumers. */
@@ -133,15 +155,17 @@ export const SECTIONS: NavSection[] = getNavSections({ statuses: {} });
 export function AppSidebar({
   user,
   statuses = {},
+  granted,
 }: {
   user: { email: string; name?: string | null; role?: string | null };
   statuses?: Record<string, PluginCatalogStatus>;
+  granted?: string[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const label = user.name?.trim() || user.email;
   const initials = label.slice(0, 2).toUpperCase();
-  const sections = getNavSections({ statuses });
+  const sections = getNavSections({ statuses, granted });
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
     // Avoid Settings lighting up while on Connection (/dashboard/settings/clover).

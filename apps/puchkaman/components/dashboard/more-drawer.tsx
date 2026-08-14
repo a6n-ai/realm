@@ -13,13 +13,15 @@ export function MoreDrawer({
   open,
   onOpenChange,
   statuses = {},
+  granted,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   statuses?: Record<string, PluginCatalogStatus>;
+  granted?: string[];
 }) {
   const router = useRouter();
-  const sections = getNavSections({ statuses });
+  const sections = getNavSections({ statuses, granted });
   const rowClass =
     "hover:bg-accent flex min-h-11 items-center gap-3 rounded-md px-2 text-left text-sm transition-colors";
 

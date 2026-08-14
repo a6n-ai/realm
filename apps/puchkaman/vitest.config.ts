@@ -13,6 +13,7 @@ export default defineConfig({
       "db/**/*.test.ts",
       "app/**/*.test.ts",
       "workers/**/*.test.ts",
+      "components/**/*.test.ts",
       "__tests__/**/*.test.ts",
     ],
     // db/client.ts throws at import time without this. Unit tests here stub the
