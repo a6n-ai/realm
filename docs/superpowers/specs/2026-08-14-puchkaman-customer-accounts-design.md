@@ -209,11 +209,36 @@ Package contents:
 - `packages/wallet/src/service.ts` — `WalletService`: `balance`,
   `ledgerPage`, `award`, `redeem`, `recentTransactions`, `earnSpendTotals`,
   `moneyValue`, `activeRate`
-- `packages/wallet/src/ui/*` — `WalletHero`, `EarnSpendTiles`, `WalletLog`,
-  admin payout grid, coin-rate form; all data-as-props
 
-Client-consumed, so `@realm/wallet` goes in `transpilePackages` for both
-apps.
+**Revised 2026-08-14: the UI does NOT move.** Mapping the code before
+planning showed the wallet components are tied to tiffin-grab-only infra —
+`WalletHero` needs `@/components/motion` (Lottie plus a coin-burst asset),
+`WalletLog` pulls in six app-local modules (the `ds` barrel, reui facet
+filters, datetime formatting, a timezone provider), and the admin
+`payout-grid` imports `../discounts/controls`. Extracting them means either
+dragging that infra into the package or rewriting each component to take it
+as slots. Puchkaman's customer surfaces are brutalist rather than
+CRM-styled, so it would likely not use the components unchanged anyway.
+This repo's own rule is that code stays app-local until a second client
+proves it shared: the money logic is proven, the presentation is not.
+Puchkaman writes its own wallet UI in slice 4.
+
+Consequence: `@realm/wallet` is **server-only**, so it is NOT added to
+`transpilePackages` in either app — matching `@realm/auth` and the other
+server-only packages.
+
+`appEvent` also stays app-local. It lives in tiffin-grab's `wallet.ts`
+today but is the app-wide event catalog — `db/schema/notifications.ts`
+imports it from there — and puchkaman already has its own `app_event` enum
+with a different value set. Two different enums share the Postgres type name
+`app_event`, which is precisely why the tables must come from a factory
+rather than be shared as values. `@realm/notifications` already solves this
+exact problem with `makeNotificationTables`; follow that precedent rather
+than inventing a second shape.
+
+`redeem` writes a row into the app's own money `ledger_entries` table, whose
+shape differs per app. That write is injected as a dependency rather than
+imported, so the package never references an app-local table.
 
 Invariants preserved verbatim from the current implementation: the unique
 `wallet_earn_idempotent_idx` on `(source_type, source_id, event_type)`; the
