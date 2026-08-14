@@ -9,7 +9,7 @@ import {
   type FacetDef,
 } from "@realm/design-system";
 import { OrderingDisabledNotice } from "@/components/admin/ordering-disabled-notice";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { ordersService, type OrderSortColumn } from "@/lib/services/orders.service";
 import { OrdersTable, OrdersTableSkeleton } from "./orders-table";
@@ -90,7 +90,7 @@ export default function OrdersPage({ searchParams }: { searchParams: SearchParam
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ order: ["read"] });
 
   const sp = await searchParams;
   const sort = parseSort(sp, ORDER_SORT_COLUMNS, { column: "created", dir: "desc" });

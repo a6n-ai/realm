@@ -3,7 +3,7 @@ import { PackageIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { getCloverConnection } from "@realm/clover";
 import { Skeleton } from "@realm/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { productsService, type ProductSortColumn } from "@/lib/services/products.service";
@@ -98,7 +98,7 @@ async function ProductsHeaderLoader() {
 }
 
 async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ product: ["read"] });
 
   const sp = await searchParams;
   const sort = parseSort(sp, PRODUCT_SORT_COLUMNS, { column: "category", dir: "asc" });

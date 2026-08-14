@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { UserIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard, SkeletonFormCard } from "@realm/design-system";
 import { Skeleton } from "@realm/ui/skeleton";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { requireAdmin } from "@/lib/auth/guards";
 import { ChangePasswordForm } from "./change-password-form";
 import { ChangeEmailForm } from "./change-email-form";
 
@@ -22,9 +22,11 @@ export default function AccountPage() {
 }
 
 async function AccountData() {
-  await requireAdmin();
+  // Own-account page: any signed-in staff member may manage their own profile.
+  // The customer equivalent lives at /me/account; the dashboard layout has
+  // already bounced role "user" before this runs.
   const session = await getSession();
-  if (!session?.user) return null;
+  if (!session?.user) redirect("/login");
 
   const [u] = await db
     .select({ name: users.name })

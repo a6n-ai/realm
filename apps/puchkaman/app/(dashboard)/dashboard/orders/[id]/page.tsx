@@ -8,7 +8,7 @@ import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getDeliveryLabelsForOrder } from "@/lib/delivery/zones.service";
 import { employeesService } from "@/lib/services/employees.service";
 import { listCustomerRequests } from "@/lib/order-tracking/customer-requests";
@@ -18,7 +18,7 @@ import { ordersService } from "@/lib/services/orders.service";
 type Params = Promise<{ id: string }>;
 
 export default async function OrderDetailPage({ params }: { params: Params }) {
-  await requireAdmin();
+  await requirePermission({ order: ["read"] });
   const { id } = await params;
   const [detailResult, clover, assignable] = await Promise.all([
     ordersService.getAdminDetail(id).then(
