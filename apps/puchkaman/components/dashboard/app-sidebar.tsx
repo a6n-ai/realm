@@ -142,11 +142,30 @@ export function getNavSections(opts: {
   });
 
   if (!opts.granted) return sections;
-  const allowed = new Set(opts.granted);
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => !i.permission || allowed.has(i.permission)) }))
+    .map((s) => ({ ...s, items: filterByPermission(s.items, opts.granted) }))
     // An empty section would render as a heading with nothing under it.
     .filter((s) => s.items.length > 0);
+}
+
+function filterByPermission(items: NavItem[], granted?: string[]): NavItem[] {
+  if (!granted) return items;
+  const allowed = new Set(granted);
+  return items.filter((i) => !i.permission || allowed.has(i.permission));
+}
+
+const USER_MENU_ITEMS: NavItem[] = [
+  { title: "Account", href: "/dashboard/account", icon: UserIcon },
+  { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:read" },
+];
+
+/**
+ * The footer dropdown's destinations. It renders outside getNavSections, so it
+ * needs its own pass through the same filter — an ungated Settings link here
+ * sends a member to a page whose requireAdmin() throws.
+ */
+export function getUserMenuItems(granted?: string[]): NavItem[] {
+  return filterByPermission(USER_MENU_ITEMS, granted);
 }
 
 /** @deprecated Prefer getNavSections — kept for any static consumers. */
@@ -166,6 +185,7 @@ export function AppSidebar({
   const label = user.name?.trim() || user.email;
   const initials = label.slice(0, 2).toUpperCase();
   const sections = getNavSections({ statuses, granted });
+  const menuItems = getUserMenuItems(granted);
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
     // Avoid Settings lighting up while on Connection (/dashboard/settings/clover).
@@ -233,18 +253,14 @@ export function AppSidebar({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/account">
-                      <UserIcon data-icon="inline-start" />
-                      Account
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/settings">
-                      <SettingsIcon data-icon="inline-start" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
+                  {menuItems.map((item) => (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link href={item.href}>
+                        <item.icon data-icon="inline-start" />
+                        {item.title}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
