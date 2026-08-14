@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PUBLIC_API } from "../proxy";
+import { PROTECTED_PREFIXES, PUBLIC_API } from "../proxy";
 
 /** Mirrors the match in proxy(): exact path, or a path segment beneath it. */
 const isPublic = (pathname: string) =>
@@ -50,5 +50,16 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
     // The drain entry is exact-match, so allowlisting it must not open the
     // admin routes that sit alongside it under /api/notifications.
     expect(isPublic(path)).toBe(false);
+  });
+});
+
+/**
+ * /me holds a customer's order history and contact details. Without a prefix
+ * entry it renders for anyone with the URL, because the matcher — not the
+ * handler — is what decides whether proxy() is consulted at all.
+ */
+describe("PROTECTED_PREFIXES", () => {
+  it.each(["/dashboard", "/me"])("requires a session cookie under %s", (prefix) => {
+    expect(PROTECTED_PREFIXES).toContain(prefix);
   });
 });

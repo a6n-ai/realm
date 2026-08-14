@@ -41,6 +41,13 @@ export const PUBLIC_API = [
   "/api/account/phone",
 ];
 
+/**
+ * Prefixes that require a session cookie. Cookie presence only — the
+ * authoritative role check lives in each route group's layout, which is also
+ * what decides that a customer at /dashboard goes to /me rather than /login.
+ */
+export const PROTECTED_PREFIXES = ["/dashboard", "/me"];
+
 function unauthorized(): NextResponse {
   const body = { type: "about:blank", title: "Unauthorized", status: 401, detail: "Authentication required" };
   return new NextResponse(JSON.stringify(body), { status: 401, headers: { "content-type": "application/problem+json" } });
@@ -58,14 +65,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/dashboard") && !hasSession) {
+  const protectedPrefix = PROTECTED_PREFIXES.find(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+  if (protectedPrefix && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
   const res = NextResponse.next();
-  if (pathname.startsWith("/dashboard")) res.headers.set("Cache-Control", "no-store, must-revalidate");
+  if (protectedPrefix) res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/api/:path*"] };
+export const config = { matcher: ["/dashboard/:path*", "/me/:path*", "/api/:path*"] };
