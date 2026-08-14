@@ -1,13 +1,16 @@
 import { Suspense } from "react";
 import { UsersIcon } from "lucide-react";
 import { and, inList } from "@realm/commons/model/condition";
+import { getCloverConnection } from "@realm/clover";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { usersService, type UserSortColumn } from "@/lib/services/users.service";
 import { InviteUserButton } from "./invite-user-button";
+import { SyncCloverUsersButton } from "./sync-clover-users-button";
 import { UsersTable, UsersTableSkeleton } from "./users-table";
 
 export const dynamic = "force-dynamic";
@@ -57,9 +60,14 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
         title="Users"
         subtitle="Accounts that can sign in to this dashboard. Clover Register staff are managed separately under Employees."
         actions={
-          <InviteUserButton
-            roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r === "admin" ? "Admin" : "Member" }))}
-          />
+          <>
+            <InviteUserButton
+              roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r === "admin" ? "Admin" : "Member" }))}
+            />
+            <Suspense fallback={null}>
+              <SyncCloverUsersSlot />
+            </Suspense>
+          </>
         }
       />
       <SectionCard title="All accounts">
@@ -69,6 +77,11 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
       </SectionCard>
     </PageShell>
   );
+}
+
+async function SyncCloverUsersSlot() {
+  const clover = await getCloverConnection(integrationsConfigStore);
+  return <SyncCloverUsersButton cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
 }
 
 async function UsersData({ searchParams }: { searchParams: SearchParams }) {
