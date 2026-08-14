@@ -1,10 +1,8 @@
 import { Role } from "@realm/commons";
 
-const STAFF_HOME = "/dashboard";
+const ADMIN_HOME = "/dashboard";
 const CUSTOMER_HOME = "/me";
-
-const isStaff = (role: string | null | undefined): boolean =>
-  role === Role.ADMIN || role === Role.MEMBER;
+const NO_ACCESS = "/no-access";
 
 /**
  * `callbackUrl` arrives from the query string, so it is attacker-controlled.
@@ -16,16 +14,24 @@ function isSameSitePath(candidate: string): boolean {
 }
 
 /**
+ * `member` is invitable but every page under /dashboard still calls
+ * requireAdmin, so its only reachable destination is the /no-access explainer.
+ */
+function homeFor(role: string | null | undefined): string {
+  if (role === Role.ADMIN) return ADMIN_HOME;
+  if (role === Role.MEMBER) return NO_ACCESS;
+  return CUSTOMER_HOME;
+}
+
+/**
  * Where a freshly signed-in session belongs. A customer bounced to /dashboard
  * gets redirected straight back to /login, so honouring a callback the role
  * cannot reach produces a loop, not a destination.
  */
 export function landingPathFor(role: string | null | undefined, callbackUrl?: string | null): string {
-  const home = isStaff(role) ? STAFF_HOME : CUSTOMER_HOME;
+  const home = homeFor(role);
   if (!callbackUrl || !isSameSitePath(callbackUrl)) return home;
 
-  const reachable = isStaff(role)
-    ? callbackUrl.startsWith(STAFF_HOME)
-    : callbackUrl.startsWith(CUSTOMER_HOME);
+  const reachable = callbackUrl === home || callbackUrl.startsWith(`${home}/`);
   return reachable ? callbackUrl : home;
 }

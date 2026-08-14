@@ -45,8 +45,10 @@ export const PUBLIC_API = [
  * Prefixes that require a session cookie. Cookie presence only — the
  * authoritative role check lives in each route group's layout, which is also
  * what decides that a customer at /dashboard goes to /me rather than /login.
+ * /no-access is here so a signed-out visitor gets /login instead of an
+ * explainer about an account they are not holding.
  */
-export const PROTECTED_PREFIXES = ["/dashboard", "/me"];
+export const PROTECTED_PREFIXES = ["/dashboard", "/me", "/no-access"];
 
 function unauthorized(): NextResponse {
   const body = { type: "about:blank", title: "Unauthorized", status: 401, detail: "Authentication required" };
@@ -78,4 +80,6 @@ export function proxy(request: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/me/:path*", "/api/:path*"] };
+export const config = {
+  matcher: ["/dashboard/:path*", "/me/:path*", "/no-access/:path*", "/api/:path*"],
+};

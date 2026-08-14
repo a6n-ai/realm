@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { Role } from "@realm/commons";
 import { resolveStatuses } from "@realm/crm/server";
 import { Toaster } from "@realm/ui/sonner";
 import { TooltipProvider } from "@realm/ui/tooltip";
@@ -21,7 +22,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (!session?.user) redirect("/login");
   // A customer here is a wrong turn, not an intrusion — sending them to /login
   // would loop, because /login sees their valid session and sends them back.
-  if (session.user.role === "user") redirect("/me");
+  if (session.user.role === Role.USER) redirect("/me");
+  // Every page below this layout calls requireAdmin, which throws ForbiddenError
+  // with no error boundary to catch it. `member` is invitable but has no console
+  // pages yet, so it gets an honest explainer instead of a 500.
+  if (session.user.role !== Role.ADMIN) redirect("/no-access");
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits
@@ -50,7 +55,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           brand={<AppBrand href="/dashboard" />}
           sidebar={
             <AppSidebar
-              user={{ email: session.user.email, name: u.name ?? null }}
+              user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
               statuses={statuses}
             />
           }

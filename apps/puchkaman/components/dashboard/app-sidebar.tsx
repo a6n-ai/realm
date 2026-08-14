@@ -134,7 +134,7 @@ export function AppSidebar({
   user,
   statuses = {},
 }: {
-  user: { email: string; name?: string | null };
+  user: { email: string; name?: string | null; role?: string | null };
   statuses?: Record<string, PluginCatalogStatus>;
 }) {
   const pathname = usePathname();
@@ -196,7 +196,7 @@ export function AppSidebar({
                   </Avatar>
                   <div className="flex flex-col leading-tight">
                     <span className="truncate text-sm font-medium">{label}</span>
-                    <span className="text-muted-foreground text-xs capitalize">admin</span>
+                    <span className="text-muted-foreground text-xs capitalize">{user.role ?? "unknown"}</span>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
