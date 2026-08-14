@@ -1,6 +1,6 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 
 /**
@@ -11,7 +11,7 @@ export const POST = handler(async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const { id: publicId } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     action?: unknown;

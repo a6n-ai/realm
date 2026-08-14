@@ -1,7 +1,7 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
 import { handler, json, problem } from "@realm/routes";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { ASSOCIATION_KINDS, inventoryCatalogService } from "@/lib/services/inventory.service";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,7 +16,7 @@ const bodySchema = z.object({
  * Writes locally, then mirrors the diff to Clover — see setProductAssociations.
  */
 export const PUT = handler(async (request: Request, { params }: Params): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const { id } = await params;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

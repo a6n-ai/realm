@@ -1,6 +1,6 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 import type { CloverMatchIncoming } from "@/lib/sync/clover-inventory-types";
 
@@ -9,7 +9,7 @@ import type { CloverMatchIncoming } from "@/lib/sync/clover-inventory-types";
  * Body: { action, incoming, existingPublicId? }
  */
 export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["sync"] });
   const body = (await request.json().catch(() => ({}))) as {
     action?: unknown;
     incoming?: unknown;

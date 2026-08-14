@@ -1,13 +1,13 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { ordersService } from "@/lib/services/orders.service";
 
 type Params = { params: Promise<{ id: string }> };
 
 /** Assign / clear Clover employee on a pickup order. */
 export const POST = handler(async (request: Request, { params }: Params): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ order: ["write"] });
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     employeePublicId?: unknown;
