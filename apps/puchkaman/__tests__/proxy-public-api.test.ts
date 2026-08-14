@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PROTECTED_PREFIXES, PUBLIC_API } from "../proxy";
+import { config, PROTECTED_PREFIXES, PUBLIC_API } from "../proxy";
 
 /** Mirrors the match in proxy(): exact path, or a path segment beneath it. */
 const isPublic = (pathname: string) =>
@@ -61,5 +61,20 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
 describe("PROTECTED_PREFIXES", () => {
   it.each(["/dashboard", "/me"])("requires a session cookie under %s", (prefix) => {
     expect(PROTECTED_PREFIXES).toContain(prefix);
+  });
+});
+
+/**
+ * A prefix missing from config.matcher never reaches proxy() at all — Next
+ * skips invoking the middleware for unmatched paths, so the gate fails open
+ * with no error anywhere. PROTECTED_PREFIXES alone can't catch that; this
+ * ties the two lists together so a prefix added without a matcher entry
+ * fails here automatically.
+ */
+describe("config.matcher", () => {
+  it("has a matcher entry for every protected prefix", () => {
+    for (const prefix of PROTECTED_PREFIXES) {
+      expect(config.matcher).toContain(`${prefix}/:path*`);
+    }
   });
 });
