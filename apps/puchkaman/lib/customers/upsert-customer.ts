@@ -70,15 +70,22 @@ export type OrderOwnerDeps = {
 };
 
 /**
- * Who owns this order. A live session beats the typed email: a signed-in
- * customer ordering to a work address should not fork a second account, and the
- * email field is free text that anyone can put anything into.
+ * Who owns this order. A live CUSTOMER session beats the typed email: a
+ * signed-in customer ordering to a work address should not fork a second
+ * account, and the email field is free text that anyone can put anything into.
+ *
+ * Only `user` sessions count. Staff take orders on the public site for phone-in
+ * customers; crediting those to the staff row would leave the real customer
+ * with no account, no notifications, and PIN-gated out of their own order.
  */
 export async function resolveOrderOwner(
-  input: UpsertCustomerInput & { sessionUserPublicId?: string | null },
+  input: UpsertCustomerInput & {
+    sessionUserPublicId?: string | null;
+    sessionUserRole?: string | null;
+  },
   deps: OrderOwnerDeps,
 ): Promise<bigint> {
-  if (input.sessionUserPublicId) {
+  if (input.sessionUserPublicId && input.sessionUserRole === "user") {
     const owned = await deps.findByPublicId(input.sessionUserPublicId);
     if (owned !== null) return owned;
   }

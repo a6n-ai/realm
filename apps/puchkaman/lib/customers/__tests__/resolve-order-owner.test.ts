@@ -13,11 +13,34 @@ describe("resolveOrderOwner", () => {
   it("prefers the signed-in customer over the typed email", async () => {
     const d = deps();
     const id = await resolveOrderOwner(
-      { email: "typed@example.com", sessionUserPublicId: "usr_abc" },
+      { email: "typed@example.com", sessionUserPublicId: "usr_abc", sessionUserRole: "user" },
       d,
     );
     expect(id).toBe(42n);
     expect(d.upsertByEmail).not.toHaveBeenCalled();
+  });
+
+  // Staff placing a phone-in order on the public site must not become its owner:
+  // the paying customer would get no account, no notifications, and would be
+  // PIN-gated out of tracking their own order.
+  it.each(["admin", "member"])("ignores a %s session and upserts the typed email", async (role) => {
+    const d = deps();
+    const id = await resolveOrderOwner(
+      { email: "walkin@example.com", sessionUserPublicId: "usr_staff", sessionUserRole: role },
+      d,
+    );
+    expect(id).toBe(7n);
+    expect(d.findByPublicId).not.toHaveBeenCalled();
+  });
+
+  it("ignores a session with no role rather than assuming it is a customer", async () => {
+    const d = deps();
+    const id = await resolveOrderOwner(
+      { email: "walkin@example.com", sessionUserPublicId: "usr_x", sessionUserRole: null },
+      d,
+    );
+    expect(id).toBe(7n);
+    expect(d.findByPublicId).not.toHaveBeenCalled();
   });
 
   it("falls back to the email upsert for a guest", async () => {
@@ -30,7 +53,7 @@ describe("resolveOrderOwner", () => {
   it("falls back to the email upsert when the session points at a deleted row", async () => {
     const d = deps({ findByPublicId: vi.fn(async () => null) });
     const id = await resolveOrderOwner(
-      { email: "guest@example.com", sessionUserPublicId: "usr_gone" },
+      { email: "guest@example.com", sessionUserPublicId: "usr_gone", sessionUserRole: "user" },
       d,
     );
     expect(id).toBe(7n);

@@ -715,14 +715,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     const order = await db.transaction(async (tx) => {
       // Provisioned before the order so the row has an owner from the start.
-      // A signed-in customer owns their order directly; a guest gets the
-      // credential-less row upsertCustomer creates.
+      // A signed-in customer owns their order directly; a guest — or a staff
+      // member ordering on someone's behalf — gets the credential-less row
+      // upsertCustomer creates for the typed email.
       const customerId = await resolveOrderOwner(
         {
           email: parsed.contact.email,
           name: parsed.contact.name,
           phone: parsed.contact.phone ?? null,
           sessionUserPublicId: session?.user.id ?? null,
+          sessionUserRole: session?.user.role ?? null,
         },
         {
           findByPublicId: async (publicId) => {
