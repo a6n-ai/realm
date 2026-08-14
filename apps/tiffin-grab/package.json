@@ -43,6 +43,7 @@
     "@realm/storage": "workspace:*",
     "@realm/themes": "workspace:*",
     "@realm/ui": "workspace:*",
+    "@realm/wallet": "workspace:*",
     "@uiw/react-md-editor": "^4.0.7",
     "amqplib": "^2.0.1",
     "better-auth": "^1.6.20",
