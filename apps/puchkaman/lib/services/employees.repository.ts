@@ -28,6 +28,12 @@ export class EmployeesRepository extends UpdatableRepository<typeof employees> {
     return row ?? null;
   }
 
+  /** Whichever employee (if any) already holds this user_id — the sync's guard against the unique constraint. */
+  async findByUserId(userId: bigint): Promise<EmployeeRow | null> {
+    const [row] = await this.db.select().from(employees).where(eq(employees.userId, userId)).limit(1);
+    return row ?? null;
+  }
+
   async updateByInternalId(
     id: bigint,
     patch: Record<string, unknown>,

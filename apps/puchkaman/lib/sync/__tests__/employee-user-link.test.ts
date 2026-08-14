@@ -24,7 +24,11 @@ describe("resolveEmployeeUser", () => {
     expect(d.createMemberUser).not.toHaveBeenCalled();
   });
 
-  it("never rewrites the role of an existing account, so an admin stays an admin", async () => {
+  // Only proves createMemberUser is skipped on a match — it can't see a role
+  // column from here. The real "an admin survives a re-sync" proof is the
+  // integration test in employee-user-link.integration.test.ts, which reads
+  // users.role back out of the database.
+  it("does not attempt to create a second account when one already exists", async () => {
     const d = deps({ findUserByEmail: vi.fn(async () => ({ id: 7n })) });
     await resolveEmployeeUser({ email: "boss@shop.com", name: "Boss" }, d);
     expect(d.createMemberUser).not.toHaveBeenCalled();

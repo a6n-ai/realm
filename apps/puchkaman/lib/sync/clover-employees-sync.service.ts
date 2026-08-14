@@ -59,7 +59,7 @@ class CloverEmployeesSyncService {
     const remote = await client.listAllEmployees();
     for (const emp of remote) {
       try {
-        await this.upsert(emp, now);
+        await this.upsert(emp, now, result);
         seen.add(emp.id);
         result.upserted += 1;
       } catch (err) {
@@ -80,13 +80,15 @@ class CloverEmployeesSyncService {
     return result;
   }
 
-  private async upsert(emp: CloverEmployee, now: number): Promise<EmployeeRow> {
+  private async upsert(
+    emp: CloverEmployee,
+    now: number,
+    result: CloverEmployeesPullResult,
+  ): Promise<EmployeeRow> {
     const active = emp.deletedTime == null;
-    const userId = await resolveEmployeeUser(
-      { email: emp.email, name: emp.name },
-      liveEmployeeUserDeps,
-    );
-    const patch = {
+    const existing = await employeesRepository.findByCloverEmployeeId(emp.id);
+
+    const patch: Record<string, unknown> = {
       name: emp.name,
       nickname: emp.nickname ?? null,
       email: emp.email ?? null,
@@ -96,9 +98,35 @@ class CloverEmployeesSyncService {
       active,
       cloverEmployeeId: emp.id,
       cloverLastSyncedAt: now,
-      userId,
     };
-    const existing = await employeesRepository.findByCloverEmployeeId(emp.id);
+
+    // Resolve a link only when this employee doesn't already have one. Leaving
+    // an existing link alone means a later email change on Clover's side can
+    // never orphan the account it's already tied to, and re-syncing an already
+    // linked employee never touches users at all.
+    if (!existing?.userId) {
+      const resolved = await resolveEmployeeUser(
+        { email: emp.email, name: emp.name },
+        liveEmployeeUserDeps,
+      );
+      if (resolved !== null) {
+        // employees.user_id is UNIQUE. Two Clover employees can share one
+        // email (family/shared-terminal logins, a data-entry mistake) — the
+        // first to resolve wins the link; the second must still persist its
+        // own row, just without one, with the conflict surfaced for an admin
+        // to sort out rather than silently failing the whole upsert forever.
+        const holder = await employeesRepository.findByUserId(resolved);
+        if (holder && holder.id !== existing?.id) {
+          result.errors.push({
+            id: emp.id,
+            message: `Employee "${emp.name}" (${emp.email}) matches an account already linked to another employee; left unlinked.`,
+          });
+        } else {
+          patch.userId = resolved;
+        }
+      }
+    }
+
     if (existing) {
       return (await employeesRepository.updateByInternalId(existing.id, patch)) ?? existing;
     }
