@@ -10,9 +10,16 @@ describe("landingPathFor", () => {
     expect(landingPathFor("admin")).toBe("/dashboard");
   });
 
-  // Every /dashboard page calls requireAdmin, so routing `member` there is a 500.
-  it("sends a member to the no-access explainer", () => {
-    expect(landingPathFor("member")).toBe("/no-access");
+  it("sends a member to the dashboard now that it has pages for them", () => {
+    expect(landingPathFor("member")).toBe("/dashboard");
+  });
+
+  it("lets a member follow a dashboard callback", () => {
+    expect(landingPathFor("member", "/dashboard/orders")).toBe("/dashboard/orders");
+  });
+
+  it("still sends an unknown role to the customer area, never the console", () => {
+    expect(landingPathFor("something-new")).toBe("/me");
   });
 
   it("treats an unknown or missing role as a customer", () => {
@@ -24,14 +31,12 @@ describe("landingPathFor", () => {
   it("honours a same-site callback the role may actually reach", () => {
     expect(landingPathFor("admin", "/dashboard/orders")).toBe("/dashboard/orders");
     expect(landingPathFor("user", "/me/orders")).toBe("/me/orders");
-    expect(landingPathFor("member", "/no-access")).toBe("/no-access");
   });
 
   it("refuses a callback the role cannot reach, rather than looping", () => {
     expect(landingPathFor("user", "/dashboard/orders")).toBe("/me");
     expect(landingPathFor("admin", "/me/orders")).toBe("/dashboard");
-    expect(landingPathFor("member", "/dashboard/orders")).toBe("/no-access");
-    expect(landingPathFor("member", "/me/orders")).toBe("/no-access");
+    expect(landingPathFor("member", "/me/orders")).toBe("/dashboard");
   });
 
   // "/dashboardster" starts with the home path but is a different route.

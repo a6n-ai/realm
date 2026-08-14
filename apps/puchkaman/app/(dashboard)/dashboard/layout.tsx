@@ -24,10 +24,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // A customer here is a wrong turn, not an intrusion — sending them to /login
   // would loop, because /login sees their valid session and sends them back.
   if (session.user.role === Role.USER) redirect("/me");
-  // Every page below this layout calls requireAdmin, which throws ForbiddenError
-  // with no error boundary to catch it. `member` is invitable but has no console
-  // pages yet, so it gets an honest explainer instead of a 500.
-  if (session.user.role !== Role.ADMIN) redirect("/no-access");
+  // Any future staff role with no pages of its own still gets the explainer
+  // rather than a 403 from the first component that tries to load data.
+  if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) redirect("/no-access");
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits

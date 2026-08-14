@@ -2,7 +2,6 @@ import { Role } from "@realm/commons";
 
 const ADMIN_HOME = "/dashboard";
 const CUSTOMER_HOME = "/me";
-const NO_ACCESS = "/no-access";
 
 /**
  * `callbackUrl` arrives from the query string, so it is attacker-controlled.
@@ -13,13 +12,8 @@ function isSameSitePath(candidate: string): boolean {
   return candidate.startsWith("/") && !candidate.startsWith("//") && !candidate.startsWith("/\\");
 }
 
-/**
- * `member` is invitable but every page under /dashboard still calls
- * requireAdmin, so its only reachable destination is the /no-access explainer.
- */
 function homeFor(role: string | null | undefined): string {
-  if (role === Role.ADMIN) return ADMIN_HOME;
-  if (role === Role.MEMBER) return NO_ACCESS;
+  if (role === Role.ADMIN || role === Role.MEMBER) return ADMIN_HOME;
   return CUSTOMER_HOME;
 }
 
