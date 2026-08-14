@@ -12,9 +12,11 @@ type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[num
 type Channel = (typeof notificationTables.notificationOutbox.channel.enumValues)[number];
 
 /**
- * Default channels per event. Customer-facing events are email-only: puchkaman
- * customers cannot sign in, so an in-app notification addressed to one would
- * have nowhere to appear.
+ * Default channels per event. Customer-facing events stay email-only. Customers
+ * can now sign in and /me could render an in-app feed, so this is a deliberate
+ * choice rather than a limitation: email is the channel a customer actually
+ * checks after ordering. Adding "in_app" here is the follow-up when /me grows a
+ * notification surface.
  */
 const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   order_placed: ["email"],

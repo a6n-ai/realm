@@ -1,3 +1,4 @@
+import { Role } from "@realm/commons";
 import type { RealtimeRole } from "@realm/realtime";
 import { getSession } from "@/lib/auth/session";
 
@@ -25,5 +26,6 @@ export async function authorizeChannel(
   const publicId = session?.user?.id;
   if (!publicId || publicId !== target) return null;
 
-  return { channel, userId: publicId, role: "staff" };
+  const role: RealtimeRole = session?.user?.role === Role.USER ? "customer" : "staff";
+  return { channel, userId: publicId, role };
 }

@@ -35,8 +35,8 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
     ["/api/webhooks/twilio/status", "Twilio signature is the auth"],
     ["/api/unsubscribe", "HMAC token is the auth"],
     ["/api/notifications/drain", "DRAIN_SECRET header is the auth"],
-    ["/api/account/phone/start", "rate limited; customers have no login"],
-    ["/api/account/phone/verify", "rate limited; customers have no login"],
+    ["/api/account/phone/start", "rate limited; runs during guest checkout, pre-session"],
+    ["/api/account/phone/verify", "rate limited; runs during guest checkout, pre-session"],
   ])("keeps %s reachable without a session (%s)", (path) => {
     expect(isPublic(path)).toBe(true);
   });
@@ -59,7 +59,7 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
  * handler — is what decides whether proxy() is consulted at all.
  */
 describe("PROTECTED_PREFIXES", () => {
-  it.each(["/dashboard", "/me"])("requires a session cookie under %s", (prefix) => {
+  it.each(["/dashboard", "/me", "/no-access"])("requires a session cookie under %s", (prefix) => {
     expect(PROTECTED_PREFIXES).toContain(prefix);
   });
 });

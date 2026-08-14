@@ -115,8 +115,9 @@ export const auth = betterAuth({
     // the PIN. Deliberately not the anonymous plugin — that would mint a user
     // row per guest into a table this app surfaces in admin listings.
     orderTracking({ resolve: resolveTrackingSubject }),
-    // Email OTP: 6-digit codes for password reset. Codes are stored hashed and
-    // expire in 10 min. sendVerificationOTP routes the code via SES.
+    // Email OTP: 6-digit codes. Password reset for staff, and the primary
+    // sign-in path for customers. Codes are stored hashed and expire in 10 min.
+    // sendVerificationOTP routes the code via SES.
     emailOTP({
       otpLength: 6,
       expiresIn: 600,
