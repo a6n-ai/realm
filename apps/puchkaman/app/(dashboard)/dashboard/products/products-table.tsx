@@ -92,6 +92,7 @@ export function ProductsTable({
   sort,
   cloverEnabled = false,
   cloverConnected = false,
+  granted = [],
 }: {
   spec: FacetDef[];
   products: ProductRow[];
@@ -103,11 +104,14 @@ export function ProductsTable({
   cloverEnabled?: boolean;
   /** Merchant OAuth connected — Clover SoT OOS labels only apply when true. */
   cloverConnected?: boolean;
+  /** Server-computed "resource:action" keys — see lib/auth/nav-permissions.ts. */
+  granted?: string[];
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [removing, setRemoving] = useState<ProductRow | null>(null);
   const [cloverLinking, setCloverLinking] = useState<ProductRow | null>(null);
+  const canWrite = granted.includes("product:write");
 
   async function confirmRemove() {
     if (!removing) return;
@@ -116,7 +120,7 @@ export function ProductsTable({
   }
 
   const emptyAction: ReactNode =
-    total === 0 ? (
+    total === 0 && canWrite ? (
       <Button type="button" size="sm" className="gap-1.5" onClick={() => setFormOpen(true)}>
         <PlusIcon className="size-3.5" />
         Add product
@@ -233,19 +237,21 @@ export function ProductsTable({
                 >
                   <PencilIcon className="size-3.5" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive size-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRemoving(row);
-                  }}
-                  aria-label={`Remove ${row.name}`}
-                >
-                  <Trash2Icon className="size-3.5" />
-                </Button>
+                {canWrite ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive size-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRemoving(row);
+                    }}
+                    aria-label={`Remove ${row.name}`}
+                  >
+                    <Trash2Icon className="size-3.5" />
+                  </Button>
+                ) : null}
               </div>
             </TableCell>
           </>
@@ -253,7 +259,7 @@ export function ProductsTable({
       />
       <ListPagination page={page} size={size} total={total} />
 
-      <ProductForm open={formOpen} onOpenChange={setFormOpen} product={null} />
+      <ProductForm open={formOpen} onOpenChange={setFormOpen} product={null} canWrite={canWrite} />
 
       <ConfirmDialog
         open={!!removing}

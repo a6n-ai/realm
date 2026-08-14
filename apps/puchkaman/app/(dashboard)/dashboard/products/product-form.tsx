@@ -46,10 +46,13 @@ export function ProductForm({
   open,
   onOpenChange,
   product,
+  canWrite = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: ProductRow | null;
+  /** Its own submit endpoint requires product:write. Absent means unfiltered — existing callers keep today's behaviour. */
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const isNew = !product;
@@ -91,13 +94,15 @@ export function ProductForm({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="product-form"
-            disabled={form.formState.isSubmitting}
-          >
-            {form.formState.isSubmitting ? "Saving…" : "Save"}
-          </Button>
+          {canWrite ? (
+            <Button
+              type="submit"
+              form="product-form"
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          ) : null}
         </div>
       }
     >
