@@ -78,13 +78,26 @@ describe("upsertCustomer", () => {
     expect(row).toEqual({ role: "admin", name: "Staff" });
   });
 
-  it("never overwrites a claimed customer account's name", async () => {
+  // A populated name/phone is already protected by plain COALESCE — that proves
+  // nothing about this guard. The guard only matters on a BLANK column: a
+  // customer who claimed the account (password set, or OTP-verified) but never
+  // filled in a name/phone must not have a guest checkout fill it in for them.
+  it("leaves a claimed account's blank name and phone alone (passwordSet)", async () => {
     const email = `${MARK}-f@example.test`;
-    const id = await make(email, "Real Customer");
+    const id = await make(email, undefined, undefined);
     await db.update(users).set({ passwordSet: true }).where(eq(users.id, id));
-    await db.transaction((tx) => upsertCustomer(tx, { email, name: "Attacker" }));
-    const [row] = await db.select({ name: users.name }).from(users).where(eq(users.id, id));
-    expect(row.name).toBe("Real Customer");
+    await db.transaction((tx) => upsertCustomer(tx, { email, name: "Attacker", phone: "+15559999999" }));
+    const [row] = await db.select({ name: users.name, phone: users.phone }).from(users).where(eq(users.id, id));
+    expect(row).toEqual({ name: null, phone: null });
+  });
+
+  it("leaves a claimed account's blank name and phone alone (emailVerified, the OTP-only customer)", async () => {
+    const email = `${MARK}-g@example.test`;
+    const id = await make(email, undefined, undefined);
+    await db.update(users).set({ emailVerified: true }).where(eq(users.id, id));
+    await db.transaction((tx) => upsertCustomer(tx, { email, name: "Attacker", phone: "+15559999999" }));
+    const [row] = await db.select({ name: users.name, phone: users.phone }).from(users).where(eq(users.id, id));
+    expect(row).toEqual({ name: null, phone: null });
   });
 });
 
