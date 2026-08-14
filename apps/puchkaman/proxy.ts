@@ -36,7 +36,7 @@ export const PUBLIC_API = [
   // Exact-match only, so it does not open /api/notifications/templates or
   // /api/notifications/campaigns — those stay behind the cookie gate.
   "/api/notifications/drain",
-  // Customers have no login, so phone verification cannot sit behind a session.
+  // Phone verification runs during guest checkout, before any session exists.
   // Both routes are rate limited per number and per IP in the handler.
   "/api/account/phone",
 ];

@@ -20,14 +20,28 @@ const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 /**
- * Sign-in gate. Only an ACTIVE STAFF account may obtain a session.
- *
- * Runs after the credential check but before a session row is written, so it
- * covers every sign-in method at once rather than each route separately.
- * `role: "user"` is a customer record provisioned by checkout — it has no
- * credential, but this is the guard that must hold if one is ever added,
- * because an OTP or social flow mints a session without ever consulting the
- * account table. Exported for tests.
+ * Pure sign-in admission rule, split from the DB read so it is testable without
+ * an auth instance. `status` is the only "cannot sign in" switch — role decides
+ * where a session may go, never whether one may exist. Customers (`role: "user"`)
+ * are provisioned by checkout and sign in by OTP; the dashboard layout is what
+ * keeps them out of staff surfaces.
+ */
+export function decideSessionAdmission(
+  row: { role: string; status: string } | undefined,
+): { ok: true } | { ok: false; message: string } {
+  // A missing row means the lookup raced a delete, not that access is denied;
+  // better-auth has already verified the credential by this point.
+  if (!row) return { ok: true };
+  if (row.status !== "active") {
+    return { ok: false, message: "This account is not active. Contact an administrator." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sign-in gate. Runs after the credential check but before a session row is
+ * written, so it covers every sign-in method at once rather than each route
+ * separately. Exported for tests.
  */
 export async function assertSessionAllowed(userId: bigint): Promise<void> {
   const [u] = await db
@@ -35,13 +49,8 @@ export async function assertSessionAllowed(userId: bigint): Promise<void> {
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
-  if (!u) return;
-  if (u.role === "user") {
-    throw new APIError("FORBIDDEN", { message: "This account has no sign-in access." });
-  }
-  if (u.status !== "active") {
-    throw new APIError("FORBIDDEN", { message: "This account is not active. Contact an administrator." });
-  }
+  const decision = decideSessionAdmission(u);
+  if (!decision.ok) throw new APIError("FORBIDDEN", { message: decision.message });
 }
 
 export const auth = betterAuth({

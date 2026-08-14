@@ -36,9 +36,9 @@ describe("assertSessionAllowed", () => {
     await expect(assertSessionAllowed(id)).resolves.toBeUndefined();
   });
 
-  it("rejects a customer even when active", async () => {
+  it("allows an active customer", async () => {
     const id = await make(`${MARK}-c@example.test`, "user");
-    await expect(assertSessionAllowed(id)).rejects.toThrow(/no sign-in access/i);
+    await expect(assertSessionAllowed(id)).resolves.toBeUndefined();
   });
 
   it("rejects a suspended staff account", async () => {
