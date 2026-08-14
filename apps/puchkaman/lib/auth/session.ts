@@ -25,5 +25,7 @@ export const getSession = cache(async () => {
   if (!s?.user) return null;
   const u = s.user as { publicId?: string; id: string; role?: RoleValue; email?: string };
   if (!u.publicId) return null;
-  return { user: { id: u.publicId, role: u.role ?? Role.MEMBER, email: u.email ?? "" } };
+  // A session that somehow carries no role authorizes as a customer, never as
+  // staff — the read path must agree with the fail-closed column default.
+  return { user: { id: u.publicId, role: u.role ?? Role.USER, email: u.email ?? "" } };
 });

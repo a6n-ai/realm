@@ -105,7 +105,7 @@ export const auth = betterAuth({
   user: {
     fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
     additionalFields: {
-      role: { type: "string", required: false, defaultValue: Role.MEMBER, input: false },
+      role: { type: "string", required: false, defaultValue: Role.USER, input: false },
       publicId: { type: "string", required: false, input: false },
     },
   },

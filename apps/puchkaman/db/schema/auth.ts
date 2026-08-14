@@ -36,7 +36,10 @@ export const users = pgTable(
     // until someone verifies it. Unverified numbers must never receive SMS.
     phone: text("phone"),
     phoneVerified: boolean("phone_verified").notNull().default(false),
-    role: userRole("role").notNull().default("member"),
+    // Fails closed: `member` holds order:write and finance:read, so a row created
+    // without an explicit role must never land on it. Invites and checkout both
+    // pass `role` themselves.
+    role: userRole("role").notNull().default("user"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
     // own on first login. The dashboard gate redirects to /set-password while
