@@ -4,12 +4,11 @@ import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex }
 
 const nextIdText = sql`(next_id())::text`;
 
-// Staff sign in; customers do not. "admin" and "member" are staff roles. "user" is a
-// CUSTOMER record provisioned by checkout so notifications have a recipient and orders
-// have an owner — it is created with NO credential row and is rejected outright by the
-// session.create.before hook, so it can never obtain a session. The default is "member"
-// so a row that somehow arrives without an explicit role still lands on a role the
-// permission map knows.
+// "admin" and "member" are staff roles (order:write, finance:read, etc). "user" is
+// the customer role — a row provisioned by checkout with NO credential row, so it
+// signs in later only via email OTP, never a password. The default is "user" so a
+// row that somehow arrives without an explicit role fails closed onto the powerless
+// role rather than a staff one.
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
 
 // Template locale. `en` only today; the column exists so notification_template's

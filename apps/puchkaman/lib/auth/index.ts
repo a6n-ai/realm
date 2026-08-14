@@ -144,8 +144,8 @@ export const auth = betterAuth({
     // fail-OPEN — better-auth falls back to defaultRole when a session carries no role,
     // and member holds order:write and finance:read. Unreachable while users.role is
     // NOT NULL, but it sits next to a roleCan() that fails closed and should agree with
-    // it. This is NOT the creation default: a row created without a role still becomes
-    // a member, via the column default and user.additionalFields above.
+    // it. This is NOT the creation default: a row created without a role becomes a
+    // user, via the column default and user.additionalFields above — both Role.USER too.
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
     nextCookies(),
   ],
