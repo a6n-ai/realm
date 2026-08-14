@@ -116,7 +116,51 @@ directly instead of going through the email upsert.
 `upsertCustomer`'s `onConflictDoUpdate` must not overwrite `name`/`phone`
 when the target row has `passwordSet` or `email_verified` set.
 
-## Slice 2 — Clover employees to users
+## Slice 2 — Clover employees to users, and making `member` real
+
+> Revised 2026-08-14 after slice 1. Slice 1 discovered that all ~40 dashboard
+> pages call `requireAdmin`, which *throws*, so admitting `member` produced an
+> unhandled 500. Slice 1 routed `member` to `/no-access` as an interim. Syncing
+> Clover employees into `member` accounts is pointless while that holds, so the
+> permission audit moves into this slice.
+
+### Making `member` a usable role
+
+The permission map already decides who may do what
+(`lib/auth/permissions.ts`): `member` holds `product:read`,
+`order:[read, write]`, `finance:read`. The audit applies that map rather than
+re-litigating it per page.
+
+Measured surface: 89 `requireAdmin` calls across 36 files under
+`app/(dashboard)/dashboard`, plus every route under `app/api/orders` and
+`app/api/products`. Only ~10 of those files change; the rest stay admin-only.
+
+| Surface | Guard | `member` |
+|---|---|---|
+| `orders/page.tsx`, `orders/[id]/page.tsx` | `order:["read"]` | yes |
+| `products/page.tsx`, `products/[id]/page.tsx` | `product:["read"]` | yes, read-only |
+| `finance/layout.tsx`, `finance/ledger`, `finance/transactions` | `finance:["read"]` | yes |
+| `account/page.tsx` | any staff session | yes — today `requireAdmin` locks a member out of their own account page |
+| `dashboard/page.tsx` (home) | any staff session; each card gated by its own permission | partial |
+| `settings/*`, `notifications/*`, `logs`, `clover/*`, `settings/users` | unchanged `requireAdmin` | no |
+
+API routes carry their own guards and are audited alongside the pages, because
+a page-level guard does nothing for a direct `fetch`:
+
+- `app/api/orders/**` — reads `order:["read"]`, mutations `order:["write"]`.
+- `app/api/products/**` — reads `product:["read"]`; every write, sync, delete,
+  and Clover-link route stays `product:["write"]` or `product:["sync"]`, which
+  `member` does not hold.
+
+Two slice-1 decisions reverse, now that `member` has somewhere to land:
+`landingPathFor("member")` returns `/dashboard`, and the dashboard layout admits
+`member` again. `/no-access` stays for any future role with no pages.
+
+`components/dashboard/app-sidebar.tsx` must filter its items by permission.
+Without it a member sees nav pointing at pages that now correctly 403 — the same
+dead-end slice 1 removed, in a quieter form.
+
+### Linking Clover employees to users
 
 - Add `employees.user_id` → `users.id`, nullable, unique.
 - `clover-employees-sync.service.ts` upserts a `users` row for each Clover
@@ -125,6 +169,12 @@ when the target row has `passwordSet` or `email_verified` set.
   user row and no link.
 - **Role is set on create only.** A subsequent sync never rewrites the role
   of an existing user, so a manual promotion to `admin` survives.
+- **The sync sends no email.** It creates the row and the link; an admin then
+  clicks Invite to mail the OTP. Sync stays idempotent and silent, so re-running
+  it — or scheduling it — never mails anyone.
+- Employees are keyed on `clover_employee_id`; users are keyed on email. That
+  mismatch is why an employee with no email gets no user row: there is no key
+  to match or create on.
 - Deactivation stays as-is: the sync marks the `employees` row inactive. It
   does not change `users.status` — staff access is revoked deliberately, not
   by a POS side effect.
@@ -134,9 +184,10 @@ when the target row has `passwordSet` or `email_verified` set.
   unfiltered `select * from users` and already lists guest customers
   alongside staff. Add a role facet using the existing `FacetDef` /
   `parseFilterState` framework, defaulting to staff roles.
-- `app/(dashboard)/dashboard/layout.tsx:21`: change `role !== "admin"` to
-  `role === "user"` → redirect `/me`. Per-route `requirePermission` calls
-  already constrain what `member` can do.
+The users list also moves onto the shared facet framework. It is a raw
+`<Table>` today with no filters, no search, and no pagination, over an
+unpaginated `select *` — which already mixes guest customers in with staff and
+degrades with every order placed.
 
 ## Slice 3 — Extract `@realm/wallet`
 
