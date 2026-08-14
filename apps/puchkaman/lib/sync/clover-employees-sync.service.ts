@@ -100,6 +100,20 @@ class CloverEmployeesSyncService {
       cloverLastSyncedAt: now,
     };
 
+    // An existing link is never re-resolved (see below), but a dead one must
+    // not fail silently: a single by-id lookup — not a table scan — surfaces
+    // it in the same admin-visible place as the shared-email conflict, without
+    // auto-relinking, minting a replacement, or touching users.status.
+    if (existing?.userId) {
+      const linked = await usersRepository.findStatusById(existing.userId);
+      if (!linked || linked.status !== "active") {
+        result.errors.push({
+          id: emp.id,
+          message: `Employee "${emp.name}" is linked to an account that is ${linked ? linked.status : "missing"}; sign-in is unavailable until an admin relinks it.`,
+        });
+      }
+    }
+
     // Resolve a link only when this employee doesn't already have one. Leaving
     // an existing link alone means a later email change on Clover's side can
     // never orphan the account it's already tied to, and re-syncing an already

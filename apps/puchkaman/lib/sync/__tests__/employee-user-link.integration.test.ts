@@ -79,12 +79,19 @@ describe("clover employee sync — user provisioning", () => {
     // Re-sync: an employee that already has a link is never re-resolved, so
     // the (now dead) link is left exactly as it was — no second account is
     // minted, and the unique constraint on employees.user_id is never at risk.
-    await cloverEmployeesSyncService.pull(fakeClient([{ id: cloverId, name: "Baker", email }]));
+    // The row must still persist, and the dead link must be reported, not
+    // swallowed — an admin has to find out some way other than "can't log in".
+    const result = await cloverEmployeesSyncService.pull(
+      fakeClient([{ id: cloverId, name: "Baker", email }]),
+    );
     const [afterSecond] = await db
       .select({ userId: employees.userId })
       .from(employees)
       .where(eq(employees.cloverEmployeeId, cloverId));
     expect(afterSecond!.userId).toBe(firstUserId);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]!.message).toContain("Baker");
+    expect(result.errors[0]!.message).toContain("deleted");
 
     const usersWithEmail = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
     expect(usersWithEmail).toHaveLength(0);

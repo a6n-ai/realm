@@ -23,6 +23,11 @@ export class UsersRepository extends UpdatableRepository<typeof users> {
       .limit(1);
     return row ?? null;
   }
+
+  async findStatusById(id: bigint): Promise<{ status: string } | null> {
+    const [row] = await this.db.select({ status: users.status }).from(users).where(eq(users.id, id)).limit(1);
+    return row ?? null;
+  }
 }
 
 export const usersRepository = new UsersRepository(db, users, users.publicId, users.id);
