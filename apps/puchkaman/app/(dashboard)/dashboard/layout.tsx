@@ -18,7 +18,10 @@ import { NotificationBellMount } from "@/components/dashboard/notification-bell-
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") redirect("/login");
+  if (!session?.user) redirect("/login");
+  // A customer here is a wrong turn, not an intrusion — sending them to /login
+  // would loop, because /login sees their valid session and sends them back.
+  if (session.user.role === "user") redirect("/me");
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits
