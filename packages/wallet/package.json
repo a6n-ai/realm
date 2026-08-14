@@ -1,0 +1,27 @@
+{
+  "name": "@realm/wallet",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@realm/commons": "workspace:*",
+    "@realm/database": "workspace:*"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.45.2",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}
