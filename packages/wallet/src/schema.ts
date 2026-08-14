@@ -71,4 +71,26 @@ export function makeWalletTables<
   return { walletLedger, eventPayout, coinRate };
 }
 
-export type WalletTables = ReturnType<typeof makeWalletTables>;
+/**
+ * Parameterised on the app's actual event union so consumers who inject
+ * their real tables get their real event enum back — not `string`. `[E,
+ * ...E[]]` feeds `makeWalletTables`'s tuple-constrained generic without
+ * duplicating the table shape; `PgEnum<[E,...E[]]>` collapses its `data`
+ * type back down to the plain union `E`.
+ *
+ * Direction is pinned to `"credit" | "debit"` (not a second type param): both
+ * real ledger_direction enums use exactly these two values, and leaving it
+ * fully generic breaks drizzle's insert/select overload resolution outright
+ * (its column-type inference can't collapse an abstract type param through
+ * the `Column extends ... ? T : ...` machinery it uses internally — this
+ * isn't just a literal-mismatch warning, the whole overload disappears).
+ * `["credit","debit"] | ["debit","credit"]` — rather than one fixed order —
+ * because drizzle's `PgEnumColumn['enumValues']` is the exact declared tuple
+ * compared positionally, and tiffin-grab's is `["debit", "credit"]`; a
+ * consumer who lists the two values in either order still matches one member
+ * of the union, while a genuinely different spelling (not "credit"/"debit")
+ * still fails to typecheck.
+ */
+export type WalletTables<E extends string = string> = ReturnType<
+  typeof makeWalletTables<[E, ...E[]], ["credit", "debit"] | ["debit", "credit"]>
+>;

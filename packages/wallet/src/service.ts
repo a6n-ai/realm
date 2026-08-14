@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsTransaction } from "drizzle-orm/postgres-js";
-import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import type { AnyPgTable } from "drizzle-orm/pg-core";
 import { ValidationError } from "@realm/commons";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
@@ -22,15 +22,21 @@ export type WalletTx<E extends string> = {
   orderPublicId: string | null;
 };
 
+/**
+ * `E` is left for TS to infer from `tables` (the app's real
+ * `makeWalletTables` return value carries its real event union) — a
+ * consumer who passes real tables gets a real union, not `string`. Explicit
+ * type arguments still work; they're just no longer required for safety.
+ */
 export type WalletDeps<E extends string> = {
   db: Database;
-  tables: WalletTables;
+  tables: WalletTables<E>;
   /** Joined for orderPublicId; app-local, so injected. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  orders: PgTableWithColumns<any>;
+  orders: AnyPgTable & { id: any; publicId: any };
   /** Locked FOR UPDATE to serialise redemptions. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  users: PgTableWithColumns<any>;
+  users: AnyPgTable & { id: any };
   /**
    * Writes the app's own money-ledger discount row inside redeem's transaction.
    * Injected because ledger_entries differs per app and the package must not
@@ -111,7 +117,11 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
         .limit(page.size).offset(page.page * page.size);
       const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(walletLedger).where(where);
       return {
-        items: rows.map((r) => ({ ...r, orderPublicId: r.orderPublicId ?? null })) as WalletTx<E>[],
+        // eventType cast: drizzle's SelectResultField conditional can't collapse
+        // an abstract generic PgEnumColumn['data'] inside this generic function
+        // body (E is opaque here even though it's concrete at every call site) —
+        // a real, narrow TS limitation, not a select-shape assumption.
+        items: rows.map((r) => ({ ...r, eventType: r.eventType as E | null, orderPublicId: r.orderPublicId ?? null })),
         page: page.page,
         size: page.size,
         total: count,
@@ -164,7 +174,8 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
         .where(eq(walletLedger.userId, userId))
         .orderBy(desc(walletLedger.createdAt))
         .limit(limit);
-      return rows as WalletTx<E>[];
+      // eventType cast: same drizzle/TS limitation as ledgerPage above.
+      return rows.map((r) => ({ ...r, eventType: r.eventType as E | null }));
     },
 
     async earnSpendTotals(userId: bigint): Promise<{ earned: number; spent: number }> {

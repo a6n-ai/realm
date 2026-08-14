@@ -196,7 +196,7 @@ app needs its own event catalog, so the schema ships as a factory rather than
 fixed tables:
 
 ```ts
-createWalletTables({ users, orders, appEvent, ledgerDirection })
+makeWalletTables({ users, orders, appEvent, ledgerDirection })
 ```
 
 tiffin-grab passes its existing `app_event` pgEnum, so no column type
