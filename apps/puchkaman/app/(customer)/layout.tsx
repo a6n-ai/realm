@@ -7,6 +7,7 @@ import { Toaster } from "@realm/ui/sonner";
 import { TooltipProvider } from "@realm/ui/tooltip";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
+import { landingPathFor } from "@/lib/auth/landing";
 import { getSession } from "@/lib/auth/session";
 import { CustomerNav } from "@/components/customer/customer-nav";
 import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
@@ -17,9 +18,12 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me");
   // Staff have their own console; sending them here would hide the tools they
-  // signed in for behind a customer shell. A non-admin staff role would only be
-  // bounced on again by the /dashboard gate, so send it straight to /no-access.
-  if (session.user.role === Role.ADMIN) redirect("/dashboard");
+  // signed in for behind a customer shell. `member` is a real console role now,
+  // so route by role rather than dead-ending every non-admin staffer on
+  // /no-access — a member following a /me link does have somewhere to go.
+  // /no-access stays the answer for a role with no home but this one.
+  const home = landingPathFor(session.user.role);
+  if (home !== "/me") redirect(home);
   if (session.user.role !== Role.USER) redirect("/no-access");
 
   const [u] = await db
