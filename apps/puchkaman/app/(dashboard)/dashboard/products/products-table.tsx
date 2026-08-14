@@ -205,7 +205,7 @@ export function ProductsTable({
             </TableCell>
             <TableCell className="text-right">
               <div className="flex justify-end gap-1">
-                {cloverEnabled ? (
+                {cloverEnabled && canWrite ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -270,7 +270,7 @@ export function ProductsTable({
         danger
         onConfirm={confirmRemove}
       />
-      {cloverEnabled ? (
+      {cloverEnabled && canWrite ? (
         <CloverLinkDialog
           key={cloverLinking?.publicId ?? "none"}
           open={!!cloverLinking}
