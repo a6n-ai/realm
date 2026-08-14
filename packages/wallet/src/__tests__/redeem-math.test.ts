@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { capRedemption } from "../service";
 
 /**
- * A non-round rate makes coinsSpent * rate exceed the order total after
- * rounding, which is why the cap is applied twice. These cases fail if the
- * second cap is ever dropped as redundant.
+ * The second cap only bites when the first `min` doesn't clamp (coins * rate
+ * < orderTotal) but rounding coinsSpent back up pushes coinsSpent * rate over
+ * orderTotal — see "re-caps after rounding" below, the only case here that
+ * actually fails if the second cap is deleted. The other cases exercise
+ * shape/rounding but pass either way.
  */
 describe("capRedemption", () => {
   it("spends every coin when the value is under the order total", () => {
@@ -20,6 +22,16 @@ describe("capRedemption", () => {
     const total = 10;
     const out = capRedemption(999, 0.03, total);
     expect(out.currencyValue).toBeLessThanOrEqual(total);
+  });
+
+  it("re-caps after the recompute pushes value back over the total (deleting the second cap alone breaks this)", () => {
+    // 143 * 0.07 = 10.01, so the first cap clamps currencyValue to 10;
+    // coinsSpent = round(10 / 0.07) = 143; recomputing coinsSpent * rate
+    // gives 10.01 again, over `total` — only the second cap catches that.
+    const out = capRedemption(143, 0.07, 10);
+    expect(out.coinsSpent).toBe(143);
+    expect(out.currencyValue).toBeLessThanOrEqual(10);
+    expect(out.currencyValue).not.toBe(10.01);
   });
 
   it("never returns a negative or fractional coin count", () => {
