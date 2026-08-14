@@ -3,9 +3,10 @@ import { Card, CardContent } from "@realm/ui/card";
 import { getSession } from "@/lib/auth/session";
 import { SignOutButton } from "./sign-out-button";
 
-// Terminal screen for a signed-in account no route group will admit — today
-// that is `member`, which is invitable but has no /dashboard page yet. Lives
-// under (auth) on purpose: (dashboard) and (customer) both redirect away.
+// Terminal screen for a signed-in account whose role has nowhere to go —
+// today no role lands here (admin/member reach /dashboard, everyone else
+// /me), but it stays reachable for a future staff role with no pages yet.
+// Lives under (auth): (dashboard) and (customer) both redirect away from it.
 export const dynamic = "force-dynamic";
 
 export default async function NoAccessPage() {
