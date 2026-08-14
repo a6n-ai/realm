@@ -104,9 +104,11 @@ class CloverEmployeesSyncService {
     // not fail silently: a single by-id lookup — not a table scan — surfaces
     // it in the same admin-visible place as the shared-email conflict, without
     // auto-relinking, minting a replacement, or touching users.status.
+    // `inactive` is the state every synced account is born in — it is pending
+    // activation, not broken, and the users list already shows it as such.
     if (existing?.userId) {
       const linked = await usersRepository.findStatusById(existing.userId);
-      if (!linked || linked.status !== "active") {
+      if (!linked || (linked.status !== "active" && linked.status !== "inactive")) {
         result.errors.push({
           id: emp.id,
           message: `Employee "${emp.name}" is linked to an account that is ${linked ? linked.status : "missing"}; sign-in is unavailable until an admin relinks it.`,
@@ -114,11 +116,14 @@ class CloverEmployeesSyncService {
       }
     }
 
-    // Resolve a link only when this employee doesn't already have one. Leaving
-    // an existing link alone means a later email change on Clover's side can
-    // never orphan the account it's already tied to, and re-syncing an already
-    // linked employee never touches users at all.
-    if (!existing?.userId) {
+    // Resolve a link only when this employee doesn't already have one, and only
+    // while they are live on Clover — a deleted employee still comes back from
+    // listAllEmployees, and provisioning one would hand an account to someone
+    // the merchant has already let go. Leaving an existing link alone means a
+    // later email change on Clover's side can never orphan the account it's
+    // already tied to, and re-syncing an already linked employee never touches
+    // users at all.
+    if (active && !existing?.userId) {
       const resolved = await resolveEmployeeUser(
         { email: emp.email, name: emp.name },
         liveEmployeeUserDeps,

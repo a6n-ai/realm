@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db/client";
 import { account, employees, users } from "@/db/schema";
+import { decideSessionAdmission } from "@/lib/auth/index";
 import { cloverEmployeesSyncService } from "@/lib/sync/clover-employees-sync.service";
 import { tombstoneEmail } from "@/lib/services/users.service";
 
@@ -51,7 +52,56 @@ describe("clover employee sync — user provisioning", () => {
       .select({ role: users.role, status: users.status, email: users.email })
       .from(users)
       .where(eq(users.id, row!.userId!));
-    expect(newUser).toEqual({ role: "member", status: "active", email });
+    expect(newUser).toEqual({ role: "member", status: "inactive", email });
+  });
+
+  // /login offers email-OTP sign-in to any address, so an `active` synced row
+  // would let whoever controls a Clover employee's mailbox mint a member
+  // session unprompted. `inactive` is the gate, and this pins both halves: the
+  // row is created inactive, and the admission check refuses it.
+  it("provisions the account inactive, so it cannot obtain a session until an admin activates it", async () => {
+    const cloverId = `${MARK}-7`;
+    const email = `${MARK}-pending@example.test`;
+    cloverIds.push(cloverId);
+    emails.push(email);
+
+    await cloverEmployeesSyncService.pull(fakeClient([{ id: cloverId, name: "Pending", email }]));
+    const [created] = await db
+      .select({ role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.email, email));
+    expect(created!.status).toBe("inactive");
+    expect(decideSessionAdmission(created!).ok).toBe(false);
+
+    // …and once an admin activates it (the users list "Reactivate" action),
+    // sign-in is allowed with no other change.
+    await db.update(users).set({ status: "active" }).where(eq(users.email, email));
+    const [activated] = await db
+      .select({ role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.email, email));
+    expect(decideSessionAdmission(activated!).ok).toBe(true);
+  });
+
+  it("does not provision an account for an employee Clover has deleted", async () => {
+    const cloverId = `${MARK}-8`;
+    const email = `${MARK}-fired@example.test`;
+    cloverIds.push(cloverId);
+    emails.push(email);
+
+    await cloverEmployeesSyncService.pull(
+      fakeClient([{ id: cloverId, name: "Fired", email, deletedTime: Date.now() }]),
+    );
+
+    const [row] = await db
+      .select({ userId: employees.userId, active: employees.active })
+      .from(employees)
+      .where(eq(employees.cloverEmployeeId, cloverId));
+    expect(row!.active).toBe(false);
+    expect(row!.userId).toBeNull();
+
+    const created = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+    expect(created).toHaveLength(0);
   });
 
   it("leaves an existing link alone even after the linked account is soft-deleted", async () => {
