@@ -15,13 +15,14 @@ import {
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { employees, orders, payments, productTaxRates, products, taxRates } from "@/db/schema";
+import { employees, orders, payments, productTaxRates, products, taxRates, users } from "@/db/schema";
+import { getSession } from "@/lib/auth/session";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   isPublicOrderingEnabled,
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
-import { upsertCustomer } from "@/lib/customers/upsert-customer";
+import { resolveOrderOwner, upsertCustomer } from "@/lib/customers/upsert-customer";
 import { enqueueNotification, enqueueStaff } from "@/lib/notifications/enqueue";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
@@ -710,14 +711,31 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       total,
     };
 
+    const session = await getSession();
+
     const order = await db.transaction(async (tx) => {
       // Provisioned before the order so the row has an owner from the start.
-      // No credential is created — see upsertCustomer.
-      const customerId = await upsertCustomer(tx, {
-        email: parsed.contact.email,
-        name: parsed.contact.name,
-        phone: parsed.contact.phone ?? null,
-      });
+      // A signed-in customer owns their order directly; a guest gets the
+      // credential-less row upsertCustomer creates.
+      const customerId = await resolveOrderOwner(
+        {
+          email: parsed.contact.email,
+          name: parsed.contact.name,
+          phone: parsed.contact.phone ?? null,
+          sessionUserPublicId: session?.user.id ?? null,
+        },
+        {
+          findByPublicId: async (publicId) => {
+            const [row] = await tx
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.publicId, publicId))
+              .limit(1);
+            return row?.id ?? null;
+          },
+          upsertByEmail: (i) => upsertCustomer(tx, i),
+        },
+      );
 
       const [row] = await tx
         .insert(orders)

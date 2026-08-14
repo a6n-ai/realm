@@ -63,3 +63,24 @@ export async function upsertCustomer(tx: Tx, input: UpsertCustomerInput): Promis
   if (!row) throw new Error(`upsertCustomer returned no row for ${email}`);
   return row.id;
 }
+
+export type OrderOwnerDeps = {
+  findByPublicId: (publicId: string) => Promise<bigint | null>;
+  upsertByEmail: (input: UpsertCustomerInput) => Promise<bigint>;
+};
+
+/**
+ * Who owns this order. A live session beats the typed email: a signed-in
+ * customer ordering to a work address should not fork a second account, and the
+ * email field is free text that anyone can put anything into.
+ */
+export async function resolveOrderOwner(
+  input: UpsertCustomerInput & { sessionUserPublicId?: string | null },
+  deps: OrderOwnerDeps,
+): Promise<bigint> {
+  if (input.sessionUserPublicId) {
+    const owned = await deps.findByPublicId(input.sessionUserPublicId);
+    if (owned !== null) return owned;
+  }
+  return deps.upsertByEmail(input);
+}
