@@ -127,6 +127,13 @@
       "when": 1786681349593,
       "tag": "0017_even_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786714650599,
+      "tag": "0018_green_thor_girl",
+      "breakpoints": true
     }
   ]
 }

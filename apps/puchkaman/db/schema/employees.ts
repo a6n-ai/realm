@@ -1,6 +1,8 @@
 import { updatableColumns } from "@realm/database";
 import { bigint, boolean, pgTable, text } from "drizzle-orm/pg-core";
 
+import { users } from "./auth";
+
 /**
  * Clover merchant employees (Register staff).
  * Pull-synced from Platform `/v3/merchants/{mId}/employees`.
@@ -19,4 +21,8 @@ export const employees = pgTable("employees", {
   active: boolean("active").notNull().default(true),
   cloverEmployeeId: text("clover_employee_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // A Clover employee maps to at most one auth account. Nullable because an
+  // employee with no email has no key to create a user row from; unique so one
+  // account cannot be claimed by two employees.
+  userId: bigint("user_id", { mode: "bigint" }).references(() => users.id).unique(),
 });
