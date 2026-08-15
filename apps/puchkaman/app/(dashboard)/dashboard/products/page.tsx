@@ -3,7 +3,9 @@ import { PackageIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { getCloverConnection } from "@realm/clover";
 import { Skeleton } from "@realm/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
+import { getSession, roleOrCustomer } from "@/lib/auth/session";
+import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { parseSort } from "@/lib/list/sort";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { productsService, type ProductSortColumn } from "@/lib/services/products.service";
@@ -88,17 +90,22 @@ export default function ProductsPage({ searchParams }: { searchParams: SearchPar
 }
 
 async function ProductsHeaderLoader() {
-  const clover = await getCloverConnection(integrationsConfigStore);
+  const [clover, session] = await Promise.all([
+    getCloverConnection(integrationsConfigStore),
+    getSession(),
+  ]);
   return (
     <ProductsHeaderActions
       cloverEnabled={Boolean(clover.installed)}
       cloverConnected={Boolean(clover.connected && clover.merchantId)}
+      granted={grantedKeys(roleOrCustomer(session?.user.role))}
     />
   );
 }
 
 async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ product: ["read"] });
+  const session = await getSession();
 
   const sp = await searchParams;
   const sort = parseSort(sp, PRODUCT_SORT_COLUMNS, { column: "category", dir: "asc" });
@@ -126,6 +133,7 @@ async function ProductsData({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       cloverEnabled={Boolean(clover.installed)}
       cloverConnected={Boolean(clover.connected && clover.merchantId)}
+      granted={grantedKeys(roleOrCustomer(session?.user.role))}
     />
   );
 }

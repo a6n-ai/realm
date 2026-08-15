@@ -15,8 +15,10 @@ const TABS = [
 /** Mobile bottom nav — sidebar is desktop-only (CrmShell hideSidebarOnMobile). */
 export function AppBottomNav({
   statuses = {},
+  granted,
 }: {
   statuses?: Record<string, PluginCatalogStatus>;
+  granted?: string[];
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -34,7 +36,7 @@ export function AppBottomNav({
   return (
     <>
       <BottomNav items={items} />
-      <MoreDrawer open={moreOpen} onOpenChange={setMoreOpen} statuses={statuses} />
+      <MoreDrawer open={moreOpen} onOpenChange={setMoreOpen} statuses={statuses} granted={granted} />
     </>
   );
 }

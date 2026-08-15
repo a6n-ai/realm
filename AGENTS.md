@@ -90,5 +90,9 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
   `removeUser` (hard delete — use `usersService.softDelete`), impersonation, and
   `adminClient()` (it would pull server-only `@realm/auth` into the browser bundle).
   Invites create the account with NO credential and mail an OTP; `onPasswordReset`
-  flips `passwordSet`. puchkaman is staff-only: `admin` and `member`, no `user` role,
-  and the `users.role` column defaults to `member`.
+  flips `passwordSet`. puchkaman has three roles. `admin` runs the console at
+  `/dashboard`; `user` is a customer, signs in by email OTP, and lives at `/me`;
+  `member` is invitable but no `/dashboard` page admits it yet (they all call
+  `requireAdmin`), so it lands on `/no-access` until that audit happens.
+  The `users.role` column defaults to `user` (migration `0017`) — deliberately
+  fail-closed, since `user` is the role with no console permissions.

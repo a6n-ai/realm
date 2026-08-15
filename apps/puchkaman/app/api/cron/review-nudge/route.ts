@@ -29,7 +29,8 @@ async function handle(request: Request): Promise<Response> {
 
   const cutoff = Date.now() - NUDGE_DELAY_MS;
 
-  // Puchkaman is guest checkout — no user row, so the email lives on the order itself.
+  // Nudges key off orders.customerEmail, not the owner row: most checkouts are still
+  // guest, and a customer who later signs in must not be nudged twice.
   // This join is raw-case against orders.customerEmail, not lower(). Harmless: a
   // mixed-case address can miss the reviewNudges prefilter here, but dispatchReviewNudge
   // re-checks shouldNudge, which normalizes email before reading the store.

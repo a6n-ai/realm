@@ -10,7 +10,8 @@
 export interface BroadcastInput {
   userId: bigint;
   publicId: string;
-  event: string;
+  /** Null for a campaign notification, which has no business event. */
+  event: string | null;
   title: string;
   body: string;
   href: string | null;

@@ -14,6 +14,12 @@ function isDynamicServerError(e: unknown): boolean {
   );
 }
 
+// Extracted so the fail-closed fallback is assertable without going through
+// cache()/headers() — see role-defaults.test.ts.
+export function roleOrCustomer(role: RoleValue | undefined): RoleValue {
+  return role ?? Role.USER;
+}
+
 export const getSession = cache(async () => {
   let s: Awaited<ReturnType<typeof auth.api.getSession>> | null;
   try {
@@ -25,5 +31,7 @@ export const getSession = cache(async () => {
   if (!s?.user) return null;
   const u = s.user as { publicId?: string; id: string; role?: RoleValue; email?: string };
   if (!u.publicId) return null;
-  return { user: { id: u.publicId, role: u.role ?? Role.MEMBER, email: u.email ?? "" } };
+  // A session that somehow carries no role authorizes as a customer, never as
+  // staff — the read path must agree with the fail-closed column default.
+  return { user: { id: u.publicId, role: roleOrCustomer(u.role), email: u.email ?? "" } };
 });

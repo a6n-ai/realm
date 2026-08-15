@@ -8,7 +8,14 @@ export default defineConfig({
     environment: "node",
     // __tests__/ covers root-level modules like proxy.ts that live outside
     // lib/, db/ and app/ — without it those test files are silently skipped.
-    include: ["lib/**/*.test.ts", "db/**/*.test.ts", "app/**/*.test.ts", "__tests__/**/*.test.ts"],
+    include: [
+      "lib/**/*.test.ts",
+      "db/**/*.test.ts",
+      "app/**/*.test.ts",
+      "workers/**/*.test.ts",
+      "components/**/*.test.ts",
+      "__tests__/**/*.test.ts",
+    ],
     // db/client.ts throws at import time without this. Unit tests here stub the
     // repository and never open a connection; the value only has to parse.
     env: {

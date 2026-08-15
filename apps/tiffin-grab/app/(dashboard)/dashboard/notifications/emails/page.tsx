@@ -3,7 +3,7 @@ import { and, eq, gte, sql, type SQL } from "drizzle-orm";
 import type { FilterCondition } from "@realm/commons";
 import { conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
-import { emailLog, notificationPrefs } from "@/db/schema";
+import { emailLog, messageSuppression } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, ListPagination, parseFilterState, type FacetDef } from "@/components/ds";
@@ -63,14 +63,17 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const n = sql<number>`cast(count(*) as int)`;
 
+  // Suppression moved off notification_prefs onto message_suppression, which is
+  // keyed on the address itself — so this no longer needs the users join, and it
+  // now also surfaces suppressed addresses that never had an account.
   const base = sql`(
     select el.created_at as at, el.recipient, el.subject, el.status::text as status, el.error
     from ${emailLog} el
     union all
-    select np.updated_at as at, u.email as recipient,
-           coalesce(np.suppressed_reason, 'suppressed') as subject, 'suppressed' as status, null as error
-    from ${notificationPrefs} np join users u on u.id = np.user_id
-    where np.channel = 'email' and np.suppressed = true
+    select ms.created_at as at, ms.address as recipient,
+           ms.reason as subject, 'suppressed' as status, null as error
+    from ${messageSuppression} ms
+    where ms.channel = 'email'
   ) t`;
   const where = conditionToSql(condition, resolveEmailFacet);
   const whereSql = where ? sql` where ${where}` : sql``;
@@ -80,7 +83,7 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
     db.select({ n }).from(emailLog).where(and(eq(emailLog.status, "sent"), gte(emailLog.createdAt, dayAgo))),
     db.select({ n }).from(emailLog).where(and(eq(emailLog.status, "failed"), gte(emailLog.createdAt, dayAgo))),
     db.select({ n }).from(emailLog).where(eq(emailLog.status, "sent")),
-    db.select({ n }).from(notificationPrefs).where(and(eq(notificationPrefs.channel, "email"), eq(notificationPrefs.suppressed, true))),
+    db.select({ n }).from(messageSuppression).where(eq(messageSuppression.channel, "email")),
     db.execute(sql`select at, recipient, subject, status, error from ${base}${whereSql} order by at desc limit ${page.size} offset ${page.page * page.size}`),
     db.execute(sql`select cast(count(*) as int) as total from ${base}${whereSql}`),
   ]);

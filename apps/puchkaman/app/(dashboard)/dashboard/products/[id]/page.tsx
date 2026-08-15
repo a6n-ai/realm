@@ -5,7 +5,9 @@ import { NotFoundError } from "@realm/commons";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { getCloverConnection } from "@realm/clover";
 import { Skeleton } from "@realm/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
+import { getSession, roleOrCustomer } from "@/lib/auth/session";
+import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   inventoryCatalogService,
@@ -34,15 +36,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 }
 
 async function ProductDetailLoader({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission({ product: ["read"] });
   const { id } = await params;
 
-  const [product, clover] = await Promise.all([
+  const [product, clover, session] = await Promise.all([
     productsService.getDetail(id).catch((e) => {
       if (e instanceof NotFoundError) return null;
       throw e;
     }),
     getCloverConnection(integrationsConfigStore),
+    getSession(),
   ]);
 
   if (!product) notFound();
@@ -73,6 +76,7 @@ async function ProductDetailLoader({ params }: { params: Promise<{ id: string }>
         associationOptions={associationOptions}
         cloverEnabled={Boolean(clover.installed)}
         cloverConnected={Boolean(clover.connected && clover.merchantId)}
+        granted={grantedKeys(roleOrCustomer(session?.user.role))}
       />
     </>
   );

@@ -4,7 +4,7 @@ import { CoinsIcon } from "lucide-react";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, SectionCard } from "@/components/ds";
 import { AnimatedNumber, LottieEmptyState, TransitionLink } from "@/components/motion";
-import { eventLabel } from "@/components/notifications/template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";

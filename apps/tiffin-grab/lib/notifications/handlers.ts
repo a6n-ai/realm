@@ -1,73 +1,39 @@
-import { eq } from "drizzle-orm";
-import { AppError } from "@realm/commons";
+import { buildHandlers, type BroadcastInput, type ChannelProvider } from "@realm/notifications";
 import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
-import { notifications, notificationOutbox, users } from "@/db/schema";
-import { renderEmailForEvent, renderInAppForEvent } from "./template-service";
+import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
 import { publishPush } from "./rabbit";
 
-type OutboxRow = typeof notificationOutbox.$inferSelect;
-type Channel = (typeof notificationOutbox.channel.enumValues)[number];
+/** Adapt @realm/email's EmailProvider to the package's ChannelProvider shape. */
+function emailChannelProvider(): ChannelProvider {
+  const provider = getEmailProvider();
+  return {
+    send: (msg) =>
+      provider.send({
+        to: { email: msg.to.email! },
+        subject: msg.subject!,
+        html: msg.html,
+        text: msg.text,
+      }),
+  };
+}
 
 /**
- * Delivers one outbox row. Returns the provider id on send, or `null` to SKIP
- * when no DB template exists for this event/channel — the DB template is the
- * single source of truth, so an absent template means the channel is silently
- * not delivered (the drainer records the skip).
+ * Publish-after-commit: hand the realtime push to RabbitMQ; the worker calls
+ * broadcast(). If the broker is unavailable, fall back to the inline push so
+ * the live ping still fires.
  */
-export type ChannelHandler = (row: OutboxRow) => Promise<{ providerMessageId: string } | null>;
-
-function payloadParts(row: OutboxRow) {
-  const p = row.payload as { href?: string | null; vars?: Record<string, unknown> };
-  return { href: p.href ?? null, vars: p.vars ?? {} };
-}
-
-/** in_app: render the DB template; no template → skip. Insert feed row + broadcast. */
-const inApp: ChannelHandler = async (row) => {
-  const { href, vars } = payloadParts(row);
-  const [user] = await db.select({ locale: users.locale }).from(users).where(eq(users.id, row.recipientId));
-  const rendered = await renderInAppForEvent(row.event, user?.locale ?? "en", vars);
-  if (!rendered) return null;
-  const [n] = await db
-    .insert(notifications)
-    .values({ userId: row.recipientId, event: row.event, title: rendered.title, body: rendered.body, href })
-    .returning({ publicId: notifications.publicId });
-
-  // Feed row is committed above. Publish-after-commit: hand the realtime push to
-  // RabbitMQ; the worker calls broadcast(). If the broker is unavailable, fall
-  // back to the inline push so the live ping still fires (no regression).
-  const input = { userId: row.recipientId, publicId: n.publicId, event: row.event, title: rendered.title, body: rendered.body, href };
+export const appBroadcast = async (input: BroadcastInput): Promise<void> => {
   if (!(await publishPush(input))) await broadcast(input);
-
-  return { providerMessageId: n.publicId };
 };
 
-/** Test-only handle onto the inApp handler. */
-export const __inAppForTest = inApp;
-
-function buildEmailHandler(): ChannelHandler {
-  const provider = getEmailProvider();
-  return async (row) => {
-    const { vars } = payloadParts(row);
-    const [user] = await db
-      .select({ email: users.email, locale: users.locale })
-      .from(users)
-      .where(eq(users.id, row.recipientId));
-    if (!user?.email) throw new AppError(`Recipient ${row.recipientId} has no email`, 422);
-
-    const rendered = await renderEmailForEvent(row.event, user.locale, vars);
-    if (!rendered) return null; // no DB template → don't send
-
-    return provider.send({ to: { email: user.email }, subject: rendered.subject, html: rendered.html, text: rendered.text });
-  };
-}
-
-export function buildHandlers(): Record<Channel, ChannelHandler | undefined> {
-  return {
-    in_app: inApp,
-    email: buildEmailHandler(),
-    sms: undefined,
-    whatsapp: undefined,
-  };
+export function buildAppHandlers() {
+  return buildHandlers({
+    db,
+    tables: notificationTables,
+    users: usersRef,
+    providers: { email: emailChannelProvider() },
+    broadcast: appBroadcast,
+  });
 }

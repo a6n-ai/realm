@@ -15,12 +15,15 @@ import {
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { employees, orders, payments, productTaxRates, products, taxRates } from "@/db/schema";
+import { employees, orders, payments, productTaxRates, products, taxRates, users } from "@/db/schema";
+import { getSession } from "@/lib/auth/session";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   isPublicOrderingEnabled,
   PUBLIC_ORDERING_UNAVAILABLE_MESSAGE,
 } from "@/lib/clover/public-ordering";
+import { resolveOrderOwner, upsertCustomer } from "@/lib/customers/upsert-customer";
+import { enqueueNotification, enqueueStaff } from "@/lib/notifications/enqueue";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { chooseDelivery } from "@/lib/delivery/choose-delivery";
@@ -708,11 +711,39 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       total,
     };
 
+    const session = await getSession();
+
     const order = await db.transaction(async (tx) => {
+      // Provisioned before the order so the row has an owner from the start.
+      // A signed-in customer owns their order directly; a guest — or a staff
+      // member ordering on someone's behalf — gets the credential-less row
+      // upsertCustomer creates for the typed email.
+      const customerId = await resolveOrderOwner(
+        {
+          email: parsed.contact.email,
+          name: parsed.contact.name,
+          phone: parsed.contact.phone ?? null,
+          sessionUserPublicId: session?.user.id ?? null,
+          sessionUserRole: session?.user.role ?? null,
+        },
+        {
+          findByPublicId: async (publicId) => {
+            const [row] = await tx
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.publicId, publicId))
+              .limit(1);
+            return row?.id ?? null;
+          },
+          upsertByEmail: (i) => upsertCustomer(tx, i),
+        },
+      );
+
       const [row] = await tx
         .insert(orders)
         .values({
           status: "pending",
+          userId: customerId,
           fulfillment,
           customerName: parsed.contact.name,
           customerEmail: parsed.contact.email.toLowerCase(),
@@ -767,6 +798,33 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           memo: cloverDiscounts.map((d) => d.name).join(" + ") || "Discount",
         });
       }
+
+      // Same txn as the order insert: a receipt must never describe an order
+      // that rolled back.
+      await enqueueNotification(tx, {
+        event: "order_placed",
+        recipientId: customerId,
+        title: "We got your order",
+        body: `Order ${row.publicId}`,
+        href: `/track?order=${row.publicId}`,
+        data: {
+          order: { publicId: row.publicId, total: String(row.total), name: parsed.contact.name },
+        },
+        dedupeKey: `${row.publicId}:order_placed`,
+      });
+      await enqueueStaff(tx, {
+        event: "order_placed",
+        title: "New order",
+        body: `${parsed.contact.name} — ${row.publicId}`,
+        href: `/dashboard/orders/${row.publicId}`,
+        // Staff templates render from the same vars as the customer's. Omitting
+        // `data` is silent: {{order.publicId}} interpolates to an empty string
+        // rather than failing, so the notification just reads "Order ".
+        data: {
+          order: { publicId: row.publicId, total: String(row.total), name: parsed.contact.name },
+        },
+        dedupeKey: `${row.publicId}:order_placed:staff`,
+      });
 
       return row;
     });
@@ -1188,6 +1246,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     if (order.status === "pending") {
       await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, order.id));
     }
+
+    // Staff-only: a customer who just watched the card decline does not need an
+    // email about it, and a failed charge is an operational signal.
+    await enqueueStaff(tx, {
+      event: "payment_failed",
+      title: "Payment failed",
+      body: order.publicId,
+      href: `/dashboard/orders/${order.publicId}`,
+      data: { order: { publicId: order.publicId, total: String(order.total) } },
+      dedupeKey: `${order.publicId}:payment_failed:${cloverChargeId ?? "none"}`,
+    });
+
     return true;
   }
 
@@ -1272,6 +1342,28 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       .update(orders)
       .set({ status: "paid", paidAt: now })
       .where(eq(orders.id, order.id));
+
+    // The guard matters: orders placed before the customer backfill have no
+    // owner, and enqueue would otherwise be handed an undefined recipient.
+    if (order.userId) {
+      await enqueueNotification(tx, {
+        event: "order_paid",
+        recipientId: order.userId,
+        title: "Payment received",
+        body: `Order ${order.publicId}`,
+        href: `/track?order=${order.publicId}`,
+        data: { order: { publicId: order.publicId, total: String(order.total) } },
+        dedupeKey: `${order.publicId}:order_paid`,
+      });
+    }
+    await enqueueStaff(tx, {
+      event: "order_paid",
+      title: "Order paid",
+      body: order.publicId,
+      href: `/dashboard/orders/${order.publicId}`,
+      data: { order: { publicId: order.publicId, total: String(order.total) } },
+      dedupeKey: `${order.publicId}:order_paid:staff`,
+    });
 
     // Record what was actually taken, not what we quoted.
     await ledgerService.record(tx, {

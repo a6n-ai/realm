@@ -141,6 +141,7 @@ export function ProductDetail({
   associationOptions,
   cloverEnabled,
   cloverConnected,
+  granted = [],
 }: {
   product: ProductDetailData;
   associations: ProductAssociations;
@@ -148,10 +149,16 @@ export function ProductDetail({
   /** Plugin installed — gates all Clover sync/link chrome and inventory fields. */
   cloverEnabled: boolean;
   cloverConnected: boolean;
+  /** Server-computed "resource:action" keys — see lib/auth/nav-permissions.ts. */
+  granted?: string[];
 }) {
   const router = useRouter();
   const [linkOpen, setLinkOpen] = useState(false);
   const [syncBusy, setSyncBusy] = useState<"pull" | "push" | null>(null);
+  // Link/Unlink hits clover-link (product:write); Sync from/to Clover hits
+  // clover-sync (product:sync) — two different permissions, not one "Clover" gate.
+  const canWrite = granted.includes("product:write");
+  const canSync = granted.includes("product:sync");
 
   const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(productSchema),
@@ -253,49 +260,55 @@ export function ProductDetail({
             </span>
           ) : null}
         </div>
-        {cloverEnabled ? (
+        {cloverEnabled && (canWrite || canSync) ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={!cloverConnected}
-              onClick={() => setLinkOpen(true)}
-            >
-              <LinkIcon className="size-3.5" />
-              {linked ? "Unlink" : "Link"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={!cloverConnected || !linked || syncBusy !== null}
-              onClick={() => void sync("pull")}
-            >
-              {syncBusy === "pull" ? (
-                <Loader2Icon className="size-3.5 animate-spin" />
-              ) : (
-                <CloudDownloadIcon className="size-3.5" />
-              )}
-              Sync from Clover
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={!cloverConnected || syncBusy !== null}
-              onClick={() => void sync("push")}
-            >
-              {syncBusy === "push" ? (
-                <Loader2Icon className="size-3.5 animate-spin" />
-              ) : (
-                <CloudUploadIcon className="size-3.5" />
-              )}
-              Push to Clover
-            </Button>
+            {canWrite ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!cloverConnected}
+                onClick={() => setLinkOpen(true)}
+              >
+                <LinkIcon className="size-3.5" />
+                {linked ? "Unlink" : "Link"}
+              </Button>
+            ) : null}
+            {canSync ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={!cloverConnected || !linked || syncBusy !== null}
+                  onClick={() => void sync("pull")}
+                >
+                  {syncBusy === "pull" ? (
+                    <Loader2Icon className="size-3.5 animate-spin" />
+                  ) : (
+                    <CloudDownloadIcon className="size-3.5" />
+                  )}
+                  Sync from Clover
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={!cloverConnected || syncBusy !== null}
+                  onClick={() => void sync("push")}
+                >
+                  {syncBusy === "push" ? (
+                    <Loader2Icon className="size-3.5 animate-spin" />
+                  ) : (
+                    <CloudUploadIcon className="size-3.5" />
+                  )}
+                  Push to Clover
+                </Button>
+              </>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -888,24 +901,28 @@ export function ProductDetail({
         {dirty ? (
           <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span>
         ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!dirty || form.formState.isSubmitting}
-          onClick={() => form.reset(rowToForm(product))}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          form="product-detail-form"
-          disabled={!dirty || form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? "Saving…" : "Save"}
-        </Button>
+        {canWrite ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!dirty || form.formState.isSubmitting}
+              onClick={() => form.reset(rowToForm(product))}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="product-detail-form"
+              disabled={!dirty || form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </>
+        ) : null}
       </div>
 
-      {cloverEnabled ? (
+      {cloverEnabled && canWrite ? (
         <CloverLinkDialog
           key={linkOpen ? "open" : "closed"}
           open={linkOpen}

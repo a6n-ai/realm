@@ -13,7 +13,8 @@ import { IdleLock } from "@/components/dashboard/idle-lock";
 import { LockButton } from "@/components/dashboard/lock-button";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { ModeToggle } from "@/components/mode-toggle";
-import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationBell } from "@realm/notifications/ui";
+import { subscribeNotifications } from "@/components/notifications/realtime";
 import { CrmShell } from "@realm/crm";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
@@ -95,7 +96,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       center={<GlobalSearch role={role} />}
       actions={
         <>
-          <NotificationBell />
+          <NotificationBell subscribe={subscribeNotifications} />
           <LockButton hasPin={hasPin} />
           <ModeToggle />
         </>

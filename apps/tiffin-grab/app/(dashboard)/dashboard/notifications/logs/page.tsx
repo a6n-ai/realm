@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { eventLabel } from "@/components/notifications/template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 const SORT_COL = {

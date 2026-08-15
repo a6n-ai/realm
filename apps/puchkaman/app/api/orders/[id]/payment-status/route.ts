@@ -1,13 +1,13 @@
 import { handler, json, problem } from "@realm/routes";
 import { NotFoundError, ValidationError } from "@realm/commons";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { ordersService } from "@/lib/services/orders.service";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Admin: refresh payment status from Clover and sync local rows. */
+/** Refresh payment status from Clover and sync local payment + order (+ ledger credit). */
 export const POST = handler(async (_request: Request, ctx: Ctx): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ order: ["write"] });
   const { id } = await ctx.params;
   try {
     const result = await ordersService.checkPaymentStatus(id);

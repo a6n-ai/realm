@@ -4,7 +4,7 @@ import { BellIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
-import { eventLabel } from "@/components/notifications/template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
@@ -12,7 +12,8 @@ import type { LogSortColumn } from "./page";
 
 type Row = {
   publicId: string;
-  event: string;
+  /** Null for a campaign row, which has no business event. */
+  event: string | null;
   channel: string;
   status: string;
   attempts: number;

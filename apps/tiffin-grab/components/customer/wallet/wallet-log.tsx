@@ -4,7 +4,7 @@ import { Skeleton } from "@realm/ui/skeleton";
 import { ListPagination } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { Reveal, LottieEmptyState } from "@/components/motion";
-import { eventLabel } from "@/components/notifications/template-status";
+import { eventLabel } from "@realm/notifications/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";

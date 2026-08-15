@@ -20,6 +20,10 @@ Parameters:
   ConfigurationSetName:
     Type: String
     Default: puchkaman-prod
+  WebhookEndpoint:
+    Type: String
+    Default: https://puchkaman.ca/api/webhooks/ses
+    Description: HTTPS endpoint SNS delivers bounce/complaint feedback to. Must be LIVE before deploy — SNS auto-confirms the subscription on create.
 
 Resources:
   Identity:
@@ -38,6 +42,69 @@ Resources:
     Type: AWS::SES::ConfigurationSet
     Properties:
       Name: !Ref ConfigurationSetName
+
+  # --- Bounce/complaint feedback ---
+  # Deliberately declared HERE rather than in a copy of ses-suppression.yaml:
+  # that template declares its own AWS::SES::ConfigurationSet, and a second
+  # stack creating puchkaman-prod would collide with the one above.
+  FeedbackTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: puchkaman-ses-feedback
+
+  # SES must be allowed to publish to the topic; scope to this account.
+  FeedbackTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref FeedbackTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSesPublish
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref FeedbackTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  EventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    # Topic policy must exist before SES starts publishing.
+    DependsOn: FeedbackTopicPolicy
+    Properties:
+      ConfigurationSetName: !Ref ConfigurationSet
+      EventDestination:
+        # Unique per account, NOT per configuration set: CloudFormation treats
+        # an event destination's physical id as the bare Name, so reusing
+        # tiffin-grab's "sns-bounce-complaint" made CFN believe the resource
+        # already belonged to that stack and the update rolled back.
+        Name: puchkaman-sns-feedback
+        Enabled: true
+        MatchingEventTypes:
+          - BOUNCE
+          - COMPLAINT
+          # DELIVERY/OPEN/CLICK feed campaign stats. OPEN and CLICK additionally
+          # need the configuration set's TrackingOptions; without a validated
+          # CustomRedirectDomain SES uses its own awstrack.me domain, which works
+          # but shows that host on link hover.
+          - DELIVERY
+          - OPEN
+          - CLICK
+        SnsDestination:
+          TopicARN: !Ref FeedbackTopic
+
+  # Creating this triggers a SubscriptionConfirmation POST to WebhookEndpoint,
+  # which the live route auto-confirms after verifying the SNS signature.
+  WebhookSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref FeedbackTopic
+      Protocol: https
+      Endpoint: !Ref WebhookEndpoint
 
   # --- EasyDKIM: 3 CNAMEs auto-added to the R53 zone ---
   Dkim1:
@@ -93,3 +160,6 @@ Outputs:
     Value: !Ref ConfigurationSet
   MailFromDomain:
     Value: !Sub "${MailFromSubdomain}.${DomainName}"
+  FeedbackTopicArn:
+    Description: Put this in the app env as SES_FEEDBACK_TOPIC_ARN (webhook defence in depth).
+    Value: !Ref FeedbackTopic

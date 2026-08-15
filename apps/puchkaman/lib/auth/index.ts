@@ -19,6 +19,40 @@ import { sendAuthOtp } from "./security-events";
 const log = createLogger("auth");
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
+/**
+ * Pure sign-in admission rule, split from the DB read so it is testable without
+ * an auth instance. `status` is the only "cannot sign in" switch — role decides
+ * where a session may go, never whether one may exist. Customers (`role: "user"`)
+ * are provisioned by checkout and sign in by OTP; the dashboard layout is what
+ * keeps them out of staff surfaces.
+ */
+export function decideSessionAdmission(
+  row: { role: string; status: string } | undefined,
+): { ok: true } | { ok: false; message: string } {
+  // A missing row means the lookup raced a delete, not that access is denied;
+  // better-auth has already verified the credential by this point.
+  if (!row) return { ok: true };
+  if (row.status !== "active") {
+    return { ok: false, message: "This account is not active. Contact an administrator." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sign-in gate. Runs after the credential check but before a session row is
+ * written, so it covers every sign-in method at once rather than each route
+ * separately. Exported for tests.
+ */
+export async function assertSessionAllowed(userId: bigint): Promise<void> {
+  const [u] = await db
+    .select({ status: users.status, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const decision = decideSessionAdmission(u);
+  if (!decision.ok) throw new APIError("FORBIDDEN", { message: decision.message });
+}
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
@@ -71,7 +105,7 @@ export const auth = betterAuth({
   user: {
     fields: { createdAt: "bauthCreatedAt", updatedAt: "bauthUpdatedAt" },
     additionalFields: {
-      role: { type: "string", required: false, defaultValue: Role.MEMBER, input: false },
+      role: { type: "string", required: false, defaultValue: Role.USER, input: false },
       publicId: { type: "string", required: false, input: false },
     },
   },
@@ -81,8 +115,9 @@ export const auth = betterAuth({
     // the PIN. Deliberately not the anonymous plugin — that would mint a user
     // row per guest into a table this app surfaces in admin listings.
     orderTracking({ resolve: resolveTrackingSubject }),
-    // Email OTP: 6-digit codes for password reset. Codes are stored hashed and
-    // expire in 10 min. sendVerificationOTP routes the code via SES.
+    // Email OTP: 6-digit codes. Password reset for staff, and the primary
+    // sign-in path for customers. Codes are stored hashed and expire in 10 min.
+    // sendVerificationOTP routes the code via SES.
     emailOTP({
       otpLength: 6,
       expiresIn: 600,
@@ -110,8 +145,8 @@ export const auth = betterAuth({
     // fail-OPEN — better-auth falls back to defaultRole when a session carries no role,
     // and member holds order:write and finance:read. Unreachable while users.role is
     // NOT NULL, but it sits next to a roleCan() that fails closed and should agree with
-    // it. This is NOT the creation default: a row created without a role still becomes
-    // a member, via the column default and user.additionalFields above.
+    // it. This is NOT the creation default: a row created without a role becomes a
+    // user, via the column default and user.additionalFields above — both Role.USER too.
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
     nextCookies(),
   ],
@@ -126,14 +161,7 @@ export const auth = betterAuth({
       // (see the dashboard layout).
       create: {
         before: async (sess) => {
-          const [u] = await db
-            .select({ status: users.status })
-            .from(users)
-            .where(eq(users.id, BigInt(sess.userId as string)))
-            .limit(1);
-          if (u && u.status !== "active") {
-            throw new APIError("FORBIDDEN", { message: "This account is not active. Contact an administrator." });
-          }
+          await assertSessionAllowed(BigInt(sess.userId as string));
         },
       },
       delete: {

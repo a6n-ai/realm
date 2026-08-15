@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { Role } from "@realm/commons";
 import { resolveStatuses } from "@realm/crm/server";
 import { Toaster } from "@realm/ui/sonner";
 import { TooltipProvider } from "@realm/ui/tooltip";
@@ -8,16 +9,24 @@ import { CrmShell } from "@realm/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { PLUGINS } from "@/lib/plugins.server";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
+import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") redirect("/login");
+  if (!session?.user) redirect("/login");
+  // A customer here is a wrong turn, not an intrusion — sending them to /login
+  // would loop, because /login sees their valid session and sends them back.
+  if (session.user.role === Role.USER) redirect("/me");
+  // Any future staff role with no pages of its own still gets the explainer
+  // rather than a 403 from the first component that tries to load data.
+  if (session.user.role !== Role.ADMIN && session.user.role !== Role.MEMBER) redirect("/no-access");
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits
@@ -38,6 +47,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (u.status !== "active") redirect("/login?suspended=1");
   if (!u.passwordSet) redirect("/set-password");
 
+  const granted = grantedKeys(session.user.role);
+
   return (
     <div className="crm-app">
       <TooltipProvider>
@@ -46,13 +57,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           brand={<AppBrand href="/dashboard" />}
           sidebar={
             <AppSidebar
-              user={{ email: session.user.email, name: u.name ?? null }}
+              user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
               statuses={statuses}
+              granted={granted}
             />
           }
           breadcrumbs={<AppBreadcrumbs />}
-          actions={<ModeToggle />}
-          bottomNav={<AppBottomNav statuses={statuses} />}
+          actions={
+            <>
+              <NotificationBellMount userPublicId={session.user.id} />
+              <ModeToggle />
+            </>
+          }
+          bottomNav={<AppBottomNav statuses={statuses} granted={granted} />}
         >
           {children}
         </CrmShell>

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowRightIcon, LayoutDashboardIcon } from "lucide-react";
 import {
   PageHeader,
@@ -10,7 +11,8 @@ import {
 } from "@realm/design-system";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
-import { requireAdmin } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { roleCan } from "@/lib/auth/guards";
 import { productsService, type ProductListRow } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 
@@ -73,7 +75,15 @@ function ProductListSkeleton() {
 }
 
 async function DashboardData() {
-  await requireAdmin();
+  const session = await getSession();
+  if (!session?.user) redirect("/login");
+
+  // Every stat and list on this page is product data (counts, recents,
+  // featured) — there's no order/finance card here yet, so one permission
+  // covers the whole page. Fetch nothing at all if the viewer lacks it,
+  // rather than fetching and hiding it in the markup.
+  const canProducts = roleCan(session.user.role, { product: ["read"] });
+  if (!canProducts) return null;
 
   const [stats, recent, featured] = await Promise.all([
     productsService.productStats(),

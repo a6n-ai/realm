@@ -1,1 +1,0 @@
-ALTER TABLE "deliveries" ADD COLUMN "tiffin_units" integer DEFAULT 1 NOT NULL;

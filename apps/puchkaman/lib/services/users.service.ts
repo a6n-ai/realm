@@ -1,7 +1,11 @@
 import { Role, type RoleValue, ValidationError } from "@realm/commons";
-import { eq } from "drizzle-orm";
+import type { Condition, FilterCondition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { columnResolver, conditionToSql } from "@realm/database";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { session as sessionTable, users } from "@/db/schema";
+import type { SortState } from "@/lib/list/sort";
 import { usersRepository, type UserRow } from "./users.repository";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 
@@ -18,6 +22,25 @@ export function tombstoneEmail(publicId: string): string {
   return `deleted-${publicId}@deleted.invalid`;
 }
 
+// Keys match the users-table.tsx column keys.
+export type UserSortColumn = "name" | "email" | "role" | "status";
+
+const USER_SORT_COL = {
+  name: users.name,
+  email: users.email,
+  role: users.role,
+  status: users.status,
+} as const;
+
+function resolveUserFacet(f: FilterCondition) {
+  return columnResolver({
+    role: users.role,
+    status: users.status,
+    name: users.name,
+    email: users.email,
+  })(f);
+}
+
 /**
  * Login accounts for the admin app. Distinct from `employees`, which are Clover
  * POS staff synced from the merchant and cannot sign in here.
@@ -27,8 +50,28 @@ class UsersService extends SessionUpdatableService<typeof users> {
     super(repo);
   }
 
-  async listAll(): Promise<UserRow[]> {
-    return this.repo.findAll();
+  // Naming trap: not `list` — a service method literally named `list` broke
+  // something here before. Matches productsService.queryProducts.
+  async queryUsers(
+    condition: Condition | undefined,
+    page: PageRequest,
+    sort: SortState<UserSortColumn> = { column: "name", dir: "asc" },
+  ): Promise<Page<UserRow>> {
+    const where = conditionToSql(condition, resolveUserFacet);
+    const col = USER_SORT_COL[sort.column] ?? users.name;
+
+    const [items, [{ count }]] = await Promise.all([
+      db
+        .select()
+        .from(users)
+        .where(where)
+        .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+        .limit(page.size)
+        .offset(page.page * page.size),
+      db.select({ count: sql<number>`cast(count(*) as int)` }).from(users).where(where),
+    ]);
+
+    return { items, page: page.page, size: page.size, total: count };
   }
 
   /**

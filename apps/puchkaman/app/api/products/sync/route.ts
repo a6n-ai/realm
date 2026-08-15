@@ -1,10 +1,10 @@
 import { handler, json } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 
 /** Uber image sync — route → ProductsService → ProductsRepository. */
 export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["sync"] });
   const body = (await request.json().catch(() => ({}))) as {
     redownloadImages?: unknown;
     optimizeImages?: unknown;

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { formatMoney } from "@realm/commons";
 import { SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { ledgerService, type LedgerSortColumn } from "@/lib/services/ledger.service";
 import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
@@ -57,7 +57,7 @@ export default function FinanceLedgerPage({ searchParams }: { searchParams: Sear
 }
 
 async function LedgerData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ finance: ["read"] });
 
   const sp = await searchParams;
   const sort = parseSort(sp, LEDGER_SORT_COLUMNS, { column: "created", dir: "desc" });

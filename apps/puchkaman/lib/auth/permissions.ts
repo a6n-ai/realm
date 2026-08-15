@@ -19,8 +19,9 @@ export const statement = {
 
 export const ac = createAccessControl(statement);
 
-// Staff only: puchkaman never provisions a customer account, so Role.USER has no
-// entry here and roleCan() denies it by construction.
+// Console permissions are staff-only. Role.USER (customers, who do sign in and use
+// /me) is deliberately absent rather than empty: roleCan() then denies it by
+// construction, so a new resource added below is never accidentally customer-visible.
 export const roles = {
   admin: ac.newRole({
     // An explicit subset of adminAc.statements, NOT a spread of it. The admin plugin

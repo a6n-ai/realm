@@ -4,12 +4,17 @@ import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex }
 
 const nextIdText = sql`(next_id())::text`;
 
-// Staff only. Orders never provision an account here — guest checkout plus the
-// order-tracking plugin covers customers deliberately — so "user" is retained in the
-// enum for compatibility but is never assigned. The default is "member" so a row that
-// somehow arrives without an explicit role still lands on a role the permission map
-// knows; "user" would fail every check silently.
+// "admin" and "member" are staff roles (order:write, finance:read, etc). "user" is
+// the customer role — a row provisioned by checkout with NO credential row, so it
+// signs in later only via email OTP, never a password. The default is "user" so a
+// row that somehow arrives without an explicit role fails closed onto the powerless
+// role rather than a staff one.
 export const userRole = pgEnum("user_role", ["admin", "member", "user"]);
+
+// Template locale. `en` only today; the column exists so notification_template's
+// (event, channel, locale) key has a real domain and adding a language later is
+// a migration rather than a redesign.
+export const locale = pgEnum("locale", ["en", "fr"]);
 
 // Account lifecycle. Only "active" may obtain a session — enforced in
 // lib/auth/index.ts's session.create.before hook and re-checked on the read path.
@@ -25,7 +30,15 @@ export const users = pgTable(
     email: text("email"),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    role: userRole("role").notNull().default("member"),
+    locale: locale("locale").notNull().default("en"),
+    // Customers arrive by guest checkout, so the phone is the order's phone
+    // until someone verifies it. Unverified numbers must never receive SMS.
+    phone: text("phone"),
+    phoneVerified: boolean("phone_verified").notNull().default(false),
+    // Fails closed: `member` holds order:write and finance:read, so a row created
+    // without an explicit role must never land on it. Invites and checkout both
+    // pass `role` themselves.
+    role: userRole("role").notNull().default("user"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
     // own on first login. The dashboard gate redirects to /set-password while
