@@ -2585,6 +2585,9 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   text-wrap: pretty;
 }
 
+.savings__coins { margin-bottom: 14px; }
+.savings__coins a { color: var(--green-deep); font-weight: 700; text-decoration: underline; }
+
 /* Toggle chips: same control adds and removes, per DESIGN.md's selected-chip
    rule — green fill with a hard shadow when on, cream and flat when off. */
 .savings__offers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }

@@ -85,6 +85,8 @@ export const quoteCartSchema = z.object({
    * misleads the person sending it.
    */
   deliveryTypeKey: z.string().min(1).max(64).optional().nullable(),
+  /** Same field, same rule as createCheckoutSchema.coins — a COUNT, priced server-side. */
+  coins: z.number().int().positive().max(1_000_000).optional(),
 });
 
 export const payCheckoutSchema = z.object({

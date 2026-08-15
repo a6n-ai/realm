@@ -84,6 +84,8 @@ export function CheckoutClient({
   offers = [],
   upsellItems = [],
   pickupDiscountPct = 0,
+  canRedeemCoins = false,
+  coinBalance = 0,
 }: {
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
@@ -93,6 +95,10 @@ export function CheckoutClient({
   upsellItems?: UpsellItem[];
   /** discount_pct on the pickup delivery_types row, so the choice can name it. */
   pickupDiscountPct?: number;
+  /** False for guests and staff sessions — see getCheckoutWalletBalance. */
+  canRedeemCoins?: boolean;
+  /** Wallet balance read server-side; walletService never reaches the client. */
+  coinBalance?: number;
 }) {
   const { items, subtotal, count, clear, hydrated, addItem } = useCart();
   const formId = useId();
@@ -124,6 +130,7 @@ export function CheckoutClient({
   const [tokenize, setTokenize] = useState<(() => Promise<string>) | null>(null);
   const [paidTotal, setPaidTotal] = useState<number | null>(null);
   const [discounts, setDiscounts] = useState<DiscountSelection>({ offerPublicIds: [] });
+  const [coins, setCoins] = useState<number | null>(null);
   // Delivery choice feeds the quote so the bag shows the same total the card
   // will be charged; the server reads the percentage, we only send the key.
   // Pickup has a configurable discount of its own, so it gets quoted like any
@@ -133,6 +140,7 @@ export function CheckoutClient({
     !session,
     discounts,
     fulfillment === "delivery" ? deliveryTypeKey : PICKUP_TYPE_KEY,
+    canRedeemCoins ? coins : null,
   );
   /** Best total we can name right now: Clover's, else the tax forecast, else bare subtotal. */
   const runningTotal = session?.total ?? quote?.total ?? subtotal;
@@ -272,6 +280,9 @@ export function CheckoutClient({
           // Ids and a typed code only — the server re-derives every amount from
           // the synced Clover discounts.
           discounts: { offerPublicIds: discounts.offerPublicIds, code: discounts.code ?? null },
+          // A count, never an amount — createCheckout prices it. Omitted rather
+          // than sent as 0 when the customer never opted in.
+          ...(canRedeemCoins && coins ? { coins } : {}),
           fulfillment:
             fulfillment === "delivery" && deliveryTypeKey
               ? {
@@ -435,11 +446,16 @@ export function CheckoutClient({
                     discountAmount: session.discountAmount ?? 0,
                     discountLines: [],
                     invalidCode: false,
+                    coins: null,
                   }
                 : quote
             }
             locked={!!session}
             nudge={session ? null : savingsNudge}
+            canRedeemCoins={canRedeemCoins}
+            coinBalance={coinBalance}
+            coins={coins}
+            onCoinsChange={setCoins}
           />
         </>
       )}

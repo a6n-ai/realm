@@ -140,6 +140,15 @@ export type CartQuoteResult = {
   discountLines: { name: string; amount: number }[];
   /** True when a code was typed and matched nothing live. Not an error. */
   invalidCode: boolean;
+  /**
+   * Present only when the request asked to spend coins. `applied` is the exact
+   * dollar figure folded into discountAmount/discountLines above — createCheckout
+   * computes it with the same capRedemption call against the same remaining-subtotal
+   * basis, so this number is never a preview of something the charge disagrees with.
+   * `message` is set instead of silently applying $0 when the cap rounds the spend
+   * away (a coarse rate against a small remainder, or an already fully-discounted cart).
+   */
+  coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
 };
 
 export type CheckoutPayResult = {
@@ -387,7 +396,39 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
     }
 
-    const discountTotal = Number(money(discounts.total + deliveryOff));
+    let discountTotal = Number(money(discounts.total + deliveryOff));
+
+    // Coins, quoted with the exact function createCheckout commits with —
+    // lockAndQuoteCoinRedemption, same cap basis (offers + delivery, still
+    // undiscounted by coins), same balance check. This is what keeps the
+    // number shown here from ever drifting from what gets charged.
+    let coinsResult: CartQuoteResult["coins"] = null;
+    if (parsed.coins) {
+      const walletUserId = await sessionWalletUserId(await getSession());
+      if (walletUserId === null) {
+        throw new ValidationError("Sign in to spend coins on this order.");
+      }
+      const rate = await walletService.activeRate("CAD");
+      const cap = Math.max(0, Number(money(subtotal - discountTotal - 0.01)));
+      const quoted = await db.transaction((tx) =>
+        lockAndQuoteCoinRedemption(tx, { userId: walletUserId, coins: parsed.coins!, rate, cap }),
+      );
+      coinsResult = {
+        requested: parsed.coins,
+        coinsSpent: quoted.coinsSpent,
+        applied: quoted.currencyValue,
+        message:
+          quoted.currencyValue > 0
+            ? null
+            : cap <= 0
+              ? "This order is already fully discounted — no coins needed."
+              : "Not enough coins to shave anything off at the current rate.",
+      };
+      if (quoted.currencyValue > 0) {
+        discountTotal = Number(money(discountTotal + quoted.currencyValue));
+      }
+    }
+
     // Clover applies discounts before tax, so the forecast has to as well or the
     // quoted tax will not match what the card is charged.
     const forecast = await forecastCartTax(lines, byPublic, discountTotal);
@@ -401,9 +442,23 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       discountLines: [
         ...discounts.applied.map((d) => ({ name: d.name, amount: d.amount })),
         ...deliveryLines,
+        ...(coinsResult && coinsResult.applied > 0 ? [{ name: "Coins", amount: coinsResult.applied }] : []),
       ],
       invalidCode: discounts.invalidCode,
+      coins: coinsResult,
     };
+  }
+
+  /**
+   * Balance for the checkout coin control. Server-only — walletService must never
+   * reach a client component, so the page calls this and passes the plain number
+   * down as a prop. `canRedeem` mirrors sessionWalletUserId's ownership rule: a
+   * guest or a staff session has no spendable wallet here, same as createCheckout.
+   */
+  async getCheckoutWalletBalance(): Promise<{ canRedeem: boolean; balance: number }> {
+    const walletUserId = await sessionWalletUserId(await getSession());
+    if (walletUserId === null) return { canRedeem: false, balance: 0 };
+    return { canRedeem: true, balance: await walletService.balance(walletUserId) };
   }
 
   /** Active products available for pickup. Empty until Clover client-ready; then SoT rules apply. */

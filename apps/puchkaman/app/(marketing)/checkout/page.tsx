@@ -25,12 +25,13 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ fulfillment?: string }>;
 }) {
-  const [orderingEnabled, params, offerRows, catalog, deliveryTypes] = await Promise.all([
+  const [orderingEnabled, params, offerRows, catalog, deliveryTypes, wallet] = await Promise.all([
     isPublicOrderingEnabled(),
     searchParams,
     inventoryCatalogService.discounts.listPublicOffers(),
     ordersService.listOrderableCatalog(),
     getAllDeliveryTypes(),
+    ordersService.getCheckoutWalletBalance(),
   ]);
   // Pickup's own discount, so the fulfillment choice can name it before the
   // quote lands rather than leaving the saving to appear out of nowhere.
@@ -82,6 +83,8 @@ export default async function CheckoutPage({
                 offers={offers}
                 upsellItems={upsellItems}
                 pickupDiscountPct={pickupDiscountPct}
+                canRedeemCoins={wallet.canRedeem}
+                coinBalance={wallet.balance}
               />
             ) : (
               <OrderingUnavailableNotice title="Checkout coming soon" />

@@ -14,6 +14,7 @@ export default defineConfig({
       "app/**/*.test.ts",
       "workers/**/*.test.ts",
       "components/**/*.test.ts",
+      "components/**/*.test.tsx",
       "__tests__/**/*.test.ts",
     ],
     // db/client.ts throws at import time without this. Unit tests here stub the

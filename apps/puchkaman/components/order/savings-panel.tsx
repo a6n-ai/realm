@@ -1,5 +1,6 @@
 "use client";
 
+import { CoinsControl } from "@/components/order/coins-control";
 import { DiscountPicker, type PublicOffer } from "@/components/order/discount-picker";
 import { money } from "@/lib/cart/types";
 import type { CartQuote, DiscountSelection } from "@/lib/cart/use-cart-quote";
@@ -22,6 +23,10 @@ export function SavingsPanel({
   quote,
   locked,
   nudge,
+  canRedeemCoins,
+  coinBalance,
+  coins,
+  onCoinsChange,
 }: {
   offers: PublicOffer[];
   value: DiscountSelection;
@@ -32,6 +37,12 @@ export function SavingsPanel({
   locked?: boolean;
   /** e.g. a bigger delivery discount is available but not selected. */
   nudge?: string | null;
+  /** False for guests and staff sessions — see getCheckoutWalletBalance. */
+  canRedeemCoins: boolean;
+  coinBalance: number;
+  /** Coins the customer wants to spend, or null. */
+  coins: number | null;
+  onCoinsChange: (next: number | null) => void;
 }) {
   const saved = quote?.discountAmount ?? 0;
   // Clover's priced order reports a total saving without naming its parts;
@@ -78,6 +89,14 @@ export function SavingsPanel({
 
       {locked ? null : (
         <>
+          <CoinsControl
+            canRedeem={canRedeemCoins}
+            balance={coinBalance}
+            value={coins}
+            onChange={onCoinsChange}
+            quote={quote?.coins ?? null}
+          />
+
           {offers.length ? (
             <div className="savings__offers" role="group" aria-label="Offers">
               {offers.map((o) => {

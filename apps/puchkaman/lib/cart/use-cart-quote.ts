@@ -12,6 +12,8 @@ export type CartQuote = {
   discountLines: { name: string; amount: number }[];
   /** A code was typed and matched nothing live. Not an error, just unredeemed. */
   invalidCode: boolean;
+  /** Set only when coins were requested this quote. `applied` is what createCheckout would charge. */
+  coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
 };
 
 /** Ids and a typed code only — the server derives every amount. */
@@ -45,11 +47,13 @@ export function useCartQuote(
   discounts: DiscountSelection = NO_DISCOUNTS,
   /** Picked delivery option, so its discount is part of the quoted total. */
   deliveryTypeKey: string | null = null,
+  /** Coins the customer wants to spend — a count, priced server-side same as checkout. */
+  coins: number | null = null,
 ): CartQuote | null {
   const [priced, setPriced] = useState<{ key: string; quote: CartQuote } | null>(null);
   const key = useMemo(
-    () => `${bagKey(items, discounts)}#${deliveryTypeKey ?? ""}`,
-    [items, discounts, deliveryTypeKey],
+    () => `${bagKey(items, discounts)}#${deliveryTypeKey ?? ""}#${coins ?? ""}`,
+    [items, discounts, deliveryTypeKey, coins],
   );
   // Once Clover has priced a real order there is nothing left to forecast.
   const active = enabled && items.length > 0;
@@ -75,6 +79,7 @@ export function useCartQuote(
                 code: discounts.code ?? null,
               },
               deliveryTypeKey,
+              ...(coins ? { coins } : {}),
             }),
           });
           // A stale or unavailable product 400s here. Stay on the estimate —
@@ -91,7 +96,7 @@ export function useCartQuote(
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [items, key, active, discounts, deliveryTypeKey]);
+  }, [items, key, active, discounts, deliveryTypeKey, coins]);
 
   return active && priced?.key === key ? priced.quote : null;
 }
