@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@realm/commons";
 
@@ -98,9 +98,15 @@ describe("createOrder — coin redemption", () => {
     const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) }).returning();
     coinRateId = cr.id;
   });
+  // Delete THIS test's row right after it runs — beforeEach overwrites coinRateId
+  // on every test, so an afterAll-only teardown deletes just the last insert and
+  // orphans every earlier one (and, across describe blocks, orphans the first
+  // block's row entirely).
+  afterEach(async () => {
+    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+  });
   afterAll(async () => {
     await reset();
-    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
   });
 
   it("spends coins as a discount: total drops, wallet debit + discount ledger row match", async () => {
@@ -253,9 +259,12 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     });
     await sharedCache("app-settings").evictAll();
   });
+  // Same reasoning as the block above: delete per-test, not just at the end.
+  afterEach(async () => {
+    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+  });
   afterAll(async () => {
     await reset();
-    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
   });
 
   it("debits the wallet and writes the discount ledger row on verify, and strips pendingCoinRedemption from the snapshot", async () => {
