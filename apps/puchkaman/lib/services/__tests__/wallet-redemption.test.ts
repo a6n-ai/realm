@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string } } }));
 const clover = vi.hoisted(() => ({
@@ -8,6 +8,10 @@ const clover = vi.hoisted(() => ({
   taxCents: 0,
   /** Every atomic payload the service pushed, in order. */
   payloads: [] as { discounts?: { name: string; amount: number }[] }[],
+  /** POS push failure — simulates createAtomicOrder failing after local commit. */
+  failCreate: false,
+  /** Status handed back by getEcommerceOrder for checkPaymentStatus tests. */
+  ecommerceOrderStatus: "awaiting_payment" as string,
 }));
 const offers = vi.hoisted(() => ({ redeemable: [] as unknown[] }));
 
@@ -48,8 +52,15 @@ vi.mock("@/lib/clover/client", () => ({
     },
     createAtomicOrder: async (input: { discounts?: { name: string; amount: number }[] }) => {
       clover.payloads.push(input);
+      if (clover.failCreate) throw new Error("Clover POS unreachable");
       return { id: `clv_${Date.now()}` };
     },
+    getEcommerceOrder: async () => ({
+      status: clover.ecommerceOrderStatus,
+      paid: clover.ecommerceOrderStatus === "paid",
+      chargeId: null,
+      amount: null,
+    }),
   }),
 }));
 
@@ -80,6 +91,8 @@ beforeEach(async () => {
   clover.payloads.length = 0;
   clover.subtotalCents = 0;
   clover.taxCents = 0;
+  clover.failCreate = false;
+  clover.ecommerceOrderStatus = "awaiting_payment";
   offers.redeemable = [];
   session.current = null;
   const [rate] = await db
@@ -346,5 +359,122 @@ describe("spending coins at checkout", () => {
     // Nothing was priced, nothing was written, the balance is untouched.
     expect(clover.payloads).toEqual([]);
     expect(await walletService.balance(user.id)).toBe(3);
+  });
+});
+
+describe("returning coins on order failure", () => {
+  it("returns coins when the Clover POS push fails after the local commit", async () => {
+    const user = await signedInCustomer("g", 100);
+    const product = await insertProduct("g");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    clover.failCreate = true;
+
+    await expect(
+      ordersService.createCheckout(
+        checkoutInput(product.publicId, { coins: 4, email: `${MARK}-g@example.test` }),
+      ),
+    ).rejects.toThrow(/Clover POS unreachable/);
+
+    expect(await walletService.balance(user.id)).toBe(100);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.customerEmail, `${MARK}-g@example.test`));
+    expect(order.status).toBe("failed");
+
+    const walletRows = await db
+      .select({ sourceType: walletLedger.sourceType, coins: walletLedger.coins })
+      .from(walletLedger)
+      .where(eq(walletLedger.orderId, order.id));
+    expect(walletRows.map((r) => r.sourceType).sort()).toEqual([
+      "redemption",
+      "redemption_reversal",
+    ]);
+    expect(walletRows.every((r) => r.coins === 4)).toBe(true);
+
+    // The original "discount" debit gets a mirrored "adjustment" credit —
+    // Finance's ledger should not keep showing a discount for a dead order.
+    const ledgerRows = await db
+      .select({
+        direction: ledgerEntries.direction,
+        type: ledgerEntries.type,
+        amount: ledgerEntries.amount,
+      })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.orderId, order.id));
+    expect(ledgerRows).toContainEqual({
+      direction: "credit",
+      type: "adjustment",
+      amount: "4.00",
+    });
+  });
+
+  it("reverses coins once even when payment failure is reported twice", async () => {
+    const user = await signedInCustomer("h", 100);
+    const product = await insertProduct("h");
+    clover.subtotalCents = UNIT_PRICE * 100;
+
+    const result = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { coins: 4, email: `${MARK}-h@example.test` }),
+    );
+    expect(await walletService.balance(user.id)).toBe(96);
+
+    clover.ecommerceOrderStatus = "failed";
+    await ordersService.checkPaymentStatus(result.orderPublicId);
+    await ordersService.checkPaymentStatus(result.orderPublicId);
+
+    expect(await walletService.balance(user.id)).toBe(100);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, result.orderPublicId));
+    const reversals = await db
+      .select()
+      .from(walletLedger)
+      .where(
+        and(eq(walletLedger.orderId, order.id), eq(walletLedger.sourceType, "redemption_reversal")),
+      );
+    expect(reversals).toHaveLength(1);
+
+    const adjustments = await db
+      .select()
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.orderId, order.id), eq(ledgerEntries.type, "adjustment")));
+    expect(adjustments).toHaveLength(1);
+  });
+
+  it("leaves an order with no redemption unaffected", async () => {
+    const user = await signedInCustomer("i", 10);
+    const product = await insertProduct("i");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    clover.failCreate = true;
+
+    await expect(
+      ordersService.createCheckout(
+        checkoutInput(product.publicId, { email: `${MARK}-i@example.test` }),
+      ),
+    ).rejects.toThrow(/Clover POS unreachable/);
+
+    expect(await walletService.balance(user.id)).toBe(10);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.customerEmail, `${MARK}-i@example.test`));
+    expect(order.status).toBe("failed");
+
+    const walletRows = await db
+      .select()
+      .from(walletLedger)
+      .where(eq(walletLedger.orderId, order.id));
+    expect(walletRows).toEqual([]);
+
+    const ledgerRows = await db
+      .select()
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.orderId, order.id));
+    expect(ledgerRows).toEqual([]);
   });
 });

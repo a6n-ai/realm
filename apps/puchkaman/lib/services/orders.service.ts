@@ -15,7 +15,16 @@ import {
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { employees, orders, payments, productTaxRates, products, taxRates, users } from "@/db/schema";
+import {
+  employees,
+  ledgerEntries,
+  orders,
+  payments,
+  productTaxRates,
+  products,
+  taxRates,
+  users,
+} from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { createCloverClient } from "@/lib/clover/client";
 import {
@@ -52,7 +61,12 @@ import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
-import { commitCoinRedemption, lockAndQuoteCoinRedemption, walletService } from "./wallet.service";
+import {
+  commitCoinRedemption,
+  lockAndQuoteCoinRedemption,
+  reverseCoinRedemption,
+  walletService,
+} from "./wallet.service";
 import {
   ordersRepository,
   type OrderListRow,
@@ -921,6 +935,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
     } catch (err) {
       await this.ordersRepo.updateByPublicId(order.publicId, { status: "failed" });
+      // The local tx already committed (and, if coins were spent, debited them)
+      // before this POS push ran — give them back now that the order is dead.
+      await db.transaction((tx) => this.reverseOrderRedemption(tx, order));
       const msg = err instanceof Error ? err.message : "Clover order create failed";
       throw new ValidationError(msg);
     }
@@ -1264,6 +1281,50 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return result;
   }
 
+  /**
+   * Returns a redeemed order's coins now that it can never be paid. Coins were
+   * debited at order creation (the discount was already committed to Clover),
+   * so every terminal-failure path must call this — reverseCoinRedemption is
+   * idempotent and a no-op for orders with no redemption, so it's safe to call
+   * unconditionally rather than pre-checking whether coins were spent.
+   *
+   * Also mirrors the original "discount" ledger.entries debit with a credit
+   * "adjustment" row: the discount row was written when this order looked
+   * like a live sale, and Finance's Transactions/Ledger views need the money
+   * side to say the discount never actually happened, same as the coin side.
+   */
+  private async reverseOrderRedemption(tx: Tx, order: OrderRow): Promise<void> {
+    if (!order.userId) return; // no wallet owner, nothing to reverse
+    const { coinsReturned } = await reverseCoinRedemption(tx, {
+      userId: order.userId,
+      orderId: order.id,
+    });
+    if (coinsReturned === 0) return;
+
+    const [original] = await tx
+      .select({ amount: ledgerEntries.amount })
+      .from(ledgerEntries)
+      .where(
+        and(
+          eq(ledgerEntries.orderId, order.id),
+          eq(ledgerEntries.type, "discount"),
+          eq(ledgerEntries.direction, "debit"),
+          eq(ledgerEntries.memo, "coin redemption"),
+        ),
+      )
+      .limit(1);
+    if (!original) return;
+
+    await ledgerService.record(tx, {
+      userId: order.userId,
+      orderId: order.id,
+      direction: "credit",
+      type: "adjustment",
+      amount: original.amount,
+      memo: `reverses coin redemption for ${order.publicId}`,
+    });
+  }
+
   private async applyRemotePaymentStatus(
     order: OrderRow,
     cloverStatus: MappedCloverPaymentStatus,
@@ -1322,6 +1383,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     if (order.status === "pending") {
       await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, order.id));
+      await this.reverseOrderRedemption(tx, order);
     }
 
     // Staff-only: a customer who just watched the card decline does not need an
