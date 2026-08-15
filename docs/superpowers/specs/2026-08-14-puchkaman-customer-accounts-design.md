@@ -251,13 +251,39 @@ unchanged. This is a behavior-identical refactor.
 
 ## Slice 4 — puchkaman wallet wiring
 
+> Revised 2026-08-15, after mapping puchkaman's checkout. Two things differ
+> from the assumptions written here originally, and both change the design.
+
 ### Schema
 
-Migration adding the wallet tables plus a puchkaman `app_event` enum:
-`order_created`, `order_paid`, `order_completed`, `order_cancelled`,
-`refund_issued`, `signup`, `manual_adjustment`. Earn rates live in
-`event_payout`, so enabling a new earning event is a settings change rather
-than a code change.
+Migration adding the wallet tables via `makeWalletTables` from
+`@realm/wallet`, passing puchkaman's **existing** `app_event` enum
+(`db/schema/events.ts`, 9 values: `order_placed`, `order_paid`,
+`order_fulfilled`, `order_cancelled`, `payment_failed`, `refund_issued`,
+`catering_inquiry`, `contact_message`, `signup`) and its existing
+`ledger_direction`. The original spec proposed inventing a new event list —
+that was wrong: `app_event` is already the app-wide notification catalog and
+adding wallet-only values to it would change the notification template
+surface. Earn rates live in `event_payout`, so enabling an event stays a
+settings change rather than a code change.
+
+### Debit timing — the material change
+
+**Coins are debited in the same transaction that creates the order**, not at
+payment settlement, and credited back if the order later fails or is
+cancelled.
+
+The reason is specific to puchkaman. The coin discount reaches Clover as a
+discount line at order-creation time, and `payOrder` bills the Clover order's
+total — so the customer pays the reduced price *first*. Deferring the debit
+to settlement (as tiffin-grab does) would mean a completed payment that
+cannot be settled when the balance no longer covers the redemption: money has
+already moved. Debiting at creation makes the balance authoritative at the
+moment the discount comes into existence, which closes the double-spend hole
+rather than inheriting tiffin-grab's residual one.
+
+This requires a new package primitive, `reverseRedemption`, that credits the
+coins back idempotently. It is wired into the failure and cancellation paths.
 
 ### Earning
 
@@ -283,18 +309,28 @@ Clover discount and is the mechanism to reuse. Clover applies discounts
 pre-tax and recomputes tax on the grouped net, so the final total comes back
 from Clover rather than being predicted locally.
 
-`redeem` writes both the `wallet_ledger` debit and the matching
-`ledger_entries` discount row in one transaction, as today.
+The redemption writes both the `wallet_ledger` debit and the matching
+`ledger_entries` discount row in one transaction — puchkaman's
+`ledger_entry_type` already has `discount`, so the injected
+`recordRedemptionDiscount` hook works unchanged.
 
-Note: tiffin-grab's `redeem()` has no production call site — puchkaman is the
-first real consumer, so this slice carries the spend-path risk for both apps
-and needs integration tests against a live DB.
+Earning fires from `settlePaid` (`lib/services/orders.service.ts`), which is
+the single funnel both confirmation surfaces reach: the Clover webhook and
+the admin "Check status" fallback both route through
+`applyRemotePaymentStatus` → `settlePaid`. One hook covers both, and the
+idempotency index makes a double confirmation a no-op. Award failures are
+caught and logged, never allowed to fail settlement.
 
 ### UI
 
-- Admin: Settings → Wallet (payout grid, coin rate), both behind
-  `requireAdmin`. The existing Finance → Ledger already covers money.
-- Customer: `/me/wallet` — balance, earn/spend totals, faceted coin history.
+- Admin: Settings → Wallet (payout grid, coin rate), behind `requireAdmin`,
+  slotted into the settings hub. The existing Finance → Ledger already
+  covers money.
+- Checkout: coin balance and a "use coins" control for signed-in customers;
+  guests get a sign-in prompt.
+- **No `/me/wallet` page this slice.** Customers see and spend coins at
+  checkout; a balance-and-history page is deferred, since puchkaman's
+  customer surfaces are brutalist and that page wants its own design pass.
 
 ## Sequencing
 
