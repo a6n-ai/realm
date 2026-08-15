@@ -70,12 +70,20 @@ export function capRedemption(
  * caps the redemption. Split out so a caller already inside a transaction
  * (e.g. checkout's `createOrder`) can run this on its own `tx` instead of
  * nesting `redeem()`'s own transaction.
+ *
+ * `orderId` is optional: checkout quotes before the order row exists (no id
+ * yet), so it can't run the duplicate check at quote time — it's expected to
+ * call `assertNotAlreadyRedeemed` itself once the order id is known, before
+ * `commitRedemption`, still inside the same locked `tx`. When `orderId` IS
+ * known (e.g. `redeem()`), pass it so the check runs where it must: after
+ * the lock, not before. Checking for a duplicate before the lock is a real
+ * bug, not a style choice — see the comment at the call site below.
  */
 export async function lockAndQuoteRedemption(
   tx: Tx,
-  args: { userId: bigint; coins: number; rate: number; cap: number; walletLedger: WalletTables<string>["walletLedger"]; users: AnyPgTable & { id: unknown } },
+  args: { userId: bigint; coins: number; rate: number; cap: number; orderId?: bigint; walletLedger: WalletTables<string>["walletLedger"]; users: AnyPgTable & { id: unknown } },
 ): Promise<{ coinsSpent: number; currencyValue: number }> {
-  const { userId, coins, rate, cap, walletLedger, users } = args;
+  const { userId, coins, rate, cap, orderId, walletLedger, users } = args;
 
   // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
   await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
@@ -92,10 +100,17 @@ export async function lockAndQuoteRedemption(
   if (coins <= 0) throw new ValidationError("coins must be positive");
   if (coins > balance) throw new ValidationError("insufficient coins");
 
+  // The duplicate-order check MUST run after the lock above, not before it.
+  // Checking first lets two concurrent redeems for the same order both pass
+  // the check (neither has committed yet), then serialize on the lock and
+  // both write — a double-spend the lock exists to prevent. Got this wrong
+  // once already during the redeem() extraction; don't move it back out.
+  if (orderId !== undefined) await assertNotAlreadyRedeemed(tx, orderId, walletLedger);
+
   return capRedemption(coins, rate, cap);
 }
 
-/** The existing duplicate-redemption guard, extracted so callers sharing a `tx` can run it before quoting. */
+/** The existing duplicate-redemption guard, extracted so callers sharing a `tx` can run it — always AFTER their row lock is held, never before. */
 export async function assertNotAlreadyRedeemed(
   tx: Tx,
   orderId: bigint,
@@ -285,13 +300,14 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
       const rate = await activeRate(order.currency);
 
       return db.transaction(async (tx) => {
-        await assertNotAlreadyRedeemed(tx, order.id, walletLedger);
-
+        // orderId is known up front here, so the duplicate check runs inside
+        // lockAndQuoteRedemption, after the lock — see the comment there.
         const { coinsSpent, currencyValue } = await lockAndQuoteRedemption(tx, {
           userId,
           coins,
           rate,
           cap: order.total,
+          orderId: order.id,
           walletLedger,
           users,
         });
