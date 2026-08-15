@@ -66,6 +66,31 @@ export function capRedemption(
 }
 
 /**
+ * Re-entrant by design: Postgres row locks are held by the TRANSACTION, so a
+ * second `FOR UPDATE` on a row this tx already locked returns immediately
+ * without blocking. That is what lets `commitRedemption` re-take the user
+ * lock unconditionally even on the create path, where `lockAndQuoteRedemption`
+ * already took it in the same tx.
+ */
+async function lockUser(tx: Tx, users: AnyPgTable & { id: unknown }, userId: bigint): Promise<void> {
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+}
+
+async function readBalance(
+  tx: Tx,
+  walletLedger: WalletTables<string>["walletLedger"],
+  userId: bigint,
+): Promise<number> {
+  const [row] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(eq(walletLedger.userId, userId));
+  return row?.bal ?? 0;
+}
+
+/**
  * Takes the per-user `FOR UPDATE` lock, re-reads the balance under it, and
  * caps the redemption. Split out so a caller already inside a transaction
  * (e.g. checkout's `createOrder`) can run this on its own `tx` instead of
@@ -73,10 +98,12 @@ export function capRedemption(
  *
  * This lock only guards the balance read (TOCTOU) — it is per-USER, so it
  * cannot serialise two different users redeeming against the same order.
- * The per-order duplicate guard lives in `commitRedemption`, not here. Lock
- * order across the package is fixed as user-then-order (this function locks
- * the user; `commitRedemption` locks the order next) so no two call paths
- * can ever take the two locks in opposite orders and deadlock.
+ * The per-order duplicate guard and the authoritative pre-write balance
+ * re-assert both live in `commitRedemption`, not here — this quote writes
+ * nothing, so its balance check expires with the transaction and is only ever
+ * an early, friendlier rejection. Lock order across the package is fixed as
+ * user-then-order; `commitRedemption` takes both itself in that order, so no
+ * call path can take them in the opposite order and deadlock.
  */
 export async function lockAndQuoteRedemption(
   tx: Tx,
@@ -85,16 +112,10 @@ export async function lockAndQuoteRedemption(
   const { userId, coins, rate, cap, walletLedger, users } = args;
 
   // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
-  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+  await lockUser(tx, users, userId);
 
   // Authoritative balance check inside the locked txn to prevent TOCTOU double-spend
-  const [balRow] = await tx
-    .select({
-      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
-    })
-    .from(walletLedger)
-    .where(eq(walletLedger.userId, userId));
-  const balance = balRow?.bal ?? 0;
+  const balance = await readBalance(tx, walletLedger, userId);
 
   if (coins <= 0) throw new ValidationError("coins must be positive");
   if (coins > balance) throw new ValidationError("insufficient coins");
@@ -123,16 +144,26 @@ async function assertNotAlreadyRedeemed(
 
 /**
  * Writes the debit ledger row and the app's own discount ledger row inside
- * the caller's `tx`. Self-guarding: takes the order row's `FOR UPDATE` lock
- * and runs the duplicate check itself, so a caller cannot skip it, run it on
- * the wrong `tx`, or call it in the wrong order relative to the lock — the
- * check is no longer a caller responsibility at all.
+ * the caller's `tx`. Fully self-guarding: it takes BOTH locks itself, runs the
+ * per-order duplicate check, and re-asserts the balance before writing, so a
+ * caller cannot skip a guard, run one on the wrong `tx`, or call one in the
+ * wrong order relative to the locks.
  *
- * Locks user-then-order (see `lockAndQuoteRedemption`): by the time a caller
- * reaches `commitRedemption` it has already called `lockAndQuoteRedemption`
- * and holds the user lock, so this is always the second lock taken. For
- * checkout's `createOrder`, the order row was just INSERTed in this same
- * `tx`, so it's already exclusively held — this lock costs nothing there.
+ * Why it must re-assert rather than trust a quote: `lockAndQuoteRedemption`'s
+ * balance check dies with the transaction it ran in and writes nothing. On a
+ * DEFERRED path (tiffin-grab e-Transfer, puchkaman's webhook-primary Clover
+ * flow) the quote is taken at order creation and committed at payment
+ * verification — a different transaction, minutes or days later, after which
+ * the same balance may have been spent by another order. Without this
+ * re-assert one balance can fund two orders. The per-order dedupe cannot
+ * catch that: two orders are two legitimate redemptions by construction.
+ *
+ * Lock order is user-then-order on EVERY path, taken here unconditionally
+ * rather than assumed from the caller (`verifyPayment` never calls the quote
+ * and so holds no user lock on entry). Re-locking a row the tx already holds
+ * is a no-op in Postgres, so the create path — which does hold the user lock
+ * from the quote, and whose order row it just INSERTed in this same tx —
+ * pays nothing and cannot deadlock against itself.
  */
 export async function commitRedemption(
   tx: Tx,
@@ -144,16 +175,29 @@ export async function commitRedemption(
     memo?: string;
     walletLedger: WalletTables<string>["walletLedger"];
     orders: AnyPgTable & { id: unknown };
+    users: AnyPgTable & { id: unknown };
     recordRedemptionDiscount: WalletDeps<string>["recordRedemptionDiscount"];
   },
 ): Promise<void> {
-  const { userId, coins, currencyValue, orderId, memo, walletLedger, orders, recordRedemptionDiscount } = args;
+  const { userId, coins, currencyValue, orderId, memo, walletLedger, orders, users, recordRedemptionDiscount } = args;
 
+  await lockUser(tx, users, userId);
   // Per-order lock: serialises two redemptions against the same order even
   // when they belong to two different users (and thus took two different,
-  // non-conflicting per-user locks in lockAndQuoteRedemption).
+  // non-conflicting per-user locks above).
   await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
   await assertNotAlreadyRedeemed(tx, orderId, walletLedger);
+
+  // The dedupe above proves this order has no debit yet, so the balance read
+  // under the user lock is exactly what is available to fund this redemption.
+  // Fail loudly: the alternative — skipping the debit — would leave the
+  // order's already-applied discount unfunded and silently invent money.
+  const balance = await readBalance(tx, walletLedger, userId);
+  if (coins > balance) {
+    throw new ValidationError(
+      `insufficient coins to settle redemption for order ${orderId}: balance ${balance}, need ${coins}`,
+    );
+  }
 
   await tx.insert(walletLedger).values({
     userId,
@@ -333,6 +377,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
           orderId: order.id,
           walletLedger,
           orders,
+          users,
           recordRedemptionDiscount,
         });
         return { coinsSpent, currencyValue };
