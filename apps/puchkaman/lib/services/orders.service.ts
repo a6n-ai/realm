@@ -24,6 +24,7 @@ import {
   products,
   taxRates,
   users,
+  walletLedger,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { createCloverClient } from "@/lib/clover/client";
@@ -1012,11 +1013,29 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
     } catch (err) {
-      await this.ordersRepo.updateByPublicId(order.publicId, { status: "failed" });
+      const msg = err instanceof Error ? err.message : "Clover order create failed";
       // The local tx already committed (and, if coins were spent, debited them)
       // before this POS push ran — give them back now that the order is dead.
-      await db.transaction((tx) => this.reverseOrderRedemption(tx, order));
-      const msg = err instanceof Error ? err.message : "Clover order create failed";
+      //
+      // One transaction, not two: a crash between the status write and the
+      // reversal used to leave a `failed` order holding an unreversed debit,
+      // and the pending-order sweep only looks at `pending` orders, so those
+      // coins were stranded forever. Reversal first so the lock order stays
+      // user-then-order, matching every other wallet path.
+      try {
+        await db.transaction(async (tx) => {
+          await this.reverseOrderRedemption(tx, order);
+          await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, order.id));
+        });
+      } catch (reverseErr) {
+        // Must never replace the Clover error the caller has to see. The whole
+        // transaction rolled back, so the order is still `pending` and the
+        // sweep will find it — but say plainly that coins were not returned.
+        log.error(
+          { err: reverseErr, orderPublicId: order.publicId, cloverError: msg },
+          "Clover order create failed and the coin redemption was NOT reversed — coins remain debited and the order was left pending for the sweep",
+        );
+      }
       throw new ValidationError(msg);
     }
 
@@ -1404,6 +1423,66 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
   }
 
+  /**
+   * Refuses to settle an order whose coin redemption has already been reversed.
+   *
+   * Coins are debited at order creation, so a terminal failure hands them back;
+   * `assertNotAlreadyRedeemed` then makes re-debiting that order impossible
+   * forever. But the Clover order still carries its `Coins` discount line and is
+   * still payable, so a retry already in flight — or a FAILED→SUCCESS correction
+   * — can settle it afterwards. Settling would ship $10 of goods for the $6 the
+   * customer paid while they keep the coins too, and nothing downstream could
+   * ever claw the discount back.
+   *
+   * So: throw, and alert staff in a transaction of its own that survives the
+   * rollback. The customer may genuinely have paid, which is exactly why this
+   * must not succeed quietly — but it must not fail quietly either. Refusing is
+   * the fail-safe direction: no goods ship automatically, the order stays
+   * `failed`, and a human reconciles the charge (refund it, or re-place the
+   * order at full price). The webhook loop already logs a throwing settlement;
+   * admin Check status surfaces the message directly.
+   */
+  private async assertRedemptionNotReversed(
+    tx: Tx,
+    order: OrderRow,
+    cloverChargeId: string | null,
+  ): Promise<void> {
+    if (!order.userId) return; // no wallet owner, nothing could have been reversed
+    const [reversal] = await tx
+      .select({ id: walletLedger.id })
+      .from(walletLedger)
+      .where(
+        and(
+          eq(walletLedger.userId, order.userId),
+          eq(walletLedger.sourceType, "redemption_reversal"),
+          eq(walletLedger.sourceId, order.id.toString()),
+        ),
+      )
+      .limit(1);
+    if (!reversal) return;
+
+    log.error(
+      { orderPublicId: order.publicId, cloverChargeId, total: String(order.total) },
+      "refusing to settle an order whose coin redemption was already reversed — the charge needs manual reconciliation",
+    );
+    // Own transaction: the throw below rolls `tx` back, and an alert nobody
+    // ever sees is the same as no alert. The dedupeKey keeps webhook retries
+    // from re-notifying on every redelivery.
+    await db.transaction((alertTx) =>
+      enqueueStaff(alertTx, {
+        event: "payment_failed",
+        title: "Payment landed on a refunded order",
+        body: `${order.publicId} — coins were already returned; reconcile this charge manually`,
+        href: `/dashboard/orders/${order.publicId}`,
+        data: { order: { publicId: order.publicId, total: String(order.total) } },
+        dedupeKey: `${order.publicId}:settle_after_reversal`,
+      }),
+    );
+    throw new ValidationError(
+      `Order ${order.publicId} cannot be settled: its coin redemption was already reversed. The charge needs manual reconciliation.`,
+    );
+  }
+
   private async applyRemotePaymentStatus(
     order: OrderRow,
     cloverStatus: MappedCloverPaymentStatus,
@@ -1438,6 +1517,28 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   ): Promise<boolean> {
     if (order.status === "paid" || order.status === "fulfilled") return false;
 
+    // `order` is a snapshot taken before two Clover HTTP round-trips. A
+    // settlement landing in that window would slip past the stale check above —
+    // and specifically the amount-mismatch case settles the payment as
+    // `pending_verification`, which is still in the `pay` lookup below, so that
+    // guard does not catch it either. The result was a *paid* order flipped to
+    // `failed` with its coins refunded. Re-read under a row lock and decide
+    // from that row, never from the snapshot.
+    //
+    // User lock first: reverseOrderRedemption takes user-then-order, so taking
+    // the order lock alone here would invert the package's fixed lock order.
+    if (order.userId) {
+      await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${order.userId} FOR UPDATE`);
+    }
+    const [fresh] = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.id, order.id))
+      .for("update")
+      .limit(1);
+    if (!fresh) return false;
+    if (fresh.status === "paid" || fresh.status === "fulfilled") return false;
+
     const [pay] = await tx
       .select()
       .from(payments)
@@ -1460,9 +1561,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       })
       .where(eq(payments.id, pay.id));
 
-    if (order.status === "pending") {
-      await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, order.id));
+    if (fresh.status === "pending") {
       await this.reverseOrderRedemption(tx, order);
+      await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, order.id));
     }
 
     // Staff-only: a customer who just watched the card decline does not need an
@@ -1511,6 +1612,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     cloverChargeId: string | null,
     chargedCents?: number | null,
   ): Promise<CheckoutPayResult> {
+    await this.assertRedemptionNotReversed(tx, order, cloverChargeId);
+
     const now = Date.now();
     const settlement = resolveSettlement(Number(order.total), chargedCents);
 

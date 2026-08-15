@@ -12,14 +12,24 @@ const clover = vi.hoisted(() => ({
   failCreate: false,
   /** Status handed back by getEcommerceOrder for checkPaymentStatus tests. */
   ecommerceOrderStatus: "awaiting_payment" as string,
+  /**
+   * Runs inside the Clover round-trip, i.e. in the window between
+   * checkPaymentStatus reading its order snapshot and acting on it. Lets a test
+   * land a concurrent settlement exactly where the stale-snapshot race lives.
+   */
+  duringFetch: null as null | (() => Promise<void>),
 }));
 const offers = vi.hoisted(() => ({ redeemable: [] as unknown[] }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 
+const staffAlerts = vi.hoisted(() => [] as { event: string; title: string }[]);
+
 vi.mock("@/lib/notifications/enqueue", () => ({
   enqueueNotification: async () => {},
-  enqueueStaff: async () => {},
+  enqueueStaff: async (_tx: unknown, input: { event: string; title: string }) => {
+    staffAlerts.push(input);
+  },
 }));
 
 // Pickup path only. An empty type list keeps whatever pickup discount the dev
@@ -55,12 +65,15 @@ vi.mock("@/lib/clover/client", () => ({
       if (clover.failCreate) throw new Error("Clover POS unreachable");
       return { id: `clv_${Date.now()}` };
     },
-    getEcommerceOrder: async () => ({
-      status: clover.ecommerceOrderStatus,
-      paid: clover.ecommerceOrderStatus === "paid",
-      chargeId: null,
-      amount: null,
-    }),
+    getEcommerceOrder: async () => {
+      await clover.duringFetch?.();
+      return {
+        status: clover.ecommerceOrderStatus,
+        paid: clover.ecommerceOrderStatus === "paid",
+        chargeId: null,
+        amount: null,
+      };
+    },
   }),
 }));
 
@@ -77,6 +90,7 @@ const {
 } = await import("@/db/schema");
 const { ordersService } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
+const { ledgerService } = await import("../ledger.service");
 
 const MARK = "wallet-redemption";
 const userIds: bigint[] = [];
@@ -93,8 +107,11 @@ beforeEach(async () => {
   clover.taxCents = 0;
   clover.failCreate = false;
   clover.ecommerceOrderStatus = "awaiting_payment";
+  clover.duringFetch = null;
   offers.redeemable = [];
   session.current = null;
+  staffAlerts.length = 0;
+  vi.restoreAllMocks();
   const [rate] = await db
     .insert(coinRate)
     .values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) })
@@ -488,6 +505,159 @@ describe("returning coins on order failure", () => {
       .from(ledgerEntries)
       .where(and(eq(ledgerEntries.orderId, order.id), eq(ledgerEntries.type, "adjustment")));
     expect(adjustments).toHaveLength(1);
+  });
+
+  /**
+   * The status write and the reversal are one transaction. Force the reversal's
+   * last step (the mirrored `adjustment` ledger row) to throw and the whole
+   * thing must roll back together: no `failed` order left holding a debit with
+   * no reversal — the planned sweep only looks at `pending` orders, so such a
+   * row would strand those coins forever. The caller must still see Clover's
+   * error, not the reversal's.
+   */
+  it("never leaves a failed order holding an unreversed redemption", async () => {
+    const user = await signedInCustomer("j", 100);
+    const product = await insertProduct("j");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    clover.failCreate = true;
+
+    const realRecord = ledgerService.record.bind(ledgerService);
+    vi.spyOn(ledgerService, "record").mockImplementation(async (tx, args) => {
+      if (args.type === "adjustment") throw new Error("ledger write blew up");
+      return realRecord(tx, args);
+    });
+
+    await expect(
+      ordersService.createCheckout(
+        checkoutInput(product.publicId, { coins: 4, email: `${MARK}-j@example.test` }),
+      ),
+    ).rejects.toThrow(/Clover POS unreachable/);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.customerEmail, `${MARK}-j@example.test`));
+
+    // Rolled back as a unit: still `pending`, so the pending sweep will find it.
+    expect(order.status).toBe("pending");
+
+    const walletRows = await db
+      .select({ sourceType: walletLedger.sourceType })
+      .from(walletLedger)
+      .where(eq(walletLedger.orderId, order.id));
+    expect(walletRows.map((r) => r.sourceType)).toEqual(["redemption"]);
+    expect(await walletService.balance(user.id)).toBe(96);
+  });
+
+  /**
+   * The Clover order keeps its `Coins` discount line and stays payable after a
+   * reversal, so a retry in flight or a FAILED→SUCCESS correction can still
+   * settle it. Settling would ship $10 of goods for the $6 paid while the
+   * customer keeps the coins, and `assertNotAlreadyRedeemed` makes re-debiting
+   * that order impossible forever. Refusing is the fail-safe direction — but it
+   * must be a loud refusal, not a silent one.
+   */
+  it("refuses to settle an order whose coins were already returned, and alerts staff", async () => {
+    const user = await signedInCustomer("k", 100);
+    const product = await insertProduct("k");
+    clover.subtotalCents = UNIT_PRICE * 100;
+
+    const result = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { coins: 4, email: `${MARK}-k@example.test` }),
+    );
+    expect(await walletService.balance(user.id)).toBe(96);
+
+    clover.ecommerceOrderStatus = "failed";
+    await ordersService.checkPaymentStatus(result.orderPublicId);
+    expect(await walletService.balance(user.id)).toBe(100);
+
+    // Models the dangerous shape directly: a payment attempt still in flight
+    // against the same, still-payable Clover order. Without the reversal guard
+    // this is a perfectly legal settle target — `applyRemotePaymentStatus`
+    // refuses only `paid`/`fulfilled`, and `failed` is neither.
+    const [order0] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, result.orderPublicId));
+    await db
+      .update(payments)
+      .set({ status: "awaiting_payment" })
+      .where(eq(payments.orderId, order0.id));
+
+    // The same Clover order now reports paid.
+    staffAlerts.length = 0;
+    clover.ecommerceOrderStatus = "paid";
+    await expect(ordersService.checkPaymentStatus(result.orderPublicId)).rejects.toThrow(
+      /already reversed/i,
+    );
+
+    // Silently succeeding and silently failing are both wrong — the operator
+    // gets a staff alert either way.
+    expect(staffAlerts.map((a) => a.title)).toContain("Payment landed on a refunded order");
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, result.orderPublicId));
+    expect(order.status).toBe("failed");
+    expect(order.paidAt).toBeNull();
+
+    const pays = await db.select().from(payments).where(eq(payments.orderId, order.id));
+    expect(pays.every((p) => p.status !== "paid")).toBe(true);
+    // The coins stay returned; nothing re-debited them behind the customer's back.
+    expect(await walletService.balance(user.id)).toBe(100);
+  });
+
+  /**
+   * markPaymentFailed used to decide from an order snapshot read before two
+   * Clover HTTP round-trips. A settlement landing in that window — specifically
+   * the amount-mismatch case, which settles the payment as
+   * `pending_verification` and so stays inside the `pay` lookup — flipped a
+   * *paid* order to `failed` and refunded coins the customer had already spent.
+   */
+  it("will not fail a payment that settled while Clover was being polled", async () => {
+    const user = await signedInCustomer("l", 100);
+    const product = await insertProduct("l");
+    clover.subtotalCents = UNIT_PRICE * 100;
+
+    const result = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { coins: 4, email: `${MARK}-l@example.test` }),
+    );
+    expect(await walletService.balance(user.id)).toBe(96);
+
+    clover.ecommerceOrderStatus = "failed";
+    clover.duringFetch = async () => {
+      clover.duringFetch = null;
+      const [row] = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.publicId, result.orderPublicId));
+      await db
+        .update(orders)
+        .set({ status: "paid", paidAt: Date.now() })
+        .where(eq(orders.id, row.id));
+      await db
+        .update(payments)
+        .set({ status: "pending_verification", capturedAt: Date.now() })
+        .where(eq(payments.orderId, row.id));
+    };
+
+    await ordersService.checkPaymentStatus(result.orderPublicId);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, result.orderPublicId));
+    expect(order.status).toBe("paid");
+    // The coins paid for this order; refunding them here would be free money.
+    expect(await walletService.balance(user.id)).toBe(96);
+    const reversals = await db
+      .select()
+      .from(walletLedger)
+      .where(
+        and(eq(walletLedger.orderId, order.id), eq(walletLedger.sourceType, "redemption_reversal")),
+      );
+    expect(reversals).toEqual([]);
   });
 
   it("leaves an order with no redemption unaffected", async () => {
