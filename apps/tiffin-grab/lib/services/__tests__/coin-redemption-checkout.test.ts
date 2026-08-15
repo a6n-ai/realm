@@ -18,7 +18,7 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const { createOrder } = await import("../orders.service");
+const { createOrder, verifyPayment } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
 const { setPaymentConfig } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
@@ -231,5 +231,79 @@ describe("createOrder — coin redemption", () => {
     );
     expect(discountRows).toHaveLength(0);
     expect(await walletService.balance(owner.id)).toBe(50);
+  });
+});
+
+describe("verifyPayment — settles deferred coin redemption", () => {
+  beforeEach(async () => {
+    await reset();
+    const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) }).returning();
+    coinRateId = cr.id;
+    await setPaymentConfig({
+      methods: [
+        {
+          id: "etransfer",
+          kind: "manual",
+          enabled: true,
+          label: "Interac e-Transfer",
+          payeeHandle: "pay@test.ca",
+          taxes: [],
+        },
+      ],
+    });
+    await sharedCache("app-settings").evictAll();
+  });
+  afterAll(async () => {
+    await reset();
+    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+  });
+
+  it("debits the wallet and writes the discount ledger row on verify, and strips pendingCoinRedemption from the snapshot", async () => {
+    const owner = await seedUserWithCoins(50);
+    const { deploymentId } = await createOrder(
+      await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+      { ownerUserId: owner.publicId },
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+
+    await verifyPayment(pay!.publicId);
+
+    const debit = await db.select().from(walletLedger).where(
+      and(eq(walletLedger.userId, owner.id), eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, order!.id.toString())),
+    );
+    expect(debit).toHaveLength(1);
+    expect(debit[0]!.coins).toBe(10);
+
+    const discountRow = await db.select().from(ledgerEntries).where(
+      and(eq(ledgerEntries.orderId, order!.id), eq(ledgerEntries.type, "discount")),
+    );
+    expect(discountRow).toHaveLength(1);
+    expect(Number(discountRow[0]!.amount)).toBeCloseTo(10 * RATE, 2);
+
+    expect(await walletService.balance(owner.id)).toBe(40);
+
+    const [reloaded] = await db.select().from(orders).where(eq(orders.id, order!.id));
+    const snap = reloaded!.pricingSnapshot as Snapshot;
+    expect(snap.pendingCoinRedemption).toBeUndefined();
+  });
+
+  it("does not double-spend when the same payment is verified twice", async () => {
+    const owner = await seedUserWithCoins(50);
+    const { deploymentId } = await createOrder(
+      await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+      { ownerUserId: owner.publicId },
+    );
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+
+    await verifyPayment(pay!.publicId);
+    await verifyPayment(pay!.publicId); // second verify: payments.status is already "paid" — must be a no-op
+
+    const debit = await db.select().from(walletLedger).where(
+      and(eq(walletLedger.userId, owner.id), eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, order!.id.toString())),
+    );
+    expect(debit).toHaveLength(1);
+    expect(await walletService.balance(owner.id)).toBe(40);
   });
 });

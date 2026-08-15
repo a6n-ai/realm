@@ -504,8 +504,17 @@ export async function verifyPayment(
       });
     }
 
-    if (pending.length) {
-      const { pendingRedemptions: _drop, ...rest } = snap;
+    if (snap.pendingCoinRedemption && snap.pendingCoinRedemption.coins > 0) {
+      await commitCoinRedemption(tx, {
+        userId: order.userId,
+        coins: snap.pendingCoinRedemption.coins,
+        currencyValue: snap.pendingCoinRedemption.amount,
+        orderId: order.id,
+      });
+    }
+
+    if (pending.length || snap.pendingCoinRedemption) {
+      const { pendingRedemptions: _drop, pendingCoinRedemption: _dropCoins, ...rest } = snap;
       await tx
         .update(orders)
         .set({ pricingSnapshot: rest, updatedBy: actorInternalId })
