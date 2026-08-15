@@ -65,6 +65,81 @@ export function capRedemption(
   return { coinsSpent, currencyValue };
 }
 
+/**
+ * Takes the per-user `FOR UPDATE` lock, re-reads the balance under it, and
+ * caps the redemption. Split out so a caller already inside a transaction
+ * (e.g. checkout's `createOrder`) can run this on its own `tx` instead of
+ * nesting `redeem()`'s own transaction.
+ */
+export async function lockAndQuoteRedemption(
+  tx: Tx,
+  args: { userId: bigint; coins: number; rate: number; cap: number; walletLedger: WalletTables<string>["walletLedger"]; users: AnyPgTable & { id: unknown } },
+): Promise<{ coinsSpent: number; currencyValue: number }> {
+  const { userId, coins, rate, cap, walletLedger, users } = args;
+
+  // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
+  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+
+  // Authoritative balance check inside the locked txn to prevent TOCTOU double-spend
+  const [balRow] = await tx
+    .select({
+      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+    })
+    .from(walletLedger)
+    .where(eq(walletLedger.userId, userId));
+  const balance = balRow?.bal ?? 0;
+
+  if (coins <= 0) throw new ValidationError("coins must be positive");
+  if (coins > balance) throw new ValidationError("insufficient coins");
+
+  return capRedemption(coins, rate, cap);
+}
+
+/** The existing duplicate-redemption guard, extracted so callers sharing a `tx` can run it before quoting. */
+export async function assertNotAlreadyRedeemed(
+  tx: Tx,
+  orderId: bigint,
+  walletLedger: WalletTables<string>["walletLedger"],
+): Promise<void> {
+  const [existing] = await tx.select({ id: walletLedger.id })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, orderId.toString())))
+    .limit(1);
+  if (existing) throw new ValidationError("coins already redeemed for this order");
+}
+
+/** Writes the debit ledger row and the app's own discount ledger row inside the caller's `tx`. */
+export async function commitRedemption(
+  tx: Tx,
+  args: {
+    userId: bigint;
+    coins: number;
+    currencyValue: number;
+    orderId: bigint;
+    memo?: string;
+    walletLedger: WalletTables<string>["walletLedger"];
+    recordRedemptionDiscount: WalletDeps<string>["recordRedemptionDiscount"];
+  },
+): Promise<void> {
+  const { userId, coins, currencyValue, orderId, memo, walletLedger, recordRedemptionDiscount } = args;
+
+  await tx.insert(walletLedger).values({
+    userId,
+    direction: "debit",
+    sourceType: "redemption",
+    sourceId: orderId.toString(),
+    coins,
+    orderId,
+    memo: memo ?? "checkout redemption",
+  });
+  await recordRedemptionDiscount(tx, {
+    userId,
+    orderId,
+    amount: currencyValue.toFixed(2),
+    memo: "coin redemption",
+  });
+}
+
 export function createWalletService<E extends string>(deps: WalletDeps<E>) {
   const { db, tables, orders, users, recordRedemptionDiscount } = deps;
   const { walletLedger, eventPayout, coinRate } = tables;
@@ -209,44 +284,25 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
 
       const rate = await activeRate(order.currency);
 
-      // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
       return db.transaction(async (tx) => {
-        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+        await assertNotAlreadyRedeemed(tx, order.id, walletLedger);
 
-        // Authoritative balance check inside the locked txn to prevent TOCTOU double-spend
-        const [balRow] = await tx
-          .select({
-            bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
-          })
-          .from(walletLedger)
-          .where(eq(walletLedger.userId, userId));
-        const balance = balRow?.bal ?? 0;
-
-        if (coins <= 0) throw new ValidationError("coins must be positive");
-        if (coins > balance) throw new ValidationError("insufficient coins");
-
-        const [existing] = await tx.select({ id: walletLedger.id })
-          .from(walletLedger)
-          .where(and(eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, order.id.toString())))
-          .limit(1);
-        if (existing) throw new ValidationError("coins already redeemed for this order");
-
-        const { coinsSpent, currencyValue } = capRedemption(coins, rate, order.total);
-
-        await tx.insert(walletLedger).values({
+        const { coinsSpent, currencyValue } = await lockAndQuoteRedemption(tx, {
           userId,
-          direction: "debit",
-          sourceType: "redemption",
-          sourceId: order.id.toString(),
-          coins: coinsSpent,
-          orderId: order.id,
-          memo: "checkout redemption",
+          coins,
+          rate,
+          cap: order.total,
+          walletLedger,
+          users,
         });
-        await recordRedemptionDiscount(tx, {
+
+        await commitRedemption(tx, {
           userId,
+          coins: coinsSpent,
+          currencyValue,
           orderId: order.id,
-          amount: currencyValue.toFixed(2),
-          memo: "coin redemption",
+          walletLedger,
+          recordRedemptionDiscount,
         });
         return { coinsSpent, currencyValue };
       });

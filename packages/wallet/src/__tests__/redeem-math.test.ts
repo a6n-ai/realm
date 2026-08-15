@@ -45,3 +45,19 @@ describe("capRedemption", () => {
     expect(out.currencyValue).toBe(Number(out.currencyValue.toFixed(2)));
   });
 });
+
+describe("capRedemption against a subtotal cap", () => {
+  it("caps against whatever cap it is given, not a hardcoded total", () => {
+    // Checkout caps against the remaining PRE-TAX subtotal, so coins never
+    // discount tax. Same function, different cap — this pins that the cap is
+    // genuinely a parameter.
+    const out = capRedemption(1000, 0.1, 25);
+    expect(out.currencyValue).toBeLessThanOrEqual(25);
+  });
+
+  it("spends nothing when there is no subtotal left to discount", () => {
+    const out = capRedemption(500, 0.1, 0);
+    expect(out.currencyValue).toBe(0);
+    expect(out.coinsSpent).toBe(0);
+  });
+});
