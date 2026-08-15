@@ -31,9 +31,9 @@ import { ledgerService } from "./ledger.service";
 import { provisionCustomerByPhone } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
-import { walletService } from "./wallet.service";
+import { walletService, lockAndQuoteCoinRedemption, commitCoinRedemption } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { getPaymentConfig } from "./app-settings.service";
+import { getAppSettings, getPaymentConfig } from "./app-settings.service";
 
 const log = createLogger("orders.service");
 
@@ -111,6 +111,9 @@ export interface CreateOrderInput {
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
   // arrives without a backing valid rep coupon owned by the actor is rejected.
   repCoupon?: { code: string; requestedAmount: number } | null;
+  // Wallet coins the customer wants to spend — a COUNT, never an amount. The
+  // server resolves the currency value against the active coin_rate.
+  coins?: number;
   // Chosen payment method id (maps to payment_method enum / PaymentMethodConfig.id).
   // Omitted or "simulated" → today's simulated_paid path (also the fallback when no
   // methods are enabled). A real method requires it to be enabled in payment_config.
@@ -190,9 +193,11 @@ export async function createOrder(
 
   const deploymentId = generateCode("SUB", 6);
 
-  // Resolve the payment rail before the tx. Empty config / omitted id → simulated
-  // (today's instant-paid path). A real id must be enabled and map to the enum.
+  // Resolve the payment rail and app currency before the tx. Empty config /
+  // omitted id → simulated (today's instant-paid path). A real id must be
+  // enabled and map to the enum.
   const paymentCfg = await getPaymentConfig();
+  const { currency } = await getAppSettings();
   const requestedMethodId = input.paymentMethodId?.trim() || null;
   const realMethods = enabledMethods(paymentCfg);
   const useSimulated =
@@ -297,6 +302,27 @@ export async function createOrder(
       redemptions.push({ coupon: r.coupon, amount, redeemedBy: createdBy });
     }
 
+    // Coins are a discount like any other: resolved server-side against the
+    // remaining subtotal, never from a client-sent amount. Capped against the
+    // PRE-TAX remaining subtotal rather than the order total, both because the
+    // total is not known until after this adjustment lands and because a
+    // discount should not erase tax. Insufficient coins fails the order —
+    // lockAndQuoteCoinRedemption throws, same as an invalid manual coupon code.
+    let coinRedemption: { coinsSpent: number; currencyValue: number } | null = null;
+    if (input.coins && input.coins > 0 && userId != null) {
+      const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
+      const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+      if (remaining > 0) {
+        const rate = await walletService.activeRate(currency);
+        coinRedemption = await lockAndQuoteCoinRedemption(tx, {
+          userId, coins: input.coins, rate, cap: remaining,
+        });
+        if (coinRedemption.currencyValue > 0) {
+          adjustments.push({ label: `Coins (${coinRedemption.coinsSpent})`, amount: coinRedemption.currencyValue });
+        }
+      }
+    }
+
     const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, methodTaxes);
 
     // Snapshot is the immutable receipt. For deferred settlement, pending
@@ -314,6 +340,9 @@ export async function createOrder(
               redeemedByPublicId: r.redeemedBy != null ? (actorId ?? null) : null,
             })),
           }
+        : {}),
+      ...(deferSettlement && coinRedemption && coinRedemption.coinsSpent > 0
+        ? { pendingCoinRedemption: { coins: coinRedemption.coinsSpent, amount: coinRedemption.currencyValue } }
         : {}),
     };
 
@@ -375,6 +404,14 @@ export async function createOrder(
           redeemedBy: r.redeemedBy,
           amountApplied: r.amount,
           context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
+        });
+      }
+      if (coinRedemption && coinRedemption.coinsSpent > 0) {
+        await commitCoinRedemption(tx, {
+          userId,
+          coins: coinRedemption.coinsSpent,
+          currencyValue: coinRedemption.currencyValue,
+          orderId: order.id,
         });
       }
     }

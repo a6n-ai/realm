@@ -51,4 +51,7 @@ export type OrderPricingSnapshot = PricingResult & {
   planType?: string;
   // Present only when payment is awaiting verification — cleared after redeem-on-verify.
   pendingRedemptions?: PendingRedemption[];
+  // Coin spend quoted at checkout but not yet committed — deferred settlement
+  // methods park it here; verifyPayment commits it, same as pendingRedemptions.
+  pendingCoinRedemption?: { coins: number; amount: number };
 };
