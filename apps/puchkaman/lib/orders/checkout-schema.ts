@@ -63,6 +63,12 @@ export const createCheckoutSchema = z.object({
   contact: contactSchema,
   fulfillment: fulfillmentSchema,
   discounts: discountRequestSchema,
+  /**
+   * How many wallet coins to spend — a COUNT, never an amount. The coin rate
+   * and the resulting dollar discount are read server-side, same rule as
+   * discountRequestSchema above.
+   */
+  coins: z.number().int().positive().max(1_000_000).optional(),
 });
 
 /** Live bag pricing. Same lines as a real checkout, no contact or fulfillment yet. */

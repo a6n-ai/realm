@@ -52,7 +52,7 @@ import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
-import { walletService } from "./wallet.service";
+import { commitCoinRedemption, lockAndQuoteCoinRedemption, walletService } from "./wallet.service";
 import {
   ordersRepository,
   type OrderListRow,
@@ -315,6 +315,25 @@ async function resolveCartDiscounts(request: DiscountRequest, subtotal: number) 
     return { applied: [] as AppliedDiscount[], total: 0, invalidCode: false };
   }
   return resolveDiscounts(await inventoryCatalogService.discounts.listRedeemable(), request, subtotal);
+}
+
+/**
+ * The wallet that may fund a coin redemption on this checkout: the signed-in
+ * customer's, and only theirs. Mirrors `resolveOrderOwner`'s ownership test
+ * (role `user` + a matching row) so the wallet debited is always the wallet of
+ * the account that ends up owning the order. A guest has no wallet, and a
+ * staff member ordering on someone's behalf must not spend their own coins.
+ */
+async function sessionWalletUserId(
+  session: Awaited<ReturnType<typeof getSession>>,
+): Promise<bigint | null> {
+  if (!session || session.user.role !== "user") return null;
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.publicId, session.user.id))
+    .limit(1);
+  return row?.id ?? null;
 }
 
 /**
@@ -641,6 +660,46 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
     }
 
+    // Everything above is discount money the `ledger_entries` write below owns.
+    // The coin redemption gets its own `ledger_entries` row from
+    // `commitCoinRedemption`, so it is deliberately excluded from these two —
+    // folding it in would record the same dollars in that table twice.
+    const nonCoinDiscountAmount = discountAmount;
+    const nonCoinDiscountNames = cloverDiscounts.map((d) => d.name);
+
+    const session = await getSession();
+
+    // Coins become just another Clover discount line, for exactly the reason the
+    // next comment gives: priced by Clover, billed by Clover. Quoting here (before
+    // the Clover call) is what makes the amount knowable in time to send it.
+    let redemption: { userId: bigint; coinsSpent: number; currencyValue: number } | null = null;
+    if (parsed.coins) {
+      const walletUserId = await sessionWalletUserId(session);
+      // Loud, not silent: quietly charging full price for a checkout the customer
+      // submitted expecting a coin discount is the worse failure.
+      if (walletUserId === null) {
+        throw new ValidationError("Sign in to spend coins on this order.");
+      }
+      const rate = await walletService.activeRate("CAD");
+      // Cap against the subtotal still undiscounted, the same remainder the
+      // coupon engine works from — minus a cent, because Clover's total must
+      // stay above zero (createCheckout rejects total <= 0) and a zero-rated
+      // cart has no tax to keep it there.
+      const cap = Math.max(0, Number(money(subtotal - discountAmount - 0.01)));
+      // Its own transaction: the user lock has to be taken and released before
+      // the Clover round-trip, which must not happen inside the order txn.
+      // `commitCoinRedemption` re-asserts the balance under its own locks, so
+      // this quote is only an early, friendlier rejection.
+      const quote = await db.transaction((tx) =>
+        lockAndQuoteCoinRedemption(tx, { userId: walletUserId, coins: parsed.coins!, rate, cap }),
+      );
+      if (quote.currencyValue > 0) {
+        redemption = { userId: walletUserId, ...quote };
+        cloverDiscounts.push({ name: "Coins", amount: quote.currencyValue });
+        discountAmount = Number(money(discountAmount + quote.currencyValue));
+      }
+    }
+
     // The discount has to reach Clover: `POST /v1/orders/{id}/pay` bills the Clover
     // order's total, so a discount that exists only locally is one we quote but
     // never actually give. Clover applies discounts before tax.
@@ -711,8 +770,6 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       ...(discountAmount > 0 ? { discountAmount, discountLines: cloverDiscounts } : {}),
       total,
     };
-
-    const session = await getSession();
 
     const order = await db.transaction(async (tx) => {
       // Provisioned before the order so the row has an owner from the start.
@@ -789,14 +846,30 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         })
         .returning();
 
-      if (discountAmount > 0) {
+      if (nonCoinDiscountAmount > 0) {
         await ledgerService.record(tx, {
           orderId: row.id,
           paymentId: pay.id,
           direction: "debit",
           type: "discount",
-          amount: discountAmount,
-          memo: cloverDiscounts.map((d) => d.name).join(" + ") || "Discount",
+          amount: nonCoinDiscountAmount,
+          memo: nonCoinDiscountNames.join(" + ") || "Discount",
+        });
+      }
+
+      // After the insert, so the debit and its discount row carry the real
+      // order id — and after the quote, never before it: lock order across
+      // every wallet path is user-then-order, and this takes the order lock.
+      // Debited now rather than at settlement because the discount is already
+      // committed to the Clover order and the customer pays the reduced price
+      // immediately; a deferred debit could fail with the money already taken.
+      if (redemption) {
+        await commitCoinRedemption(tx, {
+          userId: redemption.userId,
+          coins: redemption.coinsSpent,
+          currencyValue: redemption.currencyValue,
+          orderId: row.id,
+          memo: `checkout ${row.publicId}`,
         });
       }
 
