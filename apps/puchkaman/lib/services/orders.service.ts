@@ -127,6 +127,14 @@ export type CheckoutCreateResult = {
   fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled";
   discountAmount?: number;
   scheduledFor?: string;
+  /**
+   * The server's actual coin decision — present whenever the request asked to
+   * spend coins, regardless of outcome. This is what closes the gap a stale or
+   * not-yet-landed quote preview leaves open: the client renders THIS, not a
+   * prediction, so a customer can never submit a coin request and hear nothing
+   * back about what happened to it.
+   */
+  coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
 };
 
 export type CartQuoteResult = {
@@ -742,6 +750,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // next comment gives: priced by Clover, billed by Clover. Quoting here (before
     // the Clover call) is what makes the amount knowable in time to send it.
     let redemption: { userId: bigint; coinsSpent: number; currencyValue: number } | null = null;
+    // Captured whenever coins were requested, independent of outcome — this is
+    // what the response carries back so "coins were dropped by the cap" is
+    // never something only a landed preview could have told the customer.
+    let coinsOutcome: CheckoutCreateResult["coins"] = null;
     if (parsed.coins) {
       const walletUserId = await sessionWalletUserId(session);
       // Loud, not silent: quietly charging full price for a checkout the customer
@@ -762,6 +774,17 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const quote = await db.transaction((tx) =>
         lockAndQuoteCoinRedemption(tx, { userId: walletUserId, coins: parsed.coins!, rate, cap }),
       );
+      coinsOutcome = {
+        requested: parsed.coins,
+        coinsSpent: quote.coinsSpent,
+        applied: quote.currencyValue,
+        message:
+          quote.currencyValue > 0
+            ? null
+            : cap <= 0
+              ? "This order is already fully discounted — no coins needed."
+              : "Not enough coins to shave anything off at the current rate.",
+      };
       if (quote.currencyValue > 0) {
         redemption = { userId: walletUserId, ...quote };
         cloverDiscounts.push({ name: "Coins", amount: quote.currencyValue });
@@ -1011,6 +1034,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       fulfillment,
       ...(discountAmount > 0 ? { discountAmount } : {}),
       ...(scheduledForMs != null ? { scheduledFor: new Date(scheduledForMs).toISOString() } : {}),
+      coins: coinsOutcome,
     };
   }
 

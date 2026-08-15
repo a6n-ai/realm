@@ -36,6 +36,8 @@ type CheckoutSession = {
   fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled";
   discountAmount?: number;
   scheduledFor?: string;
+  /** The server's actual coin decision — set whenever coins were requested, win or not. */
+  coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
 };
 
 type Step = "review" | "pay" | "done";
@@ -446,7 +448,10 @@ export function CheckoutClient({
                     discountAmount: session.discountAmount ?? 0,
                     discountLines: [],
                     invalidCode: false,
-                    coins: null,
+                    // The server's real decision, not a preview — this is what makes
+                    // the payment step tell the customer what actually happened to
+                    // their coins even if the preview quote never landed before submit.
+                    coins: session.coins,
                   }
                 : quote
             }

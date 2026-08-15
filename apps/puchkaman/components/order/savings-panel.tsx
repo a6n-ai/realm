@@ -87,16 +87,26 @@ export function SavingsPanel({
 
       {nudge ? <p className="savings__nudge">{nudge}</p> : null}
 
+      {/*
+       * Rendered even when locked, as long as coins were part of this checkout —
+       * this is what carries the server's real coins decision (win, or the
+       * explicit zero-discount reason) onto the payment step, so a submit that
+       * outran its own preview quote still tells the customer what happened.
+       * Not shown post-lock when coins were never requested — nothing to say.
+       */}
+      {locked && !quote?.coins ? null : (
+        <CoinsControl
+          canRedeem={canRedeemCoins}
+          balance={coinBalance}
+          value={coins}
+          onChange={onCoinsChange}
+          quote={quote?.coins ?? null}
+          locked={locked}
+        />
+      )}
+
       {locked ? null : (
         <>
-          <CoinsControl
-            canRedeem={canRedeemCoins}
-            balance={coinBalance}
-            value={coins}
-            onChange={onCoinsChange}
-            quote={quote?.coins ?? null}
-          />
-
           {offers.length ? (
             <div className="savings__offers" role="group" aria-label="Offers">
               {offers.map((o) => {

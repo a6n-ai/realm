@@ -225,6 +225,7 @@ describe("spending coins at checkout", () => {
     ]);
     expect(result.total).toBe(6);
     expect(result.discountAmount).toBe(4);
+    expect(result.coins).toEqual({ requested: 4, coinsSpent: 4, applied: 4, message: null });
 
     const [order] = await db
       .select()
@@ -359,6 +360,50 @@ describe("spending coins at checkout", () => {
     // Nothing was priced, nothing was written, the balance is untouched.
     expect(clover.payloads).toEqual([]);
     expect(await walletService.balance(user.id)).toBe(3);
+  });
+
+  // Task 8's preview control shows the cap's zero-discount outcome from a
+  // debounced quote — a customer who submits before that response lands
+  // would see nothing. The server's own createCheckout response is the
+  // fallback that cannot race: it must carry the same "nothing was applied,
+  // here is why" verdict regardless of what the client ever previewed.
+  it("tells the customer why, in the response, when the cap rounds the redemption to zero", async () => {
+    const user = await signedInCustomer("h", 100);
+    const product = await insertProduct("h");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    // Leaves exactly $0.01 of subtotal — enough for the order total to clear
+    // createCheckout's total > 0 guard, but not enough for the coin cap
+    // (subtotal - discount - $0.01) to be anything but zero.
+    offers.redeemable = [
+      {
+        publicId: "dsc_full",
+        name: "Full off",
+        active: true,
+        publicOffer: true,
+        couponCode: "FULL",
+        percentage: null,
+        amount: UNIT_PRICE - 0.01,
+        startsAt: null,
+        expiresAt: null,
+        minSubtotal: null,
+        stackable: true,
+      },
+    ];
+
+    const result = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { coins: 4, code: "FULL", email: `${MARK}-h@example.test` }),
+    );
+
+    expect(result.coins).toEqual({
+      requested: 4,
+      coinsSpent: 0,
+      applied: 0,
+      message: "This order is already fully discounted — no coins needed.",
+    });
+    // Nothing was billed for coins and nothing was debited — the message is
+    // the only trace, which is exactly the point: it must exist.
+    expect(coinLines()).toEqual([]);
+    expect(await walletService.balance(user.id)).toBe(100);
   });
 });
 
