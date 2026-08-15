@@ -71,19 +71,18 @@ export function capRedemption(
  * (e.g. checkout's `createOrder`) can run this on its own `tx` instead of
  * nesting `redeem()`'s own transaction.
  *
- * `orderId` is optional: checkout quotes before the order row exists (no id
- * yet), so it can't run the duplicate check at quote time — it's expected to
- * call `assertNotAlreadyRedeemed` itself once the order id is known, before
- * `commitRedemption`, still inside the same locked `tx`. When `orderId` IS
- * known (e.g. `redeem()`), pass it so the check runs where it must: after
- * the lock, not before. Checking for a duplicate before the lock is a real
- * bug, not a style choice — see the comment at the call site below.
+ * This lock only guards the balance read (TOCTOU) — it is per-USER, so it
+ * cannot serialise two different users redeeming against the same order.
+ * The per-order duplicate guard lives in `commitRedemption`, not here. Lock
+ * order across the package is fixed as user-then-order (this function locks
+ * the user; `commitRedemption` locks the order next) so no two call paths
+ * can ever take the two locks in opposite orders and deadlock.
  */
 export async function lockAndQuoteRedemption(
   tx: Tx,
-  args: { userId: bigint; coins: number; rate: number; cap: number; orderId?: bigint; walletLedger: WalletTables<string>["walletLedger"]; users: AnyPgTable & { id: unknown } },
+  args: { userId: bigint; coins: number; rate: number; cap: number; walletLedger: WalletTables<string>["walletLedger"]; users: AnyPgTable & { id: unknown } },
 ): Promise<{ coinsSpent: number; currencyValue: number }> {
-  const { userId, coins, rate, cap, orderId, walletLedger, users } = args;
+  const { userId, coins, rate, cap, walletLedger, users } = args;
 
   // ponytail: per-user row lock serializes redemptions; fine at current scale, revisit if redemption throughput becomes hot.
   await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
@@ -100,18 +99,17 @@ export async function lockAndQuoteRedemption(
   if (coins <= 0) throw new ValidationError("coins must be positive");
   if (coins > balance) throw new ValidationError("insufficient coins");
 
-  // The duplicate-order check MUST run after the lock above, not before it.
-  // Checking first lets two concurrent redeems for the same order both pass
-  // the check (neither has committed yet), then serialize on the lock and
-  // both write — a double-spend the lock exists to prevent. Got this wrong
-  // once already during the redeem() extraction; don't move it back out.
-  if (orderId !== undefined) await assertNotAlreadyRedeemed(tx, orderId, walletLedger);
-
   return capRedemption(coins, rate, cap);
 }
 
-/** The existing duplicate-redemption guard, extracted so callers sharing a `tx` can run it — always AFTER their row lock is held, never before. */
-export async function assertNotAlreadyRedeemed(
+/**
+ * The duplicate-redemption guard. Not exported: it is only ever safe to run
+ * immediately after the order row is locked, and `commitRedemption` is the
+ * only place that holds that lock — a standalone export would just invite
+ * the exact bug this file already shipped once (check run before the lock
+ * that is supposed to make it authoritative).
+ */
+async function assertNotAlreadyRedeemed(
   tx: Tx,
   orderId: bigint,
   walletLedger: WalletTables<string>["walletLedger"],
@@ -123,7 +121,19 @@ export async function assertNotAlreadyRedeemed(
   if (existing) throw new ValidationError("coins already redeemed for this order");
 }
 
-/** Writes the debit ledger row and the app's own discount ledger row inside the caller's `tx`. */
+/**
+ * Writes the debit ledger row and the app's own discount ledger row inside
+ * the caller's `tx`. Self-guarding: takes the order row's `FOR UPDATE` lock
+ * and runs the duplicate check itself, so a caller cannot skip it, run it on
+ * the wrong `tx`, or call it in the wrong order relative to the lock — the
+ * check is no longer a caller responsibility at all.
+ *
+ * Locks user-then-order (see `lockAndQuoteRedemption`): by the time a caller
+ * reaches `commitRedemption` it has already called `lockAndQuoteRedemption`
+ * and holds the user lock, so this is always the second lock taken. For
+ * checkout's `createOrder`, the order row was just INSERTed in this same
+ * `tx`, so it's already exclusively held — this lock costs nothing there.
+ */
 export async function commitRedemption(
   tx: Tx,
   args: {
@@ -133,10 +143,17 @@ export async function commitRedemption(
     orderId: bigint;
     memo?: string;
     walletLedger: WalletTables<string>["walletLedger"];
+    orders: AnyPgTable & { id: unknown };
     recordRedemptionDiscount: WalletDeps<string>["recordRedemptionDiscount"];
   },
 ): Promise<void> {
-  const { userId, coins, currencyValue, orderId, memo, walletLedger, recordRedemptionDiscount } = args;
+  const { userId, coins, currencyValue, orderId, memo, walletLedger, orders, recordRedemptionDiscount } = args;
+
+  // Per-order lock: serialises two redemptions against the same order even
+  // when they belong to two different users (and thus took two different,
+  // non-conflicting per-user locks in lockAndQuoteRedemption).
+  await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
+  await assertNotAlreadyRedeemed(tx, orderId, walletLedger);
 
   await tx.insert(walletLedger).values({
     userId,
@@ -300,14 +317,11 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
       const rate = await activeRate(order.currency);
 
       return db.transaction(async (tx) => {
-        // orderId is known up front here, so the duplicate check runs inside
-        // lockAndQuoteRedemption, after the lock — see the comment there.
         const { coinsSpent, currencyValue } = await lockAndQuoteRedemption(tx, {
           userId,
           coins,
           rate,
           cap: order.total,
-          orderId: order.id,
           walletLedger,
           users,
         });
@@ -318,6 +332,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
           currencyValue,
           orderId: order.id,
           walletLedger,
+          orders,
           recordRedemptionDiscount,
         });
         return { coinsSpent, currencyValue };
