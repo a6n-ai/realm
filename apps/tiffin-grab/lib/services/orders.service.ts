@@ -341,7 +341,10 @@ export async function createOrder(
             })),
           }
         : {}),
-      ...(deferSettlement && coinRedemption && coinRedemption.coinsSpent > 0
+      // Gated on currencyValue, not coinsSpent: at a sub-cent rate capRedemption
+      // can return coinsSpent > 0 with currencyValue rounding to 0.00. Parking or
+      // debiting that would burn coins for a discount worth nothing.
+      ...(deferSettlement && coinRedemption && coinRedemption.currencyValue > 0
         ? { pendingCoinRedemption: { coins: coinRedemption.coinsSpent, amount: coinRedemption.currencyValue } }
         : {}),
     };
@@ -406,7 +409,8 @@ export async function createOrder(
           context: { subtotal: basePricing.subtotal, planType: plan.planType, kind: r.coupon.kind },
         });
       }
-      if (coinRedemption && coinRedemption.coinsSpent > 0) {
+      // Same predicate as the adjustment line and the snapshot park above.
+      if (coinRedemption && coinRedemption.currencyValue > 0) {
         await commitCoinRedemption(tx, {
           userId,
           coins: coinRedemption.coinsSpent,

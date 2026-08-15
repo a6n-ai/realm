@@ -53,5 +53,5 @@ export async function commitCoinRedemption(
   tx: Tx,
   args: { userId: bigint; coins: number; currencyValue: number; orderId: bigint; memo?: string },
 ): Promise<void> {
-  await commitRedemption(tx, { ...args, walletLedger, orders, recordRedemptionDiscount });
+  await commitRedemption(tx, { ...args, walletLedger, orders, users, recordRedemptionDiscount });
 }

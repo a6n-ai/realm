@@ -238,6 +238,51 @@ describe("createOrder — coin redemption", () => {
     expect(discountRows).toHaveLength(0);
     expect(await walletService.balance(owner.id)).toBe(50);
   });
+
+  // capRedemption rounds currency to 2dp AFTER recomputing coinsSpent, so a
+  // sub-cent rate yields coinsSpent > 0 with currencyValue === 0. The debit and
+  // the snapshot park used to be gated on coinsSpent while the discount line was
+  // gated on currencyValue — burning real coins for a 0.00 discount that never
+  // reduced orders.total.
+  it("burns no coins when a sub-cent rate rounds the discount to 0.00", async () => {
+    // Swap this test's rate row rather than shadowing it: activeRate picks the
+    // latest by createdAt, and two inserts can land in the same millisecond.
+    // Reassigning coinRateId keeps afterEach's single-row cleanup exact.
+    await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+    const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.0001" }).returning();
+    coinRateId = cr.id;
+
+    const owner = await seedUserWithCoins(50);
+    const { deploymentId } = await createOrder(await baseInput({ coins: 1 }), { ownerUserId: owner.publicId });
+    const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const snap = order!.pricingSnapshot as Snapshot;
+
+    expect(snap.adjustments.some((a) => a.label.startsWith("Coins"))).toBe(false);
+    expect(Number(order!.total)).toBeCloseTo(snap.total, 2);
+
+    const rows = await db.select().from(walletLedger).where(
+      and(eq(walletLedger.userId, owner.id), eq(walletLedger.sourceType, "redemption")),
+    );
+    expect(rows).toHaveLength(0);
+    const discountRows = await db.select().from(ledgerEntries).where(
+      and(eq(ledgerEntries.orderId, order!.id), eq(ledgerEntries.type, "discount")),
+    );
+    expect(discountRows).toHaveLength(0);
+    expect(await walletService.balance(owner.id)).toBe(50);
+
+    // Same predicate must gate the deferred park, not just the immediate debit.
+    await setPaymentConfig({
+      methods: [{ id: "etransfer", kind: "manual", enabled: true, label: "Interac e-Transfer", payeeHandle: "pay@test.ca", taxes: [] }],
+    });
+    await sharedCache("app-settings").evictAll();
+    const { deploymentId: deferredId } = await createOrder(
+      await baseInput({ coins: 1, paymentMethodId: "etransfer" }),
+      { ownerUserId: owner.publicId },
+    );
+    const [deferred] = await db.select().from(orders).where(eq(orders.deploymentId, deferredId));
+    expect((deferred!.pricingSnapshot as Snapshot).pendingCoinRedemption).toBeUndefined();
+    expect(await walletService.balance(owner.id)).toBe(50);
+  });
 });
 
 describe("verifyPayment — settles deferred coin redemption", () => {
@@ -314,5 +359,51 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     );
     expect(debit).toHaveLength(1);
     expect(await walletService.balance(owner.id)).toBe(40);
+  });
+
+  // Two deferred orders, one balance. Placing a second subscription before
+  // paying for the first is a supported flow, so no concurrency is needed:
+  // both quotes see the full balance because a parked redemption writes
+  // nothing. The per-order dedupe cannot help — two orders are two legitimate
+  // redemptions. Only commitRedemption's own balance re-assert can stop the
+  // second settlement from spending coins that are already gone.
+  it("cannot settle two deferred orders against one balance", async () => {
+    const owner = await seedUserWithCoins(10);
+    const orderIds: bigint[] = [];
+    const paymentIds: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const { deploymentId } = await createOrder(
+        await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+        { ownerUserId: owner.publicId },
+      );
+      const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+      const [pay] = await db.select().from(payments).where(eq(payments.orderId, order!.id));
+      // Both orders were quoted against the same 10 coins and both parked it.
+      expect((order!.pricingSnapshot as Snapshot).pendingCoinRedemption!.coins).toBe(10);
+      orderIds.push(order!.id);
+      paymentIds.push(pay!.publicId);
+    }
+
+    await verifyPayment(paymentIds[0]!);
+    expect(await walletService.balance(owner.id)).toBe(0);
+
+    await expect(verifyPayment(paymentIds[1]!)).rejects.toThrow(/insufficient coins to settle redemption/i);
+
+    // The balance is spent exactly once and never goes negative.
+    expect(await walletService.balance(owner.id)).toBe(0);
+    const debits = await db.select().from(walletLedger).where(
+      and(eq(walletLedger.userId, owner.id), eq(walletLedger.sourceType, "redemption")),
+    );
+    expect(debits).toHaveLength(1);
+    expect(debits[0]!.sourceId).toBe(orderIds[0]!.toString());
+
+    // The rejected verify rolled back whole: no discount row, no unfunded
+    // discount in the books for the second order.
+    const discountRows = await db.select().from(ledgerEntries).where(
+      and(eq(ledgerEntries.orderId, orderIds[1]!), eq(ledgerEntries.type, "discount")),
+    );
+    expect(discountRows).toHaveLength(0);
+    const [secondPay] = await db.select().from(payments).where(eq(payments.publicId, paymentIds[1]!));
+    expect(secondPay!.status).not.toBe("paid");
   });
 });
