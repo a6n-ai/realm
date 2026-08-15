@@ -47,12 +47,20 @@ function deliveriesHref(
 }
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
+// SwapRule.publicId is the rule's own public id (used to apply it). AppliedSwap.publicId is
+// the applied-swap row's own public id (used to remove it) — a different id space, matched
+// against SwapRule by (fromCategory, toCategory) rather than by id, since an applied swap's
+// snapshot survives even if the original rule is later deleted.
+export type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 
 export type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
+  availableSwapRules: SwapRule[];
+  appliedSwaps: AppliedSwap[];
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;

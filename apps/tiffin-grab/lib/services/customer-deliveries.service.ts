@@ -60,6 +60,7 @@ export type Subscription = {
   city: string;
   postalCode: string;
   zoneId: bigint | null;
+  mealSizeId: bigint;
   mealSizeName: string;
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
@@ -88,6 +89,7 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       city: orders.city,
       postalCode: orders.postalCode,
       zoneId: orders.zoneId,
+      mealSizeId: orders.mealSizeId,
       mealSizeName: mealSizes.name,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
@@ -243,6 +245,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
       pooledAt: deliveries.pooledAt,
       deliveryDate: deliveries.deliveryDate,
+      tiffinUnits: deliveries.tiffinUnits,
     })
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
@@ -261,7 +264,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       !replaced.has(r.id.toString()),
   ).length;
 
-  const delivered = deliveredTiffinCount(order.persons, rows as DeliveryForCounts[], Date.now());
+  const delivered = deliveredTiffinCount(rows as DeliveryForCounts[], Date.now());
   const lastDeliveryDate = rows.reduce<string | null>(
     (max, r) => (max == null || r.deliveryDate > max ? r.deliveryDate : max),
     null,
@@ -445,7 +448,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
   const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
-  return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, dayOfWeek, person);
+  return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
 }
 
 // Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of
@@ -518,7 +521,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
     let weekResolved = resolvedByWeek.get(week.id);
     if (!weekResolved) {
-      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id }, order.persons);
+      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons);
       resolvedByWeek.set(week.id, weekResolved);
     }
     let weekItems = itemsByWeek.get(week.id);

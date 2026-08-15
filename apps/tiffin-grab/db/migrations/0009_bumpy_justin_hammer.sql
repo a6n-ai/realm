@@ -1,0 +1,1 @@
+ALTER TABLE "app" ADD COLUMN "max_wallet_balance" integer;

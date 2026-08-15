@@ -3,18 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { DownloadIcon, SendIcon } from "lucide-react";
+import { CheckCircle2Icon, DownloadIcon, SendIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Badge } from "@realm/ui/badge";
-import { pullRoutesAction, pushDayAction } from "./actions";
+import { pullCompletionsAction, pullRoutesAction, pushDayAction } from "./actions";
 import type { PushResult } from "@/lib/services/optimoroute/push";
 import type { PullResult } from "@/lib/services/optimoroute/pull";
+import type { PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 
 export function PushControl({ date, stops }: { date: string; stops: number }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<PushResult | null>(null);
   const [pull, setPull] = useState<PullResult | null>(null);
+  const [completions, setCompletions] = useState<PullCompletionsResult | null>(null);
 
   function run() {
     startTransition(async () => {
@@ -47,6 +49,24 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
     });
   }
 
+  function runCompletions() {
+    startTransition(async () => {
+      try {
+        const res = await pullCompletionsAction(date);
+        setCompletions(res);
+        const skipped = res.outcomes.filter((o) => o.action !== "confirmed").length;
+        toast.success(
+          res.outcomes.length > 0
+            ? `${res.outcomes.length} completion${res.outcomes.length === 1 ? "" : "s"} recorded${skipped > 0 ? ` (${skipped} not delivered → skipped)` : ""}`
+            : "Nothing to act on for this date yet",
+        );
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Completion pull failed");
+      }
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -57,9 +77,13 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
         <Button variant="outline" onClick={runPull} disabled={pending}>
           <DownloadIcon data-icon="inline-start" /> Pull planned routes
         </Button>
+        <Button variant="outline" onClick={runCompletions} disabled={pending}>
+          <CheckCircle2Icon data-icon="inline-start" /> Pull completions
+        </Button>
         <p className="text-muted-foreground text-sm">
           Send creates and updates only. Pull reads driver and stop order back — labels then
-          print in van-loading order.
+          print in van-loading order. Pull completions reads proof-of-delivery status; a
+          failed stop is skipped the same way a dispatcher would skip it by hand.
         </p>
       </div>
 
@@ -71,6 +95,64 @@ export function PushControl({ date, stops }: { date: string; stops: number }) {
             <Badge variant="outline">
               {pull.unknownOrderNos.length} stop(s) on OptimoRoute we did not create
             </Badge>
+          ) : null}
+        </div>
+      ) : null}
+
+      {completions ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              Confirmed {completions.outcomes.filter((o) => o.action === "confirmed").length}
+            </Badge>
+            {completions.outcomes.some((o) => o.action !== "confirmed") ? (
+              <Badge variant="destructive">
+                Not delivered → skipped{" "}
+                {completions.outcomes.filter((o) => o.action === "skipped").length}
+              </Badge>
+            ) : null}
+            {completions.pendingCount > 0 ? (
+              <Badge variant="outline">{completions.pendingCount} too early to tell</Badge>
+            ) : null}
+            {completions.unmatchedCount > 0 ? (
+              <Badge variant="outline">{completions.unmatchedCount} not found on OptimoRoute</Badge>
+            ) : null}
+            {completions.ambiguous.length > 0 ? (
+              <Badge variant="outline">{completions.ambiguous.length} phone match(es) need review</Badge>
+            ) : null}
+          </div>
+          {completions.outcomes.filter((o) => o.action !== "confirmed").length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {completions.outcomes
+                .filter((o) => o.action !== "confirmed")
+                .map((o) => (
+                  <li key={o.deliveryPublicId}>
+                    <span className="font-medium">{o.customerName}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      —{" "}
+                      {o.action === "skipped"
+                        ? o.optimoStatus === "failed"
+                          ? "marked skipped (OptimoRoute reported failed)"
+                          : "marked skipped (no confirmation by cutoff)"
+                        : `not skipped: ${o.skipError}`}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+          {completions.ambiguous.length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {completions.ambiguous.map((a) => (
+                <li key={a.deliveryPublicId}>
+                  <span className="font-medium">{a.deliveryPublicId}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — {a.candidateCount} OptimoRoute stops share this phone for this date, resolve manually
+                  </span>
+                </li>
+              ))}
+            </ul>
           ) : null}
         </div>
       ) : null}

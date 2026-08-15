@@ -38,7 +38,9 @@ import { MealDayPicker } from "./meal-day-picker";
 import type { CustomerDelivery, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardMeal } from "./meal-chips";
 import {
+  applyMyDeliverySwap,
   clearMyDeliveryAddress,
+  removeMyDeliverySwap,
   rescheduleMyDelivery,
   scheduleMyPooledTiffin,
   setMyDeliveryAddress,
@@ -52,11 +54,15 @@ import { VacationDateField } from "./vacation-date-field";
 import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
 
 type Address = DeliveryAddressValues;
+type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
+  availableSwapRules: SwapRule[];
+  appliedSwaps: AppliedSwap[];
 };
 type HoldDeliveryOption = {
   publicId: string;
@@ -380,6 +386,75 @@ function SchedulePoolDayAction({
   );
 }
 
+// One admin-defined swap, offered or already applied, for one specific day. No dialog —
+// unlike address (multi-field input), applying/removing a swap is a single button + single
+// server-action call, closer to the skip/un-skip bare-button pattern than ChangeAddressDialog.
+function SwapSection({
+  delivery,
+  categoryLabels,
+  onChanged,
+}: {
+  delivery: DeliveryCardData;
+  categoryLabels: Record<string, string>;
+  onChanged: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  if (delivery.availableSwapRules.length === 0) return null;
+
+  const label = (key: string) => categoryLabels[key] ?? key;
+  // Matched by (fromCategory, toCategory), not by id: an applied swap's snapshot survives
+  // even if the admin later deletes the rule it came from.
+  const appliedByDirection = new Map(delivery.appliedSwaps.map((s) => [`${s.fromCategory}:${s.toCategory}`, s]));
+
+  function run(fn: () => Promise<void>, successMsg: string) {
+    startTransition(async () => {
+      try {
+        await fn();
+        onChanged();
+        toast.success(successMsg);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Swap failed");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-muted-foreground text-xs font-medium">Swap items for this day</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {delivery.availableSwapRules.map((rule) => {
+          const applied = appliedByDirection.get(`${rule.fromCategory}:${rule.toCategory}`);
+          const text = `${rule.qtyFrom} ${label(rule.fromCategory)} → ${rule.qtyTo} ${label(rule.toCategory)}`;
+          return applied ? (
+            <span key={rule.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
+              {text}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs underline"
+                disabled={pending}
+                onClick={() => run(() => removeMyDeliverySwap(delivery.publicId, applied.publicId), "Swap removed")}
+              >
+                Remove
+              </Button>
+            </span>
+          ) : (
+            <Button
+              key={rule.publicId}
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => run(() => applyMyDeliverySwap(delivery.publicId, rule.publicId), "Swap applied")}
+            >
+              Swap: {text}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Skip/Un-skip toggle + Change-address, scoped to a pre-cutoff, non-make-up SCHEDULED (or
 // SKIPPED, for un-skip) day. Recovered from the pre-redesign delivery-calendar.tsx's
 // DeliveryCard actions row — this is the same server-action wiring, just relocated into the
@@ -388,11 +463,13 @@ function DeliveryDayActions({
   delivery,
   locked,
   today,
+  categoryLabels,
   onChanged,
 }: {
   delivery: DeliveryCardData;
   locked: boolean;
   today: string;
+  categoryLabels: Record<string, string>;
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -434,11 +511,13 @@ function DeliveryDayActions({
     delivery.pooledAt == null &&
     !delivery.hasMakeupScheduled;
   const showAddress = !locked && delivery.status === "scheduled";
+  const showSwap = !locked && delivery.status === "scheduled";
 
-  if (!showSkip && !showReschedule && !showUnskip && !showAddress) return null;
+  if (!showSkip && !showReschedule && !showUnskip && !showAddress && !showSwap) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
       {showAddress && (
         <ChangeAddressDialog
           deliveryPublicId={delivery.publicId}
@@ -491,6 +570,8 @@ function DeliveryDayActions({
             : "This skip is in your remain pool — schedule it on a delivery day."}
         </p>
       )}
+      </div>
+      {showSwap && <SwapSection delivery={delivery} categoryLabels={categoryLabels} onChanged={onChanged} />}
     </div>
   );
 }
@@ -589,6 +670,7 @@ export function DayDetail({
           delivery={delivery}
           locked={status === "locked"}
           today={today}
+          categoryLabels={categoryLabels}
           onChanged={onChanged}
         />
       )}

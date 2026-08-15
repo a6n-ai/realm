@@ -91,7 +91,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
       orderId: order.id, menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), personIndex: 1, pickIndex: 1, dishId: staleDish.id,
     });
 
-    const resolved = await resolveDeliveryMeal(order, week, "mon", 1);
+    const resolved = await resolveDeliveryMeal(order, week, "mon", 1, null);
     const resolvedSabzi = resolved.find((r) => r.category === "sabzi")!;
     expect(resolvedSabzi.picks[0].dishPublicId).toBe(sabziDefault.publicId);
     expect(resolvedSabzi.picks[0].isDefaulted).toBe(true);
@@ -122,7 +122,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await attachDishToPlans(riceNonveg.id, ["non-veg"]);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("rice"), dishId: riceNonveg.id, isDefault: true });
 
-    const resolved = await resolveDeliveryMeal(order, week, "mon", 1);
+    const resolved = await resolveDeliveryMeal(order, week, "mon", 1, null);
     expect(resolved.find((r) => r.category === "rice")).toBeUndefined();
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);
@@ -158,7 +158,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await attachDishToPlans(sabziDish.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: sabziDish.id, isDefault: true });
 
-    const resolved = await resolveDeliveryMeal(order, week, "mon", 1);
+    const resolved = await resolveDeliveryMeal(order, week, "mon", 1, null);
     expect(resolved.find((r) => r.category === "sabzi")).toBeUndefined();
 
     const grid = await buildMealsGrid(mealOrder, SETTINGS);

@@ -14,6 +14,13 @@ export const deliveries = pgTable("deliveries", {
   // mutable app.cutoffHour/timezone, or an admin edit could un-miss a delivery that already
   // spawned a make-up.
   cutoffAt: bigint("cutoff_at", { mode: "number" }).notNull(),
+  // How many tiffins THIS row is worth — normally order.persons, but there is no physical
+  // Saturday/Sunday delivery: a weekend add-on ships with the preceding Friday instead, so
+  // that Friday's row carries the extra units (see materializeDeliveries). Every write path
+  // sets this explicitly; the default exists only to keep the column safely NOT NULL.
+  // lib/services/tiffin-counts.ts sums this per row rather than assuming a flat persons
+  // multiplier — that's what makes a bundled Friday count (and pool, on a miss) correctly.
+  tiffinUnits: integer("tiffin_units").notNull().default(1),
   // A missed original spawns at most one make-up, ever. NULLs are distinct in Postgres, so the
   // N originals coexist under this unique index.
   makeupForDeliveryId: bigint("makeup_for_delivery_id", { mode: "bigint" })
@@ -35,6 +42,16 @@ export const deliveries = pgTable("deliveries", {
   routeDriverName: text("route_driver_name"),
   routeStopNumber: integer("route_stop_number"),
   routeSyncedAt: bigint("route_synced_at", { mode: "number" }),
+  // Proof-of-delivery confirmation, WRITTEN ONLY BY THE OPTIMOROUTE COMPLETION PULL.
+  // Deliberately additive: today's cutoff-passed-and-still-scheduled assumption (see
+  // lib/services/tiffin-counts.ts) keeps deciding "delivered" for billing. A "success"
+  // completion just records real-world confirmation alongside that assumption. A "failed"
+  // completion is the one case that acts — see completions.ts, which flips the row to
+  // skipped (reusing skipDelivery/reconcilePoolFromMisses) exactly as a manual skip would.
+  optimoCompletionStatus: text("optimo_completion_status"), // "success" | "failed"
+  optimoCompletedAt: bigint("optimo_completed_at", { mode: "number" }),
+  // Driver's failure note (OptimoRoute's `form.note`) — null on a success completion.
+  optimoCompletionNote: text("optimo_completion_note"),
 }, (t) => [
   uniqueIndex("deliveries_order_date_unique").on(t.orderId, t.deliveryDate),
   uniqueIndex("deliveries_makeup_unique").on(t.makeupForDeliveryId),

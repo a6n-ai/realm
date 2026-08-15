@@ -219,7 +219,7 @@ describe("dailyLabelSheet (integration)", () => {
 
   it("keeps the dish list identical to what the customer's own resolution returns", async () => {
     const { resolveDeliveryMeal } = await import("@/lib/menu/resolve-delivery-meal");
-    const resolved = await resolveDeliveryMeal(order, week, "mon", 1);
+    const resolved = await resolveDeliveryMeal(order, week, "mon", 1, null);
     const expected = resolved.flatMap((c) => c.picks.map((p) => p.name));
 
     const [label] = (await dailyLabelSheet(MONDAY)).labels;

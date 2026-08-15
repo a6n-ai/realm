@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
 import { pushDay, removeStops, type PushResult, type RemoveResult } from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
+import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -50,5 +51,19 @@ export async function pullRoutesAction(date: string): Promise<PullResult> {
   revalidatePath("/dashboard/routes");
   // Labels print in driver-then-stop order, so they change the moment routes land.
   revalidatePath("/dashboard/labels");
+  return result;
+}
+
+/**
+ * Reads OptimoRoute's proof-of-delivery status back for the date. A "success" stop only
+ * records confirmation; a "failed" stop calls the same skipDelivery() a dispatcher would use
+ * by hand, pooling the tiffin. Safe to re-run — matching and the skip itself are idempotent.
+ */
+export async function pullCompletionsAction(date: string): Promise<PullCompletionsResult> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+
+  const result = await pullCompletions(date, await currentUserId());
+  revalidatePath("/dashboard/routes");
   return result;
 }

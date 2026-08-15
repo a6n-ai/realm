@@ -3,7 +3,9 @@ import { desc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate } from "@/db/schema";
+import { getMaxWalletBalance } from "@/lib/services/app-settings.service";
 import { CoinRateForm } from "../coin-rate-form";
+import { WalletCapForm } from "../wallet-cap-form";
 import { CoinRateFormSkeleton } from "./coin-rate-form-skeleton";
 
 export default function CoinRatePage() {
@@ -17,14 +19,22 @@ export default function CoinRatePage() {
 async function CoinRateData() {
   await requireAdmin();
 
-  const [latestRate] = await db
-    .select({
-      currency: coinRate.currency,
-      valuePerCoin: coinRate.valuePerCoin,
-    })
-    .from(coinRate)
-    .orderBy(desc(coinRate.createdAt))
-    .limit(1);
+  const [[latestRate], maxWalletBalance] = await Promise.all([
+    db
+      .select({
+        currency: coinRate.currency,
+        valuePerCoin: coinRate.valuePerCoin,
+      })
+      .from(coinRate)
+      .orderBy(desc(coinRate.createdAt))
+      .limit(1),
+    getMaxWalletBalance(),
+  ]);
 
-  return <CoinRateForm current={latestRate ?? null} />;
+  return (
+    <div className="grid gap-6">
+      <CoinRateForm current={latestRate ?? null} />
+      <WalletCapForm current={maxWalletBalance} />
+    </div>
+  );
 }

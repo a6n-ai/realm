@@ -314,6 +314,14 @@ INSERT INTO coin_rate (public_id, created_at, currency, value_per_coin)
 SELECT 'cnr_cad_default', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'CAD', 0.1000
 WHERE NOT EXISTS (SELECT 1 FROM coin_rate WHERE currency = 'CAD');
 
+-- ============ WALLET: MEAL PAYOUTS ============ (default/catch-all row: NULL meal_size_id +
+-- NULL duration_package_id. Postgres treats NULL as distinct in a unique index, so
+-- meal_payout_combo_unique can't gate this insert -> guard with NOT EXISTS, same as coin_rate.)
+INSERT INTO meal_payout (public_id, created_at, updated_at, meal_size_id, duration_package_id, coins)
+SELECT 'mlp_default', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       NULL, NULL, 0
+WHERE NOT EXISTS (SELECT 1 FROM meal_payout WHERE meal_size_id IS NULL AND duration_package_id IS NULL);
+
 -- ============ MENU: DISH CATEGORIES ============
 INSERT INTO dish_categories (public_id, created_at, updated_at, key, label, enabled, selectable,
                              sort_order)

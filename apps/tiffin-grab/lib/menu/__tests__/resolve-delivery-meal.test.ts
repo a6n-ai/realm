@@ -64,7 +64,7 @@ describe("resolveDeliveryMeal", () => {
   afterAll(reset);
 
   it("resolves selectable categories with per-pick picks/defaults and fixed categories as a single read-only quantity", async () => {
-    const meal = await resolveDeliveryMeal(order, week, "mon", 1);
+    const meal = await resolveDeliveryMeal(order, week, "mon", 1, null);
 
     const sabzi = meal.find((m) => m.category === "sabzi")!;
     expect(sabzi.selectable).toBe(true);
@@ -85,10 +85,10 @@ describe("resolveDeliveryMeal", () => {
     await attachDishToPlans(satDish.id);
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sat", categoryId: await categoryIdFor("sabzi"), dishId: satDish.id, isDefault: true });
 
-    expect(await resolveDeliveryMeal(order, week, "sun", 1)).toEqual([]);
+    expect(await resolveDeliveryMeal(order, week, "sun", 1, null)).toEqual([]);
 
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "sun", categoryId: await categoryIdFor("sabzi"), dishId: satDish.id, isDefault: true });
-    const sun = await resolveDeliveryMeal(order, week, "sun", 1);
+    const sun = await resolveDeliveryMeal(order, week, "sun", 1, null);
     expect(sun.find((m) => m.category === "sabzi")?.picks[0].name).toBe("Weekend Sabzi");
   });
 
@@ -102,7 +102,7 @@ describe("resolveDeliveryMeal", () => {
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziLow.id, isDefault: false, position: 1 });
     await db.insert(menuItems).values({ menuWeekId: week.id, dayOfWeek: "tue", categoryId: await categoryIdFor("sabzi"), dishId: sabziHigh.id, isDefault: false, position: 2 });
 
-    const meal = await resolveDeliveryMeal(order, week, "tue", 1);
+    const meal = await resolveDeliveryMeal(order, week, "tue", 1, null);
 
     const sabzi = meal.find((m) => m.category === "sabzi")!;
     expect(sabzi.selectable).toBe(true);

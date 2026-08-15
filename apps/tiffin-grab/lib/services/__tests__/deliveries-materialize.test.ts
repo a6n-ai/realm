@@ -125,11 +125,44 @@ describe("materializeDeliveries (integration)", () => {
   });
 
   it("does not throw for a 5-day frequency with includeSaturday: weekend days are excluded from the daysPerWeek check", async () => {
-    // WEEKEND exclusion: base 5 weekdays + sat = 6 days/week, but baseDays
-    // (weekdays only) is still 5, matching the "5_day" frequency's daysPerWeek.
+    // WEEKEND exclusion: base 5 weekdays + sat = 6 "days"/week for pricing purposes, but
+    // baseDays (weekdays only) is still 5, matching the "5_day" frequency's daysPerWeek.
     const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true });
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
-    expect(rows.length).toBe(6); // 1 week * 6 days (mon-fri + sat)
+    // No physical Saturday route — the weekend day bundles onto Friday's row instead of
+    // getting its own (see the next test), so this is 5 rows, not 6.
+    expect(rows.length).toBe(5);
+  });
+
+  it("bundles a Saturday add-on into the preceding Friday's row instead of creating a standalone Saturday row", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5); // mon-fri only, no separate sat row
+    const bundled = rows.filter((r) => r.tiffinUnits > 1);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(2); // Friday's own unit + Saturday's
+    expect(rows.filter((r) => r.tiffinUnits === 1).length).toBe(4);
+  });
+
+  it("bundles both Saturday and Sunday add-ons into the same Friday row", async () => {
+    const o = await makeOrder({
+      durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true, includeSunday: true,
+    });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5); // still just mon-fri
+    const bundled = rows.filter((r) => r.tiffinUnits > 1);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(3); // Friday + Saturday + Sunday
+  });
+
+  it("scales the bundled Friday's units by persons, same as any other row", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 2, frequencyKey: "5_day", includeSaturday: true });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5);
+    const bundled = rows.filter((r) => r.tiffinUnits > 2);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(4); // (Friday + Saturday) * 2 persons
+    expect(rows.filter((r) => r.tiffinUnits === 2).length).toBe(4);
   });
 });
 
