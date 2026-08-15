@@ -52,6 +52,7 @@ import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
+import { walletService } from "./wallet.service";
 import {
   ordersRepository,
   type OrderListRow,
@@ -944,9 +945,11 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       }
     }
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       return this.settlePaid(tx, order, payResult.chargeId ?? payResult.id, payResult.amount);
     });
+    await this.awardOrderPaid(order);
+    return result;
   }
 
   /**
@@ -1201,6 +1204,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await db.transaction(async (tx) => {
         await this.settlePaid(tx, order, cloverChargeId, chargedCents);
       });
+      await this.awardOrderPaid(order);
       return { changed: true, outcome: "paid" };
     }
 
@@ -1259,6 +1263,26 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
 
     return true;
+  }
+
+  /**
+   * Award `order_paid` coins once a settlement transaction has committed.
+   * Deliberately outside settlePaid's transaction: walletService.award runs
+   * against its own db handle (not the caller's `tx`), so it was never going
+   * to be atomic with the settlement anyway — and the payment is already
+   * committed by the time this runs, so a wallet failure must never risk it.
+   * Guest orders (`order.userId` null) have nothing to award. The package's
+   * unique index on (sourceType, sourceId, eventType) makes a repeat call
+   * for the same order a no-op, so every settlePaid caller can call this
+   * unconditionally without its own double-settlement guard.
+   */
+  private async awardOrderPaid(order: OrderRow): Promise<void> {
+    if (!order.userId) return;
+    try {
+      await walletService.award(order.userId, "order_paid", { type: "order", id: order.publicId });
+    } catch (err) {
+      log.error({ err, orderPublicId: order.publicId }, "wallet award on payment settle failed");
+    }
   }
 
   /**
