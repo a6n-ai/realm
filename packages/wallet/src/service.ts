@@ -46,6 +46,14 @@ export type WalletDeps<E extends string> = {
     tx: Tx,
     args: { userId: bigint; orderId: bigint; amount: string; memo: string },
   ) => Promise<void>;
+  /**
+   * Optional hard cap on how many coins a wallet may hold. Checked in award()
+   * right after the existing enabled/zero-coins no-op check, before the
+   * insert — a blocked award returns false the same way those no-ops already
+   * do, so callers never see a shape change. Omit for apps with no cap
+   * (the default — award() behaves exactly as before this was added).
+   */
+  canAward?: (userId: bigint, coins: number) => Promise<boolean>;
 };
 
 /**
@@ -217,7 +225,7 @@ export async function commitRedemption(
 }
 
 export function createWalletService<E extends string>(deps: WalletDeps<E>) {
-  const { db, tables, orders, users, recordRedemptionDiscount } = deps;
+  const { db, tables, orders, users, recordRedemptionDiscount, canAward } = deps;
   const { walletLedger, eventPayout, coinRate } = tables;
 
   async function activeRate(currency: string): Promise<number> {
@@ -291,6 +299,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
         .where(eq(eventPayout.eventType, eventType))
         .limit(1);
       if (!cfg?.enabled || cfg.coins <= 0) return false;
+      if (canAward && !(await canAward(userId, cfg.coins))) return false;
       const res = await db
         .insert(walletLedger)
         .values({

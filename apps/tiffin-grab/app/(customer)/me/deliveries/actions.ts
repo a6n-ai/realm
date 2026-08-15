@@ -6,8 +6,10 @@ import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
 import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/services/deliveries.service";
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
+import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { db } from "@/db/client";
-import { deliveries, orders } from "@/db/schema";
+import { categorySwapRules, deliveries, orders } from "@/db/schema";
+import { ValidationError } from "@realm/commons";
 
 // Every action gates with assertCanManage* (owner OR staff) before mutating, then stamps the
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
@@ -85,6 +87,30 @@ export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: str
   await assertCanManageOrder(orderPublicId);
   await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
   await revalidateDeliverySurfaces(orderPublicId);
+}
+
+async function resolveSwapRuleId(rulePublicId: string): Promise<bigint> {
+  const [row] = await db.select({ id: categorySwapRules.id }).from(categorySwapRules)
+    .where(eq(categorySwapRules.publicId, rulePublicId)).limit(1);
+  if (!row) throw new ValidationError("Swap rule not found");
+  return row.id;
+}
+
+export async function applyMyDeliverySwap(deliveryPublicId: string, rulePublicId: string) {
+  await assertCanManageDelivery(deliveryPublicId);
+  const ruleId = await resolveSwapRuleId(rulePublicId);
+  await applyDeliverySwap(deliveryPublicId, ruleId, await currentUserId());
+  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+  if (orderId) await revalidateDeliverySurfaces(orderId);
+  else revalidatePath("/me/deliveries");
+}
+
+export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string) {
+  await assertCanManageDelivery(deliveryPublicId);
+  await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId());
+  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+  if (orderId) await revalidateDeliverySurfaces(orderId);
+  else revalidatePath("/me/deliveries");
 }
 
 export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string) {

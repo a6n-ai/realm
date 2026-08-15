@@ -25,4 +25,6 @@ export const app = pgTable("app", {
   paymentConfig: jsonb("payment_config").$type<PaymentConfig>(),
   // Non-payment plugins (Clover, …). NULL/empty → nothing installed.
   integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),
+  // Ceiling on how many coins a single wallet can hold from new awards. NULL = unlimited.
+  maxWalletBalance: integer("max_wallet_balance"),
 });

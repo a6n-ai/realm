@@ -25,11 +25,15 @@ import type { DeliveryCardMeal } from "../meal-chips";
 afterEach(cleanup);
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
+type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
+  availableSwapRules: SwapRule[];
+  appliedSwaps: AppliedSwap[];
 };
 
 const address: Address = { fullName: "A", addressLine: "1 St", city: "City", postalCode: "00000" };
@@ -48,6 +52,8 @@ function makeDelivery(overrides: Partial<DeliveryCardData> = {}): DeliveryCardDa
     address,
     hasAddressOverride: false,
     hasMakeupScheduled: false,
+    availableSwapRules: [],
+    appliedSwaps: [],
     ...overrides,
   } as unknown as DeliveryCardData;
 }

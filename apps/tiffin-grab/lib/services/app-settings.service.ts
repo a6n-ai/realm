@@ -224,3 +224,17 @@ export async function setMealTypes(cfg: MealTypesSettings): Promise<void> {
   if (row) await appSettingsEntity.update(row.publicId, { mealTypes: parsed });
   else await appSettingsEntity.create({ ...DEFAULTS, mealTypes: parsed });
 }
+
+// NULL = unlimited. Read on every award, so it's cached like the other settings.
+export async function getMaxWalletBalance(): Promise<number | null> {
+  return settingsCache.getOrSet("maxWalletBalance", async () => {
+    const [row] = await db.select({ v: app.maxWalletBalance }).from(app).limit(1);
+    return row?.v ?? null;
+  });
+}
+
+export async function setMaxWalletBalance(cap: number | null): Promise<void> {
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { maxWalletBalance: cap });
+  else await appSettingsEntity.create({ ...DEFAULTS, maxWalletBalance: cap });
+}

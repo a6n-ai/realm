@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { inArray, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
+import { db } from "@/db/client";
+import { categorySwapRules, deliveryCategorySwaps } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -82,6 +85,34 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
+
+  // Rules don't vary per day, only per order's meal size — load once, not per delivery.
+  const availableSwapRules = await db
+    .select({
+      publicId: categorySwapRules.publicId,
+      fromCategory: categorySwapRules.fromCategory,
+      toCategory: categorySwapRules.toCategory,
+      qtyFrom: categorySwapRules.qtyFrom,
+      qtyTo: categorySwapRules.qtyTo,
+    })
+    .from(categorySwapRules)
+    .where(eq(categorySwapRules.mealSizeId, selected.mealSizeId));
+
+  // One batched query for every delivery's applied swaps, not one per delivery inside
+  // the Promise.all below — same batch-then-filter shape resolveDeliveryMealsForWeek uses.
+  const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
+    .select({
+      publicId: deliveryCategorySwaps.publicId,
+      deliveryId: deliveryCategorySwaps.deliveryId,
+      ruleId: deliveryCategorySwaps.ruleId,
+      fromCategory: deliveryCategorySwaps.fromCategory,
+      toCategory: deliveryCategorySwaps.toCategory,
+      qtyFrom: deliveryCategorySwaps.qtyFrom,
+      qtyTo: deliveryCategorySwaps.qtyTo,
+    })
+    .from(deliveryCategorySwaps)
+    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
+
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -93,6 +124,8 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         address,
         hasAddressOverride,
         hasMakeupScheduled: makeupSources.has(d.id.toString()),
+        availableSwapRules,
+        appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
       };
     }),
   );

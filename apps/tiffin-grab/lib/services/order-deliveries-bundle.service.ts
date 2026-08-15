@@ -1,3 +1,6 @@
+import { inArray, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { categorySwapRules, deliveryCategorySwaps } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import {
@@ -33,6 +36,34 @@ export async function loadOrderDeliveriesBundle(
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
+
+  // Same batch-load shape as MyDeliveriesData (app/(customer)/me/deliveries/page.tsx) —
+  // this bundle backs both the customer-facing calendar reuse points and the admin
+  // order-detail view, so both must see (and staff must be able to act on) the same
+  // swap state.
+  const availableSwapRules = await db
+    .select({
+      publicId: categorySwapRules.publicId,
+      fromCategory: categorySwapRules.fromCategory,
+      toCategory: categorySwapRules.toCategory,
+      qtyFrom: categorySwapRules.qtyFrom,
+      qtyTo: categorySwapRules.qtyTo,
+    })
+    .from(categorySwapRules)
+    .where(eq(categorySwapRules.mealSizeId, selected.mealSizeId));
+
+  const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
+    .select({
+      publicId: deliveryCategorySwaps.publicId,
+      deliveryId: deliveryCategorySwaps.deliveryId,
+      fromCategory: deliveryCategorySwaps.fromCategory,
+      toCategory: deliveryCategorySwaps.toCategory,
+      qtyFrom: deliveryCategorySwaps.qtyFrom,
+      qtyTo: deliveryCategorySwaps.qtyTo,
+    })
+    .from(deliveryCategorySwaps)
+    .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
+
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -44,6 +75,8 @@ export async function loadOrderDeliveriesBundle(
         address,
         hasAddressOverride,
         hasMakeupScheduled: makeupSources.has(d.id.toString()),
+        availableSwapRules,
+        appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
       };
     }),
   );

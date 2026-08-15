@@ -59,7 +59,7 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
     return (
       <>
         <SectionCard title="Day">
-          <LabelDatePicker date={date} today={today} />
+          <LabelDatePicker date={date} today={today} basePath="/dashboard/routes" />
         </SectionCard>
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
@@ -71,7 +71,7 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <SectionCard title="Day">
-        <LabelDatePicker date={date} today={today} />
+        <LabelDatePicker date={date} today={today} basePath="/dashboard/routes" />
       </SectionCard>
 
       <StatGrid

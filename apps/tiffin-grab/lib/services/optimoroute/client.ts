@@ -55,6 +55,21 @@ export type OptimoOrderPayload = {
   customField5?: string;
 };
 
+export type OptimoOrderDetail = {
+  orderNo?: string;
+  customField1?: string; // phone, per buildPlannedOrders' push convention
+  customField2?: string;
+};
+
+export type OptimoCompletionStatus = "success" | "failed" | "scheduled" | "rejected";
+
+export type OptimoCompletionDetail = {
+  status?: OptimoCompletionStatus;
+  endTime?: { unixTimestamp?: number };
+  /** Present on a failed stop — the driver's reason. */
+  form?: { note?: string; images?: { type: string; url: string }[] };
+};
+
 export class OptimoRouteError extends Error {
   constructor(
     message: string,
@@ -153,6 +168,50 @@ export async function createOrder(payload: OptimoOrderPayload): Promise<void> {
   if (data.success !== true) {
     throw new OptimoRouteError(data.message || "OptimoRoute returned success=false", 200, false);
   }
+}
+
+/** OptimoRoute docs don't publish a hard cap for get_orders/get_completion_details batch
+ *  size; chunking defensively keeps one oversized day from failing as a single request. */
+const BULK_CHUNK_SIZE = 200;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** Shared by getOrderDetails/getCompletionDetails — both endpoints share this envelope:
+ *  `{success, orders: [{success, id, data}]}`, looked up by OptimoRoute stop id. */
+async function bulkLookup<T>(path: string, ids: string[]): Promise<Map<string, T>> {
+  const out = new Map<string, T>();
+  if (ids.length === 0) return out;
+
+  const batches = chunk(ids, BULK_CHUNK_SIZE);
+  const results = await withConcurrency(batches, (batch) =>
+    request<{ success?: boolean; orders?: { success?: boolean; id?: string; data?: T }[] }>(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orders: batch.map((id) => ({ id })) }),
+    }),
+  );
+
+  for (const data of results) {
+    for (const entry of data.orders ?? []) {
+      if (entry.success && entry.id && entry.data) out.set(entry.id, entry.data);
+    }
+  }
+  return out;
+}
+
+/** Order detail (incl. customField1-5) per OptimoRoute stop id — used to recover the phone
+ *  number on stops this app didn't push itself (see completions.ts). */
+export async function getOrderDetails(ids: string[]): Promise<Map<string, OptimoOrderDetail>> {
+  return bulkLookup<OptimoOrderDetail>("/get_orders", ids);
+}
+
+/** Proof-of-delivery / completion status per OptimoRoute stop id. */
+export async function getCompletionDetails(ids: string[]): Promise<Map<string, OptimoCompletionDetail>> {
+  return bulkLookup<OptimoCompletionDetail>("/get_completion_details", ids);
 }
 
 export async function deleteOrder(orderNo: string): Promise<void> {

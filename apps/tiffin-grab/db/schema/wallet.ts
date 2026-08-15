@@ -1,6 +1,8 @@
+import { updatableColumns } from "@realm/database";
 import { makeWalletTables } from "@realm/wallet/schema";
-import { pgEnum } from "drizzle-orm/pg-core";
+import { bigint, integer, pgEnum, pgTable, uniqueIndex } from "drizzle-orm/pg-core";
 import { ledgerDirection } from "./coupons";
+import { durationPackages, mealSizes } from "./catalog";
 import { orders } from "./orders";
 import { users } from "./auth";
 
@@ -25,3 +27,16 @@ export const { walletLedger, eventPayout, coinRate } = makeWalletTables({
   appEvent,
   ledgerDirection,
 });
+
+// Coin payout rules keyed by (meal size, duration package). NULL on both is
+// the default/catch-all rule (exactly one, seeded, never deletable) — every
+// other row is a specific override with both dimensions set. Resolution
+// (lib/services/wallet.service.ts) is: exact override match, else catch-all.
+export const mealPayout = pgTable("meal_payout", {
+  ...updatableColumns("mlp"),
+  mealSizeId: bigint("meal_size_id", { mode: "bigint" }).references(() => mealSizes.id, { onDelete: "cascade" }),
+  durationPackageId: bigint("duration_package_id", { mode: "bigint" }).references(() => durationPackages.id, { onDelete: "cascade" }),
+  coins: integer("coins").notNull().default(0),
+}, (t) => [
+  uniqueIndex("meal_payout_combo_unique").on(t.mealSizeId, t.durationPackageId),
+]);

@@ -34,6 +34,7 @@ function formatCanadianPhone(raw: string | null): string {
 export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow[]> {
   const rows = await db
     .select({
+      deliveryId: deliveries.id,
       deliveryPublicId: deliveries.publicId,
       orderId: orders.id,
       fullName: orders.fullName,
@@ -60,7 +61,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
   const weekStart = mondayOfIso(dateIso);
   // menu_weeks has no planType column — one row is shared across all plan types
   // (menu_weeks_week_unique indexes weekStart alone), so weekStart is already unique.
-  const [week] = await db.select({ id: menuWeeks.id }).from(menuWeeks)
+  const [week] = await db.select({ id: menuWeeks.id, weekStart: menuWeeks.weekStart }).from(menuWeeks)
     .where(eq(menuWeeks.weekStart, weekStart))
     .limit(1);
   const dayOfWeek = weekdayKey(parseIsoDateUtc(dateIso));
@@ -79,6 +80,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
           week,
           dayOfWeek,
           person,
+          row.deliveryId,
         );
         for (const cat of resolved) {
           qtyByCategory.set(cat.category, (qtyByCategory.get(cat.category) ?? 0) + cat.quantity);

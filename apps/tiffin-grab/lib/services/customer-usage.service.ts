@@ -19,11 +19,11 @@ async function tiffinsDelivered(userId: bigint, from: number, to: number, nowMs:
   const toIso = new Date(to).toISOString().slice(0, 10);
   const rows = await db
     .select({
-      persons: orders.persons,
       status: deliveries.status,
       cutoffAt: deliveries.cutoffAt,
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
       pooledAt: deliveries.pooledAt,
+      tiffinUnits: deliveries.tiffinUnits,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -35,9 +35,7 @@ async function tiffinsDelivered(userId: bigint, from: number, to: number, nowMs:
         lte(deliveries.deliveryDate, toIso),
       ),
     );
-  // deliveredTiffinCount is pure/row-agnostic about persons, so call it once per
-  // row rather than batching — orders in the window can carry different persons.
-  return rows.reduce((sum, r) => sum + deliveredTiffinCount(r.persons, [r], nowMs), 0);
+  return deliveredTiffinCount(rows, nowMs);
 }
 
 async function subscriptionsAndPlans(

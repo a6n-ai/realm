@@ -171,7 +171,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     const portions = portionsBySize.get(order.mealSizeId) ?? new Map();
 
     for (let person = 1; person <= order.persons; person++) {
-      const resolved = await resolveDeliveryMeal(order, week, dayOfWeek, person);
+      const resolved = await resolveDeliveryMeal(order, week, dayOfWeek, person, delivery.id);
       const lines: LabelLine[] = [];
       for (const category of resolved) {
         category.picks.forEach((pick, i) => {

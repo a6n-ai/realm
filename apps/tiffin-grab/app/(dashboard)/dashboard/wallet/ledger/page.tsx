@@ -24,7 +24,7 @@ type SearchParams = Promise<{ q?: string; sort?: string; dir?: string }>;
 export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <Suspense fallback={<SkeletonStatCards count={5} />}>
+      <Suspense fallback={<SkeletonStatCards count={6} />}>
         <WalletStatsData />
       </Suspense>
 
@@ -41,14 +41,34 @@ async function WalletStatsData() {
   const coinsIf = (dir: "credit" | "debit") =>
     sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = ${dir} then ${walletLedger.coins} else 0 end), 0) as int)`;
 
-  const [agg] = await db
+  // Per-user current balance (credits − debits), so the highest-balance stat
+  // below can rank accounts by what they hold right now, not by lifetime
+  // coins earned — a customer who redeemed everything shouldn't top this.
+  const balancePerUser = db
     .select({
-      credited: coinsIf("credit"),
-      redeemed: coinsIf("debit"),
-      entries: sql<number>`cast(count(*) as int)`,
-      wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
+      userId: walletLedger.userId,
+      balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("balance"),
     })
-    .from(walletLedger);
+    .from(walletLedger)
+    .groupBy(walletLedger.userId)
+    .as("bal");
+
+  const [[agg], [topWallet]] = await Promise.all([
+    db
+      .select({
+        credited: coinsIf("credit"),
+        redeemed: coinsIf("debit"),
+        entries: sql<number>`cast(count(*) as int)`,
+        wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
+      })
+      .from(walletLedger),
+    db
+      .select({ name: users.name, email: users.email, balance: balancePerUser.balance })
+      .from(balancePerUser)
+      .innerJoin(users, eq(users.id, balancePerUser.userId))
+      .orderBy(desc(balancePerUser.balance))
+      .limit(1),
+  ]);
 
   const stats = [
     { label: "Coins credited", value: agg.credited.toLocaleString() },
@@ -56,14 +76,20 @@ async function WalletStatsData() {
     { label: "Net outstanding", value: (agg.credited - agg.redeemed).toLocaleString() },
     { label: "Active wallets", value: agg.wallets.toLocaleString() },
     { label: "Entries", value: agg.entries.toLocaleString() },
+    {
+      label: "Highest balance",
+      value: (topWallet?.balance ?? 0).toLocaleString(),
+      sublabel: topWallet ? (topWallet.name ?? topWallet.email ?? undefined) : undefined,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {stats.map((s) => (
         <div key={s.label} className="rounded-lg border p-4">
           <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
           <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
+          {s.sublabel && <div className="mt-0.5 truncate text-xs text-muted-foreground/80">{s.sublabel}</div>}
         </div>
       ))}
     </div>

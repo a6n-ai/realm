@@ -14,11 +14,28 @@ type Delivery = typeof deliveries.$inferSelect;
 
 const WEEKEND = new Set(["sat", "sun"]);
 
+/** ISO date `n` days before `dateIso` — UTC date math, same style as nextDeliveryDateAfter. */
+function isoDaysBefore(dateIso: string, n: number): string {
+  const d = parseIsoDateUtc(dateIso);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * Materializes the N delivery-drop rows for an order (N = durationWeeks × deliveryDays.length,
- * NOT tiffins — persons never multiplies row count). Idempotent: returns 0 and inserts nothing
- * if the order already has deliveries. Caller supplies the transaction; this is a write path
- * only, called from both routes that put an order into "active".
+ * Materializes the delivery-drop rows for an order. Tiffin total is unaffected by this
+ * function (pricing already fixed order.tiffinCount at checkout using deliveryDays.length,
+ * weekend days included) — this only decides how that total is DISTRIBUTED across rows.
+ *
+ * There is no physical Saturday/Sunday route: a weekend add-on ships with the same week's
+ * Friday instead, so a "sat"/"sun" entry never gets its own row — it adds `persons` tiffin
+ * units onto that Friday's row (tiffinUnits) instead. Friday is always a base delivery day
+ * (both "mwf" and the 5-day pattern include it), so the Friday row it bundles onto is
+ * guaranteed to already exist earlier in the same walk — the fallback branch below is a
+ * defensive backstop, not the expected path, so a bundle target is never silently dropped.
+ *
+ * Idempotent: returns 0 and inserts nothing if the order already has deliveries. Caller
+ * supplies the transaction; this is a write path only, called from both routes that put an
+ * order into "active".
  */
 export async function materializeDeliveries(tx: Tx, order: Order): Promise<number> {
   const [existing] = await tx.select({ id: deliveries.id }).from(deliveries)
@@ -51,14 +68,34 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
     deliveryDays,
   });
 
+  type Row = { deliveryDate: string; tiffinUnits: number };
+  const rows: Row[] = [];
+  const rowByDate = new Map<string, Row>();
+  for (const d of dates) {
+    if (d.dayOfWeek === "sat" || d.dayOfWeek === "sun") {
+      const fridayIso = isoDaysBefore(d.dateIso, d.dayOfWeek === "sat" ? 1 : 2);
+      const friday = rowByDate.get(fridayIso);
+      if (friday) {
+        friday.tiffinUnits += order.persons;
+        continue;
+      }
+      // Shouldn't happen (Friday is always a base day) — don't drop a real customer's
+      // tiffin over it, just give the weekend day its own row instead of merging.
+    }
+    const newRow: Row = { deliveryDate: d.dateIso, tiffinUnits: order.persons };
+    rows.push(newRow);
+    rowByDate.set(d.dateIso, newRow);
+  }
+
   const { timezone, cutoffHour } = await getAppSettings();
-  await tx.insert(deliveries).values(dates.map((d) => ({
+  await tx.insert(deliveries).values(rows.map((r) => ({
     orderId: order.id,
-    deliveryDate: d.dateIso,
+    deliveryDate: r.deliveryDate,
     status: "scheduled" as const,
-    cutoffAt: cutoffMsFor(d.dateIso, cutoffHour, timezone),
+    cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone),
+    tiffinUnits: r.tiffinUnits,
   })));
-  return dates.length;
+  return rows.length;
 }
 
 /**
@@ -100,14 +137,16 @@ function assertOriginal(row: Delivery): void {
   }
 }
 
-async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
+// Exported so category-swaps.service.ts can reuse this pre-lock/load shape rather
+// than duplicating it.
+export async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
   const [row] = await tx.select().from(deliveries).where(eq(deliveries.publicId, publicId)).limit(1);
   if (!row) throw new ValidationError("Delivery not found");
   return row;
 }
 
 /** Pre-lock lookup: only orderId, so we know what to lock before trusting any other column. */
-async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<bigint> {
+export async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<bigint> {
   const [row] = await tx.select({ orderId: deliveries.orderId }).from(deliveries)
     .where(eq(deliveries.publicId, publicId)).limit(1);
   if (!row) throw new ValidationError("Delivery not found");
@@ -210,7 +249,7 @@ async function poolAllPausedMisses(orderId: bigint): Promise<number> {
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order || order.status === "cancelled" || order.status === "completed") return 0;
 
-    const missed = await tx.select({ id: deliveries.id })
+    const missed = await tx.select({ id: deliveries.id, tiffinUnits: deliveries.tiffinUnits })
       .from(deliveries)
       .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
       .where(and(
@@ -229,7 +268,9 @@ async function poolAllPausedMisses(orderId: bigint): Promise<number> {
         .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
         .returning({ id: deliveries.id });
       if (stamped.length === 0) continue;
-      pooledTiffins += order.persons;
+      // A bundled Friday's miss pools its full units (e.g. Friday + a Saturday add-on = 2),
+      // not a flat order.persons — the row already carries how many tiffins it was worth.
+      pooledTiffins += src.tiffinUnits;
     }
     if (pooledTiffins > 0) {
       await tx.update(orders)
@@ -240,7 +281,11 @@ async function poolAllPausedMisses(orderId: bigint): Promise<number> {
   });
 }
 
-export async function skipDelivery(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
+export async function skipDelivery(
+  deliveryPublicId: string,
+  actorId: bigint | null,
+  opts: { bypassCutoffLock?: boolean } = {},
+): Promise<void> {
   let orderId: bigint;
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
@@ -248,7 +293,10 @@ export async function skipDelivery(deliveryPublicId: string, actorId: bigint | n
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
-    assertMutable(row);
+    // The cutoff lock protects a customer from self-service-cancelling too late — it
+    // does not apply to the system's own post-cutoff reconciliation (pullCompletions),
+    // which by design only ever calls this once the cutoff has already passed.
+    if (!opts.bypassCutoffLock) assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot skip a ${row.status} delivery`);
     const updated = await tx.update(deliveries).set({ status: "skipped" })
       .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
@@ -292,7 +340,7 @@ export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> 
     // so this should be unreachable — but it bounds the blast radius if that logic regresses.
     if (!order || order.status === "cancelled" || order.status === "completed") return 0;
 
-    const missed = await tx.select({ id: deliveries.id })
+    const missed = await tx.select({ id: deliveries.id, tiffinUnits: deliveries.tiffinUnits })
       .from(deliveries)
       .leftJoin(existingMakeup, eq(existingMakeup.makeupForDeliveryId, deliveries.id))
       .where(and(
@@ -313,7 +361,9 @@ export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> 
         .where(and(eq(deliveries.id, src.id), isNull(deliveries.pooledAt)))
         .returning({ id: deliveries.id });
       if (stamped.length === 0) continue; // lost a race; do not double-count
-      pooledTiffins += order.persons;
+      // A bundled Friday's miss pools its full units (e.g. Friday + a Saturday add-on = 2),
+      // not a flat order.persons — the row already carries how many tiffins it was worth.
+      pooledTiffins += src.tiffinUnits;
     }
     if (pooledTiffins > 0) {
       await tx.update(orders)
@@ -444,6 +494,11 @@ export async function scheduleFromPool(
       status: "scheduled",
       cutoffAt: cutoffMsFor(dateIso, cutoffHour, timezone),
       makeupForDeliveryId: miss?.id ?? null,
+      // A plain make-up day, not itself a bundled Friday — worth persons, same as any other
+      // single weekday. (Redeeming a >persons pooled debt, e.g. a bundled Friday's miss, just
+      // takes more than one scheduleFromPool call — the persons-per-call check above already
+      // handles that correctly without this row needing to know it.)
+      tiffinUnits: order.persons,
     }).returning({ id: deliveries.id, publicId: deliveries.publicId });
 
     await tx.update(orders)
@@ -536,6 +591,9 @@ export async function rescheduleDelivery(
       status: "scheduled",
       cutoffAt: newCutoff,
       makeupForDeliveryId: row.id,
+      // Carries the same tiffinUnits as the row it replaces — rescheduling a bundled Friday
+      // must not silently drop it back to a plain single-day count.
+      tiffinUnits: row.tiffinUnits,
     }).returning({ id: deliveries.id });
 
     await tx.insert(orderActivities).values(
