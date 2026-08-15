@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon,
+  CoinsIcon,
   CreditCardIcon,
   MapPinnedIcon,
   PuzzleIcon,
@@ -66,6 +67,14 @@ export default async function SettingsPage() {
     description: "Delivery types, zone radii, and the shop's map origin.",
     icon: MapPinnedIcon,
     href: "/dashboard/settings/delivery/zones",
+  });
+
+  sections.push({
+    key: "wallet",
+    label: "Wallet",
+    description: "Coin payout rules per event and the coin-to-CAD rate.",
+    icon: CoinsIcon,
+    href: "/dashboard/settings/wallet",
   });
 
   sections.push({
