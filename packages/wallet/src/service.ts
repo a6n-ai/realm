@@ -224,6 +224,70 @@ export async function commitRedemption(
   });
 }
 
+/**
+ * Reverses a redemption previously written by `commitRedemption`: credits
+ * back the same coin count against the same order. Mirrors `commitRedemption`
+ * exactly opposite direction, same fixed user-then-order lock order, same
+ * dedupe-by-query approach (there is no DB constraint doing this for us — the
+ * unique index on wallet_ledger is `(source_type, source_id, event_type)` and
+ * `event_type` is NULL on every spend/reversal row, and Postgres treats
+ * distinct NULLs as non-equal for uniqueness purposes, so nothing at the DB
+ * layer stops a second reversal row; the lock plus this query is the only
+ * guard).
+ *
+ * Idempotent: a redemption debit not found is a silent no-op (nothing to
+ * reverse), and a reversal already recorded for this order is also a silent
+ * no-op (already returned once) — neither writes nor throws.
+ *
+ * Does NOT touch the app's `ledger_entries` (or any other app-local money
+ * table): that table has per-app columns and this package must not name it.
+ * This only returns the coin count that was credited back; the caller
+ * decides what money-ledger row, if any, to write in response.
+ */
+export async function reverseRedemption(
+  tx: Tx,
+  args: {
+    userId: bigint;
+    orderId: bigint;
+    walletLedger: WalletTables<string>["walletLedger"];
+    orders: AnyPgTable & { id: unknown };
+    users: AnyPgTable & { id: unknown };
+  },
+): Promise<{ coinsReturned: number }> {
+  const { userId, orderId, walletLedger, orders, users } = args;
+
+  await lockUser(tx, users, userId);
+  // Per-order lock: same reason as commitRedemption — serialises concurrent
+  // reversal/commit attempts against the same order.
+  await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
+
+  const [debit] = await tx
+    .select({ coins: walletLedger.coins })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, orderId.toString())))
+    .limit(1);
+  if (!debit) return { coinsReturned: 0 };
+
+  const [existingReversal] = await tx
+    .select({ id: walletLedger.id })
+    .from(walletLedger)
+    .where(and(eq(walletLedger.sourceType, "redemption_reversal"), eq(walletLedger.sourceId, orderId.toString())))
+    .limit(1);
+  if (existingReversal) return { coinsReturned: 0 };
+
+  await tx.insert(walletLedger).values({
+    userId,
+    direction: "credit",
+    sourceType: "redemption_reversal",
+    sourceId: orderId.toString(),
+    coins: debit.coins,
+    orderId,
+    memo: `reverses redemption for order ${orderId}`,
+  });
+
+  return { coinsReturned: debit.coins };
+}
+
 export function createWalletService<E extends string>(deps: WalletDeps<E>) {
   const { db, tables, orders, users, recordRedemptionDiscount, canAward } = deps;
   const { walletLedger, eventPayout, coinRate } = tables;

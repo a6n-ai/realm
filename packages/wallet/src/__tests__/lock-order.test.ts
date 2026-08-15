@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitRedemption, lockAndQuoteRedemption } from "../service";
+import { commitRedemption, lockAndQuoteRedemption, reverseRedemption } from "../service";
 
 /**
  * Structural regression test, not a concurrency test: a real double-spend
@@ -126,5 +126,101 @@ describe("redemption lock/check ordering", () => {
       .rejects.toThrow(/insufficient coins to settle redemption/i);
 
     expect(calls).not.toContain("write");
+  });
+});
+
+/**
+ * Separate fake from `makeFakeTx` above: `reverseRedemption` runs two
+ * sequential `.limit()` lookups (find the debit, then check for an existing
+ * reversal) with different results each, rather than one balance-read plus
+ * one dup-check, so the two lookups are told apart by a queue of canned
+ * results rather than by a fixed query shape.
+ */
+function makeReversalFakeTx(calls: string[], limitResults: unknown[][]) {
+  const queue = [...limitResults];
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (q: any) => {
+      const tagged = (q?.queryChunks ?? [])
+        .map((c: { __lock?: string }) => c?.__lock)
+        .filter(Boolean);
+      calls.push(tagged[0] ?? "unknown-lock");
+    },
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            const rows = queue.shift() ?? [];
+            calls.push(rows.length ? "found" : "not-found");
+            return rows;
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: async () => {
+        calls.push("write");
+      },
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+describe("reverseRedemption lock/check ordering", () => {
+  it("locks user then order, before any read or write, then credits back the debited coins", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[{ coins: 10 }], []]);
+
+    const result = await reverseRedemption(fakeTx, {
+      userId: 1n,
+      orderId: 5n,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orders: ORDERS as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "order-lock", "found", "not-found", "write"]);
+    expect(result).toEqual({ coinsReturned: 10 });
+  });
+
+  it("is idempotent: a second call finds the existing reversal and writes nothing", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[{ coins: 10 }], [{ id: 1 }]]);
+
+    const result = await reverseRedemption(fakeTx, {
+      userId: 1n,
+      orderId: 5n,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orders: ORDERS as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "order-lock", "found", "found"]);
+    expect(result).toEqual({ coinsReturned: 0 });
+  });
+
+  it("is a silent no-op for an order with no redemption", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[]]);
+
+    const result = await reverseRedemption(fakeTx, {
+      userId: 1n,
+      orderId: 5n,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orders: ORDERS as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "order-lock", "not-found"]);
+    expect(result).toEqual({ coinsReturned: 0 });
   });
 });
