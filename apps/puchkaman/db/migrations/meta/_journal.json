@@ -134,6 +134,13 @@
       "when": 1786714650599,
       "tag": "0018_green_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786804178659,
+      "tag": "0019_milky_madrox",
+      "breakpoints": true
     }
   ]
 }

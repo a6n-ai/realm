@@ -33,6 +33,7 @@
     "@realm/sms": "workspace:*",
     "@realm/storage": "workspace:*",
     "@realm/themes": "workspace:*",
+    "@realm/wallet": "workspace:*",
     "@realm/whatsapp": "workspace:*",
     "@realm/ui": "workspace:*",
     "better-auth": "^1.6.20",

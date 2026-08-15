@@ -93,6 +93,9 @@ importers:
       '@realm/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@realm/wallet':
+        specifier: workspace:*
+        version: link:../../packages/wallet
       '@realm/whatsapp':
         specifier: workspace:*
         version: link:../../packages/whatsapp

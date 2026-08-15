@@ -12,3 +12,4 @@ export { reviewNudges } from "@realm/google-reviews/db";
 export * from "./events";
 export * from "./notifications";
 export * from "./email-log";
+export * from "./wallet";
