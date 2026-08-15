@@ -1,13 +1,15 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { capRedemption } from "@realm/wallet";
 import { enabledMethods, findMethod } from "@realm/payments";
 import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { walletService } from "@/lib/services/wallet.service";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -41,6 +43,13 @@ export interface RepriceResult {
   appliedCoupons: AppliedCoupon[];
   couponError?: string;
   paymentMethods: CheckoutPaymentMethod[];
+  // Signed-out checkout has no wallet to spend from — null tells the UI to hide
+  // the coins control entirely rather than show a 0 balance.
+  coinBalance: number | null;
+  // Set when the requested coin count exceeds the balance, mirroring
+  // couponError — the UI surfaces this instead of silently dropping the request
+  // (which createOrder would otherwise reject, failing the whole order).
+  coinsError?: string;
 }
 
 export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
@@ -59,6 +68,7 @@ export async function reprice(
   couponCode?: string,
   planKey?: string,
   paymentMethodId?: string | null,
+  coins?: number,
 ): Promise<RepriceResult> {
   const snapshot = await loadCatalogSnapshot();
   const catalog = buildPricingCatalog(snapshot, selections);
@@ -103,14 +113,39 @@ export async function reprice(
     manualCode: couponCode?.trim() || undefined,
   });
 
-  const pricing = priceSubscription(selections, catalog, best.lines, taxes);
+  // Coins mirror the coupon lane: resolved against the remaining PRE-TAX
+  // subtotal (after coupon lines), never a client-sent amount, and capped with
+  // the SAME capRedemption createOrder uses — duplicating that arithmetic is
+  // how the preview and the charged order end up disagreeing by a cent.
+  const lines = [...best.lines];
+  let coinBalance: number | null = null;
+  let coinsError: string | undefined;
+  if (userId != null) {
+    coinBalance = await walletService.balance(userId);
+    if (coins && coins > 0) {
+      if (coins > coinBalance) {
+        coinsError = "You don't have that many coins.";
+      } else {
+        const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
+        const remaining = Math.max(0, Math.round((base.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+        if (remaining > 0) {
+          const { currency } = await getAppSettings();
+          const rate = await walletService.activeRate(currency);
+          const { coinsSpent, currencyValue } = capRedemption(coins, rate, remaining);
+          if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
+        }
+      }
+    }
+  }
+
+  const pricing = priceSubscription(selections, catalog, lines, taxes);
   const appliedCoupons: AppliedCoupon[] = best.redemptions.map((r) => ({
     code: r.coupon.code,
     name: r.coupon.name,
     amount: r.amount,
     auto: r.coupon.autoApply,
   }));
-  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods };
+  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods, coinBalance, coinsError };
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {

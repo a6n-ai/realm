@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
 import { PhoneInput } from "@realm/ui/phone-input";
@@ -24,7 +25,7 @@ import { Label } from "@realm/ui/label";
 import { AddressFields } from "@realm/ui/address-fields";
 import { Card } from "@realm/design-system";
 import { cn } from "@realm/ui/cn";
-import { Check, MapPin, ShieldCheck, Tag } from "lucide-react";
+import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
@@ -47,6 +48,10 @@ export function Checkout({
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
   const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
+  const [coinsInput, setCoinsInput] = useState("");
+  const [appliedCoins, setAppliedCoins] = useState(0);
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  const [coinsState, setCoinsState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [waitlisted, setWaitlisted] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
@@ -55,15 +60,17 @@ export function Checkout({
     s: WizardSelections,
     code: string | undefined,
     methodId: string | null,
+    coins?: number,
   ) => {
-    const r = await reprice(s, code, s.planKey ?? undefined, methodId);
+    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins);
     setResult(r.pricing);
     setApplied(r.appliedCoupons);
     setPaymentMethods(r.paymentMethods);
+    setCoinBalance(r.coinBalance);
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
       setPaymentMethodId(r.paymentMethods[0]!.id);
-      return refreshPrice(s, code, r.paymentMethods[0]!.id);
+      return refreshPrice(s, code, r.paymentMethods[0]!.id, coins);
     }
     return r;
   };
@@ -103,7 +110,7 @@ export function Checkout({
     if (!selections) return;
     const code = couponCode.trim();
     setCouponState({ status: code ? "checking" : "idle" });
-    const r = await refreshPrice(selections, code || undefined, paymentMethodId);
+    const r = await refreshPrice(selections, code || undefined, paymentMethodId, appliedCoins || undefined);
     if (!code) {
       setAppliedCode(null);
       setCouponState({ status: "idle" });
@@ -124,10 +131,30 @@ export function Checkout({
     });
   };
 
+  const applyCoins = async () => {
+    if (!selections) return;
+    const requested = Number(coinsInput.trim());
+    if (!coinsInput.trim() || !Number.isFinite(requested) || requested <= 0) {
+      setAppliedCoins(0);
+      setCoinsState({ status: "idle" });
+      await refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, undefined);
+      return;
+    }
+    setCoinsState({ status: "checking" });
+    const r = await refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, requested);
+    if (r.coinsError) {
+      setAppliedCoins(0);
+      setCoinsState({ status: "error", message: r.coinsError });
+      return;
+    }
+    setAppliedCoins(requested);
+    setCoinsState({ status: "applied", message: "Coins applied" });
+  };
+
   const selectMethod = async (id: string) => {
     if (!selections) return;
     setPaymentMethodId(id);
-    await refreshPrice(selections, appliedCode ?? undefined, id);
+    await refreshPrice(selections, appliedCode ?? undefined, id, appliedCoins || undefined);
   };
 
   const confirm = async () => {
@@ -143,6 +170,7 @@ export function Checkout({
         planKey: selections.planKey!,
         contact,
         couponCode: appliedCode ?? undefined,
+        coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
       });
       sessionStorage.removeItem(WIZARD_STORAGE_KEY);
@@ -372,6 +400,31 @@ export function Checkout({
             {couponState.status === "applied" && <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">{couponState.message}</p>}
             {couponState.status === "error" && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500">{couponState.message}</p>}
           </div>
+          {coinBalance == null ? (
+            <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+              <Link href="/login" className="underline">Sign in</Link> to pay with your coins.
+            </p>
+          ) : (
+            <div className="rounded-lg bg-muted/50 p-3">
+              <Label htmlFor="coins" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Coins className="size-3.5" /> Use coins ({coinBalance} available)
+              </Label>
+              <div className="mt-1.5 flex gap-2">
+                <Input
+                  id="coins"
+                  inputMode="numeric"
+                  value={coinsInput}
+                  onChange={(e) => { setCoinsInput(e.target.value); if (coinsState.status !== "idle") setCoinsState({ status: "idle" }); }}
+                  placeholder="e.g. 50"
+                />
+                <Button type="button" variant="outline" onClick={applyCoins} disabled={coinsState.status === "checking"}>
+                  {coinsState.status === "checking" ? "Checking…" : "Apply"}
+                </Button>
+              </div>
+              {coinsState.status === "applied" && <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400">{coinsState.message}</p>}
+              {coinsState.status === "error" && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-500">{coinsState.message}</p>}
+            </div>
+          )}
           {zone?.served && <p className="text-xs text-muted-foreground">Delivery window: {zone.slotWindow}</p>}
         </Card>
       </aside>
