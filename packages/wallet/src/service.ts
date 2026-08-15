@@ -261,12 +261,23 @@ export async function reverseRedemption(
   // reversal/commit attempts against the same order.
   await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
 
+  // Scoped to the user we are about to credit. Today's callers provably resolve
+  // owner and order to the same row, but that invariant lives entirely in them —
+  // this is a shared primitive, and an unscoped lookup would happily read one
+  // user's debit and credit the coins to another. Correct callers see no change.
   const [debit] = await tx
     .select({ coins: walletLedger.coins })
     .from(walletLedger)
-    .where(and(eq(walletLedger.sourceType, "redemption"), eq(walletLedger.sourceId, orderId.toString())))
+    .where(and(
+      eq(walletLedger.userId, userId),
+      eq(walletLedger.sourceType, "redemption"),
+      eq(walletLedger.sourceId, orderId.toString()),
+    ))
     .limit(1);
   if (!debit) return { coinsReturned: 0 };
+
+  // Deliberately NOT user-scoped: a reversal recorded by anyone for this order
+  // must block a second one. Narrowing this would be the double-credit bug.
 
   const [existingReversal] = await tx
     .select({ id: walletLedger.id })
