@@ -13,6 +13,24 @@ import { ledgerService } from "./ledger.service";
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
 export type WalletTx = PackageWalletTx<BusinessEvent>;
 
+/**
+ * The app_event values that actually have a `walletService.award(...)` call
+ * site. One line per site — keep this list and the sites in step:
+ *
+ *   order_paid → OrdersService.awardOrderPaid
+ *
+ * app_event is the app-wide *notification* catalog, so most of its values will
+ * never award anything. Rendering the whole enum in the payout grid sold nine
+ * switches of which one did something; "Signup: 100 coins" saved fine and then
+ * silently never paid out. The settings action validates against this list, so
+ * an unlisted event's payout row cannot be written at all — which is also why
+ * adding an award call site without adding it here fails immediately and
+ * visibly (its config row can never exist, so `award` always no-ops) rather
+ * than rotting. `AwardableEvent` types that action's input.
+ */
+export const AWARDABLE_EVENTS = ["order_paid"] as const satisfies readonly BusinessEvent[];
+export type AwardableEvent = (typeof AWARDABLE_EVENTS)[number];
+
 // A transaction handle from db.transaction — same shape as orders.service.ts's Tx.
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

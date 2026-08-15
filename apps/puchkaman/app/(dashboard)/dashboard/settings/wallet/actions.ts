@@ -2,25 +2,45 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ValidationError } from "@realm/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { appEvent, coinRate, eventPayout } from "@/db/schema";
+import { coinRate, eventPayout } from "@/db/schema";
+import { AWARDABLE_EVENTS } from "@/lib/services/wallet.service";
 import { currentUserId } from "@/lib/services/session-service";
 
 const PATH = "/dashboard/settings/wallet";
 
+// Not `appEvent.enumValues`: app_event is the notification catalog, and only
+// the events in AWARDABLE_EVENTS have an award call site. A switch for any
+// other event would save happily and never pay out.
 const payoutSchema = z.object({
-  eventType: z.enum(appEvent.enumValues),
+  eventType: z.enum(AWARDABLE_EVENTS),
   enabled: z.boolean(),
   coins: z.number().int().min(0),
 });
 
-// Every app_event row is a candidate the page synthesizes even when the table
+async function coinRateExists(): Promise<boolean> {
+  const [row] = await db.select({ id: coinRate.id }).from(coinRate).limit(1);
+  return Boolean(row);
+}
+
+// Every awardable event is a candidate the page synthesizes even when the table
 // hasn't been touched yet (no seed step ships this list pre-populated), so
 // this must upsert — a plain UPDATE would silently no-op on a first save.
 export async function savePayoutRow(input: unknown): Promise<void> {
   await requireAdmin();
   const data = payoutSchema.parse(input);
+
+  // Earning without a rate is a trap: customers accrue coins, the redeem
+  // control appears, and checkout then 400s with a raw "No coin rate for CAD"
+  // while the preview's matching 400 is swallowed. Refuse at the source.
+  if (data.enabled && data.coins > 0 && !(await coinRateExists())) {
+    throw new ValidationError(
+      "Save a coin rate first — customers cannot spend coins until one exists.",
+    );
+  }
+
   const userId = await currentUserId();
   await db
     .insert(eventPayout)

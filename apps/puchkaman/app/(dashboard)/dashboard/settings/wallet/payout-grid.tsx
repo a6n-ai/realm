@@ -7,41 +7,51 @@ import { SectionCard } from "@realm/design-system";
 import { Button } from "@realm/ui/button";
 import { Label } from "@realm/ui/label";
 import { Switch } from "@realm/ui/switch";
-import type { appEvent } from "@/db/schema";
+import type { AwardableEvent } from "@/lib/services/wallet.service";
 import { NumberField } from "./controls";
 import { savePayoutRow } from "./actions";
 
-type AppEvent = (typeof appEvent.enumValues)[number];
-
 export type PayoutRow = {
-  eventType: AppEvent;
+  eventType: AwardableEvent;
   enabled: boolean;
   coins: number;
 };
 
-// app_event has no curated payout-event subset — every value the enum
-// declares gets a row, so a new event type shows up here automatically
-// instead of silently missing until someone remembers to add it.
-function eventLabel(e: AppEvent): string {
+// Only events with a real award call site get a row (see AWARDABLE_EVENTS in
+// lib/services/wallet.service.ts). Rendering the whole app_event enum sold
+// switches that did nothing when flipped.
+function eventLabel(e: AwardableEvent): string {
   return e.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 
-export function PayoutGrid({ payouts }: { payouts: PayoutRow[] }) {
+export function PayoutGrid({
+  payouts,
+  hasCoinRate,
+}: {
+  payouts: PayoutRow[];
+  hasCoinRate: boolean;
+}) {
   return (
     <SectionCard
       title="Event payouts"
       subtitle="Configure how many coins customers earn for each business event. Disabled events award no coins."
     >
+      {!hasCoinRate && (
+        <p className="border-destructive/40 bg-destructive/10 text-destructive mb-3 rounded-lg border p-3 text-sm">
+          Set a coin rate below before enabling a payout. Without one, customers
+          earn coins they cannot spend — checkout rejects the redemption.
+        </p>
+      )}
       <div className="grid gap-3">
         {payouts.map((row) => (
-          <PayoutRowItem key={row.eventType} row={row} />
+          <PayoutRowItem key={row.eventType} row={row} hasCoinRate={hasCoinRate} />
         ))}
       </div>
     </SectionCard>
   );
 }
 
-function PayoutRowItem({ row }: { row: PayoutRow }) {
+function PayoutRowItem({ row, hasCoinRate }: { row: PayoutRow; hasCoinRate: boolean }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [enabled, setEnabled] = React.useState(row.enabled);
@@ -72,7 +82,12 @@ function PayoutRowItem({ row }: { row: PayoutRow }) {
           <Label htmlFor={`payout-${row.eventType}-enabled`} className="text-sm">
             Enabled
           </Label>
-          <Switch id={`payout-${row.eventType}-enabled`} checked={enabled} onCheckedChange={setEnabled} />
+          <Switch
+            id={`payout-${row.eventType}-enabled`}
+            checked={enabled}
+            disabled={!hasCoinRate && !row.enabled}
+            onCheckedChange={setEnabled}
+          />
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-3">
