@@ -9,6 +9,7 @@ const { categorySwapRules, deliveries, deliveryCategorySwaps, ledgerEntries, ord
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
+const { applyDeliverySwap } = await import("../category-swaps.service");
 
 // This suite truncates category_swap_rules in beforeEach. Safe because
 // vitest.config.ts sets fileParallelism: false — test FILES never run
@@ -113,12 +114,18 @@ describe("default swap fan-out", () => {
     const { rule, size } = await seedRule();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    const { publicId } = await createOrder(orderInput(size.publicId, planKey, [rule.publicId]));
+    // No default swaps at all — the order's own default set is empty, so it
+    // cannot masquerade as the source of what lands on the replacement.
+    const { publicId } = await createOrder(orderInput(size.publicId, planKey, []));
     const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+    expect(order.defaultSwaps).toEqual([]);
 
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id))
       .orderBy(asc(deliveries.deliveryDate));
     const source = rows[0];
+    // Ad-hoc swap applied to this ONE delivery only — not via order.default_swaps.
+    await applyDeliverySwap(source.publicId, rule.id, null);
+
     // A day the order does not already cover, on the same weekday pattern.
     const target = rows[rows.length - 1].deliveryDate;
     const nextIso = new Date(`${target}T00:00:00.000Z`);
@@ -130,7 +137,13 @@ describe("default swap fan-out", () => {
       .where(eq(deliveries.makeupForDeliveryId, source.id)).limit(1);
     const swaps = await db.select().from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, replacement.id));
+    // Under inheritDefaultSwaps (the wrong path here) this would be empty,
+    // since order.default_swaps is []. Non-empty proves reschedule copied
+    // from the source delivery's own applied swaps instead.
     expect(swaps).toHaveLength(1);
     expect(swaps[0].fromCategory).toBe(rule.fromCategory);
+    expect(swaps[0].toCategory).toBe(rule.toCategory);
+    expect(swaps[0].qtyFrom).toBe(rule.qtyFrom);
+    expect(swaps[0].qtyTo).toBe(rule.qtyTo);
   });
 });
