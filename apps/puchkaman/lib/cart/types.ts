@@ -48,6 +48,9 @@ export const CART_MAX_QTY = 50;
 export const CART_MAX_LINES = 40;
 export const CART_MAX_MODIFIERS = 20;
 
+/** Cookie naming the server-side cart row; httpOnly, so it's the only cart identity page scripts never see. */
+export const CART_COOKIE = "pk_cart";
+
 export function money(n: number) {
   return `$${n.toFixed(2)}`;
 }
