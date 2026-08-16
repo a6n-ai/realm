@@ -15,6 +15,9 @@ export const initialSelections: WizardSelections = {
   // populated from the chosen plan's categories (see StepBaseline) purely to
   // satisfy the pricing guard — the subscriber never picks it directly.
   mealSlots: [],
+  // Chosen swap rules (public ids). Cleared whenever the meal size changes —
+  // a rule is scoped to exactly one meal size.
+  swapRuleIds: [],
   includeSaturday: false,
   includeSunday: false,
   durationWeeks: 1,

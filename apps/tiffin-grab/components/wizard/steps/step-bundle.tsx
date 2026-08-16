@@ -3,6 +3,7 @@ import type { WizardSelections } from "../selections";
 import { Card } from "@realm/ui/card";
 import { Badge } from "@realm/ui/badge";
 import { MealSizeItems } from "../meal-size-items";
+import { SwapPicker, effectiveCounts } from "../swap-picker";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
@@ -41,21 +42,30 @@ export function StepBundle({
                   <Card
                     key={m.publicId}
                     role="button"
-                    onClick={() => set({ mealSizeId: m.publicId })}
+                    onClick={() => set({ mealSizeId: m.publicId, swapRuleIds: [] })}
                     className={`hover-lift cursor-pointer p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{m.name}</span>
                       <span className="nums text-sm font-medium">${m.basePrice.toFixed(2)}</span>
                     </div>
-                    <div className="mt-1"><MealSizeItems items={m.items} /></div>
+                    <div className="mt-1">
+                      <MealSizeItems items={m.items} counts={active ? effectiveCounts(m.items, m.swapRules, selections.swapRuleIds ?? []) : undefined} />
+                    </div>
                     {active && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        <Badge variant="secondary">{m.kcalMin}–{m.kcalMax} kcal</Badge>
-                        {m.proteinG != null && <Badge variant="secondary">P {m.proteinG}g</Badge>}
-                        {m.carbsG != null && <Badge variant="secondary">C {m.carbsG}g</Badge>}
-                        {m.fatG != null && <Badge variant="secondary">F {m.fatG}g</Badge>}
-                      </div>
+                      <>
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          <Badge variant="secondary">{m.kcalMin}–{m.kcalMax} kcal</Badge>
+                          {m.proteinG != null && <Badge variant="secondary">P {m.proteinG}g</Badge>}
+                          {m.carbsG != null && <Badge variant="secondary">C {m.carbsG}g</Badge>}
+                          {m.fatG != null && <Badge variant="secondary">F {m.fatG}g</Badge>}
+                        </div>
+                        <SwapPicker
+                          mealSize={m}
+                          chosenIds={selections.swapRuleIds ?? []}
+                          onChange={(ids) => set({ swapRuleIds: ids })}
+                        />
+                      </>
                     )}
                   </Card>
                 );
