@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { carts, orders } from "@/db/schema";
+import { carts, orders, users } from "@/db/schema";
 import {
   cartItemsSchema,
   markCartConverted,
@@ -12,6 +12,16 @@ import {
 const MARK = "carts-service";
 const cartIds: bigint[] = [];
 const orderIds: bigint[] = [];
+const userIds: bigint[] = [];
+
+async function seedUser(suffix: string) {
+  const [row] = await db
+    .insert(users)
+    .values({ email: `${MARK}-${suffix}@example.test`, name: MARK, role: "user", status: "active" })
+    .returning({ id: users.id });
+  userIds.push(row.id);
+  return row.id;
+}
 
 function line(id: string, qty = 1) {
   return { productPublicId: id, name: "Pani puri", price: 9.5, category: "snacks", quantity: qty, modifiers: [] };
@@ -43,6 +53,10 @@ afterEach(async () => {
   if (orderIds.length) {
     await db.delete(orders).where(inArray(orders.id, orderIds));
     orderIds.length = 0;
+  }
+  if (userIds.length) {
+    await db.delete(users).where(inArray(users.id, userIds));
+    userIds.length = 0;
   }
 });
 
@@ -106,10 +120,19 @@ describe("upsertCart", () => {
       publicId: "crt_notarealid1",
       items: [line("prd_a")],
       userId: null,
-      email: null,
+      email: `${MARK}-untrusted@example.test`,
     });
     expect(publicId).not.toBe("crt_notarealid1");
     await track(publicId);
+  });
+
+  it("never clears a known userId with a later null", async () => {
+    const userId = await seedUser("sticky");
+    const first = await upsertCart({ publicId: null, items: [line("prd_a")], userId, email: null });
+    await track(first.publicId);
+    await upsertCart({ publicId: first.publicId, items: [line("prd_a")], userId: null, email: null });
+    const [row] = await db.select().from(carts).where(eq(carts.publicId, first.publicId)).limit(1);
+    expect(row.userId).toBe(userId);
   });
 });
 
