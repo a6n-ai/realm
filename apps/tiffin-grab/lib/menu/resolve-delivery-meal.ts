@@ -26,7 +26,7 @@ function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
   return d.toISOString().slice(0, 10);
 }
 
-type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+export type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 
 // Folds every applied swap for a delivery onto a base counts map, in the order the
 // rows are given. Never clamps below 0 here — that's a service-layer invariant
@@ -39,6 +39,24 @@ export function applySwapsToCounts(counts: Record<string, number>, swaps: SwapRo
     next[s.toCategory] = (next[s.toCategory] ?? 0) + s.qtyTo;
   }
   return next;
+}
+
+// Can `next` still be applied on top of `applied`? Folds every swap already in
+// play before checking the from-category balance, so several swaps can stack on
+// one composition but never past what is actually there. Shared by the
+// per-delivery apply path and checkout — two copies of this arithmetic is how
+// the two surfaces end up disagreeing about what a customer may order.
+export function validateSwapStack(
+  baseCounts: Record<string, number>,
+  applied: SwapRow[],
+  next: SwapRow,
+): { ok: true } | { ok: false; reason: string } {
+  const effective = applySwapsToCounts(baseCounts, applied);
+  const available = effective[next.fromCategory] ?? 0;
+  if (available < next.qtyFrom) {
+    return { ok: false, reason: `Not enough ${next.fromCategory} left to give up (have ${available}, need ${next.qtyFrom})` };
+  }
+  return { ok: true };
 }
 
 type Item = { slot: string; dishId: bigint; isDefault: boolean; name: string; publicId: string };

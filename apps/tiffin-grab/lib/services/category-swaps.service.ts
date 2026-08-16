@@ -9,7 +9,7 @@ import { ValidationError } from "@realm/commons";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categorySwapRules, deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
-import { applySwapsToCounts } from "@/lib/menu/resolve-delivery-meal";
+import { validateSwapStack } from "@/lib/menu/resolve-delivery-meal";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 
 export async function applyDeliverySwap(
@@ -39,11 +39,8 @@ export async function applyDeliverySwap(
       fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo,
     }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, row.id));
-    const effective = applySwapsToCounts(order.categoryCounts ?? {}, existing);
-    const available = effective[rule.fromCategory] ?? 0;
-    if (available < rule.qtyFrom) {
-      throw new ValidationError(`Not enough ${rule.fromCategory} left to give up (have ${available}, need ${rule.qtyFrom})`);
-    }
+    const check = validateSwapStack(order.categoryCounts ?? {}, existing, rule);
+    if (!check.ok) throw new ValidationError(check.reason);
 
     const [already] = await tx.select({ id: deliveryCategorySwaps.id }).from(deliveryCategorySwaps)
       .where(and(eq(deliveryCategorySwaps.deliveryId, row.id), eq(deliveryCategorySwaps.ruleId, ruleId)))
@@ -57,6 +54,7 @@ export async function applyDeliverySwap(
       deliveryId: row.id, ruleId: rule.id,
       fromCategory: rule.fromCategory, toCategory: rule.toCategory,
       qtyFrom: rule.qtyFrom, qtyTo: rule.qtyTo,
+      toWeightValue: rule.toWeightValue, toWeightUnit: rule.toWeightUnit,
     });
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "category_swap_applied",
