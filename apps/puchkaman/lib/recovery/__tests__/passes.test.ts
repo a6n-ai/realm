@@ -249,6 +249,86 @@ describe("terminalizeAbandonedOrders", () => {
     await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
   });
 
+  // These two call abandonPendingOrder directly, bypassing terminalizeAbandonedOrders'
+  // candidate query, so its "pending" WHERE filter can't be the thing holding
+  // the invariant — only abandonPendingOrder's own re-read guard, and the
+  // wallet package's existingReversal dedupe underneath it, can be.
+  it("refuses to reverse an order a webhook settled between selection and action", async () => {
+    const { ordersService } = await import("@/lib/services/orders.service");
+    const { walletLedger } = await import("@/db/schema");
+
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `${MARK}-race@example.test`, name: MARK, role: "user", status: "active" })
+      .returning({ id: users.id });
+
+    const order = await pendingOrder("race", 25 * HOUR);
+    await db.update(orders).set({ userId: customer.id }).where(eq(orders.id, order.id));
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "credit", sourceType: "test_seed",
+      sourceId: `${MARK}-race`, coins: 50, memo: "seed",
+    });
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "debit", sourceType: "redemption",
+      sourceId: order.id.toString(), coins: 5, orderId: order.id, memo: "checkout",
+    });
+
+    // Simulate a webhook settling the order in the gap between the pass's
+    // candidate SELECT and this call.
+    await db.update(orders).set({ status: "paid" }).where(eq(orders.id, order.id));
+
+    expect(await ordersService.abandonPendingOrder(order.id)).toBe(false);
+
+    const [after] = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+    expect(after.status).toBe("paid");
+    const reversal = await db
+      .select()
+      .from(walletLedger)
+      .where(and(eq(walletLedger.sourceType, "redemption_reversal"), eq(walletLedger.sourceId, order.id.toString())));
+    expect(reversal).toHaveLength(0);
+
+    await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
+  });
+
+  it("never doubles the reversal when one already exists for the order", async () => {
+    const { ordersService } = await import("@/lib/services/orders.service");
+    const { walletLedger } = await import("@/db/schema");
+
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `${MARK}-dedupe@example.test`, name: MARK, role: "user", status: "active" })
+      .returning({ id: users.id });
+
+    const order = await pendingOrder("dedupe", 25 * HOUR);
+    await db.update(orders).set({ userId: customer.id }).where(eq(orders.id, order.id));
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "credit", sourceType: "test_seed",
+      sourceId: `${MARK}-dedupe`, coins: 50, memo: "seed",
+    });
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "debit", sourceType: "redemption",
+      sourceId: order.id.toString(), coins: 5, orderId: order.id, memo: "checkout",
+    });
+    // A prior reversal already landed for this order (e.g. a retried run).
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "credit", sourceType: "redemption_reversal",
+      sourceId: order.id.toString(), coins: 5, orderId: order.id, memo: "earlier reversal",
+    });
+
+    // Order itself is still `pending` — abandonPendingOrder's own status
+    // guard passes here, so only reverseRedemption's existingReversal check
+    // can stop a second row.
+    expect(await ordersService.abandonPendingOrder(order.id)).toBe(true);
+
+    const reversal = await db
+      .select()
+      .from(walletLedger)
+      .where(and(eq(walletLedger.sourceType, "redemption_reversal"), eq(walletLedger.sourceId, order.id.toString())));
+    expect(reversal).toHaveLength(1);
+
+    await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
+  });
+
   it("leaves an order inside the terminal window alone", async () => {
     const { terminalizeAbandonedOrders } = await import("../passes");
     await pendingOrder("young", 2 * HOUR);
