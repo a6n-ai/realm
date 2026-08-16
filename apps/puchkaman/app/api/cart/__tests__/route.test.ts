@@ -106,4 +106,32 @@ describe("POST /api/cart", () => {
     const [untouched] = await db.select().from(carts).where(eq(carts.publicId, owned.publicId)).limit(1);
     expect(untouched.items).toHaveLength(0);
   });
+
+  it("stores a typed guest email and prefers the session address when signed in", async () => {
+    const res = await post({ items: [line], email: `${MARK}-typed@example.test` });
+    const { publicId } = await res.json();
+    const [row] = await db.select().from(carts).where(eq(carts.publicId, publicId)).limit(1);
+    expect(row.email).toBe(`${MARK}-typed@example.test`);
+  });
+
+  it("ignores a typed email that is not an address", async () => {
+    const res = await post({ items: [line], email: "not-an-email" });
+    const { publicId } = await res.json();
+    const [row] = await db.select().from(carts).where(eq(carts.publicId, publicId)).limit(1);
+    expect(row.email).toBeNull();
+  });
+
+  it("keeps the signed-in session's own address over a typed one", async () => {
+    const [user] = await db
+      .insert(users)
+      .values({ email: `${MARK}-session@example.test`, name: MARK, role: "user", status: "active" })
+      .returning({ id: users.id, publicId: users.publicId });
+    userIds.push(user.id);
+    session.current = { user: { id: user.publicId, role: "user", email: `${MARK}-session@example.test` } };
+
+    const res = await post({ items: [line], email: `${MARK}-typed@example.test` });
+    const { publicId } = await res.json();
+    const [row] = await db.select().from(carts).where(eq(carts.publicId, publicId)).limit(1);
+    expect(row.email).toBe(`${MARK}-session@example.test`);
+  });
 });

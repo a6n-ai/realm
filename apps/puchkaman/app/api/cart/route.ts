@@ -34,6 +34,11 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     email = row?.email ?? null;
   }
 
+  const typed = (body as { email?: unknown } | null)?.email;
+  if (!email && typeof typed === "string" && typed.includes("@") && typed.length <= 254) {
+    email = typed;
+  }
+
   // A stale cookie must never write into a signed-in customer's cart.
   if (cookieId) {
     const owner = await cartOwner(cookieId);

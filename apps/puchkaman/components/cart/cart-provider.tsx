@@ -126,6 +126,24 @@ export function CartProvider({
     }
   }, [items, hydrated]);
 
+  // Server mirror for abandoned-cart recovery. localStorage stays the source of
+  // truth for the UI — this is a fire-and-forget copy, debounced so a burst of
+  // quantity taps sends one request. A failure is silent by design: the cart
+  // still works, only the recovery email is lost.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!items.length) return;
+    const t = window.setTimeout(() => {
+      void fetch("/api/cart", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items }),
+        keepalive: true,
+      }).catch(() => {});
+    }, 2000);
+    return () => window.clearTimeout(t);
+  }, [items, hydrated]);
+
   useEffect(() => {
     if (!pulse) return;
     const t = window.setTimeout(() => setPulse(0), 180);
