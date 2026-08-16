@@ -14,6 +14,7 @@ import {
 } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { db } from "@/db/client";
 import {
   employees,
@@ -27,6 +28,7 @@ import {
   walletLedger,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { CART_COOKIE } from "@/lib/cart/types";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   isPublicOrderingEnabled,
@@ -60,6 +62,7 @@ import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
+import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
@@ -965,6 +968,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           memo: `checkout ${row.publicId}`,
         });
       }
+
+      // Cart -> order handoff, inside the order transaction: a rolled-back order
+      // must leave the cart live so recovery still reaches the customer.
+      // `cookies()` throws outside a request context (direct/test callers), so a
+      // missing cart cookie is treated the same as no cart at all.
+      let cartId: string | null = null;
+      try {
+        cartId = (await cookies()).get(CART_COOKIE)?.value ?? null;
+      } catch {
+        cartId = null;
+      }
+      if (cartId) await markCartConverted(tx, cartId, row.id);
 
       // Same txn as the order insert: a receipt must never describe an order
       // that rolled back.
