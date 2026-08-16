@@ -141,6 +141,17 @@ export type CheckoutCreateResult = {
   coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
 };
 
+/** What a resume-payment link needs to remount the Clover pay step for an order. */
+export type ResumableCheckout = {
+  orderPublicId: string;
+  cloverOrderId: string;
+  total: number;
+  currency: "CAD";
+  pakmsKey: string;
+  checkoutSdkUrl: string;
+  environment: "sandbox" | "production";
+};
+
 export type CartQuoteResult = {
   subtotal: number;
   /** Forecast from the mirrored Clover tax rates. Clover re-prices at checkout. */
@@ -1176,6 +1187,35 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return {
       pakmsKey: pakms.apiAccessKey,
       checkoutSdkUrl: cloverCheckoutSdkUrl(client.environment()),
+    };
+  }
+
+  /**
+   * The resume-link payload: only for an order that has never been paid.
+   * Returns null for anything else — paid, failed, cancelled, or no
+   * `awaiting_payment` payment row — so the resume page can turn every one of
+   * those into the same 404 rather than leaking which state the order is in.
+   */
+  async getResumableCheckout(orderPublicId: string): Promise<ResumableCheckout | null> {
+    const order = await this.ordersRepo.findByPublicId(orderPublicId);
+    if (!order || order.status !== "pending" || !order.cloverOrderId) return null;
+
+    const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
+    if (!pays.some((p) => p.status === "awaiting_payment")) return null;
+
+    const client = await createCloverClient();
+    if (!client) return null;
+
+    const pakms = await client.getPakmsApiKey();
+    const environment = client.environment();
+    return {
+      orderPublicId: order.publicId,
+      cloverOrderId: order.cloverOrderId,
+      total: Number(order.total),
+      currency: "CAD",
+      pakmsKey: pakms.apiAccessKey,
+      checkoutSdkUrl: cloverCheckoutSdkUrl(environment),
+      environment,
     };
   }
 
