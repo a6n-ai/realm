@@ -13,7 +13,7 @@ function meal(key: string, opts: { trial?: boolean } = {}) {
     planKey: "veg",
     tier: "budget" as const,
     components: [],
-    items: [],
+    items: [], swapRules: [],
     kcalMin: 400,
     kcalMax: 600,
     proteinG: null,

@@ -409,7 +409,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
             // components is derived from the composition rows, not hand-edited.
             components: ((values.items as { name?: string }[]) ?? []).map((i) => i?.name ?? "").filter(Boolean),
-            items: [],
+            items: [], swapRules: [],
             kcalMin: num(values.kcalMin),
             kcalMax: num(values.kcalMax),
             proteinG: optMacro(values.proteinG),

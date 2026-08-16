@@ -7,7 +7,7 @@ const snapshot: CatalogSnapshot = {
   mealSizes: [
     {
       id: 5n, publicId: "msz_small", key: "small", name: "Small", planId: 1n, planKey: "veg",
-      tier: "budget", components: [], items: [], kcalMin: 400, kcalMax: 600,
+      tier: "budget", components: [], items: [], swapRules: [], kcalMin: 400, kcalMax: 600,
       proteinG: null, carbsG: null, fatG: null, basePrice: 10, trial: false,
     },
   ],

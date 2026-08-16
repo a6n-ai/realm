@@ -11,7 +11,7 @@ afterEach(cleanup);
 function meal(key: string, planKey: string, basePrice: number, trial = false) {
   return {
     publicId: `msz_${key}`, key, name: key, planKey, tier: "budget" as const,
-    components: [], items: [], kcalMin: 400, kcalMax: 600,
+    components: [], items: [], swapRules: [], kcalMin: 400, kcalMax: 600,
     proteinG: null, carbsG: null, fatG: null, basePrice, trial,
   };
 }

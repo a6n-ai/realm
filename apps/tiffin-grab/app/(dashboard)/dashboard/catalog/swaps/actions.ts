@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { categorySwapRules, mealSizes } from "@/db/schema";
 import { createSwapRule, removeSwapRule as removeSwapRuleService } from "@/lib/services/category-swap-rules.service";
+import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 
 const PATH = "/dashboard/catalog/swaps";
 
@@ -17,6 +18,8 @@ const addSchema = z.object({
   qtyFrom: z.number().int().positive(),
   toCategory: z.string().trim().min(1),
   qtyTo: z.number().int().positive(),
+  toWeightValue: z.number().positive().nullable().optional(),
+  toWeightUnit: z.enum(["oz", "g", "ml", "piece"]).nullable().optional(),
 });
 
 export async function addSwapRule(input: unknown): Promise<void> {
@@ -30,7 +33,12 @@ export async function addSwapRule(input: unknown): Promise<void> {
     toCategory: data.toCategory,
     qtyFrom: data.qtyFrom,
     qtyTo: data.qtyTo,
+    toWeightValue: data.toWeightValue ?? null,
+    toWeightUnit: data.toWeightUnit ?? null,
   });
+  // The wizard reads this off the cached snapshot — without invalidating, a
+  // new rule can take up to the cache's TTL to reach it.
+  await invalidateCatalogSnapshot();
   revalidatePath(PATH, "layout");
 }
 
@@ -42,5 +50,6 @@ export async function removeSwapRule(input: unknown): Promise<void> {
   const [rule] = await db.select({ id: categorySwapRules.id }).from(categorySwapRules).where(eq(categorySwapRules.publicId, data.id)).limit(1);
   if (!rule) throw new ValidationError("Swap rule not found");
   await removeSwapRuleService(rule.id);
+  await invalidateCatalogSnapshot();
   revalidatePath(PATH, "layout");
 }

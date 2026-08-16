@@ -15,6 +15,8 @@ export type CreateSwapRuleInput = {
   toCategory: string;
   qtyFrom: number;
   qtyTo: number;
+  toWeightValue?: number | null;
+  toWeightUnit?: "oz" | "g" | "ml" | "piece" | null;
 };
 
 export async function createSwapRule(input: CreateSwapRuleInput) {
@@ -25,13 +27,28 @@ export async function createSwapRule(input: CreateSwapRuleInput) {
     throw new ValidationError("Quantities must be positive");
   }
 
+  const hasValue = input.toWeightValue != null;
+  const hasUnit = input.toWeightUnit != null;
+  // Half a portion is worse than none: it would render as a bare number on a
+  // kitchen label with no idea whether it means grams or pieces.
+  if (hasValue !== hasUnit) throw new ValidationError("A portion needs both an amount and a unit");
+  if (hasValue && !(input.toWeightValue! > 0)) throw new ValidationError("Portion must be positive");
+
   const categories = await dishCategoriesService.enabledCategories();
   const keys = new Set(categories.map((c) => c.key));
   if (!keys.has(input.fromCategory)) throw new ValidationError(`Unknown category: ${input.fromCategory}`);
   if (!keys.has(input.toCategory)) throw new ValidationError(`Unknown category: ${input.toCategory}`);
 
   try {
-    const [created] = await db.insert(categorySwapRules).values(input).returning();
+    const [created] = await db.insert(categorySwapRules).values({
+      mealSizeId: input.mealSizeId,
+      fromCategory: input.fromCategory,
+      toCategory: input.toCategory,
+      qtyFrom: input.qtyFrom,
+      qtyTo: input.qtyTo,
+      toWeightValue: input.toWeightValue == null ? null : input.toWeightValue.toFixed(2),
+      toWeightUnit: input.toWeightUnit ?? null,
+    }).returning();
     return created;
   } catch (e) {
     // Unique index (mealSizeId, fromCategory, toCategory) — surface a friendly message

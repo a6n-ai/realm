@@ -19,6 +19,8 @@ export type SwapRuleRow = {
   toCategory: string;
   toLabel: string;
   qtyTo: number;
+  toWeightValue: number | null;
+  toWeightUnit: string | null;
 };
 
 export function SwapRuleGrid({
@@ -83,6 +85,9 @@ function SwapRuleRowView({ rule }: { rule: SwapRuleRow }) {
     <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <span className="text-sm font-medium">
         {rule.qtyFrom} {rule.fromLabel} <span className="text-muted-foreground">→</span> {rule.qtyTo} {rule.toLabel}
+        {rule.toWeightValue != null && rule.toWeightUnit != null ? (
+          <span className="text-muted-foreground"> ({rule.toWeightValue}{rule.toWeightUnit})</span>
+        ) : null}
       </span>
       <Button onClick={remove} disabled={pending} size="sm" variant="ghost">
         Remove
@@ -106,6 +111,8 @@ function AddSwapRuleForm({
   const [qtyFrom, setQtyFrom] = React.useState("1");
   const [toCategory, setToCategory] = React.useState("");
   const [qtyTo, setQtyTo] = React.useState("1");
+  const [portionValue, setPortionValue] = React.useState("");
+  const [portionUnit, setPortionUnit] = React.useState("");
 
   const save = () => {
     if (!fromCategory || !toCategory) {
@@ -122,9 +129,18 @@ function AddSwapRuleForm({
       toast.error("Quantities must be positive integers");
       return;
     }
+    const portion = portionValue.trim() === "" ? null : Number(portionValue);
+    if (portion != null && (!Number.isFinite(portion) || portion <= 0)) {
+      toast.error("Portion must be a positive number");
+      return;
+    }
+    if ((portion == null) !== (portionUnit === "")) {
+      toast.error("A portion needs both an amount and a unit");
+      return;
+    }
     start(async () => {
       try {
-        await addSwapRule({ mealSizePublicId, fromCategory, qtyFrom: nFrom, toCategory, qtyTo: nTo });
+        await addSwapRule({ mealSizePublicId, fromCategory, qtyFrom: nFrom, toCategory, qtyTo: nTo, toWeightValue: portion, toWeightUnit: portionUnit === "" ? null : portionUnit });
         toast.success("Swap rule added");
         router.refresh();
         onDone();
@@ -161,6 +177,20 @@ function AddSwapRuleForm({
               <SelectContent>
                 {categoryOptions.map((c) => (
                   <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Portion (optional)</Label>
+          <div className="flex gap-2">
+            <NumberField id="swap-portion-value" label="" min={0} step={1} value={portionValue} onChange={setPortionValue} className="w-20" />
+            <Select value={portionUnit} onValueChange={setPortionUnit}>
+              <SelectTrigger className="w-24"><SelectValue placeholder="Unit" /></SelectTrigger>
+              <SelectContent>
+                {["oz", "g", "ml", "piece"].map((u) => (
+                  <SelectItem key={u} value={u}>{u}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

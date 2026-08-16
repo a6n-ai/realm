@@ -29,6 +29,8 @@ async function CategorySwapsData() {
       toCategory: categorySwapRules.toCategory,
       qtyFrom: categorySwapRules.qtyFrom,
       qtyTo: categorySwapRules.qtyTo,
+      toWeightValue: categorySwapRules.toWeightValue,
+      toWeightUnit: categorySwapRules.toWeightUnit,
     }).from(categorySwapRules),
     dishCategoriesService.enabledCategories(),
   ]);
@@ -55,6 +57,8 @@ async function CategorySwapsData() {
               toLabel: labelByKey.get(r.toCategory) ?? r.toCategory,
               qtyFrom: r.qtyFrom,
               qtyTo: r.qtyTo,
+              toWeightValue: r.toWeightValue == null ? null : Number(r.toWeightValue),
+              toWeightUnit: r.toWeightUnit,
             }));
           return (
             <SwapRuleGrid

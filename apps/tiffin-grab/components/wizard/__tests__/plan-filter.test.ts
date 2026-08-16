@@ -5,7 +5,7 @@ import { selectablePlans } from "../plan-filter";
 function meal(key: string, planKey: string) {
   return {
     publicId: `msz_${key}`, key, name: key, planKey, tier: "budget" as const,
-    components: [], items: [], kcalMin: 400, kcalMax: 600,
+    components: [], items: [], swapRules: [], kcalMin: 400, kcalMax: 600,
     proteinG: null, carbsG: null, fatG: null, basePrice: 10, trial: false,
   };
 }

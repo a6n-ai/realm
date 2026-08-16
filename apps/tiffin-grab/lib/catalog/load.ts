@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
-import { deliveryFrequencies, deliveryZones, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { categorySwapRules, deliveryFrequencies, deliveryZones, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import type { CatalogSnapshot } from "./types";
 
@@ -20,10 +20,11 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
 }
 
 async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
-  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots] = await Promise.all([
+  const [planRows, mealRows, itemRows, swapRuleRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots] = await Promise.all([
     db.select().from(plans).where(eq(plans.active, true)),
     db.select().from(mealSizes).where(eq(mealSizes.active, true)),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
+    db.select().from(categorySwapRules),
     db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.active, true)),
     db.select().from(durationPackages).where(eq(durationPackages.active, true)),
     db.select().from(deliveryZones).where(eq(deliveryZones.active, true)),
@@ -39,12 +40,27 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
     if (bucket) bucket.push(item);
     else itemsByMealSize.set(item.mealSizeId, [item]);
   }
+  const swapsByMealSize = new Map<bigint, typeof swapRuleRows>();
+  for (const rule of swapRuleRows) {
+    const bucket = swapsByMealSize.get(rule.mealSizeId);
+    if (bucket) bucket.push(rule);
+    else swapsByMealSize.set(rule.mealSizeId, [rule]);
+  }
 
   return {
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => ({
       id: m.id, publicId: m.publicId, key: m.key, name: m.name, planId: m.planId, planKey: planKeyById.get(m.planId)!, tier: m.tier, components: m.components,
       items: (itemsByMealSize.get(m.id) ?? []).map((i) => ({ name: i.name, category: i.category, qty: i.qty, weightValue: i.weightValue == null ? null : Number(i.weightValue), weightUnit: i.weightUnit })),
+      swapRules: (swapsByMealSize.get(m.id) ?? []).map((r) => ({
+        publicId: r.publicId,
+        fromCategory: r.fromCategory,
+        toCategory: r.toCategory,
+        qtyFrom: r.qtyFrom,
+        qtyTo: r.qtyTo,
+        toWeightValue: r.toWeightValue == null ? null : Number(r.toWeightValue),
+        toWeightUnit: r.toWeightUnit,
+      })),
       kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,
       basePrice: Number(m.basePrice),
       trial: m.trial,
