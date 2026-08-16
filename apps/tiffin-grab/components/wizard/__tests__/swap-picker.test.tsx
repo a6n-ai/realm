@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SwapPicker, effectiveCounts } from "../swap-picker";
+import type { ClientMealSizeView } from "@/lib/catalog/types";
 
 afterEach(cleanup);
-import type { ClientMealSizeView } from "@/lib/catalog/types";
 
 const mealSize = {
   publicId: "msz_1", key: "m", name: "Medium", planKey: "veg", tier: "medium", components: [],
@@ -37,14 +38,13 @@ describe("SwapPicker", () => {
   it("disables a swap the composition cannot afford", () => {
     render(<SwapPicker mealSize={mealSize} chosenIds={[]} onChange={() => {}} />);
     // csr_2 wants 5 sabzi and there are only 2.
-    const button = screen.getByRole("button", { name: /5 sabzi/i }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /5 sabzi/i })).toBeDisabled();
   });
 
   it("renders nothing when the meal size has no rules", () => {
     const { container } = render(
       <SwapPicker mealSize={{ ...mealSize, swapRules: [] }} chosenIds={[]} onChange={() => {}} />,
     );
-    expect(container.innerHTML).toBe("");
+    expect(container).toBeEmptyDOMElement();
   });
 });
