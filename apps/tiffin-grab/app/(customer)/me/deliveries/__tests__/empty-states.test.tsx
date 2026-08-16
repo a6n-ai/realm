@@ -35,6 +35,7 @@ const activeSub: Subscription = {
   mealSizeName: "Regular",
   persons: 1,
   categoryCounts: { sabzi: 1, dal: 1 },
+  defaultSwaps: [],
 };
 
 const activeDelivery: DeliveryCardData = {

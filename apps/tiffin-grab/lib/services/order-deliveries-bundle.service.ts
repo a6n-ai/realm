@@ -64,6 +64,8 @@ export async function loadOrderDeliveriesBundle(
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
 
+  const defaultSwapDirections = (selected.defaultSwaps ?? []).map((s) => `${s.fromCategory}:${s.toCategory}`);
+
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -77,6 +79,7 @@ export async function loadOrderDeliveriesBundle(
         hasMakeupScheduled: makeupSources.has(d.id.toString()),
         availableSwapRules,
         appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
+        defaultSwapDirections,
       };
     }),
   );

@@ -61,6 +61,9 @@ export type DeliveryCardData = CustomerDelivery & {
   hasMakeupScheduled: boolean;
   availableSwapRules: SwapRule[];
   appliedSwaps: AppliedSwap[];
+  // "from:to" keys of the swaps this order applies to every day, so a day view
+  // can tell an inherited swap from a one-off change made just for that day.
+  defaultSwapDirections: string[];
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;

@@ -75,6 +75,7 @@ export async function SubscriptionPanel({
           mealSizeName: order.mealSizeName,
           persons: order.persons,
           categoryCounts,
+          defaultSwaps: order.defaultSwaps,
         }
       : null;
 

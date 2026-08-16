@@ -63,6 +63,7 @@ type DeliveryCardData = CustomerDelivery & {
   hasMakeupScheduled: boolean;
   availableSwapRules: SwapRule[];
   appliedSwaps: AppliedSwap[];
+  defaultSwapDirections: string[];
 };
 type HoldDeliveryOption = {
   publicId: string;
@@ -428,6 +429,9 @@ function SwapSection({
           return applied ? (
             <span key={rule.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
               {text}
+              {delivery.defaultSwapDirections.includes(`${rule.fromCategory}:${rule.toCategory}`) ? (
+                <span className="text-muted-foreground text-[10px] uppercase">Your default</span>
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"
