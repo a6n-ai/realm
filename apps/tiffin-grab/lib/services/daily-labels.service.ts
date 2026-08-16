@@ -9,6 +9,7 @@ import { weekdayKey, parseIsoDateUtc } from "@realm/commons";
 import { db } from "@/db/client";
 import {
   deliveries,
+  deliveryCategorySwaps,
   deliveryZones,
   mealSizeItems,
   mealSizes,
@@ -155,12 +156,32 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       .where(inArray(mealSizeItems.mealSizeId, [...new Set(rows.map((r) => r.order.mealSizeId))])),
   ]);
 
+  const swapRows =
+    rows.length === 0
+      ? []
+      : await db
+          .select({
+            deliveryId: deliveryCategorySwaps.deliveryId,
+            fromCategory: deliveryCategorySwaps.fromCategory,
+            toCategory: deliveryCategorySwaps.toCategory,
+            qtyFrom: deliveryCategorySwaps.qtyFrom,
+            qtyTo: deliveryCategorySwaps.qtyTo,
+            toWeightValue: deliveryCategorySwaps.toWeightValue,
+            toWeightUnit: deliveryCategorySwaps.toWeightUnit,
+          })
+          .from(deliveryCategorySwaps)
+          .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.delivery.id)));
+
   const zoneName = new Map(zones.map((z) => [z.id, z.name]));
-  // Portions are per meal size, not per order — resolve each size once, not once per label.
-  const portionsBySize = new Map(
-    [...new Set(sizeItems.map((i) => i.mealSizeId))].map((id) => [
-      id,
-      portionsByCategory(sizeItems.filter((i) => i.mealSizeId === id)),
+  // Per delivery, not per meal size: two orders on the same size differ once one
+  // of them has a swap applied.
+  const portionsByDelivery = new Map(
+    rows.map((r) => [
+      r.delivery.id,
+      portionsByCategory(
+        sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
+        swapRows.filter((s) => s.deliveryId === r.delivery.id),
+      ),
     ]),
   );
 
@@ -168,7 +189,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
   for (const row of rows) {
     const { delivery, order } = row;
     const address = effectiveAddress(delivery, order);
-    const portions = portionsBySize.get(order.mealSizeId) ?? new Map();
+    const portions = portionsByDelivery.get(delivery.id) ?? new Map();
 
     for (let person = 1; person <= order.persons; person++) {
       const resolved = await resolveDeliveryMeal(order, week, dayOfWeek, person, delivery.id);

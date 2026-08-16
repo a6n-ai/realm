@@ -36,7 +36,19 @@ export function formatPortion(
  * query but arbitrary across edits — a category whose lines share a sortOrder cannot be
  * mapped reliably, so callers wanting certainty should keep sortOrder unique per category.
  */
-export function portionsByCategory(items: MealSizeItemRow[]): Map<string, (string | null)[]> {
+export type PortionSwap = {
+  fromCategory: string;
+  toCategory: string;
+  qtyFrom: number;
+  qtyTo: number;
+  toWeightValue: string | null;
+  toWeightUnit: MealSizeItemRow["weightUnit"];
+};
+
+export function portionsByCategory(
+  items: MealSizeItemRow[],
+  swaps: PortionSwap[] = [],
+): Map<string, (string | null)[]> {
   const byCategory = new Map<string, MealSizeItemRow[]>();
   for (const item of items) {
     const list = byCategory.get(item.category);
@@ -53,6 +65,21 @@ export function portionsByCategory(items: MealSizeItemRow[]): Map<string, (strin
       for (let i = 0; i < Math.max(0, item.qty); i++) slots.push(portion);
     }
     out.set(category, slots);
+  }
+
+  // Applied swaps move slots between categories. The TO side's portion comes
+  // from the swap itself when it carries one — a category a swap ADDS has no
+  // meal_size_items line to read a portion from, which is the whole reason the
+  // rule can name one.
+  for (const s of swaps) {
+    const from = out.get(s.fromCategory) ?? [];
+    from.splice(Math.max(0, from.length - s.qtyFrom), s.qtyFrom);
+    out.set(s.fromCategory, from);
+
+    const to = out.get(s.toCategory) ?? [];
+    const portion = formatPortion(s.toWeightValue, s.toWeightUnit) ?? to[0] ?? null;
+    for (let i = 0; i < s.qtyTo; i++) to.push(portion);
+    out.set(s.toCategory, to);
   }
   return out;
 }
