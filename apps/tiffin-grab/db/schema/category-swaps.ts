@@ -1,6 +1,6 @@
 import { baseColumns, updatableColumns } from "@realm/database";
-import { bigint, index, integer, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { mealSizes } from "./catalog";
+import { bigint, index, integer, numeric, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { mealSizes, weightUnit } from "./catalog";
 import { deliveries } from "./deliveries";
 
 // Admin-defined, scoped to a meal size. Directional: giving up `qtyFrom` units of
@@ -17,6 +17,10 @@ export const categorySwapRules = pgTable("category_swap_rules", {
   toCategory: text("to_category").notNull(),
   qtyFrom: integer("qty_from").notNull(),
   qtyTo: integer("qty_to").notNull(),
+  // Portion of ONE unit of toCategory. NULL = fall back to that category's own
+  // meal_size_items line, i.e. the behaviour before swaps carried portions.
+  toWeightValue: numeric("to_weight_value", { precision: 6, scale: 2 }),
+  toWeightUnit: weightUnit("to_weight_unit"),
 }, (t) => [
   // A meal size can't have two rules with the same direction — edit qty on the
   // existing one instead (same "remove and re-add to change identity" convention
@@ -42,6 +46,9 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   toCategory: text("to_category").notNull(),
   qtyFrom: integer("qty_from").notNull(),
   qtyTo: integer("qty_to").notNull(),
+  // Snapshotted from the rule at apply time, like qtyFrom/qtyTo above.
+  toWeightValue: numeric("to_weight_value", { precision: 6, scale: 2 }),
+  toWeightUnit: weightUnit("to_weight_unit"),
 }, (t) => [
   // Applying the same rule twice to one delivery is a no-op/error, not a stacked
   // double-swap. Applying two DIFFERENT rules to the same delivery is allowed.

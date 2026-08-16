@@ -21,6 +21,16 @@ export const orderActivityType = pgEnum("order_activity_type", [
   "category_swap_applied", "category_swap_removed",
 ]);
 
+export type OrderDefaultSwap = {
+  ruleId: string;
+  fromCategory: string;
+  toCategory: string;
+  qtyFrom: number;
+  qtyTo: number;
+  toWeightValue: string | null;
+  toWeightUnit: "oz" | "g" | "ml" | "piece" | null;
+};
+
 export const orders = pgTable("orders", {
   ...updatableColumns("ord"),
   userId: bigint("user_id", { mode: "bigint" }).references(() => users.id),
@@ -32,6 +42,12 @@ export const orders = pgTable("orders", {
   mealSlots: text("meal_slots").array().notNull().default(["lunch"]),
   // Snapshot of per-category counts from the chosen meal size at checkout (immutable).
   categoryCounts: jsonb("category_counts").$type<Record<string, number>>().notNull().default({}),
+  // What the customer chose in the subscribe wizard: the order's default
+  // composition change, fanned out onto every delivery row at materialization.
+  // Snapshot (not a join) for the same reason delivery_category_swaps is one —
+  // an admin editing or deleting a rule must not rewrite a bought composition.
+  // ruleId is the rule's public_id: a bigint does not survive JSON.stringify.
+  defaultSwaps: jsonb("default_swaps").$type<OrderDefaultSwap[]>().notNull().default([]),
   includeSaturday: boolean("include_saturday").notNull().default(false),
   includeSunday: boolean("include_sunday").notNull().default(false),
   durationWeeks: integer("duration_weeks").notNull(),

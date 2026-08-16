@@ -57,6 +57,13 @@
       "when": 1786783498676,
       "tag": "0007_condemned_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786906406535,
+      "tag": "0008_magenta_whizzer",
+      "breakpoints": true
     }
   ]
 }
