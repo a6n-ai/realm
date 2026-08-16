@@ -211,6 +211,44 @@ describe("terminalizeAbandonedOrders", () => {
     await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
   });
 
+  it("runs twice against the same coin-holding order without doubling the reversal", async () => {
+    const { terminalizeAbandonedOrders } = await import("../passes");
+    const { walletLedger } = await import("@/db/schema");
+    const { walletService } = await import("@/lib/services/wallet.service");
+
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `${MARK}-twice@example.test`, name: MARK, role: "user", status: "active" })
+      .returning({ id: users.id });
+
+    const order = await pendingOrder("twice", 25 * HOUR);
+    await db.update(orders).set({ userId: customer.id }).where(eq(orders.id, order.id));
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "credit", sourceType: "test_seed",
+      sourceId: `${MARK}-twice`, coins: 50, memo: "seed",
+    });
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "debit", sourceType: "redemption",
+      sourceId: order.id.toString(), coins: 5, orderId: order.id, memo: "checkout",
+    });
+
+    // First pass: terminalizes and reverses. Second pass, no teardown in
+    // between: the order is already `failed`, so the pass's own candidate
+    // query excludes it — this is the property under test, run twice for real
+    // rather than asserted from reading the guard.
+    expect(await terminalizeAbandonedOrders()).toBe(1);
+    expect(await terminalizeAbandonedOrders()).toBe(0);
+
+    const reversal = await db
+      .select()
+      .from(walletLedger)
+      .where(and(eq(walletLedger.sourceType, "redemption_reversal"), eq(walletLedger.sourceId, order.id.toString())));
+    expect(reversal).toHaveLength(1);
+    expect(await walletService.balance(customer.id)).toBe(50); // 50 seed - 5 debit + 5 reversal, not +10
+
+    await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
+  });
+
   it("leaves an order inside the terminal window alone", async () => {
     const { terminalizeAbandonedOrders } = await import("../passes");
     await pendingOrder("young", 2 * HOUR);
