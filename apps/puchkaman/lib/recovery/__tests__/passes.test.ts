@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 const enqueued = vi.hoisted(() => [] as { event: string; recipientEmail?: string; dedupeKey?: string; data?: unknown }[]);
 const outboxIds = vi.hoisted(() => [] as bigint[]);
@@ -170,5 +170,64 @@ describe("remindAbandonedCarts", () => {
   it("skips a fresh cart", async () => {
     await cart("fresh", REMIND_AFTER_MS / 2, `${MARK}-fresh@example.test`);
     expect(await remindAbandonedCarts()).toBe(0);
+  });
+});
+
+describe("terminalizeAbandonedOrders", () => {
+  it("fails a pending order past the terminal window and returns its coins", async () => {
+    const { terminalizeAbandonedOrders } = await import("../passes");
+    const { walletLedger } = await import("@/db/schema");
+
+    const [customer] = await db
+      .insert(users)
+      .values({ email: `${MARK}-coins@example.test`, name: MARK, role: "user", status: "active" })
+      .returning({ id: users.id });
+
+    const order = await pendingOrder("terminal", 25 * HOUR);
+    await db.update(orders).set({ userId: customer.id }).where(eq(orders.id, order.id));
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "credit", sourceType: "test_seed",
+      sourceId: `${MARK}-terminal`, coins: 50, memo: "seed",
+    });
+    await db.insert(walletLedger).values({
+      userId: customer.id, direction: "debit", sourceType: "redemption",
+      sourceId: order.id.toString(), coins: 5, orderId: order.id, memo: "checkout",
+    });
+
+    expect(await terminalizeAbandonedOrders()).toBe(1);
+
+    const [after] = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+    expect(after.status).toBe("failed");
+    const reversal = await db
+      .select()
+      .from(walletLedger)
+      .where(and(eq(walletLedger.sourceType, "redemption_reversal"), eq(walletLedger.sourceId, order.id.toString())));
+    expect(reversal).toHaveLength(1);
+    expect(reversal[0].coins).toBe(5);
+
+    // Not usersTable: `order.userId` still points at this user, and it isn't
+    // deleted until afterEach clears orders — the shared `like(email, MARK%)`
+    // sweep there catches the user once that FK is gone.
+    await db.delete(walletLedger).where(eq(walletLedger.userId, customer.id));
+  });
+
+  it("leaves an order inside the terminal window alone", async () => {
+    const { terminalizeAbandonedOrders } = await import("../passes");
+    await pendingOrder("young", 2 * HOUR);
+    expect(await terminalizeAbandonedOrders()).toBe(0);
+  });
+
+  it("never terminalizes a paid order", async () => {
+    const { terminalizeAbandonedOrders } = await import("../passes");
+    await pendingOrder("paid-old", 25 * HOUR, "paid");
+    expect(await terminalizeAbandonedOrders()).toBe(0);
+  });
+
+  it("is a clean no-op on a pending order that spent no coins", async () => {
+    const { terminalizeAbandonedOrders } = await import("../passes");
+    const order = await pendingOrder("nocoins", 25 * HOUR);
+    expect(await terminalizeAbandonedOrders()).toBe(1);
+    const [after] = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+    expect(after.status).toBe("failed");
   });
 });

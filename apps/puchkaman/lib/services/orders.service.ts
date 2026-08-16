@@ -1479,6 +1479,32 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   /**
+   * Terminalize an order nobody ever paid. One transaction, not two: a crash
+   * between the reversal and the status write used to leave a `failed` order
+   * holding an unreversed debit. User lock first, then the order re-read,
+   * matching `markPaymentFailed`'s fixed user-then-order lock order —
+   * `reverseOrderRedemption` reaches `reverseCoinRedemption`, which takes
+   * user-then-order, so taking the order lock alone here would invert it.
+   *
+   * Returns false when the order is no longer `pending` — a settlement that
+   * landed between this job's read and its write must win.
+   */
+  async abandonPendingOrder(orderId: bigint): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const [snapshot] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+      if (!snapshot) return false;
+      if (snapshot.userId) {
+        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${snapshot.userId} FOR UPDATE`);
+      }
+      const [fresh] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
+      if (!fresh || fresh.status !== "pending") return false;
+      await this.reverseOrderRedemption(tx, fresh);
+      await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, orderId));
+      return true;
+    });
+  }
+
+  /**
    * Refuses to settle an order whose coin redemption has already been reversed.
    *
    * Coins are debited at order creation, so a terminal failure hands them back;

@@ -2,6 +2,8 @@ import { and, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { carts, notificationOutbox, orders, payments } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { purgeStaleCarts } from "@/lib/services/carts.service";
+import { ordersService } from "@/lib/services/orders.service";
 import { SITE_URL } from "@/lib/seo";
 import { resumeUrl } from "./token";
 
@@ -72,6 +74,31 @@ export async function remindAbandonedOrders(now = Date.now()): Promise<number> {
   }
 
   return rows.length;
+}
+
+/**
+ * The abandoned-order sweep. When the coin-reservation slice lands this shrinks
+ * rather than grows: releasing an expired reservation replaces reversing a
+ * committed debit, and the mirroring ledger adjustment row goes with it.
+ */
+export async function terminalizeAbandonedOrders(now = Date.now()): Promise<number> {
+  const cutoff = now - TERMINAL_AFTER_MS;
+
+  const rows = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(and(eq(orders.status, "pending"), lt(orders.createdAt, cutoff)))
+    .limit(BATCH);
+
+  let changed = 0;
+  for (const row of rows) {
+    if (await ordersService.abandonPendingOrder(row.id)) changed += 1;
+  }
+  return changed;
+}
+
+export async function purgeCarts(now = Date.now()): Promise<number> {
+  return purgeStaleCarts(now - PURGE_AFTER_MS);
 }
 
 export async function remindAbandonedCarts(now = Date.now()): Promise<number> {
