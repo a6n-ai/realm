@@ -441,8 +441,36 @@ network or Caddyfile.
 
 ## DB access from a laptop
 
-RDS is private. Tunnel through the box (IntelliJ/DBeaver → SSH tunnel):
-host `<eip>`, user `ec2-user`, key `.pem`; DB host = RDS endpoint, port 5432, db `tiffin`.
+RDS is private, and each app's RDS admits 5432 **only from its own security
+group** — so the tunnel has to exit on that app's own box. Use SSM, not SSH:
+
+```bash
+./deployment/prod/db-tunnel.sh tiffin-grab   # localhost:5433
+./deployment/prod/db-tunnel.sh puchkaman     # localhost:5434
+```
+
+Then point the IDE data source at `localhost:<port>` with **no tunnel
+configured**, db `tiffin` / `puchkaman`.
+
+Needs once per laptop: `brew install --cask session-manager-plugin`. Needs once
+per box: `AmazonSSMManagedInstanceCore` on its instance role (in each app's infra
+template; tiffin-grab's box predates IaC, so it is attached directly — see the
+drift note below).
+
+Why not an SSH tunnel: a data source's tunnel host is invisible in the
+connection string, so tiffin-grab's DataGrip connection silently tunnelled
+through the *puchkaman* box, whose SG the tiffin RDS does not admit. It presents
+as `08001 The connection attempt failed`, which reads like a bad key. A fixed
+local port per app removes the whole class — the connection cannot name one app
+and route through another's network. SSM also makes access an IAM grant per
+person (revocable without touching the box, logged in CloudTrail) instead of a
+shared `.pem` that cannot be scoped.
+
+**Drift:** `realm-tiffin-grab-prod`'s box, role and SG were created by hand and
+are not in any CloudFormation stack (only `-ses`, `-ses-suppression` and
+`-files-cdn` are). puchkaman's live in `puchkaman-prod`. Until tiffin's are
+imported into a template, changes to that role are CLI-applied and will not
+survive a rebuild-from-template.
 
 ## Enable CI auto-deploy (optional)
 
