@@ -6,11 +6,15 @@ import { ValidationError } from "@realm/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { inquiriesService } = await import("../inquiries.service");
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
 }
-const base = { fullName: "Resolver", email: undefined as string | undefined };
+const base = { fullName: "Resolver", email: testEmail() as string | undefined };
 
 describe("inquiriesService.resolveForSource", () => {
   beforeEach(reset);
@@ -18,7 +22,7 @@ describe("inquiriesService.resolveForSource", () => {
 
   it("reuses an open inquiry with the same phone + source", async () => {
     const phone = "+16475554000";
-    const existing = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook" });
+    const existing = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
     const id = await inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base });
     expect(id).toBe(existing.publicId);
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1); // no duplicate
@@ -26,7 +30,7 @@ describe("inquiriesService.resolveForSource", () => {
 
   it("creates a new inquiry when the source differs", async () => {
     const phone = "+16475554001";
-    const fb = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook" });
+    const fb = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
     const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base });
     expect(id).not.toBe(fb.publicId);
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(2);
@@ -39,14 +43,14 @@ describe("inquiriesService.resolveForSource", () => {
 
   it("honors pickedId", async () => {
     const phone = "+16475554003";
-    const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook" });
+    const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
     const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, pickedId: picked.publicId });
     expect(id).toBe(picked.publicId);
   });
 
   it("rejects reusing a converted inquiry via pickedId", async () => {
     const phone = "+16475554004";
-    const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook" });
+    const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
     await inquiriesService.changeStage(picked.publicId, "converted");
     await expect(
       inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base, pickedId: picked.publicId }),
@@ -63,8 +67,8 @@ describe("inquiriesService.create — open-lead dedup", () => {
 
   it("reuses the existing open inquiry on a same phone+source create (no duplicate row, no extra activity)", async () => {
     const phone = "+16475554100";
-    const first = await inquiriesService.create({ fullName: "Dup", phone, sourceKey: "facebook" });
-    const second = await inquiriesService.create({ fullName: "Dup Again", phone, sourceKey: "facebook" });
+    const first = await inquiriesService.create({ fullName: "Dup", phone, sourceKey: "facebook", email: testEmail() });
+    const second = await inquiriesService.create({ fullName: "Dup Again", phone, sourceKey: "facebook", email: testEmail() });
     expect(second.publicId).toBe(first.publicId);
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1);
     const acts = await inquiriesService.listActivities(first.publicId);
@@ -73,8 +77,8 @@ describe("inquiriesService.create — open-lead dedup", () => {
 
   it("still allows a new inquiry for the same phone under a different source", async () => {
     const phone = "+16475554101";
-    await inquiriesService.create({ fullName: "S1", phone, sourceKey: "facebook" });
-    await inquiriesService.create({ fullName: "S2", phone, sourceKey: "manual" });
+    await inquiriesService.create({ fullName: "S1", phone, sourceKey: "facebook", email: testEmail() });
+    await inquiriesService.create({ fullName: "S2", phone, sourceKey: "manual", email: testEmail() });
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(2);
   });
 });

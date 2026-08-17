@@ -9,6 +9,10 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? s
 
 const { inquiriesService } = await import("../inquiries.service");
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -21,7 +25,7 @@ describe("inquiriesService source + owner resolution", () => {
 
   it("throws ValidationError on an unknown source key", async () => {
     await expect(
-      inquiriesService.create({ fullName: "Lead U", phone: "+16475552000", sourceKey: "nope" }),
+      inquiriesService.create({ fullName: "Lead U", phone: "+16475552000", sourceKey: "nope", email: testEmail() }),
     ).rejects.toThrow(ValidationError);
   });
 
@@ -31,7 +35,7 @@ describe("inquiriesService source + owner resolution", () => {
       .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name: "Agent Owner", role: "member" })
       .returning({ id: users.id, publicId: users.publicId });
     session.user = { id: staff.publicId, role: "member" };
-    const inq = await inquiriesService.create({ fullName: "Lead M", phone: "+16475552001", sourceKey: "manual" });
+    const inq = await inquiriesService.create({ fullName: "Lead M", phone: "+16475552001", sourceKey: "manual", email: testEmail() });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.currentOwner).toBe(staff.id);
   });
@@ -44,7 +48,7 @@ describe("inquiriesService source + owner resolution", () => {
         .values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true })
         .returning({ id: users.id });
     }
-    const inq = await inquiriesService.create({ fullName: "Lead W", phone: "+16475552002", sourceKey: "website" });
+    const inq = await inquiriesService.create({ fullName: "Lead W", phone: "+16475552002", sourceKey: "website", email: testEmail() });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.currentOwner).toBe(sys.id);
   });

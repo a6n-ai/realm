@@ -32,7 +32,12 @@ describe("inquiriesService.convert", () => {
       .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  name: "Agent Staff", role: "member" })
       .returning({ publicId: users.publicId });
     session.user = { id: staff.publicId, role: "member" };
-    const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475551200", sourceKey: "manual" });
+    const inq = await inquiriesService.create({
+      fullName: "Lead D",
+      phone: "+16475551200",
+      sourceKey: "manual",
+      email: `inq-${Math.random().toString(36).slice(2)}@test.invalid`,
+    });
     const [inqRow] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     const { deploymentId } = await inquiriesService.convert(inq.publicId, {
       planKey: plan.key,

@@ -9,6 +9,10 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { inquiriesService } = await import("../inquiries.service");
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -19,14 +23,14 @@ describe("inquiriesService", () => {
   afterAll(reset);
 
   it("create writes a 'created' activity", async () => {
-    const inq = await inquiriesService.create({ fullName: "Lead A", phone: "+16475551000", sourceKey: "facebook" });
+    const inq = await inquiriesService.create({ fullName: "Lead A", phone: "+16475551000", sourceKey: "facebook", email: testEmail() });
     const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts).toHaveLength(1);
     expect(acts[0].type).toBe("created");
   });
 
   it("changeStage updates stage and logs from/to", async () => {
-    const inq = await inquiriesService.create({ fullName: "Lead B", phone: "+16475551001", sourceKey: "manual" });
+    const inq = await inquiriesService.create({ fullName: "Lead B", phone: "+16475551001", sourceKey: "manual", email: testEmail() });
     await inquiriesService.changeStage(inq.publicId, "contacted");
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.stage).toBe("contacted");
@@ -37,7 +41,7 @@ describe("inquiriesService", () => {
   });
 
   it("addNote appends a note activity", async () => {
-    const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475551002", sourceKey: "manual" });
+    const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475551002", sourceKey: "manual", email: testEmail() });
     await inquiriesService.addNote(inq.publicId, "Called, no answer");
     const acts = await inquiriesService.listActivities(inq.publicId);
     expect(acts.some((a) => a.type === "note" && a.note === "Called, no answer")).toBe(true);
@@ -45,12 +49,12 @@ describe("inquiriesService", () => {
 
   it("rejects an invalid phone", async () => {
     await expect(
-      inquiriesService.create({ fullName: "X", phone: "12", sourceKey: "manual" }),
+      inquiriesService.create({ fullName: "X", phone: "12", sourceKey: "manual", email: testEmail() }),
     ).rejects.toThrow(/phone/i);
   });
 
   it("stores phone as E.164", async () => {
-    const inq = await inquiriesService.create({ fullName: "X", phone: "647 555 0100", sourceKey: "manual" });
+    const inq = await inquiriesService.create({ fullName: "X", phone: "647 555 0100", sourceKey: "manual", email: testEmail() });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inq.publicId));
     expect(row.phone).toBe("+16475550100");
   });

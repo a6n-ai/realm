@@ -5,6 +5,10 @@ import { inquiries, inquiryActivities } from "@/db/schema";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { inquiriesService } = await import("../inquiries.service");
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -16,8 +20,8 @@ describe("inquiriesService.findOpenByPhone", () => {
 
   it("returns open inquiries for a phone, newest first, with source key+label", async () => {
     const phone = "+16475552000";
-    await inquiriesService.create({ fullName: "Lead A", phone, sourceKey: "facebook" });
-    await inquiriesService.create({ fullName: "Lead A2", phone, sourceKey: "manual" });
+    await inquiriesService.create({ fullName: "Lead A", phone, sourceKey: "facebook", email: testEmail() });
+    await inquiriesService.create({ fullName: "Lead A2", phone, sourceKey: "manual", email: testEmail() });
     const rows = await inquiriesService.findOpenByPhone(phone);
     expect(rows).toHaveLength(2);
     expect(rows[0].sourceKey).toBe("manual"); // newest first
@@ -27,8 +31,8 @@ describe("inquiriesService.findOpenByPhone", () => {
 
   it("excludes converted and lost inquiries", async () => {
     const phone = "+16475552001";
-    const open = await inquiriesService.create({ fullName: "Open", phone, sourceKey: "facebook" });
-    const lost = await inquiriesService.create({ fullName: "Lost", phone, sourceKey: "manual" });
+    const open = await inquiriesService.create({ fullName: "Open", phone, sourceKey: "facebook", email: testEmail() });
+    const lost = await inquiriesService.create({ fullName: "Lost", phone, sourceKey: "manual", email: testEmail() });
     await inquiriesService.markLost(lost.publicId, "no_response");
     const rows = await inquiriesService.findOpenByPhone(phone);
     expect(rows.map((r) => r.publicId)).toEqual([open.publicId]);

@@ -45,6 +45,7 @@ describe("inquiriesService.reassign", () => {
       fullName: "Reassign Lead",
       phone: "+16475559000",
       sourceKey: "facebook",
+      email: `inq-${Math.random().toString(36).slice(2)}@test.invalid`,
     });
     inquiryPublicId = inq.publicId;
     seededInquiryIds.push(inq.id);

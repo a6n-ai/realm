@@ -9,6 +9,10 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { createWebsiteInquiry } = await import("../actions");
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -19,7 +23,7 @@ describe("createWebsiteInquiry", () => {
   afterAll(reset);
 
   it("creates a website inquiry with a created activity", async () => {
-    const res = await createWebsiteInquiry({ fullName: "Web Lead", phone: "+16475559000", message: "Interested" });
+    const res = await createWebsiteInquiry({ fullName: "Web Lead", phone: "+16475559000", message: "Interested", email: testEmail() });
     expect(res.ok).toBe(true);
     const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559000"));
     const [src] = await db.select({ key: leadSources.key }).from(leadSources).where(eq(leadSources.id, row.sourceId)).limit(1);
@@ -30,7 +34,7 @@ describe("createWebsiteInquiry", () => {
   });
 
   it("flags an unserved postal code as waitlisted", async () => {
-    const res = await createWebsiteInquiry({ fullName: "Far Lead", phone: "+16475559001", postalCode: "X0X 0X0" });
+    const res = await createWebsiteInquiry({ fullName: "Far Lead", phone: "+16475559001", postalCode: "X0X 0X0", email: testEmail() });
     expect(res.waitlisted).toBe(true);
   });
 
@@ -39,7 +43,7 @@ describe("createWebsiteInquiry", () => {
   });
 
   it("accepts a national number and stores it as E.164", async () => {
-    const res = await createWebsiteInquiry({ fullName: "National Lead", phone: "647 555 0003" });
+    const res = await createWebsiteInquiry({ fullName: "National Lead", phone: "647 555 0003", email: testEmail() });
     expect(res.ok).toBe(true);
     const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475550003"));
     expect(row).toBeDefined();

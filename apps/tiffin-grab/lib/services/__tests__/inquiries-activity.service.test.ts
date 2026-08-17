@@ -16,7 +16,12 @@ async function reset() {
 }
 
 async function makeInquiry() {
-  return inquiriesService.create({ fullName: "Lead A", phone: "+16475553000", sourceKey: "manual" });
+  return inquiriesService.create({
+    fullName: "Lead A",
+    phone: "+16475553000",
+    sourceKey: "manual",
+    email: `inq-${Math.random().toString(36).slice(2)}@test.invalid`,
+  });
 }
 
 describe("inquiriesService.logActivity + markLost", () => {

@@ -10,6 +10,10 @@ const { inquiriesService } = await import("../inquiries.service");
 
 const TEST_ZONE = "Prefs Test Zone";
 
+function testEmail() {
+  return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+}
+
 async function reset() {
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -51,6 +55,7 @@ describe("inquiriesService zone resolution + intake prefs", () => {
       phone: "+16475553000",
       sourceKey: "manual",
       postalCode: "K1A 0A6",
+      email: testEmail(),
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.zoneId).toBe(zoneId);
@@ -63,6 +68,7 @@ describe("inquiriesService zone resolution + intake prefs", () => {
       phone: "+16475553001",
       sourceKey: "manual",
       postalCode: "Z9Z 9Z9",
+      email: testEmail(),
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.zoneId).toBeNull();
@@ -73,6 +79,7 @@ describe("inquiriesService zone resolution + intake prefs", () => {
       fullName: "Lead N",
       phone: "+16475553002",
       sourceKey: "manual",
+      email: testEmail(),
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.zoneId).toBeNull();
@@ -89,6 +96,7 @@ describe("inquiriesService zone resolution + intake prefs", () => {
       preferredStart: "2026-07-01",
       quotedPrice: 49.99,
       notes: "wants veg only",
+      email: testEmail(),
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.planInterest).toBe("veg");

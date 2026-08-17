@@ -74,8 +74,8 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await enroll(m2.id, websiteId);
     await setLeadAssignment(RR);
 
-    const a = await inquiriesService.create({ fullName: "Lead A", phone: "+16475553001", sourceKey: "website" });
-    const b = await inquiriesService.create({ fullName: "Lead B", phone: "+16475553002", sourceKey: "website" });
+    const a = await inquiriesService.create({ fullName: "Lead A", phone: "+16475553001", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
+    const b = await inquiriesService.create({ fullName: "Lead B", phone: "+16475553002", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
 
     const [rowA] = await db.select().from(inquiries).where(eq(inquiries.id, a.id));
     const [rowB] = await db.select().from(inquiries).where(eq(inquiries.id, b.id));
@@ -91,7 +91,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     await enroll(pool.id, null);
     await setLeadAssignment(RR);
 
-    const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475553003", sourceKey: "website" });
+    const inq = await inquiriesService.create({ fullName: "Lead C", phone: "+16475553003", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.currentOwner).toBe(pool.id);
   });
@@ -100,7 +100,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
     const sys = await ensureSystemUser();
     await setLeadAssignment(RR);
 
-    const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475553004", sourceKey: "website" });
+    const inq = await inquiriesService.create({ fullName: "Lead D", phone: "+16475553004", sourceKey: "website", email: `inq-${Math.random().toString(36).slice(2)}@test.invalid` });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.currentOwner).toBe(sys.id);
     expect(row.currentOwner).not.toBeNull();
