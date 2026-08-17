@@ -1,33 +1,44 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { asc, eq, inArray, ne } from "drizzle-orm";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { asc, eq, inArray } from "drizzle-orm";
 import { nextWeekday } from "@realm/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { categorySwapRules, deliveries, deliveryCategorySwaps, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
+const { categorySwapRules, deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
 
-// This suite truncates category_swap_rules in beforeEach. Safe because
-// vitest.config.ts sets fileParallelism: false — test FILES never run
-// concurrently, so this can't race the swap-rule-portion.test.ts suite that
-// also uses this table; it only ever races itself, serially.
-async function reset() {
-  await db.delete(deliveryCategorySwaps);
-  await db.delete(deliveries);
-  await db.delete(ledgerEntries);
-  await db.delete(orderActivities);
-  await db.delete(payments);
-  await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
-  await db.delete(categorySwapRules);
+// Scoped cleanup: track exactly what this test created (orders/users/rules) and
+// delete only those rows. Deliveries, delivery_category_swaps and order_activities
+// cascade off orders.id, so deleting the order is enough for them; payments and
+// ledger_entries have no cascade and must go first.
+const createdOrderIds: bigint[] = [];
+const createdUserIds: bigint[] = [];
+const createdRuleIds: bigint[] = [];
+
+afterEach(async () => {
+  const orderIds = createdOrderIds.splice(0);
+  const userIds = createdUserIds.splice(0);
+  const ruleIds = createdRuleIds.splice(0);
+  if (orderIds.length) {
+    await db.delete(ledgerEntries).where(inArray(ledgerEntries.orderId, orderIds));
+    await db.delete(payments).where(inArray(payments.orderId, orderIds));
+    await db.delete(orders).where(inArray(orders.id, orderIds));
+  }
+  if (ruleIds.length) await db.delete(categorySwapRules).where(inArray(categorySwapRules.id, ruleIds));
+  if (userIds.length) await db.delete(users).where(inArray(users.id, userIds));
   await invalidateCatalogSnapshot();
+});
+
+async function fetchOrder(publicId: string) {
+  const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+  createdOrderIds.push(order.id);
+  if (order.userId) createdUserIds.push(order.userId);
+  return order;
 }
-beforeEach(reset);
-afterAll(reset);
 
 // The first meal size, plus a rule it can actually afford: give up 1 of the
 // category its own composition has the most of.
@@ -49,6 +60,7 @@ async function seedRule(qtyFrom = 1, portion: { value: string; unit: "g" } | nul
     toWeightValue: portion?.value ?? null,
     toWeightUnit: portion?.unit ?? null,
   }).returning();
+  createdRuleIds.push(rule.id);
   await invalidateCatalogSnapshot();
   return { rule, size, from, to };
 }
@@ -81,7 +93,7 @@ describe("default swap fan-out", () => {
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
     const { publicId } = await createOrder(orderInput(size.publicId, planKey, [rule.publicId]));
 
-    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+    const order = await fetchOrder(publicId);
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     expect(rows.length).toBeGreaterThan(0);
 
@@ -98,7 +110,7 @@ describe("default swap fan-out", () => {
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
     const { publicId } = await createOrder(orderInput(size.publicId, planKey, [rule.publicId]));
-    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+    const order = await fetchOrder(publicId);
 
     await db.delete(categorySwapRules).where(eq(categorySwapRules.id, rule.id));
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
@@ -117,7 +129,7 @@ describe("default swap fan-out", () => {
     // No default swaps at all — the order's own default set is empty, so it
     // cannot masquerade as the source of what lands on the replacement.
     const { publicId } = await createOrder(orderInput(size.publicId, planKey, []));
-    const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId)).limit(1);
+    const order = await fetchOrder(publicId);
     expect(order.defaultSwaps).toEqual([]);
 
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id))
