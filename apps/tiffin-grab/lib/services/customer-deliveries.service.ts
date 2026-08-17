@@ -1,4 +1,4 @@
-import { NotFoundError, Role, weekdayKey } from "@realm/commons";
+import { NotFoundError, Role, weekdayKey, zonedDateIso } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -17,6 +17,7 @@ import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
+import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
 import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
@@ -381,8 +382,16 @@ export type SubSummary = {
 // All of a customer's subscriptions across every status, newest first — for the
 // "you already have" summary on /subscribe. Current (active/paused/waitlisted/
 // pending) vs past (cancelled/completed) grouping is done in the component.
+//
+// `status` here is a DISPLAY status, not the raw DB order_status: an order is
+// stored "active" from the moment it's created (deliveries are materialized
+// immediately so unpaid days can still be moved), so two orders can be
+// legitimately "active" in the DB on the same day the customer books a future
+// plan. Showing both as "Active" reads as a real conflict, so an active order
+// whose startDate hasn't arrived yet is relabeled "upcoming" for display only
+// — nothing about the underlying order or its deliveries changes.
 export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary[]> {
-  return db
+  const rows = await db
     .select({
       publicId: orders.publicId,
       planName: plans.name,
@@ -398,6 +407,58 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
+
+  const { timezone } = await getAppSettings();
+  const todayIso = zonedDateIso(Date.now(), timezone);
+  return rows.map((r) => ({
+    ...r,
+    status: r.status === "active" && r.startDate > todayIso ? "upcoming" : r.status,
+  }));
+}
+
+export type RenewableMealSize = {
+  mealSizePublicId: string;
+  mealSizeName: string;
+  planKey: string;
+  planName: string;
+  /** Most recent order's startDate that used this meal size — for "last ordered" copy. */
+  lastOrderedStartDate: string;
+};
+
+// Distinct meal sizes the customer has ever checked out on (any order status), newest use
+// first — for the /me/renew picker. Deliberately does NOT filter by catalog active/live status;
+// that's the caller's job (cross-reference against loadCatalogSnapshot()) so a discontinued meal
+// size can be reported here and explicitly explained on the renew page, not silently vanish.
+export async function myOrderedMealSizes(userId: bigint): Promise<RenewableMealSize[]> {
+  const rows = await db
+    .select({
+      mealSizePublicId: mealSizes.publicId,
+      mealSizeName: mealSizes.name,
+      planKey: plans.key,
+      planName: plans.name,
+      startDate: orders.startDate,
+    })
+    .from(orders)
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt));
+
+  // Collapse to one row per mealSizePublicId, keeping the newest (rows are already
+  // createdAt desc, so first-seen wins).
+  const seen = new Map<string, RenewableMealSize>();
+  for (const r of rows) {
+    if (!seen.has(r.mealSizePublicId)) {
+      seen.set(r.mealSizePublicId, {
+        mealSizePublicId: r.mealSizePublicId,
+        mealSizeName: r.mealSizeName,
+        planKey: r.planKey,
+        planName: r.planName,
+        lastOrderedStartDate: r.startDate,
+      });
+    }
+  }
+  return [...seen.values()];
 }
 
 export type CustomerActivity = {
