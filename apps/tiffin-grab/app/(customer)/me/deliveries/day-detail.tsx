@@ -443,15 +443,19 @@ function SwapSection({
               </Button>
             </span>
           ) : (
-            <Button
-              key={rule.publicId}
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() => run(() => applyMyDeliverySwap(delivery.publicId, rule.publicId), "Swap applied")}
-            >
-              Swap: {text}
-            </Button>
+            <span key={rule.publicId} className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => run(() => applyMyDeliverySwap(delivery.publicId, rule.publicId), "Swap applied")}
+              >
+                Swap: {text}
+              </Button>
+              {delivery.defaultSwapDirections.includes(`${rule.fromCategory}:${rule.toCategory}`) ? (
+                <span className="text-muted-foreground text-[10px] uppercase">Off for this day</span>
+              ) : null}
+            </span>
           );
         })}
       </div>

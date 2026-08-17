@@ -149,7 +149,8 @@ export async function resolveDeliveryMeal(
   const swaps = deliveryId == null ? [] : await db
     .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
     .from(deliveryCategorySwaps)
-    .where(eq(deliveryCategorySwaps.deliveryId, deliveryId));
+    .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
+    .orderBy(asc(deliveryCategorySwaps.id));
 
   return resolveCategoriesForDay(items, picks, cats, applySwapsToCounts(order.categoryCounts ?? {}, swaps), await dishIdsForPlan(order.planId));
 }
@@ -194,7 +195,8 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
   const swapRows = deliveryRows.length === 0 ? [] : await db
     .select({ deliveryId: deliveryCategorySwaps.deliveryId, fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
     .from(deliveryCategorySwaps)
-    .where(inArray(deliveryCategorySwaps.deliveryId, deliveryRows.map((d) => d.id)));
+    .where(inArray(deliveryCategorySwaps.deliveryId, deliveryRows.map((d) => d.id)))
+    .orderBy(asc(deliveryCategorySwaps.id));
 
   const days = [...new Set(items.map((i) => i.dayOfWeek))] as DayOfWeek[];
   for (const day of days) {

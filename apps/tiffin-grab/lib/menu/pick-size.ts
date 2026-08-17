@@ -67,6 +67,13 @@ export function portionsByCategory(
     out.set(category, slots);
   }
 
+  // Snapshot each category's ORIGINAL catalog portion before the swap loop
+  // below mutates `out` — otherwise a second portionless swap into the same
+  // category would inherit whatever the first swap just pushed, instead of
+  // the catalog line, making the fallback order-dependent.
+  const catalogFirstPortion = new Map<string, string | null>();
+  for (const [category, slots] of out) catalogFirstPortion.set(category, slots[0] ?? null);
+
   // Applied swaps move slots between categories. The TO side's portion comes
   // from the swap itself when it carries one — a category a swap ADDS has no
   // meal_size_items line to read a portion from, which is the whole reason the
@@ -77,7 +84,7 @@ export function portionsByCategory(
     out.set(s.fromCategory, from);
 
     const to = out.get(s.toCategory) ?? [];
-    const portion = formatPortion(s.toWeightValue, s.toWeightUnit) ?? to[0] ?? null;
+    const portion = formatPortion(s.toWeightValue, s.toWeightUnit) ?? catalogFirstPortion.get(s.toCategory) ?? null;
     for (let i = 0; i < s.qtyTo; i++) to.push(portion);
     out.set(s.toCategory, to);
   }

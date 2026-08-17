@@ -33,6 +33,10 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
     dishCategoriesService.forPlanType("healthy"),
   ]);
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
+  // Same {key -> label} the customer day view threads into day-detail.tsx —
+  // built from slot rows already fetched above, not a new lookup.
+  const categoryLabels: Record<string, string> = {};
+  for (const s of [...tiffinSlots, ...healthySlots]) categoryLabels[s.key] = s.label;
   const planKeyById = new Map(planRows.map((p) => [p.id, p.key]));
   const itemsByMealSize = new Map<bigint, typeof itemRows>();
   for (const item of itemRows) {
@@ -69,5 +73,6 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
     durations: durRows.map((d) => ({ id: d.id, publicId: d.publicId, weeks: d.weeks, discountPct: d.discountPct })),
     zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),
     tiers: tierRows.map((t) => ({ minQty: t.minQty, maxQty: t.maxQty, upliftPct: Number(t.upliftPct) })),
+    categoryLabels,
   };
 }

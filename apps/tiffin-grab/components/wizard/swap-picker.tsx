@@ -31,14 +31,17 @@ export function SwapPicker({
   mealSize,
   chosenIds,
   onChange,
+  categoryLabels,
 }: {
   mealSize: ClientMealSizeView;
   chosenIds: string[];
   onChange: (ids: string[]) => void;
+  categoryLabels?: Record<string, string>;
 }) {
   const rules = mealSize.swapRules;
   if (rules.length === 0) return null;
   const counts = effectiveCounts(mealSize.items, rules, chosenIds);
+  const label = (category: string) => categoryLabels?.[category] ?? category;
 
   return (
     <div className="mt-3 space-y-2 border-t pt-3">
@@ -63,7 +66,7 @@ export function SwapPicker({
                 onChange(chosen ? chosenIds.filter((id) => id !== rule.publicId) : [...chosenIds, rule.publicId]);
               }}
             >
-              {rule.qtyFrom} {rule.fromCategory} → {rule.qtyTo} {rule.toCategory}{portion}
+              {rule.qtyFrom} {label(rule.fromCategory)} → {rule.qtyTo} {label(rule.toCategory)}{portion}
             </Button>
           );
         })}

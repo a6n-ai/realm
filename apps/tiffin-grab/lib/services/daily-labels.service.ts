@@ -170,7 +170,8 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             toWeightUnit: deliveryCategorySwaps.toWeightUnit,
           })
           .from(deliveryCategorySwaps)
-          .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.delivery.id)));
+          .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.delivery.id)))
+          .orderBy(asc(deliveryCategorySwaps.id));
 
   const zoneName = new Map(zones.map((z) => [z.id, z.name]));
   // Per delivery, not per meal size: two orders on the same size differ once one

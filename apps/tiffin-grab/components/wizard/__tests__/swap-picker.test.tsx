@@ -47,4 +47,16 @@ describe("SwapPicker", () => {
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("uses categoryLabels for the button text instead of the raw category key", () => {
+    render(
+      <SwapPicker
+        mealSize={mealSize}
+        chosenIds={[]}
+        onChange={() => {}}
+        categoryLabels={{ roti: "Roti", rice: "Rice" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /2 Roti → 1 Rice/i })).toBeInTheDocument();
+  });
 });

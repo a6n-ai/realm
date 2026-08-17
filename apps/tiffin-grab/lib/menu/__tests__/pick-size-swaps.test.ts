@@ -36,6 +36,18 @@ describe("portionsByCategory with swaps", () => {
     expect(p.get("salad")).toEqual([null]);
   });
 
+  it("does not let a portionless swap inherit a PRIOR swap's portion into the same category", () => {
+    // "salad" has no catalog line, so its baseline portion is null. The first
+    // swap carries its own portion (250g); the second is portionless and must
+    // fall back to the catalog's (nonexistent) portion — null — not to the
+    // 250g the first swap just pushed.
+    const p = portionsByCategory(items, [
+      { fromCategory: "roti", toCategory: "salad", qtyFrom: 1, qtyTo: 1, toWeightValue: "250.00", toWeightUnit: "g" },
+      { fromCategory: "sabzi", toCategory: "salad", qtyFrom: 1, qtyTo: 1, toWeightValue: null, toWeightUnit: null },
+    ]);
+    expect(p.get("salad")).toEqual(["250g", null]);
+  });
+
   it("never yields negative slots when a swap overdraws", () => {
     const p = portionsByCategory(items, [
       { fromCategory: "rice", toCategory: "roti", qtyFrom: 5, qtyTo: 1, toWeightValue: null, toWeightUnit: null },

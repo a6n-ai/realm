@@ -263,4 +263,25 @@ describe("DayDetail — swap origin", () => {
     );
     expect(screen.queryByText(/your default/i)).not.toBeInTheDocument();
   });
+
+  it("hints when a default swap was removed for this day only", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell()}
+        delivery={makeDelivery({
+          availableSwapRules: [rule],
+          appliedSwaps: [],
+          defaultSwapDirections: ["roti:rice"],
+        })}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Swap:/i })).toBeInTheDocument();
+    expect(screen.getByText(/off for this day/i)).toBeInTheDocument();
+  });
 });

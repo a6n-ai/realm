@@ -1,12 +1,13 @@
 // Admin CRUD for category_swap_rules — which categories a meal size's composition
 // may be swapped between, and at what quantities. Mirrors the validate-then-write
 // shape MealSizeService uses for meal_size_items (catalog.service.ts): every
-// category soft-ref is checked against dishCategoriesService.enabledCategories()
-// before it reaches the table.
+// category soft-ref is checked against dishCategoriesService.forPlan(mealSize.planId)
+// (not the global category list) before it reaches the table, so a rule can never
+// point at a category the meal size's own plan doesn't serve.
 import { ValidationError } from "@realm/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categorySwapRules } from "@/db/schema";
+import { categorySwapRules, mealSizes } from "@/db/schema";
 import { dishCategoriesService } from "./dish-categories.service";
 
 export type CreateSwapRuleInput = {
@@ -34,10 +35,17 @@ export async function createSwapRule(input: CreateSwapRuleInput) {
   if (hasValue !== hasUnit) throw new ValidationError("A portion needs both an amount and a unit");
   if (hasValue && !(input.toWeightValue! > 0)) throw new ValidationError("Portion must be positive");
 
-  const categories = await dishCategoriesService.enabledCategories();
+  // Validate against the meal size's OWN plan, not the global category list: a
+  // rule whose toCategory has no slot on this plan would still pass a global
+  // check, then silently delete food at delivery time (applySwapsToCounts
+  // debits fromCategory before resolve-delivery-meal finds no items to give back).
+  const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, input.mealSizeId)).limit(1);
+  if (!size) throw new ValidationError("Meal size not found");
+
+  const categories = await dishCategoriesService.forPlan(size.planId);
   const keys = new Set(categories.map((c) => c.key));
-  if (!keys.has(input.fromCategory)) throw new ValidationError(`Unknown category: ${input.fromCategory}`);
-  if (!keys.has(input.toCategory)) throw new ValidationError(`Unknown category: ${input.toCategory}`);
+  if (!keys.has(input.fromCategory)) throw new ValidationError(`Category "${input.fromCategory}" is not on this meal size's plan`);
+  if (!keys.has(input.toCategory)) throw new ValidationError(`Category "${input.toCategory}" is not on this meal size's plan`);
 
   try {
     const [created] = await db.insert(categorySwapRules).values({

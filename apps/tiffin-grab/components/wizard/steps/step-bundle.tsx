@@ -50,7 +50,12 @@ export function StepBundle({
                       <span className="nums text-sm font-medium">${m.basePrice.toFixed(2)}</span>
                     </div>
                     <div className="mt-1">
-                      <MealSizeItems items={m.items} counts={active ? effectiveCounts(m.items, m.swapRules, selections.swapRuleIds ?? []) : undefined} />
+                      <MealSizeItems
+                        items={m.items}
+                        counts={active ? effectiveCounts(m.items, m.swapRules, selections.swapRuleIds ?? []) : undefined}
+                        swapRules={m.swapRules}
+                        categoryLabels={catalog.categoryLabels}
+                      />
                     </div>
                     {active && (
                       <>
@@ -64,6 +69,7 @@ export function StepBundle({
                           mealSize={m}
                           chosenIds={selections.swapRuleIds ?? []}
                           onChange={(ids) => set({ swapRuleIds: ids })}
+                          categoryLabels={catalog.categoryLabels}
                         />
                       </>
                     )}

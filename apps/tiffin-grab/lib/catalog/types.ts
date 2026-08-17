@@ -41,6 +41,12 @@ export interface CatalogSnapshot {
   durations: { id: bigint; publicId: string; weeks: number; discountPct: number }[];
   zones: { id: bigint; publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
   tiers: PricingTier[];
+  // category key -> display label. Same source the customer day view threads into
+  // day-detail.tsx (dishCategoriesService), so a swap's category reads the same
+  // whether it's on the calendar or in the subscribe wizard. Optional so existing
+  // fixtures/tests that build a snapshot by hand don't all need updating; callers
+  // fall back to the raw category key when it's absent.
+  categoryLabels?: Record<string, string>;
 }
 
 // Client-facing snapshot: no internal bigint id crosses the wire. Client
@@ -55,6 +61,7 @@ export interface ClientCatalogSnapshot {
   frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];
   durations: { publicId: string; weeks: number; discountPct: number }[];
   zones: { publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
+  categoryLabels?: Record<string, string>;
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {
@@ -72,5 +79,6 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     frequencies: snapshot.frequencies.map(dropId),
     durations: snapshot.durations.map(dropId),
     zones: snapshot.zones.map(dropId),
+    categoryLabels: snapshot.categoryLabels,
   };
 }
