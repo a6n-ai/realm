@@ -97,7 +97,7 @@ export function Checkout({
       await createWebsiteInquiry({
         fullName: contact.fullName,
         phone: contact.phone,
-        email: contact.email || undefined,
+        email: contact.email,
         postalCode: contact.postalCode,
       });
       setWaitlisted(true);
@@ -267,7 +267,7 @@ export function Checkout({
                       {zone && !zone.served && !waitlisted && (
                         <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
                           <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
-                          <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid} onClick={joinWaitlist}>Join waitlist</Button>
+                          <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
                         </div>
                       )}
                       {waitlisted && (

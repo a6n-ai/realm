@@ -63,7 +63,7 @@ export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmR
     await createWebsiteInquiry({
       fullName: input.contact.fullName,
       phone: input.contact.phone,
-      email: input.contact.email || undefined,
+      email: input.contact.email,
       postalCode: input.contact.postalCode,
     });
     return { waitlisted: true };

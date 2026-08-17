@@ -39,7 +39,18 @@ describe("createWebsiteInquiry", () => {
   });
 
   it("rejects a malformed phone", async () => {
-    await expect(createWebsiteInquiry({ fullName: "Bad", phone: "12" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(createWebsiteInquiry({ fullName: "Bad", phone: "12", email: testEmail() })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("rejects a submission with no email and writes nothing", async () => {
+    // The inquiry this creates needs an email — it is the customer's login path.
+    // Before the contact form required one, an emailless submission reached
+    // InquiriesService.create, threw there, and the lead was silently lost.
+    await expect(
+      createWebsiteInquiry({ fullName: "No Email", phone: "+16475559004", email: "" }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    const rows = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559004"));
+    expect(rows).toHaveLength(0);
   });
 
   it("accepts a national number and stores it as E.164", async () => {
@@ -51,7 +62,7 @@ describe("createWebsiteInquiry", () => {
   });
 
   it("silently drops a honeypot-filled submission without writing", async () => {
-    const res = await createWebsiteInquiry({ fullName: "Bot", phone: "+16475559002", company: "spam-co" });
+    const res = await createWebsiteInquiry({ fullName: "Bot", phone: "+16475559002", company: "spam-co", email: testEmail() });
     expect(res.ok).toBe(true);
     const rows = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559002"));
     expect(rows).toHaveLength(0);

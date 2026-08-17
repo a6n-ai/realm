@@ -8,7 +8,7 @@ import { inquiriesService } from "@/lib/services/inquiries.service";
 export interface ContactInput {
   fullName: string;
   phone: string;
-  email?: string;
+  email: string;
   postalCode?: string;
   message?: string;
   company?: string; // honeypot — real users never see/fill this
@@ -23,12 +23,13 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   const parsedPhone = phoneSchema().safeParse(input.phone.trim());
   if (!parsedPhone.success) throw new ValidationError("Invalid phone number");
   const phone = parsedPhone.data;
-  let email: string | null = null;
-  if (input.email?.trim()) {
-    const parsedEmail = emailSchema.safeParse(input.email);
-    if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
-    email = parsedEmail.data;
-  }
+  // Mandatory, and rejected here rather than deeper: InquiriesService.create
+  // throws "Email is required", so an emailless submission used to surface as a
+  // generic failure and the lead was dropped.
+  if (!input.email?.trim()) throw new ValidationError("Email is required");
+  const parsedEmail = emailSchema.safeParse(input.email.trim());
+  if (!parsedEmail.success) throw new ValidationError("Enter a valid email");
+  const email = parsedEmail.data;
 
   let servedZone: string | null = null;
   const hasPostal = !!input.postalCode?.trim();

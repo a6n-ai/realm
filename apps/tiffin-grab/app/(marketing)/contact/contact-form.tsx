@@ -81,7 +81,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email <span className="text-muted-foreground">(optional)</span></FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl><Input type="email" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
