@@ -65,6 +65,37 @@ describe("GET /api/cron/abandoned-recovery", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ remindedOrders: 1, remindedCarts: 2, terminalized: 3, purged: 4 });
+    expect(await res.json()).toEqual({
+      remindedOrders: 1,
+      remindedCarts: 2,
+      terminalized: 3,
+      purged: 4,
+      failures: [],
+    });
+  });
+
+  it("isolates one pass's failure from the rest — they still run, and the failure is reported", async () => {
+    process.env.CRON_SECRET = "shh";
+    remindAbandonedOrders.mockRejectedValue(new Error("RECOVERY_LINK_SECRET is not set"));
+    remindAbandonedCarts.mockResolvedValue(2);
+    terminalizeAbandonedOrders.mockResolvedValue(3);
+    purgeCarts.mockResolvedValue(4);
+
+    const res = await GET(
+      new Request("https://x.test/api/cron/abandoned-recovery", {
+        headers: { Authorization: "Bearer shh" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(remindAbandonedCarts).toHaveBeenCalled();
+    expect(terminalizeAbandonedOrders).toHaveBeenCalled();
+    expect(purgeCarts).toHaveBeenCalled();
+    expect(await res.json()).toEqual({
+      remindedOrders: null,
+      remindedCarts: 2,
+      terminalized: 3,
+      purged: 4,
+      failures: ["remindedOrders"],
+    });
   });
 });

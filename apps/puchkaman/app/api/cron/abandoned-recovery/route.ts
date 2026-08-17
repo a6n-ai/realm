@@ -1,3 +1,4 @@
+import { createLogger } from "@realm/commons/logger";
 import {
   purgeCarts,
   remindAbandonedCarts,
@@ -9,6 +10,8 @@ import {
 // review-nudge cron.
 export const dynamic = "force-dynamic";
 
+const log = createLogger("cron-abandoned-recovery");
+
 async function handle(request: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
@@ -18,13 +21,29 @@ async function handle(request: Request): Promise<Response> {
 
   // Remind before terminalizing: the reminder window (1h) sits well inside the
   // terminal window (24h), and a link minted here expires exactly when the
-  // order dies.
-  const remindedOrders = await remindAbandonedOrders();
-  const remindedCarts = await remindAbandonedCarts();
-  const terminalized = await terminalizeAbandonedOrders();
-  const purged = await purgeCarts();
+  // order dies. Each pass is isolated — one throwing (e.g. RECOVERY_LINK_SECRET
+  // unset) must not stop the rest from running, or coins stay stranded and
+  // carts never purge just because reminders can't mint a link.
+  const passes: Array<["remindedOrders" | "remindedCarts" | "terminalized" | "purged", () => Promise<number>]> = [
+    ["remindedOrders", remindAbandonedOrders],
+    ["remindedCarts", remindAbandonedCarts],
+    ["terminalized", terminalizeAbandonedOrders],
+    ["purged", purgeCarts],
+  ];
 
-  return Response.json({ remindedOrders, remindedCarts, terminalized, purged });
+  const counts: Record<string, number | null> = {};
+  const failures: string[] = [];
+  for (const [key, run] of passes) {
+    try {
+      counts[key] = await run();
+    } catch (err) {
+      log.error({ err, pass: key }, "abandoned-recovery pass failed");
+      counts[key] = null;
+      failures.push(key);
+    }
+  }
+
+  return Response.json({ ...counts, failures });
 }
 
 export const GET = handle;

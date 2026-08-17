@@ -20,6 +20,11 @@ vi.mock("@/lib/notifications/enqueue", async () => {
   return {
     enqueueNotification: async (tx: never, input: Record<string, unknown>) => {
       enqueued.push(input as never);
+      // Lets a single test simulate one bad row (e.g. a mint failure) without
+      // touching the real token/secret machinery for every row in the batch.
+      if ((input.recipientEmail as string | undefined)?.includes("-boom@")) {
+        throw new Error("simulated per-row failure");
+      }
       const [row] = await (tx as typeof db)
         .insert(notificationOutbox)
         .values({
@@ -41,7 +46,9 @@ vi.mock("@/lib/notifications/enqueue", async () => {
 
 const { db } = await import("@/db/client");
 const { carts, notificationOutbox, orders, payments, users } = await import("@/db/schema");
-const { REMIND_AFTER_MS, remindAbandonedCarts, remindAbandonedOrders } = await import("../passes");
+const { REMIND_AFTER_MS, TERMINAL_AFTER_MS, remindAbandonedCarts, remindAbandonedOrders } = await import(
+  "../passes"
+);
 
 const MARK = "recovery-passes";
 const HOUR = 60 * 60 * 1000;
@@ -141,6 +148,33 @@ describe("remindAbandonedOrders", () => {
     await pendingOrder("paid", 2 * HOUR, "paid");
     expect(await remindAbandonedOrders()).toBe(0);
   });
+
+  it("does not remind an order already inside the terminal window", async () => {
+    // Past TERMINAL_AFTER_MS: terminalizeAbandonedOrders would kill this order
+    // in the same run, so a "finish paying" link mailed here would 404.
+    await pendingOrder("terminal-window", TERMINAL_AFTER_MS + HOUR);
+    expect(await remindAbandonedOrders()).toBe(0);
+    expect(enqueued).toHaveLength(0);
+  });
+
+  it("skips a row that fails to enqueue without aborting the rest of the batch", async () => {
+    const boom = await pendingOrder("boom", 2 * HOUR);
+    const ok = await pendingOrder("ok2", 2 * HOUR);
+
+    const count = await remindAbandonedOrders();
+    expect(count).toBe(1);
+
+    const [boomRow] = await db
+      .select({ id: notificationOutbox.id })
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.dedupeKey, `${boom.publicId}:checkout_abandoned:email`));
+    const [okRow] = await db
+      .select({ id: notificationOutbox.id })
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.dedupeKey, `${ok.publicId}:checkout_abandoned:email`));
+    expect(boomRow).toBeUndefined();
+    expect(okRow).toBeDefined();
+  });
 });
 
 describe("remindAbandonedCarts", () => {
@@ -170,6 +204,17 @@ describe("remindAbandonedCarts", () => {
   it("skips a fresh cart", async () => {
     await cart("fresh", REMIND_AFTER_MS / 2, `${MARK}-fresh@example.test`);
     expect(await remindAbandonedCarts()).toBe(0);
+  });
+
+  it("skips a cart whose stored snapshot has no items", async () => {
+    const [row] = await db
+      .insert(carts)
+      .values({ items: [], email: `${MARK}-empty@example.test`, lastActivityAt: Date.now() - 2 * HOUR })
+      .returning();
+    cartIds.push(row.id);
+
+    expect(await remindAbandonedCarts()).toBe(0);
+    expect(enqueued).toHaveLength(0);
   });
 });
 
