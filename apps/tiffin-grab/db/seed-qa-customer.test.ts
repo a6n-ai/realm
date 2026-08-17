@@ -15,6 +15,12 @@ import { db } from "@/db/client";
 import { account, orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { createOrder } from "@/lib/services/orders.service";
+import { assertLocalDb } from "./is-local-db";
+
+// Refuse to run anywhere but a local DB: PASSWORD below is committed to a public
+// repo, so seeding this login into a remote environment would publish a working
+// credential for it. Throwing at import time means no query runs first.
+assertLocalDb("seed-qa-customer");
 
 const EMAIL = "customer@tiffingrab.ca";
 const PASSWORD = "Customer123!";

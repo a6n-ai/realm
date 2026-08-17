@@ -5,6 +5,17 @@
 // boundary keeps the DB FK-clean without touching every suite's reset().
 export async function setup() {
   const dbUrl = (process.env.DATABASE_URL ??= "postgres://lawbringr@localhost:5432/tiffin");
+  // PROD SAFETY, and this guard is load-bearing: the TRUNCATE below runs before
+  // any test file, so without it a run whose DATABASE_URL points at a remote
+  // environment wipes wallet_ledger (customer coin balances) and event_payout
+  // there. teardown() has always been guarded; setup() was not.
+  if (!isLocalDb(dbUrl)) {
+    throw new Error(
+      `Refusing to run the test suite against ${dbUrl.replace(/:\/\/[^@]*@/, "://***@")}: ` +
+        `global setup truncates wallet_ledger and event_payout, which is destructive ` +
+        `anywhere but a local database.`,
+    );
+  }
   // Dedicated one-shot client, closed immediately — importing @/db/client here
   // would open its long-lived pool in the main process and hang vitest's exit.
   const postgres = (await import("postgres")).default;
@@ -22,14 +33,7 @@ export async function setup() {
 // PROD SAFETY: this ONLY runs against a local DB. On main/CI, DATABASE_URL points
 // at prod — isLocalDb() short-circuits so tests never seed or wipe prod.
 
-function isLocalDb(url: string): boolean {
-  try {
-    const h = new URL(url).hostname;
-    return h === "localhost" || h === "127.0.0.1" || h === "::1";
-  } catch {
-    return false;
-  }
-}
+import { isLocalDb } from "./db/is-local-db";
 
 export async function teardown() {
   const dbUrl = process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin";

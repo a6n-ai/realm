@@ -15,6 +15,11 @@ import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { createOrder } from "@/lib/services/orders.service";
+import { assertLocalDb } from "./is-local-db";
+
+// Refuse to run anywhere but a local DB — this creates live orders for a fixture
+// account. Throwing at import time means no query runs first.
+assertLocalDb("seed-qa-second-sub");
 
 const EMAIL = "customer@tiffingrab.ca";
 
