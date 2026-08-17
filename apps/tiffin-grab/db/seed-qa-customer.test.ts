@@ -1,7 +1,9 @@
 /**
  * One-off local QA seed: customer login + one active order.
- * Idempotent by email. Run from apps/tiffin-grab:
- *   pnpm exec vitest run db/seed-qa-customer.test.ts
+ * Idempotent by email. A seeding SCRIPT, not a test — excluded from the default
+ * run in vitest.config.ts so it never creates rows during the suite. Run it
+ * deliberately (CLI --exclude only ADDS globs, hence the second config):
+ *   pnpm --filter tiffin-grab exec vitest run --config vitest.seed.config.ts db/seed-qa-customer.test.ts
  *
  * Login: customer@tiffingrab.ca / Customer123!
  */

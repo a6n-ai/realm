@@ -4,8 +4,10 @@ import type { FacetDef } from "@/components/ds";
 export const ACTIVITY_CATEGORY_TYPES = {
   // route_pushed sits with deliveries: it is fulfillment, and staff ask "was this stop on
   // the route?" in the same breath as "was it skipped?".
-  deliveries: ["skipped", "unskipped", "delivery_address_changed", "pool_scheduled", "route_pushed"],
-  meals: ["meal_pick"],
+  deliveries: ["skipped", "unskipped", "delivery_address_changed", "pool_scheduled", "route_pushed", "route_completed"],
+  // Swaps belong with meal_pick: both change what is in the box on a given day,
+  // and staff look for them with the same question ("what did they get?").
+  meals: ["meal_pick", "category_swap_applied", "category_swap_removed"],
   lifecycle: ["created", "activated", "paused", "resumed", "cancelled", "status_change"],
   payments: ["payment_claimed", "payment_verified", "payment_rejected"],
   notes: ["note"],

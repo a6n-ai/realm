@@ -23,6 +23,12 @@ export default defineConfig({
       "e2e/**/*.spec.ts",
       "e2e/auth.setup*.ts",
       "skeleton-audit/**",
+      // Manual QA seeding scripts that borrow the vitest runner — they CREATE
+      // live rows for a fixture account rather than asserting anything, so
+      // running them with the suite mutates the dev DB and they fail whenever
+      // another file's cleanup removes their fixture user. Run them on demand:
+      //   pnpm --filter tiffin-grab exec vitest run --exclude '**/node_modules/**' db/seed-qa-customer.test.ts
+      "db/seed-qa-*.test.ts",
     ],
     env: {
       DATABASE_URL: process.env.DATABASE_URL ?? "postgres://lawbringr@localhost:5432/tiffin",

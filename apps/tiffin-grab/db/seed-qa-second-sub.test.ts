@@ -1,6 +1,12 @@
 /**
  * Adds a second live order for QA customer so Deliveries can show the sub switcher.
- *   pnpm exec vitest run db/seed-qa-second-sub.test.ts
+ *
+ * A seeding SCRIPT, not a test — excluded from the default run in vitest.config.ts
+ * because it creates live rows and depends on a fixture user other suites delete.
+ * Run it deliberately (CLI --exclude only ADDS globs, hence the second config):
+ *   pnpm --filter tiffin-grab exec vitest run --config vitest.seed.config.ts db/seed-qa-second-sub.test.ts
+ *
+ * Requires the QA customer to exist — run db/seed-qa-customer.test.ts first.
  */
 import { describe, it, expect } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
