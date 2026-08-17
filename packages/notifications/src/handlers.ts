@@ -177,7 +177,23 @@ export function buildHandlers(deps: HandlerDeps): Record<Channel, ChannelHandler
             };
           }
         } else if (row.event) {
-          rendered = await renderEmailForEvent(db, tables, row.event, target.locale, vars);
+          const base = await renderEmailForEvent(db, tables, row.event, target.locale, vars);
+          // Event-template rows can carry kind: "marketing" too (e.g. abandoned-cart/
+          // checkout recovery emails) — CASL requires the same footer they'd get via
+          // the campaign path, so this is keyed on kind, not on how the row was queued.
+          if (base && row.kind === "marketing" && deps.campaigns) {
+            const { unsubscribe, sender } = deps.campaigns;
+            rendered = {
+              subject: base.subject,
+              ...appendUnsubscribeFooter(base, {
+                url: buildUnsubscribeUrl(unsubscribe.baseUrl, unsubscribe.secret, target.address),
+                sender: sender.name,
+                address: sender.postalAddress,
+              }),
+            };
+          } else {
+            rendered = base;
+          }
         }
         if (!rendered) return null; // no DB template → don't send
         return provider.send({
