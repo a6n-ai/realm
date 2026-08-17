@@ -8,6 +8,7 @@ export * from "./employees";
 export * from "./delivery-types";
 export * from "./delivery-zones";
 export * from "./orders";
+export * from "./carts";
 export { reviewNudges } from "@realm/google-reviews/db";
 export * from "./events";
 export * from "./notifications";

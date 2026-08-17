@@ -67,6 +67,22 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
     entity: "message",
     fields: [{ name: "name", label: "Sender name" }],
   },
+  cart_abandoned: {
+    entity: "cart",
+    fields: [
+      { name: "itemCount", label: "Item count" },
+      { name: "firstItem", label: "First item name" },
+      { name: "cartUrl", label: "Cart link" },
+    ],
+  },
+  checkout_abandoned: {
+    entity: "order",
+    fields: [
+      { name: "publicId", label: "Order code" },
+      { name: "total", label: "Total" },
+      { name: "resumeUrl", label: "Resume payment link" },
+    ],
+  },
 };
 
 /** Returns the entity-prefixed variable names for an event, e.g. ["order.publicId"]. */

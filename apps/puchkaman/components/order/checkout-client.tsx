@@ -103,6 +103,20 @@ export function CheckoutClient({
   coinBalance?: number;
 }) {
   const { items, subtotal, count, clear, hydrated, addItem } = useCart();
+  // The only way to reach a guest who abandons: their address is typed here but
+  // the order does not exist until submit. Sent with the cart so the recovery
+  // job has somewhere to write it.
+  const mirrorEmail = useCallback(
+    (typedEmail: string) => {
+      if (!typedEmail.includes("@")) return;
+      void fetch("/api/cart", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items, email: typedEmail }),
+      }).catch(() => {});
+    },
+    [items],
+  );
   const formId = useId();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -704,6 +718,7 @@ export function CheckoutClient({
                   inputMode="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={(e) => mirrorEmail(e.target.value.trim())}
                   className="input"
                   autoComplete="email"
                   aria-invalid={fieldErrors.email ? true : undefined}

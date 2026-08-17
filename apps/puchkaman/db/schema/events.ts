@@ -15,4 +15,6 @@ export const appEvent = pgEnum("app_event", [
   "catering_inquiry",
   "contact_message",
   "signup",
+  "cart_abandoned",
+  "checkout_abandoned",
 ]);

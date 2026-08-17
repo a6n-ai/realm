@@ -14,6 +14,7 @@ import {
 } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { db } from "@/db/client";
 import {
   employees,
@@ -27,6 +28,7 @@ import {
   walletLedger,
 } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { CART_COOKIE } from "@/lib/cart/types";
 import { createCloverClient } from "@/lib/clover/client";
 import {
   isPublicOrderingEnabled,
@@ -60,6 +62,7 @@ import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
+import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
 import { ledgerService } from "./ledger.service";
 import {
@@ -136,6 +139,17 @@ export type CheckoutCreateResult = {
    * back about what happened to it.
    */
   coins: { requested: number; coinsSpent: number; applied: number; message: string | null } | null;
+};
+
+/** What a resume-payment link needs to remount the Clover pay step for an order. */
+export type ResumableCheckout = {
+  orderPublicId: string;
+  cloverOrderId: string;
+  total: number;
+  currency: "CAD";
+  pakmsKey: string;
+  checkoutSdkUrl: string;
+  environment: "sandbox" | "production";
 };
 
 export type CartQuoteResult = {
@@ -966,6 +980,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         });
       }
 
+      // Cart -> order handoff, inside the order transaction: a rolled-back order
+      // must leave the cart live so recovery still reaches the customer.
+      // `cookies()` throws outside a request context (direct/test callers), so a
+      // missing cart cookie is treated the same as no cart at all.
+      let cartId: string | null = null;
+      try {
+        cartId = (await cookies()).get(CART_COOKIE)?.value ?? null;
+      } catch {
+        cartId = null;
+      }
+      if (cartId) await markCartConverted(tx, cartId, row.id);
+
       // Same txn as the order insert: a receipt must never describe an order
       // that rolled back.
       await enqueueNotification(tx, {
@@ -1161,6 +1187,35 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return {
       pakmsKey: pakms.apiAccessKey,
       checkoutSdkUrl: cloverCheckoutSdkUrl(client.environment()),
+    };
+  }
+
+  /**
+   * The resume-link payload: only for an order that has never been paid.
+   * Returns null for anything else — paid, failed, cancelled, or no
+   * `awaiting_payment` payment row — so the resume page can turn every one of
+   * those into the same 404 rather than leaking which state the order is in.
+   */
+  async getResumableCheckout(orderPublicId: string): Promise<ResumableCheckout | null> {
+    const order = await this.ordersRepo.findByPublicId(orderPublicId);
+    if (!order || order.status !== "pending" || !order.cloverOrderId) return null;
+
+    const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
+    if (!pays.some((p) => p.status === "awaiting_payment")) return null;
+
+    const client = await createCloverClient();
+    if (!client) return null;
+
+    const pakms = await client.getPakmsApiKey();
+    const environment = client.environment();
+    return {
+      orderPublicId: order.publicId,
+      cloverOrderId: order.cloverOrderId,
+      total: Number(order.total),
+      currency: "CAD",
+      pakmsKey: pakms.apiAccessKey,
+      checkoutSdkUrl: cloverCheckoutSdkUrl(environment),
+      environment,
     };
   }
 
@@ -1420,6 +1475,32 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       type: "adjustment",
       amount: original.amount,
       memo: `reverses coin redemption for ${order.publicId}`,
+    });
+  }
+
+  /**
+   * Terminalize an order nobody ever paid. One transaction, not two: a crash
+   * between the reversal and the status write used to leave a `failed` order
+   * holding an unreversed debit. User lock first, then the order re-read,
+   * matching `markPaymentFailed`'s fixed user-then-order lock order —
+   * `reverseOrderRedemption` reaches `reverseCoinRedemption`, which takes
+   * user-then-order, so taking the order lock alone here would invert it.
+   *
+   * Returns false when the order is no longer `pending` — a settlement that
+   * landed between this job's read and its write must win.
+   */
+  async abandonPendingOrder(orderId: bigint): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const [snapshot] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+      if (!snapshot) return false;
+      if (snapshot.userId) {
+        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${snapshot.userId} FOR UPDATE`);
+      }
+      const [fresh] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
+      if (!fresh || fresh.status !== "pending") return false;
+      await this.reverseOrderRedemption(tx, fresh);
+      await tx.update(orders).set({ status: "failed" }).where(eq(orders.id, orderId));
+      return true;
     });
   }
 

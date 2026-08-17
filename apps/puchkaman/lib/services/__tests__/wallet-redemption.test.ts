@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string } } }));
 const clover = vi.hoisted(() => ({
@@ -20,8 +20,16 @@ const clover = vi.hoisted(() => ({
   duringFetch: null as null | (() => Promise<void>),
 }));
 const offers = vi.hoisted(() => ({ redeemable: [] as unknown[] }));
+// Defaults to no cookie at all, matching the real absence of a cart cookie —
+// every existing test in this file relies on that no-op default.
+const cartCookie = vi.hoisted(() => ({ value: null as string | null }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) => (name === "pk_cart" && cartCookie.value ? { name, value: cartCookie.value } : undefined),
+  }),
+}));
 
 const staffAlerts = vi.hoisted(() => [] as { event: string; title: string }[]);
 
@@ -79,6 +87,7 @@ vi.mock("@/lib/clover/client", () => ({
 
 const { db } = await import("@/db/client");
 const {
+  carts,
   coinRate,
   ledgerEntries,
   orderItems,
@@ -91,6 +100,7 @@ const {
 const { ordersService } = await import("../orders.service");
 const { walletService } = await import("../wallet.service");
 const { ledgerService } = await import("../ledger.service");
+const { upsertCart } = await import("../carts.service");
 
 const MARK = "wallet-redemption";
 const userIds: bigint[] = [];
@@ -110,6 +120,7 @@ beforeEach(async () => {
   clover.duringFetch = null;
   offers.redeemable = [];
   session.current = null;
+  cartCookie.value = null;
   staffAlerts.length = 0;
   vi.restoreAllMocks();
   const [rate] = await db
@@ -120,6 +131,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  // Before order cleanup: carts.convertedOrderId FKs to orders.id.
+  await db.delete(carts).where(like(carts.email, `${MARK}%`));
   if (userIds.length) {
     const orderRows = await db
       .select({ id: orders.id })
@@ -691,5 +704,73 @@ describe("returning coins on order failure", () => {
       .from(ledgerEntries)
       .where(eq(ledgerEntries.orderId, order.id));
     expect(ledgerRows).toEqual([]);
+  });
+});
+
+describe("cart conversion stamp", () => {
+  it("stamps the cart named by the cart cookie inside the checkout transaction", async () => {
+    await signedInCustomer("cart1", 0);
+    const product = await insertProduct("cart1");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    const { publicId } = await upsertCart({
+      publicId: null,
+      items: [],
+      userId: null,
+      email: `${MARK}-cart1@example.test`,
+    });
+    cartCookie.value = publicId;
+
+    const result = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { email: `${MARK}-cart1@example.test` }),
+    );
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, result.orderPublicId));
+    const [cart] = await db.select().from(carts).where(eq(carts.publicId, publicId));
+    expect(cart.convertedOrderId).toBe(order.id);
+  });
+
+  it("does not let a second checkout under the same cart cookie overwrite the stamp", async () => {
+    await signedInCustomer("cart2", 0);
+    const product = await insertProduct("cart2");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    const { publicId } = await upsertCart({
+      publicId: null,
+      items: [],
+      userId: null,
+      email: `${MARK}-cart2@example.test`,
+    });
+    cartCookie.value = publicId;
+
+    const first = await ordersService.createCheckout(
+      checkoutInput(product.publicId, { email: `${MARK}-cart2@example.test` }),
+    );
+    // Same cart cookie, a second checkout — the cart must keep pointing at the
+    // first order, or a converted cart could still get an abandonment reminder.
+    await ordersService.createCheckout(
+      checkoutInput(product.publicId, { email: `${MARK}-cart2@example.test` }),
+    );
+
+    const [firstOrder] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.publicId, first.orderPublicId));
+    const [cart] = await db.select().from(carts).where(eq(carts.publicId, publicId));
+    expect(cart.convertedOrderId).toBe(firstOrder.id);
+  });
+
+  it("does not throw and leaves the cart unconverted when no cart cookie is present", async () => {
+    await signedInCustomer("cart3", 0);
+    const product = await insertProduct("cart3");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    cartCookie.value = null;
+
+    await expect(
+      ordersService.createCheckout(
+        checkoutInput(product.publicId, { email: `${MARK}-cart3@example.test` }),
+      ),
+    ).resolves.toBeDefined();
   });
 });
