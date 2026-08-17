@@ -5,6 +5,7 @@ import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, unique
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
 export const weightUnit = pgEnum("weight_unit", ["oz", "g", "ml", "piece"]);
+export const mealSizeDiscountType = pgEnum("meal_size_discount_type", ["none", "percent", "flat"]);
 
 // A dish carries no diet column. Which plans it may appear on is explicit
 // membership — see dishPlans below.
@@ -64,6 +65,7 @@ export const mealSizes = pgTable("meal_sizes", {
   ...updatableColumns("msz"),
   key: text("key").notNull().unique(),
   name: text("name").notNull(),
+  description: text("description"),
   // Scopes a meal size to exactly one plan; the subscribe wizard hides plans with no sizes.
   planId: bigint("plan_id", { mode: "bigint" }).notNull().references(() => plans.id),
   tier: mealTier("tier").notNull(),
@@ -74,6 +76,11 @@ export const mealSizes = pgTable("meal_sizes", {
   carbsG: integer("carbs_g"),
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
+  // "none" is the off-switch — discountValue is meaningless (and ignored) when type is "none",
+  // rather than modeling percent/flat as two separate nullable columns with an ambiguous
+  // both-set case. See lib/pricing/meal-size-discount.ts for the one place this is interpreted.
+  discountType: mealSizeDiscountType("discount_type").notNull().default("none"),
+  discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull().default("0"),
   trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
 });

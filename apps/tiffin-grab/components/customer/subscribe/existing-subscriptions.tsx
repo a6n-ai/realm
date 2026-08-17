@@ -9,7 +9,7 @@ import { KIND_LABELS } from "@/app/(dashboard)/dashboard/discounts/kind-labels";
 import type { SubSummary } from "@/lib/services/customer-deliveries.service";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
-export const CURRENT = new Set(["active", "paused", "waitlisted", "pending"]);
+export const CURRENT = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
 function discountLine(c: AvailableCoupon): string {
   switch (c.kind) {

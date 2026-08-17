@@ -54,7 +54,7 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
   return {
     plans: planRows.map((p) => ({ id: p.id, publicId: p.publicId, key: p.key, name: p.name, description: p.description, planType: p.planType, offeredSlots: slotKeys[p.planType as "tiffin" | "healthy"], allowedStartDays: p.allowedStartDays })),
     mealSizes: mealRows.map((m) => ({
-      id: m.id, publicId: m.publicId, key: m.key, name: m.name, planId: m.planId, planKey: planKeyById.get(m.planId)!, tier: m.tier, components: m.components,
+      id: m.id, publicId: m.publicId, key: m.key, name: m.name, description: m.description, planId: m.planId, planKey: planKeyById.get(m.planId)!, tier: m.tier, components: m.components,
       items: (itemsByMealSize.get(m.id) ?? []).map((i) => ({ name: i.name, category: i.category, qty: i.qty, weightValue: i.weightValue == null ? null : Number(i.weightValue), weightUnit: i.weightUnit })),
       swapRules: (swapsByMealSize.get(m.id) ?? []).map((r) => ({
         publicId: r.publicId,
@@ -67,6 +67,7 @@ async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
       })),
       kcalMin: m.kcalMin, kcalMax: m.kcalMax, proteinG: m.proteinG, carbsG: m.carbsG, fatG: m.fatG,
       basePrice: Number(m.basePrice),
+      discountType: m.discountType, discountValue: Number(m.discountValue),
       trial: m.trial,
     })),
     frequencies: freqRows.map((f) => ({ id: f.id, publicId: f.publicId, key: f.key, name: f.name, daysPerWeek: f.daysPerWeek, courierDiscountPct: f.courierDiscountPct })),

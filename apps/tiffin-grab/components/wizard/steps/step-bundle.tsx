@@ -3,6 +3,7 @@ import type { WizardSelections } from "../selections";
 import { Card } from "@realm/ui/card";
 import { Badge } from "@realm/ui/badge";
 import { MealSizeItems } from "../meal-size-items";
+import { MealSizePrice } from "../meal-size-price";
 import { SwapPicker, effectiveCounts } from "../swap-picker";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
@@ -47,8 +48,9 @@ export function StepBundle({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{m.name}</span>
-                      <span className="nums text-sm font-medium">${m.basePrice.toFixed(2)}</span>
+                      <MealSizePrice meal={m} />
                     </div>
+                    {m.description ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{m.description}</p> : null}
                     <div className="mt-1">
                       <MealSizeItems
                         items={m.items}

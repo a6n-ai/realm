@@ -97,6 +97,14 @@ Resources:
           - Effect: Allow
             Principal: { Service: ec2.amazonaws.com }
             Action: sts:AssumeRole
+      # Registers the box with Systems Manager, which is how an operator reaches
+      # prod: `ssm start-session` port-forwards to this app's RDS from the box
+      # itself, so the 5432 self-reference above keeps working untouched and no
+      # SSH key has to exist on anyone's laptop. See scripts/db-tunnel.sh.
+      # The agent ships with AL2023; without this policy it has no credential to
+      # register with, which is why the box was invisible to SSM.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Policies:
         - PolicyName: puchkaman-prod-access
           PolicyDocument:

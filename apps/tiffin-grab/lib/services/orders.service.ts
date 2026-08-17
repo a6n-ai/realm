@@ -1,4 +1,4 @@
-import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema } from "@realm/commons";
+import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
@@ -277,6 +277,32 @@ export async function createOrder(
       );
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    // Reject a new order whose delivery window overlaps a subscription this
+    // customer already has running: "active"/"paused" orders reserve real
+    // calendar days (materializeDeliveries wrote rows for them), so a second
+    // order starting inside that reserved band would double-book delivery.
+    // Waitlisted orders never materialize deliveries (out of zone), so they
+    // don't occupy any dates and are excluded from this check.
+    const newStart = parseIsoDateUtc(input.selections.startDate);
+    const newEndExclusive = new Date(newStart);
+    newEndExclusive.setUTCDate(newEndExclusive.getUTCDate() + input.selections.durationWeeks * 7);
+    const currentOrders = await tx
+      .select({ startDate: orders.startDate, durationWeeks: orders.durationWeeks })
+      .from(orders)
+      .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+    for (const o of currentOrders) {
+      const existingStart = parseIsoDateUtc(o.startDate);
+      const existingEndExclusive = new Date(existingStart);
+      existingEndExclusive.setUTCDate(existingEndExclusive.getUTCDate() + o.durationWeeks * 7);
+      if (newStart < existingEndExclusive && existingStart < newEndExclusive) {
+        const lastDay = new Date(existingEndExclusive);
+        lastDay.setUTCDate(lastDay.getUTCDate() - 1);
+        throw new ValidationError(
+          `You already have a plan running through ${lastDay.toISOString().slice(0, 10)} — choose a start date after it ends`,
+        );
+      }
+    }
 
     // Server-side discount resolution. Both coupon kinds land as a single
     // adjustments[] line; the redemptions (row + ledger debit) are written

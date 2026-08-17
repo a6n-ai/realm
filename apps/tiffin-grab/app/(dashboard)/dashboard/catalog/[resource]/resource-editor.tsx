@@ -241,6 +241,11 @@ function FieldControl({
     ? (options[f.key] ?? [])
     : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
+  // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
+  // the only field whose unit isn't static, so this is a targeted override rather than a new
+  // FieldDef capability.
+  // eslint-disable-next-line react-hooks/purity -- form.watch reads the current live form state, not a pure render input
+  const unit = f.key === "discountValue" ? (form.watch("discountType") === "percent" ? "%" : "$") : f.unit;
 
   return (
     <FormField
@@ -352,7 +357,7 @@ function FieldControl({
             <FormControl><Input type="date" value={(field.value as string) ?? ""} onChange={field.onChange} /></FormControl>
           ) : (
             <div className="flex items-center gap-1.5">
-              {f.unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}
+              {unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}
               <FormControl>
                 <Input
                   className={isNumberType(f) ? "nums" : undefined}
@@ -362,7 +367,7 @@ function FieldControl({
                   onChange={field.onChange}
                 />
               </FormControl>
-              {f.unit && f.unit !== "$" ? <span className="text-muted-foreground text-sm">{f.unit}</span> : null}
+              {unit && unit !== "$" ? <span className="text-muted-foreground text-sm">{unit}</span> : null}
             </div>
           )}
           <FormMessage />
@@ -404,6 +409,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             publicId: "preview",
             key: String(values.key ?? ""),
             name: String(values.name || "Meal name"),
+            description: values.description ? String(values.description) : null,
             planId: 0n,
             planKey: String(values.planId ?? ""),
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
@@ -416,6 +422,8 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             carbsG: optMacro(values.carbsG),
             fatG: optMacro(values.fatG),
             basePrice: num(values.basePrice),
+            discountType: (values.discountType as "none" | "percent" | "flat") || "none",
+            discountValue: num(values.discountValue),
             trial: Boolean(values.trial),
           }}
         />

@@ -15,6 +15,7 @@ export interface MealSizeView {
   publicId: string;
   key: string;
   name: string;
+  description: string | null;
   // Scopes the size to exactly one plan. planId is server-only (FK resolution);
   // planKey crosses the wire so the client filters sizes by their owning plan.
   planId: bigint;
@@ -29,6 +30,8 @@ export interface MealSizeView {
   carbsG: number | null;
   fatG: number | null;
   basePrice: number;
+  discountType: "none" | "percent" | "flat";
+  discountValue: number;
   trial: boolean;
 }
 

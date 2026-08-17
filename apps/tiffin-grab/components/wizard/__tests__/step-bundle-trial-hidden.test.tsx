@@ -10,6 +10,7 @@ function meal(key: string, opts: { trial?: boolean } = {}) {
     publicId: `msz_${key}`,
     key,
     name: key,
+    description: null,
     planKey: "veg",
     tier: "budget" as const,
     components: [],
@@ -20,6 +21,8 @@ function meal(key: string, opts: { trial?: boolean } = {}) {
     carbsG: null,
     fatG: null,
     basePrice: 10,
+    discountType: "none" as const,
+    discountValue: 0,
     trial: opts.trial ?? false,
   };
 }

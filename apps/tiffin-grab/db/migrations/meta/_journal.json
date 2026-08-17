@@ -64,6 +64,13 @@
       "when": 1786906406535,
       "tag": "0008_magenta_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786973570640,
+      "tag": "0009_bouncy_mentor",
+      "breakpoints": true
     }
   ]
 }

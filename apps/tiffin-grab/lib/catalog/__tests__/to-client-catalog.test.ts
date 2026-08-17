@@ -6,9 +6,9 @@ const snapshot: CatalogSnapshot = {
   plans: [{ id: 1n, publicId: "pln_veg", key: "veg", name: "Veg", description: null, planType: "tiffin", offeredSlots: [], allowedStartDays: [] }],
   mealSizes: [
     {
-      id: 5n, publicId: "msz_small", key: "small", name: "Small", planId: 1n, planKey: "veg",
+      id: 5n, publicId: "msz_small", key: "small", name: "Small", description: null, planId: 1n, planKey: "veg",
       tier: "budget", components: [], items: [], swapRules: [], kcalMin: 400, kcalMax: 600,
-      proteinG: null, carbsG: null, fatG: null, basePrice: 10, trial: false,
+      proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false,
     },
   ],
   frequencies: [],
