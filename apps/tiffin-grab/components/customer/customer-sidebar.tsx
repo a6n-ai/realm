@@ -10,6 +10,7 @@ import {
   HomeIcon,
   LifeBuoyIcon,
   LogOutIcon,
+  RefreshCwIcon,
   UserIcon,
   UtensilsCrossedIcon,
   WalletIcon,
@@ -44,6 +45,7 @@ export const CUSTOMER_NAV_SECTIONS: NavSection[] = [
       { title: "Menu", href: "/me/menu", icon: ChefHatIcon },
       { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
       { title: "Preferences", href: "/me/meals", icon: UtensilsCrossedIcon },
+      { title: "Renew plan", href: "/me/renew", icon: RefreshCwIcon },
     ],
   },
   {

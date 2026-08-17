@@ -113,6 +113,9 @@ function SubscriptionCard({ sub }: { sub: SubscriptionWithNext }) {
           <Button asChild variant="outline" size="sm">
             <Link href="/me/deliveries">Manage</Link>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/me/renew">Renew</Link>
+          </Button>
           <PauseResumeControl sub={sub} pending={pending} run={run} />
         </div>
       </div>
