@@ -24,6 +24,8 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
       total: 50,
     },
     appliedCoupons: [],
+    paymentMethods: [],
+    coinBalance: null,
   }),
   validatePostal: vi.fn().mockResolvedValue({ served: false }),
 }));

@@ -37,6 +37,7 @@ const reprice = vi.fn(async (...args: unknown[]) => ({
   pricing,
   appliedCoupons: [],
   paymentMethods: [],
+  coinBalance: null,
   couponError: args[1] ? "That code isn't valid." : undefined,
 }));
 const validatePostal = vi.fn();
