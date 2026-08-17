@@ -123,6 +123,15 @@ export const auth = betterAuth({
       expiresIn: 600,
       allowedAttempts: 5,
       storeOTP: "hashed",
+      // WITHOUT this, /sign-in/email-otp CREATES an account for any address that
+      // can receive a code (better-auth email-otp routes: "if (!user) { if
+      // (opts.disableSignUp) throw …; createUser(…) }"). That is a separate
+      // switch from emailAndPassword.disableSignUp above, which only covers
+      // /sign-up/email — so any stranger's gmail could self-register a `user`
+      // row and land on /me. Sign-in is now strictly "prove you hold the mailbox
+      // of an account that already exists"; account creation is an explicit,
+      // rate-limited, name-collecting step (POST /api/account/signup).
+      disableSignUp: true,
       changeEmail: { enabled: true, verifyCurrentEmail: true },
       sendVerificationOTP: async ({ email, otp, type }) => {
         await sendAuthOtp(email, otp, type);

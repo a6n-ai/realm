@@ -21,6 +21,7 @@ import {
 import { Input } from "@realm/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 import { landingPathFor } from "@/lib/auth/landing";
+import { useResendCooldown } from "@/lib/auth/use-resend-cooldown";
 
 const schema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email"),
@@ -166,21 +167,47 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState("");
+  const [cooldown, startCooldown] = useResendCooldown(30);
 
   const emailForm = useForm<z.infer<typeof otpEmailSchema>>({
     resolver: zodResolver(otpEmailSchema),
     defaultValues: { email: "" },
   });
 
-  async function sendCode(values: z.infer<typeof otpEmailSchema>) {
+  /** Returns whether a code actually went out, so the caller can advance the step. */
+  async function requestCode(target: string): Promise<boolean> {
     setError(null);
     setBusy(true);
-    await authClient.emailOtp.sendVerificationOtp({ email: values.email, type: "sign-in" });
+    const { error: err } = await authClient.emailOtp.sendVerificationOtp({
+      email: target,
+      type: "sign-in",
+    });
     setBusy(false);
+    if (err) {
+      setError(
+        err.status === 429
+          ? "Too many codes requested. Try again in a minute."
+          : "Could not send the code. Try again.",
+      );
+      return false;
+    }
+    startCooldown();
+    return true;
+  }
+
+  async function sendCode(values: z.infer<typeof otpEmailSchema>) {
+    if (!(await requestCode(values.email))) return;
     setEmail(values.email);
     setStep("code");
+  }
+
+  async function resend() {
+    if (busy || cooldown > 0) return;
+    setNotice(null);
+    if (await requestCode(email)) setNotice("New code sent.");
   }
 
   async function verify(otp: string) {
@@ -241,6 +268,12 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
       <div className="flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold">Enter code</h1>
         <p className="text-muted-foreground text-balance">We emailed a code to {email}</p>
+        {/* Sign-in no longer creates accounts, so an address with no account
+            gets silence rather than a code. Say so, or a typo looks like a
+            broken mail server. */}
+        <p className="text-muted-foreground mt-1 text-xs text-balance">
+          No code? Check the address — codes only go to existing accounts.
+        </p>
       </div>
       <CodeOtp
         value={code}
@@ -256,6 +289,20 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
           {error}
         </p>
       ) : null}
+      {notice ? (
+        <p className="text-muted-foreground text-sm" role="status">
+          {notice}
+        </p>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={resend}
+        disabled={busy || cooldown > 0}
+      >
+        {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+      </Button>
       <Button
         type="button"
         variant="ghost"
@@ -264,6 +311,7 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
           setStep("email");
           setCode("");
           setError(null);
+          setNotice(null);
         }}
       >
         Use a different email
