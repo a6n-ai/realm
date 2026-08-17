@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { config, PROTECTED_PREFIXES, PUBLIC_API } from "../proxy";
+
+// Route module pulls in the recovery passes (db-backed); stub them so this
+// test only exercises the route's own auth gate, not live persistence.
+vi.mock("@/lib/recovery/passes", () => ({
+  purgeCarts: vi.fn(),
+  remindAbandonedCarts: vi.fn(),
+  remindAbandonedOrders: vi.fn(),
+  terminalizeAbandonedOrders: vi.fn(),
+}));
 
 /** Mirrors the match in proxy(): exact path, or a path segment beneath it. */
 const isPublic = (pathname: string) =>
@@ -19,6 +28,35 @@ describe("PUBLIC_API", () => {
       expect(PUBLIC_API).toContain(path);
     },
   );
+});
+
+/**
+ * The cart mirror is how a guest's email gets captured before signup — gated
+ * behind a session cookie, the guest half of abandoned-cart recovery never
+ * writes a row. The cron is authenticated by CRON_SECRET in the handler, not
+ * a cookie, so it must be reachable pre-auth too — but reachable is not the
+ * same as unprotected, so the second test proves the secret is still enforced.
+ */
+describe("PUBLIC_API — cart mirror and cron", () => {
+  it.each(["/api/cart", "/api/cron/abandoned-recovery"])(
+    "keeps %s reachable without a session",
+    (path) => {
+      expect(isPublic(path)).toBe(true);
+    },
+  );
+
+  it("still 401s a cron path with no bearer token, despite being allowlisted here", async () => {
+    const { POST } = await import("../app/api/cron/abandoned-recovery/route");
+    const originalSecret = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "test-secret";
+    try {
+      const res = await POST(new Request("http://localhost/api/cron/abandoned-recovery", { method: "POST" }));
+      expect(res.status).toBe(401);
+    } finally {
+      if (originalSecret === undefined) delete process.env.CRON_SECRET;
+      else process.env.CRON_SECRET = originalSecret;
+    }
+  });
 });
 
 /**

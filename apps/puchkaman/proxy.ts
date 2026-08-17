@@ -39,6 +39,15 @@ export const PUBLIC_API = [
   // Phone verification runs during guest checkout, before any session exists.
   // Both routes are rate limited per number and per IP in the handler.
   "/api/account/phone",
+  // Server-mirrored cart. A guest with no session must be able to POST their
+  // cart snapshot — that's the entire point (email capture pre-signup). The
+  // route itself scopes writes via the cart cookie / cartOwner check.
+  "/api/cart",
+  // Cron endpoints authenticate themselves via CRON_SECRET in the handler, not
+  // a session cookie — a scheduler sends a bearer token, never a browser
+  // cookie. Prefix match so every route under here (abandoned-recovery,
+  // review-nudge, ...) is reachable; each one still 401s without the secret.
+  "/api/cron",
 ];
 
 /**
