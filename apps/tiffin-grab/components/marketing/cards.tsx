@@ -1,5 +1,6 @@
 import { Badge } from "@realm/ui/badge";
 import type { MealSizeView } from "@/lib/catalog/types";
+import { MealSizePrice } from "@/components/wizard/meal-size-price";
 
 export function StepCard({ n, title, body }: { n: number; title: string; body: string }) {
   return (
@@ -24,13 +25,17 @@ export function MealCard({ meal }: { meal: MealSizeView }) {
         {badge ? <Badge variant="secondary">{badge}</Badge> : null}
       </div>
       <p className="text-muted-foreground mt-1 text-sm">{meal.components.join(", ")}</p>
+      {meal.description ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{meal.description}</p> : null}
       <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-1 text-xs">
         <span>{meal.kcalMin}–{meal.kcalMax} kcal</span>
         {meal.proteinG != null ? <span>{meal.proteinG} g protein</span> : null}
         {meal.carbsG != null ? <span>{meal.carbsG} g carbs</span> : null}
         {meal.fatG != null ? <span>{meal.fatG} g fat</span> : null}
       </div>
-      <div className="mt-4 text-lg font-semibold">${meal.basePrice.toFixed(2)}<span className="text-muted-foreground text-sm font-normal"> / meal</span></div>
+      <div className="mt-4 flex items-baseline gap-1">
+        <MealSizePrice meal={meal} priceClassName="text-lg font-semibold" />
+        <span className="text-muted-foreground text-sm font-normal">/ meal</span>
+      </div>
     </div>
   );
 }

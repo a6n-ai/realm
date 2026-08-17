@@ -1,6 +1,7 @@
 import { ValidationError } from "@realm/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
+import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 
 export const MIN_PERSONS = 1;
 export const MAX_PERSONS = 5;
@@ -24,7 +25,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   }
 
   return {
-    mealSize: { id: mealSize.publicId, basePrice: mealSize.basePrice },
+    mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
     tiers: snapshot.tiers,
   };

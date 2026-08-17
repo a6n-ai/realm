@@ -41,7 +41,11 @@ export function slug(name: string): string {
   return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const key = z.string().trim().regex(/^[a-z0-9-]+$/, "lowercase letters, numbers and hyphens only");
+// Underscores are allowed alongside hyphens: real seeded keys (meal_sizes.key like
+// "maharaja_veg", delivery_frequencies.key "5_day") already use them, and this same schema
+// re-validates the key on every edit save even though it's readOnlyOnEdit — a hyphen-only
+// regex here silently blocked saving ANY edit to those existing rows.
+const key = z.string().trim().regex(/^[a-z0-9_-]+$/, "lowercase letters, numbers, underscores and hyphens only");
 const name = z.string().trim().min(1, "Name is required");
 const active = z.boolean().optional();
 
@@ -87,6 +91,7 @@ const compositionItem = z.object({
 
 const mealSizesSchema = z.object({
   key, name,
+  description: z.string().trim().optional().nullable(),
   tier: z.enum(["budget", "medium", "premium"]),
   // Plan dropdown value is the plan publicId/key; the service resolves it to
   // plans.id on write (mirrors menu.service). `components` is no longer hand-edited
@@ -99,6 +104,11 @@ const mealSizesSchema = z.object({
   carbsG: optNum(z.coerce.number().int().nonnegative()),
   fatG: optNum(z.coerce.number().int().nonnegative()),
   basePrice: reqNum(z.coerce.number().nonnegative()),
+  // "none" is the off-switch — discountValue is ignored (ok to leave stale/0) when type is
+  // "none". Mirrors db/schema/catalog.ts's mealSizeDiscountType — never two separate nullable
+  // percent/flat columns, which would leave an ambiguous both-set case.
+  discountType: z.enum(["none", "percent", "flat"]).default("none"),
+  discountValue: reqNum(z.coerce.number().nonnegative().default(0)),
   active,
 });
 
@@ -218,6 +228,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "carbsG", label: "Carbs", type: "number", unit: "g", optional: true, tableHidden: true },
       { key: "fatG", label: "Fat", type: "number", unit: "g", optional: true, tableHidden: true },
       { key: "basePrice", label: "Base price", type: "number", unit: "$" },
+      { key: "discountType", label: "Discount type", type: "select", options: ["none", "percent", "flat"], optionLabels: { none: "No discount", percent: "Percent", flat: "Flat $" } },
+      { key: "discountValue", label: "Discount value", type: "number", unit: "" },
+      { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
     ],
   },
   "delivery-frequencies": {
