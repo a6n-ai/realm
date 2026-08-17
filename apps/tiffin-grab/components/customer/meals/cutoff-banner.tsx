@@ -16,7 +16,19 @@ function fmt(ms: number): string {
   return `${m}m`;
 }
 
-export function CutoffBanner({ days, now: injectedNow }: { days: { dateIso: string; dayOfWeek: string; lockMs: number }[]; now?: number }) {
+export function CutoffBanner({
+  days,
+  now: injectedNow,
+  // "days" means different things at each call site: the full week's dates on the /me/meals
+  // grid, or a single day's cutoff on the /me/deliveries day-detail panel. When every entry is
+  // past cutoff there's nothing left to count down to, so the fallback copy must match which
+  // one was actually passed in — "this week's meals" is wrong when `days` only ever held one day.
+  lockedLabel = "This week's meals are locked.",
+}: {
+  days: { dateIso: string; dayOfWeek: string; lockMs: number }[];
+  now?: number;
+  lockedLabel?: string;
+}) {
   const reduce = useReducedMotion();
   // Lazy initialiser: the clock is read once at mount, not on every render.
   const [now, setNow] = useState(() => injectedNow ?? Date.now());
@@ -33,7 +45,7 @@ export function CutoffBanner({ days, now: injectedNow }: { days: { dateIso: stri
     return (
       <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm">
         <ClockIcon className="size-4 shrink-0" aria-hidden />
-        This week&apos;s meals are locked.
+        {lockedLabel}
       </div>
     );
   }

@@ -662,7 +662,12 @@ export function DayDetail({
       )}
 
       {status === "locked" ? (
-        delivery ? <CutoffBanner days={[{ dateIso, dayOfWeek: weekdayKey(new Date(`${dateIso}T00:00:00Z`)), lockMs: delivery.cutoffAt }]} /> : null
+        delivery ? (
+          <CutoffBanner
+            days={[{ dateIso, dayOfWeek: weekdayKey(new Date(`${dateIso}T00:00:00Z`)), lockMs: delivery.cutoffAt }]}
+            lockedLabel="This day's meal is locked."
+          />
+        ) : null
       ) : kind === "cell" && cell && released ? (
         <MealDayPicker
           cell={cell}
