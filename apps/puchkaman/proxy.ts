@@ -39,6 +39,12 @@ export const PUBLIC_API = [
   // Phone verification runs during guest checkout, before any session exists.
   // Both routes are rate limited per number and per IP in the handler.
   "/api/account/phone",
+  // Public sign-in/create-account flow: by definition the caller has no session
+  // yet. Exact match, so it opens nothing else under /api/account (profile,
+  // addresses, ...). The handler is rate limited per IP and per email, creates
+  // only a credential-less customer row, and never issues a session — the code
+  // itself still comes from /api/auth.
+  "/api/account/signup",
   // Server-mirrored cart. A guest with no session must be able to POST their
   // cart snapshot — that's the entire point (email capture pre-signup). The
   // route itself scopes writes via the cart cookie / cartOwner check.

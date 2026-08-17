@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@realm/themes";
 import { NavCartButton } from "@/components/cart/nav-cart-button";
 import { useCart } from "@/components/cart/cart-provider";
-import { IconBike } from "./icons";
+import { IconBike, IconUser } from "./icons";
 import { Btn } from "./shared";
 import { LOCATIONS, PHONE_DISPLAY } from "@/lib/links";
 
@@ -152,6 +152,12 @@ export function Nav() {
           </nav>
           <div className="flex center header-icons" style={{ gap: 8 }}>
             <ThemeToggle />
+            {/* Always points at /account — that page redirects a signed-in
+                visitor to their own area, so the header needs no session read
+                (and no per-page /get-session fetch on the public site). */}
+            <Btn href="/account" variant="cream" size="sm" aria-label="Your account">
+              <IconUser />
+            </Btn>
             <NavCartButton />
             <Btn page="order" variant="green" size="sm" className="nav-order">
               <IconBike />
@@ -212,6 +218,9 @@ export function Nav() {
             Browse menu
           </Btn>
           <MobileCartLink />
+          <Btn href="/account" variant="white" size="lg" block>
+            Sign in / My account
+          </Btn>
           <Btn page="order" variant="green" size="lg" block>
             <IconBike />
             Order Now

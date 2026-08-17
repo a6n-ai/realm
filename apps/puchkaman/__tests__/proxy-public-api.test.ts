@@ -75,11 +75,13 @@ describe("PUBLIC_API — tokenless and machine-to-machine callers", () => {
     ["/api/notifications/drain", "DRAIN_SECRET header is the auth"],
     ["/api/account/phone/start", "rate limited; runs during guest checkout, pre-session"],
     ["/api/account/phone/verify", "rate limited; runs during guest checkout, pre-session"],
+    ["/api/account/signup", "public sign-in/create-account; the caller has no session yet"],
   ])("keeps %s reachable without a session (%s)", (path) => {
     expect(isPublic(path)).toBe(true);
   });
 
   it.each([
+    "/api/account/addresses",
     "/api/notifications/templates",
     "/api/notifications/campaigns",
     "/api/notifications/contact-lists",

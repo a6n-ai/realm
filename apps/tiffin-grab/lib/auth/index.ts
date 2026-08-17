@@ -51,6 +51,12 @@ export const auth = betterAuth({
     // this cannot lock out an existing account with a shorter password.
     minPasswordLength: 12,
     maxPasswordLength: 256,
+    // Signup goes through signUpCustomer (app/(auth)/signup/actions.ts), which
+    // enforces phone uniqueness and writes the users + account rows itself.
+    // better-auth still mounts /sign-up/email whenever email+password is
+    // enabled, and nothing in this app calls it — leaving it open is a second,
+    // unvalidated way to create an account that skips every one of those rules.
+    disableSignUp: true,
     // A verified email is required to hold a session. This gates SIGN-IN only —
     // checkout takes no session at all, so paying is never blocked by it.
     // better-auth applies this to /sign-in/email but NOT to the emailOTP plugin's
@@ -111,6 +117,13 @@ export const auth = betterAuth({
       expiresIn: 600,
       allowedAttempts: 5,
       storeOTP: "hashed",
+      // Without this, /sign-in/email-otp CREATES an account for any address
+      // that can receive a code — better-auth's email-otp route falls through
+      // to createUser() when the address is unknown and this flag is unset.
+      // It is a separate switch from emailAndPassword.disableSignUp, which
+      // only covers /sign-up/email. Accounts here are provisioned by checkout
+      // or by an admin; nothing may self-register.
+      disableSignUp: true,
       changeEmail: { enabled: true, verifyCurrentEmail: true },
       sendVerificationOTP: async ({ email, otp, type }) => {
         await sendAuthOtp(email, otp, type);

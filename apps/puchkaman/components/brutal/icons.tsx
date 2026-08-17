@@ -52,3 +52,25 @@ export function IconBike({ className, size = 18 }: IconProps) {
     </svg>
   );
 }
+
+/** Account / sign-in — header companion to IconCart. */
+export function IconUser({ className, size = 20 }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: "block" }}
+    >
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M4.5 20c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6" />
+    </svg>
+  );
+}
