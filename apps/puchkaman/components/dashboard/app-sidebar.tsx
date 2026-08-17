@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BanknoteIcon,
   BookOpenIcon,
+  ContactIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
   LayersIcon,
@@ -62,6 +63,10 @@ const COMMERCE_ITEMS: NavItem[] = [
   { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon, permission: "product:read" },
   { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, permission: "order:read" },
   { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon, permission: "finance:read" },
+  // Sits with commerce, above the Clover catalog lists: customers are ours (a
+  // `users` row that signs in at /me), not a Clover entity — Clover's own people
+  // are Employees further down.
+  { title: "Customers", href: "/dashboard/customers", icon: ContactIcon, permission: "user:list" },
 ];
 
 const CLOVER_CATALOG_ITEMS: NavItem[] = [
