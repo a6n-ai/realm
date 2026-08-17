@@ -3,7 +3,7 @@ import { parseIsoDateUtc, weekdayKey } from "@realm/commons";
 import type { FileDetail } from "@realm/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
-import { thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
+import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";
 import { dishIdsForPlan } from "./selections.service";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey } from "./resolve-delivery-meal";
 import { menuService } from "@/lib/services/menu.service";
@@ -78,8 +78,15 @@ export async function buildMealsGrid(
   if (!planRow) throw new Error(`buildMealsGrid: order ${order.publicId} references a plan that no longer exists (planId=${order.planId})`);
   const planDishIds = await dishIdsForPlan(planRow.id);
 
+  // A brand-new subscriber's first delivery is often next week, not this one — falling back to
+  // thisWeekStartIso alone would show "no-week" forever even though their actual upcoming week
+  // is released and pickable. Use whichever week is later: the current calendar week (the normal
+  // case, for subscribers already receiving deliveries) or the order's own start week (for a
+  // subscriber who hasn't started yet). ISO date strings compare correctly with `>`.
   const thisMonday = thisWeekStartIso(Date.now(), timezone);
-  const releasedRef = await menuService.getReleasedWeek(thisMonday);
+  const orderStartMonday = mondayOfIso(order.startDate);
+  const targetMonday = orderStartMonday > thisMonday ? orderStartMonday : thisMonday;
+  const releasedRef = await menuService.getReleasedWeek(targetMonday);
   if (!releasedRef) return { empty: "no-week" };
 
   const [releasedWeek] = await db.select().from(menuWeeks).where(eq(menuWeeks.id, releasedRef.id)).limit(1);
