@@ -2,17 +2,21 @@
 // diffing transaction. The invariants those clicks enforced individually now have to hold
 // for a whole list at once, so they are asserted here rather than assumed.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categoryIdFor } from "@/db/test-helpers";
-import { dishCategories, dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { dishCategories, dishes, mealSelections, menuItems, menuWeeks } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
 
+// This suite never creates orders or users — the old reset() blanket-deleted both
+// anyway, which meant it 500'd with payments_order_id_orders_id_fk whenever an
+// earlier suite's leftover order still had a payment row. Only delete what this
+// file actually populates.
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(dishes);
 }
 
 let weekId: string;

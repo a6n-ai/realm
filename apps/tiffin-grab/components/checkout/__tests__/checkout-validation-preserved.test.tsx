@@ -94,6 +94,9 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
     await screen.findByLabelText(/full name/i);
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: "Jane Doe" } });
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "4165551234" } });
+    // Email is required to log in as a customer, so the waitlist button (like
+    // Continue) is gated on emailValid too — not just fullName/phone/postal.
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "jane@example.com" } });
     fireEvent.change(screen.getByLabelText(/postal code/i), { target: { value: "99999" } });
     fireEvent.blur(screen.getByLabelText(/postal code/i));
 
@@ -105,7 +108,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
       expect(createWebsiteInquiry).toHaveBeenCalledWith({
         fullName: "Jane Doe",
         phone: "+14165551234", // PhoneInput normalizes to E.164
-        email: undefined,
+        email: "jane@example.com",
         postalCode: "99999",
       }),
     );

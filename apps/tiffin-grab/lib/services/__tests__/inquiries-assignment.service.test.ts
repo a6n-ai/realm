@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { app, inquiries, inquiryActivities, inquiryUserConfig, leadSources, users } from "@/db/schema";
@@ -45,6 +45,16 @@ async function ensureSystemUser() {
 const RR: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };
 
 describe("inquiriesService inbound owner resolution via assignment engine", () => {
+  // setLeadAssignment() writes to the app singleton's own leadAssignment column —
+  // this suite never needs the row absent, only its leadAssignment reset. Deleting
+  // `app` blows up on every other table's app_id FK (seeded catalog, audit log, …).
+  let originalLeadAssignment: LeadAssignmentConfig | null = null;
+
+  beforeAll(async () => {
+    const [row] = await db.select({ la: app.leadAssignment }).from(app).limit(1);
+    originalLeadAssignment = (row?.la as LeadAssignmentConfig | undefined) ?? null;
+  });
+
   beforeEach(async () => {
     await db.delete(inquiryActivities);
     await db.delete(inquiries);
@@ -62,7 +72,7 @@ describe("inquiriesService inbound owner resolution via assignment engine", () =
       await db.delete(inquiryUserConfig).where(inArray(inquiryUserConfig.userId, seededUserIds));
       await db.delete(users).where(inArray(users.id, seededUserIds));
     }
-    await db.delete(app);
+    await setLeadAssignment(originalLeadAssignment ?? { strategy: "creator", perSource: {}, cursor: {} });
   });
 
   it("round_robin assigns two consecutive inbound creates to two different source-pool members", async () => {

@@ -4,7 +4,7 @@
  * Run: pnpm exec vitest run lib/services/__tests__/payment-e2e-lifecycle.test.ts --no-file-parallelism
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@realm/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -267,10 +267,14 @@ describe("payment methods E2E lifecycle", () => {
 
     // The whole claim → reject → re-claim → verify path is now in the activity log. It is the
     // only durable record: payments has no updatedBy, and re-claiming wipes the reject note.
+    // No ORDER BY here is a race under load: createdAt is millisecond-resolution and
+    // a heap scan gives no ordering guarantee, so two ops in the same ms could come
+    // back in either order. id is monotonic (next_id()) — order by that instead.
     const trail = await db
       .select()
       .from(orderActivities)
-      .where(eq(orderActivities.orderId, order!.id));
+      .where(eq(orderActivities.orderId, order!.id))
+      .orderBy(asc(orderActivities.id));
     const payTypes = trail.map((r) => r.type).filter((t) => t.startsWith("payment_"));
     expect(payTypes).toEqual([
       "payment_claimed",

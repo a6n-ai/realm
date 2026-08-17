@@ -1,20 +1,27 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-async function reset() {
-  await db.delete(deliveries);
-  await db.delete(orders);
-  await db.delete(users).where(sql`is_system is not true`);
-}
+// Scoped cleanup: track exactly what each test created and delete only those rows.
+// Deliveries cascade off orders.id, so deleting the order is enough for them.
+const createdOrderIds: bigint[] = [];
+const createdUserIds: bigint[] = [];
+
+afterEach(async () => {
+  const orderIds = createdOrderIds.splice(0);
+  const userIds = createdUserIds.splice(0);
+  if (orderIds.length) await db.delete(orders).where(inArray(orders.id, orderIds));
+  if (userIds.length) await db.delete(users).where(inArray(users.id, userIds));
+});
 
 async function makeOrder() {
   const snap = await loadCatalogSnapshot();
   const [u] = await db.insert(users).values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  phone: "+16475551000", role: "user" }).returning();
+  createdUserIds.push(u.id);
   const [o] = await db.insert(orders).values({
     userId: u.id, planId: snap.plans[0].id, mealSizeId: snap.mealSizes[0].id,
     frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id,
@@ -23,13 +30,11 @@ async function makeOrder() {
     status: "active", deploymentId: `SUB-${Date.now()}`,
     fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
   }).returning();
+  createdOrderIds.push(o.id);
   return o;
 }
 
 describe("deliveries schema", () => {
-  beforeEach(reset);
-  afterAll(reset);
-
   it("stores a scheduled delivery with a snapshotted cutoff", async () => {
     const o = await makeOrder();
     const [d] = await db.insert(deliveries)
