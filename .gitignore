@@ -80,6 +80,7 @@ openspec/
 *.png
 tiffingrab.ca.txt
 .remember
+dump.rdb
 
 # real static assets, not scratch screenshots — allowlisted against the
 # blanket image ignore above
