@@ -20,8 +20,13 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
+// Each call gets its own phone -> its own customer. These orders don't need to
+// share a user (the overlap guard is keyed per-customer), and each call gets its
+// own delivery rows blown away and replaced below, so a shared customer would
+// only trip the new overlap guard for no reason.
 async function makeOrder() {
   const snap = await loadCatalogSnapshot();
+  const phone = `+1647555${Math.floor(1000 + Math.random() * 9000)}`;
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
@@ -35,7 +40,7 @@ async function makeOrder() {
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
     // M5V is a seeded Toronto zone -> order lands "active", giving us a real orderId to attach rows to.
-    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
   const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
   return o;
