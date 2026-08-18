@@ -20,9 +20,12 @@ type CheckResult = {
 export function CheckPaymentStatusButton({
   orderPublicId,
   disabled,
+  iconOnly,
 }: {
   orderPublicId: string;
   disabled?: boolean;
+  /** Compact form for table rows — icon only, no label. */
+  iconOnly?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -55,11 +58,13 @@ export function CheckPaymentStatusButton({
       type="button"
       variant="outline"
       size="sm"
+      className={iconOnly ? "h-7 px-2" : undefined}
+      aria-label={iconOnly ? `Check payment status for ${orderPublicId}` : undefined}
       disabled={disabled || busy || pending}
       onClick={onClick}
     >
       <RefreshCwIcon className={busy || pending ? "animate-spin" : undefined} />
-      Check status
+      {iconOnly ? null : "Check status"}
     </Button>
   );
 }

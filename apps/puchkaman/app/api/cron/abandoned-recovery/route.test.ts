@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const purgeCarts = vi.fn();
 const remindAbandonedCarts = vi.fn();
 const remindAbandonedOrders = vi.fn();
+const syncPendingPaymentStatuses = vi.fn();
 const terminalizeAbandonedOrders = vi.fn();
 
 vi.mock("@/lib/recovery/passes", () => ({
   purgeCarts: (...args: unknown[]) => purgeCarts(...args),
   remindAbandonedCarts: (...args: unknown[]) => remindAbandonedCarts(...args),
   remindAbandonedOrders: (...args: unknown[]) => remindAbandonedOrders(...args),
+  syncPendingPaymentStatuses: (...args: unknown[]) => syncPendingPaymentStatuses(...args),
   terminalizeAbandonedOrders: (...args: unknown[]) => terminalizeAbandonedOrders(...args),
 }));
 
@@ -18,6 +20,7 @@ beforeEach(() => {
   purgeCarts.mockClear();
   remindAbandonedCarts.mockClear();
   remindAbandonedOrders.mockClear();
+  syncPendingPaymentStatuses.mockClear();
   terminalizeAbandonedOrders.mockClear();
   delete process.env.CRON_SECRET;
 });
@@ -52,10 +55,11 @@ describe("GET /api/cron/abandoned-recovery", () => {
     expect(remindAbandonedOrders).not.toHaveBeenCalled();
   });
 
-  it("runs all four passes and returns their counts when authorized", async () => {
+  it("runs all five passes and returns their counts when authorized", async () => {
     process.env.CRON_SECRET = "shh";
     remindAbandonedOrders.mockResolvedValue(1);
     remindAbandonedCarts.mockResolvedValue(2);
+    syncPendingPaymentStatuses.mockResolvedValue(5);
     terminalizeAbandonedOrders.mockResolvedValue(3);
     purgeCarts.mockResolvedValue(4);
 
@@ -68,6 +72,7 @@ describe("GET /api/cron/abandoned-recovery", () => {
     expect(await res.json()).toEqual({
       remindedOrders: 1,
       remindedCarts: 2,
+      paymentsSynced: 5,
       terminalized: 3,
       purged: 4,
       failures: [],
@@ -78,6 +83,7 @@ describe("GET /api/cron/abandoned-recovery", () => {
     process.env.CRON_SECRET = "shh";
     remindAbandonedOrders.mockRejectedValue(new Error("RECOVERY_LINK_SECRET is not set"));
     remindAbandonedCarts.mockResolvedValue(2);
+    syncPendingPaymentStatuses.mockResolvedValue(5);
     terminalizeAbandonedOrders.mockResolvedValue(3);
     purgeCarts.mockResolvedValue(4);
 
@@ -88,11 +94,13 @@ describe("GET /api/cron/abandoned-recovery", () => {
     );
     expect(res.status).toBe(200);
     expect(remindAbandonedCarts).toHaveBeenCalled();
+    expect(syncPendingPaymentStatuses).toHaveBeenCalled();
     expect(terminalizeAbandonedOrders).toHaveBeenCalled();
     expect(purgeCarts).toHaveBeenCalled();
     expect(await res.json()).toEqual({
       remindedOrders: null,
       remindedCarts: 2,
+      paymentsSynced: 5,
       terminalized: 3,
       purged: 4,
       failures: ["remindedOrders"],

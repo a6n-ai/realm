@@ -3,6 +3,7 @@ import {
   purgeCarts,
   remindAbandonedCarts,
   remindAbandonedOrders,
+  syncPendingPaymentStatuses,
   terminalizeAbandonedOrders,
 } from "@/lib/recovery/passes";
 
@@ -24,9 +25,14 @@ async function handle(request: Request): Promise<Response> {
   // order dies. Each pass is isolated — one throwing (e.g. RECOVERY_LINK_SECRET
   // unset) must not stop the rest from running, or coins stay stranded and
   // carts never purge just because reminders can't mint a link.
-  const passes: Array<["remindedOrders" | "remindedCarts" | "terminalized" | "purged", () => Promise<number>]> = [
+  const passes: Array<
+    ["remindedOrders" | "remindedCarts" | "paymentsSynced" | "terminalized" | "purged", () => Promise<number>]
+  > = [
     ["remindedOrders", remindAbandonedOrders],
     ["remindedCarts", remindAbandonedCarts],
+    // Before terminalize: a payment that landed but never webhooked in should
+    // get one last chance to settle before the sweep kills its order.
+    ["paymentsSynced", syncPendingPaymentStatuses],
     ["terminalized", terminalizeAbandonedOrders],
     ["purged", purgeCarts],
   ];

@@ -10,14 +10,15 @@ import {
 } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { TableCell } from "@realm/ui/table";
+import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
 
 type Row = OrderListRow & { totalLabel: string };
 
-// Sortable keys must match OrderSortColumn. "clover" / "payment" / "fulfillment" are display-only.
-type OrderCol = OrderSortColumn | "clover" | "payment" | "fulfillment";
+// Sortable keys must match OrderSortColumn. "clover" / "payment" / "fulfillment" / "actions" are display-only.
+type OrderCol = OrderSortColumn | "clover" | "payment" | "fulfillment" | "actions";
 
 const COLUMNS: readonly Column<OrderCol>[] = [
   { key: "customer", label: "Customer", sortable: true },
@@ -28,6 +29,7 @@ const COLUMNS: readonly Column<OrderCol>[] = [
   { key: "total", label: "Total", sortable: true, align: "right" },
   { key: "created", label: "Created", sortable: true, align: "right" },
   { key: "paidAt", label: "Paid", sortable: true, align: "right" },
+  { key: "actions", label: "", sortable: false, align: "right" },
 ];
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -126,6 +128,13 @@ export function OrdersTable({
             </TableCell>
             <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
               {r.paidAt ? new Date(r.paidAt).toLocaleString() : "—"}
+            </TableCell>
+            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+              <CheckPaymentStatusButton
+                orderPublicId={r.publicId}
+                disabled={!r.cloverOrderId}
+                iconOnly
+              />
             </TableCell>
           </>
         )}

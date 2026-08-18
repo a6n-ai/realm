@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { notificationTables, users } from "@/db/schema";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -58,9 +58,27 @@ export async function upsertCustomer(tx: Tx, input: UpsertCustomerInput): Promis
       targetWhere: sql`${users.email} is not null`,
       set: customerUpdateSet,
     })
-    .returning({ id: users.id });
+    // xmax = 0 on a freshly-inserted row, non-zero on one that hit the update
+    // path — the standard Postgres tell for which side of an upsert landed.
+    .returning({ id: users.id, inserted: sql<boolean>`(xmax = 0)` });
 
   if (!row) throw new Error(`upsertCustomer returned no row for ${email}`);
+
+  // Typing an email into a checkout field is not marketing consent. A brand-new
+  // customer row gets an explicit opt-out so notification_prefs' default-on
+  // never mails them cold; order/payment/resume-payment mail stays transactional
+  // and is never gated by this. Existing customers keep whatever pref they
+  // already have — this only sets the *initial* default.
+  if (row.inserted) {
+    await tx.insert(notificationTables.notificationPrefs).values({
+      userId: row.id,
+      channel: "email",
+      kind: "marketing",
+      enabled: false,
+      consentSource: "checkout_email_field",
+    });
+  }
+
   return row.id;
 }
 

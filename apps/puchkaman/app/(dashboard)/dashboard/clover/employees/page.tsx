@@ -13,6 +13,7 @@ import {
 } from "@realm/ui/table";
 import { redirect } from "next/navigation";
 import { CloverEmployeesSyncActions } from "@/components/admin/clover-employees-sync-actions";
+import { SyncOneEmployeeButton } from "@/components/admin/sync-one-employee-button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { employeesService } from "@/lib/services/employees.service";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
@@ -77,6 +78,7 @@ async function EmployeesTable() {
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Clover id</TableHead>
+          <TableHead className="text-right" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -102,6 +104,9 @@ async function EmployeesTable() {
             </TableCell>
             <TableCell className="text-muted-foreground font-mono text-xs">
               {r.cloverEmployeeId ?? "—"}
+            </TableCell>
+            <TableCell className="text-right">
+              <SyncOneEmployeeButton publicId={r.publicId} disabled={!r.cloverEmployeeId} />
             </TableCell>
           </TableRow>
         ))}
