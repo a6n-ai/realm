@@ -217,11 +217,18 @@ function MobileCard<Row, K extends string>({
             {trailing && <div className="text-muted-foreground shrink-0">{cellContent(trailing)}</div>}
           </div>
           {fields.length > 0 && (
+            // min-w-0 on the value column is load-bearing, same fix as StatBar's
+            // min-w-fit segments: a grid track's default min-width is auto (never
+            // shrinks below its content), so a longish value — a comma-joined plan
+            // list, a Badge with its own whitespace-nowrap — grows the 1fr track
+            // past the card's edge instead of wrapping inside it. break-words is
+            // the defensive half: once the track can shrink, plain prose wraps at
+            // spaces on its own, but a stray unspaced long token still needs it.
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
               {fields.map(({ c, cell }) => (
                 <Fragment key={c.key}>
                   <dt className="text-muted-foreground">{c.label}</dt>
-                  <dd className="text-right font-medium">{cellContent(cell)}</dd>
+                  <dd className="min-w-0 text-right font-medium break-words">{cellContent(cell)}</dd>
                 </Fragment>
               ))}
             </dl>

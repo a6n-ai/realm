@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
-import { nextWeekday } from "@realm/commons";
+import { nextWeekday, parseIsoDateUtc } from "@realm/commons";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -29,7 +29,7 @@ describe("seed QA second subscription", () => {
     expect(u).toBeTruthy();
 
     const live = await db
-      .select({ publicId: orders.publicId })
+      .select({ publicId: orders.publicId, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
       .from(orders)
       .where(and(eq(orders.userId, u!.id), inArray(orders.status, ["active", "paused"])));
 
@@ -38,6 +38,18 @@ describe("seed QA second subscription", () => {
       console.log(`already have ${live.length} live subs`);
       return;
     }
+
+    // Concurrent plans are rejected: createOrder refuses an order whose delivery
+    // window overlaps a live one, since both would reserve the same calendar days.
+    // So this second sub starts after the customer's current plan ends rather
+    // than today. nextWeekday() is strictly-after, so passing the (exclusive) end
+    // date lands clear of it.
+    const lastEnd = live.reduce((max, o) => {
+      const end = parseIsoDateUtc(o.startDate);
+      end.setUTCDate(end.getUTCDate() + o.durationWeeks * 7);
+      return end > max ? end : max;
+    }, new Date(0));
+    const startDate = nextWeekday(lastEnd > new Date() ? lastEnd : new Date()).toISOString().slice(0, 10);
 
     const snap = await loadCatalogSnapshot();
     const plan = snap.plans.find((p) => p.key !== snap.plans[0]?.key) ?? snap.plans[0]!;
@@ -54,7 +66,7 @@ describe("seed QA second subscription", () => {
           includeSaturday: false,
           includeSunday: false,
           durationWeeks: 2,
-          startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+          startDate,
         },
         contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, 
           fullName: "QA Customer",

@@ -6,6 +6,12 @@ export interface WizardSelections extends PricingSelections {
 
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 
+// Which flow wrote WIZARD_STORAGE_KEY — checkout's "Edit plan" back-link reads this to
+// return the customer to wherever they actually configured their plan (the full wizard
+// vs. the lightweight renew picker), instead of always assuming the wizard.
+export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
+export type WizardOrigin = "subscribe" | "renew";
+
 export const initialSelections: WizardSelections = {
   planKey: null,
   mealSizeId: "",

@@ -36,14 +36,12 @@ export const dishCategories = pgTable(
   (t) => [uniqueIndex("dish_categories_key_unique").on(t.key)],
 );
 
-// Global guardrail, not the swap mechanism itself: a category_swap_rules row
-// (per meal size, carries the actual qtyFrom/qtyTo ratio — see category-swaps.ts)
-// may only be created for a (from, to) pair that appears here first. This exists
-// because meal-size-scoped rules alone let an admin typo a nonsensical pair (e.g.
-// "roti -> raita") into one meal size with no cross-check; this table is the
-// short list of pairs that are EVER allowed to swap, anywhere. It does not carry
-// a ratio — the ratio is genuinely meal-size-specific (a small thali's roti->rice
-// rate differs from a large thali's), so it can't live here.
+// Global eligibility: is (from, to) EVER allowed to swap, anywhere? A row here
+// is the whole mechanism — there's no per-meal-size rule catalog any more. A
+// swap always moves N picks of `from` for however many `to` picks its own
+// tuAmount works out to (a flat 1 TU-for-1 TU trade, computed at apply time —
+// see category-swaps.service.ts), so this table carries no ratio, only the
+// short list of pairs an admin has approved.
 export const categorySwapPairs = pgTable(
   "category_swap_pairs",
   {

@@ -64,8 +64,12 @@ async function seedUserWithCoins(coins: number): Promise<{ id: bigint; publicId:
   return { id: u.id, publicId: u.publicId };
 }
 
-async function baseInput(over: { coins?: number; couponCode?: string; paymentMethodId?: string } = {}) {
+// startOffsetWeeks staggers non-overlapping delivery windows for a customer
+// that needs several live orders at once (7*n days keeps the same weekday).
+async function baseInput(over: { coins?: number; couponCode?: string; paymentMethodId?: string; startOffsetWeeks?: number } = {}) {
   const snap = await loadCatalogSnapshot();
+  const startDate = nextWeekday(new Date());
+  startDate.setUTCDate(startDate.getUTCDate() + (over.startOffsetWeeks ?? 0) * 7);
   return {
     planKey: snap.plans[0]!.key,
     selections: {
@@ -76,7 +80,7 @@ async function baseInput(over: { coins?: number; couponCode?: string; paymentMet
       includeSaturday: false,
       includeSunday: false,
       durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      startDate: startDate.toISOString().slice(0, 10),
     },
     contact: {
       email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
@@ -178,7 +182,7 @@ describe("createOrder — coin redemption", () => {
     const snap = order!.pricingSnapshot as Snapshot;
     expect(snap.adjustments.some((a) => a.label.startsWith("Coins"))).toBe(false);
 
-    const { deploymentId: deploymentId2 } = await createOrder(await baseInput(), { ownerUserId: owner.publicId });
+    const { deploymentId: deploymentId2 } = await createOrder(await baseInput({ startOffsetWeeks: 1 }), { ownerUserId: owner.publicId });
     const [order2] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId2));
     const snap2 = order2!.pricingSnapshot as Snapshot;
     expect(snap2.adjustments.some((a) => a.label.startsWith("Coins"))).toBe(false);
@@ -276,7 +280,7 @@ describe("createOrder — coin redemption", () => {
     });
     await sharedCache("app-settings").evictAll();
     const { deploymentId: deferredId } = await createOrder(
-      await baseInput({ coins: 1, paymentMethodId: "etransfer" }),
+      await baseInput({ coins: 1, paymentMethodId: "etransfer", startOffsetWeeks: 1 }),
       { ownerUserId: owner.publicId },
     );
     const [deferred] = await db.select().from(orders).where(eq(orders.deploymentId, deferredId));
@@ -373,7 +377,7 @@ describe("verifyPayment — settles deferred coin redemption", () => {
     const paymentIds: string[] = [];
     for (let i = 0; i < 2; i++) {
       const { deploymentId } = await createOrder(
-        await baseInput({ coins: 10, paymentMethodId: "etransfer" }),
+        await baseInput({ coins: 10, paymentMethodId: "etransfer", startOffsetWeeks: i }),
         { ownerUserId: owner.publicId },
       );
       const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));

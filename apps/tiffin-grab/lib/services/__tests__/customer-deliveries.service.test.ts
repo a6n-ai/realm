@@ -37,8 +37,12 @@ async function reset() {
 }
 
 // M5V is a seeded Toronto zone -> lands "active" with materialized rows.
-async function makeOrder(phone: string, fullName: string) {
+// startOffsetWeeks staggers non-overlapping delivery windows for a customer
+// that needs several live subscriptions at once (7*n days keeps the same weekday).
+async function makeOrder(phone: string, fullName: string, startOffsetWeeks = 0) {
   const snap = await loadCatalogSnapshot();
+  const startDate = nextWeekday(new Date());
+  startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
@@ -49,7 +53,7 @@ async function makeOrder(phone: string, fullName: string) {
       includeSaturday: false,
       includeSunday: false,
       durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      startDate: startDate.toISOString().slice(0, 10),
     },
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName, phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
@@ -76,7 +80,7 @@ describe("customer-deliveries.service (integration)", () => {
 
   it("myDeliveries unions a user's subscriptions, date-ordered, tagged by order", async () => {
     const aOrder1 = await makeOrder(PHONE_A, "User A");
-    const aOrder2 = await makeOrder(PHONE_A, "User A"); // same phone -> same user, second active order
+    const aOrder2 = await makeOrder(PHONE_A, "User A", 1); // same phone -> same user, second active order
     await makeOrder(PHONE_B, "User B");
     const userA = await userIdByPhone(PHONE_A);
 
@@ -89,7 +93,7 @@ describe("customer-deliveries.service (integration)", () => {
 
   it("myActiveSubscriptions returns only the caller's active/paused orders", async () => {
     const aOrder1 = await makeOrder(PHONE_A, "User A");
-    const aOrder2 = await makeOrder(PHONE_A, "User A");
+    const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
     const bOrder = await makeOrder(PHONE_B, "User B");
     await cancelOrder(bOrder.publicId); // cancelled, and would also fail the userId scoping check
     const userA = await userIdByPhone(PHONE_A);
@@ -103,7 +107,7 @@ describe("customer-deliveries.service (integration)", () => {
 
   it("myPrimarySubscription prefers the newest active plan", async () => {
     const aOrder1 = await makeOrder(PHONE_A, "User A");
-    const aOrder2 = await makeOrder(PHONE_A, "User A");
+    const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
     const userA = await userIdByPhone(PHONE_A);
 
     const primary = await myPrimarySubscription(userA);
@@ -125,7 +129,7 @@ describe("customer-deliveries.service (integration)", () => {
 
   it("excludes cancelled orders and cancelled deliveries", async () => {
     await makeOrder(PHONE_A, "User A");
-    const aSecondOrder = await makeOrder(PHONE_A, "User A");
+    const aSecondOrder = await makeOrder(PHONE_A, "User A", 1);
     const userA = await userIdByPhone(PHONE_A);
 
     await cancelOrder(aSecondOrder.publicId); // marks rows cancelled

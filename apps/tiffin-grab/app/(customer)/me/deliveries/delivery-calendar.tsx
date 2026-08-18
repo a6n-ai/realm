@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDaysIcon, PalmtreeIcon, PlayIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, SkeletonListRows } from "@/components/ds";
@@ -20,16 +19,20 @@ import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
 import { SubscriptionPlanHeader } from "./subscription-items";
 import { toIsoLocal, type CalendarCell } from "./calendar-constants";
 import { CALENDAR_LEGEND } from "./day-status";
+import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
 
 function DesktopDayStatusLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {CALENDAR_LEGEND.map(({ key, label, dashClass }) => (
-        <span key={key} className="flex items-center gap-1.5">
-          <span className={cn("h-[3px] w-5 rounded-full", dashClass)} aria-hidden />
-          {label}
-        </span>
-      ))}
+      {CALENDAR_LEGEND.map(({ key, label }) => {
+        const Icon = DELIVERY_STATUS_ILLUSTRATION[key];
+        return (
+          <span key={key} className="flex items-center gap-1.5">
+            <Icon size={18} />
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }

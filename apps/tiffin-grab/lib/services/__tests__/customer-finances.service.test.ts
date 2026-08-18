@@ -19,6 +19,27 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
+// startOffsetWeeks staggers non-overlapping delivery windows for a customer
+// that needs several live subscriptions at once (7*n days keeps the same weekday).
+function buildInput(snap: Awaited<ReturnType<typeof loadCatalogSnapshot>>, phone: string, startOffsetWeeks = 0) {
+  const startDate = nextWeekday(new Date());
+  startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
+  return {
+    planKey: snap.plans[0].key,
+    selections: {
+      mealSizeId: snap.mealSizes[0].publicId,
+      frequencyKey: "5_day" as const,
+      persons: 1,
+      mealSlots: ["lunch"],
+      includeSaturday: false,
+      includeSunday: false,
+      durationWeeks: 1,
+      startDate: startDate.toISOString().slice(0, 10),
+    },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+  };
+}
+
 describe("customer-finances.service (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
@@ -28,24 +49,9 @@ describe("customer-finances.service (integration)", () => {
     const [userA] = await db.insert(users).values({ email: "bills-a@x.com", role: "user" }).returning();
     const [userB] = await db.insert(users).values({ email: "bills-b@x.com", role: "user" }).returning();
 
-    const input = {
-      planKey: snap.plans[0].key,
-      selections: {
-        mealSizeId: snap.mealSizes[0].publicId,
-        frequencyKey: "5_day" as const,
-        persons: 1,
-        mealSlots: ["lunch"],
-        includeSaturday: false,
-        includeSunday: false,
-        durationWeeks: 1,
-        startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
-      },
-      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
-    };
-
-    await createOrder(input, { ownerUserId: userA.publicId });
-    await createOrder(input, { ownerUserId: userA.publicId });
-    await createOrder(input, { ownerUserId: userB.publicId });
+    await createOrder(buildInput(snap, "+16475550111", 0), { ownerUserId: userA.publicId });
+    await createOrder(buildInput(snap, "+16475550111", 1), { ownerUserId: userA.publicId });
+    await createOrder(buildInput(snap, "+16475550111", 0), { ownerUserId: userB.publicId });
 
     const page = await myBillsPage(userA.id, { page: 0, size: 25 });
     expect(page.total).toBe(2);
@@ -61,23 +67,9 @@ describe("customer-finances.service (integration)", () => {
   it("myBillsPage paginates", async () => {
     const snap = await loadCatalogSnapshot();
     const [user] = await db.insert(users).values({ email: "bills-page@x.com", role: "user" }).returning();
-    const input = {
-      planKey: snap.plans[0].key,
-      selections: {
-        mealSizeId: snap.mealSizes[0].publicId,
-        frequencyKey: "5_day" as const,
-        persons: 1,
-        mealSlots: ["lunch"],
-        includeSaturday: false,
-        includeSunday: false,
-        durationWeeks: 1,
-        startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
-      },
-      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550122", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
-    };
-    await createOrder(input, { ownerUserId: user.publicId });
-    await createOrder(input, { ownerUserId: user.publicId });
-    await createOrder(input, { ownerUserId: user.publicId });
+    await createOrder(buildInput(snap, "+16475550122", 0), { ownerUserId: user.publicId });
+    await createOrder(buildInput(snap, "+16475550122", 1), { ownerUserId: user.publicId });
+    await createOrder(buildInput(snap, "+16475550122", 2), { ownerUserId: user.publicId });
 
     const page0 = await myBillsPage(user.id, { page: 0, size: 2 });
     expect(page0.items).toHaveLength(2);

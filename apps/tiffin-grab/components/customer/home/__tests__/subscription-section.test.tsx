@@ -37,6 +37,7 @@ const baseSub: SubscriptionWithNext = {
   mealSizeName: "Regular",
   persons: 1,
   categoryCounts: { sabzi: 1, dal: 1 },
+  daysUntilRenewal: 5,
   nextDelivery: {
     publicId: "dlv_1",
     orderId: 1n as unknown as bigint,

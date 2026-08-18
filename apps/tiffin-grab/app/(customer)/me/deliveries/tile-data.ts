@@ -12,6 +12,7 @@ export type TileData = {
   status: DayStatus;
   dishName: string | null;
   dishImage: FileDetail | null;
+  dishCategory: string | null;
   // Additional distinct picks beyond the primary one shown on the tile face (e.g. a second
   // category's dish, or a second unit of a selectable one) — rendered as a "+N" badge.
   extraCount: number;
@@ -21,15 +22,16 @@ export function cellToTileData(cell: CalendarCell): TileData {
   const status = calendarDayStatus(cell);
   const picks = (cell.meal ?? []).flatMap((c) => c.picks);
   const primary = picks[0];
-  // The resolved pick doesn't carry diet/image (resolveDeliveryMeal only returns id/name) — the
-  // day's own `options` list (menu items for that day) is the one place those live, so look the
-  // primary pick's dish back up there by public id.
+  // The resolved pick doesn't carry diet/image/category (resolveDeliveryMeal only returns
+  // id/name) — the day's own `options` list (menu items for that day) is the one place those
+  // live, so look the primary pick's dish back up there by public id.
   const option = primary ? cell.options.find((o) => o.dishId === primary.dishPublicId) : undefined;
   return {
     date: cell.date,
     status,
     dishName: primary?.name ?? null,
     dishImage: option?.image ?? null,
+    dishCategory: option?.category ?? null,
     extraCount: Math.max(picks.length - 1, 0),
   };
 }

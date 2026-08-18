@@ -16,6 +16,7 @@ import { getSession } from "@/lib/auth/session";
 import { dishCategoriesService } from "./dish-categories.service";
 import { menuService } from "./menu.service";
 import { autoResumeIfElapsed } from "./orders.service";
+import { reservedEndDatesExclusive } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
@@ -247,6 +248,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       pooledAt: deliveries.pooledAt,
       deliveryDate: deliveries.deliveryDate,
       tiffinUnits: deliveries.tiffinUnits,
+      optimoCompletionStatus: deliveries.optimoCompletionStatus,
     })
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
@@ -293,6 +295,27 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   return orderTiffinCounts(orderPublicId);
+}
+
+// The earliest start date a NEW plan may use without overlapping this customer's
+// currently active/paused subscriptions — the same reserved-band logic createCheckout's
+// server-side overlap guard enforces (see reservedEndDatesExclusive in order-window.ts),
+// surfaced here so /me/renew's date picker can float its minimum past it instead of only
+// discovering the conflict after the customer fills out the whole form and submits.
+// Returns null when the customer has no active/paused orders (no constraint to apply).
+export async function myEarliestNewPlanStartDate(userId: bigint): Promise<string | null> {
+  const currentOrders = await db
+    .select({ id: orders.id, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
+    .from(orders)
+    .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+  if (currentOrders.length === 0) return null;
+
+  const reservedEnds = await reservedEndDatesExclusive(db, currentOrders);
+  let latest: Date | null = null;
+  for (const end of reservedEnds.values()) {
+    if (latest == null || end > latest) latest = end;
+  }
+  return latest ? latest.toISOString().slice(0, 10) : null;
 }
 
 /** Original delivery ids that already have a make-up row (reschedule / pool schedule). */
@@ -411,51 +434,6 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
     ...r,
     status: r.status === "active" && r.startDate > todayIso ? "upcoming" : r.status,
   }));
-}
-
-export type RenewableMealSize = {
-  mealSizePublicId: string;
-  mealSizeName: string;
-  planKey: string;
-  planName: string;
-  /** Most recent order's startDate that used this meal size — for "last ordered" copy. */
-  lastOrderedStartDate: string;
-};
-
-// Distinct meal sizes the customer has ever checked out on (any order status), newest use
-// first — for the /me/renew picker. Deliberately does NOT filter by catalog active/live status;
-// that's the caller's job (cross-reference against loadCatalogSnapshot()) so a discontinued meal
-// size can be reported here and explicitly explained on the renew page, not silently vanish.
-export async function myOrderedMealSizes(userId: bigint): Promise<RenewableMealSize[]> {
-  const rows = await db
-    .select({
-      mealSizePublicId: mealSizes.publicId,
-      mealSizeName: mealSizes.name,
-      planKey: plans.key,
-      planName: plans.name,
-      startDate: orders.startDate,
-    })
-    .from(orders)
-    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .where(eq(orders.userId, userId))
-    .orderBy(desc(orders.createdAt));
-
-  // Collapse to one row per mealSizePublicId, keeping the newest (rows are already
-  // createdAt desc, so first-seen wins).
-  const seen = new Map<string, RenewableMealSize>();
-  for (const r of rows) {
-    if (!seen.has(r.mealSizePublicId)) {
-      seen.set(r.mealSizePublicId, {
-        mealSizePublicId: r.mealSizePublicId,
-        mealSizeName: r.mealSizeName,
-        planKey: r.planKey,
-        planName: r.planName,
-        lastOrderedStartDate: r.startDate,
-      });
-    }
-  }
-  return [...seen.values()];
 }
 
 export type CustomerActivity = {

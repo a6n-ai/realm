@@ -24,6 +24,7 @@ async function tiffinsDelivered(userId: bigint, from: number, to: number, nowMs:
       makeupForDeliveryId: deliveries.makeupForDeliveryId,
       pooledAt: deliveries.pooledAt,
       tiffinUnits: deliveries.tiffinUnits,
+      optimoCompletionStatus: deliveries.optimoCompletionStatus,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))

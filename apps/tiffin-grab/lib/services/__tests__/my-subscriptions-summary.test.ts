@@ -22,8 +22,12 @@ async function reset() {
 }
 
 // M5V is a seeded Toronto zone -> lands "active" with materialized rows.
-async function makeOrder(phone: string, fullName: string) {
+// startOffsetWeeks staggers non-overlapping delivery windows for a customer
+// that needs several live subscriptions at once (7*n days keeps the same weekday).
+async function makeOrder(phone: string, fullName: string, startOffsetWeeks = 0) {
   const snap = await loadCatalogSnapshot();
+  const startDate = nextWeekday(new Date());
+  startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
@@ -34,7 +38,7 @@ async function makeOrder(phone: string, fullName: string) {
       includeSaturday: false,
       includeSunday: false,
       durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      startDate: startDate.toISOString().slice(0, 10),
     },
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName, phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
@@ -55,7 +59,7 @@ describe("mySubscriptionsSummary (integration)", () => {
     const { mySubscriptionsSummary } = await import("@/lib/services/customer-deliveries.service");
 
     const aOrderOne = await makeOrder(PHONE_A, "User A");
-    const aOrderTwo = await makeOrder(PHONE_A, "User A");
+    const aOrderTwo = await makeOrder(PHONE_A, "User A", 1);
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, aOrderTwo.id));
     await makeOrder(PHONE_B, "User B");
 
@@ -63,7 +67,7 @@ describe("mySubscriptionsSummary (integration)", () => {
     const subs = await mySubscriptionsSummary(userAId);
 
     expect(subs.length).toBe(2);
-    expect(subs.map((s) => s.status).sort()).toEqual(["active", "cancelled"]);
+    expect(subs.map((s) => s.status).sort()).toEqual(["cancelled", "upcoming"]);
     expect(subs.every((s) => s.planName && s.mealSizeName && s.startDate)).toBe(true);
     expect(subs[0].createdAt).toBeGreaterThanOrEqual(subs[1].createdAt);
     expect(subs.map((s) => s.publicId).sort()).toEqual([aOrderOne.publicId, aOrderTwo.publicId].sort());

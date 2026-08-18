@@ -62,7 +62,13 @@ export function CutoffBanner({
       role="status"
     >
       <ClockIcon className="size-4 shrink-0" aria-hidden />
-      <span className="tabular-nums">{fmt(remaining)}</span> to change {DAY_LABEL[next.dayOfWeek] ?? next.dayOfWeek}&rsquo;s meals
+      {/* The server and the browser read Date.now() microseconds-to-seconds apart, so this
+          text can legitimately round to a different minute between SSR and hydration —
+          expected drift, not a real mismatch. */}
+      <span className="tabular-nums" suppressHydrationWarning>
+        {fmt(remaining)}
+      </span>{" "}
+      to change {DAY_LABEL[next.dayOfWeek] ?? next.dayOfWeek}&rsquo;s meals
     </div>
   );
 }

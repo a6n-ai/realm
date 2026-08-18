@@ -11,8 +11,6 @@ import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { ImageUploader } from "@/components/files";
-import type { FileDetail } from "@realm/storage/model";
 import { MealCard } from "@/components/marketing/cards";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
 import { Input } from "@realm/ui/input";
@@ -300,14 +298,6 @@ function FieldControl({
             </FormControl>
           ) : f.type === "boolean" ? (
             <FormControl><Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} /></FormControl>
-          ) : f.type === "image" ? (
-            <FormControl>
-              <ImageUploader
-                value={(field.value as FileDetail | null) ?? null}
-                onChange={field.onChange}
-                prefix="catalog/dishes"
-              />
-            </FormControl>
           ) : f.type === "color" ? (
             // Native swatch for picking, hex box for pasting a brand colour.
             // Both write the same #rrggbb the schema validates.
@@ -571,12 +561,6 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
     const labels = (value as string[]).map((v) => labelFor(f, v, options));
     const text = labels.join(", ");
     return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
-  }
-  if (f.type === "image") {
-    const url = (value as { url?: string }).url;
-    if (!url) return <span className="text-muted-foreground/50">—</span>;
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt="" className="size-9 rounded-md border object-cover" />;
   }
   if (f.type === "boolean") {
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;

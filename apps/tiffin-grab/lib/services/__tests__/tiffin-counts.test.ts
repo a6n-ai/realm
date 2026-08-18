@@ -40,4 +40,17 @@ describe("tiffin-counts", () => {
     const rows = [row({ cutoffAt: past, tiffinUnits: 1 }), row({ cutoffAt: past, tiffinUnits: 2 })];
     expect(deliveredTiffinCount(rows, now)).toBe(3);
   });
+
+  it("counts a not-yet-cutoff row as delivered once OptimoRoute confirms completion", () => {
+    const rows = [row({ cutoffAt: future, optimoCompletionStatus: "success", tiffinUnits: 2 })];
+    expect(deliveredTiffinCount(rows, now)).toBe(2);
+    expect(remainingTiffinCount(5, rows, now)).toBe(3);
+  });
+
+  it("still counts a past-cutoff row as delivered with no OptimoRoute data at all", () => {
+    // The pull is nightly-cron-only, not real-time — most rows have no completion data yet
+    // when a customer checks their count, so the cutoff-passed proxy must keep working.
+    const rows = [row({ cutoffAt: past, optimoCompletionStatus: null })];
+    expect(deliveredTiffinCount(rows, now)).toBe(1);
+  });
 });

@@ -39,7 +39,7 @@ export type CalendarLegendKey = "delivered" | "upcoming" | "vacation" | "onHold"
 
 export const CALENDAR_LEGEND: { key: CalendarLegendKey; label: string; dashClass: string }[] = [
   { key: "delivered", label: "Delivered", dashClass: "bg-ok" },
-  { key: "upcoming", label: "Upcoming", dashClass: "bg-blue-500" },
+  { key: "upcoming", label: "Upcoming", dashClass: "bg-muted-foreground/60" },
   { key: "vacation", label: "Vacation", dashClass: "bg-warn" },
   { key: "onHold", label: "On Hold", dashClass: "bg-destructive" },
 ];
@@ -70,7 +70,7 @@ export const DAY_STATUS_DOT_CLASS: Record<DayStatus, string> = {
   paused: "bg-muted-foreground/50",
   skipped: "bg-warn",
   locked: "bg-muted-foreground/30",
-  makeup: "bg-blue-500",
+  makeup: "bg-muted-foreground/60",
   off: "bg-muted-foreground/15",
 };
 
@@ -80,18 +80,20 @@ export const DAY_STATUS_BAR_CLASS: Record<DayStatus, string> = {
   paused: "after:bg-muted-foreground/50",
   skipped: "after:bg-warn",
   locked: "after:bg-muted-foreground/30",
-  makeup: "after:bg-blue-500",
+  makeup: "after:bg-muted-foreground/60",
   off: "after:bg-muted-foreground/15",
 };
 
-// Tiffin-tile status UNDERLINE — colored dash beneath the day number (Akshayakalpa reference:
-// green = delivered/past, blue = upcoming, yellow = vacation/pause, red = on hold/skipped).
+// Tiffin-tile status UNDERLINE — colored dash beneath the day number: green = delivered/past,
+// neutral grey = upcoming, orange = vacation/pause, red = on hold/skipped. Grey (not blue) for
+// "upcoming" keeps this within the app's two-brand-color system (green/orange are the only
+// saturated decorative hues; grey and the functional red are the exemptions).
 export const DAY_STATUS_UNDERLINE_CLASS: Record<DayStatus, string> = {
-  scheduled: "bg-blue-500",
+  scheduled: "bg-muted-foreground/60",
   paused: "bg-warn",
   skipped: "bg-destructive",
   locked: "bg-ok",
-  makeup: "bg-blue-500",
+  makeup: "bg-muted-foreground/60",
   off: "bg-transparent",
 };
 

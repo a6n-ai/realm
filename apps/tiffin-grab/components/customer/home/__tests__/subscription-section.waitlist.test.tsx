@@ -34,6 +34,7 @@ const activeSub: SubscriptionWithNext = {
   mealSizeName: "Regular",
   persons: 1,
   categoryCounts: { sabzi: 1, dal: 1 },
+  daysUntilRenewal: null,
   nextDelivery: null,
 };
 

@@ -170,7 +170,7 @@ export function MealDayPicker({
                     )}
                   >
                     <div className="relative aspect-square w-full overflow-hidden rounded-md outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10">
-                      <DishImage image={o.image} name={o.name} sizes="(max-width: 640px) 30vw, 120px" />
+                      <DishImage image={o.image} name={o.name} category={o.category} sizes="(max-width: 640px) 30vw, 120px" />
                     </div>
                     <span className="text-xs font-medium">{o.name}</span>
                     <AnimatePresence initial={false}>

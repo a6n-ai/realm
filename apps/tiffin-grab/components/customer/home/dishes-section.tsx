@@ -56,28 +56,28 @@ export function DishesSection({
               >
                 <div
                   className={cn(
-                    "relative w-full overflow-hidden rounded-md outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10",
-                    dense ? "aspect-[4/3]" : "aspect-square rounded-lg",
+                    "border-border relative w-full overflow-hidden border",
+                    dense ? "aspect-[4/3] rounded-md" : "aspect-square rounded-lg",
                   )}
                 >
-                  <DishImage image={dish.image} name={dish.name} sizes={dense ? "120px" : "200px"} />
+                  <DishImage image={dish.image} name={dish.name} category={dish.category} sizes={dense ? "120px" : "200px"} />
                   <PlanTags
                     tags={dish.planTags}
                     dots
                     className={cn("absolute", dense ? "right-1 top-1" : "right-1.5 top-1.5")}
                   />
                   {onMenu && onMenu.length > 0 ? (
-                    <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-medium tracking-wide text-white uppercase">
+                    // Green accent badge — orange is now the page's primary/brand
+                    // color (nav, headers), so this uses the secondary accent
+                    // instead to stay visually distinct from that, not --warn.
+                    <span className="bg-accent-badge text-accent-badge-foreground absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
                       This week
                     </span>
                   ) : null}
                 </div>
-                {/* Caption only when photo exists — gradient tiles already print the name. */}
-                {dish.image?.url ? (
-                  <span className={cn("block truncate font-medium", dense ? "text-[11px] leading-tight" : "mt-1 text-xs")}>
-                    {dish.name}
-                  </span>
-                ) : null}
+                <span className={cn("block truncate font-medium", dense ? "text-[11px] leading-tight" : "mt-1 text-xs")}>
+                  {dish.name}
+                </span>
               </Pressable>
             </Reveal>
           );
