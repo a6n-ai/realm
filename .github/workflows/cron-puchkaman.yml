@@ -1,0 +1,50 @@
+name: cron-puchkaman
+
+# Scheduler for puchkaman's protected cron routes.
+#
+# GitHub's schedule trigger is best-effort — a run can be delayed by several
+# minutes under load, and very occasionally skipped. That is fine for these
+# jobs: every pass is idempotent and windowed, so a late or missed run costs a
+# delay, never a duplicate or a lost reminder.
+#
+# The bearer must match the app's CRON_SECRET in prod. Without it every request
+# is refused (the routes are fail-closed), which surfaces here as a red run
+# rather than as silence.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cron-puchkaman
+  cancel-in-progress: false
+
+jobs:
+  abandoned-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger abandoned-recovery
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://puchkaman.ca/api/cron/abandoned-recovery)
+          echo "HTTP ${code}"
+          cat /tmp/response.json
+          echo
+          if [ "${code}" != "200" ]; then
+            echo "::error::abandoned-recovery returned HTTP ${code}"
+            exit 1
+          fi
+          # The route isolates its four passes and reports the ones that threw.
+          # A 200 with a non-empty failures array means part of the run silently
+          # did nothing — which is the exact failure mode this feature exists to
+          # avoid, so it fails the job rather than passing quietly.
+          failures=$(jq -r '.failures // [] | join(",")' /tmp/response.json)
+          if [ -n "${failures}" ]; then
+            echo "::error::passes failed: ${failures}"
+            exit 1
+          fi
