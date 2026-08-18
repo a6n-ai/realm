@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
-import { type AnyPgColumn, bigint, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import type { IntegrationsConfig } from "@realm/clover";
+import type { PaymentConfig } from "@realm/payments";
+import type { DiscountPolicy } from "./coupons";
 import { users } from "./auth";
 
 const nextIdText = sql`(next_id())::text`;
@@ -25,6 +28,27 @@ export const organization = pgTable(
     // packages/auth/src/organization.ts assertHierarchyDepth.
     parentOrganizationId: text("parent_organization_id").references((): AnyPgColumn => organization.id),
     region: text("region"),
+    // App-settings columns, migrated from `app` (docs/superpowers/specs/2026-08-19-tenant-url-routing-design.md).
+    // Nullable here: a brand org gets these populated by db/seed-brand-org.ts's backfill;
+    // a franchise/shop org left null means "not yet supported" — override/inheritance logic
+    // is explicitly future work, not built by this migration. `app` itself is untouched.
+    timezone: text("timezone"),
+    cutoffHour: integer("cutoff_hour"),
+    defaultMaxPauses: integer("default_max_pauses"),
+    defaultMaxPauseDaysTotal: integer("default_max_pause_days_total"),
+    defaultMaxPauseStretchDays: integer("default_max_pause_stretch_days"),
+    currency: text("currency"),
+    defaultCountry: text("default_country"),
+    leadAssignment: jsonb("lead_assignment"),
+    mealTypes: jsonb("meal_types"),
+    discountPolicy: jsonb("discount_policy").$type<DiscountPolicy>(),
+    paymentConfig: jsonb("payment_config").$type<PaymentConfig>(),
+    integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),
+    maxWalletBalance: integer("max_wallet_balance"),
+    // Fallback target when a request's URL segment matches no organization.clientCode
+    // (root domain hit directly, or an unrecognized segment). At most one org should
+    // carry this in normal operation — proxy.ts's resolver picks the first if several do.
+    isDefaultLocation: boolean("is_default_location").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

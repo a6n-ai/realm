@@ -29,4 +29,14 @@ describe("organizations schema", () => {
     const cols = getTableColumns(users);
     expect(cols.platformRole).toBeDefined();
   });
+
+  it("organization has app-settings columns and isDefaultLocation", () => {
+    const cols = getTableColumns(organization);
+    expect(cols.timezone).toBeDefined();
+    expect(cols.cutoffHour).toBeDefined();
+    expect(cols.currency).toBeDefined();
+    expect(cols.paymentConfig).toBeDefined();
+    expect(cols.integrationsConfig).toBeDefined();
+    expect(cols.isDefaultLocation).toBeDefined();
+  });
 });
