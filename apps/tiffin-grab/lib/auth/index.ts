@@ -1,14 +1,14 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin as adminPlugin, emailOTP } from "better-auth/plugins";
+import { admin as adminPlugin, emailOTP, organization as organizationPlugin } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
-import { authAuditAction } from "@realm/auth";
+import { assertHierarchyDepth, authAuditAction } from "@realm/auth";
 import { Role } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
 import { db } from "@/db/client";
-import { account, session, users, verification } from "@/db/schema";
+import { account, organization, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
 import { notifyNewLoginIfNewDevice, notifyPasswordChanged, sendAuthOtp, sendVerification } from "./security-events";
@@ -97,6 +97,10 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: "string", required: false, defaultValue: Role.USER, input: false },
       publicId: { type: "string", required: false, input: false },
+      // Platform-wide override role (e.g. "super_admin"), separate from the
+      // per-org `member.role`. See @realm/auth resolveVisibleOrgIds — this is
+      // the ONLY bypass of membership-scoped visibility, and it's audited.
+      platformRole: { type: "string", required: false, defaultValue: null, input: false },
     },
   },
   plugins: [
@@ -135,6 +139,41 @@ export const auth = betterAuth({
     // story. No adminClient(): it would pull @realm/auth (server-only, not in
     // transpilePackages) into the browser bundle.
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
+    // Client hierarchy: org = brand or franchise/shop, capped at 2 levels
+    // (brand -> franchise/shop). The plugin's own schema option only takes
+    // modelName/fields/additionalFields per-table — Task 3's tables already use
+    // the plugin's default names, so only additionalFields is needed here.
+    organizationPlugin({
+      schema: {
+        organization: {
+          additionalFields: {
+            clientCode: { type: "string", required: true },
+            parentOrganizationId: { type: "string", required: false },
+            region: { type: "string", required: false },
+          },
+        },
+      },
+      // Depth guard: reject creating an org whose parent is itself already a
+      // franchise/shop (parentOrganizationId !== null). See
+      // packages/auth/src/organization.ts assertHierarchyDepth.
+      organizationHooks: {
+        beforeCreateOrganization: async ({ organization: newOrg }) => {
+          const parentId = (newOrg as { parentOrganizationId?: string | null }).parentOrganizationId ?? null;
+          if (parentId) {
+            const [parent] = await db
+              .select({ id: organization.id, parentOrganizationId: organization.parentOrganizationId })
+              .from(organization)
+              .where(eq(organization.id, parentId))
+              .limit(1);
+            try {
+              assertHierarchyDepth(parent ?? null);
+            } catch (e) {
+              throw new APIError("BAD_REQUEST", { message: e instanceof Error ? e.message : "Invalid parent organization" });
+            }
+          }
+        },
+      },
+    }),
     nextCookies(),
   ],
   // Audit: log session deletion as logout.
