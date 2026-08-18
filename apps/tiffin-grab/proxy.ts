@@ -1,9 +1,14 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { db } from "./db/client";
+import { organization } from "./db/schema";
 
-// The proxy runs on the edge runtime, so we do an OPTIMISTIC cookie-presence
-// gate here; the authoritative `getSession` role checks live in the
-// (Node-runtime) dashboard layout and pages.
+// Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
+// runtime` here throws — the option isn't available for proxy files), so a
+// real DB query below is fine. We still do an OPTIMISTIC cookie-presence gate
+// for the session check; the authoritative `getSession` role checks live in
+// the dashboard layout and pages.
 // Better Auth session cookie: `${prefix}.session_token` (default prefix
 // "better-auth"; `__Secure-` prefixed when cookies are secure / in production).
 const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
@@ -42,11 +47,42 @@ function unauthorized(): NextResponse {
   });
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
 
   const onApi = pathname.startsWith("/api");
+  const onDashboard = pathname.startsWith("/dashboard");
+
+  // Set on the forwarded request when a URL-segment/default org resolves, so
+  // NextResponse.next() below can carry it through via the `request.headers`
+  // forwarding mechanism (Task 4 reads it on the Node side).
+  let resolvedOrgId: string | undefined;
+
+  if (!onApi && !onDashboard) {
+    const segment = pathname.split("/")[1] || null;
+    const [org] = segment
+      ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, segment)).limit(1)
+      : [];
+    if (org) {
+      resolvedOrgId = org.id;
+    } else {
+      const [fallback] = await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.isDefaultLocation, true))
+        .limit(1);
+      if (fallback) {
+        resolvedOrgId = fallback.id;
+      } else if (pathname !== "/locations") {
+        return NextResponse.redirect(new URL("/locations", request.url));
+      }
+    }
+  }
+
+  if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);
+  const forwardedRequest = resolvedOrgId ? { request: { headers: request.headers } } : undefined;
+
   if (onApi) {
     const origin = request.headers.get("origin");
     const cors = corsHeaders(origin);
@@ -74,7 +110,7 @@ export function proxy(request: NextRequest) {
     loginUrl.searchParams.set("callbackUrl", returnTo);
     return NextResponse.redirect(loginUrl);
   }
-  const res = NextResponse.next();
+  const res = NextResponse.next(forwardedRequest);
   // Protected pages must never sit in the browser's bfcache — otherwise after
   // sign-out the Back button restores the rendered dashboard without re-hitting
   // this gate. no-store makes the browser re-request → redirect to /login.
@@ -83,5 +119,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/me/:path*", "/api/:path*"],
+  // Was scoped to /dashboard, /me, /api only. Broadened to everything (minus
+  // static assets) so the URL-segment org resolver above also runs on public
+  // customer-facing routes, not just the guarded ones.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
