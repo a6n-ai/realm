@@ -22,8 +22,12 @@ async function reset() {
 }
 
 // M5V is a seeded Toronto zone -> lands "active" with materialized rows.
-async function makeOrder(phone: string) {
+// startOffsetWeeks staggers non-overlapping delivery windows for a customer
+// that needs several live subscriptions at once (7*n days keeps the same weekday).
+async function makeOrder(phone: string, startOffsetWeeks = 0) {
   const snap = await loadCatalogSnapshot();
+  const startDate = nextWeekday(new Date());
+  startDate.setUTCDate(startDate.getUTCDate() + startOffsetWeeks * 7);
   const { publicId } = await createOrder({
     planKey: snap.plans[0].key,
     selections: {
@@ -34,7 +38,7 @@ async function makeOrder(phone: string) {
       includeSaturday: false,
       includeSunday: false,
       durationWeeks: 1,
-      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+      startDate: startDate.toISOString().slice(0, 10),
     },
     contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
   });
@@ -55,7 +59,7 @@ describe("nextDeliveryByOrder (integration)", () => {
 
   it("keeps one entry per order: the earliest scheduled row, skipping skipped rows", async () => {
     const orderOne = await makeOrder(PHONE_A);
-    const orderTwo = await makeOrder(PHONE_A); // same phone -> same user, second active order
+    const orderTwo = await makeOrder(PHONE_A, 1); // same phone -> same user, second active order
     const userA = await userIdByPhone(PHONE_A);
 
     // orderOne: an earlier row is skipped, so its next delivery should be the later scheduled one.

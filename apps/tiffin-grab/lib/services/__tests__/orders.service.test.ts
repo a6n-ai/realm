@@ -73,7 +73,14 @@ describe("createOrder (integration)", () => {
     const snap = await loadCatalogSnapshot();
     const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
     await createOrder(input);
-    await createOrder(input);
+    // Second order for the same phone needs a non-overlapping window — the
+    // guard under test here is customer dedup by phone, not the overlap rule.
+    const secondStart = nextWeekday(new Date());
+    secondStart.setUTCDate(secondStart.getUTCDate() + input.selections.durationWeeks * 7);
+    await createOrder({
+      ...input,
+      selections: { ...input.selections, startDate: secondStart.toISOString().slice(0, 10) },
+    });
     const rows = await db.select().from(users).where(eq(users.phone, "+16475550111"));
     expect(rows).toHaveLength(1);
   });
@@ -95,7 +102,12 @@ describe("createOrder (integration)", () => {
     const [owner] = await db.insert(users).values({ email: "two-plan@x.com", role: "user" }).returning();
     const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
     await createOrder(input, { ownerUserId: owner.publicId });
-    await expect(createOrder(input, { ownerUserId: owner.publicId })).resolves.toMatchObject({
+    // Second plan needs a non-overlapping window — this test's subject is that a
+    // customer CAN carry two concurrent plans at all, not that windows may overlap.
+    const secondStart = nextWeekday(new Date());
+    secondStart.setUTCDate(secondStart.getUTCDate() + input.selections.durationWeeks * 7);
+    const secondInput = { ...input, selections: { ...input.selections, startDate: secondStart.toISOString().slice(0, 10) } };
+    await expect(createOrder(secondInput, { ownerUserId: owner.publicId })).resolves.toMatchObject({
       publicId: expect.stringMatching(/^ord_/),
     });
     const rows = await db.select().from(orders).where(eq(orders.userId, owner.id));
