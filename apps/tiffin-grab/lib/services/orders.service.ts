@@ -4,12 +4,14 @@ import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
 import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
+import { resolveVisibleOrgIds } from "@realm/auth";
 import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   coupons,
   deliveries,
   deliveryFrequencies,
+  member,
   mealSizes,
   orderActivities,
   orders,
@@ -780,19 +782,40 @@ export async function listOrders(
 // plans (inner, non-nullable FK — safe) and users (left, nullable
 // currentOwner — display-only), but the count runs on the base `orders` table
 // alone with the identical `where` so the nullable owner join can't inflate it.
+// Client-scoping: which orgs a session may see. super_admin bypasses to "all";
+// everyone else is scoped to their `member` rows — zero rows means zero orders,
+// never the whole table (see @realm/auth resolveVisibleOrgIds).
+export async function resolveSessionVisibleOrgIds(session: {
+  user: { id: string; platformRole?: string | null };
+} | null): Promise<"all" | string[]> {
+  if (!session) return [];
+  const userId = await resolveUserId(db, session.user.id);
+  if (!userId) return [];
+  const memberOrgIds = await db
+    .select({ organizationId: member.organizationId })
+    .from(member)
+    .where(eq(member.userId, userId))
+    .then((rows) => rows.map((r) => r.organizationId));
+  return resolveVisibleOrgIds({ platformRole: session.user.platformRole ?? null, memberOrgIds });
+}
+
 export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
+  visible: "all" | string[] = "all",
 ): Promise<Page<OrderListRow>> {
-  const where = conditionToSql(
-    condition,
-    columnResolver({
-      status: orders.status,
-      fullName: orders.fullName,
-      deploymentId: orders.deploymentId,
-      createdAt: orders.createdAt,
-    }),
+  const where = and(
+    conditionToSql(
+      condition,
+      columnResolver({
+        status: orders.status,
+        fullName: orders.fullName,
+        deploymentId: orders.deploymentId,
+        createdAt: orders.createdAt,
+      }),
+    ),
+    visible === "all" ? undefined : inArray(orders.organizationId, visible),
   );
 
   const SORT_COL = {

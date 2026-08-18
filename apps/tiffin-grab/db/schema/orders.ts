@@ -2,6 +2,7 @@ import { baseColumns, updatableColumns } from "@realm/database";
 import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
+import { organization } from "./organizations";
 
 export const orderStatus = pgEnum("order_status", ["pending", "active", "waitlisted", "cancelled", "paused", "completed"]);
 // Additive: 'simulated_paid' stays the default; 'pending' / 'refunded' from earlier manual capture.
@@ -50,11 +51,17 @@ export const orders = pgTable("orders", {
   addressLine: text("address_line").notNull(),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
+  // Client-scoping: which brand/franchise this order belongs to. Stamped server-side
+  // from the resolved checkout context, never from client input — same money-path
+  // rule as pricing/totals (AGENTS.md). Nullable during the Task-5 backfill window;
+  // a follow-up migration can tighten to NOT NULL once every existing row is backfilled.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   // Customer 360 + lists filter user_id and sort created_at desc.
   index("orders_user_created_idx").on(t.userId, t.createdAt),
   // Reassignment: staff "my queue" views filter by current_owner.
   index("orders_current_owner_idx").on(t.currentOwner),
+  index("orders_organization_idx").on(t.organizationId),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket

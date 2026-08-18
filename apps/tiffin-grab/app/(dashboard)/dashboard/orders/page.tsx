@@ -5,8 +5,9 @@ import { formatMoney } from "@realm/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listOrdersPage } from "@/lib/services/orders.service";
+import { listOrdersPage, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -105,8 +106,11 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, filterSp);
   const finalCondition = extra ? and(...[condition, extra].filter((c) => c != null)) : condition;
 
+  const session = await getSession();
+  const visible = await resolveSessionVisibleOrgIds(session);
+
   const [result, reassignAllowed] = await Promise.all([
-    listOrdersPage(finalCondition, page, sort),
+    listOrdersPage(finalCondition, page, sort, visible),
     canReassign(),
   ]);
   const staff = reassignAllowed ? await listAssignableStaff() : [];

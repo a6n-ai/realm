@@ -8,8 +8,10 @@ const { orders, payments, orderActivities, ledgerEntries, users } = await import
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@realm/commons");
 const { createOrder } = await import("../orders.service");
-const { listOrders, listOrdersPage, readOrder } = await import("../orders.service");
+const { listOrders, listOrdersPage, readOrder, resolveSessionVisibleOrgIds } = await import("../orders.service");
 const { eq: cEq } = await import("@realm/commons/model/condition");
+const { organization, member } = await import("@/db/schema");
+const { eq } = await import("drizzle-orm");
 
 async function reset() {
   await db.delete(ledgerEntries);
@@ -77,6 +79,56 @@ describe("order CRM queries (integration)", () => {
     const pending = await listOrdersPage(cEq("status", "pending"), { page: 0, size: 10 });
     expect(pending.total).toBe(0);
     expect(pending.items.length).toBe(0);
+  });
+
+  it("listOrdersPage scopes by organization visibility (resolveSessionVisibleOrgIds)", async () => {
+    const snap = await loadCatalogSnapshot();
+    const suffix = Math.random().toString(36).slice(2);
+    const [orgA] = await db
+      .insert(organization)
+      .values({ name: "Org A", clientCode: `A-${suffix}` })
+      .returning({ id: organization.id });
+    const [orgB] = await db
+      .insert(organization)
+      .values({ name: "Org B", clientCode: `B-${suffix}` })
+      .returning({ id: organization.id });
+
+    const { publicId: orderAId } = await createOrder(
+      baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Jane Customer", "+16475550111"),
+    );
+    const { publicId: orderBId } = await createOrder(
+      baseInput(snap.mealSizes[0].publicId, snap.plans[0].key, "Bob Buyer", "+16475550222"),
+    );
+    await db.update(orders).set({ organizationId: orgA.id }).where(eq(orders.publicId, orderAId));
+    await db.update(orders).set({ organizationId: orgB.id }).where(eq(orders.publicId, orderBId));
+
+    const [staffUser] = await db
+      .insert(users)
+      .values({ name: "Staff", email: `staff${suffix}@test.invalid`, role: "member", status: "active" })
+      .returning({ id: users.id, publicId: users.publicId });
+    await db.insert(member).values({ organizationId: orgA.id, userId: staffUser.id, role: "member" });
+
+    // Single-member-org session: sees only orgA's order.
+    const scopedVisible = await resolveSessionVisibleOrgIds({ user: { id: staffUser.publicId, platformRole: null } });
+    const scopedPage = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, scopedVisible);
+    expect(scopedPage.items.map((r) => r.publicId)).toEqual([orderAId]);
+
+    // super_admin session: sees all orders regardless of membership.
+    const superVisible = await resolveSessionVisibleOrgIds({
+      user: { id: staffUser.publicId, platformRole: "super_admin" },
+    });
+    const superPage = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, superVisible);
+    expect(superPage.items.map((r) => r.publicId).sort()).toEqual([orderAId, orderBId].sort());
+
+    // Zero-membership session: sees no orders, not the whole table.
+    const [noMemberUser] = await db
+      .insert(users)
+      .values({ name: "No Org Staff", email: `nomember${suffix}@test.invalid`, role: "member", status: "active" })
+      .returning({ id: users.id, publicId: users.publicId });
+    const noneVisible = await resolveSessionVisibleOrgIds({ user: { id: noMemberUser.publicId, platformRole: null } });
+    const nonePage = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, noneVisible);
+    expect(nonePage.items.length).toBe(0);
+    expect(nonePage.total).toBe(0);
   });
 
   it("readOrder returns detail with plan/payment info", async () => {
