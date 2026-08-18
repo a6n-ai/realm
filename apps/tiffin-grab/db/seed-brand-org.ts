@@ -10,7 +10,7 @@
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { Role } from "@realm/commons";
 import { db } from "./client";
-import { orders, organization, member, users } from "./schema";
+import { orders, organization, member, users, app } from "./schema";
 
 const BRAND_CLIENT_CODE = "TG";
 
@@ -29,6 +29,29 @@ async function main() {
         .values({ name: "Tiffin Grab", clientCode: BRAND_CLIENT_CODE, parentOrganizationId: null })
         .returning({ id: organization.id })
     )[0].id;
+
+  const [appRow] = await db.select().from(app).limit(1);
+  if (appRow) {
+    await db
+      .update(organization)
+      .set({
+        timezone: appRow.timezone,
+        cutoffHour: appRow.cutoffHour,
+        defaultMaxPauses: appRow.defaultMaxPauses,
+        defaultMaxPauseDaysTotal: appRow.defaultMaxPauseDaysTotal,
+        defaultMaxPauseStretchDays: appRow.defaultMaxPauseStretchDays,
+        currency: appRow.currency,
+        defaultCountry: appRow.defaultCountry,
+        leadAssignment: appRow.leadAssignment,
+        mealTypes: appRow.mealTypes,
+        discountPolicy: appRow.discountPolicy,
+        paymentConfig: appRow.paymentConfig,
+        integrationsConfig: appRow.integrationsConfig,
+        maxWalletBalance: appRow.maxWalletBalance,
+        isDefaultLocation: true,
+      })
+      .where(eq(organization.id, brandId));
+  }
 
   const backfilled = await db
     .update(orders)
@@ -59,7 +82,7 @@ async function main() {
   }
 
   console.log(
-    `brand org: ${brandId}, backfilled ${backfilled.length} orders, backfilled ${toBackfill.length} staff member rows`,
+    `brand org: ${brandId}, backfilled ${backfilled.length} orders, backfilled ${toBackfill.length} staff member rows, settings ${appRow ? "backfilled" : "skipped (no app row)"}`,
   );
 }
 
