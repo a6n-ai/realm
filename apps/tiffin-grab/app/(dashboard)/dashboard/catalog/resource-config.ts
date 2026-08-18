@@ -195,10 +195,13 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "label", label: "Label", type: "text" },
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
-      { key: "sortOrder", label: "Sort order", type: "number" },
-      { key: "tuUnitType", label: "TU unit type", type: "select", options: ["weight", "count"], optionLabels: ENUM_LABELS },
-      { key: "tuUnitSize", label: "Natural units per TU", type: "number" },
-      { key: "tuUnitLabel", label: "Unit label", type: "text" },
+      { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
+      // Editable in the dialog, kept off the table: with Plans/Customer-selectable/Sort
+      // order already there, these three pushed the table wider than the page and
+      // scrolled Actions out of view.
+      { key: "tuUnitType", label: "TU unit type", type: "select", options: ["weight", "count"], optionLabels: ENUM_LABELS, tableHidden: true },
+      { key: "tuUnitSize", label: "Natural units per TU", type: "number", tableHidden: true },
+      { key: "tuUnitLabel", label: "Unit label", type: "text", tableHidden: true },
     ],
   },
   plans: {
