@@ -19,4 +19,5 @@ export * from "./notifications";
 export * from "./email-log";
 export * from "./files";
 export * from "./subscription-pauses";
+export * from "./organizations";
 export { reviewNudges } from "@realm/google-reviews/db";

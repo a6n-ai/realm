@@ -34,6 +34,10 @@ export const users = pgTable(
     image: text("image"),
     phone: text("phone"),
     role: userRole("role").notNull().default("user"),
+    // Org-independent platform bypass for cross-client visibility. Rare, explicit,
+    // audited — see resolveVisibleOrgIds in @realm/auth. Not a `member` role: it must
+    // work for people with zero organization membership rows.
+    platformRole: text("platform_role"),
     status: userStatus("status").notNull().default("active"),
     pinHash: text("pin_hash"),
     pinAttempts: integer("pin_attempts").notNull().default(0),
