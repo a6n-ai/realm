@@ -5,7 +5,7 @@ import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
 import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
 import { resolveVisibleOrgIds } from "@realm/auth";
-import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   coupons,
@@ -15,6 +15,7 @@ import {
   mealSizes,
   orderActivities,
   orders,
+  organization,
   payments,
   plans,
   subscriptionPauses,
@@ -136,6 +137,17 @@ export interface CreateOrderOptions {
 
 // Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
 // the id is absent or doesn't match a user.
+// This app has exactly one org (the seeded brand org) until franchise creation
+// ships (spec §1/migration path) — resolving "the org new orders belong to" is
+// unambiguous today, so orders are stamped directly rather than left NULL and
+// read-side-tolerated. Revisit once a second (franchise) org can exist: this will
+// need to become a resolved-context lookup (checkout zone/region -> org), not "the
+// only brand org".
+async function resolveBrandOrgId(tx: { select: typeof db.select }): Promise<string | null> {
+  const [row] = await tx.select({ id: organization.id }).from(organization).where(isNull(organization.parentOrganizationId)).limit(1);
+  return row?.id ?? null;
+}
+
 async function resolveUserId(
   tx: { select: typeof db.select },
   publicId: string | null | undefined,
@@ -242,6 +254,8 @@ export async function createOrder(
       );
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
+
+    const organizationId = await resolveBrandOrgId(tx);
 
     // Reject a new order whose delivery window overlaps a subscription this
     // customer already has running: "active"/"paused" orders reserve real
@@ -410,6 +424,7 @@ export async function createOrder(
         postalCode: input.contact.postalCode,
         currentOwner: input.currentOwner ?? null,
         createdBy,
+        organizationId,
       })
       .returning();
 
@@ -725,56 +740,6 @@ export type OrderListRow = {
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created";
 
-export async function listOrders(
-  filter: {
-    status?: string;
-    search?: string;
-    sort?: SortState<OrderSortColumn>;
-  } = {},
-): Promise<OrderListRow[]> {
-  const conds = [];
-  if (filter.status && filter.status !== "all") {
-    conds.push(eq(orders.status, filter.status as typeof orders.status.enumValues[number]));
-  }
-  if (filter.search?.trim()) {
-    const q = `%${filter.search.trim()}%`;
-    conds.push(or(ilike(orders.fullName, q), ilike(orders.deploymentId, q)));
-  }
-
-  const sort = filter.sort ?? { column: "created", dir: "desc" };
-  const SORT_COL = {
-    name: orders.fullName,
-    deployment: orders.deploymentId,
-    status: orders.status,
-    start: orders.startDate,
-    total: orders.total,
-    created: orders.createdAt,
-  } as const;
-  const col = SORT_COL[sort.column] ?? orders.createdAt;
-
-  const rows = await db
-    .select({
-      publicId: orders.publicId,
-      deploymentId: orders.deploymentId,
-      fullName: orders.fullName,
-      city: orders.city,
-      planKey: plans.key,
-      status: orders.status,
-      startDate: orders.startDate,
-      total: orders.total,
-      createdAt: orders.createdAt,
-      ownerId: users.publicId,
-      ownerName: users.name,
-    })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .leftJoin(users, eq(orders.currentOwner, users.id))
-    .where(conds.length ? and(...conds) : undefined)
-    .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
-    .limit(500);
-  return rows.map((r) => ({ ...r, ownerId: r.ownerId ?? null, ownerName: r.ownerName ?? null })) satisfies OrderListRow[];
-}
-
 // Server-side unified filters (Condition) + offset pagination + unpaginated
 // total — mirrors inquiriesService.listForPipeline. All filterable facets
 // (status/fullName/deploymentId/createdAt) live on the base `orders` table, so
@@ -803,7 +768,7 @@ export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
-  visible: "all" | string[] = "all",
+  visible: "all" | string[],
 ): Promise<Page<OrderListRow>> {
   const where = and(
     conditionToSql(
@@ -884,7 +849,11 @@ export type OrderDetail = typeof orders.$inferSelect & {
   payments: OrderPaymentDetail[];
 };
 
-export async function readOrder(publicId: string): Promise<OrderDetail> {
+// Same org scoping as listOrdersPage (see @realm/auth resolveVisibleOrgIds). A
+// publicId is unguessable but not a permission — direct-link/URL access must not
+// bypass membership scoping. Out-of-scope orders fail exactly like nonexistent ones
+// (NotFoundError) so a caller can't distinguish "not visible" from "doesn't exist".
+export async function readOrder(publicId: string, visible: "all" | string[]): Promise<OrderDetail> {
   const [row] = await db
     .select({
       order: orders,
@@ -897,7 +866,12 @@ export async function readOrder(publicId: string): Promise<OrderDetail> {
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .where(eq(orders.publicId, publicId))
+    .where(
+      and(
+        eq(orders.publicId, publicId),
+        visible === "all" ? undefined : inArray(orders.organizationId, visible),
+      ),
+    )
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
   const pays = await db
