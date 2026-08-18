@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "image" | "color" | "categoryCounts" | "composition";
+export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "color" | "categoryCounts" | "composition";
 
 export interface FieldDef {
   key: string;
@@ -48,13 +48,6 @@ export function slug(name: string): string {
 const key = z.string().trim().regex(/^[a-z0-9_-]+$/, "lowercase letters, numbers, underscores and hyphens only");
 const name = z.string().trim().min(1, "Name is required");
 const active = z.boolean().optional();
-
-// Stored image is the full FileDetail JSON; url is what the UI needs. Extra keys pass through.
-const fileDetail = z
-  .object({ url: z.string().min(1) })
-  .passthrough()
-  .nullable()
-  .optional();
 
 // Form number inputs serialize blanks as "" (see emptyForm/rowToForm). z.coerce.number()
 // turns "" into 0 *before* .optional()/.nullable() are consulted, so without these wrappers
@@ -166,7 +159,6 @@ const dishesSchema = z.object({
   // Soft ref to dish_categories.key; nullable so an uncategorized dish stays
   // placeable in any menu slot (I5). Enforced server-side via dishesService.
   category: optCategory,
-  image: fileDetail,
   active,
 });
 
@@ -189,7 +181,6 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
-      { key: "image", label: "Image", type: "image", optional: true },
     ],
   },
   "dish-categories": {
@@ -295,7 +286,6 @@ export function rowToForm(def: ResourceDef, row: Record<string, unknown>): Recor
     if (ARRAY_TYPES.has(f.type)) out[f.key] = Array.isArray(v) ? v : [];
     else if (f.type === "composition") out[f.key] = Array.isArray(v) ? v : [];
     else if (f.type === "boolean") out[f.key] = Boolean(v);
-    else if (f.type === "image") out[f.key] = v ?? null;
     else if (f.type === "categoryCounts") out[f.key] = v && typeof v === "object" ? v : {};
     else out[f.key] = v == null ? "" : String(v);
   }
@@ -308,7 +298,6 @@ export function emptyForm(def: ResourceDef): Record<string, unknown> {
     if (ARRAY_TYPES.has(f.type)) out[f.key] = [];
     else if (f.type === "composition") out[f.key] = [];
     else if (f.type === "boolean") out[f.key] = false;
-    else if (f.type === "image") out[f.key] = null;
     else if (f.type === "categoryCounts") out[f.key] = {};
     else out[f.key] = "";
   }

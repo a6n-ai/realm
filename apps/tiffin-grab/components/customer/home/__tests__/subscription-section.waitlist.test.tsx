@@ -35,6 +35,7 @@ const activeSub: SubscriptionWithNext = {
   persons: 1,
   categoryCounts: { sabzi: 1, dal: 1 },
   defaultSwaps: [],
+  daysUntilRenewal: null,
   nextDelivery: null,
 };
 

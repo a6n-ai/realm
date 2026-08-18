@@ -18,7 +18,7 @@ function PlanCard({ plan }: { plan: PlanWithPrice }) {
   return (
     <Link href="/subscribe" className="block min-w-[240px] shrink-0 sm:min-w-0 sm:shrink">
       <Card variant="lift" className="flex h-full flex-col gap-0 overflow-hidden p-0">
-        <PlanHero planKey={plan.key} planType={plan.planType} />
+        <PlanHero planType={plan.planType} />
         <div className="flex flex-1 flex-col justify-between gap-3 p-4">
           <div className="space-y-1">
             <span className="text-muted-foreground text-xs font-medium">{PLAN_TYPE_LABEL[plan.planType]}</span>

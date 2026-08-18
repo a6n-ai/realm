@@ -14,13 +14,14 @@ import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message
 import { cellToTileData } from "./tile-data";
 import { mealChips, type DeliveryCardMeal } from "./meal-chips";
 import type { CustomerDelivery } from "@/lib/services/customer-deliveries.service";
+import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 type DeliveryCardData = CustomerDelivery & { meal: DeliveryCardMeal; address: Address; hasAddressOverride: boolean };
 
 const STATUS_BADGE: Record<"delivered" | "upcoming" | "vacation" | "onHold", string> = {
   delivered: "bg-ok/15 text-ok",
-  upcoming: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  upcoming: "bg-muted-foreground/15 text-muted-foreground",
   vacation: "bg-warn/15 text-warn",
   onHold: "bg-destructive/15 text-destructive",
 };
@@ -77,7 +78,7 @@ export function MobileDayOrderCard({
       <div className="flex gap-3 p-3">
         <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-black/10">
           {dishImage || dishName ? (
-            <DishImage image={dishImage} name={dishName ?? "Meal"} sizes="80px" />
+            <DishImage image={dishImage} name={dishName ?? "Meal"} category={tile?.dishCategory} sizes="80px" />
           ) : (
             <div className="flex size-full items-center justify-center">
               <UtensilsCrossedIcon className="size-6 text-muted-foreground/40" aria-hidden />
@@ -127,12 +128,15 @@ export function MobileDayOrderCard({
 export function MobileLegendRow() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-0.5 text-[11px] text-muted-foreground">
-      {CALENDAR_LEGEND.map(({ key, label, dashClass }) => (
-        <span key={key} className="flex items-center gap-1">
-          <span className={cn("h-[3px] w-4 rounded-full", dashClass)} aria-hidden />
-          {label}
-        </span>
-      ))}
+      {CALENDAR_LEGEND.map(({ key, label }) => {
+        const Icon = DELIVERY_STATUS_ILLUSTRATION[key];
+        return (
+          <span key={key} className="flex items-center gap-1">
+            <Icon size={16} />
+            {label}
+          </span>
+        );
+      })}
     </div>
   );
 }

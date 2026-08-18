@@ -10,6 +10,7 @@ import { SelectedDaySummary } from "@/app/(customer)/me/deliveries/selected-day-
 import { CALENDAR_LEGEND } from "@/app/(customer)/me/deliveries/day-status";
 import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
 import type { DeliveryCardMeal } from "@/app/(customer)/me/deliveries/meal-chips";
+import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
 
 export function HomeWeekStrip({
   cells,
@@ -46,12 +47,15 @@ export function HomeWeekStrip({
           todayIso={todayIso}
         />
         <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
-          {CALENDAR_LEGEND.map((item) => (
-            <li key={item.key} className="inline-flex items-center gap-1.5">
-              <span className={`h-[3px] w-3 rounded-full ${item.dashClass}`} aria-hidden />
-              {item.label}
-            </li>
-          ))}
+          {CALENDAR_LEGEND.map((item) => {
+            const Icon = DELIVERY_STATUS_ILLUSTRATION[item.key];
+            return (
+              <li key={item.key} className="inline-flex items-center gap-1.5">
+                <Icon size={15} />
+                {item.label}
+              </li>
+            );
+          })}
         </ul>
         <TransitionLink href="/me/deliveries" className="text-primary block text-sm font-medium">
           Full calendar →

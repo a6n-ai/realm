@@ -24,9 +24,15 @@ describe("DishImage", () => {
     expect(screen.getByRole("img", { name: "Paneer" })).toHaveAttribute("sizes", "56px");
   });
 
-  it("renders a gradient fallback (no img) when image is null", () => {
-    render(<DishImage image={null} name="Dal Fry" />);
+  it("renders an icon fallback (no img) when image is null — caller renders the name, not the tile", () => {
+    const { container } = render(<DishImage image={null} name="Dal Fry" />);
     expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByText("Dal Fry", { exact: false })).toBeInTheDocument(); // fallback shows the name/glyph
+    expect(container.querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("picks a category-specific icon over the generic fallback for a recognised category", () => {
+    const { container: mapped } = render(<DishImage image={null} name="Aloo Gobi" category="sabzi" />);
+    const { container: unmapped } = render(<DishImage image={null} name="Mystery Dish" category="not-a-real-category" />);
+    expect(mapped.querySelector("svg")?.outerHTML).not.toBe(unmapped.querySelector("svg")?.outerHTML);
   });
 });

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { UtensilsCrossedIcon } from "lucide-react";
+import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@realm/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
@@ -49,10 +50,15 @@ async function MenuSectionData({ userId }: { userId: bigint }) {
   const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
   const { timezone } = await getAppSettings();
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const thisMonday = thisWeekStartIso(Date.now(), timezone);
+  const now = Date.now();
+  const thisMonday = thisWeekStartIso(now, timezone);
   // Exact this Monday only — same getReleasedWeek gate Deliveries uses (no cross-week fallback).
   const week = await menuService.getPublishedWeek(thisMonday);
-  return <ThisWeekMenuSection week={week} />;
+  // Computed once, server-side, in the app's own timezone — passed down as a plain prop
+  // so the client component never has to read the clock itself (which would risk a
+  // server/client hydration mismatch on the highlighted "today" column).
+  const todayKey = weekdayKey(parseIsoDateUtc(zonedDateIso(now, timezone)));
+  return <ThisWeekMenuSection week={week} todayKey={todayKey} />;
 }
 
 async function DishesSectionData({ userId }: { userId: bigint }) {

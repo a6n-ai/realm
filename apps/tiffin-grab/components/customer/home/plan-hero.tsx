@@ -1,35 +1,25 @@
 import { SaladIcon, UtensilsIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
 
-// Stable hue from the plan key so each plan gets a consistent, distinct banner
-// with no image asset. Deterministic — same key → same gradient on server and
-// client (no Math.random / Date.now).
-export function hueFromKey(key: string): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 360;
-  return h;
-}
-
+// Was a per-plan-key random hue (see git history) — the same "random gradient" pattern
+// removed from dish tiles earlier this session, for the same reason: an arbitrary color per
+// key reads as noise, not signal, once there's a real brand palette. Every plan banner now
+// shares the one brand-green treatment; only the icon (tiffin vs. healthy) differs, matching
+// how DishImage tells dishes apart by icon rather than by hue.
 export function PlanHero({
-  planKey,
   planType,
   className,
 }: {
-  planKey: string;
   planType: "tiffin" | "healthy";
   className?: string;
 }) {
-  const hue = hueFromKey(planKey);
   const Icon = planType === "healthy" ? SaladIcon : UtensilsIcon;
   return (
     <div
       aria-hidden
-      className={cn("flex h-24 items-center justify-center", className)}
-      style={{
-        backgroundImage: `linear-gradient(135deg, hsl(${hue} 70% 55%), hsl(${(hue + 40) % 360} 70% 45%))`,
-      }}
+      className={cn("bg-primary flex h-24 items-center justify-center", className)}
     >
-      <Icon className="size-9 text-white/90" strokeWidth={1.5} />
+      <Icon className="text-primary-foreground size-9" strokeWidth={1.5} />
     </div>
   );
 }

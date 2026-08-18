@@ -16,7 +16,7 @@ import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@realm/commons";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { Button } from "@realm/ui/button";
@@ -33,15 +33,17 @@ const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine:
 export function Checkout({
   defaultCountry,
   closeHref = "/me",
+  prefill,
 }: {
   defaultCountry: Country;
   closeHref?: string;
+  prefill?: Partial<Contact>;
 }) {
   const router = useRouter();
   const [selections, setSelections] = useState<WizardSelections | null>(null);
   const [result, setResult] = useState<PricingResult | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
-  const [contact, setContact] = useState<Contact>(emptyContact);
+  const [contact, setContact] = useState<Contact>({ ...emptyContact, ...prefill });
   const [zone, setZone] = useState<{ served: boolean; name?: string; slotWindow?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -55,6 +57,9 @@ export function Checkout({
   const [waitlisted, setWaitlisted] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+  // Where "Edit plan" sends the customer back to — the flow that actually wrote
+  // WIZARD_STORAGE_KEY, not always the full wizard.
+  const [origin, setOrigin] = useState<WizardOrigin>("subscribe");
 
   const refreshPrice = async (
     s: WizardSelections,
@@ -82,6 +87,7 @@ export function Checkout({
     // Seeding from sessionStorage, which is only readable on the client (post-mount).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelections(s);
+    if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
     refreshPrice(s, undefined, null).catch(() => setResult(null));
   }, [router]);
 
@@ -200,7 +206,7 @@ export function Checkout({
     <div className="space-y-4">
       <SubscribeChrome
         closeHref={closeHref}
-        onBack={() => (step > 1 ? setStep(1) : router.push("/subscribe"))}
+        onBack={() => (step > 1 ? setStep(1) : router.push(origin === "renew" ? "/me/renew" : "/subscribe"))}
         backLabel={step > 1 ? "Back" : "Edit plan"}
       />
       <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Checkout</h1>

@@ -14,9 +14,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-poppins);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,6 +42,11 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-warn-hover: var(--warn-hover);
+  --color-accent-badge: var(--accent-badge);
+  --color-accent-badge-hover: var(--accent-badge-hover);
+  --color-accent-badge-foreground: var(--accent-badge-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -72,100 +77,129 @@
 }
 
 :root {
-  /* Brand: saffron-orange. Retune by changing the hue (60) in one place. */
-  --brand: oklch(0.66 0.16 60);
-  --brand-foreground: oklch(0.985 0.01 60);
-  --background: oklch(0.995 0.002 60);
-  --foreground: oklch(0.16 0.006 60);
-  --card: oklch(0.995 0.003 60);
-  --card-foreground: oklch(0.16 0.006 60);
-  --popover: oklch(0.995 0.003 60);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.66 0.16 60);
-  --primary-foreground: oklch(0.985 0.01 60);
-  --secondary: oklch(0.97 0.004 60);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0.004 60);
-  --muted-foreground: oklch(0.55 0.012 60);
-  --accent: oklch(0.97 0.004 60);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Brand: matched off the live tiffingrab.ca marketing site's computed styles —
+     orange (#F06B1A, its "Order now" button / active nav pill / headline accent)
+     is the real, dominant brand color, so it's primary here too: nav, headers,
+     active states, primary buttons, "confirmed" status. Forest green is demoted to
+     a secondary accent (--accent-badge below) — matching how the live site itself
+     only uses green sparingly, for its discount banner. Everything else in the
+     palette is cream or neutral grey; no other saturated hue appears as a
+     decorative fill anywhere in the app. */
+  --brand: #F06B1A;
+  --brand-foreground: #FFFFFF;
+  --background: #FBF4E7;
+  --foreground: #241F1B;
+  --card: #FFFFFF;
+  --card-foreground: #241F1B;
+  --popover: #FFFFFF;
+  --popover-foreground: #241F1B;
+  --primary: #F06B1A;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #D85F14;
+  --secondary: #F1EEE5;
+  --secondary-foreground: #241F1B;
+  --muted: #F1EEE5;
+  --muted-foreground: #6E6558;
+  --accent: #F1EEE5;
+  --accent-foreground: #241F1B;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 60);
-  --input: oklch(0.92 0.004 60);
-  --ring: oklch(0.66 0.13 60);
+  --border: #E3DFD1;
+  --input: #E3DFD1;
+  --ring: #F06B1A;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  /* Sidebar: a distinct warm panel (deeper than the 0.995 content surface).
-     Hover/active share --sidebar-accent (the shadcn sidebar uses it for both),
-     so it's a soft saffron wash; active is further set apart by font-medium. */
-  --sidebar: oklch(0.975 0.006 60);
-  --sidebar-foreground: oklch(0.16 0.006 60);
-  --sidebar-primary: oklch(0.66 0.16 60);
-  --sidebar-primary-foreground: oklch(0.985 0.01 60);
-  --sidebar-accent: oklch(0.93 0.045 60);
-  --sidebar-accent-foreground: oklch(0.42 0.11 60);
-  --sidebar-border: oklch(0.91 0.008 60);
-  --sidebar-ring: oklch(0.66 0.13 60);
-  --ok: oklch(0.62 0.13 150);
-  --warn: oklch(0.70 0.13 70);
+  /* Sidebar: cream panel; the active nav item is a soft orange wash — orange means
+     "where I am," matching the brand swap above. */
+  --sidebar: #F5EEDD;
+  --sidebar-foreground: #241F1B;
+  --sidebar-primary: #F06B1A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FBE3D2;
+  --sidebar-accent-foreground: #B5430B;
+  --sidebar-border: #E3DFD1;
+  --sidebar-ring: #F06B1A;
+  /* Pre-existing app-wide status semantics (OrderStatusBadge etc.) — deliberately
+     LEFT UNCHANGED by the brand swap above: ok/success stays green, warn/warning
+     stays orange, bad stays red. These back badges already shipped elsewhere in
+     the app (order/subscription status), independent of which color is "brand
+     primary" this week — flipping them would silently recolor status badges no
+     one asked to change. */
+  --ok: #105030;
+  --warn: #F58220;
+  --warn-hover: #F06B1A;
   --bad: oklch(0.60 0.16 25);
   --success: var(--ok);
-  --success-foreground: oklch(0.985 0.01 150);
+  --success-foreground: #F7FBF5;
   --warning: var(--warn);
-  --warning-foreground: oklch(0.22 0.04 70);
+  --warning-foreground: #5A2E00;
   --info: oklch(0.62 0.12 240);
   --info-foreground: oklch(0.985 0.01 240);
   --destructive-foreground: oklch(0.985 0.01 27);
+  /* Decorative secondary accent — forest green, matching the live site's own
+     --tg-theme (#1D5C32) and its discount-banner gradient. Used for small
+     "attention" badges (e.g. Menu page's "This week" pill) that need to read
+     as distinct from the new orange primary — deliberately its own token
+     rather than reusing --ok/--warn above, so it never collides with the
+     unrelated status-badge system. */
+  --accent-badge: #1D5C32;
+  --accent-badge-hover: #256D3C;
+  --accent-badge-foreground: #F7FBF5;
 }
 
 .dark {
-  --brand: oklch(0.72 0.15 60);
-  --brand-foreground: oklch(0.18 0.01 60);
-  --background: oklch(0.16 0.004 60);
-  --foreground: oklch(0.985 0.003 60);
-  --card: oklch(0.205 0.006 60);
-  --card-foreground: oklch(0.985 0.003 60);
-  --popover: oklch(0.205 0.006 60);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.72 0.15 60);
-  --primary-foreground: oklch(0.18 0.01 60);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.27 0.006 60);
-  --muted-foreground: oklch(0.71 0.01 60);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --brand: #FF9843;
+  --brand-foreground: #2E1200;
+  --background: #14201A;
+  --foreground: #F3EFE4;
+  --card: #1B2921;
+  --card-foreground: #F3EFE4;
+  --popover: #1B2921;
+  --popover-foreground: #F3EFE4;
+  --primary: #FF9843;
+  --primary-foreground: #2E1200;
+  --primary-hover: #FFA75E;
+  --secondary: #223229;
+  --secondary-foreground: #F3EFE4;
+  --muted: #223229;
+  --muted-foreground: #A9AFA3;
+  --accent: #223229;
+  --accent-foreground: #F3EFE4;
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.10 60);
+  --ring: #FF9843;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.20 0.008 60);
-  --sidebar-foreground: oklch(0.985 0.003 60);
-  --sidebar-primary: oklch(0.72 0.15 60);
-  --sidebar-primary-foreground: oklch(0.18 0.01 60);
-  --sidebar-accent: oklch(0.32 0.06 60);
-  --sidebar-accent-foreground: oklch(0.93 0.04 60);
+  --sidebar: #18261F;
+  --sidebar-foreground: #F3EFE4;
+  --sidebar-primary: #FF9843;
+  --sidebar-primary-foreground: #2E1200;
+  --sidebar-accent: #3A2A1C;
+  --sidebar-accent-foreground: #FFB877;
   --sidebar-border: oklch(0.8 0.03 60 / 12%);
-  --sidebar-ring: oklch(0.62 0.10 60);
-  --ok: oklch(0.72 0.14 150);
-  --warn: oklch(0.78 0.14 70);
+  --sidebar-ring: #FF9843;
+  /* Same "leave the pre-existing status system alone" rule as light mode. */
+  --ok: #2E8B57;
+  --warn: #FF9843;
+  --warn-hover: #FFA75E;
   --bad: oklch(0.68 0.17 25);
   --success: var(--ok);
-  --success-foreground: oklch(0.18 0.02 150);
+  --success-foreground: #0E1712;
   --warning: var(--warn);
-  --warning-foreground: oklch(0.22 0.04 70);
+  --warning-foreground: #2E1200;
   --info: oklch(0.72 0.12 240);
   --info-foreground: oklch(0.18 0.02 240);
   --destructive-foreground: oklch(0.985 0.01 22);
+  --accent-badge: #2E8B57;
+  --accent-badge-hover: #3AA168;
+  --accent-badge-foreground: #0E1712;
 }
 
 @layer base {

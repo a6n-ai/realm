@@ -38,6 +38,7 @@ const baseSub: SubscriptionWithNext = {
   persons: 1,
   categoryCounts: { sabzi: 1, dal: 1 },
   defaultSwaps: [],
+  daysUntilRenewal: 5,
   nextDelivery: {
     publicId: "dlv_1",
     orderId: 1n as unknown as bigint,

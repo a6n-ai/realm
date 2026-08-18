@@ -32,8 +32,10 @@ describe("MealPicker", () => {
 
   it("does not fire on a locked day's options", () => {
     render(<MealPicker grid={grid} categories={categories} orderPublicId="ord_1" menuWeekId="mnw_1" />);
-    // "Paneer" appears on both days; the locked (wed) card's option must not be tappable.
-    // Assert the locked day shows a read-only indicator.
+    // Only the active day's cells render (MealPicker is a day-tabbed view, one day's
+    // picks visible at a time) — switch to Wednesday, the locked day in this fixture,
+    // before asserting its read-only indicator shows.
+    fireEvent.click(screen.getByRole("tab", { name: /wed/i }));
     expect(screen.getByText(/locked/i)).toBeInTheDocument();
   });
 });

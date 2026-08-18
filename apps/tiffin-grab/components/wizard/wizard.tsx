@@ -7,7 +7,7 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
 import { Check } from "lucide-react";
-import { initialSelections, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
+import { initialSelections, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -55,6 +55,7 @@ export function Wizard({
 
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(WIZARD_ORIGIN_KEY, "subscribe");
     router.push("/checkout");
   };
 

@@ -31,6 +31,7 @@ import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
 import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
+import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
@@ -288,13 +289,16 @@ export async function createOrder(
     const newEndExclusive = new Date(newStart);
     newEndExclusive.setUTCDate(newEndExclusive.getUTCDate() + input.selections.durationWeeks * 7);
     const currentOrders = await tx
-      .select({ startDate: orders.startDate, durationWeeks: orders.durationWeeks })
+      .select({ id: orders.id, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
       .from(orders)
       .where(and(eq(orders.userId, userId), inArray(orders.status, ["active", "paused"])));
+    // The reserved band uses each order's true last materialized delivery date, not
+    // just startDate + durationWeeks*7 — pooled/rescheduled tiffins can push real
+    // deliveries later than that naive window (see reservedEndDatesExclusive's doc).
+    const reservedEnds = await reservedEndDatesExclusive(tx, currentOrders);
     for (const o of currentOrders) {
       const existingStart = parseIsoDateUtc(o.startDate);
-      const existingEndExclusive = new Date(existingStart);
-      existingEndExclusive.setUTCDate(existingEndExclusive.getUTCDate() + o.durationWeeks * 7);
+      const existingEndExclusive = reservedEnds.get(o.id.toString())!;
       if (newStart < existingEndExclusive && existingStart < newEndExclusive) {
         const lastDay = new Date(existingEndExclusive);
         lastDay.setUTCDate(lastDay.getUTCDate() - 1);

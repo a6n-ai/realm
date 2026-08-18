@@ -9,6 +9,7 @@ import {
   mySubscriptionsSummary,
   myWaitlistedSubscriptions,
   nextDeliveryByOrder,
+  orderTiffinCounts,
 } from "@/lib/services/customer-deliveries.service";
 import { SubscriptionSection, SubscriptionSectionSkeleton } from "@/components/customer/home/subscription-section";
 import { OrdersSection, OrdersSectionSkeleton } from "@/components/customer/home/orders-section";
@@ -99,8 +100,16 @@ async function SubscriptionSectionData({ userId, timezone }: { userId: bigint; t
     nextDeliveryByOrder(userId, today),
     myWaitlistedSubscriptions(userId),
   ]);
+  // primary is already scoped to userId by myPrimarySubscription, so orderTiffinCounts (the
+  // auth-free core) is safe to call directly here rather than re-paying its ownership check.
+  const counts = primary ? await orderTiffinCounts(primary.publicId) : null;
+  const daysUntilRenewal = counts?.lastDeliveryDate
+    ? Math.round(
+        (parseIsoDateUtc(counts.lastDeliveryDate).getTime() - parseIsoDateUtc(today).getTime()) / 86_400_000,
+      )
+    : null;
   const subscriptions = primary
-    ? [{ ...primary, nextDelivery: nextByOrder.get(primary.publicId) ?? null }]
+    ? [{ ...primary, nextDelivery: nextByOrder.get(primary.publicId) ?? null, daysUntilRenewal }]
     : [];
   return <SubscriptionSection subscriptions={subscriptions} waitlisted={waitlisted} />;
 }

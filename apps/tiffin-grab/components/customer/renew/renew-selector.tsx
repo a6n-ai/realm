@@ -12,7 +12,7 @@ import { Button } from "@realm/ui/button";
 import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "@/components/wizard/selections";
 import { MealSizeItems } from "@/components/wizard/meal-size-items";
 import { MealSizePrice } from "@/components/wizard/meal-size-price";
 import { Invoice } from "@/components/wizard/invoice";
@@ -22,15 +22,30 @@ type Weeks = 1 | 2 | 3 | 4;
 
 const dayLabel: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
+// earliestStartDate is the first day a new plan MAY start (exclusive end of the current
+// plan's reserved band) — this is one day earlier, for "your plan runs through <date>" copy.
+function dayBefore(iso: string): string {
+  const d = parseIsoDateUtc(iso);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export function RenewSelector({
   mealSizes,
   catalog,
+  defaultMealSizeId,
+  earliestStartDate,
 }: {
   mealSizes: ClientMealSizeView[];
   catalog: ClientCatalogSnapshot;
+  defaultMealSizeId?: string;
+  /** First date a new plan may start without overlapping an active/paused subscription
+   * this customer already has running — null when they have none. See
+   * myEarliestNewPlanStartDate in customer-deliveries.service.ts. */
+  earliestStartDate?: string | null;
 }) {
   const router = useRouter();
-  const [mealSizeId, setMealSizeId] = useState("");
+  const [mealSizeId, setMealSizeId] = useState(defaultMealSizeId ?? "");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("weekday");
   const [weeks, setWeeks] = useState<Weeks>(1);
   const [startDate, setStartDate] = useState("");
@@ -40,7 +55,14 @@ export function RenewSelector({
   const mealSize = mealSizes.find((m) => m.publicId === mealSizeId) ?? null;
   const plan = mealSize ? catalog.plans.find((p) => p.key === mealSize.planKey) : null;
   const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
-  const minDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+  // The later of "tomorrow" and "the day after this customer's current plan finishes" —
+  // an active/paused subscription reserves real delivery days, so a new plan can't start
+  // inside that window (createCheckout rejects it server-side too; this just surfaces the
+  // same constraint at pick-time instead of after the customer fills out the whole form).
+  const minDate =
+    earliestStartDate && earliestStartDate > nextWeekday(new Date()).toISOString().slice(0, 10)
+      ? earliestStartDate
+      : nextWeekday(new Date()).toISOString().slice(0, 10);
 
   const includeSaturday = scheduleType === "weekend";
   const includeSunday = scheduleType === "weekend";
@@ -79,6 +101,18 @@ export function RenewSelector({
       return;
     }
     try {
+      // Defense in depth beyond the input's `min` attribute — some mobile date pickers
+      // let a value earlier than `min` through, and this is also the customer's first
+      // signal of the overlap constraint, not just a redundant re-check.
+      if (v < minDate) {
+        setStartDate("");
+        setStartDateError(
+          earliestStartDate && minDate === earliestStartDate
+            ? `You have a plan running through ${dayBefore(earliestStartDate)} — choose a start date after it ends`
+            : `Earliest available start date is ${minDate}`,
+        );
+        return;
+      }
       const wk = weekdayKey(parseIsoDateUtc(v));
       if (allowed.includes(wk)) {
         setStartDate(v);
@@ -95,13 +129,14 @@ export function RenewSelector({
   function continueToCheckout() {
     if (!selections) return;
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
+    sessionStorage.setItem(WIZARD_ORIGIN_KEY, "renew");
     router.push("/checkout");
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <Label className="text-sm font-medium">Choose a plan you&apos;ve had before</Label>
+        <Label className="text-sm font-medium">Choose a meal size</Label>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           {mealSizes.map((m) => {
             const active = mealSizeId === m.publicId;
@@ -189,6 +224,11 @@ export function RenewSelector({
         <p className="mt-1 text-xs text-muted-foreground">
           Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {minDate}.
         </p>
+        {earliestStartDate && minDate === earliestStartDate && !startDateError ? (
+          <p className="mt-1.5 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-pretty">
+            You have a plan running through {dayBefore(earliestStartDate)} — a new plan can start the day after.
+          </p>
+        ) : null}
         {startDateError && <p className="mt-1 text-xs text-destructive">{startDateError}</p>}
       </div>
 

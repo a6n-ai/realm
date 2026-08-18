@@ -15,11 +15,19 @@ import { pauseMySubscription, resumeMySubscription } from "@/app/(customer)/me/d
 import { SUB_STATUS_LABEL, TONE_CLASS } from "@/app/(customer)/me/deliveries/calendar-constants";
 import { PlanHero } from "./plan-hero";
 import { WaitlistCard } from "./waitlist-card";
+import { RenewalCountdown } from "./renewal-countdown";
 
 // M1: myActiveSubscriptions returns plan/status/address only (no mealSizeId, meal-items, or
 // price) — this card renders plan, status, and next-delivery date ONLY. Do not add meal chips
 // or a price line here without first extending the underlying select.
-export type SubscriptionWithNext = Subscription & { nextDelivery: CustomerDelivery | null };
+export type SubscriptionWithNext = Subscription & {
+  nextDelivery: CustomerDelivery | null;
+  /** Days from "today" (computed server-side, see page.tsx) to this order's true last
+   * scheduled delivery — null when there's no delivery data to derive it from yet. Plain
+   * number, not a date, specifically so this client component never does its own date math
+   * (see this session's earlier CutoffBanner hydration-mismatch fix for why). */
+  daysUntilRenewal: number | null;
+};
 
 function StatusPill({ status }: { status: "active" | "paused" }) {
   const tone = status === "active" ? "ok" : "warn";
@@ -52,25 +60,35 @@ function PauseResumeControl({ sub, pending, run }: {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <input
-        aria-label="Pause from"
-        type="date"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-        className="h-8 rounded-lg border bg-transparent px-2 text-sm"
-      />
-      <span className="text-muted-foreground text-xs">to</span>
-      <input
-        aria-label="Pause until"
-        type="date"
-        value={until}
-        onChange={(e) => setUntil(e.target.value)}
-        className="h-8 rounded-lg border bg-transparent px-2 text-sm"
-      />
+    // Two full-width fields stacked on mobile (a bare "to" between two native date inputs
+    // wraps onto its own line at narrow widths, reading as three disconnected rows) — back
+    // to a single row with visible from/until labels once there's room at sm+.
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <label className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground w-10 shrink-0 sm:hidden">From</span>
+        <input
+          aria-label="Pause from"
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className="h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-2 text-sm sm:flex-none"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground w-10 shrink-0 sm:hidden">Until</span>
+        <span className="text-muted-foreground hidden sm:inline">to</span>
+        <input
+          aria-label="Pause until"
+          type="date"
+          value={until}
+          onChange={(e) => setUntil(e.target.value)}
+          className="h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-2 text-sm sm:flex-none"
+        />
+      </label>
       <Button
         variant="outline"
         size="sm"
+        className="w-full sm:w-auto"
         disabled={pending || !from || !until}
         onClick={() => run(() => pauseMySubscription(sub.publicId, { from, until }), "Subscription paused")}
       >
@@ -98,13 +116,16 @@ function SubscriptionCard({ sub }: { sub: SubscriptionWithNext }) {
 
   return (
     <Card variant="flat" className="space-y-0 overflow-hidden p-0">
-      <PlanHero planKey={sub.planKey} planType={sub.planType} />
+      <PlanHero planType={sub.planType} />
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="space-y-1">
             <p className="text-sm font-semibold">{sub.planName}</p>
             {sub.nextDelivery && (
               <p className="text-muted-foreground text-xs">Next delivery {formatDateOnly(sub.nextDelivery.deliveryDate)}</p>
+            )}
+            {sub.status === "active" && sub.daysUntilRenewal != null && (
+              <RenewalCountdown daysLeft={sub.daysUntilRenewal} />
             )}
           </div>
           <StatusPill status={sub.status as "active" | "paused"} />

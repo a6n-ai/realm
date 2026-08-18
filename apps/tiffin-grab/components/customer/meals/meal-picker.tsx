@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckIcon, LockIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
-import { Reveal, Pressable } from "@/components/motion";
+import { LockIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Badge } from "@realm/ui/badge";
+import { Reveal } from "@/components/motion";
 import { DishImage } from "@/components/customer/home/dish-image";
 import { pickMyDish, applyMyDishToWeek } from "@/app/(customer)/me/meals/actions";
 import type { GridCell } from "@/lib/menu/meals-grid";
@@ -48,6 +50,11 @@ export function MealPicker({
     byDay.set(cell.dateIso, arr);
   }
   const days = [...byDay.keys()].sort();
+  // Lazy initialiser: pick the first day once, not on every render — switching
+  // days is driven entirely by the Tabs' own value/onValueChange below.
+  const [selectedDay, setSelectedDay] = useState(() => days[0] ?? "");
+  const activeDay = days.includes(selectedDay) ? selectedDay : (days[0] ?? "");
+
   const categoryOrder = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
 
   async function handlePick(cell: GridCell, dishId: string) {
@@ -87,6 +94,7 @@ export function MealPicker({
         pickIndex: cell.pickIndex,
         dishId,
       });
+      toast.success("Applied to the rest of the week");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't apply to the week");
     } finally {
@@ -98,102 +106,120 @@ export function MealPicker({
     }
   }
 
+  if (days.length === 0) return null;
+
+  const dayCells = byDay.get(activeDay) ?? [];
+  const dayOfWeek = dayCells[0]?.day ?? "";
+  const dayLocked = dayCells.length > 0 && dayCells.every((c) => c.locked);
+
   return (
-    <Reveal.Group className="space-y-4">
-      {days.map((dateIso) => {
-        const dayCells = byDay.get(dateIso) ?? [];
-        const dayOfWeek = dayCells[0]?.day ?? "";
-        const locked = dayCells.every((c) => c.locked);
-        return (
-          <Reveal key={dateIso} className="rounded-lg border p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{DAY_LABEL[dayOfWeek] ?? dayOfWeek}</h3>
-              {locked && (
-                <span className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
-                  <LockIcon className="size-3" aria-hidden />
-                  Locked
-                </span>
-              )}
-            </div>
-            <div className="space-y-4">
-              {categoryOrder.map((cat) => {
-                const catCells = dayCells.filter((c) => c.slot === cat.key);
-                if (catCells.length === 0) return null;
-                return (
-                  <div key={cat.key}>
-                    <div className="text-muted-foreground mb-2 text-xs font-medium">{cat.label}</div>
-                    <div className="space-y-3">
-                      {catCells.map((cell) => {
-                        const key = cellKey(cell);
-                        const selectedDishId = overrides.get(key) ?? cell.selectedDishId;
-                        const isApplying = applying.has(key);
-                        if (!cell.selectable) {
-                          const dish = cell.dishes[0];
-                          if (!dish) return null;
-                          return (
-                            <div key={key} className="flex items-center gap-3 rounded-lg border p-2">
-                              <div className="relative size-14 shrink-0 overflow-hidden rounded-md">
-                                <DishImage image={dish.image} name={dish.name} sizes="56px" />
-                              </div>
-                              {dish.image && <span className="text-sm font-medium">{dish.name}</span>}
-                            </div>
-                          );
-                        }
-                        return (
-                          <div key={key}>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {cell.dishes.map((o) => {
-                                const isSelected = o.id === selectedDishId;
-                                const disabled = cell.locked;
-                                return (
-                                  <Pressable
-                                    key={o.id}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() => {
-                                      if (disabled || isSelected) return;
-                                      void handlePick(cell, o.id);
-                                    }}
-                                    className={cn(
-                                      "relative flex flex-col items-center gap-1 rounded-lg border p-2 text-left",
-                                      isSelected && "border-primary ring-primary/40 ring-2",
-                                      disabled && "opacity-60",
-                                    )}
-                                  >
-                                    <div className="relative aspect-square w-full overflow-hidden rounded-md">
-                                      <DishImage image={o.image} name={o.name} sizes="(max-width: 640px) 45vw, 180px" />
-                                    </div>
-                                    {/* DishImage already renders the name as a fallback tile when there's no photo;
-                                        only add a separate label when there IS a photo, to avoid duplicate text. */}
-                                    {o.image && <span className="text-xs font-medium">{o.name}</span>}
-                                    {isSelected && (
-                                      <CheckIcon className="text-primary bg-background absolute top-1 right-1 size-4 rounded-full" aria-hidden />
-                                    )}
-                                  </Pressable>
-                                );
-                              })}
-                            </div>
-                            {!cell.locked && selectedDishId && (
-                              <button
-                                type="button"
-                                disabled={isApplying}
-                                onClick={() => void handleApplyToWeek(cell, selectedDishId)}
-                                className="text-primary mt-1 text-xs font-medium underline disabled:opacity-50"
-                              >
-                                Apply to the whole week
-                              </button>
-                            )}
+    <div className="space-y-4">
+      <Tabs value={activeDay} onValueChange={setSelectedDay}>
+        <TabsList aria-label="Choose a day" className="w-full">
+          {days.map((dateIso) => {
+            const cellsForDay = byDay.get(dateIso) ?? [];
+            const locked = cellsForDay.length > 0 && cellsForDay.every((c) => c.locked);
+            const label = DAY_LABEL[cellsForDay[0]?.day ?? ""] ?? cellsForDay[0]?.day ?? "";
+            return (
+              <TabsTrigger key={dateIso} value={dateIso}>
+                {label}
+                {locked && <LockIcon aria-hidden />}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+
+      <Reveal key={activeDay} className="rounded-lg border p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">{DAY_LABEL[dayOfWeek] ?? dayOfWeek}</h3>
+          {dayLocked && (
+            <span className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+              <LockIcon className="size-3" aria-hidden />
+              Locked
+            </span>
+          )}
+        </div>
+        <div className="space-y-4">
+          {categoryOrder.map((cat) => {
+            const catCells = dayCells.filter((c) => c.slot === cat.key);
+            if (catCells.length === 0) return null;
+            // Selectable categories carry one cell per unit (pickIndex); fixed
+            // categories carry their whole count on the one cell's `quantity`.
+            const totalQty = cat.selectable ? catCells.length : (catCells[0]?.quantity ?? catCells.length);
+            return (
+              <div key={cat.key}>
+                <div className="mb-2 flex items-center gap-1.5">
+                  <span className="text-muted-foreground text-xs font-medium">{cat.label}</span>
+                  {totalQty > 1 && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                      ×{totalQty}
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {catCells.map((cell) => {
+                    const key = cellKey(cell);
+                    const selectedDishId = overrides.get(key) ?? cell.selectedDishId;
+                    const isApplying = applying.has(key);
+                    const selectedDish = cell.dishes.find((d) => d.id === selectedDishId) ?? cell.dishes[0];
+
+                    if (!cell.selectable) {
+                      if (!selectedDish) return null;
+                      return (
+                        <div key={key} className="flex items-center gap-3 rounded-lg border p-2">
+                          <div className="relative size-12 shrink-0 overflow-hidden rounded-md">
+                            <DishImage image={selectedDish.image} name={selectedDish.name} category={cell.slot} sizes="48px" />
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Reveal>
-        );
-      })}
-    </Reveal.Group>
+                          <span className="text-sm font-medium">{selectedDish.name}</span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={key} className="flex items-center gap-3 rounded-lg border p-2">
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md">
+                          {selectedDish && (
+                            <DishImage image={selectedDish.image} name={selectedDish.name} category={cell.slot} sizes="48px" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Select
+                            value={selectedDishId ?? undefined}
+                            onValueChange={(dishId) => void handlePick(cell, dishId)}
+                            disabled={cell.locked}
+                          >
+                            <SelectTrigger className="w-full" size="sm">
+                              <SelectValue placeholder="Choose a dish" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cell.dishes.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {!cell.locked && selectedDishId && (
+                            <button
+                              type="button"
+                              disabled={isApplying}
+                              onClick={() => void handleApplyToWeek(cell, selectedDishId)}
+                              className="text-primary text-xs font-medium underline disabled:opacity-50"
+                            >
+                              Apply to the whole week
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Reveal>
+    </div>
   );
 }

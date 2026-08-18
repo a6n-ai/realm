@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { orders } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
-import { myOrderedMealSizes } from "@/lib/services/customer-deliveries.service";
-import { LottieEmptyState } from "@/components/motion";
+import { myEarliestNewPlanStartDate } from "@/lib/services/customer-deliveries.service";
 import { RenewSelector } from "@/components/customer/renew/renew-selector";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default function RenewPlanPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Renew your plan</h1>
         <p className="text-muted-foreground text-sm text-pretty">
-          Pick a meal size you&apos;ve had before, choose your schedule, and pick a start date.
+          Pick a meal size, choose your schedule, and pick a start date.
         </p>
       </header>
       <RenewData />
@@ -27,41 +28,33 @@ async function RenewData() {
   const userId = await currentUserId();
   if (userId == null) redirect("/login");
 
-  const [ordered, catalog] = await Promise.all([myOrderedMealSizes(userId), loadCatalogSnapshot()]);
-
-  if (ordered.length === 0) {
-    return (
-      <LottieEmptyState
-        animation="empty-box"
-        title="You haven't ordered yet"
-        body="Once you've started a plan, you'll be able to renew it here in a couple of taps."
-        action={
-          <Link href="/subscribe" className="bg-primary text-primary-foreground inline-block rounded-md px-4 py-2 text-sm font-medium">
-            Browse plans
-          </Link>
-        }
-      />
-    );
-  }
-
+  // Every currently-active meal size in the admin catalog is offered here — not just
+  // ones this customer has ordered before. loadCatalogSnapshot() already excludes
+  // retired meal sizes, so no further filtering is needed.
+  const [catalog, [lastOrder], earliestStartDate] = await Promise.all([
+    loadCatalogSnapshot(),
+    db
+      .select({ mealSizeId: orders.mealSizeId })
+      .from(orders)
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.createdAt))
+      .limit(1),
+    myEarliestNewPlanStartDate(userId),
+  ]);
   const client = toClientCatalog(catalog);
-  const orderedByPublicId = new Map(ordered.map((o) => [o.mealSizePublicId, o]));
-  const renewableMealSizes = client.mealSizes.filter((m) => orderedByPublicId.has(m.publicId));
+  // Pre-select whatever meal size they most recently ordered — renewing is almost always
+  // "get me the same thing again," not a fresh browse. Falls back to no selection when the
+  // customer has no order history, or that meal size has since been retired from the catalog.
+  const defaultMealSizeId = lastOrder
+    ? catalog.mealSizes.find((m) => m.id === lastOrder.mealSizeId)?.publicId
+    : undefined;
 
-  if (renewableMealSizes.length === 0) {
-    return (
-      <LottieEmptyState
-        animation="empty-box"
-        title="Those meal sizes aren't available anymore"
-        body="The meal size(s) you've ordered before are no longer offered — start a new plan instead."
-        action={
-          <Link href="/subscribe" className="bg-primary text-primary-foreground inline-block rounded-md px-4 py-2 text-sm font-medium">
-            Browse plans
-          </Link>
-        }
-      />
-    );
-  }
-
-  return <RenewSelector mealSizes={renewableMealSizes} catalog={client} />;
+  return (
+    <RenewSelector
+      mealSizes={client.mealSizes}
+      catalog={client}
+      defaultMealSizeId={defaultMealSizeId}
+      earliestStartDate={earliestStartDate}
+    />
+  );
 }
