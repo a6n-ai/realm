@@ -1,1 +1,0 @@
-ALTER TYPE "public"."order_activity_type" ADD VALUE 'route_pushed';

@@ -1,6 +1,6 @@
 import { inArray, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categorySwapRules, deliveryCategorySwaps } from "@/db/schema";
+import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import {
@@ -40,17 +40,12 @@ export async function loadOrderDeliveriesBundle(
   // Same batch-load shape as MyDeliveriesData (app/(customer)/me/deliveries/page.tsx) —
   // this bundle backs both the customer-facing calendar reuse points and the admin
   // order-detail view, so both must see (and staff must be able to act on) the same
-  // swap state.
-  const availableSwapRules = await db
-    .select({
-      publicId: categorySwapRules.publicId,
-      fromCategory: categorySwapRules.fromCategory,
-      toCategory: categorySwapRules.toCategory,
-      qtyFrom: categorySwapRules.qtyFrom,
-      qtyTo: categorySwapRules.qtyTo,
-    })
-    .from(categorySwapRules)
-    .where(eq(categorySwapRules.mealSizeId, selected.mealSizeId));
+  // swap state. Eligibility is global now (category_swap_pairs), restricted here to
+  // categories this meal size actually offers.
+  const mealSizeCategoryRows = await db.select({ category: mealSizeItems.category }).from(mealSizeItems)
+    .where(eq(mealSizeItems.mealSizeId, selected.mealSizeId));
+  const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
+  const swapPairs = await dishCategoriesService.swapPairsForCategories(mealSizeCategories);
 
   const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
     .select({
@@ -64,8 +59,6 @@ export async function loadOrderDeliveriesBundle(
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
 
-  const defaultSwapDirections = (selected.defaultSwaps ?? []).map((s) => `${s.fromCategory}:${s.toCategory}`);
-
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
       const meal = await myDeliveryMeal(d);
@@ -77,9 +70,9 @@ export async function loadOrderDeliveriesBundle(
         address,
         hasAddressOverride,
         hasMakeupScheduled: makeupSources.has(d.id.toString()),
-        availableSwapRules,
+        swapPairs,
+        mealSizeCategories,
         appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
-        defaultSwapDirections,
       };
     }),
   );

@@ -53,7 +53,6 @@ export function RenewSelector({
         frequencyKey: "5_day",
         persons: 1,
         mealSlots: plan.offeredSlots,
-        swapRuleIds: [],
         includeSaturday,
         includeSunday,
         durationWeeks: weeks,
@@ -118,7 +117,7 @@ export function RenewSelector({
                 </div>
                 {m.description ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{m.description}</p> : null}
                 <div className="mt-1">
-                  <MealSizeItems items={m.items} swapRules={m.swapRules} categoryLabels={catalog.categoryLabels} />
+                  <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                 </div>
                 {active && (
                   <div className="mt-3 flex flex-wrap gap-1">

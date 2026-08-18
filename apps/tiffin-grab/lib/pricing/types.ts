@@ -10,9 +10,6 @@ export interface PricingSelections {
   includeSunday: boolean;
   durationWeeks: number;
   startDate: string; // ISO YYYY-MM-DD; not used by pricing, carried for order creation
-  // Chosen swap rule public_ids; not used by pricing (a swap is free), carried
-  // for order creation the same way startDate is.
-  swapRuleIds?: string[];
 }
 
 export interface PricingCatalog {

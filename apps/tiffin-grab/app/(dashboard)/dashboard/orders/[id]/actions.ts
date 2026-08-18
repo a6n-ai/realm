@@ -66,7 +66,6 @@ export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey:
       mealSizeName: mealSizes.name,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
-      defaultSwaps: orders.defaultSwaps,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
@@ -96,7 +95,6 @@ export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey:
     mealSizeName: orderRow.mealSizeName,
     persons: orderRow.persons,
     categoryCounts: (orderRow.categoryCounts as Record<string, number> | null) ?? {},
-    defaultSwaps: orderRow.defaultSwaps,
   };
 
   const bundle = await loadOrderDeliveriesBundle(orderRow.userId, subscription, from, until);

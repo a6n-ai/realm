@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { inArray, eq } from "drizzle-orm";
 import { zonedDateIso } from "@realm/commons";
 import { db } from "@/db/client";
-import { categorySwapRules, deliveryCategorySwaps } from "@/db/schema";
+import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -86,17 +86,12 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 
-  // Rules don't vary per day, only per order's meal size — load once, not per delivery.
-  const availableSwapRules = await db
-    .select({
-      publicId: categorySwapRules.publicId,
-      fromCategory: categorySwapRules.fromCategory,
-      toCategory: categorySwapRules.toCategory,
-      qtyFrom: categorySwapRules.qtyFrom,
-      qtyTo: categorySwapRules.qtyTo,
-    })
-    .from(categorySwapRules)
-    .where(eq(categorySwapRules.mealSizeId, selected.mealSizeId));
+  // Eligibility is global now (category_swap_pairs) — restricted here to categories
+  // this meal size actually offers, so the picker can't propose a pair it doesn't serve.
+  const mealSizeCategoryRows = await db.select({ category: mealSizeItems.category }).from(mealSizeItems)
+    .where(eq(mealSizeItems.mealSizeId, selected.mealSizeId));
+  const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
+  const swapPairs = await dishCategoriesService.swapPairsForCategories(mealSizeCategories);
 
   // One batched query for every delivery's applied swaps, not one per delivery inside
   // the Promise.all below — same batch-then-filter shape resolveDeliveryMealsForWeek uses.
@@ -104,7 +99,6 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     .select({
       publicId: deliveryCategorySwaps.publicId,
       deliveryId: deliveryCategorySwaps.deliveryId,
-      ruleId: deliveryCategorySwaps.ruleId,
       fromCategory: deliveryCategorySwaps.fromCategory,
       toCategory: deliveryCategorySwaps.toCategory,
       qtyFrom: deliveryCategorySwaps.qtyFrom,
@@ -112,8 +106,6 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     })
     .from(deliveryCategorySwaps)
     .where(inArray(deliveryCategorySwaps.deliveryId, selectedDeliveries.map((d) => d.id)));
-
-  const defaultSwapDirections = (selected.defaultSwaps ?? []).map((s) => `${s.fromCategory}:${s.toCategory}`);
 
   const deliveries = await Promise.all(
     selectedDeliveries.map(async (d) => {
@@ -126,9 +118,9 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
         address,
         hasAddressOverride,
         hasMakeupScheduled: makeupSources.has(d.id.toString()),
-        availableSwapRules,
+        swapPairs,
+        mealSizeCategories,
         appliedSwaps: allAppliedSwaps.filter((s) => s.deliveryId === d.id),
-        defaultSwapDirections,
       };
     }),
   );

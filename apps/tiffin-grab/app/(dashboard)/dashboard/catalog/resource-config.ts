@@ -77,16 +77,17 @@ const plansSchema = z.object({
 });
 
 // A composition row: the required NOT NULL `name`, a category soft-ref (validated
-// against dish_categories server-side), an optional numeric weight (numeric column
-// ⇒ string in Drizzle, nullable) with a nullable unit, and a positive qty.
-// No free-text name: an item IS a category (Sabzi, Roti …), and its display name
-// is that category's label, resolved server-side. Typing names by hand let the
-// same slot be spelled three ways across meal sizes.
+// against dish_categories server-side), and a TU portion size. No free-text name:
+// an item IS a category (Sabzi, Roti …), and its display name is that category's
+// label, resolved server-side. Typing names by hand let the same slot be spelled
+// three ways across meal sizes. Each row is exactly one dish pick — "2 units of a
+// category" is two rows, not a qty field on one.
 const compositionItem = z.object({
   category: z.string().trim().min(1, "Pick a category"),
-  weightValue: z.preprocess((v) => (v === "" || v == null ? null : String(v)), z.string().nullable()),
-  weightUnit: z.preprocess((v) => (v === "" || v == null ? null : v), z.enum(["oz", "g", "ml", "piece"]).nullable()),
-  qty: reqNum(z.coerce.number().int().positive()),
+  // Portion size of ONE pick, in tiffin units (TU) — the shared currency swaps move
+  // between categories. See lib/menu/format-tu.ts for how this renders to the kitchen.
+  tuAmount: reqNum(z.coerce.number().positive().default(1).transform((n) => n.toFixed(2))),
+  maxTuAmount: optNum(z.coerce.number().positive().transform((n) => n.toFixed(2))),
 });
 
 const mealSizesSchema = z.object({
@@ -179,6 +180,10 @@ const dishCategoriesSchema = z.object({
   planIds: z.array(z.string()).min(1, "Pick at least one plan"),
   selectable: z.boolean().default(false),
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
+  // How this category converts into the shared tiffin unit (TU) — see db/schema/menu.ts.
+  tuUnitType: z.enum(["weight", "count"]).default("weight"),
+  tuUnitSize: reqNum(z.coerce.number().positive().default(8).transform((n) => n.toFixed(2))),
+  tuUnitLabel: z.string().trim().min(1, "Unit label is required").default("oz"),
 });
 
 export const RESOURCES: Record<string, ResourceDef> = {
@@ -200,6 +205,9 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
       { key: "sortOrder", label: "Sort order", type: "number" },
+      { key: "tuUnitType", label: "TU unit type", type: "select", options: ["weight", "count"], optionLabels: ENUM_LABELS },
+      { key: "tuUnitSize", label: "Natural units per TU", type: "number" },
+      { key: "tuUnitLabel", label: "Unit label", type: "text" },
     ],
   },
   plans: {

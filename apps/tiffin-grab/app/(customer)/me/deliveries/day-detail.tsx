@@ -25,6 +25,7 @@ import { PencilIcon, CalendarClockIcon, CalendarPlusIcon } from "lucide-react";
 import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
+import { Input } from "@realm/ui/input";
 import { AddressDisplay } from "@realm/ui/address-display";
 import { AddressFields } from "@realm/ui/address-fields";
 import { ResponsiveDialog } from "@/components/ds";
@@ -54,16 +55,16 @@ import { VacationDateField } from "./vacation-date-field";
 import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
 
 type Address = DeliveryAddressValues;
-type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+type SwapPair = { fromCategory: string; toCategory: string };
 type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
-  availableSwapRules: SwapRule[];
+  swapPairs: SwapPair[];
+  mealSizeCategories: string[];
   appliedSwaps: AppliedSwap[];
-  defaultSwapDirections: string[];
 };
 type HoldDeliveryOption = {
   publicId: string;
@@ -387,9 +388,12 @@ function SchedulePoolDayAction({
   );
 }
 
-// One admin-defined swap, offered or already applied, for one specific day. No dialog —
-// unlike address (multi-field input), applying/removing a swap is a single button + single
-// server-action call, closer to the skip/un-skip bare-button pattern than ChangeAddressDialog.
+// Applying/removing a swap for one specific day. No dialog — unlike address
+// (multi-field input), applying/removing a swap is a single control + single
+// server-action call, closer to the skip/un-skip bare-button pattern than
+// ChangeAddressDialog. Eligibility is global (category_swap_pairs) now, so
+// there's no per-meal-size rule list to render as buttons — just a from/to
+// category picker constrained to this meal size's eligible pairs.
 function SwapSection({
   delivery,
   categoryLabels,
@@ -400,12 +404,8 @@ function SwapSection({
   onChanged: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  if (delivery.availableSwapRules.length === 0) return null;
 
   const label = (key: string) => categoryLabels[key] ?? key;
-  // Matched by (fromCategory, toCategory), not by id: an applied swap's snapshot survives
-  // even if the admin later deletes the rule it came from.
-  const appliedByDirection = new Map(delivery.appliedSwaps.map((s) => [`${s.fromCategory}:${s.toCategory}`, s]));
 
   function run(fn: () => Promise<void>, successMsg: string) {
     startTransition(async () => {
@@ -419,45 +419,103 @@ function SwapSection({
     });
   }
 
+  if (delivery.swapPairs.length === 0) return null;
+
+  return (
+    <OpenSwapPicker
+      deliveryPublicId={delivery.publicId}
+      swapPairs={delivery.swapPairs}
+      appliedSwaps={delivery.appliedSwaps}
+      label={label}
+      pending={pending}
+      run={run}
+    />
+  );
+}
+
+// From/to category picker constrained to this meal size's globally-eligible
+// swap pairs. Applied swaps render as removable chips.
+function OpenSwapPicker({
+  deliveryPublicId,
+  swapPairs,
+  appliedSwaps,
+  label,
+  pending,
+  run,
+}: {
+  deliveryPublicId: string;
+  swapPairs: SwapPair[];
+  appliedSwaps: AppliedSwap[];
+  label: (key: string) => string;
+  pending: boolean;
+  run: (fn: () => Promise<void>, successMsg: string) => void;
+}) {
+  const fromOptions = [...new Set(swapPairs.map((p) => p.fromCategory))];
+  const [from, setFrom] = useState<string>(fromOptions[0]);
+  const toOptions = swapPairs.filter((p) => p.fromCategory === from).map((p) => p.toCategory);
+  const [to, setTo] = useState<string>(toOptions[0]);
+  const [picks, setPicks] = useState("1");
+
+  function selectFrom(next: string) {
+    setFrom(next);
+    const firstTo = swapPairs.find((p) => p.fromCategory === next)?.toCategory;
+    if (firstTo) setTo(firstTo);
+  }
+
+  const picksNum = Number(picks);
+  const validPicks = Number.isInteger(picksNum) && picksNum > 0;
+
   return (
     <div className="space-y-2">
       <p className="text-muted-foreground text-xs font-medium">Swap items for this day</p>
-      <div className="flex flex-wrap items-center gap-2">
-        {delivery.availableSwapRules.map((rule) => {
-          const applied = appliedByDirection.get(`${rule.fromCategory}:${rule.toCategory}`);
-          const text = `${rule.qtyFrom} ${label(rule.fromCategory)} → ${rule.qtyTo} ${label(rule.toCategory)}`;
-          return applied ? (
-            <span key={rule.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
-              {text}
-              {delivery.defaultSwapDirections.includes(`${rule.fromCategory}:${rule.toCategory}`) ? (
-                <span className="text-muted-foreground text-[10px] uppercase">Your default</span>
-              ) : null}
+      {appliedSwaps.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {appliedSwaps.map((s) => (
+            <span key={s.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
+              {s.qtyFrom} {label(s.fromCategory)} → {s.qtyTo} {label(s.toCategory)}
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-auto p-0 text-xs underline"
                 disabled={pending}
-                onClick={() => run(() => removeMyDeliverySwap(delivery.publicId, applied.publicId), "Swap removed")}
+                onClick={() => run(() => removeMyDeliverySwap(deliveryPublicId, s.publicId), "Swap removed")}
               >
                 Remove
               </Button>
             </span>
-          ) : (
-            <span key={rule.publicId} className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => run(() => applyMyDeliverySwap(delivery.publicId, rule.publicId), "Swap applied")}
-              >
-                Swap: {text}
-              </Button>
-              {delivery.defaultSwapDirections.includes(`${rule.fromCategory}:${rule.toCategory}`) ? (
-                <span className="text-muted-foreground text-[10px] uppercase">Off for this day</span>
-              ) : null}
-            </span>
-          );
-        })}
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          className="w-14 tabular-nums"
+          type="number"
+          min={1}
+          value={picks}
+          onChange={(e) => setPicks(e.target.value)}
+        />
+        <Select value={from} onValueChange={selectFrom}>
+          <SelectTrigger className="w-36" size="sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {fromOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground text-xs">for</span>
+        <Select value={to} onValueChange={setTo}>
+          <SelectTrigger className="w-36" size="sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {toOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending || !to || !validPicks}
+          onClick={() => run(() => applyMyDeliverySwap(deliveryPublicId, from, to, picksNum), "Swap applied")}
+        >
+          Swap
+        </Button>
       </div>
     </div>
   );

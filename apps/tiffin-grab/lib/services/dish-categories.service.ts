@@ -2,7 +2,7 @@ import { UpdatableRepository } from "@realm/database";
 import { ValidationError } from "@realm/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categoryPlans, dishCategories, plans } from "@/db/schema";
+import { categoryPlans, categorySwapPairs, dishCategories, plans } from "@/db/schema";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 
@@ -111,6 +111,88 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       .where(eq(dishCategories.enabled, true))
       .orderBy(asc(dishCategories.sortOrder));
     return dedupeByKey(rows);
+  }
+
+  /**
+   * Global guardrail: is (fromKey, toKey) EVER allowed to swap, anywhere? A swap
+   * moves N picks of fromKey for however many toKey picks its own tuAmount works
+   * out to (see category-swaps.service.ts) — this table carries no ratio, only
+   * eligibility.
+   */
+  async isSwapPairAllowed(fromKey: string, toKey: string): Promise<boolean> {
+    const rows = await db
+      .select({ id: categorySwapPairs.id })
+      .from(categorySwapPairs)
+      .innerJoin(dishCategories, eq(dishCategories.id, categorySwapPairs.fromCategoryId))
+      .where(eq(dishCategories.key, fromKey))
+      .limit(1000);
+    if (rows.length === 0) return false;
+    // Two-step (rather than a single join on both sides) because we need both
+    // categories resolved by key first — same tradeoff isSwapAllowed in
+    // category-swaps.service.ts makes for the per-meal-size rule check.
+    const [pair] = await db
+      .select({ id: categorySwapPairs.id })
+      .from(categorySwapPairs)
+      .innerJoin(dishCategories, eq(dishCategories.id, categorySwapPairs.toCategoryId))
+      .where(and(inArray(categorySwapPairs.id, rows.map((r) => r.id)), eq(dishCategories.key, toKey)))
+      .limit(1);
+    return pair != null;
+  }
+
+  async listSwapPairs() {
+    // Small table, admin-only read: resolve both sides against one category
+    // lookup rather than joining dish_categories twice (drizzle needs an
+    // explicit alias for a self-join, more ceremony than this is worth here).
+    const [pairs, cats] = await Promise.all([
+      db.select({ publicId: categorySwapPairs.publicId, fromCategoryId: categorySwapPairs.fromCategoryId, toCategoryId: categorySwapPairs.toCategoryId }).from(categorySwapPairs),
+      db.select({ id: dishCategories.id, key: dishCategories.key, label: dishCategories.label }).from(dishCategories),
+    ]);
+    const byId = new Map(cats.map((c) => [c.id, c]));
+    return pairs.map((p) => ({
+      id: p.publicId,
+      fromKey: byId.get(p.fromCategoryId)?.key ?? "",
+      fromLabel: byId.get(p.fromCategoryId)?.label ?? "",
+      toKey: byId.get(p.toCategoryId)?.key ?? "",
+      toLabel: byId.get(p.toCategoryId)?.label ?? "",
+    }));
+  }
+
+  async addSwapPair(fromKey: string, toKey: string) {
+    if (fromKey === toKey) throw new ValidationError("A swap pair must be between two different categories");
+    const rows = await db.select({ key: dishCategories.key, id: dishCategories.id }).from(dishCategories).where(inArray(dishCategories.key, [fromKey, toKey]));
+    const byKey = new Map(rows.map((r) => [r.key, r.id]));
+    const fromId = byKey.get(fromKey);
+    const toId = byKey.get(toKey);
+    if (!fromId) throw new ValidationError(`Category "${fromKey}" not found`);
+    if (!toId) throw new ValidationError(`Category "${toKey}" not found`);
+    try {
+      const [created] = await db.insert(categorySwapPairs).values({ fromCategoryId: fromId, toCategoryId: toId }).returning();
+      return created;
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("category_swap_pairs_pair_unique")) {
+        throw new ValidationError("This pair is already globally swappable");
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Globally-eligible (fromKey, toKey) pairs restricted to a given category set —
+   * e.g. one meal size's own composition, so a picker never offers a pair the
+   * meal size doesn't actually serve on either side.
+   */
+  async swapPairsForCategories(categories: string[]): Promise<{ fromCategory: string; toCategory: string }[]> {
+    if (categories.length < 2) return [];
+    const set = new Set(categories);
+    const all = await this.listSwapPairs();
+    return all
+      .filter((p) => set.has(p.fromKey) && set.has(p.toKey))
+      .map((p) => ({ fromCategory: p.fromKey, toCategory: p.toKey }));
+  }
+
+  async removeSwapPair(publicId: string): Promise<void> {
+    const deleted = await db.delete(categorySwapPairs).where(eq(categorySwapPairs.publicId, publicId)).returning({ id: categorySwapPairs.id });
+    if (deleted.length === 0) throw new ValidationError("Swap pair not found");
   }
 }
 

@@ -1,6 +1,6 @@
 import { getTableColumns } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { mealSizeItems, mealSizes, weightUnit } from "../catalog";
+import { mealSizeItems, mealSizes } from "../catalog";
 
 describe("meal_size_items schema", () => {
   it("has the msi base columns plus the item fields", () => {
@@ -16,9 +16,8 @@ describe("meal_size_items schema", () => {
         "updatedBy",
         "mealSizeId",
         "name",
-        "qty",
-        "weightValue",
-        "weightUnit",
+        "tuAmount",
+        "maxTuAmount",
         "sortOrder",
       ]),
     );
@@ -36,8 +35,3 @@ describe("meal_sizes.trial", () => {
   });
 });
 
-describe("weight_unit enum", () => {
-  it("has the exact 4 units", () => {
-    expect(weightUnit.enumValues).toEqual(["oz", "g", "ml", "piece"]);
-  });
-});

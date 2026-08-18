@@ -27,7 +27,6 @@ const sub: Subscription = {
   mealSizeName: "Maharaja Thali (Veg)",
   persons: 2,
   categoryCounts: { sabzi: 1, dal: 1, roti: 8 },
-  defaultSwaps: [],
 };
 
 describe("SubscriptionPlanSummary", () => {

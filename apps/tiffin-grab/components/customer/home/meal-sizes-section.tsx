@@ -17,6 +17,22 @@ const TIER_LABEL: Record<ClientMealSizeView["tier"], string> = {
   premium: "Premium",
 };
 
+// Each catalog row is one dish pick now (no qty column) — group same-named rows
+// so "2 Roti" still reads as one line instead of two identical ones.
+function groupItemsByName(items: ClientMealSizeView["items"]): { name: string; count: number; portion: string | null }[] {
+  const order: string[] = [];
+  const byName = new Map<string, { count: number; portion: string | null }>();
+  for (const item of items) {
+    const existing = byName.get(item.name);
+    if (existing) existing.count += 1;
+    else {
+      order.push(item.name);
+      byName.set(item.name, { count: 1, portion: item.portion });
+    }
+  }
+  return order.map((name) => ({ name, ...byName.get(name)! }));
+}
+
 function MealSizeCard({ mealSize, dishPool, planName }: { mealSize: ClientMealSizeView; dishPool: CustomerDish[]; planName: string }) {
   const [open, setOpen] = useState(false);
 
@@ -45,12 +61,12 @@ function MealSizeCard({ mealSize, dishPool, planName }: { mealSize: ClientMealSi
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-2">
               <ul className="space-y-1 text-sm">
-                {mealSize.items.map((item) => (
-                  <li key={item.name} className="flex items-center justify-between gap-2">
-                    <span>{item.name}</span>
+                {groupItemsByName(mealSize.items).map(({ name, count, portion }) => (
+                  <li key={name} className="flex items-center justify-between gap-2">
+                    <span>{name}</span>
                     <span className="text-muted-foreground text-xs tabular-nums">
-                      {item.qty}
-                      {item.weightValue !== null ? ` · ${item.weightValue}${item.weightUnit ?? ""}` : ""}
+                      {count > 1 ? `${count}× ` : ""}
+                      {portion ?? ""}
                     </span>
                   </li>
                 ))}

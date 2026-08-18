@@ -1,15 +1,5 @@
 import type { PricingTier } from "@/lib/pricing/tiers";
 
-export type ClientSwapRule = {
-  publicId: string;
-  fromCategory: string;
-  toCategory: string;
-  qtyFrom: number;
-  qtyTo: number;
-  toWeightValue: number | null;
-  toWeightUnit: "oz" | "g" | "ml" | "piece" | null;
-};
-
 export interface MealSizeView {
   id: bigint;
   publicId: string;
@@ -22,8 +12,7 @@ export interface MealSizeView {
   planKey: string;
   tier: "budget" | "medium" | "premium";
   components: string[];
-  items: { name: string; category: string; qty: number; weightValue: number | null; weightUnit: "oz" | "g" | "ml" | "piece" | null }[];
-  swapRules: ClientSwapRule[];
+  items: { name: string; category: string; tuAmount: number; maxTuAmount: number | null; portion: string | null }[];
   kcalMin: number;
   kcalMax: number;
   proteinG: number | null;

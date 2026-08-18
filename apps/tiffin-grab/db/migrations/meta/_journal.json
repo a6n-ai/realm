@@ -5,71 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1785566190779,
+      "when": 1786998200444,
       "tag": "0000_squashed_baseline",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1785608181202,
-      "tag": "0001_married_avengers",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1785620597162,
-      "tag": "0002_wakeful_katie_power",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1785621038798,
-      "tag": "0003_overconfident_winter_soldier",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786201534345,
-      "tag": "0004_steep_cobalt_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1786370974096,
-      "tag": "0005_normal_tomas",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1786558898542,
-      "tag": "0006_windy_sister_grimm",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1786783498676,
-      "tag": "0007_condemned_blue_blade",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1786906406535,
-      "tag": "0008_magenta_whizzer",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1786973570640,
-      "tag": "0009_bouncy_mentor",
+      "when": 1787001295137,
+      "tag": "0001_past_triathlon",
       "breakpoints": true
     }
   ]

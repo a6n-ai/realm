@@ -11,6 +11,7 @@ import {
   deliveries,
   deliveryCategorySwaps,
   deliveryZones,
+  dishCategories,
   mealSizeItems,
   mealSizes,
   orders,
@@ -141,19 +142,20 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
 
   if (rows.length === 0) return { ...EMPTY(dateIso, weekStart), menuWeekPublicId: week.publicId };
 
-  const [zones, sizeItems] = await Promise.all([
+  const [zones, sizeItems, categories] = await Promise.all([
     db.select({ id: deliveryZones.id, name: deliveryZones.name }).from(deliveryZones),
     db
       .select({
         mealSizeId: mealSizeItems.mealSizeId,
         category: mealSizeItems.category,
-        qty: mealSizeItems.qty,
-        weightValue: mealSizeItems.weightValue,
-        weightUnit: mealSizeItems.weightUnit,
+        tuAmount: mealSizeItems.tuAmount,
         sortOrder: mealSizeItems.sortOrder,
       })
       .from(mealSizeItems)
       .where(inArray(mealSizeItems.mealSizeId, [...new Set(rows.map((r) => r.order.mealSizeId))])),
+    db
+      .select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel })
+      .from(dishCategories),
   ]);
 
   const swapRows =
@@ -166,14 +168,15 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
             toCategory: deliveryCategorySwaps.toCategory,
             qtyFrom: deliveryCategorySwaps.qtyFrom,
             qtyTo: deliveryCategorySwaps.qtyTo,
-            toWeightValue: deliveryCategorySwaps.toWeightValue,
-            toWeightUnit: deliveryCategorySwaps.toWeightUnit,
           })
           .from(deliveryCategorySwaps)
           .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.delivery.id)))
           .orderBy(asc(deliveryCategorySwaps.id));
 
   const zoneName = new Map(zones.map((z) => [z.id, z.name]));
+  const categoriesByKey = new Map(
+    categories.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
+  );
   // Per delivery, not per meal size: two orders on the same size differ once one
   // of them has a swap applied.
   const portionsByDelivery = new Map(
@@ -181,6 +184,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
       r.delivery.id,
       portionsByCategory(
         sizeItems.filter((i) => i.mealSizeId === r.order.mealSizeId),
+        categoriesByKey,
         swapRows.filter((s) => s.deliveryId === r.delivery.id),
       ),
     ]),

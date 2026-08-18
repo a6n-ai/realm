@@ -8,8 +8,7 @@ import { scheduleFromPool, skipDelivery, unskipDelivery, setDeliveryAddress, cle
 import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { db } from "@/db/client";
-import { categorySwapRules, deliveries, orders } from "@/db/schema";
-import { ValidationError } from "@realm/commons";
+import { deliveries, orders } from "@/db/schema";
 
 // Every action gates with assertCanManage* (owner OR staff) before mutating, then stamps the
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
@@ -89,17 +88,12 @@ export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: str
   await revalidateDeliverySurfaces(orderPublicId);
 }
 
-async function resolveSwapRuleId(rulePublicId: string): Promise<bigint> {
-  const [row] = await db.select({ id: categorySwapRules.id }).from(categorySwapRules)
-    .where(eq(categorySwapRules.publicId, rulePublicId)).limit(1);
-  if (!row) throw new ValidationError("Swap rule not found");
-  return row.id;
-}
-
-export async function applyMyDeliverySwap(deliveryPublicId: string, rulePublicId: string) {
+// Swap eligibility is global now (category_swap_pairs) — there's no per-meal-size
+// rule catalog to pick a rule id from, so the client sends the category pair and
+// how many picks of fromCategory to give up directly.
+export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number) {
   await assertCanManageDelivery(deliveryPublicId);
-  const ruleId = await resolveSwapRuleId(rulePublicId);
-  await applyDeliverySwap(deliveryPublicId, ruleId, await currentUserId());
+  await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId());
   const orderId = await orderPublicIdForDelivery(deliveryPublicId);
   if (orderId) await revalidateDeliverySurfaces(orderId);
   else revalidatePath("/me/deliveries");

@@ -33,10 +33,6 @@ const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
 const isSpanningType = (f: FieldDef) => isArrayType(f) || f.type === "categoryCounts" || f.type === "composition";
 
-const WEIGHT_UNITS = [
-  { value: "oz", label: "oz" }, { value: "g", label: "g" }, { value: "ml", label: "ml" }, { value: "piece", label: "piece" },
-];
-
 // Single source of truth for the table's visible columns: every field except
 // hidden ones and the slug key (shown as subtext under the first column). Both
 // the real header/rows and the .Skeleton twin render from this, so the loading
@@ -92,8 +88,10 @@ function formatNumber(f: FieldDef, n: number): string {
 /* ─────────────────────────── Dialog form ─────────────────────────── */
 
 // Repeating-row editor for a meal size's composition. Each row is a required
-// name, a category soft-ref, an optional numeric weight + unit, and a qty; the
-// service full-replaces the rows and derives sortOrder from the array order.
+// name, a category soft-ref, and a TU portion; the service full-replaces the
+// rows and derives sortOrder from the array order. A row IS one dish pick, so
+// "2 raita" is two rows of the same category, not a qty field — the category
+// select allows repeats on purpose.
 function CompositionField({
   f, form, options, categoriesByPlan,
 }: {
@@ -111,9 +109,6 @@ function CompositionField({
   const planId = form.watch("planId") as string | undefined;
   const cats = categoriesByPlan ? (planId ? (categoriesByPlan[planId] ?? []) : []) : (options[f.key] ?? []);
   const needsPlan = Boolean(categoriesByPlan) && !planId;
-  const used = new Set(
-    (form.watch(f.key) as { category?: string }[] | undefined)?.map((r) => r?.category).filter(Boolean) as string[],
-  );
 
   return (
     <FormItem className="grid gap-2">
@@ -141,7 +136,7 @@ function CompositionField({
           <div
             key={row.id}
             // Outer radius = inner radius + padding (rounded-md inputs + p-2 → rounded-lg).
-            className="grid grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,1.6fr)_5.5rem_6rem_4.5rem_auto]"
+            className="grid grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,1.6fr)_6rem_4.5rem_auto]"
           >
             <Controller
               control={form.control}
@@ -153,9 +148,7 @@ function CompositionField({
                     <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
                     <SelectContent>
                       {cats.map((o) => (
-                        // Already-used categories stay visible but unselectable, so
-                        // the list reads the same every time instead of shrinking.
-                        <SelectItem key={o.value} value={o.value} disabled={o.value !== field.value && used.has(o.value)}>
+                        <SelectItem key={o.value} value={o.value}>
                           {o.label}
                         </SelectItem>
                       ))}
@@ -166,34 +159,21 @@ function CompositionField({
             />
             <Controller
               control={form.control}
-              name={`${f.key}.${idx}.qty`}
+              name={`${f.key}.${idx}.tuAmount`}
               render={({ field }) => (
                 <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Qty</span>
-                  <Input className="tabular-nums" type="number" min={1} value={field.value ?? ""} onChange={field.onChange} />
+                  <span className="text-muted-foreground text-xs">TU / pick</span>
+                  <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="1" />
                 </label>
               )}
             />
             <Controller
               control={form.control}
-              name={`${f.key}.${idx}.weightValue`}
+              name={`${f.key}.${idx}.maxTuAmount`}
               render={({ field }) => (
                 <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Weight</span>
-                  <Input className="tabular-nums" value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
-                </label>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name={`${f.key}.${idx}.weightUnit`}
-              render={({ field }) => (
-                <label className="grid gap-1">
-                  <span className="text-muted-foreground text-xs">Unit</span>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>{WEIGHT_UNITS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <span className="text-muted-foreground text-xs">Max TU</span>
+                  <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
                 </label>
               )}
             />
@@ -216,8 +196,8 @@ function CompositionField({
           variant="outline"
           size="sm"
           className="justify-self-start transition-transform active:scale-[0.96]"
-          disabled={needsPlan || cats.length === 0 || used.size >= cats.length}
-          onClick={() => append({ category: "", weightValue: "", weightUnit: "", qty: 1 })}
+          disabled={needsPlan || cats.length === 0}
+          onClick={() => append({ category: "", tuAmount: "1", maxTuAmount: "" })}
         >
           <PlusIcon className="size-4" /> Add item
         </Button>
@@ -415,7 +395,7 @@ function WebsitePreview({ resource, values }: { resource: string; values: Record
             tier: (values.tier as "budget" | "medium" | "premium") || "budget",
             // components is derived from the composition rows, not hand-edited.
             components: ((values.items as { name?: string }[]) ?? []).map((i) => i?.name ?? "").filter(Boolean),
-            items: [], swapRules: [],
+            items: [],
             kcalMin: num(values.kcalMin),
             kcalMax: num(values.kcalMax),
             proteinG: optMacro(values.proteinG),

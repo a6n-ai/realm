@@ -1,11 +1,17 @@
-// "N needed" hint for the menu builder: the max qty any meal size in the
-// plan-type asks for, per category. Retired plans.category_counts was a
-// hand-authored guess at this; meal_size_items is the actual source of
-// truth for how much of each category an order can need.
-export function maxQtyByCategory(items: { category: string; qty: number }[]): Record<string, number> {
-  const out: Record<string, number> = {};
+// "N needed" hint for the menu builder: the max number of rows any single meal
+// size in the plan-type has in a category (a row is one dish pick). Retired
+// plans.category_counts was a hand-authored guess at this; meal_size_items is
+// the actual source of truth for how much of each category an order can need.
+export function maxQtyByCategory(items: { mealSizeId: bigint; category: string }[]): Record<string, number> {
+  const perMealSize = new Map<string, number>();
   for (const i of items) {
-    if (i.qty > (out[i.category] ?? 0)) out[i.category] = i.qty;
+    const key = `${i.mealSizeId}:${i.category}`;
+    perMealSize.set(key, (perMealSize.get(key) ?? 0) + 1);
+  }
+  const out: Record<string, number> = {};
+  for (const [key, count] of perMealSize) {
+    const category = key.slice(key.indexOf(":") + 1);
+    if (count > (out[category] ?? 0)) out[category] = count;
   }
   return out;
 }

@@ -10,6 +10,8 @@ vi.mock("../actions", () => ({
   clearMyDeliveryAddress: vi.fn(),
   rescheduleMyDelivery: vi.fn(),
   scheduleMyPooledTiffin: vi.fn(),
+  applyMyDeliverySwap: vi.fn(),
+  removeMyDeliverySwap: vi.fn(),
 }));
 
 vi.mock("../meals/actions", () => ({
@@ -25,16 +27,16 @@ import type { DeliveryCardMeal } from "../meal-chips";
 afterEach(cleanup);
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
-type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+type SwapPair = { fromCategory: string; toCategory: string };
 type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 type DeliveryCardData = CustomerDelivery & {
   meal: DeliveryCardMeal;
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
-  availableSwapRules: SwapRule[];
+  swapPairs: SwapPair[];
+  mealSizeCategories: string[];
   appliedSwaps: AppliedSwap[];
-  defaultSwapDirections: string[];
 };
 
 const address: Address = { fullName: "A", addressLine: "1 St", city: "City", postalCode: "00000" };
@@ -53,9 +55,9 @@ function makeDelivery(overrides: Partial<DeliveryCardData> = {}): DeliveryCardDa
     address,
     hasAddressOverride: false,
     hasMakeupScheduled: false,
-    availableSwapRules: [],
+    swapPairs: [],
+    mealSizeCategories: [],
     appliedSwaps: [],
-    defaultSwapDirections: [],
     ...overrides,
   } as unknown as DeliveryCardData;
 }
@@ -217,71 +219,5 @@ describe("DayDetail — locked (past cutoff) cell", () => {
     expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change address/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
-  });
-});
-
-describe("DayDetail — swap origin", () => {
-  const rule = { publicId: "csr_1", fromCategory: "roti", toCategory: "rice", qtyFrom: 2, qtyTo: 1 };
-  const applied = { publicId: "dcs_1", fromCategory: "roti", toCategory: "rice", qtyFrom: 2, qtyTo: 1 };
-
-  it("labels a swap that came from the subscription default", () => {
-    render(
-      <DayDetail
-        dateIso="2026-07-20"
-        cell={makeCell()}
-        delivery={makeDelivery({
-          availableSwapRules: [rule],
-          appliedSwaps: [applied],
-          defaultSwapDirections: ["roti:rice"],
-        })}
-        orderPublicId="ord_1"
-        categoryLabels={{}}
-        tz="UTC"
-        today="2026-07-20"
-        onChanged={noop}
-      />,
-    );
-    expect(screen.getByText(/your default/i)).toBeInTheDocument();
-  });
-
-  it("does not label a swap applied to this day only", () => {
-    render(
-      <DayDetail
-        dateIso="2026-07-20"
-        cell={makeCell()}
-        delivery={makeDelivery({
-          availableSwapRules: [rule],
-          appliedSwaps: [applied],
-          defaultSwapDirections: [],
-        })}
-        orderPublicId="ord_1"
-        categoryLabels={{}}
-        tz="UTC"
-        today="2026-07-20"
-        onChanged={noop}
-      />,
-    );
-    expect(screen.queryByText(/your default/i)).not.toBeInTheDocument();
-  });
-
-  it("hints when a default swap was removed for this day only", () => {
-    render(
-      <DayDetail
-        dateIso="2026-07-20"
-        cell={makeCell()}
-        delivery={makeDelivery({
-          availableSwapRules: [rule],
-          appliedSwaps: [],
-          defaultSwapDirections: ["roti:rice"],
-        })}
-        orderPublicId="ord_1"
-        categoryLabels={{}}
-        tz="UTC"
-        today="2026-07-20"
-        onChanged={noop}
-      />,
-    );
-    expect(screen.getByRole("button", { name: /Swap:/i })).toBeInTheDocument();
-    expect(screen.getByText(/off for this day/i)).toBeInTheDocument();
   });
 });

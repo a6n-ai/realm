@@ -2,7 +2,7 @@ import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { categorySwapRules, deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
@@ -22,50 +22,6 @@ function isoDaysBefore(dateIso: string, n: number): string {
 }
 
 /**
- * Copies the order's default composition swaps onto freshly-created delivery
- * rows. Called from EVERY path that inserts a new day for an order — a make-up
- * day that silently reverted to the stock composition is the bug this prevents.
- *
- * Resolves each snapshot's rule public_id back to its bigint FK for
- * traceability, writing NULL when the rule has since been deleted; the row's own
- * snapshotted quantities are what the composition is actually built from.
- * De-duplicates by direction, because the (delivery_id, rule_id) unique index
- * does not constrain NULL rule ids.
- */
-export async function inheritDefaultSwaps(tx: Tx, order: Order, deliveryIds: bigint[]): Promise<void> {
-  const defaults = order.defaultSwaps ?? [];
-  if (defaults.length === 0 || deliveryIds.length === 0) return;
-
-  const seen = new Set<string>();
-  const unique = defaults.filter((s) => {
-    const key = `${s.fromCategory}:${s.toCategory}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  const ruleRows = await tx.select({ id: categorySwapRules.id, publicId: categorySwapRules.publicId })
-    .from(categorySwapRules)
-    .where(inArray(categorySwapRules.publicId, unique.map((s) => s.ruleId)));
-  const idByPublicId = new Map(ruleRows.map((r) => [r.publicId, r.id]));
-
-  await tx.insert(deliveryCategorySwaps).values(
-    deliveryIds.flatMap((deliveryId) =>
-      unique.map((s) => ({
-        deliveryId,
-        ruleId: idByPublicId.get(s.ruleId) ?? null,
-        fromCategory: s.fromCategory,
-        toCategory: s.toCategory,
-        qtyFrom: s.qtyFrom,
-        qtyTo: s.qtyTo,
-        toWeightValue: s.toWeightValue,
-        toWeightUnit: s.toWeightUnit,
-      })),
-    ),
-  );
-}
-
-/**
  * Carries one delivery's applied swaps onto its replacement. Used by reschedule,
  * where the SAME day moves: a per-day override the customer made must survive
  * the move rather than snapping back to the subscription default.
@@ -76,13 +32,10 @@ export async function copyDeliverySwaps(tx: Tx, fromDeliveryId: bigint, toDelive
   if (rows.length === 0) return;
   await tx.insert(deliveryCategorySwaps).values(rows.map((r) => ({
     deliveryId: toDeliveryId,
-    ruleId: r.ruleId,
     fromCategory: r.fromCategory,
     toCategory: r.toCategory,
     qtyFrom: r.qtyFrom,
     qtyTo: r.qtyTo,
-    toWeightValue: r.toWeightValue,
-    toWeightUnit: r.toWeightUnit,
   })));
 }
 
@@ -153,14 +106,13 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
   }
 
   const { timezone, cutoffHour } = await getAppSettings();
-  const inserted = await tx.insert(deliveries).values(rows.map((r) => ({
+  await tx.insert(deliveries).values(rows.map((r) => ({
     orderId: order.id,
     deliveryDate: r.deliveryDate,
     status: "scheduled" as const,
     cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone),
     tiffinUnits: r.tiffinUnits,
-  }))).returning({ id: deliveries.id });
-  await inheritDefaultSwaps(tx, order, inserted.map((d) => d.id));
+  })));
   return rows.length;
 }
 
@@ -566,8 +518,6 @@ export async function scheduleFromPool(
       // handles that correctly without this row needing to know it.)
       tiffinUnits: order.persons,
     }).returning({ id: deliveries.id, publicId: deliveries.publicId });
-
-    await inheritDefaultSwaps(tx, order, [inserted.id]);
 
     await tx.update(orders)
       .set({ pooledTiffinCount: sql`${orders.pooledTiffinCount} - ${order.persons}` })

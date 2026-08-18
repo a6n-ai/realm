@@ -141,8 +141,8 @@ describe("dailyLabelSheet (integration)", () => {
     // mapping load-bearing rather than cosmetic.
     await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
     await db.insert(mealSizeItems).values([
-      { mealSizeId, name: "Main", category: "sabzi", qty: 1, weightValue: "12.00", weightUnit: "oz", sortOrder: 1 },
-      { mealSizeId, name: "Side", category: "sabzi", qty: 1, weightValue: "8.00", weightUnit: "oz", sortOrder: 2 },
+      { mealSizeId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 1 },
+      { mealSizeId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 2 },
     ]);
   });
   afterAll(reset);

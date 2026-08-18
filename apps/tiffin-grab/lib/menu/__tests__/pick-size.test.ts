@@ -1,62 +1,66 @@
 import { describe, expect, it } from "vitest";
 import { formatPortion, portionForPick, portionsByCategory } from "../pick-size";
+import type { TuCategory } from "@/lib/menu/format-tu";
 
-const item = (
-  category: string,
-  qty: number,
-  weightValue: string | null,
-  sortOrder = 0,
-  weightUnit: "oz" | "g" | "ml" | "piece" | null = weightValue ? "oz" : null,
-) => ({ category, qty, weightValue, weightUnit, sortOrder });
+const WEIGHT: TuCategory = { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" };
+const ROTI: TuCategory = { tuUnitType: "count", tuUnitSize: 4, tuUnitLabel: "roti" };
+
+const cats = new Map<string, TuCategory>([
+  ["sabzi", WEIGHT],
+  ["dal", WEIGHT],
+  ["roti", ROTI],
+]);
+
+const item = (category: string, tuAmount: string | null, sortOrder = 0) => ({ category, tuAmount, sortOrder });
 
 describe("formatPortion", () => {
-  it("trims the numeric noise a numeric(6,2) column carries", () => {
-    expect(formatPortion("8.00", "oz")).toBe("8oz");
-    expect(formatPortion("2.50", "oz")).toBe("2.5oz");
-    expect(formatPortion("250.00", "ml")).toBe("250ml");
-    expect(formatPortion("2.00", "piece")).toBe("2 pc");
+  it("converts TU into the category's natural unit", () => {
+    expect(formatPortion("1.00", WEIGHT)).toBe("8oz");
+    expect(formatPortion("1.50", WEIGHT)).toBe("12oz");
+    expect(formatPortion("0.25", ROTI)).toBe("1 roti");
   });
 
-  it("is null when the catalog line has no weight", () => {
-    expect(formatPortion(null, "oz")).toBeNull();
-    expect(formatPortion("8.00", null)).toBeNull();
-    expect(formatPortion("not-a-number", "oz")).toBeNull();
+  it("is null when the catalog line or category carries no TU", () => {
+    expect(formatPortion(null, WEIGHT)).toBeNull();
+    expect(formatPortion("1.00", null)).toBeNull();
+    expect(formatPortion("not-a-number", WEIGHT)).toBeNull();
   });
 });
 
 describe("portionsByCategory", () => {
-  it("expands qty into one slot per container", () => {
-    const portions = portionsByCategory([item("sabzi", 2, "8.00")]);
+  it("gives one slot per row", () => {
+    const portions = portionsByCategory([item("sabzi", "1.00"), item("sabzi", "1.00")], cats);
     expect(portions.get("sabzi")).toEqual(["8oz", "8oz"]);
   });
 
   it("keeps differently-sized lines of one category in sortOrder", () => {
     // The shape that makes this necessary: 1x12oz main + 2x8oz sides, all "sabzi".
     const portions = portionsByCategory([
-      item("sabzi", 2, "8.00", 2),
-      item("sabzi", 1, "12.00", 1),
-    ]);
+      item("sabzi", "1.00", 2),
+      item("sabzi", "1.00", 3),
+      item("sabzi", "1.50", 1),
+    ], cats);
     expect(portions.get("sabzi")).toEqual(["12oz", "8oz", "8oz"]);
   });
 
   it("keeps categories independent", () => {
-    const portions = portionsByCategory([item("sabzi", 1, "12.00"), item("dal", 1, "8.00")]);
+    const portions = portionsByCategory([item("sabzi", "1.50"), item("dal", "1.00")], cats);
     expect(portions.get("sabzi")).toEqual(["12oz"]);
     expect(portions.get("dal")).toEqual(["8oz"]);
   });
 
-  it("yields null slots for lines with no weight, without shifting the others", () => {
-    const portions = portionsByCategory([item("roti", 1, null, 1), item("roti", 1, "8.00", 2)]);
-    expect(portions.get("roti")).toEqual([null, "8oz"]);
-  });
-
-  it("ignores a non-positive qty rather than emitting a phantom container", () => {
-    expect(portionsByCategory([item("sabzi", 0, "8.00")]).get("sabzi")).toEqual([]);
+  it("yields null slots for lines with no TU, without shifting the others", () => {
+    const portions = portionsByCategory([item("roti", null, 1), item("roti", "0.25", 2)], cats);
+    expect(portions.get("roti")).toEqual([null, "1 roti"]);
   });
 });
 
 describe("portionForPick", () => {
-  const portions = portionsByCategory([item("sabzi", 1, "12.00", 1), item("sabzi", 2, "8.00", 2)]);
+  const portions = portionsByCategory([
+    item("sabzi", "1.50", 1),
+    item("sabzi", "1.00", 2),
+    item("sabzi", "1.00", 3),
+  ], cats);
 
   it("is 1-based, matching meal_selections.pickIndex", () => {
     expect(portionForPick(portions, "sabzi", 1)).toBe("12oz");

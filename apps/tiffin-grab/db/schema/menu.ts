@@ -1,5 +1,5 @@
 import { updatableColumns } from "@realm/database";
-import { bigint, boolean, date, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { dishes, plans } from "./catalog";
 import { orders } from "./orders";
 
@@ -9,6 +9,17 @@ import { orders } from "./orders";
 // share one slot list. `key` is globally unique now, so a slot used by several
 // plans — "salad" — is ONE row attached to each, rather than a duplicate per
 // plan type whose enabled/selectable flags drift apart.
+//
+// tuUnitType/tuUnitSize/tuUnitLabel define this category's conversion into the
+// shared "tiffin unit" (TU) — the common currency meal_size_items.tuAmount and
+// swaps are denominated in, so 1 TU of roti and 1 TU of rice compare like-for-like
+// without a per-swap portion table. tuUnitSize = how many of the category's
+// natural unit make 1 TU (8 for an 8oz weight category, 4 for roti, 1 for rice).
+// No global default for 'count' categories — there's no sane guess for "how many
+// pieces is one unit", it must be set per category. 'weight' categories default
+// to 8oz/TU at the UI layer; the column itself stays NOT NULL, always explicit.
+export const tuUnitType = pgEnum("tu_unit_type", ["weight", "count"]);
+
 export const dishCategories = pgTable(
   "dish_categories",
   {
@@ -18,8 +29,33 @@ export const dishCategories = pgTable(
     enabled: boolean("enabled").notNull().default(false),
     selectable: boolean("selectable").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    tuUnitType: tuUnitType("tu_unit_type").notNull().default("weight"),
+    tuUnitSize: numeric("tu_unit_size", { precision: 6, scale: 2 }).notNull().default("8"),
+    tuUnitLabel: text("tu_unit_label").notNull().default("oz"),
   },
   (t) => [uniqueIndex("dish_categories_key_unique").on(t.key)],
+);
+
+// Global guardrail, not the swap mechanism itself: a category_swap_rules row
+// (per meal size, carries the actual qtyFrom/qtyTo ratio — see category-swaps.ts)
+// may only be created for a (from, to) pair that appears here first. This exists
+// because meal-size-scoped rules alone let an admin typo a nonsensical pair (e.g.
+// "roti -> raita") into one meal size with no cross-check; this table is the
+// short list of pairs that are EVER allowed to swap, anywhere. It does not carry
+// a ratio — the ratio is genuinely meal-size-specific (a small thali's roti->rice
+// rate differs from a large thali's), so it can't live here.
+export const categorySwapPairs = pgTable(
+  "category_swap_pairs",
+  {
+    ...updatableColumns("csp"),
+    fromCategoryId: bigint("from_category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+    toCategoryId: bigint("to_category_id", { mode: "bigint" })
+      .notNull()
+      .references(() => dishCategories.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId)],
 );
 
 /** Which plans a menu slot belongs to. Mirrors dishPlans. */

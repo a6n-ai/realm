@@ -343,13 +343,13 @@ export const menuService = {
         dishCategoriesService.forPlan(plan.id),
         // How much of each category this plan's biggest active meal size asks for. A
         // category nobody orders is not required, so it cannot block a release.
-        db.select({ category: mealSizeItems.category, qty: mealSizeItems.qty })
+        db.select({ category: mealSizeItems.category })
           .from(mealSizeItems)
           .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
           .where(and(eq(mealSizes.planId, plan.id), eq(mealSizes.active, true))),
         db.select({ dishId: dishPlans.dishId }).from(dishPlans).where(eq(dishPlans.planId, plan.id)),
       ]);
-      const required = new Set(requiredRows.filter((r) => r.qty > 0).map((r) => r.category));
+      const required = new Set(requiredRows.map((r) => r.category));
       const planDishIds = new Set(membership.map((m) => m.dishId));
 
       for (const day of daysWithItems) {

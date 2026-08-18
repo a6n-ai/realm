@@ -40,7 +40,7 @@ const catalog: ClientCatalogSnapshot = {
       planKey: "veg",
       tier: "budget",
       components: [],
-      items: [], swapRules: [],
+      items: [],
       kcalMin: 400,
       kcalMax: 600,
       proteinG: null,

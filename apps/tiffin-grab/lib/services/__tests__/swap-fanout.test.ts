@@ -5,32 +5,28 @@ import { nextWeekday } from "@realm/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { categorySwapRules, deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
-const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
+const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
+const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
 
-// Scoped cleanup: track exactly what this test created (orders/users/rules) and
+// Scoped cleanup: track exactly what this test created (orders/users) and
 // delete only those rows. Deliveries, delivery_category_swaps and order_activities
 // cascade off orders.id, so deleting the order is enough for them; payments and
 // ledger_entries have no cascade and must go first.
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
-const createdRuleIds: bigint[] = [];
 
 afterEach(async () => {
   const orderIds = createdOrderIds.splice(0);
   const userIds = createdUserIds.splice(0);
-  const ruleIds = createdRuleIds.splice(0);
   if (orderIds.length) {
     await db.delete(ledgerEntries).where(inArray(ledgerEntries.orderId, orderIds));
     await db.delete(payments).where(inArray(payments.orderId, orderIds));
     await db.delete(orders).where(inArray(orders.id, orderIds));
   }
-  if (ruleIds.length) await db.delete(categorySwapRules).where(inArray(categorySwapRules.id, ruleIds));
   if (userIds.length) await db.delete(users).where(inArray(users.id, userIds));
-  await invalidateCatalogSnapshot();
 });
 
 async function fetchOrder(publicId: string) {
@@ -40,32 +36,20 @@ async function fetchOrder(publicId: string) {
   return order;
 }
 
-// The first meal size, plus a rule it can actually afford: give up 1 of the
-// category its own composition has the most of.
-async function seedRule(qtyFrom = 1, portion: { value: string; unit: "g" } | null = null) {
+// rice<->roti is a pair the seed already wires globally — no ad-hoc pair
+// creation (and no risk of colliding with another test file's concurrent
+// mutation of the same seed rows). Any meal size that actually has both.
+async function mealSizeWithRiceAndRoti() {
   const snap = await loadCatalogSnapshot();
-  const size = snap.mealSizes[0];
-  const counts = size.items.reduce<Record<string, number>>((a, i) => {
-    a[i.category] = (a[i.category] ?? 0) + i.qty;
-    return a;
-  }, {});
-  const from = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  const to = `${from}-swapped`;
-  const [rule] = await db.insert(categorySwapRules).values({
-    mealSizeId: size.id,
-    fromCategory: from,
-    toCategory: to,
-    qtyFrom,
-    qtyTo: 1,
-    toWeightValue: portion?.value ?? null,
-    toWeightUnit: portion?.unit ?? null,
-  }).returning();
-  createdRuleIds.push(rule.id);
-  await invalidateCatalogSnapshot();
-  return { rule, size, from, to };
+  const size = snap.mealSizes.find((s) => {
+    const cats = new Set(s.items.map((i) => i.category));
+    return cats.has("rice") && cats.has("roti");
+  });
+  if (!size) throw new Error("Seed has no meal size with both rice and roti — needed for this test");
+  return size;
 }
 
-function orderInput(mealSizeId: string, planKey: string, swapRuleIds: string[]) {
+function orderInput(mealSizeId: string, planKey: string) {
   return {
     planKey,
     selections: {
@@ -77,7 +61,6 @@ function orderInput(mealSizeId: string, planKey: string, swapRuleIds: string[]) 
       includeSunday: false,
       durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
-      swapRuleIds,
     },
     contact: {
       email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
@@ -86,57 +69,20 @@ function orderInput(mealSizeId: string, planKey: string, swapRuleIds: string[]) 
   };
 }
 
-describe("default swap fan-out", () => {
-  it("gives every materialized delivery the order's default swaps", async () => {
-    const { rule, size, from, to } = await seedRule();
+describe("delivery swap reschedule carry-over", () => {
+  it("carries a day's own swap onto its rescheduled replacement", async () => {
+    const size = await mealSizeWithRiceAndRoti();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    const { publicId } = await createOrder(orderInput(size.publicId, planKey, [rule.publicId]));
-
+    const { publicId } = await createOrder(orderInput(size.publicId, planKey));
     const order = await fetchOrder(publicId);
-    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-    expect(rows.length).toBeGreaterThan(0);
-
-    const swaps = await db.select().from(deliveryCategorySwaps)
-      .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
-    expect(swaps).toHaveLength(rows.length);
-    expect(swaps[0].fromCategory).toBe(from);
-    expect(swaps[0].toCategory).toBe(to);
-    expect(swaps[0].ruleId).toBe(rule.id);
-  });
-
-  it("keeps writing the snapshot after the rule is deleted", async () => {
-    const { rule, size } = await seedRule();
-    const snap = await loadCatalogSnapshot();
-    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    const { publicId } = await createOrder(orderInput(size.publicId, planKey, [rule.publicId]));
-    const order = await fetchOrder(publicId);
-
-    await db.delete(categorySwapRules).where(eq(categorySwapRules.id, rule.id));
-    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-    const swaps = await db.select().from(deliveryCategorySwaps)
-      .where(inArray(deliveryCategorySwaps.deliveryId, rows.map((r) => r.id)));
-    // rule_id carries no FK, so the delete leaves it pointing at a dead id — the
-    // snapshotted quantities are what the composition is built from, and they survive.
-    expect(swaps[0].qtyFrom).toBe(rule.qtyFrom);
-    expect(swaps[0].fromCategory).toBe(rule.fromCategory);
-  });
-
-  it("carries a day's own swaps onto its rescheduled replacement", async () => {
-    const { rule, size } = await seedRule();
-    const snap = await loadCatalogSnapshot();
-    const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
-    // No default swaps at all — the order's own default set is empty, so it
-    // cannot masquerade as the source of what lands on the replacement.
-    const { publicId } = await createOrder(orderInput(size.publicId, planKey, []));
-    const order = await fetchOrder(publicId);
-    expect(order.defaultSwaps).toEqual([]);
 
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id))
       .orderBy(asc(deliveries.deliveryDate));
     const source = rows[0];
-    // Ad-hoc swap applied to this ONE delivery only — not via order.default_swaps.
-    await applyDeliverySwap(source.publicId, rule.id, null);
+    // Give up the single rice pick (1 TU) — roti is 0.25 TU/pick, so this buys
+    // exactly 4 roti picks (matches the real business ratio from the spreadsheet).
+    await applyDeliverySwap(source.publicId, "rice", "roti", 1, null);
 
     // A day the order does not already cover, on the same weekday pattern.
     const target = rows[rows.length - 1].deliveryDate;
@@ -149,13 +95,10 @@ describe("default swap fan-out", () => {
       .where(eq(deliveries.makeupForDeliveryId, source.id)).limit(1);
     const swaps = await db.select().from(deliveryCategorySwaps)
       .where(eq(deliveryCategorySwaps.deliveryId, replacement.id));
-    // Under inheritDefaultSwaps (the wrong path here) this would be empty,
-    // since order.default_swaps is []. Non-empty proves reschedule copied
-    // from the source delivery's own applied swaps instead.
     expect(swaps).toHaveLength(1);
-    expect(swaps[0].fromCategory).toBe(rule.fromCategory);
-    expect(swaps[0].toCategory).toBe(rule.toCategory);
-    expect(swaps[0].qtyFrom).toBe(rule.qtyFrom);
-    expect(swaps[0].qtyTo).toBe(rule.qtyTo);
+    expect(swaps[0].fromCategory).toBe("rice");
+    expect(swaps[0].toCategory).toBe("roti");
+    expect(swaps[0].qtyFrom).toBe(1);
+    expect(swaps[0].qtyTo).toBe(4);
   });
 });

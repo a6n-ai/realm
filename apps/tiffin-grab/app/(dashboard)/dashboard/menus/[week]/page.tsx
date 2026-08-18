@@ -62,7 +62,7 @@ async function WeekData({ params }: { params: Params }) {
     menuService.listWeekMenus(),
     dishCategoriesService.enabledCategories(),
     // "N needed" hint: the largest quantity any active meal size asks for in a category.
-    db.select({ category: mealSizeItems.category, qty: mealSizeItems.qty })
+    db.select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category })
       .from(mealSizeItems)
       .innerJoin(mealSizes, eq(mealSizeItems.mealSizeId, mealSizes.id))
       .where(eq(mealSizes.active, true)),

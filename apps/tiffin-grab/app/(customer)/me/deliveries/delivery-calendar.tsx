@@ -47,11 +47,8 @@ function deliveriesHref(
 }
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
-// SwapRule.publicId is the rule's own public id (used to apply it). AppliedSwap.publicId is
-// the applied-swap row's own public id (used to remove it) — a different id space, matched
-// against SwapRule by (fromCategory, toCategory) rather than by id, since an applied swap's
-// snapshot survives even if the original rule is later deleted.
-export type SwapRule = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+// AppliedSwap.publicId is the applied-swap row's own public id (used to remove it).
+export type SwapPair = { fromCategory: string; toCategory: string };
 export type AppliedSwap = { publicId: string; fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
 
 export type DeliveryCardData = CustomerDelivery & {
@@ -59,11 +56,11 @@ export type DeliveryCardData = CustomerDelivery & {
   address: Address;
   hasAddressOverride: boolean;
   hasMakeupScheduled: boolean;
-  availableSwapRules: SwapRule[];
+  // Globally-eligible (category_swap_pairs) pairs restricted to this meal size's
+  // own categories.
+  swapPairs: SwapPair[];
+  mealSizeCategories: string[];
   appliedSwaps: AppliedSwap[];
-  // "from:to" keys of the swaps this order applies to every day, so a day view
-  // can tell an inherited swap from a one-off change made just for that day.
-  defaultSwapDirections: string[];
 };
 
 export type PausePanel = Awaited<ReturnType<typeof myPausePanel>>;

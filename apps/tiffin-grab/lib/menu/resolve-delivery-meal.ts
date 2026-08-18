@@ -146,7 +146,7 @@ export async function resolveDeliveryMeal(
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id), eq(mealSelections.dayOfWeek, dayOfWeek), eq(mealSelections.personIndex, person)));
 
-  const swaps = deliveryId == null ? [] : await db
+  const swaps: SwapRow[] = deliveryId == null ? [] : await db
     .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
     .from(deliveryCategorySwaps)
     .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))

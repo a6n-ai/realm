@@ -35,9 +35,8 @@ class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
 type CompositionItem = {
   name: string;
   category: string;
-  weightValue: string | null;
-  weightUnit: "oz" | "g" | "ml" | "piece" | null;
-  qty: number;
+  tuAmount: string;
+  maxTuAmount: string | null;
 };
 
 // A meal size owns a `meal_size_items` composition and belongs to exactly one
@@ -84,9 +83,8 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
           name: label,
           category: item.category,
           label,
-          qty: item.qty,
-          weightValue: item.weightValue,
-          weightUnit: item.weightUnit,
+          tuAmount: item.tuAmount,
+          maxTuAmount: item.maxTuAmount,
           sortOrder: index,
         };
       });

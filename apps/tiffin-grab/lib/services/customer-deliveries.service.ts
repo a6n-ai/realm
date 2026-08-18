@@ -3,7 +3,6 @@ import type { FileDetail } from "@realm/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
-import type { OrderDefaultSwap } from "@/db/schema/orders";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays } from "@/lib/menu/delivery-days";
 import {
@@ -67,7 +66,6 @@ export type Subscription = {
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
   categoryCounts: Record<string, number>;
-  defaultSwaps: OrderDefaultSwap[];
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -96,7 +94,6 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       mealSizeName: mealSizes.name,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
-      defaultSwaps: orders.defaultSwaps,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))

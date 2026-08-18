@@ -1,32 +1,25 @@
 // Which container a given pick goes in. Pure, so the mapping is testable without a DB.
 //
-// orders.categoryCounts is built by SUMMING meal_size_items.qty per category
-// (orders.service.ts), which discards weightValue/weightUnit — so a pick knows its
-// category and its index within that category, but not its size. The size is still in the
-// catalog: expand each meal_size_item into `qty` slots in sortOrder, and pickIndex N is
-// the Nth slot. A sabzi line of qty 2 @ 8oz gives picks 1 and 2 at 8oz; a dal line of
-// qty 1 @ 12oz gives pick 1 at 12oz. That reproduces the "(Main Veg) 8oz / 12oz" split
-// the kitchen counts by today.
+// orders.categoryCounts is built by COUNTING meal_size_items rows per category
+// (orders.service.ts) — one row is one pick, unrelated to portion size. The portion
+// itself lives in tuAmount (tiffin units) and is rendered via formatTuHuman using the
+// category's own unit conversion: each meal_size_item IS one slot in sortOrder, and
+// pickIndex N is the Nth row. A sabzi category with two rows @ 1 TU each gives picks
+// 1 and 2 at that portion; a dal category with one row @ 1.5 TU gives pick 1 at that portion.
+import { formatTuHuman, type TuCategory } from "./format-tu";
 
 export type MealSizeItemRow = {
   category: string;
-  qty: number;
-  weightValue: string | null;
-  weightUnit: "oz" | "g" | "ml" | "piece" | null;
+  tuAmount: string | null;
   sortOrder: number;
 };
 
-/** e.g. "8oz", or null when the catalog line carries no weight. */
-export function formatPortion(
-  weightValue: string | null,
-  weightUnit: MealSizeItemRow["weightUnit"],
-): string | null {
-  if (weightValue == null || weightUnit == null) return null;
-  const n = Number(weightValue);
+/** e.g. "12oz" or "4 roti", or null when the catalog line carries no TU amount. */
+export function formatPortion(tuAmount: string | null, category: TuCategory | null): string | null {
+  if (tuAmount == null || category == null) return null;
+  const n = Number(tuAmount);
   if (!Number.isFinite(n)) return null;
-  // 8.00 → "8"; 2.50 → "2.5". Trailing zeros read as false precision on a label.
-  const trimmed = String(Number(n.toFixed(2)));
-  return weightUnit === "piece" ? `${trimmed} pc` : `${trimmed}${weightUnit}`;
+  return formatTuHuman(category, n);
 }
 
 /**
@@ -41,12 +34,11 @@ export type PortionSwap = {
   toCategory: string;
   qtyFrom: number;
   qtyTo: number;
-  toWeightValue: string | null;
-  toWeightUnit: MealSizeItemRow["weightUnit"];
 };
 
 export function portionsByCategory(
   items: MealSizeItemRow[],
+  categoriesByKey: Map<string, TuCategory>,
   swaps: PortionSwap[] = [],
 ): Map<string, (string | null)[]> {
   const byCategory = new Map<string, MealSizeItemRow[]>();
@@ -60,9 +52,7 @@ export function portionsByCategory(
   for (const [category, list] of byCategory) {
     const slots: (string | null)[] = [];
     for (const item of [...list].sort((a, b) => a.sortOrder - b.sortOrder)) {
-      const portion = formatPortion(item.weightValue, item.weightUnit);
-      // qty is the number of containers this line produces, not a multiplier on one.
-      for (let i = 0; i < Math.max(0, item.qty); i++) slots.push(portion);
+      slots.push(formatPortion(item.tuAmount, categoriesByKey.get(category) ?? null));
     }
     out.set(category, slots);
   }
@@ -74,17 +64,16 @@ export function portionsByCategory(
   const catalogFirstPortion = new Map<string, string | null>();
   for (const [category, slots] of out) catalogFirstPortion.set(category, slots[0] ?? null);
 
-  // Applied swaps move slots between categories. The TO side's portion comes
-  // from the swap itself when it carries one — a category a swap ADDS has no
-  // meal_size_items line to read a portion from, which is the whole reason the
-  // rule can name one.
+  // Applied swaps move slots between categories. TU is the shared currency now, so a
+  // pick moved INTO toCategory carries toCategory's own catalog portion — no per-swap
+  // override needed.
   for (const s of swaps) {
     const from = out.get(s.fromCategory) ?? [];
     from.splice(Math.max(0, from.length - s.qtyFrom), s.qtyFrom);
     out.set(s.fromCategory, from);
 
     const to = out.get(s.toCategory) ?? [];
-    const portion = formatPortion(s.toWeightValue, s.toWeightUnit) ?? catalogFirstPortion.get(s.toCategory) ?? null;
+    const portion = catalogFirstPortion.get(s.toCategory) ?? null;
     for (let i = 0; i < s.qtyTo; i++) to.push(portion);
     out.set(s.toCategory, to);
   }

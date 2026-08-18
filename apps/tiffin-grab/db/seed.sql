@@ -120,11 +120,14 @@ FROM (VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ============ MEAL SIZE ITEMS ============ (FK by meal_sizes.key subquery; no unique key -> wipe+reinsert
--- like pricing_tiers. roti rows: qty=N, weight_value=NULL, weight_unit='piece'; weighed items unit='oz'.
+-- like pricing_tiers. TU (tiffin unit) is the shared currency swaps move between categories —
+-- see db/schema/menu.ts. Weighed categories default 8oz/TU (12oz -> 1.5 TU); roti is 4 pieces/TU,
+-- so "2 roti" is 2 rows at 0.25 TU each (a row IS one dish pick, there's no qty column);
+-- rice has no weight, 1 unit/TU, 1 row per pick.
 -- meal_size_id is NOT NULL so a mistyped meal_size_key fails the insert loudly instead of orphaning a row.)
 DELETE FROM meal_size_items;
 INSERT INTO meal_size_items
-  (public_id, created_at, updated_at, meal_size_id, name, category, qty, weight_value, weight_unit, sort_order)
+  (public_id, created_at, updated_at, meal_size_id, name, category, tu_amount, max_tu_amount, sort_order)
 SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1, 10),
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
        (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -137,99 +140,144 @@ SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1,
          WHEN 'Curry' THEN 'curry'
          WHEN 'Rice' THEN 'rice'
          WHEN 'Roti' THEN 'roti'
-         WHEN 'Extra' THEN 'extra'
          WHEN 'Salad' THEN 'salad'
          WHEN 'Raita' THEN 'raita'
        END,
-       v.qty, v.weight_value, v.weight_unit::weight_unit, v.sort_order
+       v.tu_amount, v.max_tu_amount, v.sort_order
 FROM (VALUES
-  ('small_thali', 'Sabzi', 1, 12, 'oz', 0),
-  ('small_thali', 'Rice', 1, 12, 'oz', 1),
-  ('small_thali', 'Roti', 2, NULL, 'piece', 2),
-  ('sabzi_only_veg', 'Sabzi', 2, 8, 'oz', 0),
-  ('sabzi_only_veg', 'Daal', 1, 8, 'oz', 1),
-  ('veg_4_regular', 'Sabzi', 1, 8, 'oz', 0),
-  ('veg_4_regular', 'Daal', 1, 8, 'oz', 1),
-  ('veg_4_regular', 'Rice', 1, 12, 'oz', 2),
-  ('veg_4_regular', 'Roti', 2, NULL, 'piece', 3),
-  ('sabzi_only_nonveg', 'Sabzi', 1, 8, 'oz', 0),
-  ('sabzi_only_nonveg', 'Curry', 1, 8, 'oz', 1),
-  ('sabzi_only_nonveg', 'Daal', 1, 8, 'oz', 2),
-  ('veg_5_regular', 'Sabzi', 1, 8, 'oz', 0),
-  ('veg_5_regular', 'Daal', 1, 8, 'oz', 1),
-  ('veg_5_regular', 'Extra', 1, 8, 'oz', 2),
-  ('veg_5_regular', 'Rice', 1, 12, 'oz', 3),
-  ('veg_5_regular', 'Roti', 3, NULL, 'piece', 4),
-  ('nonveg_4_regular', 'Curry', 1, 8, 'oz', 0),
-  ('nonveg_4_regular', 'Daal', 1, 8, 'oz', 1),
-  ('nonveg_4_regular', 'Rice', 1, 12, 'oz', 2),
-  ('nonveg_4_regular', 'Roti', 2, NULL, 'piece', 3),
-  ('new_plan_veg', 'Sabzi', 1, 8, 'oz', 0),
-  ('new_plan_veg', 'Daal', 1, 8, 'oz', 1),
-  ('new_plan_veg', 'Roti', 8, NULL, 'piece', 2),
-  ('veg_4_large', 'Sabzi', 1, 12, 'oz', 0),
-  ('veg_4_large', 'Daal', 1, 12, 'oz', 1),
-  ('veg_4_large', 'Rice', 1, 12, 'oz', 2),
-  ('veg_4_large', 'Roti', 4, NULL, 'piece', 3),
-  ('nonveg_5_regular', 'Curry', 1, 8, 'oz', 0),
-  ('nonveg_5_regular', 'Daal', 1, 8, 'oz', 1),
-  ('nonveg_5_regular', 'Extra', 1, 8, 'oz', 2),
-  ('nonveg_5_regular', 'Rice', 1, 12, 'oz', 3),
-  ('nonveg_5_regular', 'Roti', 3, NULL, 'piece', 4),
-  ('new_plan_nonveg', 'Curry', 1, 8, 'oz', 0),
-  ('new_plan_nonveg', 'Daal', 1, 8, 'oz', 1),
-  ('new_plan_nonveg', 'Roti', 8, NULL, 'piece', 2),
-  ('nonveg_4_large', 'Curry', 1, 12, 'oz', 0),
-  ('nonveg_4_large', 'Daal', 1, 12, 'oz', 1),
-  ('nonveg_4_large', 'Rice', 1, 12, 'oz', 2),
-  ('nonveg_4_large', 'Roti', 4, NULL, 'piece', 3),
-  ('veg_5_large', 'Sabzi', 1, 12, 'oz', 0),
-  ('veg_5_large', 'Daal', 1, 12, 'oz', 1),
-  ('veg_5_large', 'Extra', 1, 8, 'oz', 2),
-  ('veg_5_large', 'Rice', 1, 12, 'oz', 3),
-  ('veg_5_large', 'Roti', 6, NULL, 'piece', 4),
-  ('maharaja_veg', 'Sabzi', 1, 12, 'oz', 0),
-  ('maharaja_veg', 'Daal', 1, 12, 'oz', 1),
-  ('maharaja_veg', 'Extra', 1, 8, 'oz', 2),
-  ('maharaja_veg', 'Salad', 1, 8, 'oz', 3),
-  ('maharaja_veg', 'Raita', 1, 8, 'oz', 4),
-  ('maharaja_veg', 'Rice', 1, 12, 'oz', 5),
-  ('maharaja_veg', 'Roti', 8, NULL, 'piece', 6),
-  ('nonveg_5_large', 'Curry', 1, 12, 'oz', 0),
-  ('nonveg_5_large', 'Daal', 1, 12, 'oz', 1),
-  ('nonveg_5_large', 'Extra', 1, 8, 'oz', 2),
-  ('nonveg_5_large', 'Rice', 1, 12, 'oz', 3),
-  ('nonveg_5_large', 'Roti', 6, NULL, 'piece', 4),
-  ('trial_veg', 'Sabzi', 1, 8, 'oz', 0),
-  ('trial_veg', 'Daal', 1, 8, 'oz', 1),
-  ('trial_veg', 'Extra', 1, 8, 'oz', 2),
-  ('trial_veg', 'Rice', 1, 12, 'oz', 3),
-  ('trial_veg', 'Roti', 3, NULL, 'piece', 4),
-  ('maharaja_nonveg', 'Curry', 1, 12, 'oz', 0),
-  ('maharaja_nonveg', 'Daal', 1, 12, 'oz', 1),
-  ('maharaja_nonveg', 'Extra', 1, 8, 'oz', 2),
-  ('maharaja_nonveg', 'Salad', 1, 8, 'oz', 3),
-  ('maharaja_nonveg', 'Raita', 1, 8, 'oz', 4),
-  ('maharaja_nonveg', 'Rice', 1, 12, 'oz', 5),
-  ('maharaja_nonveg', 'Roti', 8, NULL, 'piece', 6),
-  ('trial_nonveg', 'Curry', 1, 8, 'oz', 0),
-  ('trial_nonveg', 'Daal', 1, 8, 'oz', 1),
-  ('trial_nonveg', 'Extra', 1, 8, 'oz', 2),
-  ('trial_nonveg', 'Rice', 1, 12, 'oz', 3),
-  ('trial_nonveg', 'Roti', 3, NULL, 'piece', 4)
-) AS v(meal_size_key, name, qty, weight_value, weight_unit, sort_order);
+  ('small_thali', 'Sabzi', 1.5, NULL, 0),
+  ('small_thali', 'Rice', 1, NULL, 1),
+  ('small_thali', 'Roti', 0.25, NULL, 2),
+  ('small_thali', 'Roti', 0.25, NULL, 3),
+  ('sabzi_only_veg', 'Sabzi', 1, NULL, 0),
+  ('sabzi_only_veg', 'Sabzi', 1, NULL, 1),
+  ('sabzi_only_veg', 'Daal', 1, NULL, 2),
+  ('veg_4_regular', 'Sabzi', 1, NULL, 0),
+  ('veg_4_regular', 'Daal', 1, NULL, 1),
+  ('veg_4_regular', 'Rice', 1, NULL, 2),
+  ('veg_4_regular', 'Roti', 0.25, NULL, 3),
+  ('veg_4_regular', 'Roti', 0.25, NULL, 4),
+  ('sabzi_only_nonveg', 'Sabzi', 1, NULL, 0),
+  ('sabzi_only_nonveg', 'Curry', 1, NULL, 1),
+  ('sabzi_only_nonveg', 'Daal', 1, NULL, 2),
+  ('veg_5_regular', 'Sabzi', 1, NULL, 0),
+  ('veg_5_regular', 'Daal', 1, NULL, 1),
+  ('veg_5_regular', 'Rice', 1, NULL, 2),
+  ('veg_5_regular', 'Roti', 0.25, NULL, 3),
+  ('veg_5_regular', 'Roti', 0.25, NULL, 4),
+  ('veg_5_regular', 'Roti', 0.25, NULL, 5),
+  ('nonveg_4_regular', 'Curry', 1, NULL, 0),
+  ('nonveg_4_regular', 'Daal', 1, NULL, 1),
+  ('nonveg_4_regular', 'Rice', 1, NULL, 2),
+  ('nonveg_4_regular', 'Roti', 0.25, NULL, 3),
+  ('nonveg_4_regular', 'Roti', 0.25, NULL, 4),
+  ('new_plan_veg', 'Sabzi', 1, NULL, 0),
+  ('new_plan_veg', 'Daal', 1, NULL, 1),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 2),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 3),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 4),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 5),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 6),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 7),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 8),
+  ('new_plan_veg', 'Roti', 0.25, NULL, 9),
+  ('veg_4_large', 'Sabzi', 1.5, NULL, 0),
+  ('veg_4_large', 'Daal', 1.5, NULL, 1),
+  ('veg_4_large', 'Rice', 1, NULL, 2),
+  ('veg_4_large', 'Roti', 0.25, NULL, 3),
+  ('veg_4_large', 'Roti', 0.25, NULL, 4),
+  ('veg_4_large', 'Roti', 0.25, NULL, 5),
+  ('veg_4_large', 'Roti', 0.25, NULL, 6),
+  ('nonveg_5_regular', 'Curry', 1, NULL, 0),
+  ('nonveg_5_regular', 'Daal', 1, NULL, 1),
+  ('nonveg_5_regular', 'Rice', 1, NULL, 2),
+  ('nonveg_5_regular', 'Roti', 0.25, NULL, 3),
+  ('nonveg_5_regular', 'Roti', 0.25, NULL, 4),
+  ('nonveg_5_regular', 'Roti', 0.25, NULL, 5),
+  ('new_plan_nonveg', 'Curry', 1, NULL, 0),
+  ('new_plan_nonveg', 'Daal', 1, NULL, 1),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 2),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 3),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 4),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 5),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 6),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 7),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 8),
+  ('new_plan_nonveg', 'Roti', 0.25, NULL, 9),
+  ('nonveg_4_large', 'Curry', 1.5, NULL, 0),
+  ('nonveg_4_large', 'Daal', 1.5, NULL, 1),
+  ('nonveg_4_large', 'Rice', 1, NULL, 2),
+  ('nonveg_4_large', 'Roti', 0.25, NULL, 3),
+  ('nonveg_4_large', 'Roti', 0.25, NULL, 4),
+  ('nonveg_4_large', 'Roti', 0.25, NULL, 5),
+  ('nonveg_4_large', 'Roti', 0.25, NULL, 6),
+  ('veg_5_large', 'Sabzi', 1.5, NULL, 0),
+  ('veg_5_large', 'Daal', 1.5, NULL, 1),
+  ('veg_5_large', 'Rice', 1, NULL, 2),
+  ('veg_5_large', 'Roti', 0.25, NULL, 3),
+  ('veg_5_large', 'Roti', 0.25, NULL, 4),
+  ('veg_5_large', 'Roti', 0.25, NULL, 5),
+  ('veg_5_large', 'Roti', 0.25, NULL, 6),
+  ('veg_5_large', 'Roti', 0.25, NULL, 7),
+  ('veg_5_large', 'Roti', 0.25, NULL, 8),
+  ('maharaja_veg', 'Sabzi', 1, 3, 0),
+  ('maharaja_veg', 'Daal', 1, 3, 1),
+  ('maharaja_veg', 'Salad', 1, 2, 2),
+  ('maharaja_veg', 'Raita', 1, 2, 3),
+  ('maharaja_veg', 'Rice', 1, NULL, 4),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 5),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 6),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 7),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 8),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 9),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 10),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 11),
+  ('maharaja_veg', 'Roti', 0.25, NULL, 12),
+  ('nonveg_5_large', 'Curry', 1.5, NULL, 0),
+  ('nonveg_5_large', 'Daal', 1.5, NULL, 1),
+  ('nonveg_5_large', 'Rice', 1, NULL, 2),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 3),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 4),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 5),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 6),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 7),
+  ('nonveg_5_large', 'Roti', 0.25, NULL, 8),
+  ('trial_veg', 'Sabzi', 1, NULL, 0),
+  ('trial_veg', 'Daal', 1, NULL, 1),
+  ('trial_veg', 'Rice', 1, NULL, 2),
+  ('trial_veg', 'Roti', 0.25, NULL, 3),
+  ('trial_veg', 'Roti', 0.25, NULL, 4),
+  ('trial_veg', 'Roti', 0.25, NULL, 5),
+  ('maharaja_nonveg', 'Curry', 1, 1, 0),
+  ('maharaja_nonveg', 'Daal', 1, 3, 1),
+  ('maharaja_nonveg', 'Salad', 1, 2, 2),
+  ('maharaja_nonveg', 'Raita', 1, 2, 3),
+  ('maharaja_nonveg', 'Rice', 1, NULL, 4),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 5),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 6),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 7),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 8),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 9),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 10),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 11),
+  ('maharaja_nonveg', 'Roti', 0.25, NULL, 12),
+  ('trial_nonveg', 'Curry', 1, NULL, 0),
+  ('trial_nonveg', 'Rice', 1, NULL, 1),
+  ('trial_nonveg', 'Roti', 0.25, NULL, 2),
+  ('trial_nonveg', 'Roti', 0.25, NULL, 3),
+  ('trial_nonveg', 'Roti', 0.25, NULL, 4)
+) AS v(meal_size_key, name, tu_amount, max_tu_amount, sort_order);
 
 -- Derive human-readable components[] from the structured items (single source of truth).
 -- Runs unconditionally: the meal_sizes INSERT above uses ON CONFLICT DO NOTHING and seeds
 -- components='[]', so only this UPDATE populates it (and refreshes it on every reseed).
 UPDATE meal_sizes ms SET components = COALESCE((
-  SELECT json_agg(
-           CASE WHEN i.weight_value IS NULL
-                THEN i.qty || '× ' || i.name
-                ELSE i.qty || '× ' || i.name || ' ' || rtrim(rtrim(i.weight_value::text, '0'), '.') || i.weight_unit
-           END
-           ORDER BY i.sort_order)
-  FROM meal_size_items i WHERE i.meal_size_id = ms.id
+  SELECT json_agg(g.cnt || '× ' || g.name ORDER BY g.min_sort)
+  FROM (
+    SELECT name, COUNT(*) AS cnt, MIN(sort_order) AS min_sort
+    FROM meal_size_items WHERE meal_size_id = ms.id
+    GROUP BY name
+  ) g
 ), '[]'::json)::jsonb;
 
 -- ============ DELIVERY FREQUENCIES ============
@@ -324,29 +372,27 @@ WHERE NOT EXISTS (SELECT 1 FROM meal_payout WHERE meal_size_id IS NULL AND durat
 
 -- ============ MENU: DISH CATEGORIES ============
 INSERT INTO dish_categories (public_id, created_at, updated_at, key, label, enabled, selectable,
-                             sort_order)
+                             sort_order, tu_unit_type, tu_unit_size, tu_unit_label)
 VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'sabzi', 'Sabzi', TRUE, TRUE, 1),
+        'sabzi', 'Sabzi', TRUE, TRUE, 1, 'weight', 8, 'oz'),
        ('slt_tiffin_rice', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'rice', 'Rice', TRUE, FALSE, 2),
+        'rice', 'Rice', TRUE, FALSE, 2, 'count', 1, 'unit'),
        ('slt_tiffin_roti', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'roti', 'Roti', TRUE, FALSE, 3),
+        'roti', 'Roti', TRUE, FALSE, 3, 'count', 4, 'roti'),
        ('slt_tiffin_raita', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'raita', 'Raita', TRUE, FALSE, 4),
+        'raita', 'Raita', TRUE, FALSE, 4, 'weight', 8, 'oz'),
        ('slt_tiffin_salad', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'salad', 'Salad', TRUE, FALSE, 5),
+        'salad', 'Salad', TRUE, FALSE, 5, 'weight', 8, 'oz'),
        ('slt_tiffin_daal', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'daal', 'Daal', TRUE, FALSE, 6),
+        'daal', 'Daal', TRUE, FALSE, 6, 'weight', 8, 'oz'),
        ('slt_tiffin_curry', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'curry', 'Curry', TRUE, TRUE, 7),
-       ('slt_tiffin_extra', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'extra', 'Extra', TRUE, FALSE, 8),
+        'curry', 'Curry', TRUE, TRUE, 7, 'weight', 8, 'oz'),
        ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'protein', 'Protein', TRUE, FALSE, 1),
+        'protein', 'Protein', TRUE, FALSE, 1, 'weight', 8, 'oz'),
        ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'grain', 'Grain', TRUE, FALSE, 2),
+        'grain', 'Grain', TRUE, FALSE, 2, 'weight', 8, 'oz'),
        ('slt_healthy_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'veg', 'Veg', TRUE, TRUE, 3)
+        'veg', 'Veg', TRUE, TRUE, 3, 'weight', 8, 'oz')
 -- No second 'salad' row: `key` is unique now, and the one salad slot is attached
 -- to the tiffin AND healthy plans below instead of being duplicated per type.
 ON CONFLICT (key) DO NOTHING;
@@ -368,7 +414,6 @@ FROM (VALUES
   ('raita','veg'),('raita','non-veg'),
   ('daal','veg'),('daal','non-veg'),
   ('curry','veg'),('curry','non-veg'),
-  ('extra','veg'),('extra','non-veg'),
   ('salad','veg'),('salad','non-veg'),('salad','healthy'),
   ('protein','healthy'),('grain','healthy'),('veg','healthy')
 ) AS v(cat_key, plan_key)
@@ -377,6 +422,29 @@ WHERE NOT EXISTS (
   WHERE cp.category_id = (SELECT id FROM dish_categories WHERE key = v.cat_key)
     AND cp.plan_id = (SELECT id FROM plans WHERE key = v.plan_key)
 );
+
+-- ============ CATEGORY SWAP PAIRS ============ (global eligibility, not scoped to a meal
+-- size — see db/schema/menu.ts. Trade is always flat 1 TU-for-1 TU now, computed at apply
+-- time from each category's own tuAmount, so this only records WHICH pairs may ever swap:
+-- daal<->curry (the maharaja curry pool), salad->raita, roti<->rice.
+--
+-- salad->raita is deliberately ONE-DIRECTIONAL, not the salad<->raita pair it used to be:
+-- the base composition is Salad, so raita->salad has no salad to reach it from and would
+-- be dead. This is also what keeps the two exclusive — a customer can stack up to
+-- maxTuAmount(=2) raita via repeated salad->raita swaps, but can never ALSO hold salad,
+-- since there is no pair that ever moves TU back out of raita.
+DELETE FROM category_swap_pairs;
+INSERT INTO category_swap_pairs (public_id, created_at, updated_at, from_category_id, to_category_id)
+SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       (SELECT id FROM dish_categories WHERE key = v.from_key),
+       (SELECT id FROM dish_categories WHERE key = v.to_key)
+FROM (VALUES
+  ('daal', 'curry'), ('curry', 'daal'),
+  ('salad', 'raita'),
+  ('roti', 'rice'), ('rice', 'roti')
+) AS v(from_key, to_key);
 
 -- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
 INSERT INTO dishes (public_id, created_at, updated_at, name, description, category)

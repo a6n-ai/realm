@@ -4,7 +4,6 @@ import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, unique
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
-export const weightUnit = pgEnum("weight_unit", ["oz", "g", "ml", "piece"]);
 export const mealSizeDiscountType = pgEnum("meal_size_discount_type", ["none", "percent", "flat"]);
 
 // A dish carries no diet column. Which plans it may appear on is explicit
@@ -98,9 +97,16 @@ export const mealSizeItems = pgTable("meal_size_items", {
   category: text("category").notNull(),
   // Optional display override for the item label.
   label: text("label"),
-  qty: integer("qty").notNull().default(1),
-  weightValue: numeric("weight_value", { precision: 6, scale: 2 }),
-  weightUnit: weightUnit("weight_unit"),
+  // Each row IS one dish pick — "2 units of a category" is 2 rows, not qty=2 on
+  // one. Drives orders.categoryCounts (count of rows per category) and
+  // mealSelections.pickIndex (Nth row in sortOrder within the category).
+  // Portion size of ONE pick, in tiffin units (TU) — the shared currency swaps move
+  // between categories. A category's dishCategories.tuUnitSize/tuUnitLabel converts
+  // this into a human amount ("6 roti", "12oz") via lib/menu/format-tu.ts.
+  tuAmount: numeric("tu_amount", { precision: 6, scale: 2 }).notNull().default("1"),
+  // Cap on this category's TU total once swaps stack more of it in. Null = uncapped
+  // (bounded only by the meal size's overall composition). Checked at swap-apply time.
+  maxTuAmount: numeric("max_tu_amount", { precision: 6, scale: 2 }),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 

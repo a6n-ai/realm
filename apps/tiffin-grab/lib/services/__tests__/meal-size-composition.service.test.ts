@@ -57,7 +57,7 @@ beforeEach(async () => {
   sizeId = m.id;
   sizePublicId = m.publicId;
   // A stale item that a full-replace save must delete.
-  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, qty: 1, sortOrder: 0 });
+  await db.insert(mealSizeItems).values({ mealSizeId: m.id, name: "STALE", category: CAT_A, sortOrder: 0 });
 });
 
 afterAll(cleanup);
@@ -73,8 +73,8 @@ describe("MealSizeService composition save", () => {
       kcalMax: "200",
       basePrice: "9.99",
       items: [
-        { category: CAT_A, weightValue: "6", weightUnit: "oz", qty: 2 },
-        { category: CAT_B, weightValue: "", weightUnit: "", qty: 1 },
+        { category: CAT_A, tuAmount: "0.75" },
+        { category: CAT_B, tuAmount: "1" },
       ],
     });
 
@@ -92,16 +92,16 @@ describe("MealSizeService composition save", () => {
     expect(items.map((i) => i.sortOrder)).toEqual([0, 1]);
     expect(items.every((i) => i.name.length > 0)).toBe(true); // NOT NULL name populated
     expect(items.map((i) => i.label)).toEqual(["Cat A", "Cat B"]);
-    expect(items[0].weightUnit).toBe("oz");
-    expect(items[1].weightValue).toBeNull();
-    expect(items[1].weightUnit).toBeNull();
+    expect(items[0].tuAmount).toBe("0.75");
+    expect(items[1].tuAmount).toBe("1.00");
+    expect(items[1].maxTuAmount).toBeNull();
   });
 
   it("rejects an unknown category soft-ref and writes nothing", async () => {
     await expect(
       mealSizeService.update(sizePublicId, {
         planId: planPublicId,
-        items: [{ category: "not-a-real-category", qty: 1 }],
+        items: [{ category: "not-a-real-category" }],
       }),
     ).rejects.toThrow();
 

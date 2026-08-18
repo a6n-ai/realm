@@ -5,75 +5,66 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { NumberField } from "../../discounts/controls";
-import { addSwapRule, removeSwapRule } from "./actions";
+import { addSwapPair, removeSwapPair } from "./actions";
 
 export type CategoryOption = { key: string; label: string };
-export type SwapRuleRow = {
-  id: string; // rule publicId
+export type SwapPairRow = {
+  id: string; // pair publicId
   fromCategory: string;
   fromLabel: string;
-  qtyFrom: number;
   toCategory: string;
   toLabel: string;
-  qtyTo: number;
-  toWeightValue: number | null;
-  toWeightUnit: string | null;
 };
 
-export function SwapRuleGrid({
-  mealSizePublicId,
-  mealSizeName,
+// Global — a pair is either ever-swappable or it isn't, for every meal size that
+// has both categories. The per-meal-size ratio used to live here too, but a swap
+// is a flat 1 TU-for-1 TU trade now, so there's nothing meal-size-specific left
+// to configure — how many picks to give up is chosen by the customer at apply
+// time (see app/(customer)/me/deliveries/day-detail.tsx).
+export function SwapPairGrid({
   categoryOptions,
-  rules,
+  pairs,
 }: {
-  mealSizePublicId: string;
-  mealSizeName: string;
   categoryOptions: CategoryOption[];
-  rules: SwapRuleRow[];
+  pairs: SwapPairRow[];
 }) {
   const [adding, setAdding] = React.useState(false);
 
   return (
     <SectionCard
-      title={mealSizeName}
-      subtitle={rules.length === 0 ? "No swaps configured yet." : undefined}
+      title="Swap-eligible category pairs"
+      subtitle={pairs.length === 0 ? "No pairs configured yet." : undefined}
       action={
         <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
-          {adding ? "Cancel" : "+ Add swap"}
+          {adding ? "Cancel" : "+ Add pair"}
         </Button>
       }
     >
       <div className="grid gap-3">
-        {rules.map((rule) => (
-          <SwapRuleRowView key={rule.id} rule={rule} />
+        {pairs.map((pair) => (
+          <SwapPairRowView key={pair.id} pair={pair} />
         ))}
-        {rules.length === 0 && !adding && (
-          <p className="text-muted-foreground text-sm">No swaps configured for this meal size yet.</p>
+        {pairs.length === 0 && !adding && (
+          <p className="text-muted-foreground text-sm">No swap pairs configured yet.</p>
         )}
         {adding && (
-          <AddSwapRuleForm
-            mealSizePublicId={mealSizePublicId}
-            categoryOptions={categoryOptions}
-            onDone={() => setAdding(false)}
-          />
+          <AddSwapPairForm categoryOptions={categoryOptions} onDone={() => setAdding(false)} />
         )}
       </div>
     </SectionCard>
   );
 }
 
-function SwapRuleRowView({ rule }: { rule: SwapRuleRow }) {
+function SwapPairRowView({ pair }: { pair: SwapPairRow }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
 
   const remove = () => {
     start(async () => {
       try {
-        await removeSwapRule({ id: rule.id });
-        toast.success("Swap rule removed");
+        await removeSwapPair({ id: pair.id });
+        toast.success("Swap pair removed");
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to remove");
@@ -84,10 +75,7 @@ function SwapRuleRowView({ rule }: { rule: SwapRuleRow }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <span className="text-sm font-medium">
-        {rule.qtyFrom} {rule.fromLabel} <span className="text-muted-foreground">→</span> {rule.qtyTo} {rule.toLabel}
-        {rule.toWeightValue != null && rule.toWeightUnit != null ? (
-          <span className="text-muted-foreground"> ({rule.toWeightValue}{rule.toWeightUnit})</span>
-        ) : null}
+        {pair.fromLabel} <span className="text-muted-foreground">→</span> {pair.toLabel}
       </span>
       <Button onClick={remove} disabled={pending} size="sm" variant="ghost">
         Remove
@@ -96,23 +84,17 @@ function SwapRuleRowView({ rule }: { rule: SwapRuleRow }) {
   );
 }
 
-function AddSwapRuleForm({
-  mealSizePublicId,
+function AddSwapPairForm({
   categoryOptions,
   onDone,
 }: {
-  mealSizePublicId: string;
   categoryOptions: CategoryOption[];
   onDone: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [fromCategory, setFromCategory] = React.useState("");
-  const [qtyFrom, setQtyFrom] = React.useState("1");
   const [toCategory, setToCategory] = React.useState("");
-  const [qtyTo, setQtyTo] = React.useState("1");
-  const [portionValue, setPortionValue] = React.useState("");
-  const [portionUnit, setPortionUnit] = React.useState("");
 
   const save = () => {
     if (!fromCategory || !toCategory) {
@@ -123,25 +105,10 @@ function AddSwapRuleForm({
       toast.error("Pick two different categories");
       return;
     }
-    const nFrom = parseInt(qtyFrom, 10);
-    const nTo = parseInt(qtyTo, 10);
-    if (!Number.isFinite(nFrom) || nFrom <= 0 || !Number.isFinite(nTo) || nTo <= 0) {
-      toast.error("Quantities must be positive integers");
-      return;
-    }
-    const portion = portionValue.trim() === "" ? null : Number(portionValue);
-    if (portion != null && (!Number.isFinite(portion) || portion <= 0)) {
-      toast.error("Portion must be a positive number");
-      return;
-    }
-    if ((portion == null) !== (portionUnit === "")) {
-      toast.error("A portion needs both an amount and a unit");
-      return;
-    }
     start(async () => {
       try {
-        await addSwapRule({ mealSizePublicId, fromCategory, qtyFrom: nFrom, toCategory, qtyTo: nTo, toWeightValue: portion, toWeightUnit: portionUnit === "" ? null : portionUnit });
-        toast.success("Swap rule added");
+        await addSwapPair({ fromCategory, toCategory });
+        toast.success("Swap pair added");
         router.refresh();
         onDone();
       } catch (e) {
@@ -153,49 +120,23 @@ function AddSwapRuleForm({
   return (
     <div className="rounded-lg border border-dashed p-3">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <Label>Give up</Label>
-          <div className="flex gap-2">
-            <NumberField id="swap-qty-from" label="" min={1} step={1} value={qtyFrom} onChange={setQtyFrom} className="w-16" />
-            <Select value={fromCategory} onValueChange={setFromCategory}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                {categoryOptions.map((c) => (
-                  <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Select value={fromCategory} onValueChange={setFromCategory}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
+          <SelectContent>
+            {categoryOptions.map((c) => (
+              <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-muted-foreground pb-2">→</span>
-        <div className="grid gap-1.5">
-          <Label>Receive</Label>
-          <div className="flex gap-2">
-            <NumberField id="swap-qty-to" label="" min={1} step={1} value={qtyTo} onChange={setQtyTo} className="w-16" />
-            <Select value={toCategory} onValueChange={setToCategory}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                {categoryOptions.map((c) => (
-                  <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="grid gap-1.5">
-          <Label>Portion (optional)</Label>
-          <div className="flex gap-2">
-            <NumberField id="swap-portion-value" label="" min={0} step={1} value={portionValue} onChange={setPortionValue} className="w-20" />
-            <Select value={portionUnit} onValueChange={setPortionUnit}>
-              <SelectTrigger className="w-24"><SelectValue placeholder="Unit" /></SelectTrigger>
-              <SelectContent>
-                {["oz", "g", "ml", "piece"].map((u) => (
-                  <SelectItem key={u} value={u}>{u}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Select value={toCategory} onValueChange={setToCategory}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
+          <SelectContent>
+            {categoryOptions.map((c) => (
+              <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button onClick={save} disabled={pending} size="sm">
           Add
         </Button>

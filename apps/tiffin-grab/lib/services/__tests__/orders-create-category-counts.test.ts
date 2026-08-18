@@ -58,7 +58,6 @@ describe("createOrder snapshots category_counts from the meal size (integration)
     expect(order.categoryCounts).toEqual({
       sabzi: 1,
       daal: 1,
-      extra: 1,
       salad: 1,
       raita: 1,
       rice: 1,

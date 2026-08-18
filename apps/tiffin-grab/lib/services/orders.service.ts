@@ -7,7 +7,6 @@ import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments
 import { and, asc, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  categorySwapRules,
   coupons,
   deliveries,
   deliveryFrequencies,
@@ -20,12 +19,10 @@ import {
   users,
   type PaymentProof,
 } from "@/db/schema";
-import type { OrderDefaultSwap } from "@/db/schema/orders";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { validateSwapStack } from "@/lib/menu/resolve-delivery-meal";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
@@ -154,41 +151,6 @@ async function resolveUserId(
 // public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
 // resolves each to the internal bigint id before writing the FK columns, and
 // returns the order's public_id (ord_…) — never a bigint.
-// Resolve the wizard's chosen rule public_ids into snapshot rows for
-// orders.default_swaps. Every rule is re-read from the DB and re-checked here —
-// the client sends ids, never quantities.
-export async function resolveDefaultSwaps(
-  tx: Tx,
-  mealSizeId: bigint,
-  baseCounts: Record<string, number>,
-  ruleIds: string[],
-): Promise<OrderDefaultSwap[]> {
-  if (ruleIds.length === 0) return [];
-  if (new Set(ruleIds).size !== ruleIds.length) throw new ValidationError("The same swap was chosen twice");
-
-  const rows = await tx.select().from(categorySwapRules).where(inArray(categorySwapRules.publicId, ruleIds));
-  const byPublicId = new Map(rows.map((r) => [r.publicId, r]));
-
-  const out: OrderDefaultSwap[] = [];
-  for (const id of ruleIds) {
-    const rule = byPublicId.get(id);
-    if (!rule) throw new ValidationError("Swap rule not found");
-    if (rule.mealSizeId !== mealSizeId) throw new ValidationError("This swap doesn't apply to your meal size");
-    const check = validateSwapStack(baseCounts, out, rule);
-    if (!check.ok) throw new ValidationError(check.reason);
-    out.push({
-      ruleId: rule.publicId,
-      fromCategory: rule.fromCategory,
-      toCategory: rule.toCategory,
-      qtyFrom: rule.qtyFrom,
-      qtyTo: rule.qtyTo,
-      toWeightValue: rule.toWeightValue,
-      toWeightUnit: rule.toWeightUnit,
-    });
-  }
-  return out;
-}
-
 export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
@@ -204,7 +166,7 @@ export async function createOrder(
   // order.categoryCounts/mealSlots are derived from the chosen meal size's own
   // server-loaded items, never trusted from the client-submitted selections.
   const categoryCounts = mealSize.items.reduce<Record<string, number>>((acc, i) => {
-    acc[i.category] = (acc[i.category] ?? 0) + i.qty;
+    acc[i.category] = (acc[i.category] ?? 0) + 1;
     return acc;
   }, {});
   const mealSlots = Object.keys(categoryCounts);
@@ -415,13 +377,6 @@ export async function createOrder(
 
     const status: OrderStatusValue = zoneRow ? "active" : "waitlisted";
 
-    const defaultSwaps = await resolveDefaultSwaps(
-      tx,
-      mealSize.id,
-      categoryCounts,
-      input.selections.swapRuleIds ?? [],
-    );
-
     const [order] = await tx
       .insert(orders)
       .values({
@@ -432,7 +387,6 @@ export async function createOrder(
         persons: input.selections.persons,
         mealSlots,
         categoryCounts,
-        defaultSwaps,
         includeSaturday: input.selections.includeSaturday,
         includeSunday: input.selections.includeSunday,
         durationWeeks: input.selections.durationWeeks,

@@ -3,8 +3,6 @@ import { db } from "@/db/client";
 import { mealSizes } from "@/db/schema";
 import { loadCatalogSnapshot } from "../load";
 
-const WEIGHT_UNITS = new Set(["oz", "g", "ml", "piece"]);
-
 describe("loadCatalogSnapshot items + trial", () => {
   it("populates structured items[] and trial for every meal size", async () => {
     const seeded = await db.select().from(mealSizes).limit(1);
@@ -23,9 +21,7 @@ describe("loadCatalogSnapshot items + trial", () => {
       expect(m.items.length).toBeGreaterThan(0);
       for (const item of m.items) {
         expect(item.name.length).toBeGreaterThan(0);
-        if (item.weightUnit !== null) {
-          expect(WEIGHT_UNITS.has(item.weightUnit)).toBe(true);
-        }
+        expect(item.tuAmount).toBeGreaterThan(0);
       }
       expect(m.components.length).toBeGreaterThan(0);
 
