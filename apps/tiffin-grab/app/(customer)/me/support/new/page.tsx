@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronLeftIcon, LifeBuoyIcon } from "lucide-react";
+import { LifeBuoyIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { BackLink } from "@/components/back-link";
 import {
   NewTicketForm,
   type TicketCategoryValue,
@@ -18,15 +18,7 @@ type SearchParams = Promise<{ orderId?: string }>;
 export default function NewTicketPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
-      <div className="md:hidden">
-        <Link
-          href="/me/support"
-          className="text-muted-foreground hover:text-foreground mb-4 inline-flex min-h-11 items-center gap-1 text-sm transition-colors"
-        >
-          <ChevronLeftIcon className="size-4" aria-hidden />
-          Support
-        </Link>
-      </div>
+      <BackLink href="/me/support" label="Support" />
 
       <PageHeader
         icon={LifeBuoyIcon}

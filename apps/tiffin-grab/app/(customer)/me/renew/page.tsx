@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
+import { RefreshCwIcon } from "lucide-react";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -7,20 +8,20 @@ import { toClientCatalog } from "@/lib/catalog/types";
 import { currentUserId } from "@/lib/services/session-service";
 import { myEarliestNewPlanStartDate } from "@/lib/services/customer-deliveries.service";
 import { RenewSelector } from "@/components/customer/renew/renew-selector";
+import { PageShell, PageHeader } from "@/components/ds";
 
 export const dynamic = "force-dynamic";
 
 export default function RenewPlanPage() {
   return (
-    <main className="mx-auto max-w-3xl space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Renew your plan</h1>
-        <p className="text-muted-foreground text-sm text-pretty">
-          Pick a meal size, choose your schedule, and pick a start date.
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        icon={RefreshCwIcon}
+        title="Renew your plan"
+        subtitle="Pick a meal size, choose your schedule, and pick a start date."
+      />
       <RenewData />
-    </main>
+    </PageShell>
   );
 }
 

@@ -28,7 +28,7 @@ export default async function PricingPage() {
         <h2 className="text-xl font-medium">Nutrition baselines</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           {plans.map((p) => (
-            <div key={p.id} className="hover-lift card-glow rounded-lg border p-5">
+            <div key={p.id} className="hover-lift card-glow rounded-lg border p-6">
               <h3 className="font-medium">{p.name}</h3>
               {p.description ? <p className="text-muted-foreground mt-1 text-sm">{p.description}</p> : null}
             </div>

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
 import { DietarySection } from "@/components/account/sections/dietary-section";
-import { DietarySectionSkeleton } from "@/app/(dashboard)/dashboard/account/dietary/dietary-section-skeleton";
+import { DietarySectionSkeleton } from "@/components/account/sections/dietary-section-skeleton";
 
 function splitAllergens(value: string | null | undefined): string[] {
   if (!value) return [];

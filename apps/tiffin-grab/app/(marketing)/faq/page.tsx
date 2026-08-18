@@ -16,7 +16,7 @@ export default function FaqPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Frequently asked questions</h1>
       <dl className="space-y-5">
         {FAQS.map((f) => (
-          <div key={f.q} className="hover-lift card-glow rounded-lg border p-5">
+          <div key={f.q} className="hover-lift card-glow rounded-lg border p-6">
             <dt className="font-medium">{f.q}</dt>
             <dd className="text-muted-foreground mt-1 text-sm">{f.a}</dd>
           </div>

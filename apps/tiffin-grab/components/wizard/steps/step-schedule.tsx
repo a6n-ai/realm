@@ -32,7 +32,7 @@ export function StepSchedule({
           onValueChange={(v) => set({ frequencyKey: v as WizardSelections["frequencyKey"] })}
         >
           {catalog.frequencies.map((f) => (
-            <div key={f.key} className="flex items-center gap-2 rounded-md border p-3">
+            <div key={f.key} className="flex items-center gap-2 rounded-lg border p-3">
               <RadioGroupItem id={f.key} value={f.key} />
               <Label htmlFor={f.key} className="flex-1">{f.name}</Label>
             </div>
@@ -51,11 +51,11 @@ export function StepSchedule({
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Weekend delivery</Label>
-        <label className="flex items-center gap-2 rounded-md border p-3">
+        <label className="flex items-center gap-2 rounded-lg border p-3">
           <input type="checkbox" checked={selections.includeSaturday} onChange={(e) => set({ includeSaturday: e.target.checked })} />
           <span>Include Saturday</span>
         </label>
-        <label className="flex items-center gap-2 rounded-md border p-3">
+        <label className="flex items-center gap-2 rounded-lg border p-3">
           <input type="checkbox" checked={selections.includeSunday} onChange={(e) => set({ includeSunday: e.target.checked })} />
           <span>Include Sunday</span>
         </label>

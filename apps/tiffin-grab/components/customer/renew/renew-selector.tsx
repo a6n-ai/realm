@@ -175,11 +175,11 @@ export function RenewSelector({
           value={scheduleType}
           onValueChange={(v) => setScheduleType(v as ScheduleType)}
         >
-          <div className="flex items-center gap-2 rounded-md border p-3">
+          <div className="flex items-center gap-2 rounded-lg border p-3">
             <RadioGroupItem id="sched-weekday" value="weekday" />
             <Label htmlFor="sched-weekday">Mon–Friday · 5 tiffins/week</Label>
           </div>
-          <div className="flex items-center gap-2 rounded-md border p-3">
+          <div className="flex items-center gap-2 rounded-lg border p-3">
             <RadioGroupItem id="sched-weekend" value="weekend" />
             <Label htmlFor="sched-weekend">Mon–Sunday · 7 tiffins/week</Label>
           </div>
@@ -200,7 +200,7 @@ export function RenewSelector({
           onValueChange={(v) => setWeeks(Number(v) as Weeks)}
         >
           {([1, 2, 3, 4] as const).map((w) => (
-            <div key={w} className="flex items-center gap-2 rounded-md border p-3">
+            <div key={w} className="flex items-center gap-2 rounded-lg border p-3">
               <RadioGroupItem id={`weeks-${w}`} value={String(w)} />
               <Label htmlFor={`weeks-${w}`}>
                 {w * tiffinsPerWeek} tiffins

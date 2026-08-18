@@ -15,7 +15,7 @@ export function WeeklyMenuPoster({
 }: { titlePrefix: string; weekStart: string; slots: MealSlot[]; items: PosterItem[]; accent: string }) {
   const columns = buildPosterColumns(slots, items);
   return (
-    <div className="rounded-2xl border bg-card p-6 sm:p-8">
+    <div className="rounded-xl border bg-card p-6 sm:p-8">
       <h2 className="text-2xl font-semibold tracking-tight" style={{ color: accent }}>
         {titlePrefix} — {weekRangeLabel(weekStart)}
       </h2>

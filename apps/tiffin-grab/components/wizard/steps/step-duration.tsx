@@ -95,7 +95,7 @@ export function StepDuration({
           onValueChange={(v) => set({ durationWeeks: Number(v) })}
         >
           {catalog.durations.map((d) => (
-            <div key={d.weeks} className="flex items-center gap-2 rounded-md border p-3">
+            <div key={d.weeks} className="flex items-center gap-2 rounded-lg border p-3">
               <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} />
               <Label htmlFor={`d${d.weeks}`}>{d.weeks}wk</Label>
             </div>
