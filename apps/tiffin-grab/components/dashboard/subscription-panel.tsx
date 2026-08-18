@@ -36,13 +36,16 @@ export async function SubscriptionPanel({
   orderPublicId,
   monthParam,
   basePath,
+  visible,
 }: {
   orderPublicId: string;
   monthParam?: string;
   /** Where the calendar's month links point, so the host page's params survive paging. */
   basePath: string;
+  /** Org visibility scope — same value the host page resolved via resolveSessionVisibleOrgIds. */
+  visible: "all" | string[];
 }) {
-  const [order, settings] = await Promise.all([readOrder(orderPublicId), getAppSettings()]);
+  const [order, settings] = await Promise.all([readOrder(orderPublicId, visible), getAppSettings()]);
 
   // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
   const today = zonedDateIso(Date.now(), settings.timezone);

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, bigint, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 
 const nextIdText = sql`(next_id())::text`;
@@ -23,7 +23,7 @@ export const organization = pgTable(
     // points at its brand. Depth beyond 2 levels is rejected in the
     // organization.create hook (apps/tiffin-grab/lib/auth/index.ts), not here — see
     // packages/auth/src/organization.ts assertHierarchyDepth.
-    parentOrganizationId: text("parent_organization_id"),
+    parentOrganizationId: text("parent_organization_id").references((): AnyPgColumn => organization.id),
     region: text("region"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

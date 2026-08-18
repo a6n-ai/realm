@@ -7,7 +7,8 @@ import { eq } from "drizzle-orm";
 import { findMethod } from "@realm/payments";
 import { Button } from "@realm/ui/button";
 import { requireStaff } from "@/lib/auth/guards";
-import { readOrder, listOrderActivities } from "@/lib/services/orders.service";
+import { getSession } from "@/lib/auth/session";
+import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
@@ -59,9 +60,11 @@ async function OrderDetail({
   const { month } = await searchParams;
 
   const settingsP = getAppSettings();
+  const session = await getSession();
+  const visible = await resolveSessionVisibleOrgIds(session);
   let order;
   try {
-    order = await readOrder(id);
+    order = await readOrder(id, visible);
   } catch (e) {
     void settingsP.catch(() => {});
     if (e instanceof NotFoundError) notFound();
@@ -141,6 +144,7 @@ async function OrderDetail({
         orderPublicId={order.publicId}
         monthParam={month}
         basePath={`/dashboard/orders/${order.publicId}`}
+        visible={visible}
       />
 
       <SectionCard title="Activity">
