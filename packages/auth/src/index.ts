@@ -14,5 +14,5 @@ export {
   sendNewLogin,
   sendDeleteVerification,
 } from "./emails";
-export { assertHierarchyDepth } from "./organization";
+export { assertHierarchyDepth, resolveVisibleOrgIds } from "./organization";
 export type { OrgParentRef } from "./organization";

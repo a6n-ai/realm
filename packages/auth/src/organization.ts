@@ -10,3 +10,12 @@ export function assertHierarchyDepth(parent: OrgParentRef): void {
     );
   }
 }
+
+// Cross-org visibility: membership rows are the ONLY source of access — a high role
+// within one org never implies visibility into another. The single exception is the
+// explicit, audited platformRole bypass (packages/auth/src/audit-events.ts covers the
+// audit trail for setting it). Every client-scoped query must filter through this.
+export function resolveVisibleOrgIds(input: { platformRole: string | null; memberOrgIds: string[] }): "all" | string[] {
+  if (input.platformRole === "super_admin") return "all";
+  return input.memberOrgIds;
+}
