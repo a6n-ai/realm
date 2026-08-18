@@ -4,7 +4,7 @@ import { asc, eq, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { auditLog, dishes, dishCategories, menuItems, menuWeeks } = await import("@/db/schema");
+const { auditLog, dishes, dishCategories, menuItems, menuWeeks, organization } = await import("@/db/schema");
 const { attachDishToPlans, attachAllCategoriesToPlans } = await import("@/db/test-helpers");
 const { menuService } = await import("../menu.service");
 
@@ -85,6 +85,25 @@ describe("menuService (integration)", () => {
     const batch = await menuService.getReleasedWeeks(["2099-05-03", "2099-05-10", "2099-05-17"]);
     expect(batch.map((w) => w.weekStart)).toEqual(["2099-05-10"]);
     void draft;
+  });
+
+  it("getPublishedWeek scopes by organizationId: brand org succeeds, unknown org fails closed", async () => {
+    const [d] = await db.insert(dishes).values({ name: "Paneer"}).returning();
+    await attachDishToPlans(d.id);
+    const w = await menuService.upsertWeek({ weekStart: "2099-06-01" });
+    await menuService.addItem({ menuWeekId: w.publicId, dayOfWeek: "mon", slot: "sabzi", dishId: d.publicId, position: 0 });
+    await menuService.release(w.publicId);
+
+    // No organizationId — existing unscoped behavior, untouched.
+    expect((await menuService.getPublishedWeek("2099-06-01"))?.weekStart).toBe("2099-06-01");
+
+    const [brandOrg] = await db.select({ id: organization.id }).from(organization).limit(1);
+    expect(brandOrg).toBeTruthy();
+    expect((await menuService.getPublishedWeek("2099-06-01", brandOrg!.id))?.weekStart).toBe("2099-06-01");
+
+    // Resolved org id matches no organization row — fails closed (null), never
+    // falls through to the unscoped data above.
+    expect(await menuService.getPublishedWeek("2099-06-01", "org_does_not_exist")).toBeNull();
   });
 
   it("listWeeks returns every week newest-first with item counts", async () => {

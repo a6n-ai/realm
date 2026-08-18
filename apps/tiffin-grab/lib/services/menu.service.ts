@@ -3,7 +3,7 @@ import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@realm/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishCategories, dishPlans, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, plans } from "@/db/schema";
+import { dishCategories, dishPlans, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "./app-settings.service";
@@ -533,8 +533,20 @@ export const menuService = {
       .where(and(inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")));
   },
 
-  async getPublishedWeek(weekStart?: string) {
-    return publishedCache.getOrSet(weekStart ?? "current", async () => {
+  /**
+   * `organizationId` is the URL-resolved org from proxy.ts (Task 3/4 —
+   * resolveRequestOrg). Additive alongside the existing `app_id`-scoped
+   * queries below: today's single-tenant deployment has exactly one
+   * organization row, so this is a no-op scoping check for now, not a
+   * behavior change. A resolved id that matches no organization fails
+   * closed (null), never falling through to the unscoped query.
+   */
+  async getPublishedWeek(weekStart?: string, organizationId?: string | null) {
+    if (organizationId) {
+      const [org] = await db.select({ id: organization.id }).from(organization).where(eq(organization.id, organizationId)).limit(1);
+      if (!org) return null;
+    }
+    return publishedCache.getOrSet(`${weekStart ?? "current"}:${organizationId ?? "-"}`, async () => {
       const base = eq(menuWeeks.status, "released");
       // Explicit weekStart → same exact-match path as getReleasedWeek (Menu/Deliveries agree).
       // No weekStart → soonest released on/after this Monday (app TZ), else latest released

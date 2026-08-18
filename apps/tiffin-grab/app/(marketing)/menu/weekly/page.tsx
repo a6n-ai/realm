@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { menuService } from "@/lib/services/menu.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export const metadata: Metadata = { title: "This week's menu — Tiffin Grab", description: "Our weekly tiffin menu across the GTA." };
 export const dynamic = "force-dynamic";
 
 export default async function WeeklyMenuPage() {
-  const pub = await menuService.getPublishedWeek();
+  const organizationId = await resolveRequestOrg();
+  const pub = await menuService.getPublishedWeek(undefined, organizationId);
   return (
     <Section className="space-y-8">
       <div className="max-w-2xl">
