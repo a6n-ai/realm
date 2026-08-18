@@ -7,9 +7,10 @@
  * Run:
  *   DATABASE_URL="$DIRECT_DATABASE_URL" tsx apps/tiffin-grab/db/seed-brand-org.ts
  */
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
+import { Role } from "@realm/commons";
 import { db } from "./client";
-import { orders, organization } from "./schema";
+import { orders, organization, member, users } from "./schema";
 
 const BRAND_CLIENT_CODE = "TG";
 
@@ -35,7 +36,31 @@ async function main() {
     .where(isNull(orders.organizationId))
     .returning({ id: orders.id });
 
-  console.log(`brand org: ${brandId}, backfilled ${backfilled.length} orders`);
+  // Every existing staff user (role != "user") must get a member row in the brand
+  // org, or resolveSessionVisibleOrgIds returns [] for them post-deploy and the
+  // now-live org scoping on orders hides everything. member.role is unused by any
+  // access-control code today (createAccessControl checks users.role instead), so
+  // "admin" is a fine bootstrap default here — a real per-org role model is a later
+  // task if franchise-level roles are ever needed.
+  const staff = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(ne(users.role, Role.USER));
+  const alreadyMembers = staff.length
+    ? await db
+        .select({ userId: member.userId })
+        .from(member)
+        .where(and(eq(member.organizationId, brandId), inArray(member.userId, staff.map((s) => s.id))))
+    : [];
+  const alreadyMemberIds = new Set(alreadyMembers.map((m) => m.userId));
+  const toBackfill = staff.filter((s) => !alreadyMemberIds.has(s.id));
+  if (toBackfill.length) {
+    await db.insert(member).values(toBackfill.map((s) => ({ organizationId: brandId, userId: s.id, role: "admin" })));
+  }
+
+  console.log(
+    `brand org: ${brandId}, backfilled ${backfilled.length} orders, backfilled ${toBackfill.length} staff member rows`,
+  );
 }
 
 main()

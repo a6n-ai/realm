@@ -144,18 +144,29 @@ export const auth = betterAuth({
     // modelName/fields/additionalFields per-table — Task 3's tables already use
     // the plugin's default names, so only additionalFields is needed here.
     organizationPlugin({
+      // Default is `true` (any authenticated user) — restrict org creation to
+      // staff. Customers (Role.USER) hold no member row by design (spec §3); letting
+      // them create orgs would let any signed-in customer mint org/member rows.
+      allowUserToCreateOrganization: async (user) => (user as { role?: string }).role !== Role.USER,
       schema: {
         organization: {
           additionalFields: {
             clientCode: { type: "string", required: true },
-            parentOrganizationId: { type: "string", required: false },
+            // Not settable through create/update input (matches platformRole above).
+            // Brand orgs are DB-seeded (db/seed-brand-org.ts); franchise/shop creation
+            // is unbuilt follow-up work and will need a dedicated server action that
+            // re-runs assertHierarchyDepth, not this endpoint, once it exists.
+            parentOrganizationId: { type: "string", required: false, input: false },
             region: { type: "string", required: false },
           },
         },
       },
       // Depth guard: reject creating an org whose parent is itself already a
       // franchise/shop (parentOrganizationId !== null). See
-      // packages/auth/src/organization.ts assertHierarchyDepth.
+      // packages/auth/src/organization.ts assertHierarchyDepth. Unreachable via the
+      // public API today since parentOrganizationId is input:false above; kept so a
+      // future franchise-creation flow that writes it server-side still gets the
+      // check for free.
       organizationHooks: {
         beforeCreateOrganization: async ({ organization: newOrg }) => {
           const parentId = (newOrg as { parentOrganizationId?: string | null }).parentOrganizationId ?? null;
