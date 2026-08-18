@@ -260,7 +260,7 @@ describe("payment methods E2E lifecycle", () => {
     expect(await ledgerService.totalSpent(order!.userId!)).toBe(order!.total);
 
     // Staff readOrder shows claim fields
-    const detail = await readOrder(publicId);
+    const detail = await readOrder(publicId, "all");
     expect(detail.payments[0]!.status).toBe("paid");
     expect(detail.payments[0]!.reference).toBe("GOOD-REF-999");
     expect(detail.payments[0]!.proofThumbUrl).toBe("https://cdn.test/thumb.png");
@@ -316,7 +316,7 @@ describe("payment methods E2E lifecycle", () => {
     const { publicId } = await createOrder(
       await baseInput({ paymentMethodId: "cash", phone: "+16475551103" }),
     );
-    const detail = await readOrder(publicId);
+    const detail = await readOrder(publicId, "all");
     const pay = detail.payments[0]!;
     expect(pay.status).toBe("awaiting_payment");
 
@@ -324,7 +324,7 @@ describe("payment methods E2E lifecycle", () => {
 
     // Staff can verify cash without a customer claim
     await verifyPayment(pay.publicId);
-    const after = await readOrder(publicId);
+    const after = await readOrder(publicId, "all");
     expect(after.payments[0]!.status).toBe("paid");
     expect(
       await db.select().from(ledgerEntries).where(and(eq(ledgerEntries.orderId, detail.id), eq(ledgerEntries.type, "payment"))),
