@@ -122,5 +122,5 @@ export const config = {
   // Was scoped to /dashboard, /me, /api only. Broadened to everything (minus
   // static assets) so the URL-segment org resolver above also runs on public
   // customer-facing routes, not just the guarded ones.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)"],
 };
