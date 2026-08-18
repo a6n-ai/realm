@@ -10,10 +10,15 @@ const OPTIONS: { value: "light" | "system" | "dark"; label: string; icon: Lucide
   { value: "dark", label: "Dark", icon: MoonIcon },
 ];
 
-export function ModeToggle() {
+export function ModeToggle({ className, size = "sm" }: { className?: string; size?: "sm" | "lg" }) {
   const { theme, setTheme } = useTheme();
+  const touch = size === "lg";
   return (
-    <div role="group" aria-label="Theme" className="inline-flex items-center gap-0.5 rounded-full border p-0.5">
+    <div
+      role="group"
+      aria-label="Theme"
+      className={cn("inline-flex items-center gap-0.5 rounded-full border p-0.5", className)}
+    >
       {OPTIONS.map((o) => (
         <button
           key={o.value}
@@ -22,11 +27,12 @@ export function ModeToggle() {
           aria-pressed={theme === o.value}
           title={o.label}
           className={cn(
-            "grid size-7 place-items-center rounded-full transition-colors",
+            "grid place-items-center rounded-full transition-colors",
+            touch ? "size-9" : "size-7",
             theme === o.value ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <o.icon className="size-4" />
+          <o.icon className={touch ? "size-5" : "size-4"} />
           <span className="sr-only">{o.label}</span>
         </button>
       ))}

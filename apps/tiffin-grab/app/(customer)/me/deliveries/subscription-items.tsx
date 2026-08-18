@@ -4,14 +4,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@realm/ui/select";
 import type { Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
-import { SUB_STATUS_LABEL, type SubscriptionStatus } from "./calendar-constants";
+import { MealInfoChips, PlanBox, PlanHeadingRow } from "@/components/customer/plan-box";
 import { SchedulePoolControl } from "./schedule-pool-control";
 
-/** Plan name + status; dropdown only when the customer has multiple active subs. */
+/** Meal size is the plan's display name. Diet/plan sits as a coloured tag beside it. */
 export function SubscriptionPlanHeader({
   sub,
   allSubscriptions,
   categoryLabels,
+  categoryPortions,
   counts,
   today,
   onSwitch,
@@ -19,40 +20,45 @@ export function SubscriptionPlanHeader({
   sub: Subscription;
   allSubscriptions: Subscription[];
   categoryLabels: Record<string, string>;
+  categoryPortions?: Record<string, string>;
   counts?: TiffinCounts;
   today: string;
   onSwitch: (publicId: string) => void;
 }) {
   const showSelector = allSubscriptions.length > 1;
-  const statusLabel = SUB_STATUS_LABEL[sub.status as SubscriptionStatus];
+  const dietLabel = sub.tagLabel || sub.planName;
 
   return (
-    <div className="min-w-0 space-y-1">
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        {showSelector ? (
-          <Select value={sub.publicId} onValueChange={onSwitch}>
-            <SelectTrigger className="h-9 max-w-full min-w-[12rem] sm:min-w-[18rem]" size="default">
-              <SelectValue placeholder="Choose subscription" />
-            </SelectTrigger>
-            <SelectContent>
-              {allSubscriptions.map((s) => (
-                <SelectItem key={s.publicId} value={s.publicId}>
-                  {s.planName}
-                  {s.status === "paused" ? " (paused)" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <h2 className="text-base font-semibold leading-snug tracking-tight text-foreground">
-            {sub.planName}
-          </h2>
-        )}
-        <span className="text-muted-foreground text-xs">{statusLabel}</span>
-      </div>
-      <SubscriptionPlanSummary sub={sub} categoryLabels={categoryLabels} />
+    <PlanBox color={sub.tagColor}>
+      <PlanHeadingRow
+        name={
+          showSelector ? (
+            <Select value={sub.publicId} onValueChange={onSwitch}>
+              <SelectTrigger className="h-9 max-w-full min-w-[12rem] bg-background/80 sm:min-w-[18rem]" size="default">
+                <SelectValue placeholder="Choose subscription" />
+              </SelectTrigger>
+              <SelectContent>
+                {allSubscriptions.map((s) => (
+                  <SelectItem key={s.publicId} value={s.publicId}>
+                    {s.mealSizeName}
+                    {s.status === "paused" ? " (paused)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <h2 className="text-lg font-semibold leading-snug tracking-tight text-foreground">
+              {sub.mealSizeName}
+            </h2>
+          )
+        }
+        dietLabel={dietLabel}
+        color={sub.tagColor}
+        status={sub.status}
+      />
+      <SubscriptionPlanSummary sub={sub} categoryLabels={categoryLabels} categoryPortions={categoryPortions} />
       {counts && <TiffinCountRow sub={sub} counts={counts} today={today} />}
-    </div>
+    </PlanBox>
   );
 }
 
@@ -67,7 +73,7 @@ function TiffinCountRow({
   today: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-0.5">
+    <div className="space-y-2 pt-3">
       <dl className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
         <Stat label="Total" value={counts.total} />
         <Stat label="Delivered" value={counts.delivered} />
@@ -93,33 +99,23 @@ function Stat({ label, value, emphasis = false }: { label: string; value: number
   );
 }
 
-/** One-line plan summary — meal size, item counts, persons. No chips/pills. */
+/** What's in the tiffin — chips, not a comma sentence. Meal size is the heading, not repeated here. */
 export function SubscriptionPlanSummary({
   sub,
   categoryLabels,
+  categoryPortions = {},
 }: {
   sub: Subscription;
   categoryLabels: Record<string, string>;
+  categoryPortions?: Record<string, string>;
 }) {
-  const entries = Object.entries(sub.categoryCounts).filter(([, qty]) => qty > 0);
-  const segments: string[] = [];
-
-  if (sub.mealSizeName) segments.push(sub.mealSizeName);
-
-  if (entries.length > 0) {
-    const items = entries
-      .map(([key, qty]) => `${qty}× ${categoryLabels[key] ?? key}`)
-      .join(", ");
-    segments.push(items);
-  }
-
-  if (sub.persons > 1) segments.push(`${sub.persons} persons`);
-
-  if (segments.length === 0) return null;
-
   return (
-    <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-      {segments.join(" · ")}
-    </p>
+    <MealInfoChips
+      className="mt-3"
+      categoryCounts={sub.categoryCounts}
+      categoryLabels={categoryLabels}
+      categoryPortions={categoryPortions}
+      persons={sub.persons}
+    />
   );
 }

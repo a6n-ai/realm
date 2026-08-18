@@ -5,9 +5,16 @@ import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
 import { Label } from "@realm/ui/label";
-import { Input } from "@realm/ui/input";
 import { Invoice } from "../invoice";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
+import { formatDateOnly } from "@/lib/format/datetime";
+import { DateField } from "@/components/customer/date-field";
+
+function dayBefore(iso: string): string {
+  const d = parseIsoDateUtc(iso);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
 
 export function StepDuration({
   catalog,
@@ -16,6 +23,7 @@ export function StepDuration({
   result,
   sameWeekConflict = false,
   currentPlan = null,
+  minStartDate = null,
 }: {
   catalog: ClientCatalogSnapshot;
   selections: WizardSelections;
@@ -23,11 +31,14 @@ export function StepDuration({
   result: PricingResult | null;
   sameWeekConflict?: boolean;
   currentPlan?: CurrentPlanSummary | null;
+  minStartDate?: string | null;
 }) {
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const plan = catalog.plans.find((p) => p.key === selections.planKey);
   const allowed = plan?.allowedStartDays ?? ["mon", "tue", "wed", "thu", "fri"];
-  const minDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+  const tomorrow = nextWeekday(new Date()).toISOString().slice(0, 10);
+  const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
+  const overlapBound = minStartDate != null && minDate === minStartDate;
   const dayLabel: Record<string, string> = {
     mon: "Mon",
     tue: "Tue",
@@ -44,6 +55,15 @@ export function StepDuration({
       return;
     }
     try {
+      if (v < minDate) {
+        set({ startDate: "" });
+        setStartDateError(
+          overlapBound
+            ? `You have a plan running through ${formatDateOnly(dayBefore(minDate), { mode: "short" })} — choose a start date after it ends`
+            : `Earliest available start date is ${minDate}`,
+        );
+        return;
+      }
       const wk = weekdayKey(parseIsoDateUtc(v));
       if (allowed.includes(wk)) {
         set({ startDate: v });
@@ -61,20 +81,27 @@ export function StepDuration({
 
   return (
     <div className="space-y-6">
-      {currentPlan ? (
+      {currentPlan && overlapBound ? (
+        <CurrentPlanHint>
+          Your current plan runs through{" "}
+          <strong>{formatDateOnly(dayBefore(minDate), { mode: "short" })}</strong>. This renewal can
+          start on or after <strong>{formatDateOnly(minDate, { mode: "short" })}</strong>.
+        </CurrentPlanHint>
+      ) : currentPlan ? (
         <CurrentPlanHint>
           Your current plan starts <strong>{currentPlan.startDate}</strong>. Choose when this new
           subscription should begin.
         </CurrentPlanHint>
       ) : null}
       <div>
-        <Label className="text-sm font-medium">Start date</Label>
-        <Input
-          type="date"
-          className="mt-2 w-full max-w-xs"
-          min={minDate}
+        <DateField
+          id="wizard-start-date"
+          label="Start date"
           value={selections.startDate}
-          onChange={(e) => onStartDate(e.target.value)}
+          onChange={onStartDate}
+          today={minDate}
+          minDate={minDate}
+          allowedDays={allowed}
         />
         <p className="mt-1 text-xs text-muted-foreground">
           Deliveries start on a weekday ({allowed.map((d) => dayLabel[d] ?? d).join(", ")}); earliest {minDate}.

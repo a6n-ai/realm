@@ -73,3 +73,26 @@ export function toIsoLocal(date: Date): string {
 export function parseIsoLocal(iso: string): Date {
   return new Date(`${iso}T00:00:00`);
 }
+
+/** Today if it has a delivery, otherwise the next scheduled day (or today if the plan is empty). */
+export function pickCalendarSelectedDay(deliveryDates: readonly string[], todayIso: string): string {
+  const dates = [...deliveryDates].sort();
+  if (dates.includes(todayIso)) return todayIso;
+  return dates.find((d) => d >= todayIso) ?? todayIso;
+}
+
+/** Inclusive day list for the home week rail: always includes today so the strip is usable. */
+export function calendarRailDays(deliveryDates: readonly string[], todayIso: string): string[] {
+  const dates = [...deliveryDates].sort();
+  if (dates.length === 0) return [todayIso];
+  const startIso = dates[0]! < todayIso ? dates[0]! : todayIso;
+  const endIso = dates[dates.length - 1]! > todayIso ? dates[dates.length - 1]! : todayIso;
+  const days: string[] = [];
+  let cursor = parseIsoLocal(startIso);
+  const end = parseIsoLocal(endIso);
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(toIsoLocal(cursor));
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+  }
+  return days;
+}

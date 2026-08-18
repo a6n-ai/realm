@@ -345,7 +345,7 @@ export function Checkout({
                   disabled={submitting || (realPayments && !paymentMethodId)}
                   onClick={confirm}
                 >
-                  {submitting ? "Confirming…" : "Confirm Subscription"}
+                  {submitting ? "Confirming…" : origin === "renew" ? "Confirm renewal" : "Confirm Subscription"}
                 </Button>
               </div>
             </section>

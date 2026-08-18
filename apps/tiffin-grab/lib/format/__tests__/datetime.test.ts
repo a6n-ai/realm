@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange } from "../datetime";
+import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange, calendarDaysBetween } from "../datetime";
 
 const ms = Date.UTC(2026, 5, 22, 18, 30, 0); // 2026-06-22T18:30:00Z
 
@@ -56,6 +56,11 @@ describe("formatDateOnly", () => {
     expect(formatDateOnly("2026-07-16", { mode: "weekday", locale: "en-US" })).toBe("Thu, Jul 16, 2026");
   });
 
+  it("heading modes split weekday from month and day", () => {
+    expect(formatDateOnly("2026-08-19", { mode: "weekdayLong", locale: "en-US" })).toBe("Wednesday");
+    expect(formatDateOnly("2026-08-19", { mode: "monthDay", locale: "en-US" })).toBe("August 19");
+  });
+
   it("does not shift across a month boundary", () => {
     expect(formatDateOnly("2026-08-01", { mode: "short", locale: "en-US" })).toBe("Aug 1");
     expect(formatDateOnly("2026-07-31", { mode: "short", locale: "en-US" })).toBe("Jul 31");
@@ -93,5 +98,13 @@ describe("formatEpoch requires a timeZone for absolute modes", () => {
     expect(typeof noOpts).toBe("function");
     expect(typeof noTimeZone).toBe("function");
     expect(typeof noTimeZoneDefaultMode).toBe("function");
+  });
+});
+
+describe("calendarDaysBetween", () => {
+  it("counts days from today to the last tiffin date", () => {
+    expect(calendarDaysBetween("2026-08-19", "2026-09-02")).toBe(14);
+    expect(calendarDaysBetween("2026-08-19", "2026-08-19")).toBe(0);
+    expect(calendarDaysBetween("2026-08-19", "2026-08-18")).toBe(-1);
   });
 });

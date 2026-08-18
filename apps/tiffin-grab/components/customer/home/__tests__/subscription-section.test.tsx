@@ -1,26 +1,11 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
-}));
-
-const pauseMySubscription = vi.fn().mockResolvedValue(undefined);
-const resumeMySubscription = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
-  pauseMySubscription: (...args: unknown[]) => pauseMySubscription(...args),
-  resumeMySubscription: (...args: unknown[]) => resumeMySubscription(...args),
-}));
+import { render, screen, cleanup } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { SubscriptionSection, type SubscriptionWithNext } from "../subscription-section";
 
-afterEach(() => {
-  cleanup();
-  pauseMySubscription.mockClear();
-  resumeMySubscription.mockClear();
-});
+afterEach(cleanup);
 
 const baseSub: SubscriptionWithNext = {
   publicId: "ord_1",
@@ -56,14 +41,40 @@ const baseSub: SubscriptionWithNext = {
 };
 
 describe("SubscriptionSection", () => {
-  it("renders plan, status pill, next-delivery date, Manage link — no meal chips, no price", () => {
-    render(<SubscriptionSection subscriptions={[baseSub]} />);
+  it("renders meal size heading, diet tag, item chips, Manage link — no price", () => {
+    render(
+      <SubscriptionSection
+        subscriptions={[baseSub]}
+        categoryLabels={{ sabzi: "Sabzi", dal: "Daal" }}
+      />,
+    );
+    expect(screen.getByText("Regular")).toBeInTheDocument();
     expect(screen.getByText("Weekly Veg")).toBeInTheDocument();
+    expect(screen.getByText("1× Sabzi")).toBeInTheDocument();
+    expect(screen.getByText("1× Daal")).toBeInTheDocument();
     expect(screen.getByText(/Active/i)).toBeInTheDocument();
+    expect(screen.getByText("5 days to renew")).toBeInTheDocument();
     expect(screen.getByText(/Jul 16, 2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage/i })).toHaveAttribute("href", "/me/deliveries");
-    expect(screen.queryByText(/×/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Vacation/i })).toHaveAttribute("href", "/me/deliveries");
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+  });
+
+  it("places diet beside the meal size and renew/active on the right", () => {
+    render(
+      <SubscriptionSection
+        subscriptions={[{ ...baseSub, daysUntilRenewal: 14 }]}
+        categoryLabels={{ sabzi: "Sabzi", dal: "Daal" }}
+        categoryPortions={{ sabzi: "12oz", dal: "8oz" }}
+      />,
+    );
+    const name = screen.getByText("Regular");
+    expect(name.parentElement).toContainElement(screen.getByText("Weekly Veg"));
+    expect(name.parentElement).not.toContainElement(screen.getByText("Active"));
+    expect(screen.getByText("14 days to renew")).toBeInTheDocument();
+    expect(screen.getByText("1× Sabzi · 12oz")).toBeInTheDocument();
+    expect(screen.getByText("1× Daal · 8oz")).toBeInTheDocument();
+    expect(screen.queryByText(/\bTU\b/)).not.toBeInTheDocument();
   });
 
   it("renders EmptyState with Browse CTA when there are zero active subscriptions", () => {
@@ -71,17 +82,10 @@ describe("SubscriptionSection", () => {
     expect(screen.getByRole("link", { name: /Browse plans/i })).toHaveAttribute("href", "/subscribe");
   });
 
-  it("wires Pause to pauseMySubscription(order.publicId, window)", () => {
+  it("sends vacation and manage to the deliveries calendar", () => {
     render(<SubscriptionSection subscriptions={[baseSub]} />);
-    fireEvent.change(screen.getByLabelText(/from/i), { target: { value: "2026-07-20" } });
-    fireEvent.change(screen.getByLabelText(/until/i), { target: { value: "2026-07-27" } });
-    fireEvent.click(screen.getByRole("button", { name: /Pause/i }));
-    expect(pauseMySubscription).toHaveBeenCalledWith("ord_1", { from: "2026-07-20", until: "2026-07-27" });
-  });
-
-  it("wires Resume to resumeMySubscription(order.publicId) for a paused subscription", () => {
-    render(<SubscriptionSection subscriptions={[{ ...baseSub, status: "paused" }]} />);
-    screen.getByRole("button", { name: /Resume/i }).click();
-    expect(resumeMySubscription).toHaveBeenCalledWith("ord_1");
+    expect(screen.getByRole("link", { name: /Manage/i })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByRole("link", { name: /Vacation/i })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByRole("link", { name: /Renew plan/i })).toHaveAttribute("href", "/me/renew");
   });
 });

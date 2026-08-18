@@ -32,4 +32,20 @@ describe("BottomNav", () => {
     fireEvent.click(fab);
     expect(onFab).toHaveBeenCalledTimes(1);
   });
+
+  it("glass variant keeps links, active state, and the FAB", () => {
+    const onFab = vi.fn();
+    const items: BottomNavItem[] = [
+      { title: "Home", href: "/me", icon: HomeIcon, active: true },
+      { title: "Account", href: "/me/account", icon: MenuIcon, active: false },
+    ];
+    const { container, getByLabelText } = render(
+      <BottomNav variant="glass" items={items} onFabClick={onFab} fabLabel="Start a subscription" fabCaption="New plan" />,
+    );
+    expect(container.querySelector("nav")?.getAttribute("aria-label")).toBe("Primary");
+    expect(container.querySelector('a[href="/me"][aria-current="page"]')).toBeTruthy();
+    fireEvent.click(getByLabelText("Start a subscription"));
+    expect(onFab).toHaveBeenCalledTimes(1);
+    expect(getByLabelText("Start a subscription").className).not.toMatch(/-mt-/);
+  });
 });

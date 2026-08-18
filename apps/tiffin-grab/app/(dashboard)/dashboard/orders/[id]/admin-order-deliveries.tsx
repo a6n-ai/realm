@@ -12,6 +12,7 @@ type Bundle = {
   pausePanels: Record<string, PausePanel>;
   calendarCells: Record<string, CalendarCell[]>;
   categoryLabels: Record<string, string>;
+  categoryPortions: Record<string, string>;
   tiffinCounts: TiffinCounts;
   monthKey: string;
   today: string;
@@ -56,6 +57,7 @@ export function AdminOrderDeliveries({
         pausePanels={bundle.pausePanels}
         calendarCells={bundle.calendarCells}
         categoryLabels={bundle.categoryLabels}
+        categoryPortions={bundle.categoryPortions}
         monthKey={bundle.monthKey}
         waitlisted={waitlisted}
         today={bundle.today}

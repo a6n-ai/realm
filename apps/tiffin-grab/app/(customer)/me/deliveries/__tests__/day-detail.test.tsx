@@ -88,6 +88,23 @@ describe("DayDetail — off-day (no cell, no delivery)", () => {
     expect(screen.queryByText(/Skip this day/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Change address/i)).not.toBeInTheDocument();
   });
+
+  it("still shows plan actions when the day is off", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-25"
+        cell={undefined}
+        delivery={undefined}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+        planActions={<button type="button">Plan a vacation</button>}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Plan a vacation/i })).toBeInTheDocument();
+  });
 });
 
 describe("DayDetail — unreleased week (delivery, no cell)", () => {
@@ -126,10 +143,11 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
       />,
     );
     expect(screen.getByText(/Menu for Jul 20 – Jul 26 isn't released yet/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Skip this day/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
   });
 
-  it("shows Skip this day and Change address", () => {
+  it("shows Reschedule and Change address, not Skip", () => {
     render(
       <DayDetail
         dateIso="2026-07-20"
@@ -142,9 +160,51 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
         onChanged={noop}
       />,
     );
-    expect(screen.getByRole("button", { name: /Skip this day/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Change address/i })).toBeInTheDocument();
+    expect(screen.getByText("Pick another day")).toBeInTheDocument();
+    expect(screen.getByText("Deliver somewhere else")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();
+  });
+
+  it("puts plan actions in the same 2-column grid as Reschedule and Address", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell()}
+        delivery={makeDelivery({ status: "scheduled" })}
+        orderPublicId="ord_1"
+        categoryLabels={{}}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+        planActions={<button type="button">Plan a vacation</button>}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Plan a vacation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reschedule/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Change address/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Swap items as an action card when the meal size has swap pairs", () => {
+    render(
+      <DayDetail
+        dateIso="2026-07-20"
+        cell={makeCell()}
+        delivery={makeDelivery({
+          status: "scheduled",
+          swapPairs: [{ fromCategory: "sabzi", toCategory: "dal" }],
+        })}
+        orderPublicId="ord_1"
+        categoryLabels={{ sabzi: "Sabzi", dal: "Dal" }}
+        tz="UTC"
+        today="2026-07-20"
+        onChanged={noop}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Swap items/i })).toBeInTheDocument();
   });
 
   it("shows Un-skip and Reschedule, not Skip or Change address, for a skipped day", () => {
@@ -202,7 +262,7 @@ describe("DayDetail — scheduled, pre-cutoff cell", () => {
 });
 
 describe("DayDetail — locked (past cutoff) cell", () => {
-  it("shows neither Skip nor Change address", () => {
+  it("shows neither Reschedule nor Change address", () => {
     render(
       <DayDetail
         dateIso="2026-07-20"
@@ -215,7 +275,7 @@ describe("DayDetail — locked (past cutoff) cell", () => {
         onChanged={noop}
       />,
     );
-    expect(screen.getByText("Locked")).toBeInTheDocument();
+    expect(screen.getByText("Delivered")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Skip this day/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Change address/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Un-skip/i })).not.toBeInTheDocument();

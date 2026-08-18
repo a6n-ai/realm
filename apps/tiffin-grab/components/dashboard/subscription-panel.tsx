@@ -50,7 +50,7 @@ export async function SubscriptionPanel({
   const { from, until } = monthFetchRange(monthKey, today);
 
   const planRow = await db
-    .select({ planType: plans.planType })
+    .select({ planType: plans.planType, tagLabel: plans.tagLabel, tagColor: plans.tagColor })
     .from(plans)
     .where(eq(plans.id, order.planId))
     .limit(1)
@@ -75,6 +75,8 @@ export async function SubscriptionPanel({
           mealSizeName: order.mealSizeName,
           persons: order.persons,
           categoryCounts,
+          tagLabel: planRow?.tagLabel ?? null,
+          tagColor: planRow?.tagColor ?? null,
         }
       : null;
 

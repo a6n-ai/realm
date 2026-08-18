@@ -19,10 +19,6 @@ vi.mock("@/app/(customer)/me/deliveries/week-rail", () => ({
   WeekRail: () => <div data-testid="week-rail" />,
 }));
 
-vi.mock("@/app/(customer)/me/deliveries/selected-day-summary", () => ({
-  SelectedDaySummary: () => <div data-testid="day-summary" />,
-}));
-
 import { HomeWeekStrip, HomeWeekStripEmpty } from "../home-week-strip";
 import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
 
@@ -45,6 +41,8 @@ describe("HomeWeekStrip", () => {
     expect(screen.getByTestId("week-rail")).toBeInTheDocument();
     expect(screen.getByText("Delivered")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Full calendar/i })).toHaveAttribute("href", "/me/deliveries");
+    expect(screen.getByText("Mon, Jul 20, 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Day summary/i })).not.toBeInTheDocument();
   });
 
   it("empty state links to subscribe", () => {

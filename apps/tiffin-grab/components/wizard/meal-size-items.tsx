@@ -1,14 +1,12 @@
 "use client";
 
 import type { ClientMealSizeView } from "@/lib/catalog/types";
+import { mealChipLabel } from "@/lib/menu/format-tu";
 
 type Item = ClientMealSizeView["items"][number];
 
 // item.portion is precomputed server-side (lib/catalog/load.ts) via formatTuHuman —
-// " · 12oz" / " · 4 roti", or "" for a category that renders no useful suffix.
-function sizeSuffix(portion: Item["portion"]): string {
-  return portion ? ` · ${portion}` : "";
-}
+// "12oz" / "4 roti", never a raw TU amount.
 
 export function MealSizeItems({
   items,
@@ -33,7 +31,7 @@ export function MealSizeItems({
     <div className="flex flex-wrap gap-1.5">
       {[...repByCategory.entries()].map(([category, rep]) => (
         <span key={category} className="bg-muted rounded-full px-2 py-0.5 text-xs">
-          {countByCategory.get(category)}× {label(category)}{sizeSuffix(rep.portion)}
+          {mealChipLabel(countByCategory.get(category) ?? 0, label(category), rep.portion)}
         </span>
       ))}
     </div>

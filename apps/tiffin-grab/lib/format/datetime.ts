@@ -52,6 +52,8 @@ const DATE_ONLY_PRESETS = {
   long: { year: "numeric", month: "short", day: "numeric" },
   short: { month: "short", day: "numeric" },
   weekday: { weekday: "short", year: "numeric", month: "short", day: "numeric" },
+  weekdayLong: { weekday: "long" },
+  monthDay: { month: "long", day: "numeric" },
 } satisfies Record<string, Intl.DateTimeFormatOptions>;
 
 /**
@@ -72,6 +74,13 @@ export function formatDateOnly(
     ...DATE_ONLY_PRESETS[mode],
     timeZone: "UTC",
   }).format(parseIsoDateUtc(iso));
+}
+
+/** Whole calendar days from `fromIso` to `toIso` (`YYYY-MM-DD`). Positive if `toIso` is later. */
+export function calendarDaysBetween(fromIso: string, toIso: string): number {
+  return Math.round(
+    (parseIsoDateUtc(toIso).getTime() - parseIsoDateUtc(fromIso).getTime()) / 86_400_000,
+  );
 }
 
 /** Mon–Sun label for a menu week (`weekStart` is the Monday ISO date). */

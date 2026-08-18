@@ -2,6 +2,8 @@ import { inArray, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, mealSizeItems } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import {
   makeupSourceIdsForOrder,
@@ -19,12 +21,13 @@ export async function loadOrderDeliveriesBundle(
   from: string,
   until: string,
 ) {
-  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts, makeupSources] = await Promise.all([
+  const [rawDeliveries, pausePanel, calendarDays, tiffinCounts, makeupSources, catalog] = await Promise.all([
     myDeliveries(userId, from, until),
     myPausePanel(userId, selected.publicId),
     myCalendar(userId, selected.publicId, { from, until }),
     myTiffinCounts(userId, selected.publicId),
     makeupSourceIdsForOrder(selected.publicId),
+    loadCatalogSnapshot(),
   ]);
 
   const calendarCells = {
@@ -34,6 +37,7 @@ export async function loadOrderDeliveriesBundle(
   const categoryRows = await dishCategoriesService.forPlanType(selected.planType);
   const categoryLabels: Record<string, string> = {};
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
+  const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 
@@ -82,6 +86,7 @@ export async function loadOrderDeliveriesBundle(
     pausePanels: { [selected.publicId]: pausePanel },
     calendarCells,
     categoryLabels,
+    categoryPortions,
     tiffinCounts,
   };
 }

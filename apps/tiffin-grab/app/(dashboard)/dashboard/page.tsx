@@ -9,7 +9,6 @@ import {
   LayoutDashboardIcon,
   LifeBuoyIcon,
   PackageIcon,
-  ReceiptIcon,
   SparklesIcon,
   UserIcon,
   UsersIcon,
@@ -277,6 +276,11 @@ async function CustomerDashboard({ userId }: { userId: string }) {
   // lifetime card or render it as the current plan. active/paused/waitlisted/pending
   // remain real (live or upcoming) subscriptions.
   const subscription = current && current.status !== "cancelled" ? current : null;
+  const liveStatuses = new Set(["pending", "active", "waitlisted", "paused"]);
+  const earlierOrders = data.orders.filter((o) => {
+    if (subscription && o.publicId === subscription.publicId) return false;
+    return !liveStatuses.has(o.status);
+  });
 
   const cards = [
     {
@@ -351,16 +355,14 @@ async function CustomerDashboard({ userId }: { userId: string }) {
         )}
       </SectionCard>
 
-      <SectionCard
-        title="Past orders"
-        subtitle={`Every plan you've ordered, newest first. Dates in delivery time (${zoneAbbrev(tz)}).`}
-        bleed
-      >
-        {data.orders.length === 0 ? (
-          <EmptyState icon={ReceiptIcon} message="No orders yet." />
-        ) : (
+      {earlierOrders.length > 0 ? (
+        <SectionCard
+          title="Earlier plans"
+          subtitle={`Plans that have ended. Dates in delivery time (${zoneAbbrev(tz)}).`}
+          bleed
+        >
           <div className="space-y-2">
-            {data.orders.map((o) => (
+            {earlierOrders.map((o) => (
               <ListRow
                 key={o.publicId}
                 title={`${o.planName} · ${o.mealSizeName}`}
@@ -381,8 +383,8 @@ async function CustomerDashboard({ userId }: { userId: string }) {
               />
             ))}
           </div>
-        )}
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
       <QuickLinks />
     </PageShell>

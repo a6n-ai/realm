@@ -1,29 +1,27 @@
 "use client";
 
-// Mobile-first order card under the month grid (13895.jpg + older Claude chat):
-// dish thumb + name + status badges; Vacation opens the shared VacationControl drawer/dialog
-// (day-tap stays meal-only). "Menu not released" when the week isn't out yet.
+// Mobile-first order card under the month grid: dish thumb + name + status badges.
+// Day-tap stays meal-only. Vacation sits in the day-action tile grid below this card.
 
-import { PalmtreeIcon, PlayIcon, UtensilsCrossedIcon } from "lucide-react";
+import { UtensilsCrossedIcon } from "lucide-react";
 import { cn } from "@realm/ui/cn";
-import { Button } from "@realm/ui/button";
+import { DietTag, PlanBox } from "@/components/customer/plan-box";
 import { DishImage } from "@/components/customer/home/dish-image";
 import type { CalendarCell } from "./calendar-constants";
-import { calendarDayStatus, calendarLegendKey, CALENDAR_LEGEND } from "./day-status";
+import { calendarDayStatus, calendarLegendKey } from "./day-status";
 import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { cellToTileData } from "./tile-data";
 import { mealChips, type DeliveryCardMeal } from "./meal-chips";
 import type { CustomerDelivery } from "@/lib/services/customer-deliveries.service";
-import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
 
 type Address = { fullName: string; addressLine: string; city: string; postalCode: string };
 type DeliveryCardData = CustomerDelivery & { meal: DeliveryCardMeal; address: Address; hasAddressOverride: boolean };
 
 const STATUS_BADGE: Record<"delivered" | "upcoming" | "vacation" | "onHold", string> = {
-  delivered: "bg-ok/15 text-ok",
-  upcoming: "bg-muted-foreground/15 text-muted-foreground",
-  vacation: "bg-warn/15 text-warn",
-  onHold: "bg-destructive/15 text-destructive",
+  delivered: "bg-emerald-500 text-white",
+  upcoming: "bg-sky-500 text-white",
+  vacation: "bg-orange-500 text-white",
+  onHold: "bg-rose-500 text-white",
 };
 
 const STATUS_COPY: Record<"delivered" | "upcoming" | "vacation" | "onHold", string> = {
@@ -37,16 +35,18 @@ export function MobileDayOrderCard({
   dateIso,
   cell,
   delivery,
+  mealSizeName,
   planName,
-  paused = false,
-  onPauseClick,
+  tagLabel,
+  tagColor,
 }: {
   dateIso: string;
   cell: CalendarCell | undefined;
   delivery: DeliveryCardData | undefined;
+  mealSizeName: string;
   planName: string;
-  paused?: boolean;
-  onPauseClick?: () => void;
+  tagLabel?: string | null;
+  tagColor?: string | null;
 }) {
   const kind: "cell" | "unreleased" | "off" = cell ? "cell" : delivery ? "unreleased" : "off";
   const status = cell ? calendarDayStatus(cell) : "off";
@@ -74,8 +74,8 @@ export function MobileDayOrderCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="flex gap-3 p-3">
+    <PlanBox color={tagColor} className="overflow-hidden p-3">
+      <div className="flex gap-3">
         <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-black/10">
           {dishImage || dishName ? (
             <DishImage image={dishImage} name={dishName ?? "Meal"} category={tile?.dishCategory} sizes="80px" />
@@ -87,56 +87,33 @@ export function MobileDayOrderCard({
         </div>
 
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="line-clamp-2 text-sm font-semibold leading-snug">
+          <p className="text-sm font-semibold leading-snug tracking-tight">{mealSizeName}</p>
+          <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
             {dishName ?? "Meal not picked yet"}
+            {tile && tile.extraCount > 0 ? ` · +${tile.extraCount} more` : ""}
           </p>
-          {tile && tile.extraCount > 0 && (
-            <p className="text-xs text-muted-foreground">+{tile.extraCount} more</p>
+          {chips.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {chips.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full bg-background/70 px-2 py-0.5 text-[11px] font-medium text-foreground"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-orange-700 dark:text-orange-400">
-              Subscription
-            </span>
+            <DietTag label={tagLabel || planName} color={tagColor} />
             {legendKey && (
               <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_BADGE[legendKey])}>
                 {STATUS_COPY[legendKey]}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{planName}</p>
         </div>
       </div>
-
-      {onPauseClick && status !== "locked" && (
-        <div className="flex items-center border-t px-3 py-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 border-orange-400/60 text-orange-700 dark:text-orange-400"
-            onClick={onPauseClick}
-          >
-            {paused ? <PlayIcon className="size-3.5" /> : <PalmtreeIcon className="size-3.5" />}
-            {paused ? "Resume" : "Vacation"}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function MobileLegendRow() {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-0.5 text-[11px] text-muted-foreground">
-      {CALENDAR_LEGEND.map(({ key, label }) => {
-        const Icon = DELIVERY_STATUS_ILLUSTRATION[key];
-        return (
-          <span key={key} className="flex items-center gap-1">
-            <Icon size={16} />
-            {label}
-          </span>
-        );
-      })}
-    </div>
+    </PlanBox>
   );
 }

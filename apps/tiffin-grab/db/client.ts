@@ -15,9 +15,23 @@ if (!process.env.DATABASE_URL) {
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 
-// prepare: false is required when DATABASE_URL points at a transaction-mode
-// PgBouncer — a named PREPARE and its EXECUTE may land on different backends.
-// Harmless on a direct connection. Queries stay parameterized.
-const client = postgres(connectionString, { max: 10, prepare: false });
+type Pg = ReturnType<typeof postgres>;
+const globalForDb = globalThis as typeof globalThis & { __tiffinGrabPg?: Pg };
+
+// Cache the pool on globalThis. Turbopack re-evaluates this module on HMR and
+// would otherwise open a new 10-connection pool each time without ending the
+// old one — local Postgres max_connections (100) fills in under an hour of
+// `next dev`, then every query dies with "too many clients already".
+const poolSize = process.env.NODE_ENV === "production" ? 10 : 4;
+const client =
+  globalForDb.__tiffinGrabPg ??
+  postgres(connectionString, {
+    max: poolSize,
+    idle_timeout: 20,
+    max_lifetime: 60 * 30,
+    prepare: false,
+  });
+if (process.env.NODE_ENV !== "production") globalForDb.__tiffinGrabPg = client;
+
 export const db = drizzle(client, { schema });
 export { schema };

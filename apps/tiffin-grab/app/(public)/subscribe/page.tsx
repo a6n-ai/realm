@@ -14,10 +14,9 @@ export default async function SubscribePage() {
   const session = await getSession();
   if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
 
-  // This wizard is now reserved for anonymous, new-customer signup — checkout still
-  // auto-provisions an account by phone for them. An existing (logged-in) customer is
-  // sent to the lighter renew picker instead, which already shows the full catalog and
-  // defaults to whatever they last ordered.
+  // Logged-in customers already have an account — send them through the same
+  // four-step wizard on /me/renew (prefilled from their current plan). Checkout
+  // still auto-provisions an account by phone for anonymous first-time signup.
   const userId = await currentUserId();
   if (userId != null) redirect("/me/renew");
 

@@ -4,9 +4,10 @@
 // and the mobile inline stack under the month grid. Locked days are viewable but not editable
 // (CutoffBanner only); an unlocked "cell" day with a released menu shows its currently-picked
 // meal FIRST (via MobileDayOrderCard on mobile), then the interactive MealDayPicker below to
-// change that pick — there's no separate "Pick your meals" button. Per-day Skip/Change-address
-// controls sit below that. Never renders pause/resume — that's PauseControl (dialog desktop /
-// drawer mobile), decoupled from day-click on purpose.
+// change that pick — there's no separate "Pick your meals" button. Plan vacation plus per-day
+// Reschedule/Address/Swap sit in a 2-column tile grid below that. There is no Skip tile —
+// moving a tiffin is Reschedule. Vacation is plan-level (pause range) but lives with the
+// other delivery buttons so the page is one action cluster.
 //
 // A date can land in one of three "kinds", not just cell-present/absent, because absent has two
 // distinct causes that read very differently to a customer:
@@ -19,12 +20,20 @@
 // Only "cell" kind status is ever fed through calendarDayStatus; "unreleased"/"off" are handled
 // as their own branches so the "locked" visual is never applied to a day that was never sealed.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
-import { PencilIcon, CalendarClockIcon, CalendarPlusIcon } from "lucide-react";
+import {
+  ArrowLeftRightIcon,
+  CalendarClockIcon,
+  CalendarPlusIcon,
+  HomeIcon,
+  MapPinIcon,
+  Undo2Icon,
+} from "lucide-react";
 import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@realm/commons";
 import { cn } from "@realm/ui/cn";
 import { Button } from "@realm/ui/button";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
 import { Input } from "@realm/ui/input";
 import { AddressDisplay } from "@realm/ui/address-display";
 import { AddressFields } from "@realm/ui/address-fields";
@@ -32,7 +41,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
 import type { CalendarCell } from "./calendar-constants";
-import { DAY_STATUS_BAR_CLASS, DAY_STATUS_LABEL, calendarDayStatus, type DayStatus } from "./day-status";
+import { DAY_STATUS_BAR_CLASS, calendarDayStatus, calendarLegendLabel, type DayStatus } from "./day-status";
 import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
@@ -45,7 +54,6 @@ import {
   rescheduleMyDelivery,
   scheduleMyPooledTiffin,
   setMyDeliveryAddress,
-  skipMyDelivery,
   unskipMyDelivery,
 } from "./actions";
 import {
@@ -53,6 +61,7 @@ import {
 } from "@realm/ui/select";
 import { VacationDateField } from "./vacation-date-field";
 import { isPoolScheduleDateEligible, isRescheduleTargetDateEligible } from "./pool-date-eligibility";
+import { ActionCard, ActionGrid, DELIVERY_SHEET_DIRECTION } from "./action-card";
 
 type Address = DeliveryAddressValues;
 type SwapPair = { fromCategory: string; toCategory: string };
@@ -142,16 +151,21 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
     <ResponsiveDialog
       open={open}
       onOpenChange={handleOpenChange}
+      direction={DELIVERY_SHEET_DIRECTION}
       trigger={
-        <Button variant="outline" size="sm">
-          <PencilIcon data-icon="inline-start" /> Change address
-        </Button>
+        <ActionCard
+          layout="tile"
+          icon={MapPinIcon}
+          title="Address"
+          aria-label="Change address"
+          description="Deliver somewhere else"
+        />
       }
       title="Change delivery address"
       footer={
-        <div className="flex w-full justify-end gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button className={IOS_BUTTON} disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
         </div>
       }
     >
@@ -224,24 +238,32 @@ function RescheduleDialog({
         setOpen(next);
         if (!next) reset();
       }}
+      direction={DELIVERY_SHEET_DIRECTION}
       trigger={
-        <Button variant="outline" size="sm">
-          <CalendarClockIcon data-icon="inline-start" /> Reschedule
-        </Button>
+        <ActionCard
+          layout="tile"
+          icon={CalendarClockIcon}
+          title="Reschedule"
+          description={
+            sourceDateIso
+              ? "Move this hold day"
+              : "Pick another day"
+          }
+        />
       }
       title="Reschedule delivery"
       footer={
-        <div className="flex w-full justify-end gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
           {sourceDateIso
             ? `Move your ${formatDateOnly(sourceDateIso, { mode: "short" })} hold day to another delivery day, or tap a date on the calendar and use “Reschedule hold day here”.`
-            : "Pick the day you want this delivery moved to. Your original day will be skipped and a new delivery will be added on the date you choose."}
+            : "Pick another day for this tiffin. This day is held and used on the date you choose."}
         </p>
         <VacationDateField
           id={`reschedule-${deliveryPublicId}`}
@@ -296,10 +318,13 @@ function ScheduleHoldDayAction({
   if (movable.length === 1) {
     const hold = movable[0]!;
     return (
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(hold.publicId)}>
-        <CalendarClockIcon data-icon="inline-start" />
-        Reschedule hold day here
-      </Button>
+      <ActionCard
+        icon={CalendarClockIcon}
+        title="Reschedule hold day here"
+        description="Use a hold-day tiffin on this date"
+        pending={pending}
+        onClick={() => run(hold.publicId)}
+      />
     );
   }
 
@@ -307,23 +332,25 @@ function ScheduleHoldDayAction({
     <ResponsiveDialog
       open={open}
       onOpenChange={setOpen}
+      direction={DELIVERY_SHEET_DIRECTION}
       trigger={
-        <Button variant="outline" size="sm">
-          <CalendarClockIcon data-icon="inline-start" />
-          Reschedule hold day here
-        </Button>
+        <ActionCard
+          icon={CalendarClockIcon}
+          title="Reschedule hold day here"
+          description="Use a hold-day tiffin on this date"
+        />
       }
       title="Reschedule a hold day"
       footer={
-        <div className="flex w-full justify-end gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+          <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
+          <Button className={IOS_BUTTON} disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
             {pending ? "Saving…" : "Confirm"}
           </Button>
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
           Move a hold day to {formatDateOnly(dateIso, { mode: "long" })}.
         </p>
@@ -366,10 +393,11 @@ function SchedulePoolDayAction({
   if (!isPoolScheduleDateEligible(dateIso, counts, today)) return null;
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={pending}
+    <ActionCard
+      icon={CalendarPlusIcon}
+      title="Schedule skipped tiffin here"
+      description="Place one remaining tiffin on this day"
+      pending={pending}
       onClick={() => {
         start(async () => {
           try {
@@ -381,19 +409,12 @@ function SchedulePoolDayAction({
           }
         });
       }}
-    >
-      <CalendarPlusIcon data-icon="inline-start" />
-      Schedule skipped tiffin here
-    </Button>
+    />
   );
 }
 
-// Applying/removing a swap for one specific day. No dialog — unlike address
-// (multi-field input), applying/removing a swap is a single control + single
-// server-action call, closer to the skip/un-skip bare-button pattern than
-// ChangeAddressDialog. Eligibility is global (category_swap_pairs) now, so
-// there's no per-meal-size rule list to render as buttons — just a from/to
-// category picker constrained to this meal size's eligible pairs.
+// Swap is the same ActionCard + bottom drawer pattern as reschedule/address.
+// Eligibility is global (category_swap_pairs), restricted to this meal size's pairs.
 function SwapSection({
   delivery,
   categoryLabels,
@@ -403,9 +424,26 @@ function SwapSection({
   categoryLabels: Record<string, string>;
   onChanged: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-
   const label = (key: string) => categoryLabels[key] ?? key;
+  const fromOptions = [...new Set(delivery.swapPairs.map((p) => p.fromCategory))];
+  const [from, setFrom] = useState<string>(fromOptions[0] ?? "");
+  const toOptions = delivery.swapPairs.filter((p) => p.fromCategory === from).map((p) => p.toCategory);
+  const [to, setTo] = useState<string>(toOptions[0] ?? "");
+  const [picks, setPicks] = useState("1");
+
+  if (delivery.swapPairs.length === 0) return null;
+
+  function selectFrom(next: string) {
+    setFrom(next);
+    const firstTo = delivery.swapPairs.find((p) => p.fromCategory === next)?.toCategory;
+    if (firstTo) setTo(firstTo);
+  }
+
+  const picksNum = Number(picks);
+  const validPicks = Number.isInteger(picksNum) && picksNum > 0;
+  const applied = delivery.appliedSwaps.length;
 
   function run(fn: () => Promise<void>, successMsg: string) {
     startTransition(async () => {
@@ -419,112 +457,101 @@ function SwapSection({
     });
   }
 
-  if (delivery.swapPairs.length === 0) return null;
-
-  return (
-    <OpenSwapPicker
-      deliveryPublicId={delivery.publicId}
-      swapPairs={delivery.swapPairs}
-      appliedSwaps={delivery.appliedSwaps}
-      label={label}
-      pending={pending}
-      run={run}
-    />
-  );
-}
-
-// From/to category picker constrained to this meal size's globally-eligible
-// swap pairs. Applied swaps render as removable chips.
-function OpenSwapPicker({
-  deliveryPublicId,
-  swapPairs,
-  appliedSwaps,
-  label,
-  pending,
-  run,
-}: {
-  deliveryPublicId: string;
-  swapPairs: SwapPair[];
-  appliedSwaps: AppliedSwap[];
-  label: (key: string) => string;
-  pending: boolean;
-  run: (fn: () => Promise<void>, successMsg: string) => void;
-}) {
-  const fromOptions = [...new Set(swapPairs.map((p) => p.fromCategory))];
-  const [from, setFrom] = useState<string>(fromOptions[0]);
-  const toOptions = swapPairs.filter((p) => p.fromCategory === from).map((p) => p.toCategory);
-  const [to, setTo] = useState<string>(toOptions[0]);
-  const [picks, setPicks] = useState("1");
-
-  function selectFrom(next: string) {
-    setFrom(next);
-    const firstTo = swapPairs.find((p) => p.fromCategory === next)?.toCategory;
-    if (firstTo) setTo(firstTo);
+  function apply() {
+    if (!to || !validPicks) return;
+    run(async () => {
+      await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
+      setOpen(false);
+    }, "Swap applied");
   }
 
-  const picksNum = Number(picks);
-  const validPicks = Number.isInteger(picksNum) && picksNum > 0;
-
   return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs font-medium">Swap items for this day</p>
-      {appliedSwaps.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {appliedSwaps.map((s) => (
-            <span key={s.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
-              {s.qtyFrom} {label(s.fromCategory)} → {s.qtyTo} {label(s.toCategory)}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 text-xs underline"
-                disabled={pending}
-                onClick={() => run(() => removeMyDeliverySwap(deliveryPublicId, s.publicId), "Swap removed")}
-              >
-                Remove
-              </Button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          className="w-14 tabular-nums"
-          type="number"
-          min={1}
-          value={picks}
-          onChange={(e) => setPicks(e.target.value)}
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={setOpen}
+      direction={DELIVERY_SHEET_DIRECTION}
+      trigger={
+        <ActionCard
+          layout="tile"
+          icon={ArrowLeftRightIcon}
+          title="Swap"
+          aria-label="Swap items"
+          description={
+            applied > 0
+              ? `${applied} swap${applied === 1 ? "" : "s"} on this day`
+              : "Trade an item"
+          }
         />
-        <Select value={from} onValueChange={selectFrom}>
-          <SelectTrigger className="w-36" size="sm"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {fromOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground text-xs">for</span>
-        <Select value={to} onValueChange={setTo}>
-          <SelectTrigger className="w-36" size="sm"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {toOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      }
+      title="Swap items"
+      footer={
         <Button
-          type="button"
-          variant="outline"
-          size="sm"
+          className={IOS_BUTTON}
           disabled={pending || !to || !validPicks}
-          onClick={() => run(() => applyMyDeliverySwap(deliveryPublicId, from, to, picksNum), "Swap applied")}
+          onClick={apply}
         >
-          Swap
+          {pending ? "Saving…" : "Apply swap"}
         </Button>
+      }
+    >
+      <div className="space-y-4 px-4 pb-4">
+        <p className="text-muted-foreground text-sm">
+          Trade a category on this tiffin for another eligible one. Applied swaps can be removed below.
+        </p>
+        {applied > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {delivery.appliedSwaps.map((s) => (
+              <span key={s.publicId} className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs">
+                {s.qtyFrom} {label(s.fromCategory)} → {s.qtyTo} {label(s.toCategory)}
+                <Button
+                  variant="ghost"
+                  className="h-11 px-2 text-sm underline"
+                  disabled={pending}
+                  onClick={() => run(() => removeMyDeliverySwap(delivery.publicId, s.publicId), "Swap removed")}
+                >
+                  Remove
+                </Button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="grid gap-3">
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Give up</p>
+            <div className="flex gap-2">
+              <Input
+                className="h-12 w-20 tabular-nums"
+                type="number"
+                min={1}
+                value={picks}
+                onChange={(e) => setPicks(e.target.value)}
+              />
+              <Select value={from} onValueChange={selectFrom}>
+                <SelectTrigger className="h-12 min-h-12 flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {fromOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium">Get</p>
+            <Select value={to} onValueChange={setTo}>
+              <SelectTrigger className="h-12 min-h-12 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {toOptions.map((c) => <SelectItem key={c} value={c}>{label(c)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
-    </div>
+    </ResponsiveDialog>
   );
 }
 
-// Skip/Un-skip toggle + Change-address, scoped to a pre-cutoff, non-make-up SCHEDULED (or
-// SKIPPED, for un-skip) day. Recovered from the pre-redesign delivery-calendar.tsx's
-// DeliveryCard actions row — this is the same server-action wiring, just relocated into the
-// per-day drawer/panel instead of a per-delivery list card.
+// Un-skip (for an existing hold) + Reschedule/Address/Swap, scoped to a pre-cutoff,
+// non-make-up SCHEDULED (or SKIPPED, for un-skip) day. Skip-without-a-date is not offered —
+// Reschedule both holds the original tiffin and places it on a new day.
 function DeliveryDayActions({
   delivery,
   locked,
@@ -567,7 +594,6 @@ function DeliveryDayActions({
     delivery.pooledAt == null &&
     !delivery.hasMakeupScheduled;
 
-  const showSkip = !delivery.isMakeup && delivery.status === "scheduled" && !locked;
   const showReschedule =
     (!delivery.isMakeup && delivery.status === "scheduled" && !locked) || isHoldOriginal;
   const showUnskip =
@@ -579,27 +605,19 @@ function DeliveryDayActions({
   const showAddress = !locked && delivery.status === "scheduled";
   const showSwap = !locked && delivery.status === "scheduled";
 
-  if (!showSkip && !showReschedule && !showUnskip && !showAddress && !showSwap) return null;
+  if (!showReschedule && !showUnskip && !showAddress && !showSwap) return null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-      {showAddress && (
-        <ChangeAddressDialog
-          deliveryPublicId={delivery.publicId}
-          address={delivery.address}
-          onSaved={onChanged}
+    <>
+      {showUnskip && (
+        <ActionCard
+          layout="tile"
+          icon={Undo2Icon}
+          title="Un-skip"
+          description="Put this day back"
+          pending={pending}
+          onClick={() => run(() => unskipMyDelivery(delivery.publicId), "Delivery restored")}
         />
-      )}
-      {showAddress && delivery.hasAddressOverride && (
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={pending}
-          onClick={() => run(() => clearMyDeliveryAddress(delivery.publicId), "Address reset to default")}
-        >
-          Use default
-        </Button>
       )}
       {showReschedule && (
         <RescheduleDialog
@@ -609,36 +627,35 @@ function DeliveryDayActions({
           onSaved={onChanged}
         />
       )}
-      {showSkip && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => run(() => skipMyDelivery(delivery.publicId), "Delivery skipped")}
-        >
-          Skip this day
-        </Button>
+      {showAddress && (
+        <ChangeAddressDialog
+          deliveryPublicId={delivery.publicId}
+          address={delivery.address}
+          onSaved={onChanged}
+        />
       )}
-      {showUnskip && (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => run(() => unskipMyDelivery(delivery.publicId), "Delivery restored")}
-        >
-          Un-skip
-        </Button>
+      {showAddress && delivery.hasAddressOverride && (
+        <ActionCard
+          layout="tile"
+          icon={HomeIcon}
+          title="Default"
+          aria-label="Use default address"
+          description="Use your saved address"
+          pending={pending}
+          onClick={() => run(() => clearMyDeliveryAddress(delivery.publicId), "Address reset to default")}
+        />
+      )}
+      {showSwap && (
+        <SwapSection delivery={delivery} categoryLabels={categoryLabels} onChanged={onChanged} />
       )}
       {!showUnskip && delivery.status === "skipped" && (delivery.pooledAt != null || delivery.hasMakeupScheduled) && (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground col-span-2 px-1 text-xs">
           {delivery.hasMakeupScheduled
             ? "This skip was rescheduled — un-skip is not available."
             : "This skip is in your remain pool — schedule it on a delivery day."}
         </p>
       )}
-      </div>
-      {showSwap && <SwapSection delivery={delivery} categoryLabels={categoryLabels} onChanged={onChanged} />}
-    </div>
+    </>
   );
 }
 
@@ -655,6 +672,7 @@ export function DayDetail({
   holdDeliveries = [],
   onChanged,
   variant = "full",
+  planActions,
 }: {
   dateIso: string;
   cell: CalendarCell | undefined;
@@ -668,6 +686,7 @@ export function DayDetail({
   holdDeliveries?: HoldDeliveryOption[];
   onChanged: () => void;
   variant?: "full" | "picker";
+  planActions?: ReactNode;
 }) {
   const kind: "cell" | "unreleased" | "off" = cell ? "cell" : delivery ? "unreleased" : "off";
   const status: DayStatus = cell ? calendarDayStatus(cell) : "off";
@@ -695,7 +714,11 @@ export function DayDetail({
             <p className="font-medium">{formatDateOnly(dateIso, { mode: "weekday" })}</p>
             {/* No status pill for "unreleased" — its body copy ("Menu not published yet") already
                 says everything; a "Locked"/"Sealed" pill next to it would be contradictory. */}
-            {kind !== "unreleased" && <span className="text-muted-foreground text-xs">{DAY_STATUS_LABEL[status]}</span>}
+            {kind !== "unreleased" && (
+              <span className="text-muted-foreground text-xs">
+                {calendarLegendLabel(status) ?? "Not scheduled"}
+              </span>
+            )}
           </div>
           {kind === "unreleased" && <p className="mt-1 text-muted-foreground text-xs">{menuNotPublishedCopy(dateIso)}</p>}
           {kind === "cell" && menuNotReleased && <p className="mt-1 text-muted-foreground text-xs">{menuNotReleasedCopy(dateIso)}</p>}
@@ -736,14 +759,19 @@ export function DayDetail({
         />
       ) : null}
 
-      {kind === "cell" && delivery && (
-        <DeliveryDayActions
-          delivery={delivery}
-          locked={status === "locked"}
-          today={today}
-          categoryLabels={categoryLabels}
-          onChanged={onChanged}
-        />
+      {(planActions || (kind === "cell" && delivery)) && (
+        <ActionGrid>
+          {planActions}
+          {kind === "cell" && delivery && (
+            <DeliveryDayActions
+              delivery={delivery}
+              locked={status === "locked"}
+              today={today}
+              categoryLabels={categoryLabels}
+              onChanged={onChanged}
+            />
+          )}
+        </ActionGrid>
       )}
 
       {kind === "off" && tiffinCounts && tiffinCounts.pooled > 0 && (

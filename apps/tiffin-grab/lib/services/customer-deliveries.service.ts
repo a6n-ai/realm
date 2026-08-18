@@ -67,6 +67,9 @@ export type Subscription = {
   persons: number;
   /** Per-category item counts from the meal size at checkout (e.g. sabzi: 2). */
   categoryCounts: Record<string, number>;
+  /** Admin-set plan tag (same colour as dish plan chips). */
+  tagLabel?: string | null;
+  tagColor?: string | null;
 };
 
 const VISIBLE = ["scheduled", "paused", "skipped"] as const;
@@ -95,6 +98,8 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
       mealSizeName: mealSizes.name,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
+      tagLabel: plans.tagLabel,
+      tagColor: plans.tagColor,
     })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))

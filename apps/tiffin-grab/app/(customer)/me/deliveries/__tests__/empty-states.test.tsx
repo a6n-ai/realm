@@ -63,7 +63,7 @@ const waitlistedSub: WaitlistedSubscription = {
 };
 
 describe("DeliveryCalendar — three-way empty state", () => {
-  it("shows plan name as flat text without a selector when there is one active sub", () => {
+  it("shows meal size as heading without a selector when there is one active sub", () => {
     render(
       <DeliveryCalendar
         subscriptions={[activeSub]}
@@ -74,9 +74,10 @@ describe("DeliveryCalendar — three-way empty state", () => {
       />,
     );
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "Weekly Veg" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Regular" })).toBeInTheDocument();
+    expect(screen.getByText("Weekly Veg")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText(/Regular/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Plan a vacation/i }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/on the waitlist/i)).not.toBeInTheDocument();
   });
 
@@ -95,7 +96,7 @@ describe("DeliveryCalendar — three-way empty state", () => {
         waitlisted={[]}
       />,
     );
-    expect(screen.getByRole("combobox")).toHaveTextContent("Weekly Veg");
+    expect(screen.getByRole("combobox")).toHaveTextContent("Regular");
   });
 
   it("shows the WaitlistCard when there are zero active subs but a waitlisted one", () => {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDaysIcon, PalmtreeIcon, PlayIcon } from "lucide-react";
+import { CalendarDaysIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Card, CardContent, EmptyState, PageHeader, SkeletonListRows } from "@/components/ds";
@@ -15,27 +15,10 @@ import type { DeliveryCardMeal } from "./meal-chips";
 import { VacationControl, cutoffByDateFromDeliveries } from "./vacation-control";
 import { MonthCalendar } from "./month-calendar";
 import { DayDetail, holdDeliveriesFrom } from "./day-detail";
-import { MobileDayOrderCard, MobileLegendRow } from "./mobile-day-order-card";
+import { MobileDayOrderCard } from "./mobile-day-order-card";
 import { SubscriptionPlanHeader } from "./subscription-items";
-import { toIsoLocal, type CalendarCell } from "./calendar-constants";
-import { CALENDAR_LEGEND } from "./day-status";
-import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
-
-function DesktopDayStatusLegend() {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {CALENDAR_LEGEND.map(({ key, label }) => {
-        const Icon = DELIVERY_STATUS_ILLUSTRATION[key];
-        return (
-          <span key={key} className="flex items-center gap-1.5">
-            <Icon size={18} />
-            {label}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
+import { toIsoLocal, pickCalendarSelectedDay, type CalendarCell } from "./calendar-constants";
+import { CalendarLegend } from "./calendar-legend";
 
 function deliveriesHref(
   basePath: string,
@@ -80,12 +63,12 @@ function TiffinCalendarSection({
   pausePanel,
   calendarDays,
   categoryLabels,
+  categoryPortions = {},
   counts,
   tz,
   today,
   monthKey,
   basePath,
-  onVacationClick,
   onMonthChangeOverride,
   onChangedOverride,
 }: {
@@ -95,24 +78,22 @@ function TiffinCalendarSection({
   pausePanel: PausePanel;
   calendarDays: CalendarCell[];
   categoryLabels: Record<string, string>;
+  categoryPortions?: Record<string, string>;
   counts?: TiffinCounts;
   tz: string;
   today: string;
   monthKey: string;
   basePath: string;
-  onVacationClick: () => void;
   onMonthChangeOverride?: (monthKey: string) => void;
   onChangedOverride?: () => void;
 }) {
   const router = useRouter();
   const todayIso = today || toIsoLocal(new Date());
   const deliveryDatesKey = calendarDays.map((c) => c.date).sort().join(",");
-  const initialSelected = (() => {
-    const dates = deliveryDatesKey ? deliveryDatesKey.split(",") : [];
-    if (dates.includes(todayIso)) return todayIso;
-    const next = dates.find((d) => d >= todayIso);
-    return next ?? todayIso;
-  })();
+  const initialSelected = pickCalendarSelectedDay(
+    deliveryDatesKey ? deliveryDatesKey.split(",") : [],
+    todayIso,
+  );
   const [selected, setSelected] = useState(initialSelected);
   const calendarDaysRef = useRef(calendarDays);
   // Synced in an effect, not during render: writing a ref while rendering is unsafe
@@ -124,13 +105,8 @@ function TiffinCalendarSection({
 
   // Re-anchor when the app-day rolls — not when the viewed month changes.
   useEffect(() => {
-    const dates = calendarDaysRef.current.map((c) => c.date).sort();
-    if (dates.includes(todayIso)) {
-      setSelected(todayIso);
-      return;
-    }
-    const next = dates.find((d) => d >= todayIso);
-    setSelected(next ?? todayIso);
+    const dates = calendarDaysRef.current.map((c) => c.date);
+    setSelected(pickCalendarSelectedDay(dates, todayIso));
   }, [todayIso]);
 
   const cellsByDate = useMemo(() => new Map(calendarDays.map((c) => [c.date, c])), [calendarDays]);
@@ -167,7 +143,21 @@ function TiffinCalendarSection({
 
   const selectedCell = cellsByDate.get(selected);
   const selectedDelivery = deliveryByDate.get(selected);
-  const subPaused = pausePanel.usage.hasOpenPause || sub.status === "paused";
+  const cutoffByDate = cutoffByDateFromDeliveries(deliveries);
+
+  const dayDetailBase = {
+    dateIso: selected,
+    cell: selectedCell,
+    delivery: selectedDelivery,
+    orderPublicId: sub.publicId,
+    categoryLabels,
+    categoryCounts: sub.categoryCounts,
+    tz,
+    today: todayIso,
+    tiffinCounts: counts,
+    holdDeliveries,
+    onChanged,
+  };
 
   return (
     <section className="space-y-3">
@@ -175,13 +165,14 @@ function TiffinCalendarSection({
         sub={sub}
         allSubscriptions={allSubscriptions}
         categoryLabels={categoryLabels}
+        categoryPortions={categoryPortions}
         counts={counts}
         today={todayIso}
         onSwitch={switchSubscription}
       />
 
       <div className="space-y-2.5 md:hidden">
-        <MobileLegendRow />
+        <CalendarLegend />
         <MonthCalendar {...monthCalendarProps} />
         <p className="text-center text-sm font-medium">
           {formatDateOnly(selected, { mode: "long" })}
@@ -190,28 +181,22 @@ function TiffinCalendarSection({
           dateIso={selected}
           cell={selectedCell}
           delivery={selectedDelivery}
+          mealSizeName={sub.mealSizeName}
           planName={sub.planName}
-          paused={subPaused}
-          onPauseClick={onVacationClick}
+          tagLabel={sub.tagLabel}
+          tagColor={sub.tagColor}
         />
         <DayDetail
           variant="picker"
-          dateIso={selected}
-          cell={selectedCell}
-          delivery={selectedDelivery}
-          orderPublicId={sub.publicId}
-          categoryLabels={categoryLabels}
-          categoryCounts={sub.categoryCounts}
-          tz={tz}
-          today={todayIso}
-          tiffinCounts={counts}
-          holdDeliveries={holdDeliveries}
-          onChanged={onChanged}
+          {...dayDetailBase}
+          planActions={
+            <VacationControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
+          }
         />
       </div>
 
       <div className="hidden space-y-3 md:block">
-        <DesktopDayStatusLegend />
+        <CalendarLegend />
         <div className="grid items-start gap-4 md:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)]">
           <Card variant="flat" className="p-3 sm:p-4">
             <CardContent className="p-0">
@@ -221,17 +206,10 @@ function TiffinCalendarSection({
           <Card variant="flat" className="min-w-0 p-4 sm:p-5">
             <CardContent className="p-0">
               <DayDetail
-                dateIso={selected}
-                cell={selectedCell}
-                delivery={selectedDelivery}
-                orderPublicId={sub.publicId}
-                categoryLabels={categoryLabels}
-                categoryCounts={sub.categoryCounts}
-                tz={tz}
-                today={todayIso}
-                tiffinCounts={counts}
-                holdDeliveries={holdDeliveries}
-                onChanged={onChanged}
+                {...dayDetailBase}
+                planActions={
+                  <VacationControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
+                }
               />
             </CardContent>
           </Card>
@@ -248,6 +226,7 @@ export function DeliveryCalendar({
   pausePanels = {},
   calendarCells = {},
   categoryLabels = {},
+  categoryPortions = {},
   monthKey = "",
   waitlisted = [],
   today = "",
@@ -265,6 +244,7 @@ export function DeliveryCalendar({
   pausePanels?: Record<string, PausePanel>;
   calendarCells?: Record<string, CalendarCell[]>;
   categoryLabels?: Record<string, string>;
+  categoryPortions?: Record<string, string>;
   monthKey?: string;
   waitlisted?: WaitlistedSubscription[];
   today?: string;
@@ -280,7 +260,6 @@ export function DeliveryCalendar({
   onDeliveriesChanged?: () => void;
 }) {
   const tz = useTimezone();
-  const [vacationOpen, setVacationOpen] = useState(false);
 
   if (subscriptions.length === 0) {
     return (
@@ -310,7 +289,6 @@ export function DeliveryCalendar({
     subscriptions.find((s) => s.publicId === selectedPublicId) ?? subscriptions[0]!;
   const selectedDeliveries = deliveries.filter((d) => d.orderPublicId === selected.publicId);
   const pausePanel = pausePanels[selected.publicId] ?? DEFAULT_PAUSE_PANEL;
-  const subOnVacation = pausePanel.usage.hasOpenPause || selected.status === "paused";
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
@@ -318,30 +296,6 @@ export function DeliveryCalendar({
         icon={CalendarDaysIcon}
         title={title}
         subtitle={subtitle}
-        actions={
-          <Button
-            type="button"
-            variant={subOnVacation ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setVacationOpen(true)}
-          >
-            {subOnVacation ? (
-              <PlayIcon data-icon="inline-start" />
-            ) : (
-              <PalmtreeIcon data-icon="inline-start" />
-            )}
-            {subOnVacation ? "Resume" : "Vacation"}
-          </Button>
-        }
-      />
-      <VacationControl
-        sub={selected}
-        pausePanel={pausePanel}
-        cutoffByDate={cutoffByDateFromDeliveries(selectedDeliveries)}
-        today={today || toIsoLocal(new Date())}
-        open={vacationOpen}
-        onOpenChange={setVacationOpen}
-        hideTrigger
       />
       <TiffinCalendarSection
         key={selected.publicId}
@@ -351,12 +305,12 @@ export function DeliveryCalendar({
         pausePanel={pausePanel}
         calendarDays={calendarCells[selected.publicId] ?? []}
         categoryLabels={categoryLabels}
+        categoryPortions={categoryPortions}
         counts={tiffinCounts}
         tz={tz}
         today={today}
         monthKey={monthKey}
         basePath={basePath}
-        onVacationClick={() => setVacationOpen(true)}
         onMonthChangeOverride={onMonthChange}
         onChangedOverride={onDeliveriesChanged}
       />
