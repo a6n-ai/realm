@@ -387,6 +387,12 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
         'daal', 'Daal', TRUE, FALSE, 6, 'weight', 8, 'oz'),
        ('slt_tiffin_curry', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'curry', 'Curry', TRUE, TRUE, 7, 'weight', 8, 'oz'),
+       -- No meal_size_items reference 'extra' any more (the TU redesign dropped the
+       -- veg-curry Extra slot from every meal size), but Egg Bhurji/Masala Papad below
+       -- still carry it as their dishes.category soft-ref — keep the row so that FK isn't
+       -- orphaned, harmless since nothing composes a meal with it.
+       ('slt_tiffin_extra', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+        'extra', 'Extra', TRUE, FALSE, 8, 'weight', 8, 'oz'),
        ('slt_healthy_protein', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'protein', 'Protein', TRUE, FALSE, 1, 'weight', 8, 'oz'),
        ('slt_healthy_grain', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
@@ -414,6 +420,7 @@ FROM (VALUES
   ('raita','veg'),('raita','non-veg'),
   ('daal','veg'),('daal','non-veg'),
   ('curry','veg'),('curry','non-veg'),
+  ('extra','veg'),('extra','non-veg'),
   ('salad','veg'),('salad','non-veg'),('salad','healthy'),
   ('protein','healthy'),('grain','healthy'),('veg','healthy')
 ) AS v(cat_key, plan_key)
