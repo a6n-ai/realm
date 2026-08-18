@@ -1,12 +1,10 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { ValidationError } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
 import { getSession } from "@/lib/auth/session";
-import { auth } from "@/lib/auth";
-import { db } from "@/db/client";
-import { account, users } from "@/db/schema";
 import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
+import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
@@ -31,23 +29,11 @@ const log = createLogger("checkout");
 async function maybeSendAccountSetup(email: string | undefined | null): Promise<void> {
   if (!email) return;
   try {
-    const [u] = await db
-      .select({ password: account.password })
-      .from(users)
-      .leftJoin(account, and(eq(account.userId, users.id), eq(account.providerId, "credential")))
-      .where(eq(users.email, email))
-      .limit(1);
-    if (u && !u.password) {
-      // Absolute callback URL on purpose: a relative one makes better-auth infer
-      // the origin from the request, which is fragile behind a proxy and breaks
-      // outright if the API and site ever differ in host. BETTER_AUTH_URL is the
-      // same value baseURL is built from.
-      const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
-      await auth.api.sendVerificationEmail({
-        body: { email, callbackURL: `${origin}/set-password` },
-      });
-    }
+    await sendAccountSetupEmail(email);
   } catch (err) {
+    // A password already set / customer not found is the expected steady
+    // state, not a failure — only log real send errors.
+    if (err instanceof ValidationError) return;
     log.error({ err }, "account-setup email failed");
   }
 }

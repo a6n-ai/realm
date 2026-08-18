@@ -4,8 +4,9 @@ import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@realm/database";
 import { db } from "@/db/client";
-import { inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
+import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { auth } from "@/lib/auth";
 import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -72,6 +73,26 @@ export async function createCustomer(
     const [row] = await tx.select({ publicId: users.publicId }).from(users).where(eq(users.id, id)).limit(1);
     return { publicId: row.publicId };
   });
+}
+
+// Mail a customer the "set your password" verification link (same one checkout
+// sends). Throws — never a candidate to swallow silently, since the only
+// callers are best-effort wrappers (checkout) or an admin action that must
+// surface failure to the caller (resend button).
+export async function sendAccountSetupEmail(email: string): Promise<void> {
+  const [u] = await db
+    .select({ password: account.password })
+    .from(users)
+    .leftJoin(account, and(eq(account.userId, users.id), eq(account.providerId, "credential")))
+    .where(eq(users.email, email))
+    .limit(1);
+  if (!u) throw new NotFoundError("Customer not found");
+  if (u.password) throw new ValidationError("This customer already has a password set");
+  // Absolute callback URL: a relative one makes better-auth infer the origin
+  // from the request, fragile behind a proxy — BETTER_AUTH_URL is the same
+  // value baseURL is built from.
+  const origin = (process.env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "");
+  await auth.api.sendVerificationEmail({ body: { email, callbackURL: `${origin}/set-password` } });
 }
 
 export async function findExistingByContact(phone: string, email?: string | null) {
