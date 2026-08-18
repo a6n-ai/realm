@@ -39,10 +39,29 @@ describe("proxy URL-based org resolution", () => {
     expect(res?.headers.get("x-middleware-request-x-realm-org-id")).toBe(matchedOrgId);
   });
 
+  it("strips a client-supplied x-realm-org-id on /dashboard instead of forwarding it", async () => {
+    const req = new NextRequest("http://localhost/dashboard/orders", {
+      headers: { cookie: "better-auth.session_token=fake", "x-realm-org-id": matchedOrgId },
+    });
+    const res = await proxy(req);
+    expect(res?.headers.get("x-middleware-request-x-realm-org-id")).toBeNull();
+  });
+
+  it("strips a client-supplied x-realm-org-id on /api instead of forwarding it", async () => {
+    const req = new NextRequest("http://localhost/api/auth/session", {
+      headers: { "x-realm-org-id": matchedOrgId },
+    });
+    const res = await proxy(req);
+    expect(res?.headers.get("x-middleware-request-x-realm-org-id")).toBeNull();
+  });
+
   it("falls back to the default-location org when the segment matches nothing", async () => {
     // Other seeded rows may also carry isDefaultLocation=true; the resolver
     // picks whichever the DB returns first, so scope this assertion to a
     // fixture-only org set by suppressing every other default beforehand.
+    // Safe table-wide UPDATE: vitest.config.ts's `fileParallelism: false`
+    // means no other test file is touching this table concurrently, and only
+    // the ids this block tracks get restored (see withNoDefaultOrg above).
     const otherDefaults = await db
       .select({ id: organization.id })
       .from(organization)
@@ -63,9 +82,15 @@ describe("proxy URL-based org resolution", () => {
     }
   });
 
-  // The dev DB may already carry a seeded default-location brand org (Task 2's
-  // backfill), so "no default exists" has to suppress *every* current default,
-  // not just the one this file created, then restore exactly what it found.
+  // The dev DB may carry a real seeded default-location brand org (Task 2's
+  // backfill — see db/seed-brand-org.ts), so simulating "no default exists"
+  // has no way around suppressing every currently-true row: the resolver's
+  // fallback query has no per-test scoping to key off. That table-wide UPDATE
+  // is safe here because vitest.config.ts sets `fileParallelism: false` for
+  // this suite — test files run one at a time, never racing each other on
+  // this table — so the only tracked ids restored are the exact rows this
+  // helper flipped, not a blanket "restore everything" that could clobber a
+  // concurrently-running file's own state.
   async function withNoDefaultOrg<T>(fn: () => Promise<T>): Promise<T> {
     const existingDefaults = await db
       .select({ id: organization.id })
