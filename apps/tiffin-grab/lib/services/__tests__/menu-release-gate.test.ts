@@ -88,12 +88,15 @@ describe("menuService release gate", () => {
     // The membership filter runs before "take the first dish", so several dishes in one
     // fixed category can be right — one per plan. A naive count of rows in the cell would
     // wrongly flag this, which is precisely the mistake the plan-aware check avoids.
-    const vegOnly = await dishOn("Papad", "extra", ["veg"]);
-    const nonVegOnly = await dishOn("Egg Bhurji", "extra", ["non-veg"]);
+    // "daal" (not "extra"): the TU redesign dropped Extra from every meal size's
+    // composition, so releaseProblems no longer treats it as required by any plan —
+    // daal still is, on both tiffin plans' seeded meal sizes.
+    const vegOnly = await dishOn("Papad", "daal", ["veg"]);
+    const nonVegOnly = await dishOn("Egg Bhurji", "daal", ["non-veg"]);
     const week = await menuService.upsertWeek({ weekStart: "2099-09-28" });
     await menuService.saveWeek({
       menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
-      items: [item(vegOnly, "extra"), item(nonVegOnly, "extra")],
+      items: [item(vegOnly, "daal"), item(nonVegOnly, "daal")],
     });
 
     const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");
@@ -102,12 +105,12 @@ describe("menuService release gate", () => {
 
   it("flags a fixed category holding two dishes that reach the SAME plan", async () => {
     // Both are on the veg plan, so only one can ever be served to a veg subscriber.
-    const a = await dishOn("Papad", "extra", ["veg", "non-veg"]);
-    const b = await dishOn("Pickle", "extra", ["veg", "non-veg"]);
+    const a = await dishOn("Papad", "daal", ["veg", "non-veg"]);
+    const b = await dishOn("Pickle", "daal", ["veg", "non-veg"]);
     const week = await menuService.upsertWeek({ weekStart: "2099-10-26" });
     await menuService.saveWeek({
       menuWeekId: week.publicId, expectedUpdatedAt: week.updatedAt,
-      items: [item(a, "extra"), item(b, "extra")],
+      items: [item(a, "daal"), item(b, "daal")],
     });
 
     const surplus = (await menuService.releaseProblems(week.publicId)).filter((p) => p.kind === "extra");

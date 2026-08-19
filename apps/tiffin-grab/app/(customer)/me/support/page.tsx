@@ -1,27 +1,20 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronLeftIcon, LifeBuoyIcon, PlusIcon } from "lucide-react";
+import { LifeBuoyIcon, PlusIcon } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { Button } from "@realm/ui/button";
 import { PageShell, PageHeader } from "@/components/ds";
+import { BackLink } from "@/components/back-link";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 
 export default function SupportPage() {
   return (
     <PageShell>
-      <div className="md:hidden">
-        <Link
-          href="/me/account"
-          className="text-muted-foreground hover:text-foreground mb-4 inline-flex min-h-11 items-center gap-1 text-sm transition-colors"
-        >
-          <ChevronLeftIcon className="size-4" aria-hidden />
-          Account
-        </Link>
-      </div>
+      <BackLink href="/me/account" label="Account" />
 
       <PageHeader
         icon={LifeBuoyIcon}

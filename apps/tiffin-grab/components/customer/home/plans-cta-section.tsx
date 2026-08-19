@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
+import { Button } from "@realm/ui/button";
 import { SectionCard } from "@/components/ds";
 
 /** Slim subscribe strip — replaces oversized Browse plans + Meal sizes cards on Menu. */
@@ -12,13 +13,12 @@ export function PlansCtaSection() {
       subtitle="Pick a plan and meal size on Subscribe. This page is for browsing what's cooking."
     >
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Link
-          href="/subscribe"
-          className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-transform active:scale-[0.96]"
-        >
-          Browse plans
-          <ArrowRightIcon className="size-3.5" aria-hidden />
-        </Link>
+        <Button asChild size="sm" className="gap-1.5 active:scale-[0.96]">
+          <Link href="/subscribe">
+            Browse plans
+            <ArrowRightIcon className="size-3.5" aria-hidden />
+          </Link>
+        </Button>
       </div>
     </SectionCard>
   );

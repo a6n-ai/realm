@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Skeleton } from "@realm/ui/skeleton";
 import { SectionCard } from "@/components/ds";
 import { TransitionLink } from "@/components/motion";
 import { WeekRail } from "@/app/(customer)/me/deliveries/week-rail";
-import { SelectedDaySummary } from "@/app/(customer)/me/deliveries/selected-day-summary";
-import { CALENDAR_LEGEND } from "@/app/(customer)/me/deliveries/day-status";
-import type { CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
+import { CalendarLegend } from "@/app/(customer)/me/deliveries/calendar-legend";
+import { pickCalendarSelectedDay, type CalendarCell } from "@/app/(customer)/me/deliveries/calendar-constants";
 import type { DeliveryCardMeal } from "@/app/(customer)/me/deliveries/meal-chips";
-import { DELIVERY_STATUS_ILLUSTRATION } from "@/components/illustrations/delivery-status";
+import { selectedDaySummaryMessage } from "@/app/(customer)/me/deliveries/day-summary-message";
+import { formatDateOnly } from "@/lib/format/datetime";
 
 export function HomeWeekStrip({
   cells,
   todayIso,
+  mealSizeName,
 }: {
   cells: CalendarCell[];
   todayIso: string;
+  mealSizeName?: string;
 }) {
   const cellsByDate = useMemo(() => {
     const map = new Map<string, CalendarCell>();
@@ -25,11 +27,12 @@ export function HomeWeekStrip({
     return map;
   }, [cells]);
 
-  // Keep the rail on "today" after navigation/refresh so home and deliveries stay
+  const initial = pickCalendarSelectedDay(cells.map((c) => c.date), todayIso);
+  // Keep the rail on the picked day after navigation/refresh so home and deliveries stay
   // aligned. Derived rather than re-synced in an effect: a pick is remembered only
-  // for the day it was made on, so a new app-day falls back to today by itself.
+  // for the day it was made on, so a new app-day falls back to the next tiffin by itself.
   const [picked, setPicked] = useState<{ day: string; date: string } | null>(null);
-  const selected = picked?.day === todayIso ? picked.date : todayIso;
+  const selected = picked?.day === todayIso ? picked.date : initial;
   const setSelected = (date: string) => setPicked({ day: todayIso, date });
   const cell = cellsByDate.get(selected);
   const delivery = cell?.meal
@@ -37,31 +40,51 @@ export function HomeWeekStrip({
     : undefined;
 
   return (
-    <SectionCard title="This week" subtitle="Upcoming meals on your plan — tap a day for status.">
-      <div className="space-y-3">
-        <SelectedDaySummary dateIso={selected} cell={cell} delivery={delivery} alwaysVisible />
+    <SectionCard
+      title="This week"
+      subtitle="Tap a day to see what's arriving."
+      action={
+        <TransitionLink href="/me/deliveries" className="text-primary text-sm font-medium active:scale-[0.96]">
+          Full calendar
+        </TransitionLink>
+      }
+    >
+      <div className="space-y-4">
+        <HomeDayPanel dateIso={selected} cell={cell} delivery={delivery} mealSizeName={mealSizeName} />
         <WeekRail
           cellsByDate={cellsByDate}
           selected={selected}
           onSelect={setSelected}
           todayIso={todayIso}
         />
-        <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
-          {CALENDAR_LEGEND.map((item) => {
-            const Icon = DELIVERY_STATUS_ILLUSTRATION[item.key];
-            return (
-              <li key={item.key} className="inline-flex items-center gap-1.5">
-                <Icon size={15} />
-                {item.label}
-              </li>
-            );
-          })}
-        </ul>
-        <TransitionLink href="/me/deliveries" className="text-primary block text-sm font-medium">
-          Full calendar →
-        </TransitionLink>
+        <CalendarLegend />
       </div>
     </SectionCard>
+  );
+}
+
+function HomeDayPanel({
+  dateIso,
+  cell,
+  delivery,
+  mealSizeName,
+}: {
+  dateIso: string;
+  cell: CalendarCell | undefined;
+  delivery: { meal: DeliveryCardMeal } | undefined;
+  mealSizeName?: string;
+}) {
+  const message = selectedDaySummaryMessage({ dateIso, cell, delivery });
+  const heading = formatDateOnly(dateIso, { mode: "weekday" });
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium tabular-nums text-muted-foreground">{heading}</p>
+      <p className="text-sm font-semibold text-pretty leading-snug">{message}</p>
+      {mealSizeName && cell ? (
+        <p className="text-xs text-muted-foreground">{mealSizeName}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -80,9 +103,9 @@ export function HomeWeekStripEmpty() {
 
 export function HomeWeekStripSkeleton() {
   return (
-    <SectionCard title="This week" subtitle="Upcoming meals on your plan — tap a day for status.">
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <Skeleton className="mt-3 h-16 w-full rounded-lg" />
+    <SectionCard title="This week" subtitle="Tap a day to see what's arriving.">
+      <Skeleton className="h-16 w-full rounded-xl" />
+      <Skeleton className="mt-4 h-16 w-full rounded-lg" />
       <Skeleton className="mt-3 h-4 w-48" />
     </SectionCard>
   );

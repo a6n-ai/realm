@@ -87,8 +87,8 @@ export function CustomerSidebar({
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link href="/me" className="group flex items-center gap-2 px-2 py-1.5">
-          <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
-            <UtensilsCrossedIcon className="size-4" />
+          <div className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+            <UtensilsCrossedIcon className="size-5" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold">TiffinGrab</span>

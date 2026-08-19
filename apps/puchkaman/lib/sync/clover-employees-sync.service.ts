@@ -80,6 +80,15 @@ class CloverEmployeesSyncService {
     return result;
   }
 
+  /** Single-employee pull — same upsert path as `pull`, scoped to one Clover employee id. */
+  async pullOne(client: CloverApiClient, cloverEmployeeId: string): Promise<EmployeeRow> {
+    const emp = await client.getEmployee(cloverEmployeeId);
+    const result: CloverEmployeesPullResult = { upserted: 0, inactivated: 0, errors: [] };
+    const row = await this.upsert(emp, Date.now(), result);
+    if (result.errors.length > 0) throw new Error(result.errors[0]!.message);
+    return row;
+  }
+
   private async upsert(
     emp: CloverEmployee,
     now: number,

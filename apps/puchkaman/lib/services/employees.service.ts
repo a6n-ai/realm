@@ -1,4 +1,4 @@
-import { ValidationError } from "@realm/commons";
+import { NotFoundError, ValidationError } from "@realm/commons";
 import { employees } from "@/db/schema";
 import { createCloverClient } from "@/lib/clover/client";
 import {
@@ -54,6 +54,29 @@ class EmployeesService extends SessionUpdatableService<typeof employees> {
       createdBy: await currentUserId(),
     });
     return result;
+  }
+
+  async pullOneFromClover(publicId: string): Promise<EmployeeRow> {
+    const existing = await this.repo.findByPublicId(publicId);
+    if (!existing) throw new NotFoundError(`Employee not found: ${publicId}`);
+    if (!existing.cloverEmployeeId) {
+      throw new ValidationError("Employee has no Clover employee id to sync");
+    }
+    const client = await createCloverClient();
+    if (!client) {
+      throw new ValidationError(
+        "Clover is not connected. Install the plugin under Settings → Integrations, then connect a merchant under Settings → Clover.",
+      );
+    }
+    const row = await cloverEmployeesSyncService.pullOne(client, existing.cloverEmployeeId);
+    await recordAudit({
+      entity: "employees",
+      entityPublicId: publicId,
+      operation: "update",
+      changes: { _action: "clover_employees_pull_one" },
+      createdBy: await currentUserId(),
+    });
+    return row;
   }
 }
 

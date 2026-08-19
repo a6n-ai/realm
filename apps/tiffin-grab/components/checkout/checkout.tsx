@@ -23,9 +23,13 @@ import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { Label } from "@realm/ui/label";
 import { AddressFields } from "@realm/ui/address-fields";
-import { Card } from "@realm/design-system";
+import { Card } from "@/components/ds";
 import { cn } from "@realm/ui/cn";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
+import { Stepper } from "@/components/stepper";
+import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
+
+const CHECKOUT_STEPS = ["Address & contact", "Payment"] as const;
 
 type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
@@ -212,26 +216,7 @@ export function Checkout({
       <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Checkout</h1>
     <div className="grid gap-6 md:grid-cols-[1fr_360px] md:items-start">
       <div className="space-y-5">
-        <ol className="flex items-center gap-2 overflow-x-auto text-xs font-medium [scrollbar-width:none]">
-          {(["Address & contact", "Payment"] as const).map((label, i) => {
-            const n = (i + 1) as 1 | 2;
-            const done = step > n;
-            const current = step === n;
-            return (
-              <li key={label} className="flex items-center gap-2">
-                <span
-                  className={`flex size-5 items-center justify-center rounded-full text-[11px] transition-colors ${
-                    done || current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {done ? <Check className="size-3" /> : n}
-                </span>
-                <span className={current ? "text-foreground" : "text-muted-foreground"}>{label}</span>
-                {i === 0 && <span aria-hidden className="mx-1 h-px w-6 bg-border" />}
-              </li>
-            );
-          })}
-        </ol>
+        <Stepper steps={CHECKOUT_STEPS} currentIndex={step - 1} />
 
         {step === 1 && (
           <Card variant="glow" className="p-5 sm:p-6">
@@ -265,22 +250,20 @@ export function Checkout({
                         <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
                       </div>
                       {zone?.served && (
-                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                          <MapPin className="mt-0.5 size-4 shrink-0" />
-                          <span>Served — {zone.name}, delivery {zone.slotWindow}.</span>
-                        </div>
+                        <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
+                          Served — {zone.name}, delivery {zone.slotWindow}.
+                        </StatusBanner>
                       )}
                       {zone && !zone.served && !waitlisted && (
-                        <div className="space-y-2 rounded-lg bg-amber-500/10 p-3">
-                          <p className="text-sm text-amber-700 dark:text-amber-400">Not in your area yet.</p>
+                        <div className={`space-y-2 rounded-lg p-3 ${toneClasses("warning").bg}`}>
+                          <p className={`text-sm ${toneClasses("warning").text}`}>Not in your area yet.</p>
                           <Button type="button" variant="outline" disabled={!contact.fullName || !phoneValid || !emailValid} onClick={joinWaitlist}>Join waitlist</Button>
                         </div>
                       )}
                       {waitlisted && (
-                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-                          <Check className="mt-0.5 size-4 shrink-0" />
-                          <span>You&apos;re on the waitlist — we&apos;ll email you when we reach your area.</span>
-                        </div>
+                        <StatusBanner tone="success" icon={<Check className="mt-0.5 size-4 shrink-0" />}>
+                          You&apos;re on the waitlist — we&apos;ll email you when we reach your area.
+                        </StatusBanner>
                       )}
                     </>
                   }
@@ -362,7 +345,7 @@ export function Checkout({
                   disabled={submitting || (realPayments && !paymentMethodId)}
                   onClick={confirm}
                 >
-                  {submitting ? "Confirming…" : "Confirm Subscription"}
+                  {submitting ? "Confirming…" : origin === "renew" ? "Confirm renewal" : "Confirm Subscription"}
                 </Button>
               </div>
             </section>

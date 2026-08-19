@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
+import { UtensilsIcon } from "lucide-react";
+import { Button } from "@realm/ui/button";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
@@ -11,19 +13,17 @@ import { buildMealsGrid, type MealOrder } from "@/lib/menu/meals-grid";
 import { LottieEmptyState } from "@/components/motion";
 import { CutoffBanner } from "@/components/customer/meals/cutoff-banner";
 import { MealPicker, MealPickerSkeleton } from "@/components/customer/meals/meal-picker";
+import { PageShell, PageHeader } from "@/components/ds";
 import { pickPrimaryActive } from "./pick-primary-active";
 
 export default function MyMealsPage() {
   return (
-    <main className="space-y-5 px-4 py-6 md:px-6 md:py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Meals</h1>
-        <p className="text-muted-foreground text-sm text-pretty">Pick this week&apos;s meals before the cutoff.</p>
-      </header>
+    <PageShell>
+      <PageHeader icon={UtensilsIcon} title="Meals" subtitle="Pick this week's meals before the cutoff." />
       <Suspense fallback={<MealPickerSkeleton />}>
         <MyMealsData />
       </Suspense>
-    </main>
+    </PageShell>
   );
 }
 
@@ -62,9 +62,9 @@ async function MyMealsData() {
         title="Subscribe to plan your meals"
         body="Once you have an active subscription, you'll be able to pick your meals for the week here."
         action={
-          <Link href="/subscribe" className="bg-primary text-primary-foreground inline-block rounded-md px-4 py-2 text-sm font-medium">
-            Browse plans
-          </Link>
+          <Button asChild>
+            <Link href="/subscribe">Browse plans</Link>
+          </Button>
         }
       />
     );

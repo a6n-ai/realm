@@ -8,6 +8,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { PageShell, PageHeader, SectionCard, ListRow, OrderStatusBadge, EmptyState, SkeletonListRows } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
+import { ResendInviteButton } from "./resend-invite-button";
 // Single source of truth for the section cards. The real view and the loading
 // twin below both render from this, so the skeleton can never drift from the page.
 const SECTIONS = {
@@ -49,7 +50,10 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
   return (
     <>
       <SectionCard title={SECTIONS.profile.title}>
-        <p className="text-sm text-muted-foreground">{data.profile.phone ?? "no phone"} · {data.profile.email ?? "no email"}</p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">{data.profile.phone ?? "no phone"} · {data.profile.email ?? "no email"}</p>
+          <ResendInviteButton email={data.profile.email} />
+        </div>
       </SectionCard>
 
       <SectionCard title={SECTIONS.orders.title}>

@@ -12,3 +12,8 @@ export function formatTuHuman(category: TuCategory, tuAmount: number): string {
   const trimmed = String(Number(rounded.toFixed(2)));
   return category.tuUnitType === "weight" ? `${trimmed}${category.tuUnitLabel}` : `${trimmed} ${category.tuUnitLabel}`;
 }
+
+/** Customer/wizard chip copy: pick count × category, human portion when known — never raw TU. */
+export function mealChipLabel(qty: number, label: string, portion?: string | null): string {
+  return portion ? `${qty}× ${label} · ${portion}` : `${qty}× ${label}`;
+}

@@ -2,7 +2,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { notificationTables, users } from "@/db/schema";
 import { customerUpdateSet, upsertCustomer } from "@/lib/customers/upsert-customer";
 
 const MARK = "upsert-cust";
@@ -14,7 +14,21 @@ async function make(email: string, name?: string, phone?: string): Promise<bigin
 }
 
 afterEach(async () => {
-  if (emails.length) await db.delete(users).where(inArray(users.email, emails));
+  if (emails.length) {
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(inArray(users.email, emails));
+    if (rows.length) {
+      await db.delete(notificationTables.notificationPrefs).where(
+        inArray(
+          notificationTables.notificationPrefs.userId,
+          rows.map((r) => r.id),
+        ),
+      );
+    }
+    await db.delete(users).where(inArray(users.email, emails));
+  }
   emails.length = 0;
 });
 
@@ -31,6 +45,30 @@ describe("upsertCustomer", () => {
       .from(users)
       .where(eq(users.id, id));
     expect(row).toEqual({ role: "user", status: "active", passwordSet: false, name: "Ada" });
+  });
+
+  it("opts a freshly-created customer out of marketing email — typing an email at checkout is not consent", async () => {
+    const id = await make(`${MARK}-marketing-opt-out@example.test`, "Ada");
+    const [pref] = await db
+      .select({
+        enabled: notificationTables.notificationPrefs.enabled,
+        channel: notificationTables.notificationPrefs.channel,
+        kind: notificationTables.notificationPrefs.kind,
+      })
+      .from(notificationTables.notificationPrefs)
+      .where(eq(notificationTables.notificationPrefs.userId, id));
+    expect(pref).toEqual({ enabled: false, channel: "email", kind: "marketing" });
+  });
+
+  it("does not touch marketing prefs on a repeat order for an existing customer", async () => {
+    const email = `${MARK}-marketing-repeat@example.test`;
+    const id = await make(email, "Ada");
+    await db.transaction((tx) => upsertCustomer(tx, { email, name: "Ada" }));
+    const rows = await db
+      .select({ id: notificationTables.notificationPrefs.id })
+      .from(notificationTables.notificationPrefs)
+      .where(eq(notificationTables.notificationPrefs.userId, id));
+    expect(rows).toHaveLength(1);
   });
 
   it("is idempotent on the email and returns the same id", async () => {

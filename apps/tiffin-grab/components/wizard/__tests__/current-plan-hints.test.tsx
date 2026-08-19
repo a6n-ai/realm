@@ -101,4 +101,21 @@ describe("wizard current-plan soft hints", () => {
     expect(screen.getByText(/already subscribed on your current plan/i)).toBeInTheDocument();
     expect(screen.getByText(/You can still continue/i)).toBeInTheDocument();
   });
+
+  it("duration names the overlap bound when minStartDate is after tomorrow", () => {
+    render(
+      <StepDuration
+        catalog={catalog}
+        selections={selections}
+        set={vi.fn()}
+        result={null}
+        currentPlan={currentPlan}
+        minStartDate="2099-01-15"
+      />,
+    );
+    expect(screen.getByText(/This renewal can start on or after/i)).toBeInTheDocument();
+    expect(screen.getByText(/Jan 15/)).toBeInTheDocument();
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.getByRole("button", { name: /pick a date/i })).toBeInTheDocument();
+  });
 });

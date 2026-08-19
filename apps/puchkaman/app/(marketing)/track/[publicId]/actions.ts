@@ -68,6 +68,22 @@ export async function addNote(orderId: string, note: string): Promise<ActionResu
   return { ok: true };
 }
 
+/** Customer-triggered refresh of this one order's payment status from Clover. */
+export async function checkPaymentStatus(
+  orderId: string,
+): Promise<{ ok: true; orderStatus: string; changed: boolean } | { ok: false; error: string }> {
+  if (!(await requireGrant(orderId))) return { ok: false, error: "Not authorized." };
+
+  try {
+    const result = await ordersService.checkPaymentStatus(orderId);
+    revalidatePath(`/track/${orderId}`);
+    return { ok: true, orderStatus: result.orderStatus, changed: result.changed };
+  } catch (err) {
+    log.error({ err, orderId }, "tracking payment status check failed");
+    return { ok: false, error: "Couldn't check payment status right now." };
+  }
+}
+
 /** Public PAKMS key + SDK URL so the customer can pay an outstanding balance. */
 export async function getPaymentConfig(
   orderId: string,

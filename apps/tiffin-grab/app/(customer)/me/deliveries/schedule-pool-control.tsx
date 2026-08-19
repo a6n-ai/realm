@@ -7,6 +7,7 @@ import { Button } from "@realm/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import { ActionCard, DELIVERY_SHEET_DIRECTION } from "./action-card";
 import { VacationDateField } from "./vacation-date-field";
 import { scheduleMyPooledTiffin } from "./actions";
 
@@ -59,16 +60,24 @@ export function SchedulePoolControl({
         setOpen(next);
         if (!next) reset();
       }}
+      direction={DELIVERY_SHEET_DIRECTION}
       trigger={
-        <Button variant="outline" size="sm">
-          <CalendarPlusIcon data-icon="inline-start" />
-          Schedule tiffin{counts.pooled > 1 ? "s" : ""}
-        </Button>
+        <ActionCard
+          icon={CalendarPlusIcon}
+          title={counts.pooled > 1 ? `Schedule ${counts.pooled} tiffins` : "Schedule a tiffin"}
+          description="Place an unscheduled tiffin on a delivery day"
+        />
       }
       title="Schedule a tiffin"
       description="Place one of your unscheduled tiffins on a delivery day."
+      footer={
+        <Button className="w-full" disabled={!date || pending} onClick={submit}>
+          <CalendarPlusIcon data-icon="inline-start" />
+          {pending ? "Scheduling…" : "Schedule delivery"}
+        </Button>
+      }
     >
-      <div className="space-y-4">
+      <div className="space-y-4 px-4 pb-4">
         <p className="text-muted-foreground text-sm">
           You have <span className="text-foreground font-medium">{counts.pooled}</span> tiffin
           {counts.pooled > 1 ? "s" : ""} to schedule. Pick a delivery day after
@@ -89,9 +98,6 @@ export function SchedulePoolControl({
             {counts.persons > 1 ? ` for ${counts.persons} servings` : ""}.
           </p>
         )}
-        <Button disabled={!date || pending} onClick={submit}>
-          <CalendarPlusIcon data-icon="inline-start" /> Schedule delivery
-        </Button>
         {error && <p className="text-bad text-xs">{error}</p>}
       </div>
     </ResponsiveDialog>

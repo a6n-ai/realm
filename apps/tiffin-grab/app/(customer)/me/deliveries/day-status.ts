@@ -37,11 +37,18 @@ export const DAY_STATUS_LABEL: Record<DayStatus, string> = {
 // Vacation / On Hold) — maps our internal DayStatus buckets to plain-language copy + dash color.
 export type CalendarLegendKey = "delivered" | "upcoming" | "vacation" | "onHold";
 
+export const LEGEND_MARK_CLASS: Record<CalendarLegendKey, string> = {
+  delivered: "bg-emerald-500",
+  upcoming: "bg-sky-500",
+  vacation: "bg-orange-500",
+  onHold: "bg-rose-500",
+};
+
 export const CALENDAR_LEGEND: { key: CalendarLegendKey; label: string; dashClass: string }[] = [
-  { key: "delivered", label: "Delivered", dashClass: "bg-ok" },
-  { key: "upcoming", label: "Upcoming", dashClass: "bg-muted-foreground/60" },
-  { key: "vacation", label: "Vacation", dashClass: "bg-warn" },
-  { key: "onHold", label: "On Hold", dashClass: "bg-destructive" },
+  { key: "delivered", label: "Delivered", dashClass: LEGEND_MARK_CLASS.delivered },
+  { key: "upcoming", label: "Upcoming", dashClass: LEGEND_MARK_CLASS.upcoming },
+  { key: "vacation", label: "Vacation", dashClass: LEGEND_MARK_CLASS.vacation },
+  { key: "onHold", label: "On Hold", dashClass: LEGEND_MARK_CLASS.onHold },
 ];
 
 export function calendarLegendKey(status: DayStatus): CalendarLegendKey | null {
@@ -64,36 +71,42 @@ export function calendarLegendKey(status: DayStatus): CalendarLegendKey | null {
   }
 }
 
-// Calendar day-dot color (a small filled circle under the day number).
+export function calendarLegendLabel(status: DayStatus): string | null {
+  const key = calendarLegendKey(status);
+  if (!key) return null;
+  return CALENDAR_LEGEND.find((item) => item.key === key)?.label ?? null;
+}
+
+function markFor(status: DayStatus): string {
+  const key = calendarLegendKey(status);
+  return key ? LEGEND_MARK_CLASS[key] : "bg-transparent";
+}
+
+// Same four colors as the legend, on every calendar surface — dots, agenda bars, tile marks.
 export const DAY_STATUS_DOT_CLASS: Record<DayStatus, string> = {
-  scheduled: "bg-ok",
-  paused: "bg-muted-foreground/50",
-  skipped: "bg-warn",
-  locked: "bg-muted-foreground/30",
-  makeup: "bg-muted-foreground/60",
-  off: "bg-muted-foreground/15",
+  scheduled: LEGEND_MARK_CLASS.upcoming,
+  paused: LEGEND_MARK_CLASS.vacation,
+  skipped: LEGEND_MARK_CLASS.onHold,
+  locked: LEGEND_MARK_CLASS.delivered,
+  makeup: LEGEND_MARK_CLASS.upcoming,
+  off: "bg-transparent",
 };
 
-// Agenda-chip left status bar (c-calendar-22 pattern: a colored vertical bar, not a dot).
 export const DAY_STATUS_BAR_CLASS: Record<DayStatus, string> = {
-  scheduled: "after:bg-ok",
-  paused: "after:bg-muted-foreground/50",
-  skipped: "after:bg-warn",
-  locked: "after:bg-muted-foreground/30",
-  makeup: "after:bg-muted-foreground/60",
-  off: "after:bg-muted-foreground/15",
+  scheduled: "after:bg-sky-500",
+  paused: "after:bg-orange-500",
+  skipped: "after:bg-rose-500",
+  locked: "after:bg-emerald-500",
+  makeup: "after:bg-sky-500",
+  off: "after:bg-transparent",
 };
 
-// Tiffin-tile status UNDERLINE — colored dash beneath the day number: green = delivered/past,
-// neutral grey = upcoming, orange = vacation/pause, red = on hold/skipped. Grey (not blue) for
-// "upcoming" keeps this within the app's two-brand-color system (green/orange are the only
-// saturated decorative hues; grey and the functional red are the exemptions).
 export const DAY_STATUS_UNDERLINE_CLASS: Record<DayStatus, string> = {
-  scheduled: "bg-muted-foreground/60",
-  paused: "bg-warn",
-  skipped: "bg-destructive",
-  locked: "bg-ok",
-  makeup: "bg-muted-foreground/60",
+  scheduled: markFor("scheduled"),
+  paused: markFor("paused"),
+  skipped: markFor("skipped"),
+  locked: markFor("locked"),
+  makeup: markFor("makeup"),
   off: "bg-transparent",
 };
 

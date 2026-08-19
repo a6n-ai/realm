@@ -24,6 +24,7 @@ export function CustomerBottomNav() {
   }));
   return (
     <BottomNav
+      variant="glass"
       items={items}
       onFabClick={() => router.push("/subscribe")}
       fabLabel="Start a subscription"

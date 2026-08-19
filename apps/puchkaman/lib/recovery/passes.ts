@@ -120,6 +120,42 @@ export async function terminalizeAbandonedOrders(now = Date.now()): Promise<numb
   return changed;
 }
 
+/**
+ * Refreshes payment status from Clover for still-pending orders, one order at
+ * a time via `ordersService.checkPaymentStatus` — the same row-level check the
+ * admin "Check status" button runs, not a bulk call. This is the webhook
+ * fallback: a customer who paid but whose webhook never landed (or landed
+ * before the order existed) would otherwise sit `pending` until the 24h sweep
+ * kills it — reversing coins and losing a sale that was actually paid.
+ */
+export async function syncPendingPaymentStatuses(now = Date.now()): Promise<number> {
+  const cutoff = now - TERMINAL_AFTER_MS;
+
+  const rows = await db
+    .select({ id: orders.id, publicId: orders.publicId })
+    .from(orders)
+    .innerJoin(payments, eq(payments.orderId, orders.id))
+    .where(
+      and(
+        eq(orders.status, "pending"),
+        eq(payments.status, "awaiting_payment"),
+        gte(orders.createdAt, cutoff),
+      ),
+    )
+    .limit(BATCH);
+
+  let checked = 0;
+  for (const row of rows) {
+    try {
+      await ordersService.checkPaymentStatus(row.publicId);
+      checked += 1;
+    } catch (err) {
+      log.error({ err, orderId: row.id }, "syncPendingPaymentStatuses: skipping row after failure");
+    }
+  }
+  return checked;
+}
+
 export async function purgeCarts(now = Date.now()): Promise<number> {
   return purgeStaleCarts(now - PURGE_AFTER_MS);
 }

@@ -22,6 +22,8 @@ vi.mock("@/lib/services/customer-deliveries.service", () => ({
   myWaitlistedSubscriptions: vi.fn().mockResolvedValue([]),
   myCalendar: vi.fn().mockResolvedValue([]),
   nextDeliveryByOrder: vi.fn().mockResolvedValue(new Map()),
+  mySubscriptionsSummary: vi.fn().mockResolvedValue([]),
+  orderTiffinCounts: vi.fn().mockResolvedValue(null),
 }));
 // The subscription section's Pause/Resume controls import these "use server" actions, which
 // themselves pull in the full db/schema import graph — stub them for the same reason.
@@ -50,6 +52,12 @@ vi.mock("@/lib/catalog/load", () => ({
     tiers: [],
   }),
 }));
+vi.mock("@/lib/services/dish-categories.service", () => ({
+  dishCategoriesService: { forPlanType: vi.fn().mockResolvedValue([]) },
+}));
+vi.mock("../review-nudge", () => ({
+  ReviewNudge: () => null,
+}));
 vi.mock("@/lib/services/wallet.service", () => ({
   walletService: { balance: vi.fn().mockResolvedValue(0), recentTransactions: vi.fn().mockResolvedValue([]) },
 }));
@@ -73,8 +81,9 @@ describe("/me home shell", () => {
     // would never run because MePage() would throw first.
     render(await MePage());
 
-    expect(screen.getByRole("heading", { name: /home/i, level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /your subscription/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /your plan/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /earlier plans/i })).toBeNull();
     expect(screen.queryByRole("heading", { name: /^finances$/i })).toBeNull();
   });
 });

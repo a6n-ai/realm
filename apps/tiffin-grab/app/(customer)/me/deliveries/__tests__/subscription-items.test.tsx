@@ -30,18 +30,25 @@ const sub: Subscription = {
 };
 
 describe("SubscriptionPlanSummary", () => {
-  it("renders flat plan text with meal size, items, and persons", () => {
-    render(<SubscriptionPlanSummary sub={sub} categoryLabels={{ sabzi: "Sabzi", dal: "Daal", roti: "Roti" }} />);
-    const text = screen.getByText(/Maharaja Thali \(Veg\)/);
-    expect(text).toBeInTheDocument();
-    expect(text.textContent).toMatch(/1× Sabzi/);
-    expect(text.textContent).toMatch(/8× Roti/);
-    expect(text.textContent).toMatch(/2 persons/);
+  it("renders item chips and persons, without repeating the meal size", () => {
+    render(
+      <SubscriptionPlanSummary
+        sub={sub}
+        categoryLabels={{ sabzi: "Sabzi", dal: "Daal", roti: "Roti" }}
+        categoryPortions={{ sabzi: "12oz", dal: "8oz", roti: "1 roti" }}
+      />,
+    );
+    expect(screen.getByText("1× Sabzi · 12oz")).toBeInTheDocument();
+    expect(screen.getByText("1× Daal · 8oz")).toBeInTheDocument();
+    expect(screen.getByText("8× Roti · 1 roti")).toBeInTheDocument();
+    expect(screen.getByText("2 persons")).toBeInTheDocument();
+    expect(screen.queryByText(/Maharaja Thali/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bTU\b/)).not.toBeInTheDocument();
   });
 });
 
 describe("SubscriptionPlanHeader", () => {
-  it("renders plan name as heading when there is a single subscription", () => {
+  it("renders meal size as heading when there is a single subscription", () => {
     render(
       <SubscriptionPlanHeader
         sub={sub}
@@ -52,8 +59,12 @@ describe("SubscriptionPlanHeader", () => {
       />,
     );
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "Weekly Veg" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Maharaja Thali (Veg)" })).toBeInTheDocument();
+    expect(screen.getByText("Weekly Veg")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
+    const name = screen.getByRole("heading", { level: 2, name: "Maharaja Thali (Veg)" });
+    expect(name.parentElement).toContainElement(screen.getByText("Weekly Veg"));
+    expect(name.parentElement).not.toContainElement(screen.getByText("Active"));
   });
 
   it("renders a selector when there are multiple subscriptions", () => {

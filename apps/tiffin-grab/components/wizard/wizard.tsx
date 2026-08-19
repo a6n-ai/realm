@@ -6,8 +6,9 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
-import { Check } from "lucide-react";
-import { initialSelections, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardSelections } from "./selections";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { Stepper } from "@/components/stepper";
+import { initialSelections, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -23,15 +24,24 @@ export function Wizard({
   closeHref,
   existingStartDates = [],
   currentPlan = null,
+  origin = "subscribe",
+  initial = initialSelections,
+  minStartDate = null,
+  exitHref,
 }: {
   catalog: ClientCatalogSnapshot;
   closeHref: string;
   existingStartDates?: string[];
   currentPlan?: CurrentPlanSummary | null;
+  origin?: WizardOrigin;
+  initial?: WizardSelections;
+  /** First date a new/renewed plan may start (overlap with a live plan). */
+  minStartDate?: string | null;
+  exitHref?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [selections, setSelections] = useState<WizardSelections>(initialSelections);
+  const [selections, setSelections] = useState<WizardSelections>(initial);
   const [result, setResult] = useState<PricingResult | null>(null);
 
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
@@ -55,53 +65,30 @@ export function Wizard({
 
   const deploy = () => {
     sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(WIZARD_ORIGIN_KEY, "subscribe");
+    sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
     router.push("/checkout");
   };
 
   const sameWeekConflict =
     selections.startDate !== "" && anySameIsoWeek(selections.startDate, existingStartDates);
 
+  const goBack = () => {
+    if (step > 0) {
+      setStep((s) => s - 1);
+      return;
+    }
+    if (exitHref) router.push(exitHref);
+    else router.back();
+  };
+
   return (
     <div className="space-y-5 pb-24 sm:pb-6">
       <SubscribeChrome
         closeHref={closeHref}
-        onBack={() => (step > 0 ? setStep((s) => s - 1) : router.back())}
+        onBack={goBack}
       />
 
-      <ol className="flex items-center justify-center gap-1.5 text-xs sm:justify-start sm:gap-1 sm:overflow-x-auto [scrollbar-width:none]">
-        {STEPS.map((label, i) => {
-          const done = i < step;
-          const current = i === step;
-          return (
-            <li key={label} className="flex shrink-0 items-center gap-1">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className={`flex size-6 items-center justify-center rounded-full text-[11px] font-medium transition-colors sm:size-5 ${
-                    done || current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}
-                  aria-current={current ? "step" : undefined}
-                  aria-label={`Step ${i + 1}: ${label}`}
-                >
-                  {done ? <Check className="size-3" /> : i + 1}
-                </span>
-                <span
-                  className={`hidden whitespace-nowrap sm:inline ${
-                    current ? "font-medium text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {label}
-                </span>
-              </span>
-              {i < STEPS.length - 1 && (
-                <span aria-hidden className="mx-0.5 h-px w-3 shrink-0 bg-border sm:mx-1 sm:w-6" />
-              )}
-            </li>
-          );
-        })}
-      </ol>
-
-      <p className="text-muted-foreground text-center text-xs sm:hidden">{STEPS[step]}</p>
+      <Stepper steps={STEPS} currentIndex={step} compactLabels />
 
       {step === 0 && (
         <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
@@ -120,6 +107,7 @@ export function Wizard({
           result={result}
           sameWeekConflict={sameWeekConflict}
           currentPlan={currentPlan}
+          minStartDate={minStartDate}
         />
       )}
 
@@ -141,14 +129,13 @@ export function Wizard({
             <span className="hidden sm:block" />
           )}
           {step < 3 ? (
-            <Button type="button" size="lg" className="w-full sm:w-auto" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
+            <Button type="button" className={`${IOS_BUTTON} sm:h-9 sm:min-h-9 sm:w-auto sm:rounded-lg sm:text-sm`} disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
               Next
             </Button>
           ) : (
             <Button
               type="button"
-              size="lg"
-              className="w-full sm:w-auto"
+              className={`${IOS_BUTTON} sm:h-9 sm:min-h-9 sm:w-auto sm:rounded-lg sm:text-sm`}
               disabled={!selections.mealSizeId || !selections.startDate}
               onClick={deploy}
             >

@@ -1,21 +1,13 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { ChevronLeftIcon, UserIcon } from "lucide-react";
+import { UserIcon } from "lucide-react";
 import { PageShell, PageHeader } from "@/components/ds";
+import { BackLink } from "@/components/back-link";
 import { AccountSettingsNav } from "@/components/customer/account/account-settings-nav";
 
 export default function CustomerAccountSettingsLayout({ children }: { children: ReactNode }) {
   return (
     <PageShell>
-      <div className="md:hidden">
-        <Link
-          href="/me/account"
-          className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm transition-colors"
-        >
-          <ChevronLeftIcon className="size-4" aria-hidden />
-          Account
-        </Link>
-      </div>
+      <BackLink href="/me/account" label="Account" />
 
       <PageHeader
         icon={UserIcon}

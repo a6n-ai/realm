@@ -8,7 +8,10 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // Thin, theme-colored scrollbar instead of the browser's raw OS chrome —
+      // a wide table (many columns) still needs to scroll, but shouldn't look
+      // like it broke out of the design.
+      className="relative w-full overflow-x-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
     >
       <table
         data-slot="table"

@@ -7,6 +7,7 @@ import { Btn, Pill } from "@/components/brutal/shared";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import {
   addNote,
+  checkPaymentStatus,
   getPaymentConfig,
   requestCancel,
 } from "@/app/(marketing)/track/[publicId]/actions";
@@ -171,8 +172,9 @@ function PayBalance({ order }: { order: TrackedOrder }) {
 
   return (
     <Card title="Pay your balance">
-      <p style={{ marginBottom: 14 }}>
+      <p style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <Pill>{money(order.totals.balanceDue)} outstanding</Pill>
+        <CheckStatusButton orderId={order.reference} />
       </p>
       {!config ? (
         <Btn variant="ink" onClick={start} disabled={starting}>
@@ -198,6 +200,48 @@ function PayBalance({ order }: { order: TrackedOrder }) {
         </p>
       )}
     </Card>
+  );
+}
+
+/**
+ * Just paid but the webhook hasn't landed yet? This hits the same per-order
+ * Clover status check the admin "Check status" button and the abandoned-
+ * recovery cron pass both use — no separate code path to drift.
+ */
+function CheckStatusButton({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function check() {
+    if (busy) return;
+    setBusy(true);
+    setMessage(null);
+    const res = await checkPaymentStatus(orderId);
+    if (!res.ok) {
+      setMessage(res.error);
+    } else if (res.changed) {
+      setMessage("Payment found — updating…");
+      router.refresh();
+    } else {
+      setMessage("Still waiting on payment.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <Btn variant="white" size="sm" onClick={check} disabled={busy}>
+        <span className="label-swap" key={busy ? "busy" : "idle"}>
+          {busy ? "Checking…" : "Check payment status"}
+        </span>
+      </Btn>
+      {message && (
+        <span role="status" style={{ fontSize: "0.8rem", opacity: 0.8 }}>
+          {message}
+        </span>
+      )}
+    </span>
   );
 }
 

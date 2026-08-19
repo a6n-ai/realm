@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { DeliveryNotesSection } from "@/components/account/sections/delivery-notes-section";
-import { DeliveryNotesSkeleton } from "./delivery-notes-skeleton";
+import { DeliveryNotesSkeleton } from "@/components/account/sections/delivery-notes-skeleton";
 import { requireSectionAccess } from "../current-user";
 
 export default function AccountDeliveryNotesPage() {

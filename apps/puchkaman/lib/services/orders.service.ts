@@ -1203,6 +1203,18 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
     if (!pays.some((p) => p.status === "awaiting_payment")) return null;
 
+    // A valid, unexpired HMAC resume token only ever reaches here via the link
+    // this app mailed to order.customerEmail — landing on this page is proof of
+    // inbox access, the same signal an email-verification link gives anywhere
+    // else. upsertCustomer already treats emailVerified as "claimed" and stops
+    // overwriting name/phone once it's set, so this is a free, real claim.
+    if (order.userId) {
+      await db
+        .update(users)
+        .set({ emailVerified: true })
+        .where(and(eq(users.id, order.userId), eq(users.emailVerified, false)));
+    }
+
     const client = await createCloverClient();
     if (!client) return null;
 

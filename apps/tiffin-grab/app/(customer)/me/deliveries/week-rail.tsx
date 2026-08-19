@@ -6,20 +6,9 @@
 // scrollable surface and left/right week buttons fight the same axis.
 
 import { useEffect, useRef } from "react";
-import { addDays, differenceInCalendarDays } from "date-fns";
-import { toIsoLocal, parseIsoLocal, type CalendarCell } from "./calendar-constants";
+import { calendarRailDays, type CalendarCell } from "./calendar-constants";
 import { TiffinTile } from "./tiffin-tile";
 import { cellToTileData } from "./tile-data";
-
-function buildScrollDays(cellsByDate: Map<string, CalendarCell>, todayIso: string): string[] {
-  const dates = [...cellsByDate.keys()].sort();
-  if (!dates.length) return [todayIso];
-
-  const start = parseIsoLocal(dates[0]!);
-  const end = parseIsoLocal(dates[dates.length - 1]!);
-  const count = differenceInCalendarDays(end, start) + 1;
-  return Array.from({ length: count }, (_, i) => toIsoLocal(addDays(start, i)));
-}
 
 export function WeekRail({
   cellsByDate, selected, onSelect, todayIso,
@@ -30,7 +19,7 @@ export function WeekRail({
   todayIso: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const days = buildScrollDays(cellsByDate, todayIso);
+  const days = calendarRailDays([...cellsByDate.keys()], todayIso);
   const scrollTarget = selected || todayIso;
 
   useEffect(() => {
@@ -45,7 +34,7 @@ export function WeekRail({
   return (
     <div
       ref={scrollerRef}
-      className="-mx-4 flex snap-x snap-mandatory gap-1 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="-mx-4 flex snap-x snap-proximity gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {days.map((iso) => {
         const cell = cellsByDate.get(iso);

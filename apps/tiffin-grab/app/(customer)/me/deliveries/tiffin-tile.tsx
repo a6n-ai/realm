@@ -8,7 +8,8 @@ import { motion, useReducedMotion } from "motion/react";
 import { LockIcon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
 import { cn } from "@realm/ui/cn";
-import { DAY_STATUS_UNDERLINE_CLASS, type DayStatus } from "./day-status";
+import { calendarLegendLabel, type DayStatus } from "./day-status";
+import { DayStatusMark } from "./calendar-legend";
 
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -33,20 +34,24 @@ export function TiffinTile({
   const locked = status === "locked";
   const off = status === "off";
 
-  const tapAnimation = reduce || off
+  const tapAnimation = reduce
     ? undefined
     : locked
       ? { rotate: [0, -2.5, 2.5, -1, 0] }
       : { scale: 0.96 };
 
+  const legendLabel = calendarLegendLabel(status);
+  const statusName = legendLabel ?? (off ? "not scheduled" : null);
+
   const dateCircleClass = cn(
     "flex shrink-0 items-center justify-center rounded-full font-semibold tabular-nums transition-colors",
-    variant === "week" ? "size-8 text-sm" : "size-8 text-sm",
-    // Week strip: primary fill on the number. Month grid: whole cell is primary (ReUI day style).
+    variant === "week" ? "size-9 text-sm" : "size-8 text-sm",
+        // Week strip: primary fill on the selected number. Month: same, so the status
+        // mark below stays the legend color instead of washing the whole cell saffron.
     variant === "week" && selected && "bg-primary text-primary-foreground",
     variant === "week" && !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
     variant === "week" && !selected && !isToday && "text-foreground",
-    variant === "month" && selected && "text-primary-foreground",
+    variant === "month" && selected && "bg-primary text-primary-foreground",
     variant === "month" && !selected && isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background",
     variant === "month" && !selected && !isToday && "text-foreground",
   );
@@ -58,14 +63,13 @@ export function TiffinTile({
       <motion.button
         type="button"
         onClick={onClick}
-        disabled={off}
         whileTap={tapAnimation}
         transition={locked ? { duration: 0.32, ease: "easeOut" } : { type: "spring", duration: 0.3, bounce: 0 }}
-        aria-label={`${weekday} ${dayNum}${isToday ? ", today" : ""}${dishName ? `, ${dishName}` : ""}${locked ? ", delivered" : off ? ", not scheduled" : ""}`}
+        aria-label={`${weekday} ${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${dishName ? `, ${dishName}` : ""}`}
         aria-pressed={selected}
         className={cn(
-          "group relative flex w-14 shrink-0 snap-center flex-col items-center gap-0.5 px-1 py-1.5 text-center transition-colors",
-          off && "cursor-default opacity-50",
+          "group relative flex min-h-11 w-14 shrink-0 snap-center touch-manipulation flex-col items-center gap-0.5 px-1 py-1.5 text-center transition-colors",
+          off && !selected && "opacity-50",
         )}
       >
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -83,8 +87,10 @@ export function TiffinTile({
           <span className="text-[9px] font-medium leading-none text-primary">Today</span>
         )}
 
-        {underlineVisible && (
-          <span className={cn("mt-0.5 h-[3px] w-5 rounded-full", DAY_STATUS_UNDERLINE_CLASS[status])} aria-hidden />
+        {underlineVisible ? (
+          <DayStatusMark status={status} className="mt-0.5" />
+        ) : (
+          <DayStatusMark status="off" className="mt-0.5" />
         )}
       </motion.button>
     );
@@ -97,21 +103,21 @@ export function TiffinTile({
       disabled={off}
       whileTap={tapAnimation}
       transition={locked ? { duration: 0.32, ease: "easeOut" } : { type: "spring", duration: 0.3, bounce: 0 }}
-      aria-label={`${dayNum}${dishName ? `, ${dishName}` : ""}${locked ? ", delivered" : off ? ", not scheduled" : ""}`}
+      aria-label={`${dayNum}${isToday ? ", today" : ""}${statusName ? `, ${statusName}` : ""}${dishName ? `, ${dishName}` : ""}`}
       aria-pressed={selected}
       className={cn(
-        // Match ReUI CalendarDayButton selected: full-cell primary, not a tiny number chip.
+        // Selection is a ring + number fill so the status mark stays the legend color.
         "group relative mx-auto flex h-full min-h-11 w-full min-w-11 flex-col items-center justify-center gap-1 rounded-(--cell-radius) py-1 text-center transition-colors",
-        selected && "bg-primary text-primary-foreground",
+        selected && "ring-2 ring-primary ring-offset-1 ring-offset-background",
         !selected && isToday && "bg-muted",
         off && !selected && "cursor-default opacity-40",
       )}
     >
       <span className={dateCircleClass}>{dayNum}</span>
       {underlineVisible ? (
-        <span className={cn("h-[3px] w-5 rounded-full", DAY_STATUS_UNDERLINE_CLASS[status])} aria-hidden />
+        <DayStatusMark status={status} />
       ) : (
-        <span className="h-[3px] w-5" aria-hidden />
+        <DayStatusMark status="off" />
       )}
     </motion.button>
   );

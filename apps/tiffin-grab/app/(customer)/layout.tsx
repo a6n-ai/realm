@@ -39,6 +39,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   return (
     <TimezoneProvider tz={timezone}>
       <CrmShell
+        chrome="glass"
         hideSidebarOnMobile
         brand={<AppBrand href="/me" subtitle="Meals" />}
         sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}

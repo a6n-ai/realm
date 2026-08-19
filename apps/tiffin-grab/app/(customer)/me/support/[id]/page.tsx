@@ -1,27 +1,19 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ChevronLeftIcon, LifeBuoyIcon } from "lucide-react";
+import { LifeBuoyIcon } from "lucide-react";
 import { AuthError, ForbiddenError, NotFoundError } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { BackLink } from "@/components/back-link";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 
 export default function TicketThreadPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
-      <div className="md:hidden">
-        <Link
-          href="/me/support"
-          className="text-muted-foreground hover:text-foreground mb-4 inline-flex min-h-11 items-center gap-1 text-sm transition-colors"
-        >
-          <ChevronLeftIcon className="size-4" aria-hidden />
-          Support
-        </Link>
-      </div>
+      <BackLink href="/me/support" label="Support" />
 
       <Suspense fallback={<PageHeader icon={LifeBuoyIcon} title="Support ticket" />}>
         <TicketHeader params={params} />

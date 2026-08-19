@@ -5,8 +5,9 @@ import { cn } from "@realm/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@realm/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@realm/ui/drawer";
 
-// One create/edit surface: top drawer on mobile (forms start at the top; no
-// blank gap under a bottom sheet), standard Dialog on desktop.
+// One create/edit surface: Dialog on desktop. Mobile defaults to a top drawer
+// (admin inquiry/order forms start at the top; no blank gap under a bottom
+// sheet). Pass direction="bottom" for customer task sheets (vacation, skip).
 export function ResponsiveDialog({
   open,
   onOpenChange,
@@ -16,6 +17,9 @@ export function ResponsiveDialog({
   children,
   footer,
   contentClassName,
+  direction = "top",
+  nested = false,
+  handleOnly = false,
 }: {
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
@@ -25,15 +29,27 @@ export function ResponsiveDialog({
   children: ReactNode;
   footer?: ReactNode;
   contentClassName?: string;
+  direction?: "top" | "bottom";
+  /** Nested Vaul drawer — required when this sheet opens from inside another drawer. */
+  nested?: boolean;
+  /** Only the handle swipes the sheet closed; inner widgets (calendars) keep pointer events. */
+  handleOnly?: boolean;
 }) {
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
-      <Drawer direction="top" open={open} onOpenChange={onOpenChange}>
+      <Drawer
+        nested={nested}
+        handleOnly={handleOnly}
+        direction={direction}
+        open={open}
+        onOpenChange={onOpenChange}
+      >
         {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
         <DrawerContent
           className={cn(
-            "flex max-h-[92dvh] flex-col gap-0 overflow-hidden rounded-b-2xl p-0",
+            "flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0",
+            direction === "top" ? "rounded-b-2xl" : "rounded-t-2xl",
             contentClassName,
           )}
         >

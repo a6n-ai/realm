@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { FolderTreeIcon, PencilIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { FolderTreeIcon, PencilIcon, RefreshCwIcon } from "lucide-react";
+import { toast } from "sonner";
 import {
   DataTable,
   ListPagination,
@@ -12,11 +14,47 @@ import {
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { TableCell } from "@realm/ui/table";
+import { apiFetch } from "@/lib/http/api-fetch";
 import { ColorSwatch } from "@/components/products/clover-color-swatch";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CategoryListRow, CategorySortColumn } from "@/lib/services/inventory.service";
 import { CategoryEditDialog } from "./category-edit-dialog";
+
+/** Per-row push — same endpoint the bulk "Push categories" button hits, scoped to one publicId. */
+function PushCategoryButton({ category }: { category: CategoryListRow }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  function onClick() {
+    startTransition(async () => {
+      try {
+        await apiFetch("/api/inventory/sync/clover", {
+          method: "POST",
+          body: JSON.stringify({ direction: "push_categories", publicIds: [category.publicId] }),
+        });
+        toast.success(`Pushed "${category.name}" to Clover`);
+        router.refresh();
+      } catch {
+        // apiFetch already toasts
+      }
+    });
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-7 px-2"
+      aria-label={`Push ${category.name} to Clover`}
+      disabled={pending}
+      onClick={onClick}
+    >
+      <RefreshCwIcon className={pending ? "size-3.5 animate-spin" : "size-3.5"} />
+    </Button>
+  );
+}
 
 // Sortable keys must match CategorySortColumn; the rest are display-only.
 type CategoryCol = CategorySortColumn | "color" | "clover" | "actions";
@@ -93,7 +131,8 @@ export function CategoriesTable({
             <TableCell className="text-muted-foreground text-right text-sm">
               {relativeTime(r.cloverLastSyncedAt)}
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="flex justify-end gap-1 text-right">
+              <PushCategoryButton category={r} />
               <Button
                 type="button"
                 variant="ghost"

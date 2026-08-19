@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@realm/ui/cn";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@realm/ui/sidebar";
 import { Separator } from "@realm/ui/separator";
 import { DesktopOnlySidebar } from "./desktop-only-sidebar";
@@ -17,6 +18,7 @@ export function CrmShell({
   footer,
   bottomNav,
   hideSidebarOnMobile = false,
+  chrome = "crm",
   children,
 }: {
   sidebar: ReactNode;
@@ -28,9 +30,12 @@ export function CrmShell({
   footer?: ReactNode;
   bottomNav?: ReactNode;
   hideSidebarOnMobile?: boolean;
+  /** Customer mobile uses floating glass chrome; admin stays a solid CRM bar. */
+  chrome?: "crm" | "glass";
   children: ReactNode;
 }) {
   const mobileBrand = hideSidebarOnMobile && brand;
+  const glass = chrome === "glass";
 
   return (
     <SidebarProvider>
@@ -40,7 +45,22 @@ export function CrmShell({
         sidebar
       )}
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        <header
+          className={cn(
+            "flex shrink-0 items-center gap-2 px-4",
+            glass ? "h-16 md:h-14" : "h-14",
+            glass
+              ? cn(
+                  "sticky top-0 z-30",
+                  "max-md:border-b-0 max-md:bg-background/55 max-md:backdrop-blur-2xl max-md:backdrop-saturate-150",
+                  "max-md:shadow-[inset_0_-1px_0_rgba(255,255,255,0.45)]",
+                  "dark:max-md:bg-background/40 dark:max-md:shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]",
+                  "md:border-b",
+                  "[@media(prefers-reduced-transparency:reduce)]:bg-background [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none",
+                )
+              : "border-b",
+          )}
+        >
           {mobileBrand ? (
             <div className="min-w-0 flex-1 md:hidden">{brand}</div>
           ) : null}
@@ -73,8 +93,19 @@ export function CrmShell({
             </div>
           ) : null}
         </header>
-        {center ? <div className="border-b px-4 py-2 md:hidden">{center}</div> : null}
-        <div className="flex-1 p-6 pb-28 md:pb-6">{children}</div>
+        {center ? (
+          <div
+            className={cn(
+              "px-4 py-2 md:hidden",
+              glass
+                ? "border-b-0 bg-background/40 backdrop-blur-xl dark:bg-background/30"
+                : "border-b",
+            )}
+          >
+            {center}
+          </div>
+        ) : null}
+        <div className={cn("flex-1 p-6 md:pb-6", glass ? "pb-36" : "pb-28")}>{children}</div>
       </SidebarInset>
       {bottomNav}
       {footer}

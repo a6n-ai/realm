@@ -4,10 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PalmtreeIcon, PlayIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
+import { IOS_BUTTON } from "@/components/customer/ios-button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
 import type { PausePanel } from "./delivery-calendar";
+import { ActionCard, DELIVERY_SHEET_DIRECTION } from "./action-card";
 import { pauseMySubscription, resumeMySubscription } from "./actions";
 import {
   buildVacationPauseRequest,
@@ -49,6 +51,7 @@ export function VacationControl({
   open: openProp,
   onOpenChange,
   hideTrigger = false,
+  layout = "tile",
 }: {
   sub: Subscription;
   pausePanel: PausePanel;
@@ -57,6 +60,7 @@ export function VacationControl({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  layout?: "row" | "tile";
 }) {
   const router = useRouter();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -173,6 +177,26 @@ export function VacationControl({
       ? "Confirm vacation"
       : "Plan a vacation";
 
+  const footer = onVacation ? (
+    <Button className={IOS_BUTTON} disabled={resumePending} onClick={submitResume}>
+      <PlayIcon data-icon="inline-start" />
+      {resumeFromDate ? "Resume from this day" : "Resume all deliveries"}
+    </Button>
+  ) : step === "form" ? (
+    <Button className={IOS_BUTTON} disabled={!canContinue} onClick={goToConfirm}>
+      Continue
+    </Button>
+  ) : (
+    <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+      <Button type="button" variant="secondary" className={IOS_BUTTON} disabled={pausePending} onClick={() => setStep("form")}>
+        Go back
+      </Button>
+      <Button className={IOS_BUTTON} disabled={pausePending} onClick={submitVacation}>
+        <PalmtreeIcon data-icon="inline-start" /> Confirm vacation
+      </Button>
+    </div>
+  );
+
   return (
     <ResponsiveDialog
       open={open}
@@ -180,22 +204,27 @@ export function VacationControl({
         setOpen(next);
         if (!next) resetForm();
       }}
+      direction={DELIVERY_SHEET_DIRECTION}
       trigger={
         hideTrigger ? undefined : (
-          <Button variant={onVacation ? "secondary" : "outline"} size="sm">
-            {onVacation ? (
-              <PlayIcon data-icon="inline-start" />
-            ) : (
-              <PalmtreeIcon data-icon="inline-start" />
-            )}
-            {onVacation ? "Resume" : "Vacation"}
-          </Button>
+          <ActionCard
+            layout={layout}
+            icon={onVacation ? PlayIcon : PalmtreeIcon}
+            title={onVacation ? "Resume" : "Vacation"}
+            aria-label={onVacation ? "Resume deliveries" : "Plan a vacation"}
+            description={
+              onVacation
+                ? "Start this plan again"
+                : "Pause for a trip"
+            }
+          />
         )
       }
       title={dialogTitle}
-      description={sub.planName}
+      description={sub.mealSizeName}
+      footer={footer}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 px-4 pb-4">
         {onVacation ? (
           <div className="space-y-3">
             <p className="text-muted-foreground text-sm">
@@ -217,10 +246,6 @@ export function VacationControl({
                 before it become tiffins you can schedule after your last delivery.
               </p>
             )}
-            <Button disabled={resumePending} onClick={submitResume}>
-              <PlayIcon data-icon="inline-start" />
-              {resumeFromDate ? "Resume from this day" : "Resume all deliveries"}
-            </Button>
             {resumeError && <p className="text-bad text-xs">{resumeError}</p>}
           </div>
         ) : step === "form" ? (
@@ -258,29 +283,18 @@ export function VacationControl({
                   : `Deliveries pause from ${formatDateOnly(startDate, { mode: "short" })} through ${formatDateOnly(endDate, { mode: "short" })}.`}
               </p>
             )}
-            <Button variant="secondary" disabled={!canContinue} onClick={goToConfirm}>
-              Continue
-            </Button>
             {pauseError && <p className="text-bad text-xs">{pauseError}</p>}
           </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm">{vacationSummaryMessage(startDate, endDate)}</p>
             <div className="bg-muted/50 rounded-lg border px-3 py-2.5 text-sm">
-              <p className="font-medium">{sub.planName}</p>
+              <p className="font-medium">{sub.mealSizeName}</p>
               <p className="text-muted-foreground mt-1">
                 {openEndedVacation
                   ? `From ${formatDateOnly(startDate, { mode: "long" })} · until you resume`
                   : `${formatDateOnly(startDate, { mode: "long" })} → ${formatDateOnly(endDate, { mode: "long" })}`}
               </p>
-            </div>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" disabled={pausePending} onClick={() => setStep("form")}>
-                Go back
-              </Button>
-              <Button disabled={pausePending} onClick={submitVacation}>
-                <PalmtreeIcon data-icon="inline-start" /> Confirm vacation
-              </Button>
             </div>
             {pauseError && <p className="text-bad text-xs">{pauseError}</p>}
           </div>
