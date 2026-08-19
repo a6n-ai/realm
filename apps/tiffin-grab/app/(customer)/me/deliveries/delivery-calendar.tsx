@@ -12,7 +12,7 @@ import type { CustomerDelivery, myPausePanel, Subscription, TiffinCounts, Waitli
 import { WaitlistCard } from "@/components/customer/home/waitlist-card";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { DeliveryCardMeal } from "./meal-chips";
-import { VacationControl, cutoffByDateFromDeliveries } from "./vacation-control";
+import { VacationControl } from "./vacation-control";
 import { MonthCalendar } from "./month-calendar";
 import { DayDetail, holdDeliveriesFrom } from "./day-detail";
 import { MobileDayOrderCard } from "./mobile-day-order-card";
@@ -143,7 +143,6 @@ function TiffinCalendarSection({
 
   const selectedCell = cellsByDate.get(selected);
   const selectedDelivery = deliveryByDate.get(selected);
-  const cutoffByDate = cutoffByDateFromDeliveries(deliveries);
 
   const dayDetailBase = {
     dateIso: selected,
@@ -190,7 +189,7 @@ function TiffinCalendarSection({
           variant="picker"
           {...dayDetailBase}
           planActions={
-            <VacationControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
+            <VacationControl sub={sub} pausePanel={pausePanel} today={todayIso} />
           }
         />
       </div>
@@ -208,7 +207,7 @@ function TiffinCalendarSection({
               <DayDetail
                 {...dayDetailBase}
                 planActions={
-                  <VacationControl sub={sub} pausePanel={pausePanel} cutoffByDate={cutoffByDate} today={todayIso} />
+                  <VacationControl sub={sub} pausePanel={pausePanel} today={todayIso} />
                 }
               />
             </CardContent>

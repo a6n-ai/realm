@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { calendarLegendKey, deliveryDayStatus, DAY_STATUS_UNDERLINE_CLASS, LEGEND_MARK_CLASS } from "./day-status";
+import {
+  calendarLegendKey,
+  deliveryDayStatus,
+  DAY_STATUS_UNDERLINE_CLASS,
+  DELIVERED_DATE_RING_CLASS,
+  LEGEND_MARK_CLASS,
+} from "./day-status";
 
 describe("deliveryDayStatus", () => {
   const now = 1_000_000;
@@ -44,5 +50,10 @@ describe("calendar legend mapping", () => {
     expect(LEGEND_MARK_CLASS.upcoming).toContain("sky");
     expect(LEGEND_MARK_CLASS.vacation).toContain("orange");
     expect(LEGEND_MARK_CLASS.onHold).toContain("rose");
+  });
+
+  it("circles delivered dates in the same emerald as the legend dash", () => {
+    expect(DELIVERED_DATE_RING_CLASS).toContain("ring-emerald-500");
+    expect(LEGEND_MARK_CLASS.delivered).toContain("emerald-500");
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildVacationPauseRequest,
+  validateVacationDates,
   vacationRequiresEndDate,
   vacationSummaryMessage,
 } from "../vacation-pause";
@@ -29,5 +30,31 @@ describe("vacation-pause", () => {
   it("summarizes open-ended vs bounded vacations", () => {
     expect(vacationSummaryMessage("2026-08-01", "")).toMatch(/until you resume/i);
     expect(vacationSummaryMessage("2026-08-01", "2026-08-10")).toMatch(/date range/i);
+  });
+
+  it("allows a vacation that starts today", () => {
+    expect(
+      validateVacationDates({
+        from: "2026-08-19",
+        until: "2026-08-19",
+        indefinite: true,
+        today: "2026-08-19",
+        endDateRequired: false,
+        endDate: "",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects a start date before today", () => {
+    expect(
+      validateVacationDates({
+        from: "2026-08-18",
+        until: "2026-08-20",
+        indefinite: false,
+        today: "2026-08-19",
+        endDateRequired: false,
+        endDate: "2026-08-20",
+      }),
+    ).toMatch(/past/i);
   });
 });

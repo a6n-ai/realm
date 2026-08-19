@@ -27,12 +27,14 @@ function pickerWeekday(date: Date): Weekday {
 
 function DateCalendar({
   value,
+  today,
   minDate,
   maxDate,
   allowedDays,
   onSelect,
 }: {
   value: string;
+  today: string;
   minDate: string;
   maxDate?: string;
   allowedDays?: readonly string[];
@@ -47,13 +49,15 @@ function DateCalendar({
     <Calendar
       mode="single"
       selected={selected}
+      today={isoToPickerDate(today)}
       defaultMonth={selected ?? min}
       startMonth={min}
       endMonth={max}
       className="mx-auto [--cell-size:2.75rem]"
       disabled={[
-        { before: min },
-        ...(max ? [{ after: max }] : []),
+        // YYYY-MM-DD compare so minDate (today) stays selectable; `{ before: Date }` can exclude it.
+        (date: Date) => pickerDateToIso(date) < minDate,
+        ...(maxDate ? [(date: Date) => pickerDateToIso(date) > maxDate] : []),
         ...(allowed ? [(date: Date) => !allowed.includes(pickerWeekday(date))] : []),
       ]}
       onSelect={(date) => {
@@ -129,6 +133,7 @@ export function DateField({
           <div className="px-4 pb-6" data-vaul-no-drag>
             <DateCalendar
               value={value}
+              today={today}
               minDate={boundMin}
               maxDate={maxDate}
               allowedDays={allowedDays}
@@ -142,6 +147,7 @@ export function DateField({
           <PopoverContent className="w-auto p-0" align="start">
             <DateCalendar
               value={value}
+              today={today}
               minDate={boundMin}
               maxDate={maxDate}
               allowedDays={allowedDays}

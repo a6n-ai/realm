@@ -22,3 +22,19 @@ export function vacationSummaryMessage(startDate: string, endDate: string): stri
   }
   return "Deliveries for this subscription will be paused for the selected date range.";
 }
+
+/** Client-side vacation form checks. Past-cutoff days in the window are skipped server-side, not a reason to reject today as a start. */
+export function validateVacationDates(input: {
+  from: string;
+  until: string;
+  indefinite: boolean;
+  today: string;
+  endDateRequired: boolean;
+  endDate: string;
+}): string | null {
+  if (!input.from) return "Start date is required";
+  if (input.from < input.today) return "Start date cannot be in the past";
+  if (input.endDateRequired && !input.endDate) return "This plan requires an end date for vacation";
+  if (!input.indefinite && input.until < input.from) return "End date must be on or after the start date";
+  return null;
+}
