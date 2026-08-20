@@ -123,7 +123,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
         {form.formState.errors.root && (
           <p className="text-destructive text-sm">{form.formState.errors.root.message}</p>
         )}
-        <Button type="submit" disabled={form.formState.isSubmitting} className="hover-lift group w-fit">
+        <Button type="submit" disabled={form.formState.isSubmitting} className="hover-lift group h-14 w-fit rounded-full px-8">
           Send message<Send className="icon-pop size-4" />
         </Button>
       </form>

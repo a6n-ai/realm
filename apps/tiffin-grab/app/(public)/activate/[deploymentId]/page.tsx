@@ -98,7 +98,7 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
           </div>
         </div>
         <a
-          className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+          className="mt-6 inline-flex h-[52px] items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
           href="/dashboard/meals"
         >
           Go to My Meals →

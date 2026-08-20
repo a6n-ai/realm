@@ -25,7 +25,7 @@ export function SubscribeChrome({
         type="button"
         variant="ghost"
         size="sm"
-        className="-ml-2 font-semibold tracking-tight"
+        className="-ml-2 h-11 font-semibold tracking-tight"
         onClick={() => (onBack ? onBack() : router.back())}
       >
         <ArrowLeftIcon data-icon="inline-start" />
@@ -42,7 +42,7 @@ export function SubscribeChrome({
         size="icon-sm"
         asChild
         aria-label="Close"
-        className="rounded-full border-[1.5px] border-foreground"
+        className="size-11 rounded-full border-[1.5px] border-foreground"
       >
         <Link href={closeHref}>
           <XIcon />

@@ -24,7 +24,7 @@ export function DabbaMath({ eyebrow, cta = "See my price →" }: { eyebrow?: str
         <p className="m-0 max-w-65"><strong className="text-[#1D5C32]">Longer commitments</strong> earn up to −12%.</p>
         <p className="m-0 max-w-65"><strong className="text-[#1D5C32]">Weekends optional</strong> — billed per tiffin, same as weekdays.</p>
       </div>
-      <Button asChild size="lg" className="mt-8.5 rounded-full"><Link href="/subscribe">{cta}</Link></Button>
+      <Button asChild size="lg" className="mt-8.5 h-14 rounded-full px-8"><Link href="/subscribe">{cta}</Link></Button>
     </>
   );
 }

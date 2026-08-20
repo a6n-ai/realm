@@ -60,7 +60,7 @@ export default async function LandingPage() {
       </Section>
       <Section className="flex flex-col items-center gap-4 text-center">
         <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
-        <Button asChild size="lg" className="hover-lift animate-pulse-ring"><Link href="/subscribe">Start your plan</Link></Button>
+        <Button asChild size="lg" className="hover-lift animate-pulse-ring h-14 rounded-full px-8"><Link href="/subscribe">Start your plan</Link></Button>
       </Section>
       <GoogleReviewsSection />
       <Section id="faq" className="max-w-2xl scroll-mt-24">

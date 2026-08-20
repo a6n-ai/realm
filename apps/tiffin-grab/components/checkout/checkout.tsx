@@ -269,7 +269,7 @@ export function Checkout({
                   }
                 />
               </div>
-              <Button size="lg" className="hover-lift w-full rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)] sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
+              <Button size="lg" className="hover-lift h-14 w-full rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
             </section>
           </Card>
         )}
@@ -338,10 +338,10 @@ export function Checkout({
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" className="rounded-full border-[1.5px] border-foreground" onClick={() => setStep(1)}>Back</Button>
+                <Button variant="outline" className="h-14 rounded-full border-[1.5px] border-foreground px-6" onClick={() => setStep(1)}>Back</Button>
                 <Button
                   size="lg"
-                  className="hover-lift flex-1 rounded-full shadow-[0_12px_30px_-6px_var(--color-primary)] sm:flex-none"
+                  className="hover-lift h-14 flex-1 rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:flex-none"
                   disabled={submitting || (realPayments && !paymentMethodId)}
                   onClick={confirm}
                 >

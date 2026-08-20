@@ -39,7 +39,7 @@ export default async function MenuPage() {
           </div>
         );
       })}
-      <Button asChild size="lg" className="hover-lift group w-fit rounded-full"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
+      <Button asChild size="lg" className="hover-lift group h-14 w-fit rounded-full px-8"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
     </Section>
   );
 }
