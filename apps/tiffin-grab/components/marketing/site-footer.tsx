@@ -27,6 +27,11 @@ export function SiteFooter() {
       <div className="text-muted-foreground border-t py-4 text-center text-xs">
         © 2026 Tiffin Grab. All rights reserved.
       </div>
+      <div className="overflow-hidden px-2 pb-2">
+        <div className="text-primary translate-y-[14%] text-center text-[clamp(58px,12.5vw,180px)] leading-[0.9] font-bold tracking-[-0.05em] select-none">
+          TIFFIN GRAB
+        </div>
+      </div>
     </footer>
   );
 }
