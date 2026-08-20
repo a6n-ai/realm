@@ -17,9 +17,9 @@ export default function PricingPage() {
       <div className="space-y-8">
         <div className="max-w-2xl">
           <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — How it works</p>
-          <h2 className="m-0 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">From baseline to your first delivery.</h2>
+          <h2 className="m-0 text-[clamp(28px,5vw,50px)] leading-[1.05] font-bold tracking-[-1.5px]">From baseline to your first delivery.</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           {STEPS.map((s) => (
             <div key={s.n} className="rounded-2xl border-[1.5px] border-foreground p-6">
               <span className="text-sm font-semibold text-muted-foreground tabular-nums">{String(s.n).padStart(2, "0")}</span>
