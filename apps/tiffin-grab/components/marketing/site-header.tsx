@@ -9,9 +9,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@rea
 import { ModeToggle } from "@/components/mode-toggle";
 
 const LINKS = [
-  { href: "/pricing", label: "Pricing" },
   { href: "/menu", label: "Menu" },
   { href: "/menu/weekly", label: "Weekly Menu" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ];
 
