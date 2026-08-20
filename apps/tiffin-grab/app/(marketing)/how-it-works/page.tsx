@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { DabbaMath } from "@/components/marketing/dabba-math";
 import { Section } from "@/components/marketing/section";
 import { StepCard } from "@/components/marketing/cards";
 
-export const metadata: Metadata = { title: "How it works — Tiffin Grab", description: "Build a plan in four steps, check out, and activate your tiffin subscription." };
+export const metadata: Metadata = { title: "How it works & pricing — Tiffin Grab", description: "Build a plan in four steps, see the per-tiffin pricing formula, check out, and activate your subscription." };
 
 const STEPS = [
   { n: 1, title: "Nutrition baseline", body: "Choose Pure Vegetarian, Halal Non-Veg, or a Veg & Non-Veg mix." },
@@ -16,15 +14,18 @@ const STEPS = [
 
 export default function HowItWorksPage() {
   return (
-    <Section className="space-y-8">
-      <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">How it works</h1>
-        <p className="text-muted-foreground mt-2">From baseline to your first delivery in a few guided steps.</p>
+    <Section className="space-y-10">
+      <div className="space-y-8">
+        <div className="max-w-2xl">
+          <h1 className="text-3xl font-semibold tracking-tight">How it works</h1>
+          <p className="text-muted-foreground mt-2">From baseline to your first delivery in a few guided steps.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map((s) => <StepCard key={s.n} {...s} />)}
+        </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STEPS.map((s) => <StepCard key={s.n} {...s} />)}
-      </div>
-      <Button asChild size="lg" className="hover-lift group"><Link href="/subscribe">Start your plan <ArrowRight className="icon-pop size-4" /></Link></Button>
+
+      <DabbaMath eyebrow="So what does it cost?" cta="Start your plan →" />
     </Section>
   );
 }
