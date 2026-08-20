@@ -15,6 +15,7 @@ export function SiteFooter() {
           <ul className="mt-2 space-y-1">
             <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
             <li><Link href="/menu" className="hover:text-foreground">Menu</Link></li>
+            <li><Link href="/menu/weekly" className="hover:text-foreground">Weekly Menu</Link></li>
             <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
           </ul>
         </div>

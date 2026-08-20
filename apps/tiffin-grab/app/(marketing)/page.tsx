@@ -36,7 +36,7 @@ export default async function LandingPage() {
   return (
     <>
       <Hero />
-      <Section>
+      <Section id="plans" className="scroll-mt-24">
         <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — Pick a baseline</p>
         <h2 className="m-0 mb-2.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Three ways to eat.</h2>
         <PlanRows plans={catalog.plans} />
