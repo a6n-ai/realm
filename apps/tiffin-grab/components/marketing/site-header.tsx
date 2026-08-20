@@ -22,28 +22,26 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
-            <UtensilsCrossedIcon className="size-5" />
-          </span>
-          Tiffin Grab
-        </Link>
-        <nav className="hidden items-center gap-5 md:flex">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`text-sm ${pathname === l.href ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex"><Link href="/login">Sign in</Link></Button>
-          <Button asChild size="sm" className="hidden md:inline-flex"><Link href="/subscribe">Start subscription</Link></Button>
+    <header className="sticky top-0 z-40 flex items-center justify-between gap-4 px-4 py-3 backdrop-blur">
+      <Link href="/" className="flex items-center gap-2 font-semibold">
+        <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full">
+          <UtensilsCrossedIcon className="size-5" />
+        </span>
+      </Link>
+      <nav className="border-border bg-background/90 hidden items-center gap-1 rounded-full border p-1 backdrop-blur md:flex">
+        {LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={`rounded-full px-4 py-2 text-sm ${pathname === l.href ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {l.label}
+          </Link>
+        ))}
+        <Button asChild size="sm" className="ml-1 rounded-full"><Link href="/subscribe">Start →</Link></Button>
+      </nav>
+      <div className="ml-auto flex items-center gap-2">
+        <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex"><Link href="/login">Sign in</Link></Button>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
@@ -75,8 +73,7 @@ export function SiteHeader() {
                 </Button>
               </div>
             </SheetContent>
-          </Sheet>
-        </div>
+        </Sheet>
       </div>
     </header>
   );
