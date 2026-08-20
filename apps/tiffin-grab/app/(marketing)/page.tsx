@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Button } from "@realm/ui/button";
 import { GoogleReviewsSection } from "@/components/marketing/google-reviews-section";
 import { Hero } from "@/components/marketing/hero";
+import { PlanRows } from "@/components/marketing/plan-rows";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { menuService } from "@/lib/services/menu.service";
 
 export const metadata: Metadata = {
@@ -22,10 +24,15 @@ const VALUES = [
 ];
 
 export default async function LandingPage() {
-  const pub = await menuService.getPublishedWeek();
+  const [pub, catalog] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot()]);
   return (
     <>
       <Hero />
+      <Section>
+        <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — Pick a baseline</p>
+        <h2 className="m-0 mb-2.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Three ways to eat.</h2>
+        <PlanRows plans={catalog.plans} />
+      </Section>
       <Section className="grid gap-6 sm:grid-cols-3">
         {VALUES.map((v) => (
           <div key={v.title} className="hover-lift card-glow rounded-lg border p-6">
