@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@realm/ui/button";
 
@@ -5,24 +6,26 @@ export function Hero() {
   return (
     <section className="relative flex min-h-[86vh] flex-col justify-center overflow-hidden px-4 pt-28 pb-16 sm:px-8 md:px-12">
       <div className="absolute inset-0" aria-hidden>
-        {/* eslint-disable-next-line @next/next/no-img-element -- external Commons hotlink, not an optimizable local asset */}
-        <img
+        <Image
           src="https://commons.wikimedia.org/wiki/Special:FilePath/Traditional%20North%20Indian%20Thali.jpg?width=1600"
           alt=""
-          className="h-full w-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,var(--background)_10%,color-mix(in_srgb,var(--background)_74%,transparent)_48%,color-mix(in_srgb,var(--background)_28%,transparent)_78%,transparent_100%)]" />
         <div className="absolute inset-x-0 bottom-0 h-[32%] bg-[linear-gradient(transparent,var(--background))]" />
         <div className="absolute inset-x-0 top-0 h-[110px] bg-[linear-gradient(var(--background),transparent)]" />
-        <a
-          href="https://commons.wikimedia.org/wiki/File:Traditional_North_Indian_Thali.jpg"
-          target="_blank"
-          rel="noreferrer"
-          className="absolute right-2 bottom-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
-        >
-          Photo: Wikimedia Commons, CC BY-SA 4.0
-        </a>
       </div>
+      <a
+        href="https://commons.wikimedia.org/wiki/File:Traditional_North_Indian_Thali.jpg"
+        target="_blank"
+        rel="noreferrer"
+        className="absolute right-2 bottom-2 z-[1] text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
+      >
+        Photo: Wikimedia Commons, CC BY-SA 4.0
+      </a>
       <div className="relative z-10 max-w-4xl">
         <p className="mb-1.5 text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase">
           Tiffin Grab · Greater Toronto Area

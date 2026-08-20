@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
     // so there is no fixed value to allow-list and they must stay on plain <img>.
     // Optimizing them would cache one user's token-bearing response under a shared key.
     localPatterns: [{ pathname: "/api/files/**", search: "" }],
+    // Marketing hero background: a single static CC BY-SA Commons photo, not user content.
+    remotePatterns: [{ protocol: "https", hostname: "commons.wikimedia.org", pathname: "/wiki/Special:FilePath/**" }],
   },
   experimental: { optimizePackageImports: ["radix-ui", "cmdk"] },
 };
