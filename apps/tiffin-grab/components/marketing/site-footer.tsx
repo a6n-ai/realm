@@ -1,30 +1,27 @@
 import Link from "next/link";
+import { Button } from "@realm/ui/button";
+import { UtensilsCrossedIcon } from "lucide-react";
 
-const ZONES = "Etobicoke · Mississauga · Brampton · Toronto · Scarborough · Markham · Richmond Hill · North York · Vaughan · Oakville · East York";
+const ZONES = "Etobicoke · Mississauga · Brampton · Toronto · Scarborough · Markham · Richmond Hill · North York · Vaughan · Oakville & East York";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t">
-      <div className="text-muted-foreground mx-auto grid max-w-6xl gap-6 px-4 py-10 text-sm sm:grid-cols-3">
-        <div>
-          <div className="text-foreground font-semibold">Tiffin Grab</div>
-          <p className="mt-2">Customizable home-style tiffin delivery across the GTA.</p>
+    <footer className="bg-foreground text-background">
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full">
+            <UtensilsCrossedIcon className="size-5" />
+          </span>
+          <div className="flex flex-wrap items-center gap-6 text-sm">
+            <Button asChild size="sm" className="rounded-full"><Link href="/subscribe">Start a plan →</Link></Button>
+            <Link href="/contact" className="text-background/70 hover:text-background">Contact</Link>
+          </div>
         </div>
-        <div>
-          <div className="text-foreground font-medium">Explore</div>
-          <ul className="mt-2 space-y-1">
-            <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
-            <li><Link href="/menu" className="hover:text-foreground">Menu</Link></li>
-            <li><Link href="/menu/weekly" className="hover:text-foreground">Weekly Menu</Link></li>
-            <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-foreground font-medium">Areas served</div>
-          <p className="mt-2">{ZONES}</p>
-        </div>
+        <p className="text-background/70 mt-6 max-w-md text-sm leading-relaxed">
+          Customizable home-style tiffin delivery across {ZONES}.
+        </p>
       </div>
-      <div className="text-muted-foreground border-t py-4 text-center text-xs">
+      <div className="border-background/15 text-background/60 border-t py-4 text-center text-xs">
         © 2026 Tiffin Grab. All rights reserved.
       </div>
       <div className="overflow-hidden px-2 pb-2">
