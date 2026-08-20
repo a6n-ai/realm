@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
@@ -43,6 +43,9 @@ export function Wizard({
   const [step, setStep] = useState(0);
   const [selections, setSelections] = useState<WizardSelections>(initial);
   const [result, setResult] = useState<PricingResult | null>(null);
+  const prevStep = useRef(0);
+  const direction = step >= prevStep.current ? "forward" : "back";
+  useEffect(() => { prevStep.current = step; }, [step]);
 
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
 
@@ -89,34 +92,43 @@ export function Wizard({
         stepTag={STEPS[step]}
       />
 
-      <div className="mb-6 flex items-baseline gap-3.5">
-        <span className="text-[clamp(44px,7vw,72px)] leading-none font-bold tracking-[-3px] text-transparent [-webkit-text-stroke:2px_var(--color-primary)]">
-          {String(step + 1).padStart(2, "0")}
-        </span>
-        <span className="text-xs font-semibold text-muted-foreground">/ 0{STEPS.length}</span>
-      </div>
-      <h1 className="mb-6 text-[clamp(28px,5vw,50px)] leading-[1.05] font-bold tracking-[-1.5px]">{QUESTIONS[step]}</h1>
+      <div key={step} className="wizard-step-enter" data-direction={direction}>
+        <div className="mb-6 flex items-baseline gap-3.5">
+          <span className="text-[clamp(44px,7vw,72px)] leading-none font-bold tracking-[-3px] text-transparent [-webkit-text-stroke:2px_var(--color-primary)]">
+            {String(step + 1).padStart(2, "0")}
+          </span>
+          <span className="text-xs font-semibold text-muted-foreground">/ 0{STEPS.length}</span>
+        </div>
+        <h1 className="mb-6 text-[clamp(28px,5vw,50px)] leading-[1.05] font-bold tracking-[-1.5px]">{QUESTIONS[step]}</h1>
 
-      {step === 0 && (
-        <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
-      )}
-      {step === 1 && (
-        <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
-      )}
-      {step === 2 && (
-        <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
-      )}
-      {step === 3 && (
-        <StepDuration
-          catalog={catalog}
-          selections={selections}
-          set={set}
-          result={result}
-          sameWeekConflict={sameWeekConflict}
-          currentPlan={currentPlan}
-          minStartDate={minStartDate}
-        />
-      )}
+        {step === 0 && (
+          <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+        )}
+        {step === 1 && (
+          <StepBundle catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+        )}
+        {step === 2 && (
+          <StepSchedule catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />
+        )}
+        {step === 3 && (
+          <StepDuration
+            catalog={catalog}
+            selections={selections}
+            set={set}
+            result={result}
+            sameWeekConflict={sameWeekConflict}
+            currentPlan={currentPlan}
+            minStartDate={minStartDate}
+          />
+        )}
+      </div>
+      <style>{`
+        @keyframes wizardStepForward{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+        @keyframes wizardStepBack{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+        .wizard-step-enter[data-direction="forward"]{animation:wizardStepForward .28s cubic-bezier(.22,1,.36,1) both}
+        .wizard-step-enter[data-direction="back"]{animation:wizardStepBack .28s cubic-bezier(.22,1,.36,1) both}
+        @media (prefers-reduced-motion: reduce){.wizard-step-enter{animation:none!important}}
+      `}</style>
 
       <div
         className="bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t px-4 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
