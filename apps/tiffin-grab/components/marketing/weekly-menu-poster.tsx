@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { parseIsoDateUtc } from "@realm/commons";
-import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
+import { Button } from "@realm/ui/button";
+import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";
 
@@ -10,37 +12,70 @@ function weekRangeLabel(weekStart: string): string {
   return `${formatDateOnly(weekStart, { mode: "short" })} – ${formatDateOnly(endIso, { mode: "short" })}`;
 }
 
+// Ticket header date: offset the column's first real weekday from weekStart (Monday).
+function columnDateLabel(weekStart: string, days: readonly string[]): string {
+  const offset = DAYS.indexOf(days[0] as (typeof DAYS)[number]);
+  const d = parseIsoDateUtc(weekStart);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return formatDateOnly(d.toISOString().slice(0, 10), { mode: "short" });
+}
+
 export function WeeklyMenuPoster({
   titlePrefix, weekStart, slots, items, accent,
 }: { titlePrefix: string; weekStart: string; slots: MealSlot[]; items: PosterItem[]; accent: string }) {
   const columns = buildPosterColumns(slots, items);
   return (
-    <div className="rounded-xl border bg-card p-6 sm:p-8">
-      <h2 className="text-2xl font-semibold tracking-tight" style={{ color: accent }}>
-        {titlePrefix} — {weekRangeLabel(weekStart)}
-      </h2>
-      <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {columns.map((col) => (
-          <div key={col.label} className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: accent }}>{col.label}</h3>
-            {col.groups.map((g, gi) => (
-              <div key={g.slotLabel ?? gi} className="space-y-1">
-                {g.slotLabel ? <p className="text-xs font-medium text-muted-foreground">{g.slotLabel}</p> : null}
-                {/* No placeholder row: buildPosterColumns already drops categories with
-                    nothing on them, and a wholly empty day reads as an empty column under
-                    its label rather than a dash that looks like a rendering fault. */}
-                <ul className="space-y-1">
-                  {g.dishes.map((d, i) => (
-                    <li key={`${d.name}-${i}`} className="flex items-center gap-2 text-sm">
-                      <span>{d.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        ))}
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="m-0 text-2xl font-bold tracking-tight" style={{ color: accent }}>
+          {titlePrefix}
+        </h2>
+        <span className="text-sm font-semibold text-muted-foreground">{weekRangeLabel(weekStart)} · scroll →</span>
       </div>
+      <div className="mt-4 flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {columns.map((col, ci) => {
+          const dishes = col.groups.flatMap((g) => g.dishes);
+          const primary = dishes[0]?.name;
+          return (
+            <div key={col.label} className="w-[250px] shrink-0 overflow-hidden rounded-2xl border-[1.5px] border-foreground bg-card">
+              <div className="flex items-center justify-between border-b-[1.5px] border-dashed border-foreground px-4 py-3">
+                <span className="text-[17px] font-bold tracking-wide">{col.label}</span>
+                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {columnDateLabel(weekStart, DAY_COLUMNS[ci]?.days ?? [])}
+                </span>
+              </div>
+              <div
+                className="flex h-[110px] items-center justify-center"
+                style={{ background: "repeating-linear-gradient(-45deg, var(--muted) 0 10px, color-mix(in srgb, var(--muted) 80%, var(--foreground)) 10px 20px)" }}
+              >
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {primary ? `photo: ${primary.toLowerCase()}` : "photo: —"}
+                </span>
+              </div>
+              <div className="p-4">
+                {dishes.length > 0 ? (
+                  col.groups.map((g, gi) => (
+                    <div key={g.slotLabel ?? gi} className={gi > 0 ? "mt-2" : undefined}>
+                      {g.slotLabel ? <p className="mb-1 text-xs font-medium text-muted-foreground">{g.slotLabel}</p> : null}
+                      <ul className="space-y-1">
+                        {g.dishes.map((d, i) => (
+                          <li key={`${d.name}-${i}`} className="flex items-start gap-1.5 text-[13px] leading-snug">
+                            <span className="text-primary">✦</span>
+                            <span>{d.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <p className="m-0 text-[12.5px] text-muted-foreground italic">Kitchen&apos;s day off.</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Button asChild size="lg" className="mt-6 rounded-full"><Link href="/subscribe">Build my tiffin →</Link></Button>
     </div>
   );
 }
