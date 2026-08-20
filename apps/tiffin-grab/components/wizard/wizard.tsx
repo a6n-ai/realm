@@ -7,7 +7,6 @@ import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/app/(public)/subscribe/actions";
 import { Button } from "@realm/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
-import { Stepper } from "@/components/stepper";
 import { initialSelections, WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "./selections";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
@@ -18,6 +17,7 @@ import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
 
 const STEPS = ["Baseline", "Bundle", "Schedule", "Start & duration"] as const;
+const QUESTIONS = ["What's your baseline?", "Pick your bundle.", "Set your schedule.", "Start date & commitment."] as const;
 
 export function Wizard({
   catalog,
@@ -86,9 +86,16 @@ export function Wizard({
       <SubscribeChrome
         closeHref={closeHref}
         onBack={goBack}
+        stepTag={STEPS[step]}
       />
 
-      <Stepper steps={STEPS} currentIndex={step} compactLabels />
+      <div className="mb-6 flex items-baseline gap-3.5">
+        <span className="text-[clamp(44px,7vw,72px)] leading-none font-bold tracking-[-3px] text-transparent [-webkit-text-stroke:2px_var(--color-primary)]">
+          {String(step + 1).padStart(2, "0")}
+        </span>
+        <span className="text-xs font-semibold text-muted-foreground">/ 0{STEPS.length}</span>
+      </div>
+      <h1 className="mb-6 text-[clamp(28px,5vw,50px)] leading-[1.05] font-bold tracking-[-1.5px]">{QUESTIONS[step]}</h1>
 
       {step === 0 && (
         <StepBaseline catalog={catalog} selections={selections} set={set} currentPlan={currentPlan} />

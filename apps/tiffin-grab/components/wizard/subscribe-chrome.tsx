@@ -10,14 +10,17 @@ export function SubscribeChrome({
   closeHref,
   onBack,
   backLabel = "Back",
+  stepTag,
 }: {
   closeHref: string;
   onBack?: () => void;
   backLabel?: string;
+  /** Centered uppercase step label shown in the sticky bar, e.g. "BASELINE". */
+  stepTag?: string;
 }) {
   const router = useRouter();
   return (
-    <div className="bg-background/95 sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between border-b-[1.5px] border-foreground px-4 py-2.5 backdrop-blur sm:-mx-0 sm:px-0">
+    <div className="bg-background/95 sticky top-0 z-30 -mx-4 relative mb-4 flex items-center justify-between border-b-[1.5px] border-foreground px-4 py-2.5 backdrop-blur sm:-mx-0 sm:px-0">
       <Button
         type="button"
         variant="ghost"
@@ -28,6 +31,11 @@ export function SubscribeChrome({
         <ArrowLeftIcon data-icon="inline-start" />
         {backLabel}
       </Button>
+      {stepTag && (
+        <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold tracking-[2.5px] text-muted-foreground uppercase">
+          {stepTag}
+        </span>
+      )}
       <Button
         type="button"
         variant="ghost"
