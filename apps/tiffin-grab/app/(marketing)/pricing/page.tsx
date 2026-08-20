@@ -14,25 +14,23 @@ const STEPS = [
 export default function PricingPage() {
   return (
     <Section className="space-y-10">
-      <DabbaMath eyebrow="01 — The dabba math" />
-
       <div className="space-y-8">
         <div className="max-w-2xl">
-          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">02 — How it works</p>
+          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — How it works</p>
           <h2 className="m-0 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">From baseline to your first delivery.</h2>
         </div>
-        <div className="border-t-[1.5px] border-foreground">
+        <div className="grid gap-4 sm:grid-cols-2">
           {STEPS.map((s) => (
-            <div key={s.n} className="flex flex-wrap items-baseline justify-between gap-4 border-b-[1.5px] border-foreground py-6">
-              <div className="flex flex-wrap items-baseline gap-4">
-                <span className="text-sm font-semibold text-muted-foreground tabular-nums">{String(s.n).padStart(2, "0")}</span>
-                <span className="text-[clamp(20px,3vw,28px)] font-bold tracking-[-1px]">{s.title}</span>
-              </div>
-              <span className="max-w-[420px] text-sm text-muted-foreground">{s.body}</span>
+            <div key={s.n} className="rounded-2xl border-[1.5px] border-foreground p-6">
+              <span className="text-sm font-semibold text-muted-foreground tabular-nums">{String(s.n).padStart(2, "0")}</span>
+              <h3 className="mt-1 text-[clamp(20px,3vw,28px)] font-bold tracking-[-1px]">{s.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
             </div>
           ))}
         </div>
       </div>
+
+      <DabbaMath eyebrow="02 — The dabba math" />
     </Section>
   );
 }
