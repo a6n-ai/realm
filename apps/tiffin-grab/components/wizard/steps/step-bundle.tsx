@@ -34,8 +34,8 @@ export function StepBundle({
         if (tierMeals.length === 0) return null;
         return (
           <section key={tier}>
-            <h3 className="mb-2 text-sm font-semibold capitalize text-muted-foreground">{tier}</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <h3 className="text-primary mb-3 text-xs font-semibold tracking-[2.5px] uppercase">{tier}</h3>
+            <div className="grid gap-3.5 sm:grid-cols-2">
               {tierMeals.map((m) => {
                 const active = selections.mealSizeId === m.publicId;
                 return (
@@ -43,22 +43,22 @@ export function StepBundle({
                     key={m.publicId}
                     role="button"
                     onClick={() => set({ mealSizeId: m.publicId })}
-                    className={`hover-lift cursor-pointer p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-2 ring-primary" : "hover:bg-accent"}`}
+                    className={`border-foreground hover-lift cursor-pointer rounded-2xl border-[1.5px] p-4.5 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${active ? "ring-primary ring-2" : "hover:bg-accent"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{m.name}</span>
+                      <span className="font-bold">{m.name}</span>
                       <MealSizePrice meal={m} />
                     </div>
                     {m.description ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{m.description}</p> : null}
-                    <div className="mt-1">
+                    <div className="border-foreground mt-2 border-t-[1.5px] border-dashed pt-2">
                       <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                     </div>
                     {active && (
                       <div className="mt-3 flex flex-wrap gap-1">
-                        <Badge variant="secondary">{m.kcalMin}–{m.kcalMax} kcal</Badge>
-                        {m.proteinG != null && <Badge variant="secondary">P {m.proteinG}g</Badge>}
-                        {m.carbsG != null && <Badge variant="secondary">C {m.carbsG}g</Badge>}
-                        {m.fatG != null && <Badge variant="secondary">F {m.fatG}g</Badge>}
+                        <Badge variant="secondary" className="rounded-full">{m.kcalMin}–{m.kcalMax} kcal</Badge>
+                        {m.proteinG != null && <Badge variant="secondary" className="rounded-full">P {m.proteinG}g</Badge>}
+                        {m.carbsG != null && <Badge variant="secondary" className="rounded-full">C {m.carbsG}g</Badge>}
+                        {m.fatG != null && <Badge variant="secondary" className="rounded-full">F {m.fatG}g</Badge>}
                       </div>
                     )}
                   </Card>

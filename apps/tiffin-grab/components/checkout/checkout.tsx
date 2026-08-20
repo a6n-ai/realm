@@ -226,7 +226,7 @@ export function Checkout({
                 <p className="mt-0.5 text-sm text-muted-foreground">Where should we deliver your tiffins?</p>
               </div>
               <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
+                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" className="h-13 rounded-2xl border-[1.5px] border-foreground px-4" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="phone">Phone</Label>
                   <PhoneInput id="phone" autoComplete="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
@@ -234,7 +234,7 @@ export function Checkout({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" autoComplete="email" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
+                  <Input id="email" type="email" autoComplete="email" className="h-13 rounded-2xl border-[1.5px] border-foreground px-4" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
                   {contact.email.trim() && !emailValid && <p className="text-xs text-destructive">Enter a valid email</p>}
                 </div>
                 <AddressFields
@@ -321,10 +321,10 @@ export function Checkout({
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="4242 4242 4242 4242" /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
-                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="123" /></div>
                   </div>
                 </div>
               )}
@@ -354,7 +354,7 @@ export function Checkout({
       </div>
 
       <aside className="space-y-3 md:sticky md:top-6">
-        <Card variant="glow" className="space-y-3 p-4">
+        <Card variant="glow" className="space-y-3 rounded-2xl border-[1.5px] border-foreground p-4 shadow-[6px_6px_0_var(--color-primary)]">
           <h3 className="text-sm font-semibold">Order summary</h3>
           <Invoice result={result} />
           {applied.length > 0 && (
@@ -372,17 +372,18 @@ export function Checkout({
               ))}
             </ul>
           )}
-          <div className="rounded-lg bg-muted/50 p-3">
+          <div className="rounded-2xl border-[1.5px] border-dashed border-foreground p-3">
             <Label htmlFor="coupon" className="flex items-center gap-1.5 text-xs text-muted-foreground"><Tag className="size-3.5" /> Coupon code</Label>
             <div className="mt-1.5 flex gap-2">
               <Input
                 id="coupon"
+                className="h-11 rounded-xl border-[1.5px] border-foreground px-3 uppercase"
                 value={couponCode}
                 onChange={(e) => { setCouponCode(e.target.value); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
                 placeholder="e.g. SAVE10"
                 autoCapitalize="characters"
               />
-              <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              <Button type="button" variant="outline" className="rounded-xl border-[1.5px] border-foreground" onClick={applyCoupon} disabled={couponState.status === "checking"}>
                 {couponState.status === "checking" ? "Checking…" : "Apply"}
               </Button>
             </div>
