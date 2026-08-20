@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { MenuIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@realm/ui/sheet";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const LINKS = [
   { href: "/how-it-works", label: "How it works" },
@@ -22,13 +23,13 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between gap-4 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-40 relative flex items-center justify-between gap-4 px-4 py-3 backdrop-blur">
       <Link href="/" className="flex items-center gap-2 font-semibold">
         <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full">
           <UtensilsCrossedIcon className="size-5" />
         </span>
       </Link>
-      <nav className="border-border bg-background/90 hidden items-center gap-1 rounded-full border p-1 backdrop-blur md:flex">
+      <nav className="border-border bg-background/90 absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border p-1 backdrop-blur md:flex">
         {LINKS.map((l) => (
           <Link
             key={l.href}
@@ -41,6 +42,7 @@ export function SiteHeader() {
         <Button asChild size="sm" className="ml-1 rounded-full"><Link href="/subscribe">Start →</Link></Button>
       </nav>
       <div className="ml-auto flex items-center gap-2">
+        <ModeToggle className="hidden md:inline-flex" />
         <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex"><Link href="/login">Sign in</Link></Button>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
