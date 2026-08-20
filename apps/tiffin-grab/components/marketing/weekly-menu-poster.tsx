@@ -39,8 +39,8 @@ export function WeeklyMenuPoster({
           return (
             <div key={col.label} className="w-[250px] shrink-0 overflow-hidden rounded-2xl border-[1.5px] border-foreground bg-card">
               <div className="flex items-center justify-between border-b-[1.5px] border-dashed border-foreground px-4 py-3">
-                <span className="text-[17px] font-bold tracking-wide">{col.label}</span>
-                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                <span className="text-lg font-bold tracking-wide">{col.label}</span>
+                <span className="text-xs font-semibold tabular-nums text-muted-foreground">
                   {columnDateLabel(weekStart, DAY_COLUMNS[ci]?.days ?? [])}
                 </span>
               </div>
@@ -48,7 +48,7 @@ export function WeeklyMenuPoster({
                 className="flex h-[110px] items-center justify-center"
                 style={{ background: "repeating-linear-gradient(-45deg, var(--muted) 0 10px, color-mix(in srgb, var(--muted) 80%, var(--foreground)) 10px 20px)" }}
               >
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {primary ? `photo: ${primary.toLowerCase()}` : "photo: —"}
                 </span>
               </div>
@@ -59,7 +59,7 @@ export function WeeklyMenuPoster({
                       {g.slotLabel ? <p className="mb-1 text-xs font-medium text-muted-foreground">{g.slotLabel}</p> : null}
                       <ul className="space-y-1">
                         {g.dishes.map((d, i) => (
-                          <li key={`${d.name}-${i}`} className="flex items-start gap-1.5 text-[13px] leading-snug">
+                          <li key={`${d.name}-${i}`} className="flex items-start gap-1.5 text-sm leading-snug">
                             <span className="text-primary">✦</span>
                             <span>{d.name}</span>
                           </li>

@@ -37,7 +37,7 @@ export function StepSchedule({
               <label
                 key={f.key}
                 htmlFor={f.key}
-                className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-[14.5px] font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : ""}`}
+                className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-sm font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : ""}`}
               >
                 <RadioGroupItem id={f.key} value={f.key} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
                 {f.name}
@@ -59,11 +59,11 @@ export function StepSchedule({
       <div className="space-y-3">
         <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Weekend delivery</Label>
         <div className="flex flex-wrap gap-3">
-          <label className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-[14.5px] font-semibold transition-colors ${selections.includeSaturday ? "bg-primary text-primary-foreground" : ""}`}>
+          <label className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-sm font-semibold transition-colors ${selections.includeSaturday ? "bg-primary text-primary-foreground" : ""}`}>
             <input type="checkbox" className="sr-only" checked={selections.includeSaturday} onChange={(e) => set({ includeSaturday: e.target.checked })} />
             {selections.includeSaturday ? "✓" : ""} Saturday
           </label>
-          <label className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-[14.5px] font-semibold transition-colors ${selections.includeSunday ? "bg-primary text-primary-foreground" : ""}`}>
+          <label className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-6 text-sm font-semibold transition-colors ${selections.includeSunday ? "bg-primary text-primary-foreground" : ""}`}>
             <input type="checkbox" className="sr-only" checked={selections.includeSunday} onChange={(e) => set({ includeSunday: e.target.checked })} />
             {selections.includeSunday ? "✓" : ""} Sunday
           </label>

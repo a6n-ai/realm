@@ -22,7 +22,7 @@ export function Hero() {
         href="https://commons.wikimedia.org/wiki/File:Traditional_North_Indian_Thali.jpg"
         target="_blank"
         rel="noreferrer"
-        className="absolute right-2 bottom-2 z-[1] text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
+        className="absolute right-2 bottom-2 z-[1] text-xs text-muted-foreground/70 hover:text-muted-foreground"
       >
         Photo: Wikimedia Commons, CC BY-SA 4.0
       </a>
@@ -36,7 +36,7 @@ export function Hero() {
           <span className="block text-primary italic">DELIVERED.</span>
         </h1>
         <div className="mt-8 flex flex-wrap items-center gap-6">
-          <Button asChild size="lg" className="hover-lift h-[60px] rounded-full px-9 text-[17px] font-semibold shadow-[0_12px_30px_-6px_var(--color-primary)]">
+          <Button asChild size="lg" className="hover-lift h-[60px] rounded-full px-9 text-lg font-semibold shadow-[0_12px_30px_-6px_var(--color-primary)]">
             <Link href="/subscribe">Build my tiffin →</Link>
           </Button>
           <p className="m-0 max-w-[300px] text-sm leading-relaxed">

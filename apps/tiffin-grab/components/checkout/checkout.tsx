@@ -363,7 +363,7 @@ export function Checkout({
                 <li key={c.code} className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
                     <span className="font-mono">{c.code}</span>
-                    <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span className="rounded border px-1.5 py-0.5 text-xs text-muted-foreground">
                       {c.auto ? "Auto-applied" : "Entered"}
                     </span>
                   </span>

@@ -174,6 +174,13 @@ formula their poster-like, stamped quality.
   major content section.
 - **Tabular/Mono**: prices, step numerals, invoice amounts — always
   `font-variant-numeric: tabular-nums` so columns align.
+- Below Body, everything (captions, credit lines, day/date labels, chip
+  labels, coupon-tag pills) uses Tailwind's stock `text-xs` (12px) or
+  `text-sm` (14px) — no arbitrary in-between pixel value. `text-lg` (18px)
+  covers the one supporting-CTA subtitle size (hero "Build my tiffin"
+  paragraph). No custom `caption`/`micro` role was needed: every one-off
+  size the detector flagged was within 1-2px of a stock step and snapped
+  there without a visible change.
 
 ### Named Rules
 **The Stroke-Not-Color Rule.** Large display type gets emphasis from a
