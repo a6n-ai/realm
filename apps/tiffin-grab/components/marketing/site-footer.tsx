@@ -6,7 +6,7 @@ const ZONES = "Etobicoke · Mississauga · Brampton · Toronto · Scarborough ·
 
 export function SiteFooter() {
   return (
-    <footer className="bg-foreground text-background">
+    <footer className="bg-foreground text-background mx-2 rounded-t-3xl sm:mx-4">
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-full">
