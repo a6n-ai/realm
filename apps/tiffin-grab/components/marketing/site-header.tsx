@@ -13,8 +13,6 @@ const LINKS = [
   { href: "/menu", label: "Menu" },
   { href: "/menu/weekly", label: "Weekly Menu" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" },
-  { href: "/faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
 ];
 

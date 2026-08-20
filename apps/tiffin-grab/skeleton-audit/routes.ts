@@ -65,9 +65,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/lock", label: "lock" },
   // marketing
   { path: "/", label: "marketing-home" },
-  { path: "/about", label: "marketing-about" },
   { path: "/contact", label: "marketing-contact" },
-  { path: "/faq", label: "marketing-faq" },
   { path: "/how-it-works", label: "marketing-how-it-works" },
   { path: "/menu", label: "marketing-menu" },
   { path: "/menu/weekly", label: "marketing-menu-weekly" },
