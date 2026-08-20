@@ -36,7 +36,7 @@ export function StepBaseline({
                 // "at least one category" guard is satisfied.
                 set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
               }}
-              className={`hover-lift flex w-full flex-wrap items-center justify-between gap-4 border-b-[1.5px] border-foreground px-2 py-6 text-left transition-[padding] hover:pl-6 ${selected ? "bg-primary/5" : ""}`}
+              className={`hover-lift outline-none focus-visible:ring-3 focus-visible:ring-ring/50 flex w-full flex-wrap items-center justify-between gap-4 border-b-[1.5px] border-foreground px-2 py-6 text-left transition-[padding] hover:pl-6 ${selected ? "bg-primary/5" : ""}`}
             >
               <span className="text-[clamp(22px,3.6vw,34px)] font-bold tracking-[-1px] leading-none">{p.name}</span>
               <span className="flex items-center gap-5">

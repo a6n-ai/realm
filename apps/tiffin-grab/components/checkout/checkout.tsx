@@ -301,7 +301,7 @@ export function Checkout({
                         type="button"
                         onClick={() => selectMethod(m.id)}
                         className={cn(
-                          "rounded-lg border p-3 text-left transition-colors",
+                          "rounded-2xl border-[1.5px] border-foreground p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                           selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                         )}
                       >
