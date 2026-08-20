@@ -14,9 +14,11 @@ const STEPS = [
 export default function PricingPage() {
   return (
     <Section className="space-y-10">
+      <DabbaMath eyebrow="01 — The dabba math" />
+
       <div className="space-y-8">
         <div className="max-w-2xl">
-          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — How it works</p>
+          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">02 — How it works</p>
           <h2 className="m-0 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">From baseline to your first delivery.</h2>
         </div>
         <div className="border-t-[1.5px] border-foreground">
@@ -31,8 +33,6 @@ export default function PricingPage() {
           ))}
         </div>
       </div>
-
-      <DabbaMath eyebrow="02 — The dabba math" />
     </Section>
   );
 }
