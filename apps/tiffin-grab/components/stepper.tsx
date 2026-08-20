@@ -28,8 +28,8 @@ export function Stepper({
           return (
             <li key={label} className={`flex items-center gap-1.5 ${compactLabels ? "shrink-0" : "gap-2"}`}>
               <span
-                className={`flex size-6 items-center justify-center rounded-full text-[11px] transition-colors sm:size-5 ${
-                  done || current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                className={`flex size-6 items-center justify-center rounded-full border-[1.5px] text-[11px] font-bold transition-colors sm:size-5 ${
+                  done || current ? "border-foreground bg-primary text-primary-foreground" : "border-transparent bg-muted text-muted-foreground"
                 }`}
                 aria-current={current ? "step" : undefined}
                 aria-label={`Step ${i + 1}: ${label}`}

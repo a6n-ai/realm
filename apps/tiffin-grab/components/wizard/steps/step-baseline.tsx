@@ -35,10 +35,10 @@ export function StepBaseline({
               // "at least one category" guard is satisfied.
               set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
             }}
-            className={`hover-lift cursor-pointer p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${selections.planKey === p.key ? "ring-2 ring-primary" : "hover:bg-accent"}`}
+            className={`hover-lift cursor-pointer rounded-xl border-[1.5px] p-4 transition-[transform,box-shadow,background-color] active:scale-[0.99] ${selections.planKey === p.key ? "border-foreground ring-2 ring-primary" : "border-border hover:bg-accent"}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="font-medium">{p.name}</div>
+              <div className="text-lg font-bold tracking-[-0.02em]">{p.name}</div>
               {selections.planKey === p.key && (
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <Check className="size-3" />
