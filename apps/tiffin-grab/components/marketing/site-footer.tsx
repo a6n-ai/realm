@@ -13,7 +13,7 @@ export function SiteFooter() {
         <div>
           <div className="text-foreground font-medium">Explore</div>
           <ul className="mt-2 space-y-1">
-            <li><Link href="/how-it-works" className="hover:text-foreground">How it works</Link></li>
+            <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
             <li><Link href="/menu" className="hover:text-foreground">Menu</Link></li>
             <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
           </ul>
