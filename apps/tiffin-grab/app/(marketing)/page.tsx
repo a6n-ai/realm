@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DabbaMath } from "@/components/marketing/dabba-math";
 import { GoogleReviewsSection } from "@/components/marketing/google-reviews-section";
 import { Hero } from "@/components/marketing/hero";
+import { HowItWorksSteps } from "@/components/marketing/how-it-works-steps";
 import { PlanRows } from "@/components/marketing/plan-rows";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
@@ -35,16 +36,18 @@ export default async function LandingPage() {
       </Section>
       {pub && (
         <Section className="space-y-6">
-          <h2 className="text-2xl font-semibold tracking-tight">This week&apos;s menu</h2>
+          <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">02 — This week&apos;s menu</p>
+          <h2 className="m-0 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">What&apos;s cooking.</h2>
           <WeeklyMenuPoster titlePrefix={pub.theme.titlePrefix} weekStart={pub.weekStart} slots={pub.slots} items={pub.items} accent={pub.theme.accent} />
         </Section>
       )}
-      <Section>
-        <DabbaMath eyebrow="03 — The dabba math" />
+      <Section className="space-y-10">
+        <HowItWorksSteps eyebrow="03 — How it works" />
+        <DabbaMath eyebrow="04 — The dabba math" />
       </Section>
       <GoogleReviewsSection />
       <Section id="faq" className="max-w-2xl scroll-mt-24">
-        <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">04 — Questions</p>
+        <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">05 — Questions</p>
         <h2 className="m-0 mb-6.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Frequently asked.</h2>
         <dl className="border-foreground border-t-[1.5px]">
           {FAQS.map((f) => (
