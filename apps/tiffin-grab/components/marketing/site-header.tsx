@@ -13,7 +13,7 @@ import { Role, type RoleValue } from "@realm/commons";
 
 const LINKS = [
   { href: "/menu/weekly", label: "Menu" },
-  { href: "/#plans", label: "Plans" },
+  { href: "/plans", label: "Plans" },
   { href: "/pricing", label: "Pricing" },
 ];
 

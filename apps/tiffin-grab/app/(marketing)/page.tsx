@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@realm/ui/button";
 import { DabbaMath } from "@/components/marketing/dabba-math";
 import { GoogleReviewsSection } from "@/components/marketing/google-reviews-section";
 import { Hero } from "@/components/marketing/hero";
@@ -18,12 +16,6 @@ export const metadata: Metadata = {
 // ISR: revalidate every 10 min so the DB isn't hit on every request for the highest-traffic page
 export const dynamic = "force-dynamic";
 
-const VALUES = [
-  { title: "You customize everything", body: "Nutrition baseline, meal size, schedule, quantity, and duration — your plan, your way." },
-  { title: "Fresh & home-style", body: "Balanced thalis and bowls cooked the way you'd make them at home." },
-  { title: "Across the GTA", body: "Delivery to eleven regions, with slot windows matched to your postal code." },
-];
-
 const FAQS = [
   { q: "Where do you deliver?", a: "Across eleven GTA regions. Enter your postal code at checkout to see your slot window — if we don't serve your area yet, you can join the waitlist." },
   { q: "Can I customize my meals?", a: "Yes. You choose a nutrition baseline, meal size, schedule, daily quantity, weekend add-ons, and commitment length." },
@@ -36,18 +28,10 @@ export default async function LandingPage() {
   return (
     <>
       <Hero />
-      <Section id="plans" className="scroll-mt-24">
+      <Section>
         <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">01 — Pick a baseline</p>
         <h2 className="m-0 mb-2.5 text-[clamp(28px,5vw,52px)] font-bold tracking-[-1.5px]">Three ways to eat.</h2>
         <PlanRows plans={catalog.plans} />
-      </Section>
-      <Section className="grid gap-6 sm:grid-cols-3">
-        {VALUES.map((v) => (
-          <div key={v.title} className="hover-lift card-glow rounded-lg border p-6">
-            <h3 className="font-medium">{v.title}</h3>
-            <p className="text-muted-foreground mt-2 text-sm">{v.body}</p>
-          </div>
-        ))}
       </Section>
       {pub && (
         <Section className="space-y-6">
@@ -57,10 +41,6 @@ export default async function LandingPage() {
       )}
       <Section>
         <DabbaMath eyebrow="03 — The dabba math" />
-      </Section>
-      <Section className="flex flex-col items-center gap-4 text-center">
-        <h2 className="text-2xl font-semibold">Ready to build your tiffin?</h2>
-        <Button asChild size="lg" className="hover-lift animate-pulse-ring h-14 rounded-full px-8"><Link href="/subscribe">Start your plan</Link></Button>
       </Section>
       <GoogleReviewsSection />
       <Section id="faq" className="max-w-2xl scroll-mt-24">
