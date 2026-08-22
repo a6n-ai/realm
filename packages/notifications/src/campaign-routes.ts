@@ -84,8 +84,8 @@ export async function createCampaign(
     .insert(tables.campaign)
     .values({
       name: input.name,
-      // channels is a fixed literal enum per-app (makeCampaignTables<L>); this
-      // function is generic across apps, so the string[] input is widened here.
+      // channels is the shared notificationChannel pgEnum (fixed across all
+      // apps); this function is generic, so the string[] input is widened here.
       channels: input.channels as never,
       audience: input.audience,
       // A campaign with a time is scheduled; without one it stays a draft until
@@ -147,8 +147,9 @@ export async function setCampaignContent(
     .insert(tables.campaignContent)
     .values({
       campaignId: row.id,
-      // channel/locale are fixed literal enums per-app; widened for the same
-      // reason as channels above.
+      // channel is the shared notificationChannel pgEnum; locale is a fixed
+      // literal enum per-app (makeCampaignTables<L>). Both widened for the
+      // same reason as channels above.
       channel: input.channel as never,
       locale: input.locale as never,
       subject: input.subject,

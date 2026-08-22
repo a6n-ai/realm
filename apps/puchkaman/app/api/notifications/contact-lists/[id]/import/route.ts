@@ -1,5 +1,5 @@
 import { handler, json, problem } from "@realm/routes";
-import { importContactListMembers, importMappingSchema } from "@realm/notifications";
+import { importContactListMembers, importMappingSchema, MAX_IMPORT_BYTES } from "@realm/notifications";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
@@ -14,8 +14,14 @@ export const POST = handler(
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) return problem(400, "Missing file");
-    if (file.size > 5 * 1024 * 1024) return problem(413, "File is larger than 5MB");
-    const mapping = importMappingSchema.safeParse(JSON.parse(String(form.get("mapping") ?? "{}")));
+    if (file.size > MAX_IMPORT_BYTES) return problem(413, "File is larger than 5MB");
+    let mappingInput: unknown;
+    try {
+      mappingInput = JSON.parse(String(form.get("mapping") ?? "{}"));
+    } catch {
+      return problem(400, "Invalid column mapping");
+    }
+    const mapping = importMappingSchema.safeParse(mappingInput);
     if (!mapping.success) return problem(400, "Invalid column mapping");
     const result = await importContactListMembers(deps, id, file, mapping.data);
     if ("error" in result) return problem(result.status, result.error);

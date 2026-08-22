@@ -15,5 +15,6 @@ export const usersRef: UsersRef = {
     role: users.role,
     status: users.status,
     notifyEmail: users.notifyEmail,
+    phone: users.phone,
   },
 };

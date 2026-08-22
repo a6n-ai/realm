@@ -3,7 +3,7 @@ import { z } from "zod";
 import { mapRows, parseCsv } from "./csv";
 import type { CampaignRouteDeps } from "./campaign-routes";
 
-const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export const createContactListSchema = z.object({
   name: z.string().trim().min(1),
