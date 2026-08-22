@@ -5,7 +5,7 @@ import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
-import { CampaignComposer } from "@/components/notifications/campaign-composer";
+import { CampaignComposer } from "@realm/notifications/ui";
 
 export default async function NewCampaignPage() {
   await requireAdmin();

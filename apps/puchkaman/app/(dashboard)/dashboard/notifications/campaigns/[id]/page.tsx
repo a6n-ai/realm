@@ -10,7 +10,7 @@ import { db } from "@/db/client";
 import { campaign, campaignContent } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
-import { CampaignSendButton } from "@/components/notifications/campaign-send-button";
+import { CampaignSendButton } from "@realm/notifications/ui";
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";

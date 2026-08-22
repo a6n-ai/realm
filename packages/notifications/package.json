@@ -16,6 +16,7 @@
   "dependencies": {
     "@realm/commons": "workspace:*",
     "@realm/database": "workspace:*",
+    "@realm/design-system": "workspace:*",
     "@realm/ui": "workspace:*",
     "@react-email/components": "^1.0.12",
     "@react-email/editor": "^1.5.10",

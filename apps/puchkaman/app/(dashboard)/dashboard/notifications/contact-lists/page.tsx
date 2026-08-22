@@ -3,7 +3,7 @@ import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
-import { ContactListUpload } from "@/components/notifications/contact-list-upload";
+import { ContactListUpload } from "@realm/notifications/ui";
 
 export const dynamic = "force-dynamic";
 
