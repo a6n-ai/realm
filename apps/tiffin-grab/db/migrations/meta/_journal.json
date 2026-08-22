@@ -15,6 +15,13 @@
       "when": 1787001295137,
       "tag": "0001_past_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787398776956,
+      "tag": "0002_nifty_retro_girl",
+      "breakpoints": true
     }
   ]
 }
