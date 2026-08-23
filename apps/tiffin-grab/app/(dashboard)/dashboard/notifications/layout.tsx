@@ -13,7 +13,16 @@ export default async function NotificationsLayout({ children }: { children: Reac
         title="Notifications"
         subtitle="Templates, delivery logs, and analytics."
       />
-      <NotificationsNav />
+      <NotificationsNav
+        tabs={[
+          { href: "/dashboard/notifications/templates", label: "Templates" },
+          { href: "/dashboard/notifications/campaigns", label: "Campaigns" },
+          { href: "/dashboard/notifications/contact-lists", label: "Contact lists" },
+          { href: "/dashboard/notifications/emails", label: "Emails" },
+          { href: "/dashboard/notifications/logs", label: "Logs" },
+          { href: "/dashboard/notifications/analytics", label: "Analytics" },
+        ]}
+      />
       <div className="min-w-0">{children}</div>
     </PageShell>
   );

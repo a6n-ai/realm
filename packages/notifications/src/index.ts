@@ -8,6 +8,8 @@ export * from "./suppression";
 export * from "./unsubscribe";
 export * from "./audience";
 export * from "./campaign";
+export * from "./campaign-routes";
+export * from "./contact-list-routes";
 export * from "./csv";
 export * from "./phone";
 export * from "./enqueue";

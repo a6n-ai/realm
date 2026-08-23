@@ -767,6 +767,9 @@ importers:
       '@realm/database':
         specifier: workspace:*
         version: link:../database
+      '@realm/design-system':
+        specifier: workspace:*
+        version: link:../design-system
       '@realm/ui':
         specifier: workspace:*
         version: link:../ui
@@ -785,6 +788,9 @@ importers:
       sucrase:
         specifier: ^3.35.1
         version: 3.35.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^22
@@ -5224,6 +5230,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
