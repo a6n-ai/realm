@@ -39,6 +39,9 @@ export const users = pgTable(
     // without an explicit role must never land on it. Invites and checkout both
     // pass `role` themselves.
     role: userRole("role").notNull().default("user"),
+    // Org-independent platform bypass for cross-client visibility. See
+    // resolveVisibleOrgIds in @realm/auth.
+    platformRole: text("platform_role"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its
     // own on first login. The dashboard gate redirects to /set-password while
