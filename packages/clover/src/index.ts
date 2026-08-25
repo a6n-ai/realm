@@ -18,6 +18,7 @@ export {
   toPublicCloverConnection,
   isCloverEcommerceConfigured,
   loadCloverAppCredentialsFromEnv,
+  resolveIntegrationsConfig,
   type CloverAppCredentials,
   type CloverTokenPair,
   type CloverConnection,

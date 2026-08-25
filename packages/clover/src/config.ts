@@ -190,3 +190,22 @@ export function loadCloverAppCredentialsFromEnv(
   });
   return parsed.success ? parsed.data : null;
 }
+
+// Resolves which integrationsConfig applies to an acting organization: its own
+// if set (has a clover connection), else its parent's, else the empty default.
+// A single explicit 2-level walk — the org hierarchy this resolves for is
+// capped at 2 levels (brand -> franchise) by assertHierarchyDepth in @realm/auth,
+// so there is never a third level to walk to.
+// docs/superpowers/specs/2026-08-25-puchkaman-org-hierarchy-design.md
+export function resolveIntegrationsConfig(
+  org: { integrationsConfig: unknown },
+  parent: { integrationsConfig: unknown } | null,
+): IntegrationsConfig {
+  const own = parseIntegrationsConfig(org.integrationsConfig);
+  if (own.clover) return own;
+  if (parent) {
+    const parentConfig = parseIntegrationsConfig(parent.integrationsConfig);
+    if (parentConfig.clover) return parentConfig;
+  }
+  return DEFAULT_INTEGRATIONS_CONFIG;
+}
