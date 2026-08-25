@@ -48,10 +48,18 @@ async function resolveActingOrg() {
  * With no org-switcher UI yet, resolution always falls through to the brand
  * org, same as today's direct `app.integrationsConfig` read used to be —
  * kept in sync by {@link setIntegrationsConfig} writing to both rows below.
+ *
+ * If no organization row resolves at all (fresh migration before
+ * `db/seed-brand-org.ts` has been run — that script is a manual invocation,
+ * not wired into deploy), fall back to reading `app` directly so Clover
+ * doesn't silently read as uninstalled during that window.
  */
 export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
   const org = await resolveActingOrg();
-  if (!org) return DEFAULT_INTEGRATIONS_CONFIG;
+  if (!org) {
+    const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
+    return parseIntegrationsConfig(row?.cfg ?? undefined);
+  }
 
   const [parent] = org.parentOrganizationId
     ? await db.select().from(organization).where(eq(organization.id, org.parentOrganizationId)).limit(1)
@@ -61,13 +69,17 @@ export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
 }
 
 /**
- * Writes to both `app` (unchanged, for anything still reading it directly)
- * and the resolved acting organization's row — keeping `getIntegrationsConfig`
- * in sync without needing a full org-switcher UI. No transaction: these are
- * two independent singleton/tenant rows, not a multi-row invariant — a
- * partial write here is no worse than today's single-row write racing a
- * concurrent read, and wrapping unrelated tables in one transaction buys
- * nothing but broader lock scope.
+ * Writes to both `app` and the resolved acting organization's row. The `app`
+ * write is the source `getIntegrationsConfig` falls back to when no
+ * organization row resolves at all (see the no-org branch there) — not
+ * legacy dead weight. Once a real org-switcher UI exists and multiple
+ * franchises actively use independent Clover connections, this dual-write
+ * becomes a last-writer-wins hazard across franchises and will need
+ * reconsidering then; not solved here. No transaction: these are two
+ * independent singleton/tenant rows, not a multi-row invariant — a partial
+ * write here is no worse than today's single-row write racing a concurrent
+ * read, and wrapping unrelated tables in one transaction buys nothing but
+ * broader lock scope.
  */
 export async function setIntegrationsConfig(cfg: IntegrationsConfig): Promise<void> {
   const parsed = parseIntegrationsConfig(cfg);

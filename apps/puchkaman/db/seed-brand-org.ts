@@ -30,7 +30,12 @@ async function main() {
     (
       await db
         .insert(organization)
-        .values({ name: "Puchkaman", clientCode: BRAND_CLIENT_CODE, parentOrganizationId: null })
+        .values({
+          name: "Puchkaman",
+          clientCode: BRAND_CLIENT_CODE,
+          parentOrganizationId: null,
+          isDefaultLocation: true,
+        })
         .returning({ id: organization.id })
     )[0].id;
 

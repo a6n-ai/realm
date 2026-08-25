@@ -58,6 +58,26 @@ describe("getIntegrationsConfig", () => {
     expect(result.clover?.merchantId).toBe("test-merchant");
   });
 
+  it("falls back to app.integrationsConfig when no organization row resolves at all (deploy window before seed runs)", async () => {
+    // Clear every isDefaultLocation row (including this suite's own brand) so
+    // resolveActingOrg() truly finds nothing — the fresh-migration-before-seed case.
+    await db.update(organization).set({ isDefaultLocation: false }).where(eq(organization.id, brandId));
+    const [priorApp] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
+    try {
+      await db
+        .update(app)
+        .set({ integrationsConfig: { clover: { installed: true, connected: false, environment: "sandbox", region: "na", authMode: "oauth" } } });
+
+      const result = await getIntegrationsConfig();
+      expect(result.clover?.installed).toBe(true);
+    } finally {
+      await db.update(organization).set({ isDefaultLocation: true }).where(eq(organization.id, brandId));
+      if (priorApp) {
+        await db.update(app).set({ integrationsConfig: priorApp.cfg });
+      }
+    }
+  });
+
   it("keeps reads in sync with writes: setIntegrationsConfig updates what getIntegrationsConfig returns next", async () => {
     const before = await getIntegrationsConfig();
     expect(before.clover?.merchantId).toBe("test-merchant");
