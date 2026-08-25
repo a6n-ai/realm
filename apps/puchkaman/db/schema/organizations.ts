@@ -39,6 +39,7 @@ export const organization = pgTable(
   (t) => [
     uniqueIndex("organization_client_code_unique").on(t.clientCode),
     index("organization_parent_idx").on(t.parentOrganizationId),
+    uniqueIndex("organization_default_location_unique").on(t.isDefaultLocation).where(sql`is_default_location = true`),
   ],
 );
 

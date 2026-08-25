@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "organization_default_location_unique" ON "organization" USING btree ("is_default_location") WHERE is_default_location = true;
