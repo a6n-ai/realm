@@ -3,6 +3,7 @@ export * from "./audience-builder";
 export * from "./campaign-composer";
 export * from "./campaign-send-button";
 export * from "./contact-list-upload";
+export * from "./date";
 export * from "./email-compat";
 export * from "./email-editor";
 export * from "./format";
