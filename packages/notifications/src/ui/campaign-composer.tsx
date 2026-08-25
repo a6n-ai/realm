@@ -22,7 +22,14 @@ type ChannelKey = (typeof CHANNELS)[number]["key"];
 // `contact`, so those are the variables a campaign template can resolve.
 const CAMPAIGN_VARIABLES = ["contact.name"];
 
-export function CampaignComposer({ lists }: { lists: ContactListOption[] }) {
+export function CampaignComposer({
+  lists,
+  timeZone,
+}: {
+  lists: ContactListOption[];
+  /** App-settings timezone, e.g. "America/Toronto" — threaded to AudienceBuilder. */
+  timeZone: string;
+}) {
   const router = useRouter();
   const editor = useRef<EmailEditorFieldHandle>(null);
 
@@ -139,6 +146,7 @@ export function CampaignComposer({ lists }: { lists: ContactListOption[] }) {
           value={audience}
           onChange={setAudience}
           requiresVerifiedPhone={channel === "sms" || channel === "whatsapp"}
+          timeZone={timeZone}
         />
       </div>
 

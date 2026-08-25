@@ -7,6 +7,7 @@ import { Label } from "@realm/ui/label";
 // @realm/ui ships no checkbox; Switch is the existing toggle primitive.
 import { Switch } from "@realm/ui/switch";
 import { Skeleton } from "@realm/ui/skeleton";
+import { formatConsentDate } from "./date";
 
 export interface ContactListOption {
   publicId: string;
@@ -44,11 +45,14 @@ export function AudienceBuilder({
   value,
   onChange,
   requiresVerifiedPhone,
+  timeZone,
 }: {
   lists: ContactListOption[];
   value: AudienceValue;
   onChange: (v: AudienceValue) => void;
   requiresVerifiedPhone: boolean;
+  /** App-settings timezone, e.g. "America/Toronto" — dates render UTC-stored data in this zone. */
+  timeZone: string;
 }) {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -154,7 +158,7 @@ export function AudienceBuilder({
                   <span className="font-medium">{l.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {l.memberCount} · {l.consentSource.replace(/_/g, " ")} ·{" "}
-                    {new Date(l.consentAt).toLocaleDateString()}
+                    {formatConsentDate(l.consentAt, timeZone)}
                   </span>
                 </label>
               </li>

@@ -2,8 +2,8 @@ import { desc } from "drizzle-orm";
 import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { contactList } from "@/db/schema";
-import { ContactListUpload } from "@realm/notifications/ui";
+import { app, contactList } from "@/db/schema";
+import { ContactListUpload, formatConsentDate } from "@realm/notifications/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +16,21 @@ const CONSENT_LABEL: Record<string, string> = {
 
 export default async function ContactListsPage() {
   await requireAdmin();
-  const lists = await db
-    .select({
-      publicId: contactList.publicId,
-      name: contactList.name,
-      consentSource: contactList.consentSource,
-      consentAt: contactList.consentAt,
-      consentNote: contactList.consentNote,
-      memberCount: contactList.memberCount,
-    })
-    .from(contactList)
-    .orderBy(desc(contactList.createdAt));
+  const [lists, [appRow]] = await Promise.all([
+    db
+      .select({
+        publicId: contactList.publicId,
+        name: contactList.name,
+        consentSource: contactList.consentSource,
+        consentAt: contactList.consentAt,
+        consentNote: contactList.consentNote,
+        memberCount: contactList.memberCount,
+      })
+      .from(contactList)
+      .orderBy(desc(contactList.createdAt)),
+    db.select({ timezone: app.timezone }).from(app).limit(1),
+  ]);
+  const timeZone = appRow?.timezone ?? "America/Toronto";
 
   return (
     <div className="space-y-6">
@@ -41,7 +45,7 @@ export default async function ContactListsPage() {
                   <p className="font-medium">{l.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {CONSENT_LABEL[l.consentSource] ?? l.consentSource} ·{" "}
-                    {new Date(Number(l.consentAt)).toLocaleDateString()}
+                    {formatConsentDate(Number(l.consentAt), timeZone)}
                     {l.consentNote ? ` · ${l.consentNote}` : ""}
                   </p>
                 </div>
