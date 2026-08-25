@@ -1,8 +1,8 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { organization } from "@/db/schema";
-import { getIntegrationsConfig } from "../integrations.service";
+import { app, organization } from "@/db/schema";
+import { getIntegrationsConfig, setIntegrationsConfig } from "../integrations.service";
 
 // This test exercises the real DB-backed resolution chain: no active org ->
 // falls back to the brand (isDefaultLocation) org's config, matching today's
@@ -56,5 +56,33 @@ describe("getIntegrationsConfig", () => {
   it("resolves the default-location org's config when no active org is set", async () => {
     const result = await getIntegrationsConfig();
     expect(result.clover?.merchantId).toBe("test-merchant");
+  });
+
+  it("keeps reads in sync with writes: setIntegrationsConfig updates what getIntegrationsConfig returns next", async () => {
+    const before = await getIntegrationsConfig();
+    expect(before.clover?.merchantId).toBe("test-merchant");
+
+    // Prove desync is closed, not just that the write succeeded: restore the
+    // pristine `app` row afterward so this test doesn't leak state into others.
+    const [priorApp] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);
+    try {
+      await setIntegrationsConfig({
+        clover: {
+          installed: true,
+          connected: true,
+          merchantId: "rotated-merchant",
+          environment: "sandbox",
+          region: "na",
+          authMode: "oauth",
+        },
+      });
+
+      const after = await getIntegrationsConfig();
+      expect(after.clover?.merchantId).toBe("rotated-merchant");
+    } finally {
+      if (priorApp) {
+        await db.update(app).set({ integrationsConfig: priorApp.cfg });
+      }
+    }
   });
 });
