@@ -23,22 +23,23 @@ export default async function MenuPage() {
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Our menu</h1>
-        <p className="text-muted-foreground mt-2">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
+        <p className="m-0 mb-1 text-xs font-semibold tracking-[0.25em] text-primary uppercase">What&apos;s cooking</p>
+        <h1 className="m-0 text-[clamp(30px,5vw,54px)] font-bold tracking-[-1.5px]">Our menu.</h1>
+        <p className="text-muted-foreground mt-3">Meal sizes across three tiers — pick what fits your appetite and macros.</p>
       </div>
       {TIERS.map((tier) => {
         const meals = mealSizes.filter((m) => m.tier === tier.key);
         if (meals.length === 0) return null;
         return (
           <div key={tier.key} className="space-y-4">
-            <h2 className="text-xl font-medium">{tier.label}</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {meals.map((m) => <div key={m.id} className="hover-lift card-glow rounded-lg"><MealCard meal={m} /></div>)}
+            <h2 className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">{tier.label}</h2>
+            <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+              {meals.map((m) => <div key={m.id} className="hover-lift rounded-2xl border-[1.5px] border-foreground"><MealCard meal={m} /></div>)}
             </div>
           </div>
         );
       })}
-      <Button asChild size="lg" className="hover-lift group w-fit"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
+      <Button asChild size="lg" className="hover-lift group h-14 w-fit rounded-full px-8"><Link href="/subscribe">Build your plan<ArrowRight className="icon-pop size-4" /></Link></Button>
     </Section>
   );
 }

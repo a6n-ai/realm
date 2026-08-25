@@ -16,9 +16,6 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
   { id: "checkout", path: "/checkout", heading: /checkout|order|address|pay|subscribe|meal/i },
   { id: "menu", path: "/menu", heading: /menu/i },
   { id: "menu-weekly", path: "/menu/weekly", heading: /menu|week/i },
-  { id: "pricing", path: "/pricing", heading: /pric/i },
-  { id: "about", path: "/about", heading: /about/i },
-  { id: "faq", path: "/faq", heading: /faq|question/i },
-  { id: "how-it-works", path: "/how-it-works", heading: /how|work/i },
+  { id: "pricing", path: "/pricing", heading: /how|work|pric/i },
   { id: "contact", path: "/contact", heading: /contact/i },
 ];

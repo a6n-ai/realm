@@ -1,196 +1,305 @@
 ---
 name: Tiffin Grab
-description: An undesigned shadcn baseline with a warm saffron accent, awaiting a real identity
+description: A brutalist-editorial identity for the public and customer surfaces — "Tiffin Brutal"
 colors:
-  saffron: "oklch(0.66 0.16 60)"
-  saffron-on: "oklch(0.985 0.01 60)"
-  warm-white: "oklch(0.995 0.002 60)"
-  warm-ink: "oklch(0.16 0.006 60)"
-  warm-wash: "oklch(0.97 0.004 60)"
-  warm-panel: "oklch(0.975 0.006 60)"
-  hairline: "oklch(0.92 0.004 60)"
-  muted-ink: "oklch(0.55 0.012 60)"
+  brand-orange: "#F06B1A"
+  brand-orange-foreground: "#FFFFFF"
+  brand-orange-hover: "#D85F14"
+  warm-cream: "#FBF4E7"
+  warm-ink: "#241F1B"
+  card-white: "#FFFFFF"
+  warm-wash: "#F1EEE5"
+  muted-ink: "#6E6558"
+  hairline: "#E3DFD1"
+  badge-forest: "#1D5C32"
   destructive: "oklch(0.577 0.245 27.325)"
 typography:
   display:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 600
-    letterSpacing: "-0.025em"
+    fontFamily: "Poppins, system-ui, sans-serif"
+    fontSize: "clamp(48px, 11vw, 150px)"
+    fontWeight: 700
+    lineHeight: 0.92
+    letterSpacing: "-0.045em"
+  heading:
+    fontFamily: "Poppins, system-ui, sans-serif"
+    fontSize: "clamp(28px, 5vw, 52px)"
+    fontWeight: 700
+    letterSpacing: "-1.5px"
   body:
-    fontFamily: "Geist, system-ui, sans-serif"
+    fontFamily: "Poppins, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5
-  label:
-    fontFamily: "Geist Mono, ui-monospace, monospace"
-    fontSize: "0.875rem"
-    fontWeight: 500
+  eyebrow:
+    fontFamily: "Poppins, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 600
+    letterSpacing: "0.25em"
 rounded:
   sm: "0.375rem"
   md: "0.5rem"
   lg: "0.625rem"
   xl: "0.875rem"
+  full: "9999px"
 components:
   button-primary:
-    backgroundColor: "{colors.saffron}"
-    textColor: "{colors.saffron-on}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 1rem"
+    backgroundColor: "{colors.brand-orange}"
+    textColor: "{colors.brand-orange-foreground}"
+    rounded: "{rounded.full}"
+    padding: "0 32px"
+    height: "56px"
+  button-primary-hover:
+    backgroundColor: "{colors.brand-orange-hover}"
   card:
-    backgroundColor: "{colors.warm-white}"
+    backgroundColor: "{colors.card-white}"
     textColor: "{colors.warm-ink}"
-    rounded: "{rounded.lg}"
+    rounded: "{rounded.xl}"
   input:
-    backgroundColor: "{colors.warm-white}"
+    backgroundColor: "{colors.card-white}"
     textColor: "{colors.warm-ink}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.xl}"
 ---
 
-<!-- BASELINE: these tokens are what the code currently ships, not a chosen identity.
-     The operator has confirmed this is a placeholder. A future pass is free to REPLACE
-     this world rather than preserve it; nothing below is a brand commitment except
-     where explicitly marked. -->
+<!-- This REPLACES the prior "undesigned shadcn baseline" placeholder. That doc
+     recorded a stock shadcn install and explicitly said not to copy Puchkaman's
+     neobrutalist system into this app. The operator has since approved and shipped
+     a brutalist identity — "Tiffin Brutal" — scoped to tiffin-grab's own public,
+     auth, and customer-facing surfaces (docs/design/prototype-generation.md sets
+     the repo-wide convention: admin stays stock shadcn, public+auth+customer goes
+     neo-brutalist per client). This is not Puchkaman's system reused; it is a
+     distinct identity for this product, built from a Claude Design poster
+     (`TiffinGrab v3 Poster.dc.html`) and screenshot-verified against it
+     page-by-page. Admin/dashboard surfaces are out of scope for this file and
+     remain the prior stock-shadcn language. -->
 
 # Design System: Tiffin Grab
 
 ## Overview
 
-**Creative North Star (directional, not yet built): "The Weekly Planner"**
+**Creative North Star: "The Dabba Ticket"**
 
-What exists today is a stock shadcn/Tailwind v4 installation with one deliberate
-change: every neutral has been warmed to hue 60, and the accent is a saffron orange.
-It is competent and consistent, and it is not an identity. The operator has confirmed
-it as a placeholder, so this file records the baseline honestly rather than dressing
-it up as a considered system.
+Every screen borrows its logic from two physical objects a subscriber already
+trusts: the stainless tiffin box and the paper receipt that comes with it.
+Headings are stamped, not printed — bold, oversized, occasionally stroked-outline
+or italic, like something cut from a signboard. Content blocks behave like
+ticket stock: solid hairline borders, dashed tear-lines between sections, and
+receipt-style summary cards that sit slightly off their background with a hard
+offset shadow, as if punched down onto the page. Buttons and navigation are
+pill-shaped and orange, the one saturated color in an otherwise cream-and-ink
+field. Nothing is soft-shadowed or gradient-filled except the offset-shadow
+receipt cards, which are the system's one deliberate flourish.
 
-The direction to grow toward is **The Weekly Planner**: calm, gridded and legible,
-because the product is a schedule someone has to trust. A subscriber configures a plan
-once and then lives inside a calendar for weeks — picking meals, skipping days, booking
-a vacation. That makes clarity and predictability the real brief, and it means the
-identity, when it arrives, should come from the calendar and the plan builder rather
-than from a marketing hero.
+The identity is confident because it repeats without exception: the same
+uppercase tracked eyebrow label ("01 — Pick a baseline"), the same
+`border-[1.5px] border-foreground` hairline, the same dashed divider, the same
+pill button, from the marketing hero through checkout to the post-subscribe
+activation screen. It was built once, against a single reference (the Claude
+Design poster), and then applied everywhere rather than reinvented per page.
 
-One thing is worth preserving through any replacement: the warm neutral bias. Every
-grey in the system carries a trace of hue 60 rather than being cold, which is what
-keeps a food product from reading like a finance dashboard.
-
-**Key Characteristics (as built):**
-- Stock shadcn primitives; no custom component language yet
-- Warm-biased neutrals throughout (hue 60, chroma 0.002–0.012)
-- Single saffron accent; no secondary or tertiary accent exists
-- Full light and dark themes, both maintained
-- Geist Sans and Geist Mono
-- Flat surfaces separated by hairlines rather than shadow
+**Key Characteristics:**
+- Bold, often stroke-outlined or italic display headings (Poppins 700)
+- Rounded-full pills for every button and the primary nav
+- `1.5px` solid hairline borders on cards, `1.5px` dashed dividers inside them
+- One offset "punch shadow" (`6px 6px 0 var(--primary)`) reserved for
+  receipt/invoice/summary cards — never used decoratively elsewhere
+- Single saturated accent (brand orange); forest green appears only as a
+  status/confirmation color, never decoratively
+- Flat by default — no ambient drop shadows, no gradients except the hero's
+  photo-to-background fade and the marquee band
 
 ## Colors
 
-A near-monochrome warm neutral field with exactly one accent. There is no secondary or
-tertiary colour in this system, and inventing one is a design decision, not a fix.
+Warm cream and ink with one saturated accent; every neutral in the system
+carries the same warm bias, never a cool grey.
 
 ### Primary
-- **Saffron** (`oklch(0.66 0.16 60)`): the only accent. Primary buttons, focus rings,
-  active navigation, and every emphasis state. Its foreground is a near-white with the
-  same warm bias.
+- **Brand Orange** (`#F06B1A`, dark mode `#FF9843`): the only saturated accent.
+  Primary buttons, active nav pill, focus states, headline emphasis (the
+  italic "DELIVERED." line), pricing-formula operators, and the offset punch
+  shadow on receipt cards.
 
 ### Neutral
-- **Warm White** (`oklch(0.995 0.002 60)`): page and card background. Not pure white —
-  the faint warm cast is deliberate.
-- **Warm Ink** (`oklch(0.16 0.006 60)`): primary text.
-- **Muted Ink** (`oklch(0.55 0.012 60)`): secondary and supporting text. Marketing copy
-  currently leans on this heavily.
-- **Warm Wash** (`oklch(0.97 0.004 60)`): muted, secondary and accent surfaces — all
-  three tokens resolve to the same value, so "accent" is not visually distinct.
-- **Warm Panel** (`oklch(0.975 0.006 60)`): the sidebar, deliberately a step deeper
-  than content so the navigation panel separates without a border.
-- **Hairline** (`oklch(0.92 0.004 60)`): borders and input strokes.
+- **Warm Cream** (`#FBF4E7`, dark mode `#14201A`): page background.
+- **Warm Ink** (`#241F1B`, dark mode `#F3EFE4`): primary text and hairline
+  borders (borders reuse the foreground color at `1.5px`, not a separate
+  border token — that's deliberate, it's what makes the hairline read as
+  "drawn," not "default shadcn gray").
+- **Card White** (`#FFFFFF`, dark mode `#1B2921`): card and receipt surfaces.
+- **Warm Wash** (`#F1EEE5`, dark mode `#223229`): muted/secondary surfaces.
+- **Muted Ink** (`#6E6558`, dark mode `#A9AFA3`): supporting text, eyebrow
+  labels' non-color state, dates, kcal/macro lines.
+- **Hairline** (`#E3DFD1`): input/form borders where the full-weight
+  foreground border would be too heavy (e.g. shared `@realm/ui` inputs not
+  yet reskinned to the `1.5px` foreground treatment — see Components).
 
 ### Status
-- **Destructive** (`oklch(0.577 0.245 27.325)`): the one unwarmed colour in the system,
-  inherited from shadcn defaults.
+- **Badge Forest** (`#1D5C32`): confirmation/success callouts only — the
+  "20+ tiffins unlocks the best rate" style copy, waitlist confirmation,
+  zone-served banners. Never decorative.
+- **Destructive** (`oklch(0.577 0.245 27.325)`): unwarmed, inherited from
+  shadcn defaults; form/validation errors only.
 
 ### Named Rules
-**The Warm Neutral Rule.** Every neutral carries hue 60. A cool grey dropped into this
-palette reads instantly as foreign and makes the food product feel clinical. If the
-identity is replaced, this bias is the one thing worth carrying forward.
+**The One Punch Rule.** The `6px 6px 0 var(--primary)` offset shadow exists
+on receipt/invoice/summary cards and nowhere else. If a new card wants
+"emphasis," reach for the hairline border or a dashed divider first — the
+punch shadow is reserved, not a general elevation tool.
 
-**The Single Accent Rule.** Saffron is the only accent that exists. Charts are
-deliberately greyscale (`--chart-1` through `--chart-5` are pure neutrals) so data
-never competes with an action.
+**The Warm Neutral Rule** (carried forward from the prior baseline). Every
+neutral carries a warm cast; a cool grey reads as foreign against food
+photography and thali imagery.
 
 ## Typography
 
-**Display Font:** Geist (with `system-ui`, sans-serif fallback)
-**Body Font:** Geist — one family throughout
-**Label/Mono Font:** Geist Mono
+**Display Font:** Poppins (with `system-ui`, sans-serif fallback)
+**Body Font:** Poppins — one family throughout, weighted 400–700
+**Label Font:** Poppins, uppercase, tracked `0.25em` for eyebrows; Geist Mono
+reserved for tabular numerals (prices, step counters, invoice line items)
 
-**Character:** Neutral by construction. Geist is a well-drawn but deliberately
-characterless grotesque, which is exactly why it reads as a placeholder here: it makes
-no claim. Headings are set at `font-semibold tracking-tight`, body at regular weight in
-muted ink. There is currently no display treatment distinct from a large heading.
+**Character:** A single confident grotesque doing all the work — headlines
+lean on weight and scale rather than a second display face. Large text goes
+stroke-outline (`-webkit-text-stroke`) or italic for emphasis instead of a
+color or weight change alone, which is what gives the hero and pricing
+formula their poster-like, stamped quality.
 
 ### Hierarchy
-- **Page title** (600, 1.875rem, tracking `-0.025em`): one per page.
-- **Section heading** (600, 1.25rem): card and section headers.
-- **Body** (400, 1rem, line-height 1.5): running text, usually in muted ink.
-- **Label** (500, 0.875rem): form labels and table headers.
-- **Mono** (Geist Mono): reserved for numbers that must align — amounts, counts, ids.
+- **Display** (700, `clamp(48px,11vw,150px)`, line-height `0.92`, tracking
+  `-0.045em`): the hero headline only, one per page.
+- **Heading** (700, `clamp(28px,5vw,52px)`, tracking `-1.5px`): section
+  titles ("Three ways to eat.", "No packages. Just math.").
+- **Body** (400, 1rem, line-height 1.5): running copy, in warm ink or muted
+  ink.
+- **Eyebrow** (600, 12px, tracking `0.25em`, uppercase, brand orange): the
+  numbered section label pattern ("01 — Pick a baseline") that opens every
+  major content section.
+- **Tabular/Mono**: prices, step numerals, invoice amounts — always
+  `font-variant-numeric: tabular-nums` so columns align.
+- Below Body, everything (captions, credit lines, day/date labels, chip
+  labels, coupon-tag pills) uses Tailwind's stock `text-xs` (12px) or
+  `text-sm` (14px) — no arbitrary in-between pixel value. `text-lg` (18px)
+  covers the one supporting-CTA subtitle size (hero "Build my tiffin"
+  paragraph). No custom `caption`/`micro` role was needed: every one-off
+  size the detector flagged was within 1-2px of a stock step and snapped
+  there without a visible change.
+
+### Named Rules
+**The Stroke-Not-Color Rule.** Large display type gets emphasis from a
+stroke outline or italic, not from a second accent color layered onto text.
+Color is reserved for the one line that should read as the payoff (e.g. the
+italic "DELIVERED." in brand orange).
 
 ## Layout
 
-Standard shadcn application shell: a fixed warm sidebar beside a scrolling content
-column, with marketing pages using a centred `max-w-2xl` measure. Spacing follows
-Tailwind's default scale; there is no custom rhythm. Density is comfortable rather than
-compact, which suits the calendar and plan-builder surfaces where every row is a
-decision.
+Full-bleed marketing sections (`padding: 100-110px clamp(16px,4vw,44px)`)
+stacked vertically, no sidebar on public surfaces. The subscribe wizard and
+checkout use a centered `max-w-880px` / `max-w-1000px` column under a sticky
+translucent header and (for the wizard) a sticky bottom action bar. Weekly
+menu content breaks the vertical stack with a horizontal, non-snapping
+scroll row of fixed-width day cards — the one place the layout deliberately
+goes sideways. Density is generous on marketing pages (large type, wide
+gutters) and tightens on task surfaces (wizard steps, checkout form) where
+scanability matters more than spectacle.
 
 ## Elevation & Depth
 
-**This system is flat.** Depth comes from tonal steps between surfaces — content at
-`0.995`, sidebar at `0.975`, wash at `0.97` — plus hairline borders. Shadows are only
-what shadcn's popovers and dialogs bring by default; nothing in the application layer
-adds elevation of its own. Tonal layering, not shadow, is the depth language, and that
-is worth stating explicitly because it is otherwise invisible in the token file.
+**Flat by default.** Depth comes from hairline borders and dashed dividers,
+not ambient shadow. The single exception is the offset "punch shadow" on
+receipt/invoice/summary cards (see Named Rules above) — a hard-edged,
+non-blurred `6px 6px 0` shadow that reads as a physical object sitting on
+the page, not a soft elevation cue. Buttons get a soft glow shadow
+(`0 12px 30px -6px var(--color-primary)`) on primary CTAs only, to keep them
+feeling tappable against a flat field.
+
+### Shadow Vocabulary
+- **Punch** (`box-shadow: 6px 6px 0 var(--color-primary)`): receipt/invoice/
+  order-summary cards only.
+- **CTA glow** (`box-shadow: 0 12px 30px -6px var(--color-primary)`):
+  primary pill buttons, sparingly — not every button gets it.
 
 ## Shapes
 
-A single radius scale derived from `--radius: 0.625rem`, with `sm`/`md`/`lg`/`xl`
-computed as multiples. Uniformly soft, no sharp corners, no pill treatments outside
-badges. There is no distinctive form language — this is the clearest signal that the
-visual identity has not been designed yet.
+Two registers, no middle ground. Buttons, nav pills, and step-selector chips
+are fully rounded (`rounded-full`). Cards, receipts, and photo/placeholder
+blocks use a soft large radius (`rounded-xl`/`rounded-2xl`, ~14–18px) with a
+`1.5px` solid border in the foreground color rather than the lighter
+`--border` token — that heavier, ink-colored border is what separates this
+system from a stock shadcn card. Dashed `1.5px` dividers (never solid)
+separate sub-sections inside a card (invoice line items, meal-tier chip
+rows).
 
 ## Components
 
-Stock shadcn primitives, unmodified except by the token layer: button, card, input,
-table, dialog, sidebar, badge, tabs. There is no component in this codebase whose
-appearance is specific to Tiffin Grab, so there is nothing product-specific to
-document.
+### Buttons
+- **Shape:** `rounded-full`, no exceptions on public/customer surfaces.
+- **Primary:** brand orange background, white/dark foreground per theme,
+  `h-52` to `h-60` depending on prominence, CTA glow shadow on hero/pricing
+  CTAs.
+- **Secondary/Outline:** transparent background, `1.5px` foreground border,
+  same pill radius.
+- **Press state:** shared `@realm/ui` `Button` already applies
+  `active:translate-y-px` — respond on press, not just release.
 
-The surfaces that *should* eventually carry the identity, and currently do not:
+### Cards / Receipt cards
+- **Corner style:** `rounded-2xl` (~18px).
+- **Border:** `1.5px solid` foreground color, not the lighter `--border`
+  token — this is what makes a card read as "drawn" rather than "default."
+- **Receipt variant:** adds the punch shadow, a dashed divider under a
+  "🧾"-prefixed header row, and a bold tabular-nums `TOTAL` line.
 
-- **The plan builder** — the four-axis wizard is the product's whole positioning and
-  currently looks like a generic multi-step form.
-- **The delivery calendar** — where subscribers spend their time after subscribing.
-- **The weekly menu** — the only surface where food is the subject.
+### Inputs / Fields
+- Shared `@realm/ui` `Input` still ships its stock `rounded-lg` and
+  `--border` token by default. Reskinned call sites (checkout contact form,
+  coupon/coins boxes) pass `className="h-13 rounded-2xl border-[1.5px]
+  border-foreground"` at the call site rather than editing the shared
+  package — see Do's and Don'ts. Not every input on every page has been
+  reskinned yet; treat an un-reskinned input as a known gap, not a pattern
+  to copy.
+
+### Navigation
+- Centered pill nav (`absolute left-1/2 -translate-x-1/2` inside a
+  `relative` header), translucent `backdrop-blur` background, active link
+  gets a muted-wash pill behind it. Logo pinned left, theme toggle +
+  session-aware account link pinned right. Mobile collapses to a Sheet
+  drawer using the same link set.
+
+### Weekly menu ticket cards (signature component)
+The one place the system explicitly borrows a real-world object: a
+horizontal-scroll row of `250px`-wide day cards, each with a day+date header
+over a `1.5px` dashed divider, a diagonal-stripe photo-placeholder block
+(`repeating-linear-gradient` at `-45deg`) labeled `photo: {dish}` when no
+real image exists, and a bulleted dish list below. This is the pattern to
+extend if a future surface needs to show "a day's worth of something" —
+don't reinvent a different card shape for that job.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep every neutral warm (hue 60). It is the one deliberate decision in the
-  current palette.
-- **Do** keep charts greyscale so saffron always means "action".
-- **Do** maintain both light and dark themes; both are currently complete.
-- **Do** treat the plan builder, delivery calendar and weekly menu as the surfaces
-  where an identity should be established first.
-- **Do** replace this system rather than decorate it, when identity work begins.
+- **Do** use the `1.5px solid` foreground-color border on every card;
+  never the lighter `--border` token on a brutalist-system card.
+- **Do** reserve the offset punch shadow for receipt/invoice/summary
+  content — it means "this is a real total," not "this card is important."
+- **Do** override shared `@realm/ui` primitives via the `className` prop at
+  the call site (e.g. `border-[1.5px] border-foreground rounded-2xl` on
+  `Input`) rather than editing the package — the package stays generic for
+  other apps in the monorepo; this app's identity lives in its own call
+  sites and in `app/globals.css`'s `--radius`/color tokens.
+- **Do** keep the eyebrow-label pattern (`NN — Section name`, uppercase,
+  tracked, brand orange) as the one way sections introduce themselves.
+- **Do** keep both light and dark themes complete — dark mode has been
+  screenshot-verified: the stroke-outline hero text, photo gradient, and
+  marquee band all hold up.
 
 ### Don't:
-- **Don't** treat this file as a brand commitment. It is a record of what shipped, and
-  the operator has marked it a placeholder.
-- **Don't** introduce a cool grey.
-- **Don't** add a second accent colour without deciding what it means; there is
-  currently exactly one and no semantic slot for another.
-- **Don't** invent a component language piecemeal across screens. The next identity
-  should be established once and applied, not accreted.
-- **Don't** copy Puchkaman's neobrutalist system here. It belongs to a different
-  product with a different audience.
+- **Don't** add a second saturated accent color. Badge Forest is a status
+  color, not a design accent — using it decoratively breaks the "orange
+  means action" rule.
+- **Don't** treat this as Puchkaman's neobrutalist system reused. It's a
+  distinct identity built for this product from its own poster reference;
+  don't cross-pollinate components between the two apps' design systems.
+- **Don't** apply this brutalist language to admin/dashboard surfaces —
+  those remain stock shadcn per repo convention.
+- **Don't** use a soft/blurred shadow anywhere in this system. Depth is
+  hairlines and one hard-edged punch shadow, never a blur.
+- **Don't** introduce a solid divider inside a card where the poster's
+  pattern uses dashed — dashed means "tear here," solid means "this is a
+  hard edge/boundary" (row lists, section borders).

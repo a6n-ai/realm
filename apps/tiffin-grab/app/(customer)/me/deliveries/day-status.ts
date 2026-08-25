@@ -44,6 +44,10 @@ export const LEGEND_MARK_CLASS: Record<CalendarLegendKey, string> = {
   onHold: "bg-rose-500",
 };
 
+// Date-number ring for cutoff-passed (legend: Delivered) days — same emerald as the dash,
+// used instead of a padlock so the tile matches Upcoming / Vacation / On Hold language.
+export const DELIVERED_DATE_RING_CLASS = "ring-2 ring-emerald-500 ring-offset-1 ring-offset-background";
+
 export const CALENDAR_LEGEND: { key: CalendarLegendKey; label: string; dashClass: string }[] = [
   { key: "delivered", label: "Delivered", dashClass: LEGEND_MARK_CLASS.delivered },
   { key: "upcoming", label: "Upcoming", dashClass: LEGEND_MARK_CLASS.upcoming },

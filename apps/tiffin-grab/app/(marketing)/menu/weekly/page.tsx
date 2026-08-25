@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Section } from "@/components/marketing/section";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { menuService } from "@/lib/services/menu.service";
@@ -19,7 +20,10 @@ export default async function WeeklyMenuPage() {
       {pub ? (
         <>
           <WeeklyMenuPoster titlePrefix={pub.theme.titlePrefix} weekStart={pub.weekStart} slots={pub.slots} items={pub.items} accent={pub.theme.accent} />
-          <a href="/menu/weekly/pdf" className="inline-flex w-fit items-center rounded-md border px-4 py-2 text-sm font-medium hover-lift">Download PDF</a>
+          <div className="flex flex-wrap gap-3">
+            <a href="/menu/weekly/pdf" className="inline-flex w-fit items-center rounded-md border px-4 py-2 text-sm font-medium hover-lift">Download PDF</a>
+            <Link href="/menu" className="inline-flex w-fit items-center rounded-md border px-4 py-2 text-sm font-medium hover-lift">See meal sizes & pricing →</Link>
+          </div>
         </>
       ) : (
         <p className="text-muted-foreground">Menu coming soon — check back shortly.</p>

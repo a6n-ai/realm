@@ -2,16 +2,6 @@ import { Badge } from "@realm/ui/badge";
 import type { MealSizeView } from "@/lib/catalog/types";
 import { MealSizePrice } from "@/components/wizard/meal-size-price";
 
-export function StepCard({ n, title, body }: { n: number; title: string; body: string }) {
-  return (
-    <div className="rounded-lg border p-6">
-      <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-sm font-semibold">{n}</div>
-      <h3 className="mt-3 font-medium">{title}</h3>
-      <p className="text-muted-foreground mt-1 text-sm">{body}</p>
-    </div>
-  );
-}
-
 // Public Veg/Non-Veg badge is derived from the size's owning plan; other plans
 // (e.g. healthy) get no badge.
 const PLAN_BADGE: Record<string, string> = { veg: "Veg", "non-veg": "Non-Veg" };

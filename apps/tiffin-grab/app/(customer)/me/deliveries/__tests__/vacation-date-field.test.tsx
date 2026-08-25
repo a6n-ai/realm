@@ -25,7 +25,8 @@ describe("VacationDateField", () => {
       />,
     );
     expect(document.querySelector('input[type="date"]')).toBeNull();
-    expect(screen.getByRole("button", { name: /pick a date/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start date/i })).toBeInTheDocument();
+    expect(screen.getByText("Pick a date")).toBeInTheDocument();
   });
 
   it("shows the selected calendar date on the trigger", () => {
@@ -38,7 +39,7 @@ describe("VacationDateField", () => {
         today="2026-08-19"
       />,
     );
-    expect(screen.getByRole("button", { name: /aug 19, 2026/i })).toBeInTheDocument();
+    expect(screen.getByText(/aug 19, 2026/i)).toBeInTheDocument();
   });
 
   it("opens a bottom drawer on mobile instead of a popover", () => {
@@ -52,8 +53,46 @@ describe("VacationDateField", () => {
         today="2026-08-19"
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /pick a date/i }));
-    expect(screen.getByText("New delivery day")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /new delivery day/i }));
+    expect(screen.getAllByText("New delivery day").length).toBeGreaterThan(1);
     expect(screen.getByRole("grid")).toBeInTheDocument();
+  });
+
+  it("lets the customer pick today as the vacation start", () => {
+    const onChange = vi.fn();
+    render(
+      <VacationDateField
+        id="start"
+        label="Start date"
+        value=""
+        onChange={onChange}
+        today="2026-08-19"
+        minDate="2026-08-19"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /start date/i }));
+    const todayCell = document.querySelector('[data-day="2026-08-19"]');
+    expect(todayCell).not.toBeNull();
+    expect(todayCell).not.toHaveAttribute("data-disabled");
+    const todayButton = todayCell!.querySelector("button");
+    expect(todayButton).not.toBeNull();
+    expect(todayButton).toBeEnabled();
+    fireEvent.click(todayButton!);
+    expect(onChange).toHaveBeenCalledWith("2026-08-19");
+  });
+
+  it("keeps days before minDate disabled", () => {
+    render(
+      <VacationDateField
+        id="start"
+        label="Start date"
+        value=""
+        onChange={vi.fn()}
+        today="2026-08-19"
+        minDate="2026-08-19"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /start date/i }));
+    expect(document.querySelector('[data-day="2026-08-18"]')).toHaveAttribute("data-disabled");
   });
 });

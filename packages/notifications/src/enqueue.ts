@@ -34,7 +34,7 @@ export interface EnqueueInput {
  * The app's users table, narrowed to the columns enqueue reads. Passed in
  * rather than imported so the package stays app-agnostic; `notifyEmail` and
  * `phone` are optional because not every app has them (puchkaman has no
- * notifyEmail column; tiffin-grab has no phone).
+ * notifyEmail column; some future app may have no phone column).
  */
 export interface UsersRef {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

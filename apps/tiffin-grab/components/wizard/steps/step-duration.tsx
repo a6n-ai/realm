@@ -115,18 +115,25 @@ export function StepDuration({
         ) : null}
       </div>
       <div>
-        <Label className="text-sm font-medium">Commitment duration</Label>
+        <Label className="text-primary text-xs font-semibold tracking-[2.5px] uppercase">Commitment duration</Label>
         <RadioGroup
-          className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5"
+          className="mt-3 flex flex-wrap gap-2.5"
           value={String(selections.durationWeeks)}
           onValueChange={(v) => set({ durationWeeks: Number(v) })}
         >
-          {catalog.durations.map((d) => (
-            <div key={d.weeks} className="flex items-center gap-2 rounded-lg border p-3">
-              <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} />
-              <Label htmlFor={`d${d.weeks}`}>{d.weeks}wk</Label>
-            </div>
-          ))}
+          {catalog.durations.map((d) => {
+            const active = selections.durationWeeks === d.weeks;
+            return (
+              <label
+                key={d.weeks}
+                htmlFor={`d${d.weeks}`}
+                className={`border-foreground flex h-[54px] cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-5 text-sm font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : ""}`}
+              >
+                <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
+                {d.weeks}wk
+              </label>
+            );
+          })}
         </RadioGroup>
       </div>
       <Invoice result={result} />

@@ -25,8 +25,8 @@ export default async function SubscribePage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-4 sm:py-10">
       <header className="space-y-1 pb-2">
-        <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">
-          Build your tiffin subscription
+        <h1 className="text-2xl font-bold tracking-[-0.03em] text-balance sm:text-4xl">
+          Build your <span className="text-primary italic">tiffin.</span>
         </h1>
         <p className="text-muted-foreground text-sm text-pretty">
           Four quick steps to your weekly plan — fresh meals, delivered on your schedule.

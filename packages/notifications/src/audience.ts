@@ -81,14 +81,16 @@ export async function resolveAudience(deps: AudienceDeps, def: AudienceDef): Pro
   if (def.segment) {
     const ids = await deps.resolveSegment(def.segment);
     if (ids.length > 0) {
+      const select: Record<string, unknown> = {
+        id: users.columns.id,
+        email: users.columns.email,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        name: (users.table as any).name,
+      };
+      if (users.columns.phone) select.phone = users.columns.phone;
       const rows = await db
-        .select({
-          id: users.columns.id,
-          email: users.columns.email,
-          phone: users.columns.phone,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          name: (users.table as any).name,
-        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .select(select as any)
         .from(users.table)
         .where(inArray(users.columns.id, ids));
       for (const r of rows) {

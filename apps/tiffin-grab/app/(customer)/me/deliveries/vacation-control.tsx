@@ -7,12 +7,13 @@ import { Button } from "@realm/ui/button";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
-import type { CustomerDelivery, Subscription } from "@/lib/services/customer-deliveries.service";
+import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import type { PausePanel } from "./delivery-calendar";
 import { ActionCard, DELIVERY_SHEET_DIRECTION } from "./action-card";
 import { pauseMySubscription, resumeMySubscription } from "./actions";
 import {
   buildVacationPauseRequest,
+  validateVacationDates,
   vacationRequiresEndDate,
   vacationSummaryMessage,
 } from "./vacation-pause";
@@ -33,20 +34,11 @@ function pauseBudgetLines(limits: PausePanel["limits"], usage: PausePanel["usage
   return lines;
 }
 
-export function cutoffByDateFromDeliveries(deliveries: CustomerDelivery[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const d of deliveries) {
-    if (d.cutoffAt != null) map.set(d.deliveryDate, d.cutoffAt);
-  }
-  return map;
-}
-
 type VacationStep = "form" | "confirm";
 
 export function VacationControl({
   sub,
   pausePanel,
-  cutoffByDate,
   today,
   open: openProp,
   onOpenChange,
@@ -55,7 +47,6 @@ export function VacationControl({
 }: {
   sub: Subscription;
   pausePanel: PausePanel;
-  cutoffByDate: Map<string, number>;
   today: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -88,27 +79,15 @@ export function VacationControl({
     setPauseError(null);
   }
 
-  function isLockedDate(iso: string): boolean {
-    if (iso < today) return true;
-    const cutoff = cutoffByDate.get(iso);
-    return cutoff != null && Date.now() > cutoff;
-  }
-
   function validateVacation(fromIso: string, untilIso: string, indefinite: boolean): string | null {
-    if (!fromIso) return "Start date is required";
-    if (fromIso < today) return "Start date cannot be in the past";
-    if (isLockedDate(fromIso)) return "Start date is past the order cutoff";
-    if (endDateRequired && !endDate) return "This plan requires an end date for vacation";
-    if (!indefinite && untilIso < fromIso) return "End date must be on or after the start date";
-    if (!indefinite) {
-      for (let cursor = fromIso; cursor <= untilIso; ) {
-        if (isLockedDate(cursor)) return "One or more days in this range are past the order cutoff";
-        const next = new Date(`${cursor}T12:00:00`);
-        next.setDate(next.getDate() + 1);
-        cursor = next.toISOString().slice(0, 10);
-      }
-    }
-    return null;
+    return validateVacationDates({
+      from: fromIso,
+      until: untilIso,
+      indefinite,
+      today,
+      endDateRequired,
+      endDate,
+    });
   }
 
   const canContinue =
