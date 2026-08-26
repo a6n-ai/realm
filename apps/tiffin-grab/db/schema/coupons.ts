@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders, payments } from "./orders";
+import { organization } from "./organizations";
 
 export const couponKind = pgEnum("coupon_kind", [
   "percentage",
@@ -76,6 +77,9 @@ export const coupons = pgTable("coupons", {
 
   active: boolean("active").notNull().default(true),
   config: jsonb("config").$type<CouponConfig>(),
+  // Client-scoping — null = shared across the whole app, set = one org's own
+  // coupon. See dishes.organizationId (catalog.ts) for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("coupons_kind_active_idx").on(t.kind, t.active),
   // One rep_daily coupon per rep per IST day.
@@ -92,10 +96,13 @@ export const couponRedemptions = pgTable("coupon_redemptions", {
   redeemedBy: bigint("redeemed_by", { mode: "bigint" }).references(() => users.id),
   amountApplied: numeric("amount_applied", { precision: 10, scale: 2 }).notNull(),
   context: jsonb("context"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("coupon_redemptions_coupon_idx").on(t.couponId),
   index("coupon_redemptions_user_idx").on(t.userId),
   index("coupon_redemptions_order_idx").on(t.orderId),
+  index("coupon_redemptions_organization_idx").on(t.organizationId),
 ]);
 
 export const ledgerDirection = pgEnum("ledger_direction", ["debit", "credit"]);
@@ -110,7 +117,10 @@ export const ledgerEntries = pgTable("ledger_entries", {
   type: ledgerEntryType("type").notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   memo: text("memo"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("ledger_user_created_idx").on(t.userId, t.createdAt),
   index("ledger_order_idx").on(t.orderId),
+  index("ledger_organization_idx").on(t.organizationId),
 ]);

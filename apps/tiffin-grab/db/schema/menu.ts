@@ -2,6 +2,7 @@ import { updatableColumns } from "@realm/database";
 import { bigint, boolean, date, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { dishes, plans } from "./catalog";
 import { orders } from "./orders";
+import { organization } from "./organizations";
 
 // A menu slot (sabzi, rice, protein …). Which plans use a slot is explicit
 // membership via categoryPlans, not the old plan_type column: plan_type could
@@ -32,6 +33,9 @@ export const dishCategories = pgTable(
     tuUnitType: tuUnitType("tu_unit_type").notNull().default("weight"),
     tuUnitSize: numeric("tu_unit_size", { precision: 6, scale: 2 }).notNull().default("8"),
     tuUnitLabel: text("tu_unit_label").notNull().default("oz"),
+    // Client-scoping — null = shared across the whole app, set = one org's own
+    // category. See orders.organizationId for the pattern.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("dish_categories_key_unique").on(t.key)],
 );
@@ -52,6 +56,8 @@ export const categorySwapPairs = pgTable(
     toCategoryId: bigint("to_category_id", { mode: "bigint" })
       .notNull()
       .references(() => dishCategories.id, { onDelete: "cascade" }),
+    // Client-scoping — see dishCategories.organizationId for the pattern.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId)],
 );
@@ -67,6 +73,8 @@ export const categoryPlans = pgTable(
     planId: bigint("plan_id", { mode: "bigint" })
       .notNull()
       .references(() => plans.id, { onDelete: "cascade" }),
+    // Client-scoping — see dishCategories.organizationId for the pattern.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("category_plans_category_plan_unique").on(t.categoryId, t.planId)],
 );
@@ -94,6 +102,8 @@ export const menuWeeks = pgTable(
     status: menuWeekStatus("status").notNull().default("draft"),
     orderCutoff: bigint("order_cutoff", { mode: "number" }).notNull(),
     releasedAt: bigint("released_at", { mode: "number" }),
+    // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("menu_weeks_week_unique").on(t.weekStart)],
 );
@@ -114,6 +124,8 @@ export const menuItems = pgTable(
     dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
     isDefault: boolean("is_default").notNull().default(false),
     position: integer("position").notNull().default(0),
+    // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("menu_items_unique").on(t.menuWeekId, t.dayOfWeek, t.categoryId, t.dishId)],
 );
@@ -131,6 +143,8 @@ export const mealSelections = pgTable(
     personIndex: integer("person_index").notNull(),
     pickIndex: integer("pick_index").notNull().default(1),
     dishId: bigint("dish_id", { mode: "bigint" }).notNull().references(() => dishes.id),
+    // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [
     uniqueIndex("meal_selections_unique").on(

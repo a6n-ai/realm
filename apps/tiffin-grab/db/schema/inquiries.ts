@@ -5,6 +5,7 @@ import { users } from "./auth";
 import { orders } from "./orders";
 import { leadSources, leadSubsources } from "./lead-sources";
 import { deliveryZones } from "./catalog";
+import { organization } from "./organizations";
 
 export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "quoted", "follow_up", "converted", "lost"]);
 export const inquiryActivityType = pgEnum("inquiry_activity_type", [
@@ -34,6 +35,8 @@ export const inquiries = pgTable("inquiries", {
   quotedPrice: numeric("quoted_price", { precision: 10, scale: 2 }),
   lostReason: inquiryLostReason("lost_reason"),
   notes: text("notes"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
   index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
@@ -44,6 +47,7 @@ export const inquiries = pgTable("inquiries", {
     .on(sql`lower(${t.phone})`, t.sourceId)
     .where(sql`${t.stage} not in ('converted', 'lost')`),
   index("inquiries_created_idx").on(t.createdAt),
+  index("inquiries_organization_idx").on(t.organizationId),
 ]);
 
 export const inquiryActivities = pgTable("inquiry_activities", {
@@ -56,8 +60,11 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   fromStage: inquiryStage("from_stage"),
   toStage: inquiryStage("to_stage"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   // Pipeline list runs a per-row "latest activity" correlated subquery
   // (inquiry_id = ? order by created_at desc limit 1) — index both columns.
   index("inquiry_activities_inquiry_created_idx").on(t.inquiryId, t.createdAt),
+  index("inquiry_activities_organization_idx").on(t.organizationId),
 ]);

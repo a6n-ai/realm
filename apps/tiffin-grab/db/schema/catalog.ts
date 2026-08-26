@@ -1,6 +1,7 @@
 import { updatableColumns } from "@realm/database";
 import type { FileDetail } from "@realm/storage/model";
 import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { organization } from "./organizations";
 
 export const mealTier = pgEnum("meal_tier", ["budget", "medium", "premium"]);
 export const planType = pgEnum("plan_type", ["tiffin", "healthy"]);
@@ -17,6 +18,9 @@ export const dishes = pgTable("dishes", {
   // Nullable for back-compat: a null-category dish may be placed in any slot.
   category: text("category"),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — null = shared across the whole app, set = one org's own
+  // catalog item. See db/schema/organizations.ts + orders.organizationId.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const plans = pgTable("plans", {
@@ -33,6 +37,8 @@ export const plans = pgTable("plans", {
   tagLabel: text("tag_label"),
   tagColor: text("tag_color"),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /**
@@ -82,6 +88,8 @@ export const mealSizes = pgTable("meal_sizes", {
   discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull().default("0"),
   trial: boolean("trial").notNull().default(false),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const mealSizeItems = pgTable("meal_size_items", {
@@ -116,6 +124,8 @@ export const addons = pgTable("addons", {
   name: text("name").notNull(),
   pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const deliveryFrequencies = pgTable("delivery_frequencies", {
@@ -125,6 +135,8 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   daysPerWeek: integer("days_per_week").notNull(),
   courierDiscountPct: integer("courier_discount_pct").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const durationPackages = pgTable("duration_packages", {
@@ -136,6 +148,8 @@ export const durationPackages = pgTable("duration_packages", {
   maxPauseDaysTotal: integer("max_pause_days_total"),
   maxPauseStretchDays: integer("max_pause_stretch_days"),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const deliveryZones = pgTable("delivery_zones", {
@@ -144,6 +158,8 @@ export const deliveryZones = pgTable("delivery_zones", {
   postalPrefixes: text("postal_prefixes").array().notNull(),
   slotWindow: text("slot_window").notNull(),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const pricingTiers = pgTable("pricing_tiers", {
@@ -152,4 +168,6 @@ export const pricingTiers = pgTable("pricing_tiers", {
   maxQty: integer("max_qty"), // null = unbounded top band
   upliftPct: numeric("uplift_pct", { precision: 5, scale: 2 }).notNull(),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see dishes.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });

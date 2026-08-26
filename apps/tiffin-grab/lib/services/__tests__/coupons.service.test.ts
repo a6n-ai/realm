@@ -43,6 +43,7 @@ const fakeCoupon = (over: Partial<Coupon>): Coupon => ({
   istDate: null,
   active: true,
   config: null,
+  organizationId: null,
   ...over,
 });
 

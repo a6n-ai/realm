@@ -2,6 +2,7 @@ import { updatableColumns } from "@realm/database";
 import { bigint, date, index, integer, pgEnum, pgTable, text, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones } from "./catalog";
 import { orders } from "./orders";
+import { organization } from "./organizations";
 
 export const deliveryStatus = pgEnum("delivery_status", ["scheduled", "paused", "skipped", "cancelled"]);
 
@@ -52,8 +53,11 @@ export const deliveries = pgTable("deliveries", {
   optimoCompletedAt: bigint("optimo_completed_at", { mode: "number" }),
   // Driver's failure note (OptimoRoute's `form.note`) — null on a success completion.
   optimoCompletionNote: text("optimo_completion_note"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   uniqueIndex("deliveries_order_date_unique").on(t.orderId, t.deliveryDate),
   uniqueIndex("deliveries_makeup_unique").on(t.makeupForDeliveryId),
   index("deliveries_order_date_idx").on(t.orderId, t.deliveryDate),
+  index("deliveries_organization_idx").on(t.organizationId),
 ]);

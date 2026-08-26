@@ -81,8 +81,11 @@ export const payments = pgTable("payments", {
   proof: jsonb("proof").$type<PaymentProof>(),
   claimedAt: bigint("claimed_at", { mode: "number" }),
   note: text("note"),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("payments_order_idx").on(t.orderId),
+  index("payments_organization_idx").on(t.organizationId),
 ]);
 
 export const orderActivities = pgTable("order_activities", {
@@ -95,6 +98,9 @@ export const orderActivities = pgTable("order_activities", {
   // Plain bigint, no .references(): a TS-level reference would cycle orders -> deliveries -> orders.
   // FK added in raw SQL in the migration.
   deliveryId: bigint("delivery_id", { mode: "bigint" }),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("order_activities_order_created_idx").on(t.orderId, t.createdAt),
+  index("order_activities_organization_idx").on(t.organizationId),
 ]);

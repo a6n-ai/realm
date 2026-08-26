@@ -1,10 +1,11 @@
 import { updatableColumns } from "@realm/database";
 import { makeWalletTables } from "@realm/wallet/schema";
-import { bigint, integer, pgEnum, pgTable, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { ledgerDirection } from "./coupons";
 import { durationPackages, mealSizes } from "./catalog";
 import { orders } from "./orders";
 import { users } from "./auth";
+import { organization } from "./organizations";
 
 // Unified app-wide event catalog. Wallet payouts (event_payout) AND notification
 // templates key off this single enum. An event need not have a payout or a
@@ -37,6 +38,9 @@ export const mealPayout = pgTable("meal_payout", {
   mealSizeId: bigint("meal_size_id", { mode: "bigint" }).references(() => mealSizes.id, { onDelete: "cascade" }),
   durationPackageId: bigint("duration_package_id", { mode: "bigint" }).references(() => durationPackages.id, { onDelete: "cascade" }),
   coins: integer("coins").notNull().default(0),
+  // Client-scoping — null = shared across the whole app, set = one org's own
+  // payout rule. See orders.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   uniqueIndex("meal_payout_combo_unique").on(t.mealSizeId, t.durationPackageId),
 ]);

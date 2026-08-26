@@ -29,6 +29,13 @@
       "when": 1787677654516,
       "tag": "0003_careful_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787728067205,
+      "tag": "0004_exotic_oracle",
+      "breakpoints": true
     }
   ]
 }

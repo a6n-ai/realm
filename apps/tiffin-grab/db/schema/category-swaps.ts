@@ -1,6 +1,7 @@
 import { baseColumns } from "@realm/database";
 import { bigint, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveries } from "./deliveries";
+import { organization } from "./organizations";
 
 // Every applied swap on a specific delivery. Eligibility (which category pairs
 // may EVER swap) lives globally on category_swap_pairs (db/schema/menu.ts), not
@@ -21,9 +22,12 @@ export const deliveryCategorySwaps = pgTable("delivery_category_swaps", {
   toCategory: text("to_category").notNull(),
   qtyFrom: integer("qty_from").notNull(),
   qtyTo: integer("qty_to").notNull(),
+  // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   // Applying the same (from, to) pair twice on one delivery is legitimate now
   // (stack more of the same swap) — validateSwapStack bounds the total by what's
   // actually available, so there's nothing to uniquely constrain here anymore.
   index("delivery_category_swaps_delivery_idx").on(t.deliveryId),
+  index("delivery_category_swaps_organization_idx").on(t.organizationId),
 ]);
