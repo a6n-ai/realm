@@ -65,16 +65,37 @@ export async function listMembers(organizationId: string): Promise<MemberRow[]> 
   return rows.map((r) => ({ userId: r.userId, email: r.email ?? "", role: r.role }));
 }
 
+// True when a Postgres unique-violation (23505) hit the member org+user unique
+// index. drizzle wraps the driver error, so the real PostgresError (with code +
+// constraint_name) sits on .cause; postgres.js names the field constraint_name.
+function isMemberConflict(e: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+  const err = e as PgErr;
+  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "").includes("member_org_user_unique"),
+  );
+}
+
 export async function addMember(organizationId: string, userPublicId: string, role: string): Promise<void> {
   const userId = await resolveUserId(userPublicId);
   if (!userId) throw new Error("User not found");
-  const [existing] = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
-    .limit(1);
-  if (existing) return;
-  await db.insert(member).values({ organizationId, userId, role });
+  try {
+    await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: member.id })
+        .from(member)
+        .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
+        .limit(1);
+      if (existing) return;
+      await tx.insert(member).values({ organizationId, userId, role });
+    });
+  } catch (e) {
+    // Concurrent add for the same org+user can still race the check-then-insert
+    // inside the transaction; the unique constraint is the real guard, this is
+    // just turning its violation into the same benign no-op the check intended.
+    if (!isMemberConflict(e)) throw e;
+  }
 }
 
 export async function removeMember(organizationId: string, userPublicId: string): Promise<void> {
