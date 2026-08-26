@@ -10,6 +10,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { grantedKeys } from "@/lib/auth/nav-permissions";
+import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { PLUGINS } from "@/lib/plugins.server";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
@@ -17,6 +18,7 @@ import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationBellMount } from "@/components/dashboard/notification-bell-mount";
+import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
@@ -48,6 +50,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (!u.passwordSet) redirect("/set-password");
 
   const granted = grantedKeys(session.user.role);
+  const memberOrganizations = await getMemberOrganizations(session);
 
   return (
     <div className="crm-app">
@@ -65,6 +68,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           breadcrumbs={<AppBreadcrumbs />}
           actions={
             <>
+              <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
               <NotificationBellMount userPublicId={session.user.id} />
               <ModeToggle />
             </>
