@@ -114,7 +114,7 @@ export function UserRow({ id, name, email, phone, role, status, flags }: UserLis
   return (
     <>
       <TableCell>
-        <Link href={`/dashboard/users/${id}`} className="font-medium underline-offset-4 hover:underline">
+        <Link href={`/dashboard/organization/users/${id}`} className="font-medium underline-offset-4 hover:underline">
           {name || "—"}
         </Link>
       </TableCell>
@@ -132,7 +132,7 @@ export function UserRow({ id, name, email, phone, role, status, flags }: UserLis
 export function UserRowCard({ id, name, email, phone, role, status, flags }: UserListRow) {
   return (
     <div className="space-y-3">
-      <Link href={`/dashboard/users/${id}`} className="text-base font-medium underline-offset-4 hover:underline">
+      <Link href={`/dashboard/organization/users/${id}`} className="text-base font-medium underline-offset-4 hover:underline">
         {name || email || phone || "—"}
       </Link>
       {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? phone}</div>}

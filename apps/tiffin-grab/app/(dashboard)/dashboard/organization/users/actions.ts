@@ -22,7 +22,7 @@ export async function setUserStatus(userId: string, status: UserStatusValue) {
   // otherwise "suspended" only stops the next login and leaves the current one running.
   if (status === "deleted") await usersService.softDelete(userId);
   else await usersService.setStatus(userId, status);
-  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/organization/users");
 }
 
 export async function setUserRole(userId: string, role: RoleValue) {
@@ -30,20 +30,20 @@ export async function setUserRole(userId: string, role: RoleValue) {
   // setRole, not update: demoting your own row out of admin locks you out of this
   // page, and the guard lives in the service so every caller inherits it.
   await usersService.setRole(userId, role);
-  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/organization/users");
 }
 
 export async function adminUpdateContact(userId: string, input: { email?: string; phone?: string }) {
   await requireAdmin();
   await usersService.updateContact(userId, input);
-  revalidatePath(`/dashboard/users/${userId}`);
-  revalidatePath("/dashboard/users");
+  revalidatePath(`/dashboard/organization/users/${userId}`);
+  revalidatePath("/dashboard/organization/users");
 }
 
 export async function setUserFlag(userId: string, flagId: string, enabled: boolean) {
   await requireAdmin();
   await userFeatureFlagsService.setFlag(userId, flagId, enabled);
-  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/organization/users");
 }
 
 // Admin-initiated password reset for a staff member: mails them the normal
@@ -60,5 +60,5 @@ export async function resetStaffPassword(userId: string): Promise<{ email: strin
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
   await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
-  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/organization/users");
 }

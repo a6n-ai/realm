@@ -1,4 +1,4 @@
-// Demoting your own row out of `admin` locks you out of /dashboard/users, which is the
+// Demoting your own row out of `admin` locks you out of /dashboard/organization/users, which is the
 // only place to promote yourself back — recovery is a database edit. The guard lives in
 // usersService.setRole rather than the server action so every caller inherits it.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";

@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   BarChart3Icon,
   BellIcon,
+  Building2Icon,
   CalendarIcon,
   CheckIcon,
   ClipboardListIcon,
@@ -109,7 +110,7 @@ export const SECTIONS: NavSection[] = [
   {
     label: "Administration",
     items: [
-      { title: "Users", href: "/dashboard/users", icon: UsersIcon, roles: ["admin"] },
+      { title: "Organization", href: "/dashboard/organization/clients", icon: Building2Icon, roles: ["admin"] },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ["admin"] },
       { title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ["admin"] },
     ],
