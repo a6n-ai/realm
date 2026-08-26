@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { addMember, removeMember } from "./organizations.service";
+import { addMember, removeMember, type MemberRole } from "./organizations.service";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -86,7 +86,7 @@ export async function createFranchise(
 export async function addMemberAction(
   organizationId: string,
   userPublicId: string,
-  role: string,
+  role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
   try {

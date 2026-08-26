@@ -77,7 +77,11 @@ function isMemberConflict(e: unknown): boolean {
   );
 }
 
-export async function addMember(organizationId: string, userPublicId: string, role: string): Promise<void> {
+// The only two roles anything in this codebase writes to member.role (see
+// createFranchise's owner-member insert and db/seed-brand-org.ts's admin backfill).
+export type MemberRole = "owner" | "admin";
+
+export async function addMember(organizationId: string, userPublicId: string, role: MemberRole): Promise<void> {
   const userId = await resolveUserId(userPublicId);
   if (!userId) throw new Error("User not found");
   try {

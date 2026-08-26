@@ -1,15 +1,24 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ne } from "drizzle-orm";
+import { inArray, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
 const { getMemberOrganizations, listOrganizations, addMember, removeMember, listMembers, listMembershipsForUser } =
   await import("../organizations.service");
 
+// Scoped to this file's own fixtures (clientCode "test-*", email "*@test.invalid")
+// rather than a blanket delete: organizations-actions.test.ts runs concurrently
+// against the same DB and creates its own brand/franchise orgs, which an
+// unpredicated reset() here could delete out from under its createFranchise calls.
 async function reset() {
-  await db.delete(member);
-  await db.delete(organization).where(ne(organization.clientCode, "TG"));
-  await db.delete(users).where(ne(users.isSystem, true));
+  const testOrgs = await db
+    .select({ id: organization.id })
+    .from(organization)
+    .where(like(organization.clientCode, "test-%"));
+  const testOrgIds = testOrgs.map((o) => o.id);
+  if (testOrgIds.length) await db.delete(member).where(inArray(member.organizationId, testOrgIds));
+  await db.delete(organization).where(like(organization.clientCode, "test-%"));
+  await db.delete(users).where(like(users.email, "%@test.invalid"));
 }
 
 describe("getMemberOrganizations (integration)", () => {
