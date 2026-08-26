@@ -1,9 +1,11 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ne } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
-const { getMemberOrganizations, listOrganizations } = await import("../organizations.service");
+const { getMemberOrganizations, listOrganizations, addMember, removeMember, listMembers } = await import(
+  "../organizations.service"
+);
 
 async function reset() {
   await db.delete(member);
@@ -83,5 +85,29 @@ describe("listOrganizations (integration)", () => {
     expect(brandRow?.memberCount).toBe(1);
     expect(franchiseRow?.memberCount).toBe(0);
     expect(franchiseRow?.parentOrganizationId).toBe(brand.id);
+  });
+});
+
+describe("member add/remove (integration)", () => {
+  afterEach(reset);
+
+  it("addMember creates a member row, removeMember deletes it", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Org M", clientCode: "test-org-m" })
+      .returning({ id: organization.id });
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Addable", email: `addable-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ id: users.id, publicId: users.publicId });
+
+    await addMember(org.id, user.publicId, "admin");
+    let rows = await listMembers(org.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].email).toContain("addable-");
+
+    await removeMember(org.id, user.publicId);
+    rows = await listMembers(org.id);
+    expect(rows).toHaveLength(0);
   });
 });

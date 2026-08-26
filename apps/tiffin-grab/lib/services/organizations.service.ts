@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 
@@ -47,4 +47,38 @@ export async function listOrganizations(): Promise<OrganizationListRow[]> {
     .from(organization)
     .leftJoin(member, eq(member.organizationId, organization.id))
     .groupBy(organization.id);
+}
+
+export async function getOrganization(id: string) {
+  const [row] = await db.select().from(organization).where(eq(organization.id, id)).limit(1);
+  return row ?? null;
+}
+
+export type MemberRow = { userId: string; email: string; role: string };
+
+export async function listMembers(organizationId: string): Promise<MemberRow[]> {
+  const rows = await db
+    .select({ userId: users.publicId, email: users.email, role: member.role })
+    .from(member)
+    .innerJoin(users, eq(users.id, member.userId))
+    .where(eq(member.organizationId, organizationId));
+  return rows.map((r) => ({ userId: r.userId, email: r.email ?? "", role: r.role }));
+}
+
+export async function addMember(organizationId: string, userPublicId: string, role: string): Promise<void> {
+  const userId = await resolveUserId(userPublicId);
+  if (!userId) throw new Error("User not found");
+  const [existing] = await db
+    .select({ id: member.id })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
+    .limit(1);
+  if (existing) return;
+  await db.insert(member).values({ organizationId, userId, role });
+}
+
+export async function removeMember(organizationId: string, userPublicId: string): Promise<void> {
+  const userId = await resolveUserId(userPublicId);
+  if (!userId) return;
+  await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
 }

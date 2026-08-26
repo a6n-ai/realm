@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { addMember, removeMember } from "./organizations.service";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -80,4 +81,25 @@ export async function createFranchise(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Organization creation failed." };
   }
+}
+
+export async function addMemberAction(
+  organizationId: string,
+  userPublicId: string,
+  role: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    await addMember(organizationId, userPublicId, role);
+    revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not add member." };
+  }
+}
+
+export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
+  await requireAdmin();
+  await removeMember(organizationId, userPublicId);
+  revalidatePath(`/dashboard/organization/clients/${organizationId}`);
 }
