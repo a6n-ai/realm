@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ilike, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 
@@ -136,6 +136,19 @@ export async function removeMember(organizationId: string, userPublicId: string)
   const userId = await resolveUserId(userPublicId);
   if (!userId) return;
   await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
+}
+
+export type UserSearchRow = { publicId: string; email: string };
+
+export async function searchUsersByEmail(query: string): Promise<UserSearchRow[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const rows = await db
+    .select({ publicId: users.publicId, email: users.email })
+    .from(users)
+    .where(ilike(users.email, `%${trimmed}%`))
+    .limit(8);
+  return rows.filter((r): r is UserSearchRow => r.email !== null);
 }
 
 export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };

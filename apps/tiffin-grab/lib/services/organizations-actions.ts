@@ -10,10 +10,12 @@ import { getSession } from "@/lib/auth/session";
 import {
   addMember,
   removeMember,
+  searchUsersByEmail,
   updateOrganization,
   type MemberRole,
   type UpdateOrganizationInput,
   type UpdateOrganizationResult,
+  type UserSearchRow,
 } from "./organizations.service";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
@@ -119,4 +121,9 @@ export async function removeMemberAction(organizationId: string, userPublicId: s
   await requireAdmin();
   await removeMember(organizationId, userPublicId);
   revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+}
+
+export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {
+  await requireAdmin();
+  return searchUsersByEmail(query);
 }

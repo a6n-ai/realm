@@ -11,6 +11,7 @@ const {
   listMembers,
   listMembershipsForUser,
   updateOrganization,
+  searchUsersByEmail,
 } = await import("../organizations.service");
 
 // Scoped to this file's own fixtures (clientCode "test-*", email "*@test.invalid")
@@ -192,5 +193,36 @@ describe("listMembershipsForUser (integration)", () => {
     const result = await listMembershipsForUser(user.publicId);
 
     expect(result).toEqual([{ organizationId: org.id, organizationName: "Org N", role: "admin" }]);
+  });
+});
+
+describe("searchUsersByEmail (integration)", () => {
+  let createdUserIds: bigint[] = [];
+  afterEach(async () => {
+    if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
+    createdUserIds = [];
+    await reset();
+  });
+
+  it("returns users whose email contains the query, capped at 8", async () => {
+    const inserted = await db
+      .insert(users)
+      .values([
+        { name: "Match One", email: "match-one@test.invalid", role: "admin" },
+        { name: "Match Two", email: "match-two@test.invalid", role: "admin" },
+        { name: "No Match", email: "different@test.invalid", role: "admin" },
+      ])
+      .returning({ id: users.id });
+    createdUserIds = inserted.map((r) => r.id);
+
+    const result = await searchUsersByEmail("match");
+
+    expect(result).toHaveLength(2);
+    expect(result.every((r) => r.email.includes("match"))).toBe(true);
+  });
+
+  it("returns an empty array for a blank query rather than every user", async () => {
+    const result = await searchUsersByEmail("");
+    expect(result).toEqual([]);
   });
 });
