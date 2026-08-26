@@ -7,7 +7,14 @@ import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { addMember, removeMember, type MemberRole } from "./organizations.service";
+import {
+  addMember,
+  removeMember,
+  updateOrganization,
+  type MemberRole,
+  type UpdateOrganizationInput,
+  type UpdateOrganizationResult,
+} from "./organizations.service";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -96,6 +103,16 @@ export async function addMemberAction(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not add member." };
   }
+}
+
+export async function updateOrganizationAction(
+  id: string,
+  fields: UpdateOrganizationInput,
+): Promise<UpdateOrganizationResult> {
+  await requireAdmin();
+  const result = await updateOrganization(id, fields);
+  if (result.ok) revalidatePath(`/dashboard/organization/clients/${id}`);
+  return result;
 }
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {

@@ -54,6 +54,36 @@ export async function getOrganization(id: string) {
   return row ?? null;
 }
 
+export type UpdateOrganizationInput = { name: string; clientCode: string; region: string | null };
+export type UpdateOrganizationResult = { ok: true } | { ok: false; error: string };
+
+// Same wrapped-error shape as isMemberConflict below, but keyed to the
+// organization_client_code_unique index instead of the member org+user one.
+function isClientCodeConflict(e: unknown): boolean {
+  type PgErr = { code?: string; constraint?: string; constraint_name?: string; cause?: PgErr };
+  const err = e as PgErr;
+  const layers = [err, err?.cause, err?.cause?.cause].filter(Boolean) as PgErr[];
+  return layers.some(
+    (l) => l.code === "23505" && (l.constraint ?? l.constraint_name ?? "") === "organization_client_code_unique",
+  );
+}
+
+export async function updateOrganization(
+  id: string,
+  fields: UpdateOrganizationInput,
+): Promise<UpdateOrganizationResult> {
+  try {
+    await db
+      .update(organization)
+      .set({ name: fields.name, clientCode: fields.clientCode, region: fields.region })
+      .where(eq(organization.id, id));
+    return { ok: true };
+  } catch (e) {
+    if (isClientCodeConflict(e)) return { ok: false, error: "That client code is already in use." };
+    return { ok: false, error: e instanceof Error ? e.message : "Update failed." };
+  }
+}
+
 export type MemberRow = { userId: string; email: string; role: string };
 
 export async function listMembers(organizationId: string): Promise<MemberRow[]> {

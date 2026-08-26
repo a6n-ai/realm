@@ -9,7 +9,7 @@ import { organization } from "@/db/schema";
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
-const { createFranchise } = await import("../organizations-actions");
+const { createFranchise, updateOrganizationAction } = await import("../organizations-actions");
 
 let createdOrgIds: string[] = [];
 
@@ -53,5 +53,27 @@ describe("createFranchise (integration)", () => {
     const result = await createFranchise(franchise.id, "Illegal Sub-Franchise", "test-illegal");
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("updateOrganizationAction (integration)", () => {
+  afterEach(reset);
+
+  it("updates the organization and returns ok", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Before", clientCode: "test-update-action" })
+      .returning({ id: organization.id });
+    createdOrgIds = [org.id];
+
+    const result = await updateOrganizationAction(org.id, {
+      name: "After",
+      clientCode: "test-update-action-2",
+      region: null,
+    });
+
+    expect(result.ok).toBe(true);
+    const [row] = await db.select().from(organization).where(eq(organization.id, org.id)).limit(1);
+    expect(row.name).toBe("After");
   });
 });

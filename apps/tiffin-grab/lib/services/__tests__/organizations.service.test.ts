@@ -1,10 +1,17 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
-import { inArray, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
-const { getMemberOrganizations, listOrganizations, addMember, removeMember, listMembers, listMembershipsForUser } =
-  await import("../organizations.service");
+const {
+  getMemberOrganizations,
+  listOrganizations,
+  addMember,
+  removeMember,
+  listMembers,
+  listMembershipsForUser,
+  updateOrganization,
+} = await import("../organizations.service");
 
 // Scoped to this file's own fixtures (clientCode "test-*", email "*@test.invalid")
 // rather than a blanket delete: organizations-actions.test.ts runs concurrently
@@ -117,6 +124,54 @@ describe("member add/remove (integration)", () => {
     await removeMember(org.id, user.publicId);
     rows = await listMembers(org.id);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("updateOrganization (integration)", () => {
+  let createdOrgIds: string[] = [];
+  afterEach(async () => {
+    if (createdOrgIds.length) await db.delete(organization).where(inArray(organization.id, createdOrgIds));
+    createdOrgIds = [];
+  });
+
+  it("updates name, clientCode, and region", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Old Name", clientCode: "test-org-old" })
+      .returning({ id: organization.id });
+    createdOrgIds = [org.id];
+
+    const result = await updateOrganization(org.id, {
+      name: "New Name",
+      clientCode: "test-org-new",
+      region: "ON",
+    });
+
+    expect(result.ok).toBe(true);
+    const [row] = await db.select().from(organization).where(eq(organization.id, org.id)).limit(1);
+    expect(row.name).toBe("New Name");
+    expect(row.clientCode).toBe("test-org-new");
+    expect(row.region).toBe("ON");
+  });
+
+  it("rejects a duplicate clientCode as a correctable error", async () => {
+    const [orgA] = await db
+      .insert(organization)
+      .values({ name: "Org A", clientCode: "test-org-dup-a" })
+      .returning({ id: organization.id });
+    const [orgB] = await db
+      .insert(organization)
+      .values({ name: "Org B", clientCode: "test-org-dup-b" })
+      .returning({ id: organization.id });
+    createdOrgIds = [orgA.id, orgB.id];
+
+    const result = await updateOrganization(orgB.id, {
+      name: "Org B",
+      clientCode: "test-org-dup-a",
+      region: null,
+    });
+
+    expect(result.ok).toBe(false);
   });
 });
 

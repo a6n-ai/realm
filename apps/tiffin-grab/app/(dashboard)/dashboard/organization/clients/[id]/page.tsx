@@ -15,7 +15,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-4">
       <SectionCard title={org.name}>
-        <ClientDetailForm organization={org} />
+        <ClientDetailForm organizationId={id} organization={org} />
       </SectionCard>
       <SectionCard title="Members">
         <MembersSection organizationId={id} members={members} />
