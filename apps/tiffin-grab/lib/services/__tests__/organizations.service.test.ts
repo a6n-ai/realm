@@ -3,7 +3,7 @@ import { ne } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
-const { getMemberOrganizations } = await import("../organizations.service");
+const { getMemberOrganizations, listOrganizations } = await import("../organizations.service");
 
 async function reset() {
   await db.delete(member);
@@ -54,5 +54,34 @@ describe("getMemberOrganizations (integration)", () => {
   it("returns an empty list for a null session", async () => {
     const result = await getMemberOrganizations(null);
     expect(result).toEqual([]);
+  });
+});
+
+describe("listOrganizations (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("returns every org with its member count", async () => {
+    const [brand] = await db
+      .insert(organization)
+      .values({ name: "Brand X", clientCode: "test-brand-x" })
+      .returning({ id: organization.id });
+    const [franchise] = await db
+      .insert(organization)
+      .values({ name: "Franchise X1", clientCode: "test-franchise-x1", parentOrganizationId: brand.id })
+      .returning({ id: organization.id });
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Member", email: `member-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ id: users.id });
+    await db.insert(member).values({ organizationId: brand.id, userId: user.id, role: "admin" });
+
+    const result = await listOrganizations();
+    const brandRow = result.find((r) => r.id === brand.id);
+    const franchiseRow = result.find((r) => r.id === franchise.id);
+
+    expect(brandRow?.memberCount).toBe(1);
+    expect(franchiseRow?.memberCount).toBe(0);
+    expect(franchiseRow?.parentOrganizationId).toBe(brand.id);
   });
 });
