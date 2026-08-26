@@ -63,6 +63,11 @@ async function main() {
         emailVerified: true,
         role: "admin",
         passwordSet: false,
+        // Grants visibility into every client org (brand + all franchises),
+        // not just orgs with an explicit member row — see resolveVisibleOrgIds
+        // in @realm/auth. Membership rows alone don't survive new franchises
+        // being added later; this does.
+        platformRole: "super_admin",
       })
       .returning({ id: users.id });
     if (!created) throw new Error("admin insert returned no row");
