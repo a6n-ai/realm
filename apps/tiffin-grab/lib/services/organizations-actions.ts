@@ -54,26 +54,29 @@ export async function createFranchise(
 ): Promise<CreateFranchiseResult> {
   await requireAdmin();
   try {
-    const [parent] = await db
-      .select({ id: organization.id, parentOrganizationId: organization.parentOrganizationId })
-      .from(organization)
-      .where(eq(organization.id, brandOrganizationId))
-      .limit(1);
-    assertHierarchyDepth(parent ?? null);
-
-    const [created] = await db
-      .insert(organization)
-      .values({ name, slug: clientCode, clientCode, parentOrganizationId: brandOrganizationId })
-      .returning({ id: organization.id });
-    if (!created) return { ok: false, error: "Organization creation failed." };
-
     const actingUserId = await resolveActingUserId();
-    if (actingUserId) {
-      await db.insert(member).values({ organizationId: created.id, userId: actingUserId, role: "owner" });
-    }
+    if (!actingUserId) return { ok: false, error: "No user available to create this organization." };
+
+    const createdId = await db.transaction(async (tx) => {
+      const [parent] = await tx
+        .select({ id: organization.id, parentOrganizationId: organization.parentOrganizationId })
+        .from(organization)
+        .where(eq(organization.id, brandOrganizationId))
+        .limit(1);
+      assertHierarchyDepth(parent ?? null);
+
+      const [created] = await tx
+        .insert(organization)
+        .values({ name, slug: clientCode, clientCode, parentOrganizationId: brandOrganizationId })
+        .returning({ id: organization.id });
+      if (!created) throw new Error("Organization creation failed.");
+
+      await tx.insert(member).values({ organizationId: created.id, userId: actingUserId, role: "owner" });
+      return created.id;
+    });
 
     revalidatePath("/dashboard/organization/clients");
-    return { ok: true, id: created.id };
+    return { ok: true, id: createdId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Organization creation failed." };
   }
