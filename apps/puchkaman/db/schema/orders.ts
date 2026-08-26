@@ -5,6 +5,7 @@ import { deliveryTypes } from "./delivery-types";
 import { deliveryZones } from "./delivery-zones";
 import { employees } from "./employees";
 import { products } from "./products";
+import { organization } from "./organizations";
 
 /** Pickup order lifecycle (simpler than tiffin subscription orders). */
 export const orderStatus = pgEnum("order_status", [
@@ -120,12 +121,17 @@ export const orders = pgTable(
       () => employees.id,
     ),
     paidAt: bigint("paid_at", { mode: "number" }),
+    // Client-scoping — which location this order belongs to. Stamped server-side
+    // at checkout, never from client input — same money-path rule as pricing/
+    // totals (AGENTS.md). Nullable during backfill. See db/schema/organizations.ts.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [
     index("orders_status_created_idx").on(t.status, t.createdAt),
     index("orders_email_created_idx").on(t.customerEmail, t.createdAt),
     index("orders_user_created_idx").on(t.userId, t.createdAt),
     index("orders_assigned_employee_idx").on(t.assignedEmployeeId),
+    index("orders_organization_idx").on(t.organizationId),
   ],
 );
 
@@ -170,8 +176,10 @@ export const payments = pgTable(
     cloverChargeId: text("clover_charge_id"),
     reference: text("reference"),
     note: text("note"),
+    // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+    organizationId: text("organization_id").references(() => organization.id),
   },
-  (t) => [index("payments_order_idx").on(t.orderId)],
+  (t) => [index("payments_order_idx").on(t.orderId), index("payments_organization_idx").on(t.organizationId)],
 );
 
 /**
@@ -189,9 +197,12 @@ export const ledgerEntries = pgTable(
     type: ledgerEntryType("type").notNull(),
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     memo: text("memo"),
+    // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [
     index("ledger_user_created_idx").on(t.userId, t.createdAt),
     index("ledger_order_idx").on(t.orderId),
+    index("ledger_organization_idx").on(t.organizationId),
   ],
 );

@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { products } from "./products";
+import { organization } from "./organizations";
 
 /**
  * Clover inventory SoT entities (beyond products ↔ items).
@@ -41,6 +42,8 @@ export const productCategories = pgTable("product_categories", {
   cloverCategoryId: text("clover_category_id").unique(),
   cloverParentCategoryId: text("clover_parent_category_id"),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /** M:N product ↔ category (Clover category_items). */
@@ -70,6 +73,8 @@ export const modifierGroups = pgTable("modifier_groups", {
   active: boolean("active").notNull().default(true),
   cloverModifierGroupId: text("clover_modifier_group_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 export const modifiers = pgTable("modifiers", {
@@ -85,6 +90,8 @@ export const modifiers = pgTable("modifiers", {
   active: boolean("active").notNull().default(true),
   cloverModifierId: text("clover_modifier_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /** M:N product ↔ modifier group (Clover item_modifier_groups). */
@@ -143,6 +150,8 @@ export const discounts = pgTable("discounts", {
   stackable: boolean("stackable").notNull().default(true),
   cloverDiscountId: text("clover_discount_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /**
@@ -166,6 +175,8 @@ export const taxRates = pgTable("tax_rates", {
   active: boolean("active").notNull().default(true),
   cloverTaxRateId: text("clover_tax_rate_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /** M:N product ↔ tax rate (Clover tax_rate_items). */
@@ -191,6 +202,8 @@ export const printerLabels = pgTable("printer_labels", {
   active: boolean("active").notNull().default(true),
   cloverTagId: text("clover_tag_id").unique(),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /** M:N product ↔ printer label (Clover tag_items). */
@@ -231,6 +244,8 @@ export const menus = pgTable("menus", {
   cloverPublishedAt: bigint("clover_published_at", { mode: "number" }),
   cloverFallbackMenu: boolean("clover_fallback_menu").notNull().default(false),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+  // Client-scoping — see products.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });
 
 /**
@@ -254,6 +269,8 @@ export const menuItems = pgTable(
     basePrice: numeric("base_price", { precision: 10, scale: 2 }),
     enabled: boolean("enabled").notNull().default(true),
     cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
+    // Client-scoping — see products.organizationId for the pattern.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("menu_items_menu_product_uidx").on(t.menuId, t.productId)],
 );
@@ -269,6 +286,8 @@ export const menuSections = pgTable(
       .notNull()
       .references(() => productCategories.id),
     sortOrder: integer("sort_order").notNull().default(0),
+    // Client-scoping — see products.organizationId for the pattern.
+    organizationId: text("organization_id").references(() => organization.id),
   },
   (t) => [uniqueIndex("menu_sections_menu_cat_uidx").on(t.menuId, t.categoryId)],
 );

@@ -1,6 +1,7 @@
 import { updatableColumns } from "@realm/database";
 import type { FileDetail } from "@realm/storage/model";
 import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { organization } from "./organizations";
 
 export const productSource = pgEnum("product_source", ["manual", "uber_eats"]);
 export const productSyncStatus = pgEnum("product_sync_status", ["none", "synced", "update_available"]);
@@ -78,4 +79,7 @@ export const products = pgTable("products", {
   cloverDefaultTaxRates: boolean("clover_default_tax_rates"),
   /** false = non-revenue item (excluded from revenue reporting). */
   cloverIsRevenue: boolean("clover_is_revenue"),
+  // Client-scoping — null = shared, set = one org's own product (each location
+  // syncs from its own Clover merchant). See db/schema/organizations.ts.
+  organizationId: text("organization_id").references(() => organization.id),
 });

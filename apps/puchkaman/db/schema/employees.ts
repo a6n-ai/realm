@@ -2,6 +2,7 @@ import { updatableColumns } from "@realm/database";
 import { bigint, boolean, pgTable, text } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
+import { organization } from "./organizations";
 
 /**
  * Clover merchant employees (Register staff).
@@ -25,4 +26,7 @@ export const employees = pgTable("employees", {
   // employee with no email has no key to create a user row from; unique so one
   // account cannot be claimed by two employees.
   userId: bigint("user_id", { mode: "bigint" }).references(() => users.id).unique(),
+  // Client-scoping — which location's Clover this employee was synced from.
+  // Nullable during backfill. See db/schema/organizations.ts.
+  organizationId: text("organization_id").references(() => organization.id),
 });

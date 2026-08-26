@@ -1,5 +1,6 @@
 import { updatableColumns } from "@realm/database";
 import { boolean, integer, numeric, pgTable, text } from "drizzle-orm/pg-core";
+import { organization } from "./organizations";
 
 /** A delivery option and its rules. Operator-extensible: rows, not an enum. */
 export const deliveryTypes = pgTable("delivery_types", {
@@ -14,4 +15,6 @@ export const deliveryTypes = pgTable("delivery_types", {
   discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull().default("0"),
   sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  // Client-scoping — see deliveryZones.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
 });

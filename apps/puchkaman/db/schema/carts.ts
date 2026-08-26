@@ -3,6 +3,7 @@ import { updatableColumns } from "@realm/database";
 import { bigint, index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
+import { organization } from "./organizations";
 import type { CartItem } from "@/lib/cart/types";
 
 /**
@@ -22,6 +23,9 @@ export const carts = pgTable("carts", {
   lastActivityAt: bigint("last_activity_at", { mode: "number" }).notNull(),
   remindedAt: bigint("reminded_at", { mode: "number" }),
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
+  // Client-scoping — null = shared, set = one org's own. See db/schema/organizations.ts.
+  organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("carts_activity_idx").on(t.lastActivityAt),
+  index("carts_organization_idx").on(t.organizationId),
 ]);
