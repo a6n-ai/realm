@@ -5,6 +5,7 @@ import { NotFoundError, Role } from "@realm/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { listMembershipsForUser } from "@/lib/services/organizations.service";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -19,6 +20,7 @@ import {
   type FlagState,
 } from "../user-row";
 import { AdminContactForm } from "./admin-contact-form";
+import { ClientAccessSection } from "./client-access-section";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -49,10 +51,11 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [{ timezone }, defs, overrides] = await Promise.all([
+  const [{ timezone }, defs, overrides, memberships] = await Promise.all([
     getAppSettings(),
     db.select().from(featureFlags),
     db.select().from(userFeatureFlags).where(eq(userFeatureFlags.userId, user.id)),
+    listMembershipsForUser(user.publicId),
   ]);
   const ov = new Map(overrides.map((o) => [o.flagId, Boolean(o.enabled)]));
   const flags: FlagState[] = defs.map((f) => ({
@@ -126,6 +129,10 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
           <Field label="Locale" value={user.locale} />
         </dl>
       </SectionCard>
+
+      <SectionCard title="Client access" subtitle="Organizations this user is a member of.">
+        <ClientAccessSection userPublicId={user.publicId} memberships={memberships} />
+      </SectionCard>
     </>
   );
 }
@@ -133,7 +140,7 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
 function UserDetailSkeleton() {
   return (
     <>
-      {["Identity", "Contact", "Access", "Profile"].map((t) => (
+      {["Identity", "Contact", "Access", "Profile", "Client access"].map((t) => (
         <SectionCard key={t} title={t}>
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (

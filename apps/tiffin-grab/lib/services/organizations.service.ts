@@ -103,3 +103,15 @@ export async function removeMember(organizationId: string, userPublicId: string)
   if (!userId) return;
   await db.delete(member).where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
 }
+
+export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };
+
+export async function listMembershipsForUser(userPublicId: string): Promise<UserMembershipRow[]> {
+  const userId = await resolveUserId(userPublicId);
+  if (!userId) return [];
+  return db
+    .select({ organizationId: organization.id, organizationName: organization.name, role: member.role })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(eq(member.userId, userId));
+}

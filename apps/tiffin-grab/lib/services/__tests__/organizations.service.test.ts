@@ -3,9 +3,8 @@ import { ne } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
-const { getMemberOrganizations, listOrganizations, addMember, removeMember, listMembers } = await import(
-  "../organizations.service"
-);
+const { getMemberOrganizations, listOrganizations, addMember, removeMember, listMembers, listMembershipsForUser } =
+  await import("../organizations.service");
 
 async function reset() {
   await db.delete(member);
@@ -109,5 +108,25 @@ describe("member add/remove (integration)", () => {
     await removeMember(org.id, user.publicId);
     rows = await listMembers(org.id);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("listMembershipsForUser (integration)", () => {
+  afterEach(reset);
+
+  it("returns every org this user is a member of", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Org N", clientCode: "test-org-n" })
+      .returning({ id: organization.id });
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Belongs", email: `belongs-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ id: users.id, publicId: users.publicId });
+    await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
+
+    const result = await listMembershipsForUser(user.publicId);
+
+    expect(result).toEqual([{ organizationId: org.id, organizationName: "Org N", role: "admin" }]);
   });
 });
