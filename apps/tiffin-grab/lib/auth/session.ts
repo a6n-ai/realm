@@ -32,7 +32,10 @@ export const getSession = cache(async () => {
   // additionalField, so if it is somehow absent we fail closed (treat as no session)
   // rather than leak the bigint.
   if (!u.publicId) return null;
+  const activeOrganizationId = (s.session as { activeOrganizationId?: string | null } | undefined)
+    ?.activeOrganizationId ?? null;
   return {
     user: { id: u.publicId, role: u.role ?? Role.USER, email: u.email ?? "", platformRole: u.platformRole ?? null },
+    session: { activeOrganizationId },
   };
 });

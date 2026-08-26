@@ -4,6 +4,7 @@ import { NotFoundError, zonedDateIso } from "@realm/commons";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings, getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/services/coupons.service";
 import { usersService } from "@/lib/services/users.service";
 import { newActivity } from "@/lib/services/section-seen.service";
@@ -20,6 +21,7 @@ import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { TimezoneProvider } from "@/components/providers/timezone-provider";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBrand } from "@/components/app-brand";
+import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
@@ -58,6 +60,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (hasPin && (await isLocked())) redirect("/login");
 
   const { timezone } = await getAppSettings();
+  const memberOrganizations = await getMemberOrganizations(session);
 
   const role = session.user.role;
   const email = user.email ?? session.user.email ?? "";
@@ -96,6 +99,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       center={<GlobalSearch role={role} />}
       actions={
         <>
+          <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
           <NotificationBell subscribe={subscribeNotifications} />
           <LockButton hasPin={hasPin} />
           <ModeToggle />
