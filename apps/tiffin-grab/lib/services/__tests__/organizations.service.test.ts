@@ -12,6 +12,7 @@ const {
   listMembershipsForUser,
   updateOrganization,
   searchUsersByEmail,
+  updateMemberRole,
 } = await import("../organizations.service");
 
 // Scoped to this file's own fixtures (clientCode "test-*", email "*@test.invalid")
@@ -224,5 +225,26 @@ describe("searchUsersByEmail (integration)", () => {
   it("returns an empty array for a blank query rather than every user", async () => {
     const result = await searchUsersByEmail("");
     expect(result).toEqual([]);
+  });
+});
+
+describe("updateMemberRole (integration)", () => {
+  afterEach(reset);
+
+  it("changes an existing member's role", async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({ name: "Org R", clientCode: "test-org-role" })
+      .returning({ id: organization.id });
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Roleable", email: "roleable@test.invalid", role: "admin" })
+      .returning({ id: users.id, publicId: users.publicId });
+    await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
+
+    await updateMemberRole(org.id, user.publicId, "owner");
+
+    const rows = await listMembers(org.id);
+    expect(rows[0].role).toBe("owner");
   });
 });

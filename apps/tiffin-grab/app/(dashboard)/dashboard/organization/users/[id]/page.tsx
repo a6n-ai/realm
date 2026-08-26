@@ -5,7 +5,7 @@ import { NotFoundError, Role } from "@realm/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listMembershipsForUser } from "@/lib/services/organizations.service";
+import { listMembershipsForUser, type MemberRole } from "@/lib/services/organizations.service";
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -20,7 +20,7 @@ import {
   type FlagState,
 } from "../user-row";
 import { AdminContactForm } from "./admin-contact-form";
-import { ClientAccessSection } from "./client-access-section";
+import { MemberManagement } from "../../clients/member-management";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -131,7 +131,16 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
       </SectionCard>
 
       <SectionCard title="Client access" subtitle="Organizations this user is a member of.">
-        <ClientAccessSection userPublicId={user.publicId} memberships={memberships} />
+        <MemberManagement
+          rows={memberships.map((m) => ({
+            organizationId: m.organizationId,
+            userPublicId: user.publicId,
+            label: m.organizationName,
+            role: m.role as MemberRole,
+          }))}
+          fixed={{ userPublicId: user.publicId }}
+          addByOrgId
+        />
       </SectionCard>
     </>
   );

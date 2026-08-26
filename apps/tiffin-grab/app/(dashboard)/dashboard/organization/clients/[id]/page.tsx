@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
 import { SectionCard } from "@/components/ds";
-import { getOrganization, listMembers } from "@/lib/services/organizations.service";
+import { getOrganization, listMembers, type MemberRole } from "@/lib/services/organizations.service";
 import { ClientDetailForm } from "./client-detail-form";
-import { MembersSection } from "../members-section";
+import { MemberManagement } from "../member-management";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -18,7 +18,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <ClientDetailForm organizationId={id} organization={org} />
       </SectionCard>
       <SectionCard title="Members">
-        <MembersSection organizationId={id} members={members} />
+        <MemberManagement
+          rows={members.map((m) => ({ organizationId: id, userPublicId: m.userId, label: m.email, role: m.role as MemberRole }))}
+          fixed={{ organizationId: id }}
+        />
       </SectionCard>
     </div>
   );

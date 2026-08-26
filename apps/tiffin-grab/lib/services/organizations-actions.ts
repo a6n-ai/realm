@@ -11,6 +11,7 @@ import {
   addMember,
   removeMember,
   searchUsersByEmail,
+  updateMemberRole,
   updateOrganization,
   type MemberRole,
   type UpdateOrganizationInput,
@@ -126,4 +127,19 @@ export async function removeMemberAction(organizationId: string, userPublicId: s
 export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {
   await requireAdmin();
   return searchUsersByEmail(query);
+}
+
+export async function updateMemberRoleAction(
+  organizationId: string,
+  userPublicId: string,
+  role: MemberRole,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    await updateMemberRole(organizationId, userPublicId, role);
+    revalidatePath(`/dashboard/organization/clients/${organizationId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not update role." };
+  }
 }

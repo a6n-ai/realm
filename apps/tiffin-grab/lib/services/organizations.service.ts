@@ -151,6 +151,19 @@ export async function searchUsersByEmail(query: string): Promise<UserSearchRow[]
   return rows.filter((r): r is UserSearchRow => r.email !== null);
 }
 
+export async function updateMemberRole(
+  organizationId: string,
+  userPublicId: string,
+  role: MemberRole,
+): Promise<void> {
+  const userId = await resolveUserId(userPublicId);
+  if (!userId) throw new Error("User not found");
+  await db
+    .update(member)
+    .set({ role })
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
+}
+
 export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };
 
 export async function listMembershipsForUser(userPublicId: string): Promise<UserMembershipRow[]> {
