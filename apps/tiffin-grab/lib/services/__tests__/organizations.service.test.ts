@@ -15,18 +15,18 @@ const {
   updateMemberRole,
 } = await import("../organizations.service");
 
-// Scoped to this file's own fixtures (clientCode "test-*", email "*@test.invalid")
+// Scoped to this file's own fixtures (clientCode "test-svc-*", email "*@test.invalid")
 // rather than a blanket delete: organizations-actions.test.ts runs concurrently
-// against the same DB and creates its own brand/franchise orgs, which an
-// unpredicated reset() here could delete out from under its createFranchise calls.
+// against the same DB and creates its own "test-*"-prefixed brand/franchise orgs,
+// which an unpredicated reset() here could delete out from under its createFranchise calls.
 async function reset() {
   const testOrgs = await db
     .select({ id: organization.id })
     .from(organization)
-    .where(like(organization.clientCode, "test-%"));
+    .where(like(organization.clientCode, "test-svc-%"));
   const testOrgIds = testOrgs.map((o) => o.id);
   if (testOrgIds.length) await db.delete(member).where(inArray(member.organizationId, testOrgIds));
-  await db.delete(organization).where(like(organization.clientCode, "test-%"));
+  await db.delete(organization).where(like(organization.clientCode, "test-svc-%"));
   await db.delete(users).where(like(users.email, "%@test.invalid"));
 }
 
@@ -37,11 +37,11 @@ describe("getMemberOrganizations (integration)", () => {
   it("returns every org the user has a member row in", async () => {
     const [orgA] = await db
       .insert(organization)
-      .values({ name: "Org A", clientCode: "test-org-a" })
+      .values({ name: "Org A", clientCode: "test-svc-org-a" })
       .returning({ id: organization.id });
     const [orgB] = await db
       .insert(organization)
-      .values({ name: "Org B", clientCode: "test-org-b" })
+      .values({ name: "Org B", clientCode: "test-svc-org-b" })
       .returning({ id: organization.id });
     const [user] = await db
       .insert(users)
@@ -83,11 +83,11 @@ describe("listOrganizations (integration)", () => {
   it("returns every org with its member count", async () => {
     const [brand] = await db
       .insert(organization)
-      .values({ name: "Brand X", clientCode: "test-brand-x" })
+      .values({ name: "Brand X", clientCode: "test-svc-brand-x" })
       .returning({ id: organization.id });
     const [franchise] = await db
       .insert(organization)
-      .values({ name: "Franchise X1", clientCode: "test-franchise-x1", parentOrganizationId: brand.id })
+      .values({ name: "Franchise X1", clientCode: "test-svc-franchise-x1", parentOrganizationId: brand.id })
       .returning({ id: organization.id });
     const [user] = await db
       .insert(users)
@@ -111,7 +111,7 @@ describe("member add/remove (integration)", () => {
   it("addMember creates a member row, removeMember deletes it", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org M", clientCode: "test-org-m" })
+      .values({ name: "Org M", clientCode: "test-svc-org-m" })
       .returning({ id: organization.id });
     const [user] = await db
       .insert(users)
@@ -139,37 +139,37 @@ describe("updateOrganization (integration)", () => {
   it("updates name, clientCode, and region", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Old Name", clientCode: "test-org-old" })
+      .values({ name: "Old Name", clientCode: "test-svc-org-old" })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
 
     const result = await updateOrganization(org.id, {
       name: "New Name",
-      clientCode: "test-org-new",
+      clientCode: "test-svc-org-new",
       region: "ON",
     });
 
     expect(result.ok).toBe(true);
     const [row] = await db.select().from(organization).where(eq(organization.id, org.id)).limit(1);
     expect(row.name).toBe("New Name");
-    expect(row.clientCode).toBe("test-org-new");
+    expect(row.clientCode).toBe("test-svc-org-new");
     expect(row.region).toBe("ON");
   });
 
   it("rejects a duplicate clientCode as a correctable error", async () => {
     const [orgA] = await db
       .insert(organization)
-      .values({ name: "Org A", clientCode: "test-org-dup-a" })
+      .values({ name: "Org A", clientCode: "test-svc-org-dup-a" })
       .returning({ id: organization.id });
     const [orgB] = await db
       .insert(organization)
-      .values({ name: "Org B", clientCode: "test-org-dup-b" })
+      .values({ name: "Org B", clientCode: "test-svc-org-dup-b" })
       .returning({ id: organization.id });
     createdOrgIds = [orgA.id, orgB.id];
 
     const result = await updateOrganization(orgB.id, {
       name: "Org B",
-      clientCode: "test-org-dup-a",
+      clientCode: "test-svc-org-dup-a",
       region: null,
     });
 
@@ -183,7 +183,7 @@ describe("listMembershipsForUser (integration)", () => {
   it("returns every org this user is a member of", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org N", clientCode: "test-org-n" })
+      .values({ name: "Org N", clientCode: "test-svc-org-n" })
       .returning({ id: organization.id });
     const [user] = await db
       .insert(users)
@@ -206,20 +206,23 @@ describe("searchUsersByEmail (integration)", () => {
   });
 
   it("returns users whose email contains the query, capped at 8", async () => {
+    const token = Math.random().toString(36).slice(2);
+    const matchOne = `match-${token}-one@test.invalid`;
+    const matchTwo = `match-${token}-two@test.invalid`;
+    const noMatch = `different-${token}@test.invalid`;
     const inserted = await db
       .insert(users)
       .values([
-        { name: "Match One", email: "match-one@test.invalid", role: "admin" },
-        { name: "Match Two", email: "match-two@test.invalid", role: "admin" },
-        { name: "No Match", email: "different@test.invalid", role: "admin" },
+        { name: "Match One", email: matchOne, role: "admin" },
+        { name: "Match Two", email: matchTwo, role: "admin" },
+        { name: "No Match", email: noMatch, role: "admin" },
       ])
       .returning({ id: users.id });
     createdUserIds = inserted.map((r) => r.id);
 
-    const result = await searchUsersByEmail("match");
+    const result = await searchUsersByEmail(`match-${token}`);
 
-    expect(result).toHaveLength(2);
-    expect(result.every((r) => r.email.includes("match"))).toBe(true);
+    expect(result.map((r) => r.email).sort()).toEqual([matchOne, matchTwo].sort());
   });
 
   it("returns an empty array for a blank query rather than every user", async () => {
@@ -234,11 +237,11 @@ describe("updateMemberRole (integration)", () => {
   it("changes an existing member's role", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org R", clientCode: "test-org-role" })
+      .values({ name: "Org R", clientCode: "test-svc-org-role" })
       .returning({ id: organization.id });
     const [user] = await db
       .insert(users)
-      .values({ name: "Roleable", email: "roleable@test.invalid", role: "admin" })
+      .values({ name: "Roleable", email: `roleable-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
       .returning({ id: users.id, publicId: users.publicId });
     await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
 

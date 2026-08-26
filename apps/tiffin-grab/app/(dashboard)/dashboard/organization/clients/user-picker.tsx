@@ -23,6 +23,10 @@ export function UserPicker({ onSelect }: { onSelect: (user: UserSearchRow) => vo
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
     const handle = setTimeout(() => {
       startTransition(async () => {
         setResults(await searchUsersByEmailAction(query));
