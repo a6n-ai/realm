@@ -16,14 +16,14 @@ describe("member reaches its intended surfaces", () => {
     ["product writes", { product: ["write"] }],
     ["finance", { finance: ["read"] }],
     ["audit logs", { audit: ["read"] }],
+    ["clover employees list", { clover: ["read"] }],
   ])("member may open %s", (_label, permissions) => {
     expect(roleCan(Role.MEMBER, permissions as never)).toBe(true);
   });
 
   it.each([
     ["product sync", { product: ["sync"] }],
-    ["settings", { settings: ["read"] }],
-    ["clover admin", { clover: ["read"] }],
+    ["clover connect (OAuth setup)", { clover: ["connect"] }],
     ["staff invites", { staff: ["invite"] }],
     ["user listing", { user: ["list"] }],
   ])("member may NOT reach %s", (_label, permissions) => {

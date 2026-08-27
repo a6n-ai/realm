@@ -14,7 +14,7 @@ import {
 import { redirect } from "next/navigation";
 import { CloverEmployeesSyncActions } from "@/components/admin/clover-employees-sync-actions";
 import { SyncOneEmployeeButton } from "@/components/admin/sync-one-employee-button";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { employeesService } from "@/lib/services/employees.service";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
@@ -43,7 +43,7 @@ export default function CloverEmployeesPage() {
 }
 
 async function HeaderActions() {
-  await requireAdmin();
+  await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
   return (
@@ -54,7 +54,7 @@ async function HeaderActions() {
 }
 
 async function EmployeesTable() {
-  await requireAdmin();
+  await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
 

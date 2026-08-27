@@ -54,6 +54,7 @@ export const roles = {
     finance: ["read"],
     audit: ["read"],
     settings: ["read", "write"],
+    clover: ["read"],
   }),
 };
 
