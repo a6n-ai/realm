@@ -13,16 +13,16 @@ describe("member reaches its intended surfaces", () => {
     ["order detail", { order: ["read"] }],
     ["order mutations", { order: ["write"] }],
     ["products list", { product: ["read"] }],
+    ["product writes", { product: ["write"] }],
     ["finance", { finance: ["read"] }],
+    ["audit logs", { audit: ["read"] }],
   ])("member may open %s", (_label, permissions) => {
     expect(roleCan(Role.MEMBER, permissions as never)).toBe(true);
   });
 
   it.each([
-    ["product writes", { product: ["write"] }],
     ["product sync", { product: ["sync"] }],
     ["settings", { settings: ["read"] }],
-    ["audit logs", { audit: ["read"] }],
     ["clover admin", { clover: ["read"] }],
     ["staff invites", { staff: ["invite"] }],
     ["user listing", { user: ["list"] }],

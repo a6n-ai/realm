@@ -10,7 +10,7 @@ import {
   type FacetDef,
 } from "@realm/design-system";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
@@ -74,14 +74,14 @@ export default function CloverLabelsPage({ searchParams }: { searchParams: Searc
 }
 
 async function HeaderActions() {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
   return <CloverCatalogSyncActions cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
 }
 
 async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ product: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
 

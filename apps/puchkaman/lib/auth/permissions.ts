@@ -49,7 +49,7 @@ export const roles = {
     organization: ["read", "write"],
   }),
   member: ac.newRole({
-    product: ["read"],
+    product: ["read", "write"],
     order: ["read", "write"],
     finance: ["read"],
     audit: ["read"],

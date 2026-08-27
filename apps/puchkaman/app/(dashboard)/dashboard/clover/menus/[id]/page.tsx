@@ -9,7 +9,7 @@ import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
@@ -26,7 +26,7 @@ export default function MenuDetailPage({ params }: { params: Promise<{ id: strin
 }
 
 async function MenuDetailLoader({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission({ product: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
   if (!clover.installed) redirect("/dashboard/settings/integrations");
 
