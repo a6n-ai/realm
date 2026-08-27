@@ -6,14 +6,14 @@ import {
   setGoogleReviewsConfig,
   placesProvider,
 } from "@realm/google-reviews";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 
 export async function saveGoogleReviewsPlaceId(
   placeId: string,
 ): Promise<{ error?: string; rating?: number; total?: number }> {
-  await requireAdmin();
+  await requirePermission({ settings: ["write"] });
 
   if (!placeId) return { error: "Enter a Google Place ID" };
 

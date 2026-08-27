@@ -53,6 +53,7 @@ export const roles = {
     order: ["read", "write"],
     finance: ["read"],
     audit: ["read"],
+    settings: ["read", "write"],
   }),
 };
 

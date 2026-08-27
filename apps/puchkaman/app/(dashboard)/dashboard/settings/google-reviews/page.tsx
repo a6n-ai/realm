@@ -2,12 +2,12 @@ import { StarIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv } from "@realm/google-reviews";
 import { GoogleReviewsList, GoogleReviewsSettingsPanel } from "@realm/google-reviews/ui";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { saveGoogleReviewsPlaceId } from "./actions";
 
 export default async function GoogleReviewsSettingsPage() {
-  await requireAdmin();
+  await requirePermission({ settings: ["read"] });
   const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
   // Same call the public site makes, so this page shows exactly what customers
   // see — including the six-hour cache, rather than a fresher private view.
