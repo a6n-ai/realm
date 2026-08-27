@@ -13,16 +13,21 @@ export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; erro
 // Better-auth's internal user id is the stringified users.id bigint, never the
 // publicId getSession() exposes (see lib/auth/session.ts) — resolve it here.
 // Unlike tiffin-grab, puchkaman's users table has no `isSystem` row to fall
-// back on (confirmed: no such column in db/schema/auth.ts), so the fallback
-// here is the oldest admin user instead, for a script/no-session caller.
-async function resolveActingUserId(): Promise<bigint | null> {
+// back on (confirmed: no such column in db/schema/auth.ts). Rather than guess
+// an owner (e.g. "the oldest admin"), which would silently misattribute
+// ownership to an arbitrary human in a multi-admin deployment, a missing
+// session is a hard error — this path is only ever reachable from a
+// script/no-session caller, and none exists yet for createFranchise.
+async function resolveActingUserId(): Promise<bigint> {
   const session = await getSession();
-  if (session?.user.id) {
-    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
-    if (row) return row.id;
+  if (!session?.user.id) {
+    throw new Error(
+      "createFranchise requires either a request session or an explicit acting user id — no session present and no safe default owner exists.",
+    );
   }
-  const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).orderBy(users.id).limit(1);
-  return admin?.id ?? null;
+  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, session.user.id)).limit(1);
+  if (!row) throw new Error("createFranchise: session user not found.");
+  return row.id;
 }
 
 // DEVIATION FROM THE BRIEF: this does not call `auth.api.createOrganization`.
