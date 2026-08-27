@@ -15,6 +15,7 @@ export const statement = {
   order: ["read", "write", "refund", "cancel"],
   finance: ["read"],
   clover: ["read", "connect"],
+  organization: ["read", "write"],
 } as const;
 
 export const ac = createAccessControl(statement);
@@ -45,6 +46,7 @@ export const roles = {
     order: ["read", "write", "refund", "cancel"],
     finance: ["read"],
     clover: ["read", "connect"],
+    organization: ["read", "write"],
   }),
   member: ac.newRole({
     product: ["read"],

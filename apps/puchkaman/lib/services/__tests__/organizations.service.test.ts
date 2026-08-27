@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
-import { getMemberOrganizations } from "../organizations.service";
+import { getMemberOrganizations, listOrganizations } from "../organizations.service";
 
 // Scoped cleanup by tracked ids only — a blanket users wipe fails against
 // FK-referencing tables in a shared dev DB (see this repo's own integration-
@@ -63,5 +63,35 @@ describe("getMemberOrganizations (integration)", () => {
   it("returns an empty list for a null session", async () => {
     const result = await getMemberOrganizations(null);
     expect(result).toEqual([]);
+  });
+});
+
+describe("listOrganizations (integration)", () => {
+  afterEach(reset);
+
+  it("returns every org with its member count", async () => {
+    const [brand] = await db
+      .insert(organization)
+      .values({ name: "Brand X", clientCode: "test-brand-x" })
+      .returning({ id: organization.id });
+    const [franchise] = await db
+      .insert(organization)
+      .values({ name: "Franchise X1", clientCode: "test-franchise-x1", parentOrganizationId: brand.id })
+      .returning({ id: organization.id });
+    createdOrgIds = [brand.id, franchise.id];
+    const [user] = await db
+      .insert(users)
+      .values({ name: "Member", email: `member-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
+      .returning({ id: users.id });
+    createdUserIds = [user.id];
+    await db.insert(member).values({ organizationId: brand.id, userId: user.id, role: "admin" });
+
+    const result = await listOrganizations();
+    const brandRow = result.find((r) => r.id === brand.id);
+    const franchiseRow = result.find((r) => r.id === franchise.id);
+
+    expect(brandRow?.memberCount).toBe(1);
+    expect(franchiseRow?.memberCount).toBe(0);
+    expect(franchiseRow?.parentOrganizationId).toBe(brand.id);
   });
 });

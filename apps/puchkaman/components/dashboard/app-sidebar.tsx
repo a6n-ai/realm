@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BanknoteIcon,
   BookOpenIcon,
+  Building2Icon,
   ContactIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
@@ -127,6 +128,12 @@ export function getNavSections(opts: {
   sections.push({
     label: "Administration",
     items: [
+      {
+        title: "Organization",
+        href: "/dashboard/organization/clients",
+        icon: Building2Icon,
+        permission: "organization:read",
+      },
       { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon, permission: "audit:read" },
       { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, permission: "settings:read" },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:read" },

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 
@@ -23,4 +23,31 @@ export async function getMemberOrganizations(session: { user: { id: string } } |
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .where(eq(member.userId, userId));
+}
+
+export type OrganizationListRow = {
+  id: string;
+  name: string;
+  clientCode: string;
+  parentOrganizationId: string | null;
+  memberCount: number;
+};
+
+export async function listOrganizations(): Promise<OrganizationListRow[]> {
+  return db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      clientCode: organization.clientCode,
+      parentOrganizationId: organization.parentOrganizationId,
+      memberCount: sql<number>`count(${member.id})::int`,
+    })
+    .from(organization)
+    .leftJoin(member, eq(member.organizationId, organization.id))
+    .groupBy(organization.id);
+}
+
+export async function getOrganization(id: string) {
+  const [row] = await db.select().from(organization).where(eq(organization.id, id)).limit(1);
+  return row ?? null;
 }
