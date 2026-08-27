@@ -7,7 +7,7 @@ import {
   parseFilterState,
   type FacetDef,
 } from "@realm/design-system";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { auditService, type AuditSortColumn } from "@/lib/services/audit.service";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
@@ -81,7 +81,7 @@ export default function LogsPage({ searchParams }: { searchParams: SearchParams 
 }
 
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ audit: ["read"] });
 
   const sp = await searchParams;
   const sort = parseSort(sp, AUDIT_SORT_COLUMNS, { column: "time", dir: "desc" });
