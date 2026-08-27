@@ -1,6 +1,6 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json, problem } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { categoryEditSchema } from "@/lib/inventory/schema";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** Edit a Clover category. Saves locally then pushes to Clover — see updateCategory. */
 export const PUT = handler(async (request: Request, { params }: Params): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const { id } = await params;
   const parsed = categoryEditSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

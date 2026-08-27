@@ -1,11 +1,11 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
 /** Pull Clover catalog / push categories — route → InventoryCatalogService. */
 export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const body = (await request.json().catch(() => ({}))) as {
     direction?: unknown;
     publicIds?: unknown;

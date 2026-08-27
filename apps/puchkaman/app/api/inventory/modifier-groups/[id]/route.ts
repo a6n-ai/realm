@@ -1,6 +1,6 @@
 import { ValidationError } from "@realm/commons";
 import { handler, json, problem } from "@realm/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { modifierGroupEditSchema } from "@/lib/inventory/schema";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** Edit a Clover modifier group. Saves locally then pushes — see updateModifierGroup. */
 export const PUT = handler(async (request: Request, { params }: Params): Promise<Response> => {
-  await requireAdmin();
+  await requirePermission({ product: ["write"] });
   const { id } = await params;
   const parsed = modifierGroupEditSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
