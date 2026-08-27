@@ -19,8 +19,13 @@ import {
 let createdUserIds: bigint[] = [];
 let createdOrgIds: string[] = [];
 
+// clientCode is unique-indexed; suffix every fixture literal so a row left
+// behind by a crashed prior run can never collide with a fresh insert.
+const runId = Math.random().toString(36).slice(2);
+
 async function reset() {
-  await db.delete(member);
+  // member.organizationId FK is ON DELETE CASCADE, so deleting the tracked
+  // orgs already clears their member rows — no blanket member delete needed.
   if (createdOrgIds.length) await db.delete(organization).where(inArray(organization.id, createdOrgIds));
   if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
   createdUserIds = [];
@@ -33,11 +38,11 @@ describe("getMemberOrganizations (integration)", () => {
   it("returns every org the user has a member row in", async () => {
     const [orgA] = await db
       .insert(organization)
-      .values({ name: "Org A", clientCode: "test-org-a" })
+      .values({ name: "Org A", clientCode: `test-org-a-${runId}` })
       .returning({ id: organization.id });
     const [orgB] = await db
       .insert(organization)
-      .values({ name: "Org B", clientCode: "test-org-b" })
+      .values({ name: "Org B", clientCode: `test-org-b-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [orgA.id, orgB.id];
     const [user] = await db
@@ -81,11 +86,11 @@ describe("listOrganizations (integration)", () => {
   it("returns every org with its member count", async () => {
     const [brand] = await db
       .insert(organization)
-      .values({ name: "Brand X", clientCode: "test-brand-x" })
+      .values({ name: "Brand X", clientCode: `test-brand-x-${runId}` })
       .returning({ id: organization.id });
     const [franchise] = await db
       .insert(organization)
-      .values({ name: "Franchise X1", clientCode: "test-franchise-x1", parentOrganizationId: brand.id })
+      .values({ name: "Franchise X1", clientCode: `test-franchise-x1-${runId}`, parentOrganizationId: brand.id })
       .returning({ id: organization.id });
     createdOrgIds = [brand.id, franchise.id];
     const [user] = await db
@@ -111,7 +116,7 @@ describe("member add/remove (integration)", () => {
   it("addMember creates a member row, removeMember deletes it", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org M", clientCode: "test-org-m" })
+      .values({ name: "Org M", clientCode: `test-org-m-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
     const [user] = await db
@@ -137,37 +142,37 @@ describe("updateOrganization (integration)", () => {
   it("updates name, clientCode, and region", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Old Name", clientCode: "test-org-old" })
+      .values({ name: "Old Name", clientCode: `test-org-old-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
 
     const result = await updateOrganization(org.id, {
       name: "New Name",
-      clientCode: "test-org-new",
+      clientCode: `test-org-new-${runId}`,
       region: "ON",
     });
 
     expect(result.ok).toBe(true);
     const [row] = await db.select().from(organization).where(eq(organization.id, org.id)).limit(1);
     expect(row.name).toBe("New Name");
-    expect(row.clientCode).toBe("test-org-new");
+    expect(row.clientCode).toBe(`test-org-new-${runId}`);
     expect(row.region).toBe("ON");
   });
 
   it("rejects a duplicate clientCode as a correctable error", async () => {
     const [orgA] = await db
       .insert(organization)
-      .values({ name: "Org A", clientCode: "test-org-dup-a" })
+      .values({ name: "Org A", clientCode: `test-org-dup-a-${runId}` })
       .returning({ id: organization.id });
     const [orgB] = await db
       .insert(organization)
-      .values({ name: "Org B", clientCode: "test-org-dup-b" })
+      .values({ name: "Org B", clientCode: `test-org-dup-b-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [orgA.id, orgB.id];
 
     const result = await updateOrganization(orgB.id, {
       name: "Org B",
-      clientCode: "test-org-dup-a",
+      clientCode: `test-org-dup-a-${runId}`,
       region: null,
     });
 
@@ -210,7 +215,7 @@ describe("updateMemberRole (integration)", () => {
   it("changes an existing member's role", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org R", clientCode: "test-org-role" })
+      .values({ name: "Org R", clientCode: `test-org-role-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
     const [user] = await db

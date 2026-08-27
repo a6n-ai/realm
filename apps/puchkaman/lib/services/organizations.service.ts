@@ -73,7 +73,7 @@ export async function updateOrganization(
   try {
     await db
       .update(organization)
-      .set({ name: fields.name, clientCode: fields.clientCode, region: fields.region })
+      .set({ name: fields.name, clientCode: fields.clientCode, slug: fields.clientCode, region: fields.region })
       .where(eq(organization.id, id));
     return { ok: true };
   } catch (e) {

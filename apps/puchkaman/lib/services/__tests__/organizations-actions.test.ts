@@ -30,6 +30,10 @@ const {
 let createdOrgIds: string[] = [];
 let createdUserIds: bigint[] = [];
 
+// clientCode is unique-indexed; suffix every fixture literal so a row left
+// behind by a crashed prior run can never collide with a fresh insert.
+const runId = Math.random().toString(36).slice(2);
+
 async function reset() {
   if (createdOrgIds.length) await db.delete(organization).where(inArray(organization.id, createdOrgIds));
   if (createdUserIds.length) await db.delete(users).where(inArray(users.id, createdUserIds));
@@ -55,18 +59,18 @@ describe("createFranchise (integration)", () => {
     const actingUser = await makeActingUser();
     const [brand] = await db
       .insert(organization)
-      .values({ name: "Brand Y", clientCode: "test-brand-y" })
+      .values({ name: "Brand Y", clientCode: `test-brand-y-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [brand.id];
 
-    const result = await createFranchise(brand.id, "Franchise Y1", "test-franchise-y1");
+    const result = await createFranchise(brand.id, "Franchise Y1", `test-franchise-y1-${runId}`);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       createdOrgIds.push(result.id);
       const [row] = await db.select().from(organization).where(eq(organization.id, result.id)).limit(1);
       expect(row.parentOrganizationId).toBe(brand.id);
-      expect(row.clientCode).toBe("test-franchise-y1");
+      expect(row.clientCode).toBe(`test-franchise-y1-${runId}`);
       const [memberRow] = await db
         .select()
         .from(member)
@@ -81,15 +85,15 @@ describe("createFranchise (integration)", () => {
     await makeActingUser();
     const [brand] = await db
       .insert(organization)
-      .values({ name: "Brand Z", clientCode: "test-brand-z" })
+      .values({ name: "Brand Z", clientCode: `test-brand-z-${runId}` })
       .returning({ id: organization.id });
     const [franchise] = await db
       .insert(organization)
-      .values({ name: "Franchise Z1", clientCode: "test-franchise-z1", parentOrganizationId: brand.id })
+      .values({ name: "Franchise Z1", clientCode: `test-franchise-z1-${runId}`, parentOrganizationId: brand.id })
       .returning({ id: organization.id });
     createdOrgIds = [brand.id, franchise.id];
 
-    const result = await createFranchise(franchise.id, "Illegal Sub-Franchise", "test-illegal");
+    const result = await createFranchise(franchise.id, "Illegal Sub-Franchise", `test-illegal-${runId}`);
 
     expect(result.ok).toBe(false);
   });
@@ -102,7 +106,7 @@ describe("member management actions (integration)", () => {
     await makeActingUser();
     const [org] = await db
       .insert(organization)
-      .values({ name: "Org Actions", clientCode: "test-org-actions" })
+      .values({ name: "Org Actions", clientCode: `test-org-actions-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
     const token = Math.random().toString(36).slice(2);
@@ -136,13 +140,13 @@ describe("updateOrganizationAction (integration)", () => {
   it("updates the organization's fields", async () => {
     const [org] = await db
       .insert(organization)
-      .values({ name: "Old Action Name", clientCode: "test-org-action-old" })
+      .values({ name: "Old Action Name", clientCode: `test-org-action-old-${runId}` })
       .returning({ id: organization.id });
     createdOrgIds = [org.id];
 
     const result = await updateOrganizationAction(org.id, {
       name: "New Action Name",
-      clientCode: "test-org-action-new",
+      clientCode: `test-org-action-new-${runId}`,
       region: "BC",
     });
 
