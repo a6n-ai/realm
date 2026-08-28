@@ -60,7 +60,7 @@ import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
@@ -484,14 +484,19 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return { canRedeem: true, balance: await walletService.balance(walletUserId) };
   }
 
-  /** Active products available for pickup. Empty until Clover client-ready; then SoT rules apply. */
-  async listOrderableCatalog() {
+  /**
+   * Active products available for pickup. Empty until Clover client-ready;
+   * then SoT rules apply. orgId scopes to a franchise's own Clover-synced
+   * rows plus any null-organizationId row (Uber items, unscoped).
+   */
+  async listOrderableCatalog(orgId?: string | null) {
     if (!(await isPublicOrderingEnabled())) {
       return [];
     }
 
     const clover = await getCloverConnection(integrationsConfigStore);
     const cloverConnected = isCloverInventoryConnected(clover);
+    const orgScope = orgId ? or(isNull(products.organizationId), eq(products.organizationId, orgId)) : undefined;
 
     const rows = await db
       .select({
@@ -510,12 +515,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       })
       .from(products)
       .where(
-        cloverConnected
-          ? and(eq(products.active, true), isNotNull(products.cloverItemId))
-          : or(
-              eq(products.active, true),
-              and(eq(products.source, "uber_eats"), isNull(products.cloverItemId)),
-            ),
+        and(
+          cloverConnected
+            ? and(eq(products.active, true), isNotNull(products.cloverItemId))
+            : or(
+                eq(products.active, true),
+                and(eq(products.source, "uber_eats"), isNull(products.cloverItemId)),
+              ),
+          orgScope,
+        ),
       )
       .orderBy(asc(products.displayOrder), asc(products.name));
 
@@ -652,6 +660,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    */
   async createCheckout(input: CreateCheckoutInput): Promise<CheckoutCreateResult> {
     const parsed = createCheckoutSchema.parse(input);
+    // Same resolution createCloverClient() uses internally (resolveActingOrg)
+    // — the order gets stamped to whichever franchise's Clover connection
+    // actually priced and will fulfill it.
+    const orgId = await resolveActingOrgId();
     const client = await createCloverClient();
     if (!client) {
       throw new ValidationError(PUBLIC_ORDERING_UNAVAILABLE_MESSAGE);
@@ -923,6 +935,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           tax: money(tax),
           total: money(total),
           pricingSnapshot: snapshot,
+          organizationId: orgId,
         })
         .returning();
 

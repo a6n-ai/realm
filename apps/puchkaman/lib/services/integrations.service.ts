@@ -10,6 +10,7 @@ import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
 import { app, organization } from "@/db/schema";
 import { getSession } from "../auth/session";
+import { resolveRequestOrg } from "../tenant/resolve-request-org";
 import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", currency: "CAD" } as const;
@@ -26,13 +27,15 @@ const appRepository = new UpdatableRepository(db, app, app.publicId, app.id);
 const appService = new AppService(appRepository);
 
 /**
- * Resolves the acting organization: the session's `activeOrganizationId` if
- * set, else the brand (`isDefaultLocation`) org — which today is EVERY
- * session, since no org-switcher UI exists yet to set an active org.
+ * Resolves the acting organization: the session's `activeOrganizationId`
+ * (staff, set via the header OrgSwitcher) if set, else the franchise
+ * proxy.ts resolved from the request (public visitor — URL segment/
+ * `franchise` cookie; null on /dashboard, so this never overrides a staff
+ * session), else the brand (`isDefaultLocation`) org.
  */
 async function resolveActingOrg() {
   const session = await getSession();
-  const activeOrgId = session?.session.activeOrganizationId ?? null;
+  const activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
 
   const [activeOrg] = activeOrgId
     ? await db.select().from(organization).where(eq(organization.id, activeOrgId)).limit(1)
@@ -72,10 +75,12 @@ export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
  * Writes to both `app` and the resolved acting organization's row. The `app`
  * write is the source `getIntegrationsConfig` falls back to when no
  * organization row resolves at all (see the no-org branch there) — not
- * legacy dead weight. Once a real org-switcher UI exists and multiple
- * franchises actively use independent Clover connections, this dual-write
- * becomes a last-writer-wins hazard across franchises and will need
- * reconsidering then; not solved here. No transaction: these are two
+ * legacy dead weight. Now that the OrgSwitcher and per-franchise Clover
+ * connections are both real, this dual-write IS a last-writer-wins hazard
+ * across franchises (Toronto connecting Clover overwrites the same `app`
+ * fallback row Vancouver's connect also writes) — not fixed here, flagging
+ * for whoever picks up admin-side multi-franchise Clover settings next.
+ * No transaction: these are two
  * independent singleton/tenant rows, not a multi-row invariant — a partial
  * write here is no worse than today's single-row write racing a concurrent
  * read, and wrapping unrelated tables in one transaction buys nothing but
@@ -100,3 +105,12 @@ export const integrationsConfigStore: IntegrationsConfigStore = {
   get: getIntegrationsConfig,
   set: setIntegrationsConfig,
 };
+
+// Which franchise's Clover connection is in effect right now (see
+// resolveActingOrg) — used to stamp organizationId on rows a Clover sync
+// creates, so a product pulled via Toronto's connection is attributed to
+// Toronto, not left null/shared.
+export async function resolveActingOrgId(): Promise<string | null> {
+  const org = await resolveActingOrg();
+  return org?.id ?? null;
+}

@@ -4,7 +4,7 @@ import type { Condition, FilterCondition } from "@realm/commons/model/condition"
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { getCloverConnection } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   orderItems,
@@ -190,10 +190,14 @@ class ProductsService extends SessionUpdatableService<typeof products> {
   }
 
   /** Full catalog for the public menu — includes inactive / OOS rows for browse. */
-  async listForPublicMenu() {
+  // orgId scopes rows to a franchise's own Clover-synced products plus any
+  // row with a null organizationId (Uber-sourced items, unscoped — Uber is
+  // image-only and not franchise-specific). Omit it to see every row.
+  async listForPublicMenu(orgId?: string | null) {
     return db
       .select()
       .from(products)
+      .where(orgId ? or(isNull(products.organizationId), eq(products.organizationId, orgId)) : undefined)
       .orderBy(asc(products.category), asc(products.displayOrder), asc(products.name));
   }
 

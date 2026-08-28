@@ -2,7 +2,7 @@ import { NotFoundError, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   discounts,
@@ -772,7 +772,9 @@ class InventoryCatalogService {
    * every product, so this only has to answer "which, and in what order".
    * Empty when the catalog has never been synced; callers fall back.
    */
-  async publicMenuSections(): Promise<
+  // orgId scopes the products within each (shared, unscoped) category to a
+  // franchise's own Clover-synced rows plus any null-organizationId row.
+  async publicMenuSections(orgId?: string | null): Promise<
     Array<{ publicId: string; name: string; sortOrder: number; colorCode: string | null; productIds: string[] }>
   > {
     const rows = await db
@@ -786,7 +788,12 @@ class InventoryCatalogService {
       .from(productCategoryItems)
       .innerJoin(productCategories, eq(productCategoryItems.categoryId, productCategories.id))
       .innerJoin(products, eq(productCategoryItems.productId, products.id))
-      .where(eq(productCategories.active, true))
+      .where(
+        and(
+          eq(productCategories.active, true),
+          orgId ? or(isNull(products.organizationId), eq(products.organizationId, orgId)) : undefined,
+        ),
+      )
       .orderBy(
         asc(productCategories.sortOrder),
         asc(productCategories.name),

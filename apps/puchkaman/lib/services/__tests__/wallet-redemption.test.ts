@@ -31,6 +31,9 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => (name === "pk_cart" && cartCookie.value ? { name, value: cartCookie.value } : undefined),
   }),
+  // No franchise resolved outside a real request — matches proxy.ts never
+  // setting x-realm-org-id in a non-HTTP context like this test.
+  headers: async () => ({ get: () => null }),
 }));
 
 const staffAlerts = vi.hoisted(() => [] as { event: string; title: string }[]);

@@ -7,6 +7,14 @@ import { headers } from "next/headers";
 // directly: proxy.ts unconditionally strips any incoming x-realm-org-id
 // before forwarding, so this value is always proxy-resolved.
 export async function resolveRequestOrg(): Promise<string | null> {
-  const h = await headers();
-  return h.get("x-realm-org-id");
+  // headers() throws when called with no active Next.js request scope (a
+  // plain script, a unit test calling a service function directly, a cron
+  // job) — that's "no request" in exactly the same sense as "no org
+  // resolved", not an error worth surfacing.
+  try {
+    const h = await headers();
+    return h.get("x-realm-org-id");
+  } catch {
+    return null;
+  }
 }
