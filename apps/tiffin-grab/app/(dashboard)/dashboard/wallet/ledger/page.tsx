@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
+import { unexpired } from "@realm/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
@@ -35,9 +36,12 @@ export default function WalletLedgerPage({ searchParams }: { searchParams: Searc
   );
 }
 
-async function WalletStatsData() {
-  await requireAdmin();
-
+/**
+ * Exported for its test: these are raw aggregate queries over `wallet_ledger`
+ * that bypass `walletService`, so the `unexpired()` filter they need is easy
+ * to lose and impossible to notice from the rendered card.
+ */
+export async function walletLedgerStats() {
   const coinsIf = (dir: "credit" | "debit") =>
     sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = ${dir} then ${walletLedger.coins} else 0 end), 0) as int)`;
 
@@ -50,6 +54,7 @@ async function WalletStatsData() {
       balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("balance"),
     })
     .from(walletLedger)
+    .where(unexpired(walletLedger, Date.now()))
     .groupBy(walletLedger.userId)
     .as("bal");
 
@@ -61,7 +66,10 @@ async function WalletStatsData() {
         entries: sql<number>`cast(count(*) as int)`,
         wallets: sql<number>`cast(count(distinct ${walletLedger.userId}) as int)`,
       })
-      .from(walletLedger),
+      // Lapsed holds never spent anything, so they are not credited, not
+      // redeemed, and not entries — same rule walletService.balance() applies.
+      .from(walletLedger)
+      .where(unexpired(walletLedger, Date.now())),
     db
       .select({ name: users.name, email: users.email, balance: balancePerUser.balance })
       .from(balancePerUser)
@@ -69,6 +77,13 @@ async function WalletStatsData() {
       .orderBy(desc(balancePerUser.balance))
       .limit(1),
   ]);
+
+  return { agg, topWallet };
+}
+
+async function WalletStatsData() {
+  await requireAdmin();
+  const { agg, topWallet } = await walletLedgerStats();
 
   const stats = [
     { label: "Coins credited", value: agg.credited.toLocaleString() },

@@ -91,8 +91,13 @@ async function lockUser(tx: Tx, users: AnyPgTable & { id: unknown }, userId: big
  * holds both count — a live hold is money already promised to an order, and
  * showing it as spendable is exactly the double-spend this column exists to
  * stop. Expiry is therefore self-releasing: no sweep job, no reversal row.
+ *
+ * Exported because apps run their own aggregate queries straight off
+ * `wallet_ledger` (bulk cap checks, admin stat cards) that this package never
+ * sees. Those must reuse this predicate, not re-spell it — two spellings of
+ * "what counts" is how one of them silently drifts from `balance()`.
  */
-function unexpired(
+export function unexpired(
   walletLedger: WalletTables<string>["walletLedger"],
   now: number,
 ) {

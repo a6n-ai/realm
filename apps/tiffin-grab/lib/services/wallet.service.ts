@@ -3,6 +3,7 @@ import {
   commitRedemption,
   lockAndQuoteRedemption,
   reverseAward,
+  unexpired,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
 } from "@realm/wallet";
@@ -60,7 +61,9 @@ async function filterUnderCap(userIds: bigint[], coins: number): Promise<{ ok: b
       balance: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
     })
     .from(walletLedger)
-    .where(inArray(walletLedger.userId, userIds))
+    // Same predicate walletService.balance() uses — without it a live hold
+    // reads as spent here and the two disagree about the same wallet.
+    .where(and(inArray(walletLedger.userId, userIds), unexpired(walletLedger, Date.now())))
     .groupBy(walletLedger.userId);
   const balanceByUser = new Map(balances.map((b) => [b.userId, b.balance]));
 
