@@ -16,12 +16,24 @@ const NAV_PERMISSIONS: Array<[string, Record<string, string[]>]> = [
   ["settings:read", { settings: ["read"] }],
   ["audit:read", { audit: ["read"] }],
   ["clover:read", { clover: ["read"] }],
+  ["organization:read", { organization: ["read"] }],
   ["user:list", { user: ["list"] }],
   // Not nav destinations — product write/sync controls (edit, delete, Clover
   // sync buttons) reuse this same granted-strings crossing for the identical
   // client-component-can't-import-@realm/auth reason.
   ["product:write", { product: ["write"] }],
   ["product:sync", { product: ["sync"] }],
+  // Nav-only, admin-exclusive gate for the Settings hub, Delivery, and
+  // Integrations sidebar links. `settings:read` alone can't gate these: the
+  // member-permission audit widened it so member reaches the google-reviews
+  // settings sub-page, but the hub page itself and these two sibling pages
+  // still call requireAdmin() (deliberately, per that plan's own out-of-scope
+  // list), so a member with only settings:read would see a live link that
+  // ForbiddenError()s on click. `staff:invite` is admin-only today and isn't
+  // this destination's real requirement either, same reuse-an-admin-only-key
+  // pattern as product:sync above — swap it for a real "settings:admin"
+  // action if that resource is ever split.
+  ["settings:hub", { staff: ["invite"] }],
 ];
 
 export function grantedKeys(role: RoleValue): string[] {

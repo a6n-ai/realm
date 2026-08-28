@@ -113,7 +113,14 @@ export function getNavSections(opts: {
   if (cloverStatus.installed) {
     const cloverItems = cloverNavSections(cloverStatus)
       .flatMap((s) => s.items)
-      .map((item) => ({ ...item, permission: "clover:read" }));
+      // "Connection" (merchant OAuth/reconnect) stays behind requireAdmin() on
+      // its own page, so it can't take the same clover:read grant member holds
+      // for the read-only employee list — same settings:hub reuse as the
+      // Settings/Delivery/Integrations items above.
+      .map((item) => ({
+        ...item,
+        permission: item.href === "/dashboard/settings/clover" ? "settings:hub" : "clover:read",
+      }));
     sections.push({
       label: "Clover",
       items: [...COMMERCE_ITEMS, ...CLOVER_CATALOG_ITEMS, ...cloverItems],
@@ -135,19 +142,19 @@ export function getNavSections(opts: {
         permission: "organization:read",
       },
       { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon, permission: "audit:read" },
-      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, permission: "settings:read" },
-      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:read" },
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, permission: "settings:hub" },
+      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:hub" },
       {
         title: "Delivery",
         href: "/dashboard/settings/delivery/options",
         icon: TruckIcon,
-        permission: "settings:read",
+        permission: "settings:hub",
       },
       {
         title: "Integrations",
         href: "/dashboard/settings/integrations",
         icon: PuzzleIcon,
-        permission: "settings:read",
+        permission: "settings:hub",
       },
       { title: "Account", href: "/dashboard/account", icon: UserIcon },
     ],
@@ -168,7 +175,7 @@ function filterByPermission(items: NavItem[], granted?: string[]): NavItem[] {
 
 const USER_MENU_ITEMS: NavItem[] = [
   { title: "Account", href: "/dashboard/account", icon: UserIcon },
-  { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:read" },
+  { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:hub" },
 ];
 
 /**
