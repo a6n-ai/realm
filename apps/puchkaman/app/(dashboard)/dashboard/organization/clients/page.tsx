@@ -1,64 +1,49 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
-import { SectionCard } from "@realm/design-system";
-import { listOrganizations } from "@/lib/services/organizations.service";
-import { CreateFranchiseButton } from "./create-franchise-button";
+import { parseSort } from "@/lib/list/sort";
+import { queryOrganizations, type OrgSortColumn } from "@/lib/services/organizations.service";
+import { ClientsTable, ClientsTableSkeleton } from "./clients-table";
 
-export default function ClientsPage() {
+export const dynamic = "force-dynamic";
+
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+// Facet spec — server-authored so parseFilterState (server) and ReuiFacetFilters
+// (client) stay in lockstep, same convention as settings/users/page.tsx.
+export const SPEC: FacetDef[] = [
+  {
+    kind: "pills",
+    field: "type",
+    label: "Type",
+    options: [
+      { value: "brand", label: "Brand" },
+      { value: "franchise", label: "Franchise" },
+    ],
+  },
+  { kind: "search", fields: ["name", "clientCode"] },
+];
+
+const ORG_SORT_COLUMNS = ["name", "clientCode"] as const satisfies readonly OrgSortColumn[];
+
+export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <SectionCard title="Clients">
-      <Suspense fallback={<div className="p-6 text-muted-foreground">Loading…</div>}>
-        <ClientsData />
+      <Suspense fallback={<ClientsTableSkeleton />}>
+        <ClientsData searchParams={searchParams} />
       </Suspense>
     </SectionCard>
   );
 }
 
-async function ClientsData() {
+async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const orgs = await listOrganizations();
-  const brands = orgs.filter((o) => !o.parentOrganizationId);
-  const franchisesByBrand = new Map<string, typeof orgs>();
-  for (const o of orgs) {
-    if (!o.parentOrganizationId) continue;
-    const list = franchisesByBrand.get(o.parentOrganizationId) ?? [];
-    list.push(o);
-    franchisesByBrand.set(o.parentOrganizationId, list);
-  }
 
-  return (
-    <div className="space-y-4">
-      {brands.map((brand) => (
-        <div key={brand.id} className="rounded-lg border">
-          <Link
-            href={`/dashboard/organization/clients/${brand.id}`}
-            className="flex items-center justify-between p-4 hover:bg-accent"
-          >
-            <div>
-              <div className="font-medium">{brand.name}</div>
-              <div className="text-sm text-muted-foreground">{brand.clientCode} · {brand.memberCount} members</div>
-            </div>
-          </Link>
-          <div className="border-t pl-8">
-            {(franchisesByBrand.get(brand.id) ?? []).map((f) => (
-              <Link
-                key={f.id}
-                href={`/dashboard/organization/clients/${f.id}`}
-                className="flex items-center justify-between border-b p-4 last:border-b-0 hover:bg-accent"
-              >
-                <div>
-                  <div className="font-medium">{f.name}</div>
-                  <div className="text-sm text-muted-foreground">{f.clientCode} · {f.memberCount} members</div>
-                </div>
-              </Link>
-            ))}
-            <div className="p-4">
-              <CreateFranchiseButton brandOrganizationId={brand.id} />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const sp = await searchParams;
+  const sort = parseSort(sp, ORG_SORT_COLUMNS, { column: "name", dir: "asc" });
+  const { condition, page } = parseFilterState(SPEC, sp);
+
+  const result = await queryOrganizations(condition, page, sort);
+
+  return <ClientsTable spec={SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
 }

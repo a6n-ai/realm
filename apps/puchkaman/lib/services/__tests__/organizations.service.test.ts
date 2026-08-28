@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
+import { eq as filterEq, like as filterLike } from "@realm/commons/model/condition";
 import {
   addMember,
   getMemberOrganizations,
   listMembers,
   listOrganizations,
+  queryOrganizations,
   removeMember,
   searchUsersByEmail,
   updateMemberRole,
@@ -107,6 +109,78 @@ describe("listOrganizations (integration)", () => {
     expect(brandRow?.memberCount).toBe(1);
     expect(franchiseRow?.memberCount).toBe(0);
     expect(franchiseRow?.parentOrganizationId).toBe(brand.id);
+  });
+});
+
+describe("queryOrganizations (integration)", () => {
+  afterEach(reset);
+
+  async function seedTree() {
+    const [brand] = await db
+      .insert(organization)
+      .values({ name: "Zeta Brand", clientCode: `test-qorg-brand-${runId}` })
+      .returning({ id: organization.id });
+    const [franchise] = await db
+      .insert(organization)
+      .values({
+        name: "Alpha Franchise",
+        clientCode: `test-qorg-fr-${runId}`,
+        parentOrganizationId: brand.id,
+      })
+      .returning({ id: organization.id });
+    createdOrgIds = [brand.id, franchise.id];
+    return { brand, franchise };
+  }
+
+  it("respects page size and reports the correct total", async () => {
+    await seedTree();
+
+    const result = await queryOrganizations(undefined, { page: 0, size: 1 });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it("Type: Brand excludes franchises", async () => {
+    const { brand, franchise } = await seedTree();
+
+    const result = await queryOrganizations(filterEq("type", "brand"), { page: 0, size: 50 });
+    const ids = result.items.map((r) => r.id);
+
+    expect(ids).toContain(brand.id);
+    expect(ids).not.toContain(franchise.id);
+  });
+
+  it("Type: Franchise excludes brands", async () => {
+    const { brand, franchise } = await seedTree();
+
+    const result = await queryOrganizations(filterEq("type", "franchise"), { page: 0, size: 50 });
+    const ids = result.items.map((r) => r.id);
+
+    expect(ids).toContain(franchise.id);
+    expect(ids).not.toContain(brand.id);
+    expect(result.items.find((r) => r.id === franchise.id)?.parentName).toBe("Zeta Brand");
+  });
+
+  it("search matches name or clientCode substring", async () => {
+    const { brand, franchise } = await seedTree();
+
+    const byName = await queryOrganizations(filterLike("name", `%Alpha%`), { page: 0, size: 50 });
+    expect(byName.items.map((r) => r.id)).toEqual([franchise.id]);
+
+    const byCode = await queryOrganizations(filterLike("clientCode", `%${runId}%`), { page: 0, size: 50 });
+    expect(byCode.items.map((r) => r.id).sort()).toEqual([brand.id, franchise.id].sort());
+  });
+
+  it("sorts by name", async () => {
+    const { brand, franchise } = await seedTree();
+
+    const result = await queryOrganizations(filterLike("clientCode", `%${runId}%`), { page: 0, size: 50 }, {
+      column: "name",
+      dir: "asc",
+    });
+
+    expect(result.items.map((r) => r.id)).toEqual([franchise.id, brand.id]);
   });
 });
 

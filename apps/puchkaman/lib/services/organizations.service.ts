@@ -1,6 +1,11 @@
-import { and, eq, ilike, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, isNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import type { Condition, FilterCondition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
+import type { SortState } from "@/lib/list/sort";
 
 // Same publicId -> internal bigint resolution used elsewhere in this app's
 // services — kept local since it's a one-line lookup, not shared logic.
@@ -45,6 +50,67 @@ export async function listOrganizations(): Promise<OrganizationListRow[]> {
     .from(organization)
     .leftJoin(member, eq(member.organizationId, organization.id))
     .groupBy(organization.id);
+}
+
+export type OrganizationListPageRow = OrganizationListRow & { parentName: string | null };
+
+// Keys match the clients-table.tsx column keys.
+export type OrgSortColumn = "name" | "clientCode";
+
+const parentOrg = alias(organization, "parent_org");
+
+const ORG_SORT_COL = {
+  name: organization.name,
+  clientCode: organization.clientCode,
+} as const;
+
+// Not a plain columnResolver map: the "type" facet has no real column — it
+// derives from parentOrganizationId being null (Brand) or not (Franchise) —
+// so it needs custom SQL instead of a column lookup.
+function resolveOrgFacet(f: FilterCondition) {
+  if (f.field === "type") {
+    return f.value === "brand" ? isNull(organization.parentOrganizationId) : isNotNull(organization.parentOrganizationId);
+  }
+  if (f.field === "name") return ilike(organization.name, `%${f.value}%`);
+  if (f.field === "clientCode") return ilike(organization.clientCode, `%${f.value}%`);
+  throw new Error(`Unknown field: ${f.field}`);
+}
+
+/**
+ * Flat, paginated Clients listing. `listOrganizations` above stays unpaginated
+ * for its one other caller's use case (whole-tree building blocks); this is a
+ * separate function rather than a reshape of that one.
+ */
+export async function queryOrganizations(
+  condition: Condition | undefined,
+  page: PageRequest,
+  sort: SortState<OrgSortColumn> = { column: "name", dir: "asc" },
+): Promise<Page<OrganizationListPageRow>> {
+  const where = conditionToSql(condition, resolveOrgFacet);
+  const col = ORG_SORT_COL[sort.column] ?? organization.name;
+
+  const [items, [{ count }]] = await Promise.all([
+    db
+      .select({
+        id: organization.id,
+        name: organization.name,
+        clientCode: organization.clientCode,
+        parentOrganizationId: organization.parentOrganizationId,
+        parentName: parentOrg.name,
+        memberCount: sql<number>`count(distinct ${member.id})::int`,
+      })
+      .from(organization)
+      .leftJoin(member, eq(member.organizationId, organization.id))
+      .leftJoin(parentOrg, eq(parentOrg.id, organization.parentOrganizationId))
+      .where(where)
+      .groupBy(organization.id, parentOrg.name)
+      .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(organization).where(where),
+  ]);
+
+  return { items, page: page.page, size: page.size, total: count };
 }
 
 export async function getOrganization(id: string) {
