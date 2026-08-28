@@ -176,6 +176,13 @@
       "when": 1787728664749,
       "tag": "0024_chilly_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787900225080,
+      "tag": "0025_wallet_reservation",
+      "breakpoints": true
     }
   ]
 }

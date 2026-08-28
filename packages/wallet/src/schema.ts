@@ -48,8 +48,28 @@ export function makeWalletTables<
     coins: integer("coins").notNull(),                  // always positive; direction gives sign
     memo: text("memo"),
     orderId: bigint("order_id", { mode: "bigint" }).references(orderId),
+    /**
+     * Reservation deadline (epoch ms) for an UNCOMMITTED debit — a hold taken
+     * at quote time so the same coins cannot fund a second order while this
+     * one waits to be paid.
+     *
+     *   null            → a committed row. Every credit, and every debit
+     *                     written by `commitRedemption`, is this.
+     *   > now()         → a live hold: counts against the balance, but is not
+     *                     yet spent. `settleReservation` commits it by
+     *                     nulling this column.
+     *   <= now()        → expired: ignored by every balance/history read, so
+     *                     the coins are spendable again with no sweep, no
+     *                     reversal row and no mirroring ledger adjustment.
+     *
+     * Expiry is the release mechanism ON PURPOSE — that is the whole point of
+     * the column. Anything that needs an early release (a terminal-failure
+     * path) just moves this to now(); it never writes a credit.
+     */
+    reservedUntil: bigint("reserved_until", { mode: "number" }),
   }, (t) => [
     index("wallet_user_created_idx").on(t.userId, t.createdAt),
+    index("wallet_reserved_until_idx").on(t.reservedUntil),
     uniqueIndex("wallet_earn_idempotent_idx").on(t.sourceType, t.sourceId, t.eventType),
   ]);
 

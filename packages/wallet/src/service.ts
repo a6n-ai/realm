@@ -84,17 +84,33 @@ async function lockUser(tx: Tx, users: AnyPgTable & { id: unknown }, userId: big
   await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
 }
 
+/**
+ * Every read of "what does this wallet hold" filters on this: a debit whose
+ * `reserved_until` has passed was a hold that nobody ever settled, so it
+ * never spent anything. Committed rows (`reserved_until is null`) and live
+ * holds both count — a live hold is money already promised to an order, and
+ * showing it as spendable is exactly the double-spend this column exists to
+ * stop. Expiry is therefore self-releasing: no sweep job, no reversal row.
+ */
+function unexpired(
+  walletLedger: WalletTables<string>["walletLedger"],
+  now: number,
+) {
+  return sql`(${walletLedger.reservedUntil} is null or ${walletLedger.reservedUntil} > ${now})`;
+}
+
 async function readBalance(
   tx: Tx,
   walletLedger: WalletTables<string>["walletLedger"],
   userId: bigint,
+  now: number = Date.now(),
 ): Promise<number> {
   const [row] = await tx
     .select({
       bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
     })
     .from(walletLedger)
-    .where(eq(walletLedger.userId, userId));
+    .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, now)));
   return row?.bal ?? 0;
 }
 
@@ -225,6 +241,145 @@ export async function commitRedemption(
 }
 
 /**
+ * Reservation-at-quote: the same debit `commitRedemption` writes, but held
+ * rather than spent — `reserved_until` is stamped `ttlMs` into the future.
+ *
+ * Why this exists (the design this replaces): on a deferred-settlement path
+ * the quote is taken at order creation and the debit committed minutes or
+ * days later. Committing the debit up front means every abandoned order needs
+ * an explicit undo — `reverseRedemption` plus, in the app, a mirroring
+ * money-ledger adjustment row — and every path that can fail terminally has to
+ * remember to call it. NOT committing anything up front is worse: the balance
+ * check dies with the quote's transaction, so the same coins can fund a second
+ * order and settlement then fails with the customer's money already taken.
+ *
+ * A hold is the third option, and the only one with no cleanup: it counts
+ * against the balance immediately (so nothing else can spend it) and, if the
+ * order is never settled, it simply stops counting when `reserved_until`
+ * passes. Nothing runs. Nothing writes. `terminalizeAbandonedOrders`'s
+ * doc-comment calls this shape out by name: "releasing an expired reservation
+ * replaces reversing a committed debit, and the mirroring ledger adjustment
+ * row goes with it".
+ *
+ * Same guards, same fixed user-then-order lock order and the same per-order
+ * dedupe as `commitRedemption` — a hold is a real row, and two of them against
+ * one order would be the same double-spend. The dedupe does not exempt expired
+ * holds: one order gets one redemption, ever, exactly as today.
+ *
+ * The app's discount ledger row IS written here, not at settlement: the order's
+ * quoted total already carries the discount from this moment on, and the money
+ * ledger has to say so. An unsettled order's discount is reversed by whatever
+ * already reverses that order's money, not by this package.
+ */
+export async function reserveRedemption(
+  tx: Tx,
+  args: {
+    userId: bigint;
+    coins: number;
+    currencyValue: number;
+    orderId: bigint;
+    /** How long the hold survives unsettled. */
+    ttlMs: number;
+    now?: number;
+    memo?: string;
+    walletLedger: WalletTables<string>["walletLedger"];
+    orders: AnyPgTable & { id: unknown };
+    users: AnyPgTable & { id: unknown };
+    recordRedemptionDiscount: WalletDeps<string>["recordRedemptionDiscount"];
+  },
+): Promise<{ reservedUntil: number }> {
+  const { userId, coins, currencyValue, orderId, ttlMs, memo, walletLedger, orders, users, recordRedemptionDiscount } = args;
+  const now = args.now ?? Date.now();
+  if (ttlMs <= 0) throw new ValidationError("reservation ttl must be positive");
+  if (coins <= 0) throw new ValidationError("coins must be positive");
+
+  await lockUser(tx, users, userId);
+  await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
+  await assertNotAlreadyRedeemed(tx, orderId, walletLedger);
+
+  const balance = await readBalance(tx, walletLedger, userId, now);
+  if (coins > balance) {
+    throw new ValidationError(
+      `insufficient coins to reserve redemption for order ${orderId}: balance ${balance}, need ${coins}`,
+    );
+  }
+
+  const reservedUntil = now + ttlMs;
+  await tx.insert(walletLedger).values({
+    userId,
+    direction: "debit",
+    sourceType: "redemption",
+    sourceId: orderId.toString(),
+    coins,
+    orderId,
+    memo: memo ?? "checkout redemption (reserved)",
+    reservedUntil,
+  });
+  await recordRedemptionDiscount(tx, {
+    userId,
+    orderId,
+    amount: currencyValue.toFixed(2),
+    memo: "coin redemption",
+  });
+
+  return { reservedUntil };
+}
+
+/**
+ * Commits a hold taken by `reserveRedemption` — one UPDATE nulling
+ * `reserved_until`, no second ledger row. Call it when the order is paid.
+ *
+ * Three outcomes, all of which the caller must handle explicitly rather than
+ * getting a silent boolean:
+ *
+ *   "settled"  — the hold was live and is now a permanent debit.
+ *   "none"     — this order never reserved anything (or was already settled;
+ *                a settled row is indistinguishable from a plain committed
+ *                debit BY DESIGN, which is what makes a repeat call a no-op).
+ *   "expired"  — the hold lapsed before the money landed. NOT settled, and
+ *                deliberately not force-settled either: the coins have been
+ *                spendable since it lapsed and may already be gone. This is
+ *                the reservation-era twin of "settling an order whose coins
+ *                were already returned" — the caller decides (refuse, alert,
+ *                re-charge), because only the caller knows what the customer
+ *                was actually charged.
+ */
+export async function settleReservation(
+  tx: Tx,
+  args: {
+    userId: bigint;
+    orderId: bigint;
+    now?: number;
+    walletLedger: WalletTables<string>["walletLedger"];
+    orders: AnyPgTable & { id: unknown };
+    users: AnyPgTable & { id: unknown };
+  },
+): Promise<{ status: "settled" | "none" | "expired"; coins: number }> {
+  const { userId, orderId, walletLedger, orders, users } = args;
+  const now = args.now ?? Date.now();
+
+  await lockUser(tx, users, userId);
+  await tx.execute(sql`SELECT id FROM ${orders} WHERE id = ${orderId} FOR UPDATE`);
+
+  const [row] = await tx
+    .select({ id: walletLedger.id, coins: walletLedger.coins, reservedUntil: walletLedger.reservedUntil })
+    .from(walletLedger)
+    .where(and(
+      eq(walletLedger.userId, userId),
+      eq(walletLedger.sourceType, "redemption"),
+      eq(walletLedger.sourceId, orderId.toString()),
+    ))
+    .limit(1);
+  // `== null` on purpose: a fake/partial row that omits the column is a
+  // committed debit, not a hold.
+  if (!row || row.reservedUntil == null) return { status: "none", coins: 0 };
+  if (row.reservedUntil <= now) return { status: "expired", coins: row.coins };
+
+  await tx.update(walletLedger).set({ reservedUntil: null }).where(eq(walletLedger.id, row.id));
+  return { status: "settled", coins: row.coins };
+}
+
+/**
  * Reverses a redemption previously written by `commitRedemption`: credits
  * back the same coin count against the same order. Mirrors `commitRedemption`
  * exactly opposite direction, same fixed user-then-order lock order, same
@@ -266,7 +421,7 @@ export async function reverseRedemption(
   // this is a shared primitive, and an unscoped lookup would happily read one
   // user's debit and credit the coins to another. Correct callers see no change.
   const [debit] = await tx
-    .select({ coins: walletLedger.coins })
+    .select({ id: walletLedger.id, coins: walletLedger.coins, reservedUntil: walletLedger.reservedUntil })
     .from(walletLedger)
     .where(and(
       eq(walletLedger.userId, userId),
@@ -275,6 +430,19 @@ export async function reverseRedemption(
     ))
     .limit(1);
   if (!debit) return { coinsReturned: 0 };
+
+  // A hold, not a spend: nothing was ever committed, so there is nothing to
+  // credit back. Expire it now instead of waiting out its TTL and return the
+  // coins it was holding, so callers that mirror the coin reversal in their
+  // own money ledger (puchkaman's `reverseOrderRedemption`) behave the same
+  // for a released hold as for a reversed debit. Already expired => already
+  // released: return 0 rather than letting a second call mirror it twice.
+  if (debit.reservedUntil != null) {
+    const now = Date.now();
+    if (debit.reservedUntil <= now) return { coinsReturned: 0 };
+    await tx.update(walletLedger).set({ reservedUntil: now }).where(eq(walletLedger.id, debit.id));
+    return { coinsReturned: debit.coins };
+  }
 
   // Deliberately NOT user-scoped: a reversal recorded by anyone for this order
   // must block a second one. Narrowing this would be the double-credit bug.
@@ -386,7 +554,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
           bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
         })
         .from(walletLedger)
-        .where(eq(walletLedger.userId, userId));
+        .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));
       return row?.bal ?? 0;
     },
 
@@ -402,7 +570,10 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
         memo: walletLedger.memo,
       }));
       // userId scope is NOT user-controllable — AND it with the facet condition.
-      const where = facet ? and(eq(walletLedger.userId, userId), facet) : eq(walletLedger.userId, userId);
+      // Lapsed holds are hidden, not shown as spends: the coins came back, so
+      // a "spent 40 coins" row the balance disagrees with is just a lie.
+      const scope = and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now()));
+      const where = facet ? and(scope, facet) : scope;
       const rows = await db
         .select({
           publicId: walletLedger.publicId, direction: walletLedger.direction, coins: walletLedger.coins,
@@ -471,7 +642,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
         })
         .from(walletLedger)
         .leftJoin(orders, eq(orders.id, walletLedger.orderId))
-        .where(eq(walletLedger.userId, userId))
+        .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())))
         .orderBy(desc(walletLedger.createdAt))
         .limit(limit);
       // eventType cast: same drizzle/TS limitation as ledgerPage above.
@@ -482,7 +653,7 @@ export function createWalletService<E extends string>(deps: WalletDeps<E>) {
       const coinsIf = (dir: "credit" | "debit") =>
         sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = ${dir} then ${walletLedger.coins} else 0 end), 0) as int)`;
       const [agg] = await db.select({ earned: coinsIf("credit"), spent: coinsIf("debit") })
-        .from(walletLedger).where(eq(walletLedger.userId, userId));
+        .from(walletLedger).where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));
       return { earned: agg.earned, spent: agg.spent };
     },
 

@@ -36,6 +36,13 @@
       "when": 1787728067205,
       "tag": "0004_exotic_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787900220458,
+      "tag": "0005_wallet_reservation",
+      "breakpoints": true
     }
   ]
 }

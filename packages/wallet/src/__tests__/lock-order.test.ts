@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitRedemption, lockAndQuoteRedemption, reverseAward, reverseRedemption } from "../service";
+import { commitRedemption, lockAndQuoteRedemption, reserveRedemption, reverseAward, reverseRedemption, settleReservation } from "../service";
 
 /**
  * Structural regression test, not a concurrency test: a real double-spend
@@ -332,5 +332,65 @@ describe("reverseAward lock/check ordering", () => {
 
     expect(calls).toEqual(["user-lock", "not-found"]);
     expect(result).toEqual({ coinsReturned: 0 });
+  });
+});
+
+/**
+ * `reserveRedemption` writes the same row `commitRedemption` does (held, not
+ * committed), so it must take the same locks in the same order and run the
+ * same guards before writing. Structural, same rationale as above.
+ */
+describe("reserveRedemption lock/check ordering", () => {
+  const reserveArgs = (calls: string[], over: { coins?: number; ttlMs?: number } = {}) => ({
+    ...commitArgs(calls, { coins: over.coins }),
+    ttlMs: over.ttlMs ?? 60_000,
+  });
+
+  it("locks user then order, dedupes, re-reads the balance, then writes", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeFakeTx(calls);
+
+    await reserveRedemption(fakeTx, reserveArgs(calls));
+
+    expect(calls).toEqual(["user-lock", "order-lock", "dup-check", "balance-read", "write", "write"]);
+  });
+
+  it("refuses to hold coins the re-read balance cannot cover", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeFakeTx(calls);
+
+    await expect(reserveRedemption(fakeTx, reserveArgs(calls, { coins: 100_001 })))
+      .rejects.toThrow(/insufficient coins to reserve redemption/i);
+    expect(calls).not.toContain("write");
+  });
+
+  it("rejects a non-positive ttl before taking any lock", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeFakeTx(calls);
+
+    await expect(reserveRedemption(fakeTx, reserveArgs(calls, { ttlMs: 0 })))
+      .rejects.toThrow(/ttl must be positive/i);
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("settleReservation lock ordering", () => {
+  it("locks user then order before reading the hold", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[]]);
+
+    const result = await settleReservation(fakeTx, {
+      userId: 1n,
+      orderId: 5n,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: LEDGER as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      orders: ORDERS as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "order-lock", "not-found"]);
+    expect(result).toEqual({ status: "none", coins: 0 });
   });
 });
