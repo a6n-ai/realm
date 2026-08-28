@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitRedemption, lockAndQuoteRedemption, reverseRedemption } from "../service";
+import { commitRedemption, lockAndQuoteRedemption, reverseAward, reverseRedemption } from "../service";
 
 /**
  * Structural regression test, not a concurrency test: a real double-spend
@@ -275,5 +275,62 @@ describe("reverseRedemption lock/check ordering", () => {
     expect(wheres).toHaveLength(2);
     expect(wheres[0].sort()).toEqual(["sourceId", "sourceType", "userId"]);
     expect(wheres[1].sort()).toEqual(["sourceId", "sourceType"]);
+  });
+});
+
+describe("reverseAward lock/check ordering", () => {
+  it("locks the user, before any read or write, then debits back the awarded coins", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[{ coins: 75 }], []]);
+
+    const result = await reverseAward(fakeTx, {
+      userId: 1n,
+      eventType: "order_activated",
+      source: { type: "order", id: "ord_1" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    // No order-row lock: award's source is opaque, so only the user lock runs.
+    expect(calls).toEqual(["user-lock", "found", "not-found", "write"]);
+    expect(result).toEqual({ coinsReturned: 75 });
+  });
+
+  it("is idempotent: a second call finds the existing reversal and writes nothing", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[{ coins: 75 }], [{ id: 1 }]]);
+
+    const result = await reverseAward(fakeTx, {
+      userId: 1n,
+      eventType: "order_activated",
+      source: { type: "order", id: "ord_1" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "found", "found"]);
+    expect(result).toEqual({ coinsReturned: 0 });
+  });
+
+  it("is a silent no-op when there is no award to reverse", async () => {
+    const calls: string[] = [];
+    const fakeTx = makeReversalFakeTx(calls, [[]]);
+
+    const result = await reverseAward(fakeTx, {
+      userId: 1n,
+      eventType: "order_activated",
+      source: { type: "order", id: "ord_1" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      walletLedger: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users: USERS as any,
+    });
+
+    expect(calls).toEqual(["user-lock", "not-found"]);
+    expect(result).toEqual({ coinsReturned: 0 });
   });
 });

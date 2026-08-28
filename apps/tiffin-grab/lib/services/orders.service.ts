@@ -35,7 +35,7 @@ import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
-import { walletService, lockAndQuoteCoinRedemption, commitCoinRedemption } from "./wallet.service";
+import { walletService, lockAndQuoteCoinRedemption, commitCoinRedemption, reverseCoinAward } from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import { getAppSettings, getPaymentConfig } from "./app-settings.service";
 
@@ -582,6 +582,54 @@ export async function verifyPayment(
       await walletService.award(award.userId, "order_activated", { type: "order", id: award.orderPublicId });
     } catch (e) {
       log.error({ err: e }, "wallet award on payment verify failed");
+    }
+  }
+}
+
+// Minimal refund trigger: tiffin-grab has no refund-processing flow yet (no
+// gateway integration, no refund UI) — this is only the trigger point a
+// future one calls. Marks the order's settled payment `refunded` and claws
+// back the order_activated coins that payment's activation/verification
+// awarded, if any. All three award() call sites (createOrder, verifyPayment,
+// activate) use the same (eventType, source) pair for a given order, so this
+// reverses whichever of them actually fired without needing to know which one.
+export async function refundOrder(
+  orderPublicId: string,
+  opts: { actorId?: string | null } = {},
+): Promise<void> {
+  const refund = await db.transaction(async (tx) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+    if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
+
+    const [pay] = await tx.select().from(payments).where(eq(payments.orderId, order.id)).limit(1);
+    if (!pay || (pay.status !== "paid" && pay.status !== "simulated_paid")) {
+      throw new ValidationError(`Order ${orderPublicId} has no settled payment to refund`);
+    }
+
+    const actorInternalId = await resolveUserId(tx, opts.actorId);
+
+    await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, pay.id));
+    await tx.insert(orderActivities).values({
+      orderId: order.id,
+      type: "note",
+      note: "Order refunded",
+      createdBy: actorInternalId,
+    });
+
+    return order.userId ? { userId: order.userId, orderPublicId: order.publicId } : null;
+  });
+
+  if (refund) {
+    try {
+      await db.transaction((tx) =>
+        reverseCoinAward(tx, {
+          userId: refund.userId,
+          eventType: "order_activated",
+          source: { type: "order", id: refund.orderPublicId },
+        }),
+      );
+    } catch (e) {
+      log.error({ err: e }, "wallet award reversal on refund failed");
     }
   }
 }

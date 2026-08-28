@@ -299,6 +299,71 @@ export async function reverseRedemption(
   return { coinsReturned: debit.coins };
 }
 
+/**
+ * Reverses an award previously written by `award()`: debits back the coins
+ * credited for a given (eventType, source), e.g. when the order that earned
+ * them is later refunded.
+ *
+ * Mirrors `reverseRedemption`'s idempotency approach exactly: locks the
+ * user, looks up the original credit row, checks for an existing reversal
+ * scoped to the same source, and no-ops (`{coinsReturned: 0}`, no write, no
+ * throw) when the award was never made or was already reversed. Unlike
+ * `reverseRedemption`, this takes no order-row lock — `award()`'s source is
+ * opaque (it need not be an order at all), so the per-user lock is the only
+ * one this shared primitive can assume every caller can take.
+ */
+export async function reverseAward(
+  tx: Tx,
+  args: {
+    userId: bigint;
+    eventType: string;
+    source: { type: string; id: string };
+    walletLedger: WalletTables<string>["walletLedger"];
+    users: AnyPgTable & { id: unknown };
+  },
+): Promise<{ coinsReturned: number }> {
+  const { userId, eventType, source, walletLedger, users } = args;
+
+  await lockUser(tx, users, userId);
+
+  const [credit] = await tx
+    .select({ coins: walletLedger.coins })
+    .from(walletLedger)
+    .where(and(
+      eq(walletLedger.userId, userId),
+      eq(walletLedger.sourceType, source.type),
+      eq(walletLedger.sourceId, source.id),
+      eq(walletLedger.eventType, eventType),
+    ))
+    .limit(1);
+  if (!credit) return { coinsReturned: 0 };
+
+  // Same "no DB constraint enforces this, the lock + query is the only
+  // guard" situation as reverseRedemption's reversal dedupe.
+  const reversalSourceType = `${source.type}_reversal`;
+  const [existingReversal] = await tx
+    .select({ id: walletLedger.id })
+    .from(walletLedger)
+    .where(and(
+      eq(walletLedger.userId, userId),
+      eq(walletLedger.sourceType, reversalSourceType),
+      eq(walletLedger.sourceId, source.id),
+    ))
+    .limit(1);
+  if (existingReversal) return { coinsReturned: 0 };
+
+  await tx.insert(walletLedger).values({
+    userId,
+    direction: "debit",
+    sourceType: reversalSourceType,
+    sourceId: source.id,
+    coins: credit.coins,
+    memo: `reverses award (${eventType}) for ${source.type} ${source.id}`,
+  });
+
+  return { coinsReturned: credit.coins };
+}
+
 export function createWalletService<E extends string>(deps: WalletDeps<E>) {
   const { db, tables, orders, users, recordRedemptionDiscount, canAward } = deps;
   const { walletLedger, eventPayout, coinRate } = tables;

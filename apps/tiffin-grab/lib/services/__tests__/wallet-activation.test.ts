@@ -8,7 +8,7 @@
  * Uses the live DB; cleans up all own rows in afterAll.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq, ne } from "drizzle-orm";
+import { eq, inArray, ne } from "drizzle-orm";
 import { nextWeekday } from "@realm/commons";
 
 const { db } = await import("@/db/client");
@@ -21,6 +21,10 @@ const svc = await import("../orders.service");
 const TEST_PHONE = "+16475550019";
 const TEST_PHONE_2 = "+16475550020";
 const TEST_PHONE_3 = "+16475550021";
+const TEST_PHONE_4 = "+16475550022";
+const TEST_PHONE_5 = "+16475550023";
+
+const TEST_PHONES = [TEST_PHONE, TEST_PHONE_2, TEST_PHONE_3, TEST_PHONE_4, TEST_PHONE_5];
 
 async function cleanup() {
   // Unconditional wallet clear first: a row leaked by a failed test (before the
@@ -32,17 +36,9 @@ async function cleanup() {
   const testUsers = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.phone, TEST_PHONE));
-  const testUsers2 = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.phone, TEST_PHONE_2));
-  const testUsers3 = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.phone, TEST_PHONE_3));
+    .where(inArray(users.phone, TEST_PHONES));
 
-  for (const u of [...testUsers, ...testUsers2, ...testUsers3]) {
+  for (const u of testUsers) {
     await db.delete(walletLedger).where(eq(walletLedger.userId, u.id));
   }
 
@@ -52,19 +48,9 @@ async function cleanup() {
     .select({ id: orders.id, publicId: orders.publicId })
     .from(orders)
     .innerJoin(users, eq(orders.userId, users.id))
-    .where(eq(users.phone, TEST_PHONE));
-  const ourOrders2 = await db
-    .select({ id: orders.id, publicId: orders.publicId })
-    .from(orders)
-    .innerJoin(users, eq(orders.userId, users.id))
-    .where(eq(users.phone, TEST_PHONE_2));
-  const ourOrders3 = await db
-    .select({ id: orders.id, publicId: orders.publicId })
-    .from(orders)
-    .innerJoin(users, eq(orders.userId, users.id))
-    .where(eq(users.phone, TEST_PHONE_3));
+    .where(inArray(users.phone, TEST_PHONES));
 
-  for (const o of [...ourOrders, ...ourOrders2, ...ourOrders3]) {
+  for (const o of ourOrders) {
     await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, o.id));
     await db.delete(orderActivities).where(eq(orderActivities.orderId, o.id));
     await db.delete(payments).where(eq(payments.orderId, o.id));
@@ -72,9 +58,7 @@ async function cleanup() {
   }
 
   // Delete test users
-  await db.delete(users).where(eq(users.phone, TEST_PHONE));
-  await db.delete(users).where(eq(users.phone, TEST_PHONE_2));
-  await db.delete(users).where(eq(users.phone, TEST_PHONE_3));
+  await db.delete(users).where(inArray(users.phone, TEST_PHONES));
 }
 
 beforeAll(async () => {
@@ -232,5 +216,89 @@ describe("wallet award on order activation", () => {
     // Balance must still be exactly 75 — no double-pay
     const { walletService } = await import("../wallet.service");
     expect(await walletService.balance(userId)).toBe(75);
+  });
+});
+
+describe("refundOrder", () => {
+  it("reverses previously-awarded wallet coins and marks the payment refunded", async () => {
+    const snap = await loadCatalogSnapshot();
+    const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+
+    // M9V 1A1 — Etobicoke zone (prefix M9): lands "active" immediately, which
+    // is what fires createOrder's award() call site (orders.service.ts:487).
+    const { publicId } = await svc.createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId,
+        frequencyKey: "5_day",
+        persons: 1,
+        mealSlots: ["lunch"],
+        includeSaturday: false,
+        includeSunday: false,
+        durationWeeks: 1,
+        startDate,
+      },
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
+        fullName: "Wallet Refund Test",
+        phone: TEST_PHONE_4,
+        addressLine: "9 Etobicoke Ave",
+        city: "Etobicoke",
+        postalCode: "M9V 1A1",
+      },
+    });
+
+    const [orderRow] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    expect(orderRow.status, "order must land active for the award path to have fired").toBe("active");
+    const userId = orderRow.userId!;
+
+    const { walletService } = await import("../wallet.service");
+    expect(await walletService.balance(userId)).toBe(75);
+
+    await svc.refundOrder(publicId);
+
+    expect(await walletService.balance(userId)).toBe(0);
+    const [pay] = await db.select().from(payments).where(eq(payments.orderId, orderRow.id));
+    expect(pay.status).toBe("refunded");
+  });
+
+  it("is idempotent — calling it twice does not double-reverse", async () => {
+    const snap = await loadCatalogSnapshot();
+    const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
+
+    const { publicId } = await svc.createOrder({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId,
+        frequencyKey: "5_day",
+        persons: 1,
+        mealSlots: ["lunch"],
+        includeSaturday: false,
+        includeSunday: false,
+        durationWeeks: 1,
+        startDate,
+      },
+      contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,
+        fullName: "Wallet Refund Idempotent Test",
+        phone: TEST_PHONE_5,
+        addressLine: "9 Etobicoke Ave",
+        city: "Etobicoke",
+        postalCode: "M9V 1A1",
+      },
+    });
+
+    const [orderRow] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+    expect(orderRow.status).toBe("active");
+    const userId = orderRow.userId!;
+
+    const { walletService } = await import("../wallet.service");
+    expect(await walletService.balance(userId)).toBe(75);
+
+    await svc.refundOrder(publicId);
+    expect(await walletService.balance(userId)).toBe(0);
+
+    // Second refundOrder call throws (payment no longer settled) but must not
+    // touch the wallet a second time even if the reversal step were re-run.
+    await expect(svc.refundOrder(publicId)).rejects.toThrow();
+    expect(await walletService.balance(userId)).toBe(0);
   });
 });

@@ -2,6 +2,7 @@ import {
   createWalletService,
   commitRedemption,
   lockAndQuoteRedemption,
+  reverseAward,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
 } from "@realm/wallet";
@@ -211,4 +212,13 @@ export async function commitCoinRedemption(
   args: { userId: bigint; coins: number; currencyValue: number; orderId: bigint; memo?: string },
 ): Promise<void> {
   await commitRedemption(tx, { ...args, walletLedger, orders, users, recordRedemptionDiscount });
+}
+
+// App-bound wrapper for the package's award-reversal primitive — refundOrder
+// (orders.service.ts) calls this to claw back order_activated coins.
+export async function reverseCoinAward(
+  tx: Tx,
+  args: { userId: bigint; eventType: BusinessEvent; source: { type: string; id: string } },
+): Promise<{ coinsReturned: number }> {
+  return reverseAward(tx, { ...args, walletLedger, users });
 }
