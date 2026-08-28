@@ -5,7 +5,7 @@ import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
 import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
 import { resolveVisibleOrgIds } from "@realm/auth";
-import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   coupons,
@@ -244,10 +244,32 @@ export async function createOrder(
     const ownerId = await resolveUserId(tx, ownerUserId);
 
     // A logged-in customer's order attaches to their own account; anonymous and
-    // agent orders resolve/provision the customer by phone.
+    // agent orders resolve/provision the customer by phone OR email.
+    //
+    // Email is in this lookup, not just phone, because the overlap guard below
+    // is only as good as the identity it runs against. A returning customer who
+    // checks out logged-out and types a second number — a new phone, a typo, a
+    // partner's mobile — used to miss the phone match, fall through to
+    // provisioning, and die on the email-unique check with "That email is
+    // already in use": no overlap message, no way forward. Matching either
+    // channel resolves them to the account they already have, so the guard runs
+    // and they are told which date their current plan runs to.
+    //
+    // Both columns are uniquely indexed (users_email_unique, users_phone_unique)
+    // and both values are normalised above — email lowercased by emailSchema,
+    // phone to E.164 — so this cannot match on formatting variance alone.
     let userId = ownerId;
     if (!userId) {
-      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+      const [existing] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(or(eq(users.phone, phone), eq(users.email, email)))
+        // Phone first: when a number and an address somehow point at different
+        // accounts, the phone is the channel this flow has always keyed on, and
+        // deterministic ordering keeps the choice reproducible rather than
+        // whatever the planner returns first.
+        .orderBy(sql`case when ${users.phone} = ${phone} then 0 else 1 end`)
+        .limit(1);
       userId = existing?.id ?? null;
     }
     if (!userId) {
