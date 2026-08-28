@@ -8,19 +8,7 @@ import { Input } from "@realm/ui/input";
 import { ResponsiveDialog } from "@realm/design-system";
 import type { FranchiseLocation } from "@/lib/services/organizations.service";
 import { detectFranchiseByIp, listLocationsAction } from "@/lib/tenant/detect-location";
-
-const COOKIE_NAME = "franchise";
-const COOKIE_MAX_AGE_DAYS = 365;
-
-function readCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function writeFranchiseCookie(clientCode: string) {
-  const maxAge = COOKIE_MAX_AGE_DAYS * 24 * 60 * 60;
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(clientCode)}; path=/; max-age=${maxAge}; samesite=lax`;
-}
+import { readFranchiseCookie, writeFranchiseCookie } from "@/lib/tenant/franchise-cookie";
 
 // Mounted once in (marketing)/layout.tsx. First visit (no `franchise` cookie):
 // silently IP-geolocates and, on a city match, offers a confirm/change popup.
@@ -35,7 +23,7 @@ export function LocationPicker() {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    if (readCookie(COOKIE_NAME)) return;
+    if (readFranchiseCookie()) return;
     detectFranchiseByIp().then((match) => {
       if (match) {
         setSuggestion(match);
