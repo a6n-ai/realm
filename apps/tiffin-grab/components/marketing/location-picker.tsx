@@ -10,19 +10,25 @@ import type { FranchiseLocation } from "@/lib/services/organizations.service";
 import { detectFranchiseByIp, listLocationsAction } from "@/lib/tenant/detect-location";
 import { readFranchiseCookie, writeFranchiseCookie } from "@/lib/tenant/franchise-cookie";
 
-// Mounted once in (marketing)/layout.tsx. First visit (no `franchise` cookie):
-// silently IP-geolocates and, on a city match, offers a confirm/change popup.
-// The floating "Deliver to" widget below reopens the picker anytime, on both
-// desktop and mobile (the header had no room for a persistent trigger there).
+// Mounted once in (marketing)/layout.tsx. Renders nothing at all when there's
+// 0 or 1 franchise — a single-location business has nothing to pick between.
+// With 2+: first visit (no `franchise` cookie) silently IP-geolocates and, on
+// a city match, offers a confirm/change popup; the floating "Deliver to"
+// widget reopens the picker anytime, on both desktop and mobile.
 export function LocationPicker() {
   const router = useRouter();
+  const [locations, setLocations] = useState<FranchiseLocation[] | null>(null);
   const [suggestion, setSuggestion] = useState<FranchiseLocation | null>(null);
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [locations, setLocations] = useState<FranchiseLocation[] | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
+    listLocationsAction().then(setLocations);
+  }, []);
+
+  useEffect(() => {
+    if (!locations || locations.length < 2) return;
     if (readFranchiseCookie()) return;
     detectFranchiseByIp().then((match) => {
       if (match) {
@@ -32,11 +38,9 @@ export function LocationPicker() {
         setShowPicker(true);
       }
     });
-  }, []);
+  }, [locations]);
 
-  useEffect(() => {
-    if (showPicker && locations === null) listLocationsAction().then(setLocations);
-  }, [showPicker, locations]);
+  if (!locations || locations.length < 2) return null;
 
   function selectLocation(loc: FranchiseLocation) {
     writeFranchiseCookie(loc.clientCode);
@@ -45,7 +49,7 @@ export function LocationPicker() {
     router.refresh();
   }
 
-  const filtered = (locations ?? []).filter((l) => {
+  const filtered = locations.filter((l) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return l.name.toLowerCase().includes(q) || l.city?.toLowerCase().includes(q) || l.address?.toLowerCase().includes(q);
@@ -79,7 +83,7 @@ export function LocationPicker() {
         open={showPicker}
         onOpenChange={setShowPicker}
         title="Choose your location"
-        description="Search by city or address, or pick from the list."
+        description="Search by city or address, or pick a card below."
       >
         <div className="space-y-3 p-4">
           <Input
@@ -88,27 +92,28 @@ export function LocationPicker() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <div className="space-y-1">
+          <div className="grid gap-2 sm:grid-cols-2">
             {filtered.map((loc) => (
               <button
                 key={loc.id}
                 type="button"
                 onClick={() => selectLocation(loc)}
-                className="flex w-full flex-col items-start rounded-lg border p-3 text-left hover:bg-muted"
+                className="flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted"
               >
-                <span className="font-medium">{loc.name}</span>
+                <span className="flex items-center gap-1.5 font-medium">
+                  <MapPin className="size-4 shrink-0 text-primary" />
+                  {loc.name}
+                </span>
                 <span className="text-sm text-muted-foreground">{loc.address ?? loc.city}</span>
               </button>
             ))}
-            {locations !== null && filtered.length === 0 && (
-              <p className="p-3 text-sm text-muted-foreground">No locations match &quot;{query}&quot;.</p>
+            {filtered.length === 0 && (
+              <p className="col-span-full p-3 text-sm text-muted-foreground">No locations match &quot;{query}&quot;.</p>
             )}
           </div>
         </div>
       </ResponsiveDialog>
 
-      {/* Always-available trigger, independent of the header's "Deliver to"
-          button (desktop-only) — the only way to reopen the picker on mobile. */}
       <button
         type="button"
         onClick={() => setShowPicker(true)}
