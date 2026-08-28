@@ -16,6 +16,12 @@ describe("nav filtering", () => {
     expect(all).toContain("/dashboard/orders");
     expect(all).toContain("/dashboard/logs");
     expect(all).toContain("/dashboard/organization/clients");
+    // Reachable only via Settings' own cards now, not as top-level sidebar
+    // entries — Account still exists, via the footer menu (see below), not
+    // getNavSections.
+    expect(all).not.toContain("/dashboard/settings/delivery/options");
+    expect(all).not.toContain("/dashboard/settings/integrations");
+    expect(all).not.toContain("/dashboard/account");
   });
 
   it("gives a member the surfaces the permission audit granted, still hides the rest", () => {
@@ -23,27 +29,27 @@ describe("nav filtering", () => {
     expect(mine).toContain("/dashboard/orders");
     expect(mine).toContain("/dashboard/products");
     expect(mine).toContain("/dashboard/finance");
-    expect(mine).toContain("/dashboard/account");
     // audit:read is genuinely gated by requirePermission on its destination —
     // member reaches this one.
     expect(mine).toContain("/dashboard/logs");
     // settings:read only widened for the google-reviews sub-page; the Settings
-    // hub, Delivery, Integrations, and Notifications pages themselves still
-    // call requireAdmin(), so their nav links must stay hidden or a member
-    // would see a link that ForbiddenError()s on click.
+    // hub and Notifications pages themselves still call requireAdmin(), so
+    // their nav links must stay hidden or a member would see a link that
+    // ForbiddenError()s on click.
     expect(mine).not.toContain("/dashboard/settings");
-    expect(mine).not.toContain("/dashboard/settings/integrations");
     expect(mine).not.toContain("/dashboard/notifications");
     // organization:read was never granted to member — this stays admin-only.
     expect(mine).not.toContain("/dashboard/organization/clients");
   });
 
-  it("hides Clover's Connection link from a member even though clover:read is granted", () => {
-    // clover:read was widened for the read-only employee list, but
-    // settings/clover/page.tsx (the merchant OAuth connection page) still
-    // calls requireAdmin() — same dead-link trap as the Settings hub.
-    const mine = hrefs(grantedKeys(Role.MEMBER), { [CLOVER_PLUGIN_ID]: { installed: true } });
-    expect(mine).not.toContain("/dashboard/settings/clover");
+  it("never surfaces Clover's Connection link — reachable only via the Settings card, for any role", () => {
+    // "Connection" (merchant OAuth) is dropped from the sidebar entirely, not
+    // role-gated — it was a straight duplicate of the Settings page's own
+    // Clover card, and its page stays behind requireAdmin() regardless.
+    const admin = hrefs(grantedKeys(Role.ADMIN), { [CLOVER_PLUGIN_ID]: { installed: true } });
+    const member = hrefs(grantedKeys(Role.MEMBER), { [CLOVER_PLUGIN_ID]: { installed: true } });
+    expect(admin).not.toContain("/dashboard/settings/clover");
+    expect(member).not.toContain("/dashboard/settings/clover");
   });
 
   it("omitting granted keeps every item, so existing callers are unchanged", () => {

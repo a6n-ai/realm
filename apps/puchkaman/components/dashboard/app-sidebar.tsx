@@ -15,11 +15,9 @@ import {
   PercentIcon,
   PrinterIcon,
   ReceiptIcon,
-  PuzzleIcon,
   ScrollTextIcon,
   BellIcon,
   SettingsIcon,
-  TruckIcon,
   UserIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -113,14 +111,12 @@ export function getNavSections(opts: {
   if (cloverStatus.installed) {
     const cloverItems = cloverNavSections(cloverStatus)
       .flatMap((s) => s.items)
-      // "Connection" (merchant OAuth/reconnect) stays behind requireAdmin() on
-      // its own page, so it can't take the same clover:read grant member holds
-      // for the read-only employee list — same settings:hub reuse as the
-      // Settings/Delivery/Integrations items above.
-      .map((item) => ({
-        ...item,
-        permission: item.href === "/dashboard/settings/clover" ? "settings:hub" : "clover:read",
-      }));
+      // "Connection" (merchant OAuth/reconnect) is dropped: it's already
+      // reachable via the Settings page's own Clover card, and its page stays
+      // behind requireAdmin() so it can't take the same clover:read grant
+      // member holds for the read-only employee list.
+      .filter((item) => item.href !== "/dashboard/settings/clover")
+      .map((item) => ({ ...item, permission: "clover:read" }));
     sections.push({
       label: "Clover",
       items: [...COMMERCE_ITEMS, ...CLOVER_CATALOG_ITEMS, ...cloverItems],
@@ -144,19 +140,6 @@ export function getNavSections(opts: {
       { title: "Logs", href: "/dashboard/logs", icon: ScrollTextIcon, permission: "audit:read" },
       { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, permission: "settings:hub" },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, permission: "settings:hub" },
-      {
-        title: "Delivery",
-        href: "/dashboard/settings/delivery/options",
-        icon: TruckIcon,
-        permission: "settings:hub",
-      },
-      {
-        title: "Integrations",
-        href: "/dashboard/settings/integrations",
-        icon: PuzzleIcon,
-        permission: "settings:hub",
-      },
-      { title: "Account", href: "/dashboard/account", icon: UserIcon },
     ],
   });
 
@@ -207,7 +190,6 @@ export function AppSidebar({
   const menuItems = getUserMenuItems(granted);
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === href;
-    // Avoid Settings lighting up while on Connection (/dashboard/settings/clover).
     if (href === "/dashboard/settings") {
       return pathname === href || pathname === "/dashboard/settings/";
     }
