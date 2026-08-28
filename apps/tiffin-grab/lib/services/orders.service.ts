@@ -634,6 +634,37 @@ export async function refundOrder(
   }
 }
 
+// Terminalize an order nobody ever paid. Unlike puchkaman's equivalent, this
+// never touches the wallet: tiffin-grab defers BOTH coupon redemption and coin
+// redemption until settlement (verifyPayment / the simulated branch of
+// createOrder) — an awaiting_payment order has committed nothing to reverse.
+// One transaction: cancelDeliveries must roll back together with the status
+// flip and the payment write, same reasoning as cancel().
+// Returns false when the order is no longer eligible — a settlement or an
+// earlier sweep run that landed between the caller's read and this call must
+// win, and re-running against an already-cancelled order must not re-cancel it.
+export async function abandonPendingOrder(orderId: bigint): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update").limit(1);
+    if (!order || (order.status !== "active" && order.status !== "waitlisted")) return false;
+
+    const [pay] = await tx.select().from(payments).where(eq(payments.orderId, orderId)).for("update").limit(1);
+    if (!pay || pay.status !== "awaiting_payment") return false;
+
+    await tx.update(payments).set({ status: "rejected", note: "Abandoned: never paid" }).where(eq(payments.id, pay.id));
+    await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, orderId));
+    await cancelDeliveries(tx, orderId);
+    await tx.insert(orderActivities).values({
+      orderId,
+      type: "cancelled",
+      fromStatus: order.status,
+      toStatus: "cancelled",
+      note: "Abandoned: never paid",
+    });
+    return true;
+  });
+}
+
 // Customer (or staff-on-behalf) marks a manual payment as sent. Requires a transfer
 // reference and/or a proof image; requireProof on the method config forces the photo.
 // awaiting_payment | rejected → pending_verification.
