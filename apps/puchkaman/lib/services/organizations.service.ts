@@ -30,29 +30,14 @@ export async function getMemberOrganizations(session: { user: { id: string } } |
     .where(eq(member.userId, userId));
 }
 
-export type OrganizationListRow = {
+export type OrganizationListPageRow = {
   id: string;
   name: string;
   clientCode: string;
   parentOrganizationId: string | null;
+  parentName: string | null;
   memberCount: number;
 };
-
-export async function listOrganizations(): Promise<OrganizationListRow[]> {
-  return db
-    .select({
-      id: organization.id,
-      name: organization.name,
-      clientCode: organization.clientCode,
-      parentOrganizationId: organization.parentOrganizationId,
-      memberCount: sql<number>`count(${member.id})::int`,
-    })
-    .from(organization)
-    .leftJoin(member, eq(member.organizationId, organization.id))
-    .groupBy(organization.id);
-}
-
-export type OrganizationListPageRow = OrganizationListRow & { parentName: string | null };
 
 // Keys match the clients-table.tsx column keys.
 export type OrgSortColumn = "name" | "clientCode";
@@ -77,9 +62,7 @@ function resolveOrgFacet(f: FilterCondition) {
 }
 
 /**
- * Flat, paginated Clients listing. `listOrganizations` above stays unpaginated
- * for its one other caller's use case (whole-tree building blocks); this is a
- * separate function rather than a reshape of that one.
+ * Paginated Clients listing with parent organization name and member counts.
  */
 export async function queryOrganizations(
   condition: Condition | undefined,
