@@ -2,9 +2,9 @@ import { Role, type RoleValue, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { session as sessionTable, users } from "@/db/schema";
+import { member, organization, session as sessionTable, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { usersRepository, type UserRow } from "./users.repository";
 import { currentUserId, SessionUpdatableService } from "./session-service";
@@ -24,6 +24,10 @@ export function tombstoneEmail(publicId: string): string {
 
 // Keys match the users-table.tsx column keys.
 export type UserSortColumn = "name" | "email" | "role" | "status";
+
+// queryUsers's row shape: base user columns plus the display-only org-membership
+// aggregate (comma-joined names, null when the user has no member rows).
+export type UserListRow = UserRow & { orgNames: string | null };
 
 const USER_SORT_COL = {
   name: users.name,
@@ -56,15 +60,25 @@ class UsersService extends SessionUpdatableService<typeof users> {
     condition: Condition | undefined,
     page: PageRequest,
     sort: SortState<UserSortColumn> = { column: "name", dir: "asc" },
-  ): Promise<Page<UserRow>> {
+  ): Promise<Page<UserListRow>> {
     const where = conditionToSql(condition, resolveUserFacet);
     const col = USER_SORT_COL[sort.column] ?? users.name;
 
     const [items, [{ count }]] = await Promise.all([
       db
-        .select()
+        .select({
+          ...getTableColumns(users),
+          // Display-only — a user can belong to more than one org (see
+          // member_org_user_unique(organizationId, userId)), so this is an
+          // aggregate, not a join column. Not in resolveUserFacet/USER_SORT_COL:
+          // sort/filter on a many-to-many aggregate is out of scope.
+          orgNames: sql<string | null>`string_agg(distinct ${organization.name}, ', ')`,
+        })
         .from(users)
+        .leftJoin(member, eq(member.userId, users.id))
+        .leftJoin(organization, eq(organization.id, member.organizationId))
         .where(where)
+        .groupBy(users.id)
         .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
         .limit(page.size)
         .offset(page.page * page.size),

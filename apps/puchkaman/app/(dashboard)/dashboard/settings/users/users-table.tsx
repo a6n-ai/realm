@@ -22,15 +22,17 @@ export type UserRow = {
   email: string | null;
   role: RoleValue;
   status: UserStatusValue;
+  orgNames: string | null;
 };
 
-type UserCol = UserSortColumn | "actions";
+type UserCol = UserSortColumn | "client" | "actions";
 
 const COLUMNS: readonly Column<UserCol>[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Email", sortable: true },
   { key: "role", label: "Role", sortable: true },
   { key: "status", label: "Status", sortable: true },
+  { key: "client", label: "Client" },
   { key: "actions", label: "", align: "right", width: "w-24" },
 ];
 
@@ -91,6 +93,7 @@ export function UsersTable({
                       : "Inactive"}
               </Badge>
             </TableCell>
+            <TableCell>{row.orgNames ?? "—"}</TableCell>
             <TableCell className="text-right">
               <StatusActions
                 publicId={row.publicId}
