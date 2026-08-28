@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Section } from "@/components/marketing/section";
 import { MealCard } from "@/components/marketing/cards";
 
@@ -19,7 +20,8 @@ const TIERS = [
 ] as const;
 
 export default async function MenuPage() {
-  const { mealSizes } = await loadCatalogSnapshot();
+  const orgId = await resolveRequestOrg();
+  const { mealSizes } = await loadCatalogSnapshot(orgId);
   return (
     <Section className="space-y-10">
       <div className="max-w-2xl">

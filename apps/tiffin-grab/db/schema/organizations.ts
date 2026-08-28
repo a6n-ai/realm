@@ -1,5 +1,18 @@
 import { sql } from "drizzle-orm";
-import { type AnyPgColumn, bigint, boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  bigint,
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@realm/clover";
 import type { PaymentConfig } from "@realm/payments";
 import type { DiscountPolicy } from "./coupons";
@@ -28,6 +41,13 @@ export const organization = pgTable(
     // packages/auth/src/organization.ts assertHierarchyDepth.
     parentOrganizationId: text("parent_organization_id").references((): AnyPgColumn => organization.id),
     region: text("region"),
+    // Structured location for public-site franchise selection (IP-geolocation
+    // default + manual override) and for showing the franchise on a map.
+    // Distinct from `region`, which is freeform.
+    city: text("city"),
+    address: text("address"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
     // App-settings columns, migrated from `app` (docs/superpowers/specs/2026-08-19-tenant-url-routing-design.md).
     // Nullable here: a brand org gets these populated by db/seed-brand-org.ts's backfill;
     // a franchise/shop org left null means "not yet supported" — override/inheritance logic

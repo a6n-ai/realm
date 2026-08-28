@@ -69,7 +69,7 @@ describe("updateOrganizationAction (integration)", () => {
     const result = await updateOrganizationAction(org.id, {
       name: "After",
       clientCode: "test-update-action-2",
-      region: null,
+      region: null, city: null, address: null, latitude: null, longitude: null,
     });
 
     expect(result.ok).toBe(true);

@@ -79,15 +79,26 @@ export async function proxy(request: NextRequest) {
     if (org) {
       resolvedOrgId = org.id;
     } else {
-      const [fallback] = await db
-        .select({ id: organization.id })
-        .from(organization)
-        .where(eq(organization.isDefaultLocation, true))
-        .limit(1);
-      if (fallback) {
-        resolvedOrgId = fallback.id;
-      } else if (pathname !== "/locations") {
-        return NextResponse.redirect(new URL("/locations", request.url));
+      // A visitor-picked franchise (location popup, ip-api-detected or manual)
+      // is stored as a plain `franchise` cookie holding clientCode, not org id
+      // — it's readable/settable from the client, unlike x-realm-org-id.
+      const pickedCode = request.cookies.get("franchise")?.value ?? null;
+      const [picked] = pickedCode
+        ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, pickedCode)).limit(1)
+        : [];
+      if (picked) {
+        resolvedOrgId = picked.id;
+      } else {
+        const [fallback] = await db
+          .select({ id: organization.id })
+          .from(organization)
+          .where(eq(organization.isDefaultLocation, true))
+          .limit(1);
+        if (fallback) {
+          resolvedOrgId = fallback.id;
+        } else if (pathname !== "/locations") {
+          return NextResponse.redirect(new URL("/locations", request.url));
+        }
       }
     }
   }
