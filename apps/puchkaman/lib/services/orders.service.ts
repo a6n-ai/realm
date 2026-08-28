@@ -1031,11 +1031,27 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddress}`
           : `Web pickup · ${parsed.contact.name}`;
 
+    // The order type is what makes Register announce a website order the way it
+    // announces an Uber Eats / DoorDash one: those arrive tagged by their own
+    // integration, and the tag is what drives the new-order alert and print
+    // rules. An API order with no type lands silently in the Orders list, which
+    // is why staff had to open the admin dashboard to notice one.
+    //
+    // Asked of the client, not re-read from the config store: the client already
+    // holds the connection it authenticated with, and a second read would resolve
+    // the acting org again. undefined when the merchant has not mapped a type yet,
+    // which leaves Clover behaving exactly as before rather than failing checkout.
+    const orderTypeId = client.webOrderTypeId(fulfillment);
+
     // Push to Clover after local commit so we can fail the order if POS create fails.
     // Same cart and discount we priced above — `note` is kitchen text and carries no money.
     let cloverOrderId: string;
     try {
-      const atomic = await client.createAtomicOrder({ ...atomicInput, note });
+      const atomic = await client.createAtomicOrder({
+        ...atomicInput,
+        note,
+        ...(orderTypeId ? { orderTypeId } : {}),
+      });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
     } catch (err) {

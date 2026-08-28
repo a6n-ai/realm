@@ -64,6 +64,20 @@ export async function connectCloverWithApiToken(
   });
 }
 
+/**
+ * Persist which Clover order type website orders should carry.
+ *
+ * Read-modify-write through getCloverConnection so this never clobbers tokens or
+ * the merchant id — the same reason every other mutation here spreads `current`.
+ */
+export async function setCloverWebOrderTypes(
+  store: IntegrationsConfigStore,
+  webOrderTypes: { pickup?: string; delivery?: string },
+): Promise<void> {
+  const current = await getCloverConnection(store);
+  await setCloverConnection(store, { ...current, webOrderTypes });
+}
+
 export async function disconnectClover(store: IntegrationsConfigStore): Promise<void> {
   const current = await getCloverConnection(store);
   await setCloverConnection(store, {

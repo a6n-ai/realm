@@ -10,6 +10,8 @@ const clover = vi.hoisted(() => ({
   payloads: [] as { discounts?: { name: string; amount: number }[] }[],
   /** POS push failure — simulates createAtomicOrder failing after local commit. */
   failCreate: false,
+  /** Order type the merchant mapped for website orders; undefined = unmapped. */
+  webOrderTypeId: undefined as string | undefined,
   /** Status handed back by getEcommerceOrder for checkPaymentStatus tests. */
   ecommerceOrderStatus: "awaiting_payment" as string,
   /**
@@ -58,6 +60,9 @@ vi.mock("@/lib/services/inventory.service", () => ({
 vi.mock("@/lib/clover/client", () => ({
   createCloverClient: async () => ({
     getPakmsApiKey: async () => ({ apiAccessKey: "pakms_test" }),
+    // Real client answers this from the connection it was built with; unmapped
+    // merchants get undefined, which is the default this suite exercises.
+    webOrderTypeId: () => clover.webOrderTypeId,
     environment: () => "sandbox" as const,
     checkoutAtomicOrder: async (input: { discounts?: { name: string; amount: number }[] }) => {
       clover.payloads.push(input);
@@ -118,6 +123,7 @@ beforeEach(async () => {
   clover.failCreate = false;
   clover.ecommerceOrderStatus = "awaiting_payment";
   clover.duringFetch = null;
+  clover.webOrderTypeId = undefined;
   offers.redeemable = [];
   session.current = null;
   cartCookie.value = null;
@@ -234,6 +240,38 @@ function checkoutInput(
 function coinLines() {
   return clover.payloads.flatMap((p) => (p.discounts ?? []).filter((d) => d.name === "Coins"));
 }
+
+describe("Clover order type on website orders", () => {
+  // The POS alert/print rules key off the order type. Uber Eats and DoorDash
+  // orders arrive tagged by their own integration; ours has to be tagged
+  // explicitly or it lands silently in the Orders list and staff never hear it.
+  it("stamps the mapped order type on the order pushed to the POS", async () => {
+    await signedInCustomer("ot", 0);
+    const product = await insertProduct("ot");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    clover.webOrderTypeId = "OT_PICKUP";
+
+    await ordersService.createCheckout(checkoutInput(product.publicId));
+
+    const created = clover.payloads.at(-1) as { orderTypeId?: string };
+    expect(created.orderTypeId).toBe("OT_PICKUP");
+  });
+
+  // A merchant that has not mapped a type must keep checking out. Sending
+  // `orderTypeId: undefined` is not the same as omitting it — Clover rejects a
+  // null order type — so the key has to be absent entirely.
+  it("omits the key entirely when the merchant has mapped no type", async () => {
+    await signedInCustomer("ot2", 0);
+    const product = await insertProduct("ot2");
+    clover.subtotalCents = UNIT_PRICE * 100;
+    clover.webOrderTypeId = undefined;
+
+    await ordersService.createCheckout(checkoutInput(product.publicId));
+
+    const created = clover.payloads.at(-1) as Record<string, unknown>;
+    expect("orderTypeId" in created).toBe(false);
+  });
+});
 
 describe("spending coins at checkout", () => {
   it("sends the coin discount to Clover and persists Clover's reduced total", async () => {

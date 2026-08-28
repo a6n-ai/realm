@@ -8,6 +8,7 @@ import {
   normalizeChargeResult,
   normalizePakmsKey,
   normalizePayOrderResult,
+  normalizeOrderTypes,
 } from "../orders";
 
 describe("expandAtomicLineItems", () => {
@@ -208,5 +209,46 @@ describe("cloverCheckoutSdkUrl", () => {
   it("returns sandbox vs production hosts", () => {
     expect(cloverCheckoutSdkUrl("sandbox")).toContain("checkout.sandbox.dev.clover.com");
     expect(cloverCheckoutSdkUrl("production")).toBe("https://checkout.clover.com/sdk.js");
+  });
+});
+
+describe("normalizeOrderTypes", () => {
+  it("reads the elements envelope and keeps id + label", () => {
+    expect(
+      normalizeOrderTypes({
+        elements: [
+          { id: "OT1", label: "Pickup" },
+          { id: "OT2", label: "Delivery" },
+        ],
+      }),
+    ).toEqual([
+      { id: "OT1", label: "Pickup", deleted: false },
+      { id: "OT2", label: "Delivery", deleted: false },
+    ]);
+  });
+
+  // Clover keeps returning deleted types, but stamping one on an order is rejected —
+  // so an admin must never be offered one in the picker.
+  it("drops deleted types", () => {
+    const out = normalizeOrderTypes({
+      elements: [
+        { id: "LIVE", label: "Pickup" },
+        { id: "GONE", label: "Old", deleted: true },
+      ],
+    });
+    expect(out.map((t) => t.id)).toEqual(["LIVE"]);
+  });
+
+  it("falls back to the id when a type has no label, so the row is still pickable", () => {
+    expect(normalizeOrderTypes({ elements: [{ id: "OT9" }] })).toEqual([
+      { id: "OT9", label: "OT9", deleted: false },
+    ]);
+  });
+
+  it("tolerates a bare array, a missing envelope, and junk rows", () => {
+    expect(normalizeOrderTypes([{ id: "OT1", label: "Pickup" }])).toHaveLength(1);
+    expect(normalizeOrderTypes({})).toEqual([]);
+    expect(normalizeOrderTypes(null)).toEqual([]);
+    expect(normalizeOrderTypes({ elements: [null, 5, { label: "no id" }] })).toEqual([]);
   });
 });

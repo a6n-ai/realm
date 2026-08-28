@@ -3,6 +3,7 @@ import type {
   CloverConnection,
   CloverTokenPair,
 } from "./config";
+import { resolveWebOrderTypeId } from "./config";
 import {
   isCloverAccessTokenExpired,
   refreshCloverTokens,
@@ -49,6 +50,7 @@ import {
 } from "./inventory";
 import {
   buildAtomicOrderBody,
+  normalizeOrderTypes,
   normalizeAtomicCheckoutResult,
   normalizeAtomicOrderResult,
   normalizeChargeResult,
@@ -63,6 +65,7 @@ import {
   type CloverChargeInput,
   type CloverChargeResult,
   type CloverEcommerceOrderResult,
+  type CloverOrderType,
   type CloverPakmsKey,
   type CloverPayOrderInput,
   type CloverPayOrderResult,
@@ -650,6 +653,32 @@ export class CloverApiClient {
   }
 
   // ── Orders (Platform atomic) ──────────────────────────────────────────────
+
+  /**
+   * Which Clover order type a website order should carry.
+   *
+   * Answered from the connection THIS client was built with, deliberately: a
+   * second read of the integrations config resolves the acting org again, and a
+   * request that resolved differently would stamp another merchant's order type
+   * on the order. One read, one merchant, one answer.
+   */
+  webOrderTypeId(
+    fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled",
+  ): string | undefined {
+    return resolveWebOrderTypeId(this.connection, fulfillment);
+  }
+
+  /**
+   * Merchant-defined order types, for the admin to pick which one website
+   * orders should carry. GET /v3/merchants/{mId}/order_types
+   *
+   * Deleted types are filtered out — Clover keeps returning them, but stamping
+   * one on an order is rejected.
+   */
+  async listOrderTypes(): Promise<CloverOrderType[]> {
+    const data = await this.get(this.merchantPath("order_types"));
+    return normalizeOrderTypes(data);
+  }
 
   /**
    * Create a POS-visible order with inventory line items in one call.

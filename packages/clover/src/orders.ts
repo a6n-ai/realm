@@ -448,3 +448,43 @@ export function cloverCheckoutSdkUrl(environment: "sandbox" | "production"): str
     ? "https://checkout.sandbox.dev.clover.com/sdk.js"
     : "https://checkout.clover.com/sdk.js";
 }
+
+/**
+ * A merchant-defined order type (Register's "Dine In" / "Pickup" / "Delivery"
+ * buttons, plus whatever a delivery integration registers for itself).
+ *
+ * `filterCategories` and `taxRates` are deliberately not modelled: we only ever
+ * read the id/label to stamp an order, never to reprice it.
+ */
+export type CloverOrderType = {
+  id: string;
+  label: string;
+  /** Clover hides a deleted type from Register but still returns it from the API. */
+  deleted: boolean;
+};
+
+export function normalizeOrderType(raw: unknown): CloverOrderType | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === "string" ? r.id : null;
+  if (!id) return null;
+  return {
+    id,
+    // A type with no label still needs to be pickable, or the admin sees a blank row.
+    label: typeof r.label === "string" && r.label.trim() ? r.label : id,
+    deleted: r.deleted === true,
+  };
+}
+
+/** Live (non-deleted) order types only — a deleted one cannot be stamped on an order. */
+export function normalizeOrderTypes(raw: unknown): CloverOrderType[] {
+  const elements =
+    raw && typeof raw === "object" && Array.isArray((raw as { elements?: unknown }).elements)
+      ? ((raw as { elements: unknown[] }).elements)
+      : Array.isArray(raw)
+        ? raw
+        : [];
+  return elements
+    .map(normalizeOrderType)
+    .filter((t): t is CloverOrderType => t !== null && !t.deleted);
+}
