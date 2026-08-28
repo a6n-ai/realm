@@ -125,7 +125,9 @@ export async function proxy(request: NextRequest) {
 
   // /me (customer) shares this presence-only gate with /dashboard; the role
   // split (customer vs staff/admin) is decided by the (customer) layout below.
-  const onGuarded = pathname.startsWith("/dashboard") || pathname.startsWith("/me");
+  // Segment-boundary match, not a bare prefix: "/me".startsWith would also
+  // catch "/menu" (public) and wrongly force it through the login gate.
+  const onGuarded = ["/dashboard", "/me"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (onGuarded && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
     // Keep ?month=&sub= so post-login lands back on the same calendar month.
