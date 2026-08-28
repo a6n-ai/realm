@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
     // so there is no fixed value to allow-list and they must stay on plain <img>.
     // Optimizing them would cache one user's token-bearing response under a shared key.
     localPatterns: [{ pathname: "/api/files/**", search: "" }],
+    // If FILES_PUBLIC_BASE_URL (see packages/storage's FileSystemService) ever points at a
+    // CDN domain, file-storage thumbnail URLs become https://<cdn-domain>/... — outside both
+    // lists above. Any next/image usage on file-storage-served images must add that host to
+    // remotePatterns (or stay on plain <img>) before that env var is set in prod.
     // Marketing hero background: a single static CC BY-SA Commons photo, not user content.
     remotePatterns: [{ protocol: "https", hostname: "commons.wikimedia.org", pathname: "/wiki/Special:FilePath/**" }],
   },
