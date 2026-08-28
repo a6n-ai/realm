@@ -521,6 +521,7 @@ export async function reverseAward(
       eq(walletLedger.userId, userId),
       eq(walletLedger.sourceType, reversalSourceType),
       eq(walletLedger.sourceId, source.id),
+      eq(walletLedger.eventType, eventType),
     ))
     .limit(1);
   if (existingReversal) return { coinsReturned: 0 };
@@ -530,6 +531,7 @@ export async function reverseAward(
     direction: "debit",
     sourceType: reversalSourceType,
     sourceId: source.id,
+    eventType,
     coins: credit.coins,
     memo: `reverses award (${eventType}) for ${source.type} ${source.id}`,
   });

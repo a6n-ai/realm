@@ -95,6 +95,35 @@ describe("terminalizeAbandonedOrders (integration)", () => {
     expect(acts.filter((a) => a.type === "cancelled")).toHaveLength(1);
   });
 
+  it("finds a genuinely abandoned order even when 200+ paid old orders precede it in the batch", async () => {
+    // Reproduces the batch-starvation bug: a candidate query with no payment
+    // join and no ORDER BY can fill LIMIT 200 with already-paid rows and never
+    // reach the one unpaid row, since nothing orders old-first or filters
+    // paid-out rows before the limit is applied.
+    const snap = await loadCatalogSnapshot();
+    for (let i = 0; i < 205; i++) {
+      const { publicId } = await svc.createOrder({
+        planKey: snap.plans[0].key,
+        selections: {
+          mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],
+          includeSaturday: false, includeSunday: false, durationWeeks: 1,
+          startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+        },
+        contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: "Jane", phone: `+1647556${String(i).padStart(4, "0")}`, addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+      });
+      const [order] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+      // Old + active + PAID: eligible on orders.status alone, but not on payments.status.
+      await db.update(orders).set({ createdAt: Date.now() - TERMINAL_AFTER_MS - 2000 }).where(eq(orders.id, order.id));
+    }
+
+    const abandonedId = await unpaidOrder(TERMINAL_AFTER_MS + 1000);
+
+    expect(await terminalizeAbandonedOrders()).toBe(1);
+
+    const [after] = await db.select().from(orders).where(eq(orders.id, abandonedId));
+    expect(after.status).toBe("cancelled");
+  });
+
   it("directly: abandonPendingOrder refuses an order a webhook already settled", async () => {
     const orderId = await unpaidOrder(TERMINAL_AFTER_MS + 1000);
     // Simulate a payment that landed between the sweep's candidate SELECT and this call.

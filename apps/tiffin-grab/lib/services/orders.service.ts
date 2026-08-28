@@ -597,7 +597,7 @@ export async function refundOrder(
   orderPublicId: string,
   opts: { actorId?: string | null } = {},
 ): Promise<void> {
-  const refund = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const [order] = await tx.select().from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
     if (!order) throw new NotFoundError(`Order not found: ${orderPublicId}`);
 
@@ -616,22 +616,19 @@ export async function refundOrder(
       createdBy: actorInternalId,
     });
 
-    return order.userId ? { userId: order.userId, orderPublicId: order.publicId } : null;
-  });
-
-  if (refund) {
-    try {
-      await db.transaction((tx) =>
-        reverseCoinAward(tx, {
-          userId: refund.userId,
-          eventType: "order_activated",
-          source: { type: "order", id: refund.orderPublicId },
-        }),
-      );
-    } catch (e) {
-      log.error({ err: e }, "wallet award reversal on refund failed");
+    // Clawback runs in the SAME transaction as the payment-status flip: both
+    // commit or roll back together, so a crash between them can never leave a
+    // refunded order whose coins were never reversed. reverseCoinAward only
+    // needs a row lock on `users` (via lockUser), which this transaction can
+    // acquire without conflicting with anything else already held here.
+    if (order.userId) {
+      await reverseCoinAward(tx, {
+        userId: order.userId,
+        eventType: "order_activated",
+        source: { type: "order", id: order.publicId },
+      });
     }
-  }
+  });
 }
 
 // Terminalize an order nobody ever paid. Unlike puchkaman's equivalent, this
