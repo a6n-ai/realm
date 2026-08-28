@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { inArray } from "drizzle-orm";
 
-// Minimal stub: getResumableCheckout only needs the pakms key + environment.
+// Minimal stub: getResumableCheckout only needs the pakms key + environment
+// (webOrderTypeId is on the client interface but unused on this path).
 vi.mock("@/lib/clover/client", () => ({
   createCloverClient: async () => ({
     getPakmsApiKey: async () => ({ apiAccessKey: "pakms_test" }),
+    webOrderTypeId: () => undefined,
     environment: () => "sandbox" as const,
   }),
 }));

@@ -10,6 +10,7 @@ import {
   disconnectClover,
   getCloverConnection,
   installCloverPlugin,
+  setCloverWebOrderTypes,
   loadCloverAppCredentialsFromEnv,
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
@@ -20,6 +21,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 import { PLUGINS } from "@/lib/plugins.server";
+import { createCloverClient } from "@/lib/clover/client";
 
 function revalidatePluginPaths() {
   revalidatePath("/dashboard/settings/integrations");
@@ -69,6 +71,41 @@ export async function setPluginInstalledAction(
 
   revalidatePluginPaths();
   return {};
+}
+
+/**
+ * Choose which Clover order type website orders carry, so Register announces and
+ * prints them like an Uber Eats / DoorDash order instead of dropping them
+ * silently into the Orders list.
+ *
+ * Ids are validated against the merchant's live order types rather than trusted
+ * from the form: a stale or hand-edited id would be accepted by Clover only at
+ * checkout time, turning a settings mistake into a failed customer order.
+ */
+export async function setCloverWebOrderTypesAction(input: {
+  pickup?: string;
+  delivery?: string;
+}): Promise<void> {
+  await requireAdmin();
+
+  const chosen = [input.pickup, input.delivery].filter((v): v is string => Boolean(v));
+  if (chosen.length) {
+    const client = await createCloverClient();
+    if (!client) throw new Error("Clover is not connected");
+    const live = new Set((await client.listOrderTypes()).map((t) => t.id));
+    const unknown = chosen.find((id) => !live.has(id));
+    if (unknown) throw new Error("That order type no longer exists on this merchant");
+  }
+
+  await setCloverWebOrderTypes(integrationsConfigStore, input);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "update",
+    changes: { _action: "clover_web_order_types", ...input },
+    createdBy: await currentUserId(),
+  });
+  revalidatePluginPaths();
 }
 
 export async function disconnectCloverAction(): Promise<void> {

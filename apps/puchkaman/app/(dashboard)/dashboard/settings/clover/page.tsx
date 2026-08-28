@@ -6,6 +6,7 @@ import {
   loadCloverAppCredentialsFromEnv,
   setCloverConnection,
   toPublicCloverConnection,
+  type CloverOrderType,
 } from "@realm/clover";
 import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@realm/clover/ui";
 import { PageHeader, PageShell } from "@realm/design-system";
@@ -14,6 +15,7 @@ import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   connectCloverApiTokenAction,
   disconnectCloverAction,
+  setCloverWebOrderTypesAction,
   startCloverConnectAction,
 } from "../integrations/actions";
 
@@ -41,6 +43,7 @@ async function CloverSettingsLoader() {
   const apiTokenMode = connection.authMode === "apiToken";
 
   let merchantName: string | undefined;
+  let orderTypes: CloverOrderType[] = [];
   // API-token mode carries its own credential, so it needs no app env creds.
   const canProbe =
     clover.connected && (apiTokenMode ? Boolean(connection.apiToken) : Boolean(credentials));
@@ -61,6 +64,9 @@ async function CloverSettingsLoader() {
             },
       });
       merchantName = (await client.getMerchant()).name;
+      // Best-effort too: without it the panel shows the "no order types" hint
+      // rather than failing the whole settings page.
+      orderTypes = await client.listOrderTypes();
     } catch {
       // Best-effort — panel still renders merchant id without display name.
     }
@@ -75,6 +81,8 @@ async function CloverSettingsLoader() {
       onConnect={startCloverConnectAction}
       onDisconnect={disconnectCloverAction}
       onConnectApiToken={connectCloverApiTokenAction}
+      orderTypes={orderTypes}
+      onSaveWebOrderTypes={setCloverWebOrderTypesAction}
     />
   );
 }
