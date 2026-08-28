@@ -6,6 +6,8 @@ packages:
 overrides:
   "postcss@<8.5.10": ">=8.5.10"
   "esbuild@<0.25.0": ">=0.25.0"
+  "@types/react": "19.2.18"
+  "@types/react-dom": "19.2.5"
 
 patchedDependencies:
   "@react-email/editor@1.5.10": "patches/@react-email__editor@1.5.10.patch"
