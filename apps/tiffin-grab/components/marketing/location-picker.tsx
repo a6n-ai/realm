@@ -12,8 +12,8 @@ import { readFranchiseCookie, writeFranchiseCookie } from "@/lib/tenant/franchis
 
 // Mounted once in (marketing)/layout.tsx. First visit (no `franchise` cookie):
 // silently IP-geolocates and, on a city match, offers a confirm/change popup.
-// Any visit can reopen the "change" list via the header's "Deliver to" button
-// (id="location-picker-trigger", clicked programmatically — see site-header).
+// The floating "Deliver to" widget below reopens the picker anytime, on both
+// desktop and mobile (the header had no room for a persistent trigger there).
 export function LocationPicker() {
   const router = useRouter();
   const [suggestion, setSuggestion] = useState<FranchiseLocation | null>(null);
@@ -32,15 +32,6 @@ export function LocationPicker() {
         setShowPicker(true);
       }
     });
-  }, []);
-
-  useEffect(() => {
-    const openPicker = () => {
-      setShowSuggestion(false);
-      setShowPicker(true);
-    };
-    document.addEventListener("open-location-picker", openPicker);
-    return () => document.removeEventListener("open-location-picker", openPicker);
   }, []);
 
   useEffect(() => {
@@ -115,6 +106,18 @@ export function LocationPicker() {
           </div>
         </div>
       </ResponsiveDialog>
+
+      {/* Always-available trigger, independent of the header's "Deliver to"
+          button (desktop-only) — the only way to reopen the picker on mobile. */}
+      <button
+        type="button"
+        onClick={() => setShowPicker(true)}
+        aria-label="Change delivery location"
+        className="fixed bottom-4 left-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted"
+      >
+        <MapPin className="size-4 text-primary" />
+        Deliver to
+      </button>
     </>
   );
 }

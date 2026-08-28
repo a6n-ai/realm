@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin, MenuIcon, UtensilsCrossedIcon } from "lucide-react";
+import { MenuIcon, UtensilsCrossedIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@realm/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -45,15 +45,6 @@ export function SiteHeader() {
         <Button asChild size="sm" className="ml-1 rounded-full"><Link href="/subscribe">Start →</Link></Button>
       </nav>
       <div className="ml-auto flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="hidden md:inline-flex"
-          onClick={() => document.dispatchEvent(new Event("open-location-picker"))}
-        >
-          <MapPin className="size-4" />
-          Deliver to
-        </Button>
         <ModeToggle className="hidden md:inline-flex" />
         {session?.user ? (
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
