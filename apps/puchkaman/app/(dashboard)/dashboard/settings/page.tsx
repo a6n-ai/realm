@@ -8,7 +8,6 @@ import {
   SettingsIcon,
   StarIcon,
   UserIcon,
-  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import { getCloverConnection } from "@realm/clover";
@@ -75,14 +74,6 @@ export default async function SettingsPage() {
     description: "Coin payout rules per event and the coin-to-CAD rate.",
     icon: CoinsIcon,
     href: "/dashboard/settings/wallet",
-  });
-
-  sections.push({
-    key: "users",
-    label: "Users",
-    description: "Dashboard sign-in accounts. Suspend or reactivate access.",
-    icon: UsersIcon,
-    href: "/dashboard/settings/users",
   });
 
   sections.push({
