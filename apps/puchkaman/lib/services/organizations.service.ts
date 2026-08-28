@@ -52,7 +52,53 @@ export async function getOrganization(id: string) {
   return row ?? null;
 }
 
-export type UpdateOrganizationInput = { name: string; clientCode: string; region: string | null };
+export type FranchiseLocation = {
+  id: string;
+  name: string;
+  clientCode: string;
+  city: string | null;
+  address: string | null;
+  storeLat: string | null;
+  storeLng: string | null;
+};
+
+// Public-safe location listing (no member counts) — used by the public
+// location popup/picker and the /locations map. Not gated behind
+// requireAdmin; nothing here is sensitive.
+export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
+  return db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      clientCode: organization.clientCode,
+      city: organization.city,
+      address: organization.address,
+      storeLat: organization.storeLat,
+      storeLng: organization.storeLng,
+    })
+    .from(organization)
+    .where(sql`${organization.city} is not null`);
+}
+
+// Distinct cities already set on an org, for the admin location dropdown —
+// no hardcoded city list to keep in sync.
+export async function listFranchiseCities(): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ city: organization.city })
+    .from(organization)
+    .where(sql`${organization.city} is not null`);
+  return rows.map((r) => r.city!).sort();
+}
+
+export type UpdateOrganizationInput = {
+  name: string;
+  clientCode: string;
+  region: string | null;
+  city: string | null;
+  address: string | null;
+  storeLat: string | null;
+  storeLng: string | null;
+};
 export type UpdateOrganizationResult = { ok: true } | { ok: false; error: string };
 
 // Same wrapped-error shape as isMemberConflict below, but keyed to the
@@ -73,7 +119,16 @@ export async function updateOrganization(
   try {
     await db
       .update(organization)
-      .set({ name: fields.name, clientCode: fields.clientCode, slug: fields.clientCode, region: fields.region })
+      .set({
+        name: fields.name,
+        clientCode: fields.clientCode,
+        slug: fields.clientCode,
+        region: fields.region,
+        city: fields.city,
+        address: fields.address,
+        storeLat: fields.storeLat,
+        storeLng: fields.storeLng,
+      })
       .where(eq(organization.id, id));
     return { ok: true };
   } catch (e) {

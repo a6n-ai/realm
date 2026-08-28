@@ -26,6 +26,12 @@ export const organization = pgTable(
     // points at its brand.
     parentOrganizationId: text("parent_organization_id").references((): AnyPgColumn => organization.id),
     region: text("region"),
+    // Structured location for public-site franchise selection (IP-geolocation
+    // default + manual override) and for showing the franchise on a map.
+    // Distinct from `region`, which is freeform. storeLat/storeLng below
+    // predate this and already cover the coordinates.
+    city: text("city"),
+    address: text("address"),
     timezone: text("timezone"),
     currency: text("currency"),
     integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),

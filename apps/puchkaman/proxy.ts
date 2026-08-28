@@ -1,7 +1,15 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { db } from "./db/client";
+import { organization } from "./db/schema";
 
 const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
+
+// Prefixes that never carry a URL-segment clientCode: API, the console, the
+// customer account area, and (auth). Resolution is skipped for these paths —
+// mirrors tiffin-grab's RESOLUTION_EXEMPT (proxy.ts, same monorepo).
+const RESOLUTION_EXEMPT = ["/api", "/dashboard", "/me", "/no-access", "/login", "/forgot-password", "/set-password"];
 export const PUBLIC_API = [
   "/api/auth",
   "/api/checkout",
@@ -70,16 +78,56 @@ function unauthorized(): NextResponse {
   return new NextResponse(JSON.stringify(body), { status: 401, headers: { "content-type": "application/problem+json" } });
 }
 
-// Edge-runtime check: cookie presence only (no DB access here). The
-// authoritative role check happens in (dashboard)/dashboard/layout.tsx.
-export function proxy(request: NextRequest) {
+// Session check stays cookie-presence-only here; the authoritative role check
+// happens in (dashboard)/dashboard/layout.tsx. Tenant resolution below does
+// hit the DB (Next 16 defaults proxy to the Node.js runtime, not Edge — see
+// tiffin-grab's proxy.ts in this monorepo for the same call), but it's
+// additive: it never changes the auth branches, only forwards an org id.
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
+
+  // Never trust an incoming x-realm-org-id — strip it before any resolution
+  // logic runs, so downstream code only ever sees a value this function set.
+  request.headers.delete("x-realm-org-id");
+
+  const resolutionExempt = RESOLUTION_EXEMPT.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  let resolvedOrgId: string | undefined;
+
+  if (!resolutionExempt) {
+    const segment = pathname.split("/")[1] || null;
+    const [org] = segment
+      ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, segment)).limit(1)
+      : [];
+    if (org) {
+      resolvedOrgId = org.id;
+    } else {
+      // A visitor-picked franchise (location popup, ip-api-detected or manual)
+      // is stored as a plain `franchise` cookie holding clientCode.
+      const pickedCode = request.cookies.get("franchise")?.value ?? null;
+      const [picked] = pickedCode
+        ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, pickedCode)).limit(1)
+        : [];
+      if (picked) {
+        resolvedOrgId = picked.id;
+      } else {
+        const [fallback] = await db
+          .select({ id: organization.id })
+          .from(organization)
+          .where(eq(organization.isDefaultLocation, true))
+          .limit(1);
+        if (fallback) resolvedOrgId = fallback.id;
+      }
+    }
+  }
+
+  if (resolvedOrgId) request.headers.set("x-realm-org-id", resolvedOrgId);
+  const forwardedRequest = { request: { headers: request.headers } };
 
   if (pathname.startsWith("/api")) {
     const isPublic = PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
     if (!isPublic && !hasSession) return unauthorized();
-    return NextResponse.next();
+    return NextResponse.next(forwardedRequest);
   }
 
   const protectedPrefix = PROTECTED_PREFIXES.find(
@@ -90,11 +138,16 @@ export function proxy(request: NextRequest) {
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
-  const res = NextResponse.next();
+  const res = NextResponse.next(forwardedRequest);
   if (protectedPrefix) res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/me/:path*", "/no-access/:path*", "/api/:path*"],
+  // Broadened from dashboard/me/no-access/api to everything (minus static
+  // assets) so the URL-segment/cookie org resolver above also runs on public
+  // marketing pages, not just the guarded ones.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$).*)",
+  ],
 };

@@ -1,8 +1,7 @@
-"use client";
-
-// Visitor-picked franchise override, read by proxy.ts as a fallback tenant
-// resolver (URL segment still wins). Shared by the location popup and the
-// /locations picker so both write the exact same cookie shape.
+// Visitor-picked franchise override, read by each app's proxy.ts as a
+// fallback tenant resolver (URL segment still wins). Shared so every app's
+// location popup/picker writes the exact same cookie shape. Pure functions —
+// safe to import from a client component in any app.
 const COOKIE_NAME = "franchise";
 const COOKIE_MAX_AGE_DAYS = 365;
 
