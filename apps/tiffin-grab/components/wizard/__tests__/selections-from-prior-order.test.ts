@@ -45,24 +45,40 @@ describe("selectionsFromPriorOrder", () => {
     expect(selectionsFromPriorOrder(catalog, null)).toEqual(initialSelections);
   });
 
-  it("prefills plan, meal size, schedule, and duration; leaves start date empty", () => {
+  it("prefills plan, meal size, and duration; leaves start date empty", () => {
     const next = selectionsFromPriorOrder(catalog, {
       planKey: "veg",
       mealSizePublicId: "msz_maha",
-      persons: 2,
-      includeSaturday: true,
+      persons: 1,
+      includeSaturday: false,
       includeSunday: false,
       durationWeeks: 4,
-      frequencyKey: "mwf",
+      frequencyKey: "5_day",
     });
     expect(next.planKey).toBe("veg");
     expect(next.mealSizeId).toBe("msz_maha");
-    expect(next.persons).toBe(2);
-    expect(next.includeSaturday).toBe(true);
-    expect(next.frequencyKey).toBe("mwf");
     expect(next.durationWeeks).toBe(4);
     expect(next.mealSlots).toEqual(["lunch"]);
     expect(next.startDate).toBe("");
+  });
+
+  // The wizard no longer offers persons, weekend delivery, or the MWF frequency.
+  // A prior order placed when it did must not carry those forward: the controls
+  // are gone, so the customer would be quoted for a plan they cannot see or undo.
+  it("does not carry over options the wizard no longer sells", () => {
+    const next = selectionsFromPriorOrder(catalog, {
+      planKey: "veg",
+      mealSizePublicId: "msz_maha",
+      persons: 4,
+      includeSaturday: true,
+      includeSunday: true,
+      durationWeeks: 4,
+      frequencyKey: "mwf",
+    });
+    expect(next.persons).toBe(1);
+    expect(next.includeSaturday).toBe(false);
+    expect(next.includeSunday).toBe(false);
+    expect(next.frequencyKey).toBe("5_day");
   });
 
   it("drops a retired meal size instead of carrying a stale id", () => {
