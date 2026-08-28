@@ -1,5 +1,6 @@
 import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { LifeBuoyIcon } from "lucide-react";
 import { inArray } from "drizzle-orm";
 import { NotFoundError } from "@realm/commons";
@@ -174,9 +175,8 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
             {m.attachments?.length ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {m.attachments.map((a, i) => (
-                  <a key={i} href={a.href} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.thumbUrl} alt={a.name} className="size-24 rounded-md border object-cover" />
+                  <a key={i} href={a.href} target="_blank" rel="noreferrer" className="relative block size-24 rounded-md border">
+                    <Image src={a.thumbUrl} alt={a.name} fill sizes="96px" className="rounded-md object-cover" />
                   </a>
                 ))}
               </div>

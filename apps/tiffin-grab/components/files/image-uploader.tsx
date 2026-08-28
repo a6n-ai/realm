@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
 import type { FileDetail } from "@realm/storage/model";
 import { Button } from "@realm/ui/button";
@@ -110,12 +111,15 @@ export function ImageUploader({
   if (value?.url) {
     return (
       <div className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={value.url}
-          alt={value.fileName ?? "image"}
-          className={cn("size-16 border object-cover", shape === "round" ? "rounded-full" : "rounded-md")}
-        />
+        <div className={cn("relative size-16 border", shape === "round" ? "rounded-full" : "rounded-md")}>
+          <Image
+            src={value.url}
+            alt={value.fileName ?? "image"}
+            fill
+            sizes="64px"
+            className={cn("object-cover", shape === "round" ? "rounded-full" : "rounded-md")}
+          />
+        </div>
         <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onChange(null)}>
           <XIcon className="size-4" /> Remove
         </Button>

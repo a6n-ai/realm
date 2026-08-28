@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -279,13 +280,14 @@ function PaymentRow({
           href={payment.proofHref ?? payment.proofThumbUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-block"
+          className="relative inline-block size-24 rounded-md border"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={payment.proofThumbUrl}
             alt={payment.proof?.name ?? "Payment proof"}
-            className="size-24 rounded-md border object-cover"
+            fill
+            sizes="96px"
+            className="rounded-md object-cover"
           />
         </a>
       )}
