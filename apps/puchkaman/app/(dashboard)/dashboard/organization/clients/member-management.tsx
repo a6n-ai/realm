@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { addMemberAction, removeMemberAction, updateMemberRoleAction } from "@/lib/services/organizations-actions";
 import type { MemberRole, UserSearchRow } from "@/lib/services/organizations.service";
 import { UserPicker } from "./user-picker";
@@ -37,54 +38,68 @@ export function MemberManagement({ rows, organizationId }: { rows: Row[]; organi
 
   return (
     <div className="space-y-3">
-      {rows.map((row) => (
-        <div
-          key={row.organizationId + row.userPublicId}
-          className="flex items-center justify-between gap-2 rounded border p-2"
-        >
-          <div className="text-sm font-medium">{row.label}</div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={row.role}
-              disabled={pending}
-              onValueChange={(value) => {
-                startTransition(async () => {
-                  const result = await updateMemberRoleAction(row.organizationId, row.userPublicId, value as MemberRole);
-                  if (!result.ok) {
-                    toast.error(result.error);
-                    return;
-                  }
-                  router.refresh();
-                });
-              }}
-            >
-              <SelectTrigger className="h-8 w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLES.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={pending}
-              onClick={() => {
-                startTransition(async () => {
-                  await removeMemberAction(row.organizationId, row.userPublicId);
-                  router.refresh();
-                });
-              }}
-            >
-              Remove
-            </Button>
-          </div>
+      {rows.length > 0 && (
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="w-0" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.organizationId + row.userPublicId}>
+                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={row.role}
+                      disabled={pending}
+                      onValueChange={(value) => {
+                        startTransition(async () => {
+                          const result = await updateMemberRoleAction(row.organizationId, row.userPublicId, value as MemberRole);
+                          if (!result.ok) {
+                            toast.error(result.error);
+                            return;
+                          }
+                          router.refresh();
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          await removeMemberAction(row.organizationId, row.userPublicId);
+                          router.refresh();
+                        });
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-      ))}
+      )}
       <div className="flex items-center gap-2">
         <UserPicker onSelect={setPickedUser} />
         <Select value={addRole} onValueChange={(value) => setAddRole(value as MemberRole)}>
