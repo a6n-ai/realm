@@ -2,6 +2,7 @@ import { handler, json, problem } from "@realm/routes";
 import { createLogger } from "@realm/commons/logger";
 import { getEmailProvider } from "@/lib/email/provider";
 import { cateringInquirySchema } from "@/lib/catering/schema";
+import { createCateringInquiry } from "@/lib/services/catering.service";
 
 const log = createLogger("catering-inquiries");
 const NOTIFY_TO = "puchkamancanada@gmail.com";
@@ -19,6 +20,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   const parsed = cateringInquirySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
   const inquiry = parsed.data;
+
+  await createCateringInquiry(inquiry);
 
   const rows: [string, string][] = [
     ["Name", inquiry.name],
