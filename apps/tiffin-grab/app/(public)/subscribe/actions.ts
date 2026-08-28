@@ -5,6 +5,7 @@ import { capRedemption } from "@realm/wallet";
 import { enabledMethods, findMethod } from "@realm/payments";
 import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
@@ -70,7 +71,10 @@ export async function reprice(
   paymentMethodId?: string | null,
   coins?: number,
 ): Promise<RepriceResult> {
-  const snapshot = await loadCatalogSnapshot();
+  // Must match the snapshot the wizard page rendered from (same orgId), or a
+  // franchise-scoped meal size/coupon the client priced against could resolve
+  // to a different (or missing) row here and disagree on the total.
+  const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
   const catalog = buildPricingCatalog(snapshot, selections);
   const base = priceSubscription(selections, catalog);
 
@@ -149,7 +153,7 @@ export async function reprice(
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {
-  const snapshot = await loadCatalogSnapshot();
+  const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
   const zone = matchZone(postalCode, snapshot.zones);
   if (!zone) return { served: false };
   const full = snapshot.zones.find((z) => z.name === zone.name)!;

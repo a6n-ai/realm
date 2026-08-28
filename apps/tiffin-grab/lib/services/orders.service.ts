@@ -133,6 +133,10 @@ export interface CreateOrderOptions {
   // account regardless of the phone typed. Omitted for anonymous checkout and
   // agent orders, which resolve/provision the customer by phone.
   ownerUserId?: string | null;
+  // Franchise the checkout resolved to (resolveRequestOrg), so the priced
+  // catalog snapshot matches the one the customer's wizard/checkout priced
+  // against. NOT the org the order is stamped to — see resolveBrandOrgId.
+  orgId?: string | null;
 }
 
 // Resolve a user public_id (usr_…) to the internal bigint id. Returns null when
@@ -170,8 +174,8 @@ export async function createOrder(
   input: CreateOrderInput,
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
-  const { actorId = null, ownerUserId = null } = opts;
-  const snapshot = await loadCatalogSnapshot();
+  const { actorId = null, ownerUserId = null, orgId = null } = opts;
+  const snapshot = await loadCatalogSnapshot(orgId);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");

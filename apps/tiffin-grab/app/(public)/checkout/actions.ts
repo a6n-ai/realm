@@ -7,6 +7,7 @@ import { createOrder, type CreateOrderInput } from "@/lib/services/orders.servic
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 
 export type ConfirmInput = CreateOrderInput;
@@ -44,7 +45,8 @@ export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmR
   // check is optional (a skipped/edited postal leaves it null). Enforce it server
   // side so a non-serviceable checkout NEVER creates an order or takes payment —
   // capture the lead as a waitlist inquiry instead.
-  const { zones } = await loadCatalogSnapshot();
+  const orgId = await resolveRequestOrg();
+  const { zones } = await loadCatalogSnapshot(orgId);
   if (matchZone(input.contact.postalCode, zones) == null) {
     await createWebsiteInquiry({
       fullName: input.contact.fullName,
@@ -64,7 +66,7 @@ export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmR
   // honor a repCoupon arriving on the public checkout payload — even from a
   // logged-in member whose owner==actor check would otherwise pass — so the role
   // boundary is explicit rather than incidental.
-  const result = await createOrder({ ...input, repCoupon: null }, { actorId: userId, ownerUserId: userId });
+  const result = await createOrder({ ...input, repCoupon: null }, { actorId: userId, ownerUserId: userId, orgId });
   await maybeSendAccountSetup(input.contact.email);
   return { waitlisted: false, ...result };
 }
