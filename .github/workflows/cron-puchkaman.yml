@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Trigger abandoned-recovery
         env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.PUCHKAMAN_CRON_SECRET }}
         run: |
           set -euo pipefail
           code=$(curl -sS -o /tmp/response.json -w "%{http_code}" -X POST \
