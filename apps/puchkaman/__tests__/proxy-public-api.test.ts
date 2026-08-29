@@ -110,11 +110,19 @@ describe("PROTECTED_PREFIXES", () => {
  * with no error anywhere. PROTECTED_PREFIXES alone can't catch that; this
  * ties the two lists together so a prefix added without a matcher entry
  * fails here automatically.
+ *
+ * The matcher is now a single catch-all regex (everything except static
+ * assets), broadened so the tenant/org resolver also runs on public
+ * marketing pages, not just the guarded ones — so this checks coverage by
+ * matching an actual path against it rather than string equality against a
+ * literal `${prefix}/:path*` entry, which no longer exists as its own item.
  */
 describe("config.matcher", () => {
   it("has a matcher entry for every protected prefix", () => {
+    expect(config.matcher).toHaveLength(1);
+    const pattern = new RegExp(config.matcher[0]);
     for (const prefix of PROTECTED_PREFIXES) {
-      expect(config.matcher).toContain(`${prefix}/:path*`);
+      expect(pattern.test(`${prefix}/some-path`)).toBe(true);
     }
   });
 });

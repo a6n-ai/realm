@@ -14,6 +14,25 @@ export type WizardOrigin = "subscribe" | "renew";
 
 const PLAN_KEYS = ["veg", "non-veg", "healthy"] as const;
 
+/**
+ * What the subscribe wizard currently sells: one person, weekdays only, no
+ * weekend delivery. Weekend tiffins are cooked and sent out with Friday's
+ * delivery, so there is no Saturday or Sunday drop to book.
+ *
+ * These are UI-and-intake constraints only. `persons`, `includeSaturday` and
+ * `includeSunday` stay in the model and the pricing engine because existing
+ * orders were placed under the old options and must keep pricing, scheduling
+ * and rendering exactly as sold. Widening the offer again means changing this
+ * block, not resurrecting removed fields.
+ */
+export const ONLY_FREQUENCY_KEY = "5_day";
+export const FIXED_PERSONS = 1;
+
+/** A frequency the wizard shows but will not let a customer choose yet. */
+export function isFrequencyDisabled(key: string): boolean {
+  return key !== ONLY_FREQUENCY_KEY;
+}
+
 function asPlanKey(key: string | null | undefined): WizardSelections["planKey"] {
   return PLAN_KEYS.find((k) => k === key) ?? null;
 }
@@ -57,11 +76,14 @@ export function selectionsFromPriorOrder(
   return {
     planKey,
     mealSizeId,
-    frequencyKey: prior.frequencyKey === "mwf" ? "mwf" : "5_day",
-    persons: Math.min(5, Math.max(1, prior.persons)),
+    // Not carried over from the prior order: the controls for these are gone, so
+    // restoring 2 persons or a Saturday would silently change the quote with
+    // nothing on screen to explain it, and no way for the customer to undo it.
+    frequencyKey: ONLY_FREQUENCY_KEY,
+    persons: FIXED_PERSONS,
     mealSlots: plan?.offeredSlots ?? [],
-    includeSaturday: prior.includeSaturday,
-    includeSunday: prior.includeSunday,
+    includeSaturday: false,
+    includeSunday: false,
     durationWeeks: prior.durationWeeks > 0 ? prior.durationWeeks : 1,
     startDate: "",
   };

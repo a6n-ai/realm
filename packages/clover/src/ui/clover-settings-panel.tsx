@@ -28,6 +28,7 @@ import type {
   CloverApiTokenConnectResult,
   CloverConnectionPublic,
 } from "../config";
+import type { CloverOrderType } from "../orders";
 
 /**
  * Settings → Clover panel — connection info, reconnect, disconnect.
@@ -42,6 +43,8 @@ export function CloverSettingsPanel({
   onConnect,
   onDisconnect,
   onConnectApiToken,
+  orderTypes,
+  onSaveWebOrderTypes,
 }: {
   clover: CloverConnectionPublic;
   merchantName?: string;
@@ -57,6 +60,10 @@ export function CloverSettingsPanel({
   onConnectApiToken?: (
     input: CloverApiTokenConnectInput,
   ) => Promise<CloverApiTokenConnectResult>;
+  /** Merchant's live order types, for the website-order mapping below. */
+  orderTypes?: CloverOrderType[];
+  /** Persist the website-order type mapping. Omit to hide that section. */
+  onSaveWebOrderTypes?: (input: { pickup?: string; delivery?: string }) => Promise<void>;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -136,6 +143,17 @@ export function CloverSettingsPanel({
           e instanceof Error ? e.message : "Could not connect with that API token";
         setTokenError(message);
         toast.error(message);
+      }
+    });
+
+  const saveWebOrderTypes = (input: { pickup?: string; delivery?: string }) =>
+    start(async () => {
+      try {
+        await onSaveWebOrderTypes?.(input);
+        toast.success("Website order types saved");
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save order types");
       }
     });
 
@@ -256,6 +274,15 @@ export function CloverSettingsPanel({
           ) : null}
         </div>
 
+        {clover.connected && onSaveWebOrderTypes ? (
+          <WebOrderTypeFields
+            orderTypes={orderTypes ?? []}
+            initial={clover.webOrderTypes}
+            onSave={saveWebOrderTypes}
+            pending={pending}
+          />
+        ) : null}
+
         {onConnectApiToken && !clover.connected ? (
           <div className="border-t pt-4">
             {tokenFormOpen ? (
@@ -292,6 +319,98 @@ export function CloverSettingsPanel({
         ) : null}
       </div>
     </SectionCard>
+  );
+}
+
+/**
+ * Maps website fulfillment → Clover order type.
+ *
+ * This is what makes a website order announce itself on Register. Uber Eats and
+ * DoorDash orders arrive already tagged by their own Clover integration, and that
+ * tag is what drives the POS alert and the kitchen print rules; an order created
+ * through the API with no type just appears silently in the Orders list.
+ *
+ * Leaving a row unset is valid and keeps the previous untyped behaviour.
+ */
+function WebOrderTypeFields({
+  orderTypes,
+  initial,
+  onSave,
+  pending,
+}: {
+  orderTypes: CloverOrderType[];
+  initial: { pickup?: string; delivery?: string };
+  onSave: (input: { pickup?: string; delivery?: string }) => void;
+  pending: boolean;
+}) {
+  // Radix Select treats "" as "no value" and refuses an item with an empty value,
+  // so an explicit "not set" choice needs a sentinel that never collides with a
+  // Clover id.
+  const NONE = "__none__";
+  const [pickup, setPickup] = useState(initial.pickup ?? NONE);
+  const [delivery, setDelivery] = useState(initial.delivery ?? NONE);
+
+  const dirty = (pickup === NONE ? undefined : pickup) !== initial.pickup
+    || (delivery === NONE ? undefined : delivery) !== initial.delivery;
+
+  const rows: { key: "pickup" | "delivery"; label: string; value: string; set: (v: string) => void }[] = [
+    { key: "pickup", label: "Website pickup", value: pickup, set: setPickup },
+    { key: "delivery", label: "Website delivery", value: delivery, set: setDelivery },
+  ];
+
+  return (
+    <div className="space-y-3 border-t pt-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Order types for website orders</p>
+        <p className="text-muted-foreground text-xs">
+          Tag website orders so Register announces and prints them the way it does Uber
+          Eats and DoorDash orders. Untagged orders arrive silently in the Orders list.
+        </p>
+      </div>
+
+      {orderTypes.length === 0 ? (
+        <p className="text-warn text-xs">
+          No order types found on this merchant. Create them in the Clover dashboard under
+          Setup → Order Types, then reload this page.
+        </p>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {rows.map((row) => (
+              <div key={row.key} className="space-y-1.5">
+                <Label htmlFor={`order-type-${row.key}`}>{row.label}</Label>
+                <Select value={row.value} onValueChange={row.set} disabled={pending}>
+                  <SelectTrigger id={`order-type-${row.key}`}>
+                    <SelectValue placeholder="Not set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Not set</SelectItem>
+                    {orderTypes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || !dirty}
+            onClick={() =>
+              onSave({
+                pickup: pickup === NONE ? undefined : pickup,
+                delivery: delivery === NONE ? undefined : delivery,
+              })
+            }
+          >
+            Save order types
+          </Button>
+        </>
+      )}
+    </div>
   );
 }
 

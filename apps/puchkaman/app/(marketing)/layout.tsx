@@ -2,6 +2,7 @@ import { AnimReady } from "@/components/brutal/anim-ready";
 import { Footer, Nav } from "@/components/brutal/chrome";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartProvider } from "@/components/cart/cart-provider";
+import { LocationPicker } from "@/components/marketing/location-picker";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 
 // Ordering is gated on the persisted Clover connection, so this layout reads the
@@ -21,6 +22,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main id="main">{children}</main>
       <Footer />
       {orderingEnabled ? <CartDrawer /> : null}
+      <LocationPicker />
     </CartProvider>
   );
 }

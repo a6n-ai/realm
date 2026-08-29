@@ -9,6 +9,7 @@ import {
 } from "@realm/clover";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 import { uniqueSlug } from "@/lib/products/slug";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import {
   printerLabelsRepository,
   productPrinterLabelsRepository,
@@ -151,6 +152,7 @@ export class CloverInventorySyncService {
   constructor(private readonly products: ProductsRepository) {}
 
   async pull(client: CloverApiClient): Promise<CloverPullResult> {
+    const orgId = await resolveActingOrgId();
     const cloverItems = await client.listAllItems({ expand: CLOVER_EXPAND });
     const existing = await this.products.findAll();
 
@@ -261,6 +263,7 @@ export class CloverInventorySyncService {
           ...cloverMirrorFields(incoming),
           slug,
           syncStatus: "none",
+          organizationId: orgId,
         });
 
         resolvedLocalIds.add(created.publicId);
@@ -486,6 +489,7 @@ export class CloverInventorySyncService {
         ...cloverMirrorFields(incoming),
         slug,
         syncStatus: "none",
+        organizationId: await resolveActingOrgId(),
       });
       return;
     }

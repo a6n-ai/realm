@@ -56,4 +56,4 @@ export function Hero() {
 }
 
 const TICKER =
-  "Fresh daily ✦ Home-style ✦ 11 GTA regions ✦ You pick the dishes ✦ From $9.99 a tiffin ✦ Weekend delivery optional ✦ ";
+  "Fresh daily ✦ Home-style ✦ 11 GTA regions ✦ You pick the dishes ✦ From $9.99 a tiffin ✦ Mon–Fri delivery ✦ ";

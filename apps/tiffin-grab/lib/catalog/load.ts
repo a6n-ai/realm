@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
 import { deliveryFrequencies, deliveryZones, dishCategories, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
@@ -16,19 +17,27 @@ export function invalidateCatalogSnapshot(): Promise<void> {
   return catalogCache.evictAll();
 }
 
-export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
-  return catalogCache.getOrSet("snapshot", fetchCatalogSnapshot);
+// orgId scopes rows to a franchise's own catalog rows plus any row with a null
+// organizationId (shared/global catalog, the only kind that has existed so
+// far). Omit it (the ~100 existing callers) to keep seeing every row,
+// unscoped — unchanged behavior.
+export async function loadCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
+  return catalogCache.getOrSet(`snapshot:${orgId ?? "global"}`, () => fetchCatalogSnapshot(orgId));
 }
 
-async function fetchCatalogSnapshot(): Promise<CatalogSnapshot> {
+function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | undefined {
+  return orgId ? or(isNull(column), eq(column, orgId)) : undefined;
+}
+
+async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
   const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows] = await Promise.all([
-    db.select().from(plans).where(eq(plans.active, true)),
-    db.select().from(mealSizes).where(eq(mealSizes.active, true)),
+    db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
+    db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
-    db.select().from(deliveryFrequencies).where(eq(deliveryFrequencies.active, true)),
-    db.select().from(durationPackages).where(eq(durationPackages.active, true)),
-    db.select().from(deliveryZones).where(eq(deliveryZones.active, true)),
-    db.select().from(pricingTiers).where(eq(pricingTiers.active, true)),
+    db.select().from(deliveryFrequencies).where(and(eq(deliveryFrequencies.active, true), scopedTo(deliveryFrequencies.organizationId, orgId))),
+    db.select().from(durationPackages).where(and(eq(durationPackages.active, true), scopedTo(durationPackages.organizationId, orgId))),
+    db.select().from(deliveryZones).where(and(eq(deliveryZones.active, true), scopedTo(deliveryZones.organizationId, orgId))),
+    db.select().from(pricingTiers).where(and(eq(pricingTiers.active, true), scopedTo(pricingTiers.organizationId, orgId))),
     dishCategoriesService.forPlanType("tiffin"),
     dishCategoriesService.forPlanType("healthy"),
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),

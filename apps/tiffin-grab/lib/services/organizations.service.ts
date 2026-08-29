@@ -1,4 +1,5 @@
 import { and, eq, ilike, sql } from "drizzle-orm";
+import type { OrgLocation } from "@realm/commons";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 
@@ -49,12 +50,42 @@ export async function listOrganizations(): Promise<OrganizationListRow[]> {
     .groupBy(organization.id);
 }
 
+export type FranchiseLocation = OrgLocation & { id: string; name: string; clientCode: string };
+
+// Public-safe location listing (no member counts, no parent/brand rows without
+// a city set) — used by the public location popup/picker and the /locations
+// map. Not gated behind requireAdmin; nothing here is sensitive.
+export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
+  return db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      clientCode: organization.clientCode,
+      city: organization.city,
+      address: organization.address,
+      latitude: organization.latitude,
+      longitude: organization.longitude,
+    })
+    .from(organization)
+    .where(sql`${organization.city} is not null`);
+}
+
+// Distinct cities already set on an org, for the admin location dropdown and
+// (later) the public location picker — no hardcoded city list to keep in sync.
+export async function listFranchiseCities(): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ city: organization.city })
+    .from(organization)
+    .where(sql`${organization.city} is not null`);
+  return rows.map((r) => r.city!).sort();
+}
+
 export async function getOrganization(id: string) {
   const [row] = await db.select().from(organization).where(eq(organization.id, id)).limit(1);
   return row ?? null;
 }
 
-export type UpdateOrganizationInput = { name: string; clientCode: string; region: string | null };
+export type UpdateOrganizationInput = { name: string; clientCode: string; region: string | null } & OrgLocation;
 export type UpdateOrganizationResult = { ok: true } | { ok: false; error: string };
 
 // Same wrapped-error shape as isMemberConflict below, but keyed to the
@@ -75,7 +106,15 @@ export async function updateOrganization(
   try {
     await db
       .update(organization)
-      .set({ name: fields.name, clientCode: fields.clientCode, region: fields.region })
+      .set({
+        name: fields.name,
+        clientCode: fields.clientCode,
+        region: fields.region,
+        city: fields.city,
+        address: fields.address,
+        latitude: fields.latitude,
+        longitude: fields.longitude,
+      })
       .where(eq(organization.id, id));
     return { ok: true };
   } catch (e) {

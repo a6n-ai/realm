@@ -48,6 +48,28 @@ export const cloverConnectionSchema = z.object({
    */
   ecommercePublicKey: z.string().min(1).optional(),
   ecommercePrivateToken: z.string().min(1).optional(),
+  /**
+   * Clover order type ids to stamp on website orders, by fulfillment.
+   *
+   * Website orders are created through the API (atomic_order/orders), which lands
+   * them in the Orders list UNTYPED. Uber Eats / DoorDash orders arrive tagged by
+   * their own Clover integration, and it is that tag which drives Register's
+   * new-order alert and the kitchen print rules. Untagged, a website order is
+   * silent — staff only find it by opening the admin dashboard.
+   *
+   * Optional on purpose: a merchant that has not created order types yet keeps
+   * the previous untyped behaviour rather than having checkout fail.
+   */
+  webOrderTypes: z
+    .object({
+      pickup: z.string().min(1).optional(),
+      delivery: z.string().min(1).optional(),
+    })
+    // .optional(), not .default({}): a zod default makes the INFERRED OUTPUT type
+    // required, which would break every hand-built CloverConnection literal that
+    // never goes through .parse() (create-client, test fixtures). Optional keeps
+    // this an additive field.
+    .optional(),
   /** ISO timestamp of last successful OAuth connect/refresh. */
   connectedAt: z.string().min(1).optional(),
 });
@@ -132,6 +154,22 @@ export function isCloverEcommerceConfigured(conn: CloverConnection): boolean {
   return Boolean(conn.ecommercePublicKey && conn.ecommercePrivateToken);
 }
 
+/**
+ * Which Clover order type a website order should carry.
+ *
+ * Both scheduled and instant delivery map to the same "delivery" type: the
+ * distinction matters to our own scheduling, not to how Register should announce
+ * and print the ticket. Returns undefined when the merchant has not chosen a
+ * type, which leaves the order untyped exactly as before.
+ */
+export function resolveWebOrderTypeId(
+  conn: CloverConnection,
+  fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled",
+): string | undefined {
+  const types = conn.webOrderTypes ?? {};
+  return fulfillment === "pickup" ? types.pickup : types.delivery;
+}
+
 /** Safe projection for admin UI — never includes tokens or app secret. */
 export type CloverConnectionPublic = {
   installed: boolean;
@@ -148,6 +186,8 @@ export type CloverConnectionPublic = {
   accessTokenValid: boolean;
   /** Connected *and* able to reach the Ecommerce API — i.e. checkout can work. */
   ecommerceReady: boolean;
+  /** Chosen order types for website orders. Ids only — not secret. */
+  webOrderTypes: { pickup?: string; delivery?: string };
 };
 
 export function toPublicCloverConnection(conn: CloverConnection): CloverConnectionPublic {
@@ -168,6 +208,7 @@ export function toPublicCloverConnection(conn: CloverConnection): CloverConnecti
       ? Boolean(conn.apiToken)
       : Boolean(exp && exp - 60 > nowSec),
     ecommerceReady: connected && isCloverEcommerceConfigured(conn),
+    webOrderTypes: conn.webOrderTypes ?? {},
   };
 }
 

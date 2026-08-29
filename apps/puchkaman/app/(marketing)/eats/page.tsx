@@ -6,6 +6,7 @@ import { groupByCloverSections } from "@/lib/products/public-menu";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildMetadata, breadcrumbJsonLd, jsonLdHtml } from "@/lib/seo";
 import { EatsView, type EatsCategory } from "./eats-view";
 
@@ -56,11 +57,12 @@ async function getEats(): Promise<{
   totalProducts: number;
   orderingEnabled: boolean;
 }> {
+  const orgId = await resolveRequestOrg();
   const [rows, orderable, orderingEnabled, cloverSections] = await Promise.all([
-    productsService.listForPublicMenu(),
-    ordersService.listOrderableCatalog(),
+    productsService.listForPublicMenu(orgId),
+    ordersService.listOrderableCatalog(orgId),
     isPublicOrderingEnabled(),
-    inventoryCatalogService.publicMenuSections(),
+    inventoryCatalogService.publicMenuSections(orgId),
   ]);
   const orderableIds = new Set(orderable.map((o) => o.publicId));
   // Modifier groups come from the orderable catalog — the picker needs them inline

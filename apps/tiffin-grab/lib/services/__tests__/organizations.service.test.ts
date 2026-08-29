@@ -146,7 +146,7 @@ describe("updateOrganization (integration)", () => {
     const result = await updateOrganization(org.id, {
       name: "New Name",
       clientCode: "test-svc-org-new",
-      region: "ON",
+      region: "ON", city: null, address: null, latitude: null, longitude: null,
     });
 
     expect(result.ok).toBe(true);
@@ -170,7 +170,7 @@ describe("updateOrganization (integration)", () => {
     const result = await updateOrganization(orgB.id, {
       name: "Org B",
       clientCode: "test-svc-org-dup-a",
-      region: null,
+      region: null, city: null, address: null, latitude: null, longitude: null,
     });
 
     expect(result.ok).toBe(false);

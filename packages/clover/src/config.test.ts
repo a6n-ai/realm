@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveIntegrationsConfig } from "./config";
+import {
+  DEFAULT_CLOVER_CONNECTION,
+  resolveIntegrationsConfig,
+  resolveWebOrderTypeId,
+  type CloverConnection,
+} from "./config";
 
 describe("resolveIntegrationsConfig", () => {
   it("uses the org's own config when it has a clover connection set", () => {
@@ -34,5 +39,32 @@ describe("resolveIntegrationsConfig", () => {
     const parent = { integrationsConfig: {} };
     const result = resolveIntegrationsConfig(org, parent);
     expect(result).toEqual({});
+  });
+});
+
+describe("resolveWebOrderTypeId", () => {
+  const conn = (webOrderTypes?: { pickup?: string; delivery?: string }) =>
+    ({ ...DEFAULT_CLOVER_CONNECTION, webOrderTypes }) as CloverConnection;
+
+  it("maps pickup and delivery to their configured types", () => {
+    const c = conn({ pickup: "OT_PICK", delivery: "OT_DEL" });
+    expect(resolveWebOrderTypeId(c, "pickup")).toBe("OT_PICK");
+    expect(resolveWebOrderTypeId(c, "delivery_instant")).toBe("OT_DEL");
+  });
+
+  // Scheduled vs instant is our scheduling concern, not Register's — both tickets
+  // should announce and print the same way.
+  it("treats scheduled and instant delivery as the same type", () => {
+    const c = conn({ delivery: "OT_DEL" });
+    expect(resolveWebOrderTypeId(c, "delivery_scheduled")).toBe(
+      resolveWebOrderTypeId(c, "delivery_instant"),
+    );
+  });
+
+  // An unconfigured merchant must keep checking out, just untyped as before.
+  it("returns undefined when unset, absent, or set only for the other fulfillment", () => {
+    expect(resolveWebOrderTypeId(conn(), "pickup")).toBeUndefined();
+    expect(resolveWebOrderTypeId(conn({}), "delivery_instant")).toBeUndefined();
+    expect(resolveWebOrderTypeId(conn({ pickup: "OT_PICK" }), "delivery_instant")).toBeUndefined();
   });
 });

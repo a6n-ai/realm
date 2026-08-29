@@ -183,6 +183,20 @@
       "when": 1787900225080,
       "tag": "0025_wallet_reservation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787931268086,
+      "tag": "0026_cooing_fenris",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1787934270728,
+      "tag": "0027_mysterious_inhumans",
+      "breakpoints": true
     }
   ]
 }

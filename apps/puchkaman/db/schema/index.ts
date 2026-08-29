@@ -15,3 +15,4 @@ export * from "./notifications";
 export * from "./email-log";
 export * from "./wallet";
 export * from "./organizations";
+export * from "./catering";

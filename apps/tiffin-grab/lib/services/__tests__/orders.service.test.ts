@@ -85,6 +85,45 @@ describe("createOrder (integration)", () => {
     expect(rows).toHaveLength(1);
   });
 
+  // A returning customer who checks out logged-out and types a different number
+  // must still be recognised, or the overlap guard runs against a brand-new
+  // account and happily double-books the same calendar days.
+  it("recognises a logged-out returning customer by email when the phone differs", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await createOrder(input);
+
+    // Same person, same email, second phone number, overlapping window.
+    await expect(
+      createOrder({
+        ...input,
+        contact: { ...input.contact, phone: "+16475550999" },
+      }),
+    ).rejects.toThrow(/already have a plan running/);
+
+    // And no second account was minted for the new number.
+    const rows = await db.select().from(users).where(eq(users.email, input.contact.email));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("attaches a non-overlapping order to the matched account rather than a new one", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    await createOrder(input);
+
+    const laterStart = nextWeekday(new Date());
+    laterStart.setUTCDate(laterStart.getUTCDate() + input.selections.durationWeeks * 7);
+    const { deploymentId } = await createOrder({
+      ...input,
+      contact: { ...input.contact, phone: "+16475550999" },
+      selections: { ...input.selections, startDate: laterStart.toISOString().slice(0, 10) },
+    });
+
+    const [matched] = await db.select().from(users).where(eq(users.email, input.contact.email));
+    const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(o.userId).toBe(matched.id);
+  });
+
   it("attaches to ownerUserId without provisioning by phone", async () => {
     const snap = await loadCatalogSnapshot();
     const [owner] = await db.insert(users).values({ email: "owner@x.com", role: "user" }).returning();

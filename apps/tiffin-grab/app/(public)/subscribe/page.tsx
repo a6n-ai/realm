@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Wizard } from "@/components/wizard/wizard";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
@@ -20,7 +21,8 @@ export default async function SubscribePage() {
   const userId = await currentUserId();
   if (userId != null) redirect("/me/renew");
 
-  const [catalog, coupons] = await Promise.all([loadCatalogSnapshot(), couponsService.listAvailable()]);
+  const orgId = await resolveRequestOrg();
+  const [catalog, coupons] = await Promise.all([loadCatalogSnapshot(orgId), couponsService.listAvailable()]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-4 sm:py-10">

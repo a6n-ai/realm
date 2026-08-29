@@ -85,3 +85,14 @@ export const deliveryAddressSchema = z.object({
 
 export type ProfileAddressValues = z.infer<typeof profileAddressSchema>;
 export type DeliveryAddressValues = z.infer<typeof deliveryAddressSchema>;
+
+// A franchise/organization's own place (its `organization.city/address/latitude/
+// longitude` columns) — distinct from a customer's delivery AddressValues above.
+// Reuse this shape anywhere a franchise location is read or written: the admin
+// client-detail form, the public location picker/map, IP-geo matching.
+export type OrgLocation = {
+  city: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};

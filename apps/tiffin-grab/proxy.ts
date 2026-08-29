@@ -79,15 +79,26 @@ export async function proxy(request: NextRequest) {
     if (org) {
       resolvedOrgId = org.id;
     } else {
-      const [fallback] = await db
-        .select({ id: organization.id })
-        .from(organization)
-        .where(eq(organization.isDefaultLocation, true))
-        .limit(1);
-      if (fallback) {
-        resolvedOrgId = fallback.id;
-      } else if (pathname !== "/locations") {
-        return NextResponse.redirect(new URL("/locations", request.url));
+      // A visitor-picked franchise (location popup, ip-api-detected or manual)
+      // is stored as a plain `franchise` cookie holding clientCode, not org id
+      // — it's readable/settable from the client, unlike x-realm-org-id.
+      const pickedCode = request.cookies.get("franchise")?.value ?? null;
+      const [picked] = pickedCode
+        ? await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, pickedCode)).limit(1)
+        : [];
+      if (picked) {
+        resolvedOrgId = picked.id;
+      } else {
+        const [fallback] = await db
+          .select({ id: organization.id })
+          .from(organization)
+          .where(eq(organization.isDefaultLocation, true))
+          .limit(1);
+        if (fallback) {
+          resolvedOrgId = fallback.id;
+        } else if (pathname !== "/locations") {
+          return NextResponse.redirect(new URL("/locations", request.url));
+        }
       }
     }
   }
@@ -114,7 +125,9 @@ export async function proxy(request: NextRequest) {
 
   // /me (customer) shares this presence-only gate with /dashboard; the role
   // split (customer vs staff/admin) is decided by the (customer) layout below.
-  const onGuarded = pathname.startsWith("/dashboard") || pathname.startsWith("/me");
+  // Segment-boundary match, not a bare prefix: "/me".startsWith would also
+  // catch "/menu" (public) and wrongly force it through the login gate.
+  const onGuarded = ["/dashboard", "/me"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (onGuarded && !hasSession) {
     const loginUrl = new URL("/login", request.nextUrl.origin);
     // Keep ?month=&sub= so post-login lands back on the same calendar month.

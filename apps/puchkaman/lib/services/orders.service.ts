@@ -60,7 +60,7 @@ import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
@@ -484,14 +484,19 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     return { canRedeem: true, balance: await walletService.balance(walletUserId) };
   }
 
-  /** Active products available for pickup. Empty until Clover client-ready; then SoT rules apply. */
-  async listOrderableCatalog() {
+  /**
+   * Active products available for pickup. Empty until Clover client-ready;
+   * then SoT rules apply. orgId scopes to a franchise's own Clover-synced
+   * rows plus any null-organizationId row (Uber items, unscoped).
+   */
+  async listOrderableCatalog(orgId?: string | null) {
     if (!(await isPublicOrderingEnabled())) {
       return [];
     }
 
     const clover = await getCloverConnection(integrationsConfigStore);
     const cloverConnected = isCloverInventoryConnected(clover);
+    const orgScope = orgId ? or(isNull(products.organizationId), eq(products.organizationId, orgId)) : undefined;
 
     const rows = await db
       .select({
@@ -510,12 +515,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       })
       .from(products)
       .where(
-        cloverConnected
-          ? and(eq(products.active, true), isNotNull(products.cloverItemId))
-          : or(
-              eq(products.active, true),
-              and(eq(products.source, "uber_eats"), isNull(products.cloverItemId)),
-            ),
+        and(
+          cloverConnected
+            ? and(eq(products.active, true), isNotNull(products.cloverItemId))
+            : or(
+                eq(products.active, true),
+                and(eq(products.source, "uber_eats"), isNull(products.cloverItemId)),
+              ),
+          orgScope,
+        ),
       )
       .orderBy(asc(products.displayOrder), asc(products.name));
 
@@ -652,6 +660,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    */
   async createCheckout(input: CreateCheckoutInput): Promise<CheckoutCreateResult> {
     const parsed = createCheckoutSchema.parse(input);
+    // Same resolution createCloverClient() uses internally (resolveActingOrg)
+    // — the order gets stamped to whichever franchise's Clover connection
+    // actually priced and will fulfill it.
+    const orgId = await resolveActingOrgId();
     const client = await createCloverClient();
     if (!client) {
       throw new ValidationError(PUBLIC_ORDERING_UNAVAILABLE_MESSAGE);
@@ -923,6 +935,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           tax: money(tax),
           total: money(total),
           pricingSnapshot: snapshot,
+          organizationId: orgId,
         })
         .returning();
 
@@ -1031,11 +1044,27 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddress}`
           : `Web pickup · ${parsed.contact.name}`;
 
+    // The order type is what makes Register announce a website order the way it
+    // announces an Uber Eats / DoorDash one: those arrive tagged by their own
+    // integration, and the tag is what drives the new-order alert and print
+    // rules. An API order with no type lands silently in the Orders list, which
+    // is why staff had to open the admin dashboard to notice one.
+    //
+    // Asked of the client, not re-read from the config store: the client already
+    // holds the connection it authenticated with, and a second read would resolve
+    // the acting org again. undefined when the merchant has not mapped a type yet,
+    // which leaves Clover behaving exactly as before rather than failing checkout.
+    const orderTypeId = client.webOrderTypeId(fulfillment);
+
     // Push to Clover after local commit so we can fail the order if POS create fails.
     // Same cart and discount we priced above — `note` is kitchen text and carries no money.
     let cloverOrderId: string;
     try {
-      const atomic = await client.createAtomicOrder({ ...atomicInput, note });
+      const atomic = await client.createAtomicOrder({
+        ...atomicInput,
+        note,
+        ...(orderTypeId ? { orderTypeId } : {}),
+      });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
     } catch (err) {
