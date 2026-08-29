@@ -169,4 +169,24 @@ describe("createOrder (integration)", () => {
     expect(u).toBeDefined();
     expect(u.phone).toBe("+16475550100");
   });
+
+  it("stores and round-trips lat/lng when the contact carries them", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    (input.contact as { lat?: number; lng?: number }).lat = 43.65107;
+    (input.contact as { lat?: number; lng?: number }).lng = -79.347015;
+    const { deploymentId } = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(o.latitude).toBeCloseTo(43.65107, 6);
+    expect(o.longitude).toBeCloseTo(-79.347015, 6);
+  });
+
+  it("stores null lat/lng when the contact omits them", async () => {
+    const snap = await loadCatalogSnapshot();
+    const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
+    const { deploymentId } = await createOrder(input);
+    const [o] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    expect(o.latitude).toBeNull();
+    expect(o.longitude).toBeNull();
+  });
 });

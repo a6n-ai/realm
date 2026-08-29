@@ -103,7 +103,18 @@ export async function recordPayment(
 export interface CreateOrderInput {
   selections: PricingSelections;
   planKey: string;
-  contact: { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
+  contact: {
+    fullName: string;
+    phone: string;
+    email: string;
+    addressLine: string;
+    city: string;
+    postalCode: string;
+    // Resolved via @realm/places' resolveAndPersist() at the action layer, not here —
+    // this service only stores whatever it's given, null when omitted.
+    lat?: number | null;
+    lng?: number | null;
+  };
   // Internal users.id of the lead owner to carry onto the order (set by the
   // convert flow so the order inherits the inquiry's currentOwner). Null/omitted
   // for ordinary checkout.
@@ -448,6 +459,8 @@ export async function createOrder(
         addressLine: input.contact.addressLine,
         city: input.contact.city,
         postalCode: input.contact.postalCode,
+        latitude: input.contact.lat ?? null,
+        longitude: input.contact.lng ?? null,
         currentOwner: input.currentOwner ?? null,
         createdBy,
         organizationId,

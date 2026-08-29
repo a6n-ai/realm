@@ -97,9 +97,15 @@ export const orders = pgTable(
     note: text("note"),
     /** Delivery-only fields — null for pickup orders. */
     deliveryAddress: text("delivery_address"),
-    // No lat/lng columns: nothing ever read them, and persisting geocoded
-    // coordinates is the one call that needs a storage-licensed (~8x) bucket.
-    // The distance below is derived at checkout and is not itself geocoder output.
+    // Lat/lng are now captured — but ONLY via @realm/places' AWS-only
+    // resolveAndPersist() (see Task 1), never via googlePlaceProvider. That's
+    // the storage-licensed (~8x) geocoder tier this column used to be blocked
+    // on; AWS's terms carry no such restriction, so the concern no longer
+    // applies. The distance below is still derived at checkout from whatever
+    // resolveAddress() (Google-backed, distance-only) returns, and that value
+    // is never itself written here.
+    deliveryLat: numeric("delivery_lat", { precision: 9, scale: 6 }),
+    deliveryLng: numeric("delivery_lng", { precision: 9, scale: 6 }),
     deliveryDistanceKm: numeric("delivery_distance_km", { precision: 6, scale: 2 }),
     // No fee column: Clover line items need a real catalogue itemId, a fee
     // could be priced and stored but never charged, silently underbilling.

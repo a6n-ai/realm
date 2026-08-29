@@ -658,7 +658,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    * Create local pending order (server-priced) + push atomic order to Clover POS.
    * Returns PAKMS key for iframe tokenization — never returns OAuth tokens.
    */
-  async createCheckout(input: CreateCheckoutInput): Promise<CheckoutCreateResult> {
+  async createCheckout(
+    input: CreateCheckoutInput,
+    // AWS-resolved coordinates for the delivery address, from @realm/places'
+    // resolveAndPersist() at the action layer (Task 3) — never accepted from
+    // the raw request body, and never used here for distance/discount, only
+    // stored for the map. Undefined/pickup orders store null.
+    resolvedDelivery?: { lat: number; lng: number } | null,
+  ): Promise<CheckoutCreateResult> {
     const parsed = createCheckoutSchema.parse(input);
     // Same resolution createCloverClient() uses internally (resolveActingOrg)
     // — the order gets stamped to whichever franchise's Clover connection
@@ -927,6 +934,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           customerPhone: parsed.contact.phone ?? null,
           note: parsed.contact.note ?? null,
           deliveryAddress,
+          deliveryLat: resolvedDelivery?.lat != null ? resolvedDelivery.lat.toFixed(6) : null,
+          deliveryLng: resolvedDelivery?.lng != null ? resolvedDelivery.lng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
           deliveryTypeId,
           deliveryZoneId,

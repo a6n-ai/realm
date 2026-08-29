@@ -1,5 +1,5 @@
 import { baseColumns, updatableColumns } from "@realm/database";
-import { bigint, boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
 import { organization } from "./organizations";
@@ -51,6 +51,12 @@ export const orders = pgTable("orders", {
   addressLine: text("address_line").notNull(),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
+  // Geocoded coordinates for the map display, resolved via @realm/places'
+  // AWS-only resolveAndPersist() at the UI/action layer — never populated from
+  // the free-text address alone. Nullable: orders created before this existed,
+  // and any order whose resolution failed, still need to save.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   // Client-scoping: which brand/franchise this order belongs to. Stamped server-side
   // from the resolved checkout context, never from client input — same money-path
   // rule as pricing/totals (AGENTS.md). Nullable during the Task-5 backfill window;
