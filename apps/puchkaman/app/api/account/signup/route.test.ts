@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
-const { users } = await import("@/db/schema");
+const { notificationPrefs, users } = await import("@/db/schema");
 const { POST } = await import("./route");
 
 const MARK = "signup-route";
@@ -22,6 +22,9 @@ function post(body: unknown) {
 }
 
 afterEach(async () => {
+  const marked = await db.select({ id: users.id }).from(users).where(like(users.email, `%${MARK}%`));
+  const ids = marked.map((u) => u.id);
+  if (ids.length) await db.delete(notificationPrefs).where(inArray(notificationPrefs.userId, ids));
   await db.delete(users).where(like(users.email, `%${MARK}%`));
 });
 

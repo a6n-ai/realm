@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { notificationOutbox, users } from "@/db/schema";
+import { notificationOutbox, notificationPrefs, users } from "@/db/schema";
 import { upsertCustomer } from "@/lib/customers/upsert-customer";
 import { enqueueNotification, enqueueStaff } from "@/lib/notifications/enqueue";
 
@@ -11,6 +11,7 @@ const userIds: bigint[] = [];
 afterEach(async () => {
   if (userIds.length) {
     await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, userIds));
+    await db.delete(notificationPrefs).where(inArray(notificationPrefs.userId, userIds));
     await db.delete(users).where(inArray(users.id, userIds));
     userIds.length = 0;
   }

@@ -13,9 +13,9 @@ describe("order and product route permissions", () => {
     expect(roleCan(Role.MEMBER, { order: ["write"] } as never)).toBe(true);
   });
 
-  it("member may read products but never write or sync them", () => {
+  it("member may read and write products (Clover catalog config), but never sync", () => {
     expect(roleCan(Role.MEMBER, { product: ["read"] } as never)).toBe(true);
-    expect(roleCan(Role.MEMBER, { product: ["write"] } as never)).toBe(false);
+    expect(roleCan(Role.MEMBER, { product: ["write"] } as never)).toBe(true);
     expect(roleCan(Role.MEMBER, { product: ["sync"] } as never)).toBe(false);
   });
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { drainPending as pkgDrain } from "@realm/notifications";
 import { db } from "@/db/client";
-import { notificationOutbox, users } from "@/db/schema";
+import { notificationOutbox, notificationPrefs, users } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";
 import { buildAppHandlers } from "@/lib/notifications/handlers";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
@@ -16,6 +16,7 @@ const ids: bigint[] = [];
 afterEach(async () => {
   if (!ids.length) return;
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
+  await db.delete(notificationPrefs).where(inArray(notificationPrefs.userId, ids));
   await db.delete(users).where(inArray(users.id, ids));
   ids.length = 0;
 });

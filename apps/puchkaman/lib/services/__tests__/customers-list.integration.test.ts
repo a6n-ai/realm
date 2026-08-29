@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { eq, like as sqlLike } from "drizzle-orm";
+import { eq, inArray, like as sqlLike } from "drizzle-orm";
 import { like } from "@realm/commons/model/condition";
 import { db } from "@/db/client";
-import { orders, users } from "@/db/schema";
+import { notificationPrefs, orders, users } from "@/db/schema";
 import { getCustomerDetail, listCustomersPage } from "@/lib/services/customers.service";
 
 const MARK = "cust-list";
@@ -38,6 +38,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await db.delete(orders).where(sqlLike(orders.customerEmail, `%${MARK}%`));
+  const marked = Object.values(ids);
+  if (marked.length) await db.delete(notificationPrefs).where(inArray(notificationPrefs.userId, marked));
   await db.delete(users).where(sqlLike(users.email, `%${MARK}%`));
   for (const k of Object.keys(ids)) delete ids[k];
 });

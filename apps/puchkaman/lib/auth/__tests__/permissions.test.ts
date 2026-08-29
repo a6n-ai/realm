@@ -31,7 +31,7 @@ describe("puchkaman permission map", () => {
     expect(roles.member.authorize({ order: ["refund"] }).success).toBe(false);
   });
 
-  it("does not let member change settings", () => {
-    expect(roles.member.authorize({ settings: ["write"] }).success).toBe(false);
+  it("lets member change settings, narrowly granted for the review-widget page", () => {
+    expect(roles.member.authorize({ settings: ["write"] }).success).toBe(true);
   });
 });
