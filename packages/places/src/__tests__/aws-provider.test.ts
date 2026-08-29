@@ -109,6 +109,58 @@ describe("awsPlaceProvider mapping and coordinate order", () => {
     expect(result).toEqual({ lat: 43.6853, lng: -79.3872, formattedAddress: "Toronto, ON" });
   });
 
+  it("resolve populates structured address fields from Address", async () => {
+    const f = fakeClient({
+      ResultItems: [
+        {
+          Position: [-79.3872, 43.6853],
+          Address: {
+            Label: "3315 Danforth Ave, Scarborough, ON M1L 1B8, Canada",
+            AddressNumber: "3315",
+            Street: "Danforth Ave",
+            Locality: "Scarborough",
+            Region: { Code: "ON", Name: "Ontario" },
+            PostalCode: "M1L 1B8",
+          },
+        },
+      ],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    const result = await p.resolve({ address: "3315 Danforth Ave", persist: false });
+    expect(result).toEqual({
+      lat: 43.6853,
+      lng: -79.3872,
+      formattedAddress: "3315 Danforth Ave, Scarborough, ON M1L 1B8, Canada",
+      addressLine: "3315 Danforth Ave",
+      city: "Scarborough",
+      province: "ON",
+      postalCode: "M1L 1B8",
+    });
+  });
+
+  it("resolve prefers Region.Name when Region.Code is absent", async () => {
+    const f = fakeClient({
+      ResultItems: [
+        { Position: [-79.3872, 43.6853], Address: { Label: "Toronto, ON", Region: { Name: "Ontario" } } },
+      ],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    const result = await p.resolve({ address: "Toronto, ON", persist: false });
+    expect(result?.province).toBe("Ontario");
+  });
+
+  it("resolve omits addressLine entirely when AddressNumber or Street is missing, rather than emitting a partial string", async () => {
+    const f = fakeClient({
+      ResultItems: [{ Position: [-79.3872, 43.6853], Address: { Label: "Danforth Ave, Scarborough, ON", Street: "Danforth Ave" } }],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = awsPlaceProvider({ client: f.client as any });
+    const result = await p.resolve({ address: "Danforth Ave", persist: false });
+    expect(result?.addressLine).toBeUndefined();
+  });
+
   it("resolve returns null when there are no results", async () => {
     const f = fakeClient({ ResultItems: [] });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

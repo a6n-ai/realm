@@ -3,6 +3,7 @@ import {
   AutocompleteCommand,
   GeocodeCommand,
   GetPlaceCommand,
+  type Address,
   type AutocompleteCommandOutput,
   type GeocodeCommandOutput,
   type GetPlaceCommandOutput,
@@ -61,10 +62,15 @@ function getSharedClient(kind: "suggest" | "resolve", region: string | undefined
 }
 
 /** AWS Position is [longitude, latitude] — GeoJSON order, not { lat, lng }. */
-function toResolvedPlace(position: readonly number[] | undefined, label: string | undefined): ResolvedPlace | null {
+function toResolvedPlace(position: readonly number[] | undefined, address: Address | undefined): ResolvedPlace | null {
+  const label = address?.Label;
   if (!position || position.length < 2 || !label) return null;
   const [lng, lat] = position;
-  return { lat, lng, formattedAddress: label };
+  const addressLine = address?.AddressNumber && address?.Street ? `${address.AddressNumber} ${address.Street}` : undefined;
+  const city = address?.Locality;
+  const province = address?.Region?.Code ?? address?.Region?.Name;
+  const postalCode = address?.PostalCode;
+  return { lat, lng, formattedAddress: label, addressLine, city, province, postalCode };
 }
 
 // A silent catch here is a silent outage: resolvePlace() falls through to
@@ -129,12 +135,12 @@ export function awsPlaceProvider(opts: AwsPlaceProviderOptions = {}): PlaceProvi
       try {
         if (placeId) {
           const out = await resolveClient.send(new GetPlaceCommand({ PlaceId: placeId, IntendedUse: intendedUse }));
-          return toResolvedPlace(out.Position, out.Address?.Label);
+          return toResolvedPlace(out.Position, out.Address);
         }
         const out = await resolveClient.send(new GeocodeCommand({ QueryText: address, IntendedUse: intendedUse }));
         const item = out.ResultItems?.[0];
         if (!item) return null;
-        return toResolvedPlace(item.Position, item.Address?.Label);
+        return toResolvedPlace(item.Position, item.Address);
       } catch (e) {
         logAwsError(placeId ? "get-place" : "geocode", e);
         return null;

@@ -4,7 +4,15 @@ export type PlaceSuggestion = {
   label: string;
 };
 
-export type ResolvedPlace = { lat: number; lng: number; formattedAddress: string };
+export type ResolvedPlace = {
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+  addressLine?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+};
 
 export type PlaceProvider = {
   id: "aws" | "google" | "nominatim";
