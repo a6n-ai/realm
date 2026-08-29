@@ -28,7 +28,7 @@ const ORG_SORT_COLUMNS = ["name", "clientCode"] as const satisfies readonly OrgS
 
 export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard title="Clients">
+    <SectionCard title="All clients">
       <Suspense fallback={<ClientsTableSkeleton />}>
         <ClientsData searchParams={searchParams} />
       </Suspense>

@@ -1,15 +1,14 @@
 import { Suspense } from "react";
-import { UsersIcon } from "lucide-react";
 import { and, inList } from "@realm/commons/model/condition";
 import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { parseSort } from "@/lib/list/sort";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { usersService, type UserSortColumn } from "@/lib/services/users.service";
-import { OrganizationTabs } from "../../organization/organization-tabs";
+import { OrganizationHeader, OrganizationTabs } from "../../organization/organization-tabs";
 import { InviteUserButton } from "./invite-user-button";
 import { SyncCloverUsersButton } from "./sync-clover-users-button";
 import { UsersTable, UsersTableSkeleton } from "./users-table";
@@ -58,13 +57,9 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
     <PageShell>
       {/* This page is reached from the Organization > Users tab (see
           organization-tabs.tsx) but lives outside organization/layout.tsx's
-          route tree, so that layout's tab bar doesn't carry over here —
-          render it explicitly or there's no way back to Clients. */}
-      <OrganizationTabs />
-      <PageHeader
-        icon={UsersIcon}
-        title="Users"
-        subtitle="Accounts that can sign in to this dashboard. Clover Register staff are managed separately under Employees."
+          route tree, so that layout's header + tab bar don't carry over here —
+          render the same shared pieces, same order, explicitly. */}
+      <OrganizationHeader
         actions={
           <>
             <InviteUserButton
@@ -76,6 +71,7 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
           </>
         }
       />
+      <OrganizationTabs />
       <SectionCard title="All accounts">
         <Suspense fallback={<UsersTableSkeleton />}>
           <UsersData searchParams={searchParams} />
