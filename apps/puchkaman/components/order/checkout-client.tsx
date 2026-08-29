@@ -126,6 +126,7 @@ export function CheckoutClient({
   const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
   const [address, setAddress] = useState("");
   const [placeId, setPlaceId] = useState<string | undefined>(undefined);
+  const [resolvedDelivery, setResolvedDelivery] = useState<{ lat: number; lng: number } | null>(null);
   const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
   const [addressChecking, setAddressChecking] = useState(false);
   const [deliveryTypeKey, setDeliveryTypeKey] = useState<string | null>(null);
@@ -309,6 +310,10 @@ export function CheckoutClient({
                   ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
                 }
               : { type: "pickup" },
+          // Second positional param on the service, not part of createCheckoutSchema
+          // (that schema is .strict()) — undefined/null when the address was typed
+          // but never resolved via a picked suggestion.
+          resolvedDelivery: fulfillment === "delivery" ? resolvedDelivery : null,
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -551,12 +556,14 @@ export function CheckoutClient({
                   onChange={(v) => {
                     setAddress(v);
                     setPlaceId(undefined);
+                    setResolvedDelivery(null);
                     setAddressCheck(null);
                     setDeliveryTypeKey(null);
                   }}
-                  onPick={({ address: a, placeId: p }) => {
+                  onPick={({ address: a, placeId: p, lat, lng }) => {
                     setAddress(a);
                     setPlaceId(p);
+                    if (lat != null && lng != null) setResolvedDelivery({ lat, lng });
                   }}
                 />
                 <div className="checkout-address__actions">

@@ -188,6 +188,11 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
               return next;
             });
           }}
+          // `deliveries` has no lat/lng column (Task 2 didn't touch this table),
+          // so a resolved pick only autofills the structured text fields here —
+          // there is nowhere yet to persist the coordinates themselves.
+          onResolve={() => {}}
+          resolveUrl="/api/address/resolve"
         />
       </div>
     </ResponsiveDialog>

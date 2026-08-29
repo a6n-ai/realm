@@ -38,6 +38,7 @@
     "@realm/notifications": "workspace:*",
     "@realm/google-reviews": "workspace:*",
     "@realm/payments": "workspace:*",
+    "@realm/places": "workspace:*",
     "@realm/realtime": "workspace:*",
     "@realm/routes": "workspace:*",
     "@realm/storage": "workspace:*",

@@ -12,6 +12,7 @@ import {
   type AddressFieldKey,
   type AddressFieldPreset,
 } from "@realm/commons";
+import { AddressLineAutocomplete, deriveSuggestUrl } from "./address-fields";
 import { cn } from "./cn";
 import {
   FormControl,
@@ -39,6 +40,15 @@ export type AddressFormFieldsProps<T extends FieldValues> = {
   disabled?: boolean;
   postalSlot?: ReactNode;
   onPostalBlur?: () => void;
+  /** Reported when a picked suggestion resolves — see `AddressFields`' same prop. */
+  onResolve?: (place: { lat: number; lng: number }) => void;
+  /** App's resolve API route. Supplying this + `onResolve` turns the address-line
+   *  field into a debounced autocomplete; omit either to keep the plain input. */
+  resolveUrl?: string;
+  suggestUrl?: string;
+  /** Structured fields (city/province/postalCode/addressLine) from a resolved pick,
+   *  merged onto other form fields the address-line's own rhf field can't reach. */
+  onAutofill?: (patch: Partial<Record<AddressFieldKey, string>>) => void;
 };
 
 function resolveFields(preset: AddressFieldPreset | undefined, fields: readonly AddressFieldKey[] | undefined) {
@@ -53,8 +63,13 @@ export function AddressFormFields<T extends FieldValues>({
   disabled = false,
   postalSlot,
   onPostalBlur,
+  onResolve,
+  resolveUrl,
+  suggestUrl,
+  onAutofill,
 }: AddressFormFieldsProps<T>) {
   const resolvedFields = resolveFields(preset, fields);
+  const autocompleteEnabled = Boolean(onResolve && resolveUrl);
 
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
@@ -97,6 +112,37 @@ export function AddressFormFields<T extends FieldValues>({
         }
 
         const isPostal = field === "postalCode";
+
+        if (field === "addressLine" && autocompleteEnabled) {
+          return (
+            <FormField
+              key={field}
+              control={control}
+              name={field as FieldPath<T>}
+              render={({ field: rhfField }) => (
+                <FormItem className={spanClass}>
+                  <FormLabel>{ADDRESS_FIELD_LABELS.addressLine}</FormLabel>
+                  <FormControl>
+                    <AddressLineAutocomplete
+                      id={rhfField.name}
+                      value={rhfField.value ?? ""}
+                      disabled={disabled}
+                      resolveUrl={resolveUrl!}
+                      suggestUrl={suggestUrl ?? deriveSuggestUrl(resolveUrl!)}
+                      onChange={rhfField.onChange}
+                      onResolve={(place) => {
+                        const { lat, lng, ...structured } = place;
+                        onAutofill?.(structured);
+                        onResolve!({ lat, lng });
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
+        }
 
         return (
           <FormField

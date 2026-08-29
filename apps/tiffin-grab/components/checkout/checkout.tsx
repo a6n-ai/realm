@@ -31,7 +31,16 @@ import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 
 const CHECKOUT_STEPS = ["Address & contact", "Payment"] as const;
 
-type Contact = { fullName: string; phone: string; email: string; addressLine: string; city: string; postalCode: string };
+type Contact = {
+  fullName: string;
+  phone: string;
+  email: string;
+  addressLine: string;
+  city: string;
+  postalCode: string;
+  lat?: number;
+  lng?: number;
+};
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
 export function Checkout({
@@ -101,6 +110,15 @@ export function Checkout({
   };
 
   const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
+  // A retyped address line invalidates any previously resolved coordinates —
+  // clear them here so a stale pick never rides along with an edited address;
+  // onResolve (fired after this, on a fresh pick) sets fresh ones right after.
+  const setAddress = (patch: Partial<Contact>) =>
+    setContact((c) => ({
+      ...c,
+      ...patch,
+      ...("addressLine" in patch ? { lat: undefined, lng: undefined } : {}),
+    }));
 
   const joinWaitlist = async () => {
     try {
@@ -242,7 +260,9 @@ export function Checkout({
                   idPrefix="checkout"
                   fields={["addressLine", "city", "postalCode"]}
                   values={contact}
-                  onChange={set}
+                  onChange={setAddress}
+                  onResolve={({ lat, lng }) => set({ lat, lng })}
+                  resolveUrl="/api/address/resolve"
                   onPostalBlur={checkPostal}
                   postalSlot={
                     <>

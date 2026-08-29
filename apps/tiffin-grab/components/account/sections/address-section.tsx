@@ -70,7 +70,20 @@ export function AddressSection({
       >
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-            <AddressFormFields control={form.control} preset="profile" />
+            <AddressFormFields
+              control={form.control}
+              preset="profile"
+              resolveUrl="/api/address/resolve"
+              // `users` has no lat/lng column for a profile default address (only
+              // orders/deliveries carry coordinates) — a resolved pick autofills
+              // the structured text fields, coordinates are not persisted here.
+              onResolve={() => {}}
+              onAutofill={(patch) => {
+                for (const [key, value] of Object.entries(patch)) {
+                  form.setValue(key as keyof ProfileAddressValues, value, { shouldDirty: true });
+                }
+              }}
+            />
             <div className="sm:col-span-2">
               <Button
                 type="submit"

@@ -20,7 +20,7 @@ export function AddressAutocomplete({
 }: {
   value: string;
   onChange: (address: string) => void;
-  onPick: (result: { address: string; placeId: string }) => void;
+  onPick: (result: { address: string; placeId: string; lat?: number; lng?: number }) => void;
   id?: string;
   className?: string;
 }) {
@@ -79,6 +79,25 @@ export function AddressAutocomplete({
     setSuggestions([]);
     setOpen(false);
     setActiveIndex(-1);
+    // Fire-and-forget: a failed/empty resolve leaves lat/lng undefined and
+    // checkout still works with a typed-but-unresolved address.
+    void fetch("/api/delivery/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: suggestion.label, placeId: suggestion.placeId }),
+    })
+      .then((res) => res.json())
+      .then((body: { place?: { lat: number; lng: number } | null }) => {
+        if (body?.place) {
+          onPick({
+            address: suggestion.label,
+            placeId: suggestion.placeId,
+            lat: body.place.lat,
+            lng: body.place.lng,
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {

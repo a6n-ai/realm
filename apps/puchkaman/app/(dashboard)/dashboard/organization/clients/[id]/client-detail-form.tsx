@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
+import { AddressFields } from "@realm/ui/address-fields";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 
 export function ClientDetailForm({
@@ -83,34 +84,31 @@ export function ClientDetailForm({
         ))}
       </datalist>
 
-      <label className="text-sm text-muted-foreground" htmlFor="org-address">
-        Address
-      </label>
-      <Input id="org-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
+      <div className="col-span-2">
+        <AddressFields
+          idPrefix="org-address"
+          fields={["addressLine"]}
+          values={{ addressLine: address }}
+          onChange={(patch) => {
+            if (patch.addressLine !== undefined) setAddress(patch.addressLine);
+          }}
+          onResolve={({ lat, lng }) => {
+            setStoreLat(String(lat));
+            setStoreLng(String(lng));
+          }}
+          resolveUrl="/api/delivery/resolve"
+        />
+      </div>
 
       <label className="text-sm text-muted-foreground" htmlFor="org-store-lat">
         Latitude
       </label>
-      <Input
-        id="org-store-lat"
-        type="number"
-        step="any"
-        value={storeLat}
-        onChange={(e) => setStoreLat(e.target.value)}
-        placeholder="43.6532"
-      />
+      <Input id="org-store-lat" value={storeLat} readOnly placeholder="Resolved from address" />
 
       <label className="text-sm text-muted-foreground" htmlFor="org-store-lng">
         Longitude
       </label>
-      <Input
-        id="org-store-lng"
-        type="number"
-        step="any"
-        value={storeLng}
-        onChange={(e) => setStoreLng(e.target.value)}
-        placeholder="-79.3832"
-      />
+      <Input id="org-store-lng" value={storeLng} readOnly placeholder="Resolved from address" />
 
       <div className="col-span-2">
         <Button type="submit" size="sm" disabled={pending || !name || !clientCode}>
