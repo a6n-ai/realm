@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { ValidationError, type RoleValue } from "@realm/commons";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/auth/guards";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
+import { addMember } from "@/lib/services/organizations.service";
 import { inviteUser } from "@/lib/services/users-invite";
 import { usersService, type UserStatusValue } from "@/lib/services/users.service";
 
@@ -51,6 +53,16 @@ export async function sendPasswordReset(email: string): Promise<void> {
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<void> {
   await requirePermission({ staff: ["invite"], user: ["create", "set-role"] });
-  await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
+  const created = await inviteUser({ email: input.email, name: input.name, role: input.role as RoleValue });
+  // inviteUser only creates the users row (the global admin/member role) — it
+  // has no org concept. Without this, an invited staff account had no member
+  // row anywhere: invisible to a franchise-scoped Users list (needs a member
+  // EXISTS row, see users.service.ts's queryUsers) and nothing in the org
+  // switcher to work in. Scoped to whichever org the inviter currently has
+  // active — inviting while Toronto is active adds them to Toronto only;
+  // while the brand is active, brand membership cascades to every franchise
+  // (see getMemberOrganizations), same as an existing brand admin.
+  const orgId = await resolveActingOrgId();
+  if (orgId) await addMember(orgId, created.publicId, "admin");
   revalidatePath(PATH);
 }
