@@ -10,6 +10,8 @@ import {
   getDiscountByKind,
 } from "@/lib/services/analytics/revenue.service";
 
+export const dynamic = "force-dynamic";
+
 function money(n: number) {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 }
