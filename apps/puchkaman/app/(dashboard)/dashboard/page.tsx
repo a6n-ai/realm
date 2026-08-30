@@ -16,8 +16,6 @@ import { roleCan } from "@/lib/auth/guards";
 import { productsService, type ProductListRow } from "@/lib/services/products.service";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 
-export const dynamic = "force-dynamic";
-
 export default function DashboardHomePage() {
   return (
     <PageShell>

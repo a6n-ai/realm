@@ -3,8 +3,6 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
 import { TypesTable, type TypeRow } from "./types-table";
 
-export const dynamic = "force-dynamic";
-
 export default async function DeliveryTypesPage() {
   await requireAdmin();
   const types = await getAllDeliveryTypes();

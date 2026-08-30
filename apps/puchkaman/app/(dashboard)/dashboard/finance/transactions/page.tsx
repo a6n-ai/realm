@@ -6,8 +6,6 @@ import { parseSort } from "@/lib/list/sort";
 import { paymentsService, type PaymentSortColumn } from "@/lib/services/payments.service";
 import { TransactionsTable, TransactionsTableSkeleton } from "./transactions-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const PAYMENT_SORT_COLUMNS = [

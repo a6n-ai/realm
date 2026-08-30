@@ -16,8 +16,6 @@ import {
 import { productsService } from "@/lib/services/products.service";
 import { ProductDetail } from "./product-detail";
 
-export const dynamic = "force-dynamic";
-
 const EMPTY_ASSOCIATIONS: ProductAssociations = {
   categories: [],
   modifierGroups: [],

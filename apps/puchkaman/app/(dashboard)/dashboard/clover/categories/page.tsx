@@ -19,8 +19,6 @@ import {
 } from "@/lib/services/inventory.service";
 import { CategoriesTable, CategoriesTableSkeleton } from "./categories-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const CATEGORY_SORT_COLUMNS = [

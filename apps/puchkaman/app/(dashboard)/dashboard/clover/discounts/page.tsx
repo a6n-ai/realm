@@ -9,8 +9,6 @@ import { DiscountsTable } from "./discounts-table";
 import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
-export const dynamic = "force-dynamic";
-
 export default function CloverDiscountsPage() {
   return (
     <PageShell>

@@ -16,8 +16,6 @@ import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/in
 import { inventoryCatalogService, type TaxRateSortColumn } from "@/lib/services/inventory.service";
 import { TaxesTable, TaxesTableSkeleton } from "./taxes-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const TAX_SORT_COLUMNS = [

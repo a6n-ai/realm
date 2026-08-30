@@ -14,8 +14,6 @@ import { parseSort } from "@/lib/list/sort";
 import { ordersService, type OrderSortColumn } from "@/lib/services/orders.service";
 import { OrdersTable, OrdersTableSkeleton } from "./orders-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const ORDER_SORT_COLUMNS = [

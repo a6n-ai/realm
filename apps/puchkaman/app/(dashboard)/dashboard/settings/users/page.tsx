@@ -13,8 +13,6 @@ import { InviteUserButton } from "./invite-user-button";
 import { SyncCloverUsersButton } from "./sync-clover-users-button";
 import { UsersTable, UsersTableSkeleton } from "./users-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // Every guest customer checkout mints a `users` row too (see auth.ts), so an

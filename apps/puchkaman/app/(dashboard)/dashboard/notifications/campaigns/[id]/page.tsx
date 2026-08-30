@@ -11,8 +11,6 @@ import { resolveSegment } from "@/lib/campaigns/segment";
 import { CampaignSendButton } from "@realm/notifications/ui";
 
 // Resolves a live audience count on every view.
-export const dynamic = "force-dynamic";
-
 const STAT_KEYS = [
   { key: "queued", label: "Queued" },
   { key: "delivered", label: "Delivered" },

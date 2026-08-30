@@ -19,8 +19,6 @@ import {
 } from "@/lib/services/inventory.service";
 import { LabelsTable, LabelsTableSkeleton } from "./labels-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const LABEL_SORT_COLUMNS = [

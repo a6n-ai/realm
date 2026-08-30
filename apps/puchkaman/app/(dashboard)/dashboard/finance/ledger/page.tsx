@@ -6,8 +6,6 @@ import { parseSort } from "@/lib/list/sort";
 import { ledgerService, type LedgerSortColumn } from "@/lib/services/ledger.service";
 import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const LEDGER_SORT_COLUMNS = [

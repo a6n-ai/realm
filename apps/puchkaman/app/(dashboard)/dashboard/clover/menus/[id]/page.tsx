@@ -12,8 +12,6 @@ import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
-export const dynamic = "force-dynamic";
-
 export default function MenuDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>

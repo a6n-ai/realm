@@ -3,8 +3,6 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import { ZoneEditor, type TypeOption, type ZoneRow } from "./zone-editor";
 
-export const dynamic = "force-dynamic";
-
 export default async function DeliveryZonesPage() {
   await requireAdmin();
   const [zones, types, origin] = await Promise.all([

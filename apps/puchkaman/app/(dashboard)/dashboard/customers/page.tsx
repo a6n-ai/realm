@@ -19,8 +19,6 @@ import {
 } from "@/lib/services/customers.service";
 import { CustomersTable, CustomersTableSkeleton } from "./customers-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 /** Same locale/zone pair the rest of the app formats with (checkout, tracking). */

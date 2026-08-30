@@ -22,8 +22,6 @@ const PRODUCT_SORT_COLUMNS = [
   "lastSynced",
 ] as const satisfies readonly ProductSortColumn[];
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // Facet spec — server-authored so parseFilterState (server) and ReuiFacetFilters

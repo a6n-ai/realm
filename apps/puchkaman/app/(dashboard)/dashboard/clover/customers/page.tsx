@@ -18,8 +18,6 @@ import { requirePermission } from "@/lib/auth/guards";
 import { cloverCustomersService } from "@/lib/services/clover-customers.service";
 import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 
-export const dynamic = "force-dynamic";
-
 export default function CloverCustomersPage() {
   return (
     <PageShell>

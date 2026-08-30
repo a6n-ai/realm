@@ -19,8 +19,6 @@ import {
 } from "@/lib/services/inventory.service";
 import { ModifierGroupsTable, ModifierGroupsTableSkeleton } from "./modifier-groups-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const MODIFIER_GROUP_SORT_COLUMNS = [

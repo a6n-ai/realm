@@ -4,8 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePermission } from "@/lib/auth/guards";
 import { listCateringInquiries } from "@/lib/services/catering.service";
 
-export const dynamic = "force-dynamic";
-
 const shopDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 

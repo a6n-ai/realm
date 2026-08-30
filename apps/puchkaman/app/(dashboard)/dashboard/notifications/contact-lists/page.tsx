@@ -12,8 +12,6 @@ import {
   formatConsentDate,
 } from "@realm/notifications/ui";
 
-export const dynamic = "force-dynamic";
-
 const CONSENT_LABEL: Record<string, string> = {
   purchase: "Purchase (expires after 24 months)",
   express_optin: "Express opt-in",

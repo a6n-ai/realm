@@ -19,8 +19,6 @@ import {
 } from "@/lib/services/inventory.service";
 import { MenusTable, MenusTableSkeleton } from "./menus-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const MENU_SORT_COLUMNS = [

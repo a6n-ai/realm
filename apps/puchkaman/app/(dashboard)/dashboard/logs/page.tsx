@@ -12,8 +12,6 @@ import { parseSort } from "@/lib/list/sort";
 import { auditService, type AuditSortColumn } from "@/lib/services/audit.service";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 const AUDIT_SORT_COLUMNS = [

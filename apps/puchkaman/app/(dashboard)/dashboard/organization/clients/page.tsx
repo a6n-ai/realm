@@ -5,8 +5,6 @@ import { parseSort } from "@/lib/list/sort";
 import { queryOrganizations, type OrgSortColumn } from "@/lib/services/organizations.service";
 import { ClientsTable, ClientsTableSkeleton } from "./clients-table";
 
-export const dynamic = "force-dynamic";
-
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // Facet spec — server-authored so parseFilterState (server) and ReuiFacetFilters

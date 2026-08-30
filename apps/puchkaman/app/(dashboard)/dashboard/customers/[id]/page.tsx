@@ -7,8 +7,6 @@ import { Badge } from "@realm/ui/badge";
 import { requirePermission } from "@/lib/auth/guards";
 import { getCustomerDetail } from "@/lib/services/customers.service";
 
-export const dynamic = "force-dynamic";
-
 /** Toronto wall-clock, like the rest of the app's operator-facing timestamps. */
 const shopDateTime = (ms: number) =>
   new Date(ms).toLocaleString("en-CA", { timeZone: "America/Toronto" });
