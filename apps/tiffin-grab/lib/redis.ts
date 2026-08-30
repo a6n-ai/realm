@@ -14,5 +14,12 @@ let shared: Redis | undefined;
  * calls. Notifications run on an outbox queue drained by drainPending().
  */
 export function getRedis(): Redis {
-  return (shared ??= new Redis(url, opts));
+  if (!shared) {
+    shared = new Redis(url, opts);
+    // RedisTier already catches and logs per-command failures; without a
+    // listener here ioredis prints its own "Unhandled error event" for every
+    // failed connect attempt (e.g. build-time placeholder REDIS_URL).
+    shared.on("error", () => {});
+  }
+  return shared;
 }
