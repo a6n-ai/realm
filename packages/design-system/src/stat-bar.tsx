@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { cn } from "@realm/ui/cn";
 
 // One metric in a StatGrid — the same shape StatCard consumes, so a page can
 // pass a single `items` array and get cards (desktop) or a bar (mobile).
@@ -8,6 +9,7 @@ export type StatItem = {
   hint?: string;
   icon?: LucideIcon;
   delta?: { dir: "up" | "down"; text: string };
+  pixelValue?: boolean;
 };
 
 // Compact mobile stats: one slim bordered bar, metrics as segments split by
@@ -27,7 +29,14 @@ export function StatBar({ items }: { items: StatItem[] }) {
     <div className="bg-card flex divide-x overflow-x-auto rounded-lg border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {items.map((it) => (
         <div key={it.label} className="flex min-w-fit flex-1 flex-col items-center gap-0.5 px-4 py-3 text-center">
-          <span className="nums text-base leading-none font-semibold whitespace-nowrap">{it.value}</span>
+          <span
+            className={cn(
+              "nums text-base leading-none font-semibold whitespace-nowrap",
+              it.pixelValue && "font-pixel-circle",
+            )}
+          >
+            {it.value}
+          </span>
           <span className="text-muted-foreground text-[11px] leading-tight whitespace-nowrap">{it.label}</span>
         </div>
       ))}

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Archivo, Geist, Geist_Mono, Space_Mono } from "next/font/google";
+import { Archivo, Space_Mono } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@realm/themes";
 import { SITE_NAME, SITE_URL, buildMetadata, localBusinessJsonLd } from "@/lib/seo";
 import { InlineScript } from "@/components/inline-script";
@@ -9,8 +11,9 @@ import "./crm.css";
 const archivo = Archivo({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"], variable: "--font-archivo", display: "swap" });
 const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-space-mono", display: "swap" });
 // CRM admin / auth surfaces (brutalist marketing keeps Archivo via globals.css).
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-crm-sans" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-crm-mono" });
+// Self-hosted via the `geist` npm package (Vercel's own font, full glyph set +
+// font-feature-settings) rather than next/font/google's Geist — exposes fixed
+// --font-geist-sans / --font-geist-mono vars, referenced from crm.css.
 
 // Every page (including this default) provides its own fully-composed title
 // via buildMetadata() rather than a title template, since template + per-page
@@ -55,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${archivo.variable} ${spaceMono.variable} ${geistSans.variable} ${geistMono.variable}`}
+      className={`${archivo.variable} ${spaceMono.variable} ${GeistSans.variable} ${GeistMono.variable}`}
     >
       <head>
         <InlineScript html={THEME_BOOT} />
