@@ -1,5 +1,7 @@
 import { desc } from "drizzle-orm";
-import { SectionCard } from "@realm/design-system";
+import { ListIcon, UsersIcon } from "lucide-react";
+import { ResponsiveDialog, SectionCard, StatCard } from "@realm/design-system";
+import { Button } from "@realm/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
@@ -38,9 +40,41 @@ export default async function ContactListsPage() {
   ]);
   const timeZone = appRow?.timezone ?? "America/Toronto";
 
+  const totalContacts = lists.reduce((sum, l) => sum + l.memberCount, 0);
+
   return (
     <div className="space-y-6">
-      <SectionCard title="Contact lists" subtitle="Uploaded audiences, with how consent was obtained.">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatCard label="Lists" value={lists.length} icon={ListIcon} />
+        <StatCard label="Total contacts" value={totalContacts} icon={UsersIcon} />
+      </div>
+
+      <SectionCard
+        title="Contact lists"
+        subtitle="Uploaded audiences, with how consent was obtained."
+        action={
+          <div className="flex gap-2">
+            <ResponsiveDialog
+              title="Create from existing customers"
+              description="Snapshot customers matching filters (min orders, min spend) into a list. Doesn't update live — use Resync to pull in new matches."
+              trigger={<Button variant="outline">Create from customers</Button>}
+            >
+              <div className="p-4">
+                <ContactListFromSegment requiresVerifiedPhone />
+              </div>
+            </ResponsiveDialog>
+            <ResponsiveDialog
+              title="Import a list"
+              description="CSV. Duplicates and invalid rows are reported, not silently dropped."
+              trigger={<Button>Import CSV</Button>}
+            >
+              <div className="p-4">
+                <ContactListUpload />
+              </div>
+            </ResponsiveDialog>
+          </div>
+        }
+      >
         {lists.length === 0 ? (
           <p className="text-sm text-muted-foreground">No lists yet.</p>
         ) : (
@@ -63,14 +97,6 @@ export default async function ContactListsPage() {
             ))}
           </ul>
         )}
-      </SectionCard>
-
-      <SectionCard title="Create from existing customers" subtitle="Snapshot customers matching filters (min orders, min spend) into a list. Doesn't update live — use Resync to pull in new matches.">
-        <ContactListFromSegment requiresVerifiedPhone />
-      </SectionCard>
-
-      <SectionCard title="Import a list" subtitle="CSV. Duplicates and invalid rows are reported, not silently dropped.">
-        <ContactListUpload />
       </SectionCard>
     </div>
   );

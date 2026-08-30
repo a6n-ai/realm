@@ -24,14 +24,19 @@ ENV CI=true
 # until pnpm-lock.yaml changes, so source edits don't re-download deps.
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
-RUN pnpm fetch
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm fetch
 COPY . .
-RUN pnpm install --frozen-lockfile --offline
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --offline
 # Build-only placeholders, inlined on the build command so they never persist as
 # image ENV (silences Docker's SecretsUsedInArgOrEnv). next build imports route
 # modules that throw at load if these are unset; all clients connect lazily, so no
 # real service is touched. Runtime values come from .env.production (compose env_file).
-RUN DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
+# Cache mount persists Next's incremental build cache across CI runs (BuildKit gha
+# cache backend keeps it) — turns most rebuilds into incremental ones instead of
+# from-scratch compiles.
+RUN --mount=type=cache,id=next-cache-${APP},target=/app/apps/${APP}/.next/cache \
+    DATABASE_URL="postgres://build:build@127.0.0.1:5432/build" \
     REDIS_URL="redis://127.0.0.1:6379" \
     BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime" \
     BETTER_AUTH_URL="http://localhost:3000" \
