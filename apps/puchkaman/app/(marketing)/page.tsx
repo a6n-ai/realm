@@ -17,7 +17,7 @@ import { getReviewsSummary } from "@realm/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Puchkaman · Toronto's First Fusion Puchka Spot · Scarborough & Delta",
+  title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
   description:
     "Puchkaman — fusion puchka & Indian street food, now in two cities: Scarborough, ON and Delta, BC. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering.",
   path: "/",
@@ -147,7 +147,7 @@ export default async function HomePage() {
                 <Pill variant="ink">Scarborough · GTA</Pill>
               </div>
               <h1 className="display anim" style={{ fontSize: "clamp(2.6rem, 8vw, 5rem)", "--d": ".13s" } as CSSProperties}>
-                Toronto&apos;s <span className="marker" style={{ color: "#fff" }}>First</span> Fusion Puchka Spot
+                Canada&apos;s <span className="marker" style={{ color: "#fff" }}>First</span> Fusion Puchka Spot
               </h1>
               <p className="anim" style={{ fontSize: "1.18rem", fontWeight: 600, maxWidth: 520, marginTop: 22, lineHeight: 1.45, "--d": ".22s" } as CSSProperties}>
                 Fusion puchkas, Kolkata street food, kathi rolls, chaats, summer drinks & more — made fresh in Scarborough.
