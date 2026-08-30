@@ -24,6 +24,7 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   order_fulfilled: ["email"],
   order_cancelled: ["email"],
   refund_issued: ["email"],
+  clover_customer_invite: ["email"],
 };
 
 /** Staff-facing events go to the in-app feed of every active admin/member. */

@@ -17,4 +17,7 @@ export const appEvent = pgEnum("app_event", [
   "signup",
   "cart_abandoned",
   "checkout_abandoned",
+  // A Clover Customer Directory row with no matching `users` account —
+  // admin-triggered from the Clover Customers page, not a lifecycle event.
+  "clover_customer_invite",
 ]);

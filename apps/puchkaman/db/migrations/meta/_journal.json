@@ -218,6 +218,13 @@
       "when": 1788087846935,
       "tag": "0030_add_clover_customers",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788088320271,
+      "tag": "0031_add_clover_customer_invite_event",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { UpdatableRepository } from "@realm/database";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 
@@ -22,6 +22,13 @@ export class UsersRepository extends UpdatableRepository<typeof users> {
       .where(eq(users.email, email))
       .limit(1);
     return row ?? null;
+  }
+
+  /** Batch existence check — e.g. cross-referencing a Clover customer list against app accounts, without N+1. */
+  async findEmailsIn(emails: string[]): Promise<Set<string>> {
+    if (emails.length === 0) return new Set();
+    const rows = await this.db.select({ email: users.email }).from(users).where(inArray(users.email, emails));
+    return new Set(rows.map((r) => r.email).filter((e): e is string => !!e));
   }
 
   async findStatusById(id: bigint): Promise<{ status: string } | null> {

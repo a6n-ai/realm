@@ -13,6 +13,7 @@ import {
 } from "@realm/ui/table";
 import { redirect } from "next/navigation";
 import { CloverCustomersSyncActions } from "@/components/admin/clover-customers-sync-actions";
+import { InviteCustomerButton } from "@/components/admin/invite-customer-button";
 import { requirePermission } from "@/lib/auth/guards";
 import { cloverCustomersService } from "@/lib/services/clover-customers.service";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
@@ -63,21 +64,32 @@ async function CustomersTable() {
     );
   }
 
+  // "Client" only shows for a brand admin's cross-franchise view — every row
+  // carries clientCode there (see resolveOrgScopeMode); a franchise-scoped
+  // session never gets it.
+  const showClient = rows.some((r) => r.clientCode);
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
+          {showClient && <TableHead>Client</TableHead>}
           <TableHead>Email</TableHead>
           <TableHead>Phone</TableHead>
           <TableHead>Marketing</TableHead>
+          <TableHead>App account</TableHead>
           <TableHead>Clover id</TableHead>
+          <TableHead className="text-right" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => (
           <TableRow key={r.publicId}>
             <TableCell className="font-medium">{r.name}</TableCell>
+            {showClient && (
+              <TableCell className="font-mono text-xs">{r.clientCode ?? "—"}</TableCell>
+            )}
             <TableCell>{r.email ?? "—"}</TableCell>
             <TableCell>{r.phone ?? "—"}</TableCell>
             <TableCell>
@@ -85,8 +97,16 @@ async function CustomersTable() {
                 {r.marketingAllowed ? "Opted in" : "Opted out"}
               </Badge>
             </TableCell>
+            <TableCell>
+              <Badge variant={r.hasAccount ? "default" : "outline"}>
+                {r.hasAccount ? "Has account" : "No account"}
+              </Badge>
+            </TableCell>
             <TableCell className="text-muted-foreground font-mono text-xs">
               {r.cloverCustomerId ?? "—"}
+            </TableCell>
+            <TableCell className="text-right">
+              {!r.hasAccount && r.email && <InviteCustomerButton publicId={r.publicId} />}
             </TableCell>
           </TableRow>
         ))}

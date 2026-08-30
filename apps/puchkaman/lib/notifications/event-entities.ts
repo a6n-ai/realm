@@ -83,6 +83,10 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
       { name: "resumeUrl", label: "Resume payment link" },
     ],
   },
+  clover_customer_invite: {
+    entity: "customer",
+    fields: [{ name: "name", label: "Customer name" }],
+  },
 };
 
 /** Returns the entity-prefixed variable names for an event, e.g. ["order.publicId"]. */
