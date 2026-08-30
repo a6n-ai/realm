@@ -92,6 +92,10 @@ const CLOVER_CATALOG_ITEMS: NavItem[] = [
   { title: "Printer labels", href: "/dashboard/clover/labels", icon: PrinterIcon, permission: "clover:read" },
   { title: "Discounts", href: "/dashboard/clover/discounts", icon: PercentIcon, permission: "clover:read" },
   { title: "Employees", href: "/dashboard/clover/employees", icon: UsersIcon, permission: "clover:read" },
+  // Named distinctly from COMMERCE_ITEMS' "Customers" (our own `users` table,
+  // /dashboard/customers) — this is Clover's own Customer Directory, a
+  // different entity that happens to sit in the same sidebar group.
+  { title: "Customer Directory", href: "/dashboard/clover/customers", icon: ContactIcon, permission: "clover:read" },
 ];
 
 /**

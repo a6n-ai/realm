@@ -211,6 +211,13 @@
       "when": 1788083881754,
       "tag": "0029_add_session_active_organization_id",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788087846935,
+      "tag": "0030_add_clover_customers",
+      "breakpoints": true
     }
   ]
 }

@@ -17,18 +17,23 @@ import type { PaymentListRow, PaymentSortColumn } from "@/lib/services/payments.
 
 type Row = PaymentListRow & { amountLabel: string };
 
-type PaymentCol = PaymentSortColumn | "order" | "clover";
+type PaymentCol = PaymentSortColumn | "order" | "clover" | "client";
 
-const COLUMNS: readonly Column<PaymentCol>[] = [
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "status", label: "Status", sortable: true },
-  { key: "method", label: "Method", sortable: true },
-  { key: "order", label: "Order", sortable: false },
-  { key: "clover", label: "Clover charge", sortable: false },
-  { key: "amount", label: "Amount", sortable: true, align: "right" },
-  { key: "created", label: "Created", sortable: true, align: "right" },
-  { key: "capturedAt", label: "Captured", sortable: true, align: "right" },
-];
+// "Client" only appears for a brand admin's cross-franchise view — see
+// orders-table.tsx's identical columnsFor for why.
+function columnsFor(showClient: boolean): readonly Column<PaymentCol>[] {
+  return [
+    { key: "customer", label: "Customer", sortable: true },
+    ...(showClient ? [{ key: "client", label: "Client", sortable: false } as const] : []),
+    { key: "status", label: "Status", sortable: true },
+    { key: "method", label: "Method", sortable: true },
+    { key: "order", label: "Order", sortable: false },
+    { key: "clover", label: "Clover charge", sortable: false },
+    { key: "amount", label: "Amount", sortable: true, align: "right" },
+    { key: "created", label: "Created", sortable: true, align: "right" },
+    { key: "capturedAt", label: "Captured", sortable: true, align: "right" },
+  ];
+}
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -65,10 +70,12 @@ export function TransactionsTable({
   size: number;
   sort: SortState<PaymentSortColumn>;
 }) {
+  const showClient = rows.some((r) => r.clientCode);
+  const columns = columnsFor(showClient);
   return (
     <div className="space-y-4">
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         rows={rows}
         rowKey={(r) => r.publicId}
         serial={false}
@@ -90,6 +97,9 @@ export function TransactionsTable({
               <div className="text-muted-foreground text-xs">{r.customerEmail}</div>
               <div className="text-muted-foreground font-mono text-[10px]">{r.publicId}</div>
             </TableCell>
+            {showClient && (
+              <TableCell className="font-mono text-xs">{r.clientCode ?? "—"}</TableCell>
+            )}
             <TableCell>
               <Badge variant={statusVariant(r.status)}>{formatLabel(r.status)}</Badge>
             </TableCell>
@@ -125,7 +135,7 @@ export function TransactionsTableSkeleton() {
   return (
     <div className="space-y-4">
       <SkeletonFilterBar dropdown />
-      <DataTable.Skeleton columns={COLUMNS} serial={false} />
+      <DataTable.Skeleton columns={columnsFor(false)} serial={false} />
     </div>
   );
 }

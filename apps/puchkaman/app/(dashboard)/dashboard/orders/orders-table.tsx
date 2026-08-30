@@ -17,20 +17,26 @@ import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.servic
 
 type Row = OrderListRow & { totalLabel: string };
 
-// Sortable keys must match OrderSortColumn. "clover" / "payment" / "fulfillment" / "actions" are display-only.
-type OrderCol = OrderSortColumn | "clover" | "payment" | "fulfillment" | "actions";
+// Sortable keys must match OrderSortColumn. "clover" / "payment" / "fulfillment" / "client" / "actions" are display-only.
+type OrderCol = OrderSortColumn | "clover" | "payment" | "fulfillment" | "client" | "actions";
 
-const COLUMNS: readonly Column<OrderCol>[] = [
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "status", label: "Status", sortable: true },
-  { key: "fulfillment", label: "Fulfillment", sortable: false },
-  { key: "payment", label: "Payment", sortable: false },
-  { key: "clover", label: "Clover", sortable: false },
-  { key: "total", label: "Total", sortable: true, align: "right" },
-  { key: "created", label: "Created", sortable: true, align: "right" },
-  { key: "paidAt", label: "Paid", sortable: true, align: "right" },
-  { key: "actions", label: "", sortable: false, align: "right" },
-];
+// "Client" only appears for a brand admin's cross-franchise view — every row
+// carries clientCode there (see resolveOrgScopeMode); a franchise-scoped
+// session never gets it, so the column would be empty noise.
+function columnsFor(showClient: boolean): readonly Column<OrderCol>[] {
+  return [
+    { key: "customer", label: "Customer", sortable: true },
+    ...(showClient ? [{ key: "client", label: "Client", sortable: false } as const] : []),
+    { key: "status", label: "Status", sortable: true },
+    { key: "fulfillment", label: "Fulfillment", sortable: false },
+    { key: "payment", label: "Payment", sortable: false },
+    { key: "clover", label: "Clover", sortable: false },
+    { key: "total", label: "Total", sortable: true, align: "right" },
+    { key: "created", label: "Created", sortable: true, align: "right" },
+    { key: "paidAt", label: "Paid", sortable: true, align: "right" },
+    { key: "actions", label: "", sortable: false, align: "right" },
+  ];
+}
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
@@ -72,10 +78,12 @@ export function OrdersTable({
   size: number;
   sort: SortState<OrderSortColumn>;
 }) {
+  const showClient = rows.some((r) => r.clientCode);
+  const columns = columnsFor(showClient);
   return (
     <div className="space-y-4">
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         rows={rows}
         rowKey={(r) => r.publicId}
         serial={false}
@@ -103,6 +111,9 @@ export function OrdersTable({
               <div className="text-muted-foreground text-xs">{r.customerEmail}</div>
               <div className="text-muted-foreground font-mono text-[10px]">{r.publicId}</div>
             </TableCell>
+            {showClient && (
+              <TableCell className="font-mono text-xs">{r.clientCode ?? "—"}</TableCell>
+            )}
             <TableCell>
               <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
             </TableCell>
@@ -145,5 +156,5 @@ export function OrdersTable({
 }
 
 export function OrdersTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <DataTable.Skeleton columns={columnsFor(false)} serial={false} />;
 }

@@ -16,6 +16,12 @@ import {
   type ListEmployeesParams,
 } from "./employees";
 import {
+  normalizeCloverCustomer,
+  type CloverCustomer,
+  type CloverCustomerCreateInput,
+  type ListCustomersParams,
+} from "./customers";
+import {
   normalizeCloverCategory,
   normalizeCloverDiscount,
   normalizeCloverTaxRate,
@@ -249,7 +255,9 @@ export class CloverApiClient {
     return `/v3/merchants/${encodeURIComponent(this.merchantId)}${s}`;
   }
 
-  private inventoryQuery(params: ListInventoryParams | ListItemsParams): string {
+  private inventoryQuery(
+    params: ListInventoryParams | ListItemsParams | ListEmployeesParams | ListCustomersParams,
+  ): string {
     const q = new URLSearchParams();
     if (params.limit != null) q.set("limit", String(params.limit));
     if (params.offset != null) q.set("offset", String(params.offset));
@@ -650,6 +658,43 @@ export class CloverApiClient {
 
   async deleteEmployee(employeeId: string): Promise<void> {
     await this.delete(this.merchantPath(`employees/${encodeURIComponent(employeeId)}`));
+  }
+
+  // ── Customers ─────────────────────────────────────────────────────────────
+  // Pull-only today (see clover-customers-sync.service.ts) — no update/delete
+  // wired up since nothing in this app edits a Clover customer locally.
+
+  async listCustomers(
+    params: ListCustomersParams = {},
+  ): Promise<CloverElements<CloverCustomer>> {
+    const data = await this.get<{ elements?: unknown[] }>(
+      this.merchantPath(`customers${this.inventoryQuery(params)}`),
+    );
+    const elements = Array.isArray(data.elements)
+      ? data.elements.map((el) => normalizeCloverCustomer(el))
+      : [];
+    return { elements };
+  }
+
+  async listAllCustomers(
+    params: Omit<ListCustomersParams, "limit" | "offset"> = {},
+  ): Promise<CloverCustomer[]> {
+    return this.paginateInventory((p) =>
+      this.listCustomers({ ...params, expand: params.expand ?? "emailAddresses,phoneNumbers", ...p }),
+    );
+  }
+
+  async getCustomer(customerId: string, expand?: string): Promise<CloverCustomer> {
+    const q = expand ?? "emailAddresses,phoneNumbers";
+    const data = await this.get(
+      this.merchantPath(`customers/${encodeURIComponent(customerId)}?expand=${encodeURIComponent(q)}`),
+    );
+    return normalizeCloverCustomer(data);
+  }
+
+  async createCustomer(input: CloverCustomerCreateInput): Promise<CloverCustomer> {
+    const data = await this.post(this.merchantPath("customers"), input);
+    return normalizeCloverCustomer(data);
   }
 
   // ── Orders (Platform atomic) ──────────────────────────────────────────────

@@ -1,8 +1,9 @@
 import { BaseRepository } from "@realm/database";
-import { asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ledgerEntries, orders } from "@/db/schema";
+import { ledgerEntries, organization, orders } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 
 export type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
 
@@ -23,6 +24,7 @@ export type LedgerListRow = {
   orderPublicId: string | null;
   customerName: string | null;
   customerEmail: string | null;
+  clientCode: string | null;
 };
 
 const LEDGER_SORT_COL = {
@@ -53,6 +55,9 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
   ): Promise<{ items: LedgerListRow[]; page: number; size: number; total: number }> {
     const col = LEDGER_SORT_COL[sort.column] ?? ledgerEntries.createdAt;
     const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const scopeMode = await resolveOrgScopeMode();
+    const scopedWhere =
+      scopeMode.mode === "org" ? and(where, eq(ledgerEntries.organizationId, scopeMode.orgId)) : where;
 
     const [rows, [{ count }]] = await Promise.all([
       this.db
@@ -66,10 +71,12 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
           orderPublicId: orders.publicId,
           customerName: orders.customerName,
           customerEmail: orders.customerEmail,
+          clientCode: organization.clientCode,
         })
         .from(ledgerEntries)
         .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
-        .where(where)
+        .leftJoin(organization, eq(ledgerEntries.organizationId, organization.id))
+        .where(scopedWhere)
         .orderBy(orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
@@ -77,7 +84,7 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
         .select({ count: sql<number>`cast(count(*) as int)` })
         .from(ledgerEntries)
         .leftJoin(orders, eq(ledgerEntries.orderId, orders.id))
-        .where(where),
+        .where(scopedWhere),
     ]);
 
     return {
@@ -86,6 +93,7 @@ export class LedgerRepository extends BaseRepository<typeof ledgerEntries> {
         orderPublicId: r.orderPublicId ?? null,
         customerName: r.customerName ?? null,
         customerEmail: r.customerEmail ?? null,
+        clientCode: scopeMode.mode === "all" ? r.clientCode : null,
       })),
       page: page.page,
       size: page.size,

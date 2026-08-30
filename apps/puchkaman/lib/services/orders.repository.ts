@@ -1,8 +1,9 @@
 import { UpdatableRepository } from "@realm/database";
-import { asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { orderItems, orders, payments, type OrderPricingSnapshot } from "@/db/schema";
+import { orderItems, orders, organization, payments, type OrderPricingSnapshot } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 
 export type OrderRow = typeof orders.$inferSelect;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -22,6 +23,9 @@ export type OrderListRow = {
   paidAt: number | null;
   paymentStatus: PaymentRow["status"] | null;
   paymentMethod: PaymentRow["method"] | null;
+  /** Null when franchise-scoped (the caller's own org is implicit); populated
+   *  for a brand admin's cross-franchise "all" view. */
+  clientCode: string | null;
 };
 
 const ORDER_SORT_COL = {
@@ -56,6 +60,9 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
   ): Promise<{ items: OrderListRow[]; page: number; size: number; total: number }> {
     const col = ORDER_SORT_COL[sort.column] ?? orders.createdAt;
     const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+    const scopeMode = await resolveOrgScopeMode();
+    const scopedWhere =
+      scopeMode.mode === "org" ? and(where, eq(orders.organizationId, scopeMode.orgId)) : where;
 
     const [rawRows, [{ count }]] = await Promise.all([
       this.db
@@ -70,16 +77,18 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
           cloverOrderId: orders.cloverOrderId,
           createdAt: orders.createdAt,
           paidAt: orders.paidAt,
+          clientCode: organization.clientCode,
         })
         .from(orders)
-        .where(where)
+        .leftJoin(organization, eq(orders.organizationId, organization.id))
+        .where(scopedWhere)
         .orderBy(orderBy)
         .limit(page.size)
         .offset(page.page * page.size),
       this.db
         .select({ count: sql<number>`cast(count(*) as int)` })
         .from(orders)
-        .where(where),
+        .where(scopedWhere),
     ]);
 
     const paymentByOrder = await this.latestPaymentsByOrderIds(rawRows.map((r) => r.id));
@@ -98,6 +107,7 @@ export class OrdersRepository extends UpdatableRepository<typeof orders> {
         paidAt: r.paidAt,
         paymentStatus: pay?.status ?? null,
         paymentMethod: pay?.method ?? null,
+        clientCode: scopeMode.mode === "all" ? r.clientCode : null,
       };
     });
 

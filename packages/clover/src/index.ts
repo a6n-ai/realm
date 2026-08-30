@@ -124,6 +124,15 @@ export {
 } from "./employees";
 
 export {
+  normalizeCloverCustomer,
+  type CloverCustomer,
+  type CloverCustomerEmail,
+  type CloverCustomerPhone,
+  type CloverCustomerCreateInput,
+  type ListCustomersParams,
+} from "./customers";
+
+export {
   expandAtomicLineItems,
   buildAtomicOrderBody,
   normalizeAtomicOrderResult,

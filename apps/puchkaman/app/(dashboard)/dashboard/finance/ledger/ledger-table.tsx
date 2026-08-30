@@ -17,17 +17,22 @@ import type { LedgerListRow, LedgerSortColumn } from "@/lib/services/ledger.serv
 
 type Row = LedgerListRow & { amountLabel: string };
 
-type LedgerCol = LedgerSortColumn | "order" | "memo";
+type LedgerCol = LedgerSortColumn | "order" | "memo" | "client";
 
-const COLUMNS: readonly Column<LedgerCol>[] = [
-  { key: "created", label: "Time", sortable: true },
-  { key: "type", label: "Type", sortable: true },
-  { key: "direction", label: "Direction", sortable: true },
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "order", label: "Order", sortable: false },
-  { key: "memo", label: "Memo", sortable: false },
-  { key: "amount", label: "Amount", sortable: true, align: "right" },
-];
+// "Client" only appears for a brand admin's cross-franchise view — see
+// orders-table.tsx's identical columnsFor for why.
+function columnsFor(showClient: boolean): readonly Column<LedgerCol>[] {
+  return [
+    { key: "created", label: "Time", sortable: true },
+    { key: "type", label: "Type", sortable: true },
+    { key: "direction", label: "Direction", sortable: true },
+    { key: "customer", label: "Customer", sortable: true },
+    ...(showClient ? [{ key: "client", label: "Client", sortable: false } as const] : []),
+    { key: "order", label: "Order", sortable: false },
+    { key: "memo", label: "Memo", sortable: false },
+    { key: "amount", label: "Amount", sortable: true, align: "right" },
+  ];
+}
 
 export function LedgerTable({
   spec,
@@ -44,10 +49,12 @@ export function LedgerTable({
   size: number;
   sort: SortState<LedgerSortColumn>;
 }) {
+  const showClient = rows.some((r) => r.clientCode);
+  const columns = columnsFor(showClient);
   return (
     <div className="space-y-4">
       <DataTable
-        columns={COLUMNS}
+        columns={columns}
         rows={rows}
         rowKey={(r) => r.publicId}
         serial={false}
@@ -82,6 +89,9 @@ export function LedgerTable({
                   <span className="text-muted-foreground">—</span>
                 )}
               </TableCell>
+              {showClient && (
+                <TableCell className="font-mono text-xs">{r.clientCode ?? "—"}</TableCell>
+              )}
               <TableCell>
                 {r.orderPublicId ? (
                   <Link
@@ -117,7 +127,7 @@ export function LedgerTableSkeleton() {
   return (
     <div className="space-y-4">
       <SkeletonFilterBar dropdown />
-      <DataTable.Skeleton columns={COLUMNS} serial={false} />
+      <DataTable.Skeleton columns={columnsFor(false)} serial={false} />
     </div>
   );
 }
