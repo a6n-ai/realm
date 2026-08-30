@@ -17,19 +17,20 @@ export class EmployeesRepository extends ClientScopedRepository<typeof employees
   }
 
   async findByCloverEmployeeId(cloverEmployeeId: string): Promise<EmployeeRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(employees.cloverEmployeeId, cloverEmployeeId), isNotNull(employees.cloverEmployeeId));
     const [row] = await this.db
       .select()
       .from(employees)
-      .where(
-        and(
-          eq(employees.cloverEmployeeId, cloverEmployeeId),
-          isNotNull(employees.cloverEmployeeId),
-        ),
-      )
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
 
+  // Deliberately NOT org-scoped: this guards the employees.userId unique
+  // constraint (one employee row per user, system-wide), not a Clover match —
+  // scoping it would let the same user get a second employee row in another
+  // franchise and only find out at the DB constraint.
   /** Whichever employee (if any) already holds this user_id — the sync's guard against the unique constraint. */
   async findByUserId(userId: bigint): Promise<EmployeeRow | null> {
     const [row] = await this.db.select().from(employees).where(eq(employees.userId, userId)).limit(1);

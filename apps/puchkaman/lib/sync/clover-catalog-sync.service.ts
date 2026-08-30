@@ -50,6 +50,7 @@ import {
   type ProductCategoryRow,
 } from "@/lib/services/inventory.repository";
 import { productsRepository } from "@/lib/services/products.repository";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
 
 export type CloverCatalogPullResult = {
   categories: { upserted: number; inactivated: number };
@@ -92,6 +93,10 @@ class CloverCatalogSyncService {
     };
 
     const now = Date.now();
+    // Resolved once per pull: every entity this run creates belongs to
+    // whichever franchise's Clover connection is running the sync — a
+    // second franchise's sync must never see or touch these rows.
+    const orgId = await resolveActingOrgId();
 
     // ── Categories ──────────────────────────────────────────────────────────
     const cloverCategories = await client.listAllCategories({ expand: "items" });
@@ -100,7 +105,7 @@ class CloverCatalogSyncService {
 
     for (const cat of cloverCategories) {
       try {
-        const row = await this.upsertCategory(cat, now);
+        const row = await this.upsertCategory(cat, now, orgId);
         categoryByCloverId.set(cat.id, row);
         seenCategoryIds.add(cat.id);
         result.categories.upserted += 1;
@@ -150,14 +155,14 @@ class CloverCatalogSyncService {
 
     for (const group of cloverGroups) {
       try {
-        const groupRow = await this.upsertModifierGroup(group, now);
+        const groupRow = await this.upsertModifierGroup(group, now, orgId);
         seenGroupIds.add(group.id);
         result.modifierGroups.upserted += 1;
 
         const mods = group.modifiers?.elements ?? [];
         for (const mod of mods) {
           try {
-            await this.upsertModifier(mod, groupRow.id, now);
+            await this.upsertModifier(mod, groupRow.id, now, orgId);
             seenModifierIds.add(mod.id);
             result.modifiers.upserted += 1;
           } catch (err) {
@@ -221,7 +226,7 @@ class CloverCatalogSyncService {
 
     for (const disc of cloverDiscounts) {
       try {
-        await this.upsertDiscount(disc, now);
+        await this.upsertDiscount(disc, now, orgId);
         seenDiscountIds.add(disc.id);
         result.discounts.upserted += 1;
       } catch (err) {
@@ -246,7 +251,7 @@ class CloverCatalogSyncService {
 
     for (const tax of cloverTaxRates) {
       try {
-        await this.upsertTaxRate(tax, now);
+        await this.upsertTaxRate(tax, now, orgId);
         seenTaxRateIds.add(tax.id);
         result.taxRates.upserted += 1;
       } catch (err) {
@@ -271,7 +276,7 @@ class CloverCatalogSyncService {
 
     for (const tag of cloverTags) {
       try {
-        await this.upsertPrinterLabel(tag, now);
+        await this.upsertPrinterLabel(tag, now, orgId);
         seenTagIds.add(tag.id);
         result.printerLabels.upserted += 1;
       } catch (err) {
@@ -320,7 +325,7 @@ class CloverCatalogSyncService {
 
       for (const menu of cloverMenus) {
         try {
-          const menuRow = await this.upsertMenu(menu, now);
+          const menuRow = await this.upsertMenu(menu, now, orgId);
           seenMenuIds.add(menu.id);
           result.menus.upserted += 1;
           result.links.menuItems += await this.syncMenuItems(client, menu.id, menuRow.id, now);
@@ -457,7 +462,11 @@ class CloverCatalogSyncService {
     };
   }
 
-  private async upsertCategory(cat: CloverCategory, now: number): Promise<ProductCategoryRow> {
+  private async upsertCategory(
+    cat: CloverCategory,
+    now: number,
+    orgId: string | null,
+  ): Promise<ProductCategoryRow> {
     const patch = {
       name: cat.name,
       sortOrder: cat.sortOrder ?? 0,
@@ -466,6 +475,7 @@ class CloverCatalogSyncService {
       cloverCategoryId: cat.id,
       cloverParentCategoryId: cat.parentCategory?.id ?? null,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await productCategoriesRepository.findByCloverCategoryId(cat.id);
     if (existing) {
@@ -475,7 +485,7 @@ class CloverCatalogSyncService {
     return productCategoriesRepository.create(patch);
   }
 
-  private async upsertModifierGroup(group: CloverModifierGroup, now: number) {
+  private async upsertModifierGroup(group: CloverModifierGroup, now: number, orgId: string | null) {
     const patch = {
       name: group.name,
       alternateName: group.alternateName ?? null,
@@ -486,6 +496,7 @@ class CloverCatalogSyncService {
       active: group.deleted !== true,
       cloverModifierGroupId: group.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await modifierGroupsRepository.findByCloverModifierGroupId(group.id);
     if (existing) {
@@ -500,6 +511,7 @@ class CloverCatalogSyncService {
     mod: CloverModifier,
     modifierGroupId: bigint,
     now: number,
+    orgId: string | null,
   ) {
     const priceDollars = cloverCentsToDollars(mod.price ?? 0);
     const patch = {
@@ -511,6 +523,7 @@ class CloverCatalogSyncService {
       active: mod.deleted !== true,
       cloverModifierId: mod.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await modifiersRepository.findByCloverModifierId(mod.id);
     if (existing) {
@@ -519,7 +532,7 @@ class CloverCatalogSyncService {
     return modifiersRepository.create(patch);
   }
 
-  private async upsertTaxRate(tax: CloverTaxRate, now: number) {
+  private async upsertTaxRate(tax: CloverTaxRate, now: number, orgId: string | null) {
     // A Clover tax rate is either percentage or flat; keep the unused side null
     // so a reader never has to decide which of two populated fields wins.
     const percent = cloverRateToPercent(tax.rate);
@@ -533,6 +546,7 @@ class CloverCatalogSyncService {
       active: tax.deleted !== true,
       cloverTaxRateId: tax.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await taxRatesRepository.findByCloverTaxRateId(tax.id);
     if (existing) {
@@ -541,13 +555,14 @@ class CloverCatalogSyncService {
     return taxRatesRepository.create(patch);
   }
 
-  private async upsertPrinterLabel(tag: CloverTag, now: number) {
+  private async upsertPrinterLabel(tag: CloverTag, now: number, orgId: string | null) {
     const patch = {
       name: tag.name,
       showInReporting: tag.showInReporting === true,
       active: tag.deleted !== true,
       cloverTagId: tag.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await printerLabelsRepository.findByCloverTagId(tag.id);
     if (existing) {
@@ -556,7 +571,7 @@ class CloverCatalogSyncService {
     return printerLabelsRepository.create(patch);
   }
 
-  private async upsertMenu(menu: CloverMenu, now: number) {
+  private async upsertMenu(menu: CloverMenu, now: number, orgId: string | null) {
     const patch = {
       name: menu.name,
       active: true,
@@ -566,6 +581,7 @@ class CloverCatalogSyncService {
       cloverPublishedAt: menu.publishedAt ?? null,
       cloverFallbackMenu: menu.fallbackMenu === true,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await menusRepository.findByCloverMenuId(menu.id);
     if (existing) {
@@ -616,7 +632,7 @@ class CloverCatalogSyncService {
     return written;
   }
 
-  private async upsertDiscount(disc: CloverDiscount, now: number) {
+  private async upsertDiscount(disc: CloverDiscount, now: number, orgId: string | null) {
     const amountDollars =
       disc.amount != null ? cloverCentsToDollars(disc.amount) : null;
     const patch = {
@@ -626,6 +642,7 @@ class CloverCatalogSyncService {
       active: disc.deleted !== true,
       cloverDiscountId: disc.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
     const existing = await discountsRepository.findByCloverDiscountId(disc.id);
     if (existing) {

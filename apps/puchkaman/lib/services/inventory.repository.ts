@@ -38,15 +38,15 @@ export class ProductCategoriesRepository extends ClientScopedRepository<typeof p
   }
 
   async findByCloverCategoryId(cloverCategoryId: string): Promise<ProductCategoryRow | null> {
+    const scope = await this.scope();
+    const base = and(
+      eq(productCategories.cloverCategoryId, cloverCategoryId),
+      isNotNull(productCategories.cloverCategoryId),
+    );
     const [row] = await this.db
       .select()
       .from(productCategories)
-      .where(
-        and(
-          eq(productCategories.cloverCategoryId, cloverCategoryId),
-          isNotNull(productCategories.cloverCategoryId),
-        ),
-      )
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -75,15 +75,15 @@ export class ModifierGroupsRepository extends ClientScopedRepository<typeof modi
   async findByCloverModifierGroupId(
     cloverModifierGroupId: string,
   ): Promise<ModifierGroupRow | null> {
+    const scope = await this.scope();
+    const base = and(
+      eq(modifierGroups.cloverModifierGroupId, cloverModifierGroupId),
+      isNotNull(modifierGroups.cloverModifierGroupId),
+    );
     const [row] = await this.db
       .select()
       .from(modifierGroups)
-      .where(
-        and(
-          eq(modifierGroups.cloverModifierGroupId, cloverModifierGroupId),
-          isNotNull(modifierGroups.cloverModifierGroupId),
-        ),
-      )
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -114,10 +114,12 @@ export class ModifiersRepository extends ClientScopedRepository<typeof modifiers
   }
 
   async findByCloverModifierId(cloverModifierId: string): Promise<ModifierRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(modifiers.cloverModifierId, cloverModifierId), isNotNull(modifiers.cloverModifierId));
     const [row] = await this.db
       .select()
       .from(modifiers)
-      .where(and(eq(modifiers.cloverModifierId, cloverModifierId), isNotNull(modifiers.cloverModifierId)))
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -144,12 +146,12 @@ export class DiscountsRepository extends ClientScopedRepository<typeof discounts
   }
 
   async findByCloverDiscountId(cloverDiscountId: string): Promise<DiscountRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(discounts.cloverDiscountId, cloverDiscountId), isNotNull(discounts.cloverDiscountId));
     const [row] = await this.db
       .select()
       .from(discounts)
-      .where(
-        and(eq(discounts.cloverDiscountId, cloverDiscountId), isNotNull(discounts.cloverDiscountId)),
-      )
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -185,10 +187,12 @@ export class MenusRepository extends ClientScopedRepository<typeof menus> {
   }
 
   async findByCloverMenuId(cloverMenuId: string): Promise<MenuRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(menus.cloverMenuId, cloverMenuId), isNotNull(menus.cloverMenuId));
     const [row] = await this.db
       .select()
       .from(menus)
-      .where(and(eq(menus.cloverMenuId, cloverMenuId), isNotNull(menus.cloverMenuId)))
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -316,10 +320,12 @@ export class TaxRatesRepository extends ClientScopedRepository<typeof taxRates> 
   }
 
   async findByCloverTaxRateId(cloverTaxRateId: string): Promise<TaxRateRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(taxRates.cloverTaxRateId, cloverTaxRateId), isNotNull(taxRates.cloverTaxRateId));
     const [row] = await this.db
       .select()
       .from(taxRates)
-      .where(and(eq(taxRates.cloverTaxRateId, cloverTaxRateId), isNotNull(taxRates.cloverTaxRateId)))
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
@@ -346,10 +352,12 @@ export class PrinterLabelsRepository extends ClientScopedRepository<typeof print
   }
 
   async findByCloverTagId(cloverTagId: string): Promise<PrinterLabelRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(printerLabels.cloverTagId, cloverTagId), isNotNull(printerLabels.cloverTagId));
     const [row] = await this.db
       .select()
       .from(printerLabels)
-      .where(and(eq(printerLabels.cloverTagId, cloverTagId), isNotNull(printerLabels.cloverTagId)))
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }

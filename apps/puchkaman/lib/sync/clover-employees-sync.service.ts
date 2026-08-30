@@ -10,6 +10,7 @@ import {
 } from "@/lib/services/employees.repository";
 import { createMemberUser } from "@/lib/services/create-member-user";
 import { usersRepository } from "@/lib/services/users.repository";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
 
 export type CloverEmployeesPullResult = {
   upserted: number;
@@ -55,11 +56,12 @@ class CloverEmployeesSyncService {
     };
     const now = Date.now();
     const seen = new Set<string>();
+    const orgId = await resolveActingOrgId();
 
     const remote = await client.listAllEmployees();
     for (const emp of remote) {
       try {
-        await this.upsert(emp, now, result);
+        await this.upsert(emp, now, result, orgId);
         seen.add(emp.id);
         result.upserted += 1;
       } catch (err) {
@@ -84,7 +86,8 @@ class CloverEmployeesSyncService {
   async pullOne(client: CloverApiClient, cloverEmployeeId: string): Promise<EmployeeRow> {
     const emp = await client.getEmployee(cloverEmployeeId);
     const result: CloverEmployeesPullResult = { upserted: 0, inactivated: 0, errors: [] };
-    const row = await this.upsert(emp, Date.now(), result);
+    const orgId = await resolveActingOrgId();
+    const row = await this.upsert(emp, Date.now(), result, orgId);
     if (result.errors.length > 0) throw new Error(result.errors[0]!.message);
     return row;
   }
@@ -93,6 +96,7 @@ class CloverEmployeesSyncService {
     emp: CloverEmployee,
     now: number,
     result: CloverEmployeesPullResult,
+    orgId: string | null,
   ): Promise<EmployeeRow> {
     const active = emp.deletedTime == null;
     const existing = await employeesRepository.findByCloverEmployeeId(emp.id);
@@ -107,6 +111,7 @@ class CloverEmployeesSyncService {
       active,
       cloverEmployeeId: emp.id,
       cloverLastSyncedAt: now,
+      organizationId: orgId,
     };
 
     // An existing link is never re-resolved (see below), but a dead one must

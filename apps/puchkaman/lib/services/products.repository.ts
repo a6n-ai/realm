@@ -15,30 +15,41 @@ export class ProductsRepository extends ClientScopedRepository<typeof products> 
     return this.db.select().from(products).where(await this.scope());
   }
 
+  // Every lookup below is org-scoped: each franchise has its own Clover
+  // merchant connection, so a sync run must only ever see, dedupe against, or
+  // match its own franchise's products — never another franchise's, even
+  // though Clover item ids/slugs happen to share one Postgres table.
   async findByPublicIds(publicIds: string[]): Promise<ProductRow[]> {
     if (publicIds.length === 0) return [];
-    return this.db.select().from(products).where(inArray(products.publicId, publicIds));
+    const scope = await this.scope();
+    return this.db
+      .select()
+      .from(products)
+      .where(scope ? and(inArray(products.publicId, publicIds), scope) : inArray(products.publicId, publicIds));
   }
 
   async findByCloverItemId(cloverItemId: string): Promise<ProductRow | null> {
+    const scope = await this.scope();
+    const base = and(eq(products.cloverItemId, cloverItemId), isNotNull(products.cloverItemId));
     const [row] = await this.db
       .select()
       .from(products)
-      .where(and(eq(products.cloverItemId, cloverItemId), isNotNull(products.cloverItemId)))
+      .where(scope ? and(base, scope) : base)
       .limit(1);
     return row ?? null;
   }
 
   async listLinkedCloverItemIds(): Promise<string[]> {
+    const scope = await this.scope();
     const rows = await this.db
       .select({ cloverItemId: products.cloverItemId })
       .from(products)
-      .where(isNotNull(products.cloverItemId));
+      .where(scope ? and(isNotNull(products.cloverItemId), scope) : isNotNull(products.cloverItemId));
     return rows.map((r) => r.cloverItemId).filter((id): id is string => !!id);
   }
 
   async listSlugs(): Promise<string[]> {
-    const rows = await this.db.select({ slug: products.slug }).from(products);
+    const rows = await this.db.select({ slug: products.slug }).from(products).where(await this.scope());
     return rows.map((r) => r.slug).filter((s): s is string => !!s);
   }
 
