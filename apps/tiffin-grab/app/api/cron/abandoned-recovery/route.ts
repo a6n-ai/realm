@@ -17,6 +17,7 @@ async function handle(request: Request): Promise<Response> {
 
   try {
     const terminalized = await terminalizeAbandonedOrders();
+    log.info({ terminalized }, "abandoned-recovery pass complete");
     return Response.json({ terminalized });
   } catch (err) {
     log.error({ err }, "abandoned-recovery pass failed");
