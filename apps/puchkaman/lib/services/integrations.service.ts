@@ -40,12 +40,21 @@ const appService = new AppService(appRepository);
  * through to the brand's `isDefaultLocation` org regardless of which
  * franchise's site they were actually ordering from. Only then does it fall
  * to the brand.
+ *
+ * The cookie fallback is gated on `!session` specifically, not just
+ * `!activeOrgId` — a logged-in staff member who simply hasn't picked a
+ * franchise via the switcher yet (activeOrganizationId null, meaning "use
+ * the brand default") must NEVER inherit whatever `franchise` cookie happens
+ * to sit on their browser from browsing the public site. That cookie is a
+ * customer-facing concept; picking it up here silently resolved a brand
+ * admin's whole dashboard (Settings -> Integrations, catalog listings) to
+ * whichever franchise they'd last visited publicly, instead of the brand.
  */
 async function resolveActingOrg() {
   const session = await getSession();
   let activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
 
-  if (!activeOrgId) {
+  if (!session && !activeOrgId) {
     // Same "no request scope" edge case resolveRequestOrg() guards against
     // (a script/cron/test calling this with no active Next.js request) —
     // cookies() throws synchronously there, not a rejected promise, so this
