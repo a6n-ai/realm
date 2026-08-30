@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, MapPin } from "lucide-react";
 import { Button } from "@realm/ui/button";
@@ -32,6 +32,7 @@ export function LocationPicker<T extends PickableLocation>({
   detectSuggestion: () => Promise<T | null>;
 }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [locations, setLocations] = useState<T[] | null>(null);
   const [suggestion, setSuggestion] = useState<T | null>(null);
   const [showSuggestion, setShowSuggestion] = useState(false);
@@ -68,7 +69,13 @@ export function LocationPicker<T extends PickableLocation>({
     setActiveCode(loc.clientCode);
     setShowSuggestion(false);
     setShowPicker(false);
-    router.refresh();
+    // startTransition keeps isPending true across the refresh — the FAB can
+    // show a spinner/disabled state for the whole "server re-rendering the
+    // page for the new franchise" window instead of the switch looking like
+    // nothing happened until the new data suddenly appears.
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   const active = locations.find((l) => l.clientCode === activeCode) ?? null;
@@ -93,11 +100,11 @@ export function LocationPicker<T extends PickableLocation>({
         contentClassName="location-picker-dialog"
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" className="location-picker-btn location-picker-btn--outline flex-1" onClick={() => { setShowSuggestion(false); setShowPicker(true); }}>
+            <Button variant="outline" className="location-picker-btn location-picker-btn--outline flex-1" disabled={isPending} onClick={() => { setShowSuggestion(false); setShowPicker(true); }}>
               Change location
             </Button>
-            <Button className="location-picker-btn flex-1" onClick={() => suggestion && selectLocation(suggestion)}>
-              Confirm
+            <Button className="location-picker-btn flex-1" disabled={isPending} onClick={() => suggestion && selectLocation(suggestion)}>
+              {isPending ? "Switching…" : "Confirm"}
             </Button>
           </div>
         }
@@ -129,8 +136,9 @@ export function LocationPicker<T extends PickableLocation>({
                 key={loc.id}
                 type="button"
                 onClick={() => selectLocation(loc)}
+                disabled={isPending}
                 aria-pressed={loc.clientCode === activeCode}
-                className="location-picker-card flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted data-[active=true]:border-primary"
+                className="location-picker-card flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted disabled:cursor-wait disabled:opacity-60 data-[active=true]:border-primary"
                 data-active={loc.clientCode === activeCode}
               >
                 <span className="flex w-full items-center gap-1.5 font-medium">
@@ -151,11 +159,13 @@ export function LocationPicker<T extends PickableLocation>({
       <button
         type="button"
         onClick={() => setShowPicker(true)}
+        disabled={isPending}
+        aria-busy={isPending}
         aria-label={active ? `Delivering to ${active.name}. Change location.` : "Change delivery location"}
-        className="location-picker-fab fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted"
+        className="location-picker-fab fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted disabled:cursor-wait disabled:opacity-70"
       >
-        <MapPin className="size-4 text-primary" />
-        {active ? active.city ?? active.name : "Deliver to"}
+        <MapPin className={isPending ? "size-4 text-primary animate-pulse" : "size-4 text-primary"} />
+        {isPending ? "Switching…" : active ? (active.city ?? active.name) : "Deliver to"}
       </button>
     </>
   );
