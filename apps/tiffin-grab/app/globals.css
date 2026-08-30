@@ -221,6 +221,12 @@
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Hero KPI numbers only (StatCard/StatBar `pixelValue`) — Geist Pixel's
+   circle-dot digit shapes, trialed on the dashboard overview page. */
+.font-pixel-circle {
+  font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace;
+}
+
 /* ── Visual flare ─────────────────────────────────────────────
    Motion + depth within the monochrome system. Respects
    prefers-reduced-motion (all keyframe animations disabled below). */

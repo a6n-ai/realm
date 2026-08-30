@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { GeistPixelCircle } from "geist/font/pixel";
 import { ThemeProvider, themeInitScript } from "@realm/themes";
 import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@realm/ui/sonner";
@@ -40,7 +41,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${poppins.variable} ${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable} h-full antialiased`}
     >
       <head>
         <InlineScript html={themeInitScript} />

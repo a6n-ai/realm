@@ -104,11 +104,13 @@ async function OverviewStats() {
   await requireStaff();
   const stats = await loadStats();
 
+  // pixelValue trials Geist Pixel (Circle) on this page's hero numbers only —
+  // not yet a StatCard-wide default.
   const cards = [
-    { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon },
-    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon },
-    { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "pending delivery zones", icon: ClockIcon },
-    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans", icon: DollarSignIcon },
+    { label: "Members", value: String(stats.userCount), hint: "registered accounts", icon: UsersIcon, pixelValue: true },
+    { label: "Active orders", value: String(stats.subsActive), hint: `${stats.subsTotal} total`, icon: PackageIcon, pixelValue: true },
+    { label: "Waitlisted", value: String(stats.subsWaitlisted), hint: "pending delivery zones", icon: ClockIcon, pixelValue: true },
+    { label: "Revenue", value: fmt(stats.revenue), hint: "active plans", icon: DollarSignIcon, pixelValue: true },
   ];
 
   return <StatGrid cols={4} items={cards} />;
