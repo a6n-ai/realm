@@ -23,6 +23,11 @@ import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { AppBrand } from "@/components/app-brand";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 
+// Every page under here is auth-gated (getSession() reads headers()), so none can
+// ever actually be static — this just stops Next from wastefully rendering all
+// ~126 of them once at build time only to discard the result.
+export const dynamic = "force-dynamic";
+
 // Any authenticated user reaches the shell; the sidebar filters nav by role and
 // staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
 // it for the account page.

@@ -10,8 +10,6 @@ import {
   getOrdersByTier,
 } from "@/lib/services/analytics/products.service";
 
-export const dynamic = "force-dynamic";
-
 export default function ProductsAnalyticsPage() {
   return (
     <div className="space-y-6">
