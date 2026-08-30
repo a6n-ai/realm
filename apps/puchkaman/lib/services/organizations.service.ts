@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
@@ -16,18 +16,38 @@ async function resolveUserId(publicId: string): Promise<bigint | null> {
 
 export type MemberOrganization = { id: string; name: string; clientCode: string };
 
-// Every org a staff session has a member row in, for the header switcher. A
-// session with no member rows or exactly one resolves here too — the caller
-// decides whether one org is enough to show a switcher (it isn't).
+// Every org a staff session can act as, for the header switcher. A member row
+// on a franchise grants that franchise only; a member row on a brand (no
+// parentOrganizationId) grants every franchise under it too — a brand admin
+// shouldn't need a separate member row per location. A session with no orgs
+// or exactly one resolves here too — the caller decides whether one org is
+// enough to show a switcher (it isn't).
 export async function getMemberOrganizations(session: { user: { id: string } } | null): Promise<MemberOrganization[]> {
   if (!session) return [];
   const userId = await resolveUserId(session.user.id);
   if (!userId) return [];
-  return db
-    .select({ id: organization.id, name: organization.name, clientCode: organization.clientCode })
+  const directRows = await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      clientCode: organization.clientCode,
+      parentOrganizationId: organization.parentOrganizationId,
+    })
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .where(eq(member.userId, userId));
+
+  const brandIds = directRows.filter((r) => r.parentOrganizationId === null).map((r) => r.id);
+  const franchiseRows = brandIds.length
+    ? await db
+        .select({ id: organization.id, name: organization.name, clientCode: organization.clientCode })
+        .from(organization)
+        .where(inArray(organization.parentOrganizationId, brandIds))
+    : [];
+
+  const byId = new Map<string, MemberOrganization>();
+  for (const r of [...directRows, ...franchiseRows]) byId.set(r.id, { id: r.id, name: r.name, clientCode: r.clientCode });
+  return [...byId.values()];
 }
 
 export type OrganizationListPageRow = {

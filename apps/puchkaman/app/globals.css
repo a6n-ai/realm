@@ -744,6 +744,88 @@ section { position: relative; }
 [data-theme="dark"] .theme-toggle .icon-sun  { display: none; }
 [data-theme="dark"] .theme-toggle .icon-moon { display: block; }
 
+/* ---------- Location picker (floating "Deliver to" + suggest/choose popups) ----------
+   Shared component (@realm/design-system) exposes bare `location-picker-*`
+   class hooks with no styling of its own — this is puchkaman's brutalist skin
+   for them. !important because the hooked elements are shadcn Dialog/Drawer/
+   Button/Input primitives whose own utility classes (rounded-lg, bg-background,
+   shadow-lg, …) sit at the same specificity and would otherwise win purely on
+   source order. */
+.location-picker-fab {
+  border: var(--bd) solid var(--yellow) !important;
+  border-radius: var(--r-sm) !important;
+  background: var(--ink) !important;
+  color: var(--yellow) !important;
+  box-shadow: var(--sh-green) !important;
+  padding: 12px 18px !important;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .location-picker-fab:hover { background: var(--ink) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
+}
+.location-picker-fab:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--green) !important; }
+.location-picker-fab svg { color: var(--yellow) !important; }
+
+.location-picker-dialog {
+  border: var(--bd) solid var(--ink) !important;
+  border-radius: var(--r) !important;
+  box-shadow: var(--sh-lg) !important;
+  background: var(--paper) !important;
+}
+.location-picker-dialog [data-slot="dialog-title"],
+.location-picker-dialog [data-slot="drawer-title"] {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.location-picker-card {
+  border: var(--bd) solid var(--ink) !important;
+  border-radius: var(--r-sm) !important;
+  background: var(--white) !important;
+  box-shadow: 4px 4px 0 var(--ink) !important;
+  transition: transform .08s ease, box-shadow .08s ease, background .12s ease !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .location-picker-card:hover { background: var(--cream) !important; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink) !important; }
+}
+.location-picker-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink) !important; }
+.location-picker-card svg { color: var(--green) !important; }
+
+.location-picker-input {
+  border: var(--bd) solid var(--ink) !important;
+  border-radius: var(--r-sm) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  background: var(--white) !important;
+}
+.location-picker-input:focus-visible {
+  border-color: var(--green) !important;
+  box-shadow: 4px 4px 0 var(--green) !important;
+}
+
+.location-picker-btn {
+  border: var(--bd) solid var(--ink) !important;
+  border-radius: var(--r-sm) !important;
+  background: var(--green) !important;
+  color: var(--white) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.location-picker-btn--outline {
+  background: var(--white) !important;
+  color: var(--ink) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  .location-picker-btn:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink) !important; }
+}
+.location-picker-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink) !important; }
+
 /* ---------- Brand logo mark — circular 3D bevel ----------
    Mirrors .btn / .btn--sm: thick --bd border, hard offset shadow
    (no blur), inset light/dark edges for a chunky coin bevel.

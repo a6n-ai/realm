@@ -73,17 +73,22 @@ export function LocationPicker<T extends PickableLocation>({
 
   return (
     <>
+      {/* Bare `location-picker-*` class hooks below are unstyled by default (pure
+          Tailwind carries the look) — an app opts in by targeting them in its own
+          global stylesheet, e.g. puchkaman's brutalist skin. Adding them here is a
+          no-op for every other app. */}
       <ResponsiveDialog
         open={showSuggestion}
         onOpenChange={setShowSuggestion}
         title="Serving in your area"
         description={suggestion ? `Order from our ${suggestion.city} location?` : undefined}
+        contentClassName="location-picker-dialog"
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => { setShowSuggestion(false); setShowPicker(true); }}>
+            <Button variant="outline" className="location-picker-btn location-picker-btn--outline flex-1" onClick={() => { setShowSuggestion(false); setShowPicker(true); }}>
               Change location
             </Button>
-            <Button className="flex-1" onClick={() => suggestion && selectLocation(suggestion)}>
+            <Button className="location-picker-btn flex-1" onClick={() => suggestion && selectLocation(suggestion)}>
               Confirm
             </Button>
           </div>
@@ -100,6 +105,7 @@ export function LocationPicker<T extends PickableLocation>({
         onOpenChange={setShowPicker}
         title="Choose your location"
         description="Search by city or address, or pick a card below."
+        contentClassName="location-picker-dialog"
       >
         <div className="space-y-3 p-4">
           <Input
@@ -107,6 +113,7 @@ export function LocationPicker<T extends PickableLocation>({
             placeholder="Search by city or address"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            className="location-picker-input"
           />
           <div className="grid gap-2 sm:grid-cols-2">
             {filtered.map((loc) => (
@@ -114,7 +121,7 @@ export function LocationPicker<T extends PickableLocation>({
                 key={loc.id}
                 type="button"
                 onClick={() => selectLocation(loc)}
-                className="flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted"
+                className="location-picker-card flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted"
               >
                 <span className="flex items-center gap-1.5 font-medium">
                   <MapPin className="size-4 shrink-0 text-primary" />
@@ -134,7 +141,7 @@ export function LocationPicker<T extends PickableLocation>({
         type="button"
         onClick={() => setShowPicker(true)}
         aria-label="Change delivery location"
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted"
+        className="location-picker-fab fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted"
       >
         <MapPin className="size-4 text-primary" />
         Deliver to
