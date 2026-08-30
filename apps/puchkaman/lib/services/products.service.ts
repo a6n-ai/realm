@@ -17,7 +17,7 @@ import { filesService } from "@/lib/files";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { resolveOrgScopeMode } from "@/lib/services/org-scope";
+import { orgScopeWhereForAdmin, resolveOrgScopeMode } from "@/lib/services/org-scope";
 import { productSchema } from "@/lib/products/schema";
 import {
   cloverInventorySyncService,
@@ -246,27 +246,37 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     featured: number;
     categories: number;
   }> {
+    const scope = await orgScopeWhereForAdmin(products.organizationId);
     const [[{ total }], [{ featured }], [{ categories }]] = await Promise.all([
-      db.select({ total: sql<number>`cast(count(*) as int)` }).from(products),
+      db.select({ total: sql<number>`cast(count(*) as int)` }).from(products).where(scope),
       db
         .select({ featured: sql<number>`cast(count(*) as int)` })
         .from(products)
-        .where(eq(products.featured, true)),
-      db.select({ categories: sql<number>`cast(count(distinct ${products.category}) as int)` }).from(products),
+        .where(and(eq(products.featured, true), scope)),
+      db
+        .select({ categories: sql<number>`cast(count(distinct ${products.category}) as int)` })
+        .from(products)
+        .where(scope),
     ]);
 
     return { total, featured, categories };
   }
 
   async recentProducts(limit: number): Promise<ProductListRow[]> {
-    return db.select().from(products).orderBy(desc(products.createdAt)).limit(limit);
-  }
-
-  async featuredProducts(limit: number): Promise<ProductListRow[]> {
     return db
       .select()
       .from(products)
-      .where(eq(products.featured, true))
+      .where(await orgScopeWhereForAdmin(products.organizationId))
+      .orderBy(desc(products.createdAt))
+      .limit(limit);
+  }
+
+  async featuredProducts(limit: number): Promise<ProductListRow[]> {
+    const scope = await orgScopeWhereForAdmin(products.organizationId);
+    return db
+      .select()
+      .from(products)
+      .where(and(eq(products.featured, true), scope))
       .orderBy(desc(products.createdAt))
       .limit(limit);
   }

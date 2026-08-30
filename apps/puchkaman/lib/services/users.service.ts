@@ -2,10 +2,11 @@ import { Role, type RoleValue, ValidationError } from "@realm/commons";
 import type { Condition, FilterCondition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, session as sessionTable, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 import { usersRepository, type UserRow } from "./users.repository";
 import { currentUserId, SessionUpdatableService } from "./session-service";
 
@@ -61,7 +62,23 @@ class UsersService extends SessionUpdatableService<typeof users> {
     page: PageRequest,
     sort: SortState<UserSortColumn> = { column: "name", dir: "asc" },
   ): Promise<Page<UserListRow>> {
-    const where = conditionToSql(condition, resolveUserFacet);
+    // Franchise-scoped session: only staff with a member row in that franchise
+    // — customers (role "user") hold no member row by design and so drop out
+    // entirely under this filter, same as they're absent from a franchise's
+    // Clients row. Brand/super_admin (resolveOrgScopeMode "all") is unfiltered,
+    // same as before this scoping existed.
+    const scopeMode = await resolveOrgScopeMode();
+    const where = and(
+      conditionToSql(condition, resolveUserFacet),
+      scopeMode.mode === "org"
+        ? exists(
+            db
+              .select({ n: sql`1` })
+              .from(member)
+              .where(and(eq(member.userId, users.id), eq(member.organizationId, scopeMode.orgId))),
+          )
+        : undefined,
+    );
     const col = USER_SORT_COL[sort.column] ?? users.name;
 
     const [items, [{ count }]] = await Promise.all([

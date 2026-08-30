@@ -6,6 +6,7 @@ import { conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 
 // Same publicId -> internal bigint resolution used elsewhere in this app's
 // services — kept local since it's a one-line lookup, not shared logic.
@@ -89,7 +90,15 @@ export async function queryOrganizations(
   page: PageRequest,
   sort: SortState<OrgSortColumn> = { column: "name", dir: "asc" },
 ): Promise<Page<OrganizationListPageRow>> {
-  const where = conditionToSql(condition, resolveOrgFacet);
+  // A franchise-scoped session manages its own client row only — sibling
+  // franchises and the brand itself aren't its business. A brand/super_admin
+  // session (resolveOrgScopeMode "all") sees the full Clients list, same as
+  // before this scoping existed.
+  const scopeMode = await resolveOrgScopeMode();
+  const where = and(
+    conditionToSql(condition, resolveOrgFacet),
+    scopeMode.mode === "org" ? eq(organization.id, scopeMode.orgId) : undefined,
+  );
   const col = ORG_SORT_COL[sort.column] ?? organization.name;
 
   const [items, [{ count }]] = await Promise.all([
