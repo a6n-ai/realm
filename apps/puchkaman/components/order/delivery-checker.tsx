@@ -94,8 +94,6 @@ export function DeliveryChecker() {
             setResult({ status: "idle" });
           }}
           onPick={({ address: a, placeId: p }) => {
-            // lat/lng aren't used here — this checker never creates an order,
-            // it only reports what delivery types an address qualifies for.
             setAddress(a);
             setPlaceId(p);
           }}

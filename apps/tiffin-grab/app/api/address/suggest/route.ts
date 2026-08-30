@@ -14,7 +14,7 @@ const SUGGEST_WINDOW_MS = 60_000;
 // a throttled or empty result both degrade to an empty dropdown, not a toast.
 export const POST = handler(async (request: Request): Promise<Response> => {
   const ip = clientIp(request) ?? "unknown";
-  if (isRateLimited(ip, SUGGEST_LIMIT, SUGGEST_WINDOW_MS)) {
+  if (isRateLimited(ip, SUGGEST_LIMIT, SUGGEST_WINDOW_MS, "address-suggest-ip")) {
     return json({ suggestions: [] });
   }
 

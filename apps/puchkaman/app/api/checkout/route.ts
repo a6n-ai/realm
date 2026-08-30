@@ -1,18 +1,10 @@
-import { z } from "zod";
 import { handler, json, problem } from "@realm/routes";
 import { ValidationError } from "@realm/commons";
+import { resolveAndPersist } from "@realm/places";
 import {
   createCheckoutSchema,
   ordersService,
 } from "@/lib/services/orders.service";
-
-// lat/lng travel alongside the checkout body, not inside createCheckoutSchema
-// (that schema is .strict() as a client-input guard) — resolved client-side
-// by the AddressAutocomplete's resolve call, optional since a typed-but-
-// unresolved address must still be able to check out.
-const resolvedDeliverySchema = z
-  .object({ lat: z.number(), lng: z.number() })
-  .nullish();
 
 /** Create pending local order + Clover atomic order; return PAKMS key for iframe. */
 export const POST = handler(async (request: Request): Promise<Response> => {
@@ -21,13 +13,21 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   if (!parsed.success) {
     return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
   }
-  const resolvedDelivery = resolvedDeliverySchema.safeParse(
-    (body as { resolvedDelivery?: unknown } | null)?.resolvedDelivery,
-  );
+  // Coordinates are never taken from the request body — a client asserting its
+  // own lat/lng could plant a point next to the shop. Re-resolve the same
+  // placeId/address the client typed server-side (AWS-only, persist bucket)
+  // and store only that result; a typed-but-unresolved address just gets null.
+  const resolvedDelivery =
+    parsed.data.fulfillment.type === "delivery"
+      ? await resolveAndPersist({
+          placeId: parsed.data.fulfillment.placeId,
+          address: parsed.data.fulfillment.address,
+        }).catch(() => null)
+      : null;
   try {
     const result = await ordersService.createCheckout(
       parsed.data,
-      resolvedDelivery.success ? resolvedDelivery.data : null,
+      resolvedDelivery ? { lat: resolvedDelivery.lat, lng: resolvedDelivery.lng } : null,
     );
     return json(result);
   } catch (e) {

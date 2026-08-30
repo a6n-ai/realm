@@ -17,7 +17,7 @@ const RESOLVE_WINDOW_MS = 60_000;
 // path that persists a geocode, so it must never route through Google.
 export const POST = handler(async (request: Request): Promise<Response> => {
   const ip = clientIp(request) ?? "unknown";
-  if (isRateLimited(ip, RESOLVE_LIMIT, RESOLVE_WINDOW_MS)) {
+  if (isRateLimited(ip, RESOLVE_LIMIT, RESOLVE_WINDOW_MS, "address-resolve-ip")) {
     return json({ place: null });
   }
 

@@ -2,6 +2,7 @@
 
 import { ValidationError } from "@realm/commons";
 import { createLogger } from "@realm/commons/logger";
+import { resolveAndPersist } from "@realm/places";
 import { getSession } from "@/lib/auth/session";
 import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
@@ -62,11 +63,33 @@ export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmR
   // the internal bigint. A logged-in customer's checkout attaches to their own
   // account; anonymous checkout provisions by phone.
   const userId = session?.user?.id ?? null;
+
+  // input.contact.lat/lng is only a client-side preview (from the browser's
+  // earlier /api/address/resolve call while typing) — never trust it directly,
+  // a client could assert any coordinate regardless of the typed address. This
+  // is the public checkout entry point (a Server Action a request can call
+  // directly), so re-resolve the same address text server-side here and store
+  // only that result; a resolve failure just stores null, same as before.
+  const resolvedDelivery = input.contact.addressLine.trim()
+    ? await resolveAndPersist({
+        address: [input.contact.addressLine, input.contact.city, input.contact.postalCode]
+          .filter(Boolean)
+          .join(", "),
+      }).catch(() => null)
+    : null;
+
   // Defense-in-depth: rep coupons flow only through the staff convert path. Never
   // honor a repCoupon arriving on the public checkout payload — even from a
   // logged-in member whose owner==actor check would otherwise pass — so the role
   // boundary is explicit rather than incidental.
-  const result = await createOrder({ ...input, repCoupon: null }, { actorId: userId, ownerUserId: userId, orgId });
+  const result = await createOrder(
+    {
+      ...input,
+      contact: { ...input.contact, lat: resolvedDelivery?.lat ?? null, lng: resolvedDelivery?.lng ?? null },
+      repCoupon: null,
+    },
+    { actorId: userId, ownerUserId: userId, orgId },
+  );
   await maybeSendAccountSetup(input.contact.email);
   return { waitlisted: false, ...result };
 }

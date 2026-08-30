@@ -660,10 +660,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    */
   async createCheckout(
     input: CreateCheckoutInput,
-    // AWS-resolved coordinates for the delivery address, from @realm/places'
-    // resolveAndPersist() at the action layer (Task 3) — never accepted from
-    // the raw request body, and never used here for distance/discount, only
-    // stored for the map. Undefined/pickup orders store null.
+    // AWS-resolved coordinates for the delivery address. The trust boundary is
+    // the caller, not here: /api/checkout re-resolves this from the client's
+    // placeId/address via @realm/places' resolveAndPersist() *before* calling
+    // this method — it never forwards a client-supplied lat/lng. Not used for
+    // distance/discount here, only stored for the map. Undefined/pickup orders
+    // store null.
     resolvedDelivery?: { lat: number; lng: number } | null,
   ): Promise<CheckoutCreateResult> {
     const parsed = createCheckoutSchema.parse(input);
