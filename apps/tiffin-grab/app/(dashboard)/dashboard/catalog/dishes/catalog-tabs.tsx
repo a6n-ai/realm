@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@realm/ui/tabs";
 export function CatalogTabs({ dishes, categories }: { dishes: ReactNode; categories: ReactNode }) {
   return (
     <Tabs defaultValue="dishes">
-      <TabsList>
+      <TabsList variant="line">
         <TabsTrigger value="dishes">Dishes</TabsTrigger>
         <TabsTrigger value="categories">Categories</TabsTrigger>
       </TabsList>

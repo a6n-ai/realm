@@ -2,42 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@realm/ui/cn";
+import type { LucideIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
 
 export interface RoutedTabNavItem {
   href: string;
   label: string;
+  icon?: LucideIcon;
 }
 
 /**
- * Underline-style routed tab bar — same visual language as
- * @realm/notifications/ui's NotificationsNav, generalized so every
- * multi-section settings page (Delivery, Organization, ...) looks the same
- * rather than each standing up its own tab style. Active tab is derived from
- * the URL (prefix match), not local state — the URL is the source of truth
- * for which section is open.
+ * The one tab bar for every multi-section page (Notifications, Organization,
+ * Analytics, Wallet, Discounts, Payments, Finance, Delivery settings, ...) —
+ * shadcn's Tabs primitive (@realm/ui/tabs) with the `line` (underline)
+ * variant, each trigger a real Link so every sub-section keeps its own URL.
+ * Active tab derives from the pathname (prefix match), not local state — the
+ * URL is the source of truth for which section is open.
  */
 export function RoutedTabNav({ tabs, ariaLabel }: { tabs: readonly RoutedTabNavItem[]; ariaLabel?: string }) {
   const pathname = usePathname();
+  const active = tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? tabs[0]?.href;
+
   return (
-    <nav className="flex gap-1 border-b" aria-label={ariaLabel}>
-      {tabs.map((t) => {
-        const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm transition-colors",
-              active
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <Tabs value={active}>
+      <TabsList variant="line" aria-label={ariaLabel} className="h-auto flex-wrap">
+        {tabs.map((t) => (
+          <TabsTrigger key={t.href} value={t.href} asChild>
+            <Link href={t.href}>
+              {t.icon ? <t.icon /> : null}
+              {t.label}
+            </Link>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

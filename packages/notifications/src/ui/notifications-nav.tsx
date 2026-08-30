@@ -1,13 +1,6 @@
-"use client";
+import { RoutedTabNav, type RoutedTabNavItem } from "@realm/design-system";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@realm/ui/cn";
-
-export interface NavTab {
-  href: string;
-  label: string;
-}
+export type NavTab = RoutedTabNavItem;
 
 /** Every app has these; campaigns are opt-in per app (see the `tabs` prop). */
 const DEFAULT_TABS: NavTab[] = [
@@ -18,26 +11,5 @@ const DEFAULT_TABS: NavTab[] = [
 ];
 
 export function NotificationsNav({ tabs = DEFAULT_TABS }: { tabs?: NavTab[] } = {}) {
-  const pathname = usePathname();
-  return (
-    <nav className="flex gap-1 border-b">
-      {tabs.map((t) => {
-        const active = pathname.startsWith(t.href);
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm transition-colors",
-              active
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <RoutedTabNav tabs={tabs} ariaLabel="Notifications sections" />;
 }
