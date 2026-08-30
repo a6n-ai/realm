@@ -436,6 +436,20 @@ class DiscountsService extends SessionUpdatableService<typeof discounts> {
   }
 
   /**
+   * Admin listing — hierarchy-aware (see orgScopeWhereForAdmin), unlike
+   * listAll() above which stays franchise-strict for listRedeemable/
+   * listPublicOffers's checkout-facing use.
+   */
+  async listAllAdmin(): Promise<DiscountRow[]> {
+    const scope = await orgScopeWhereForAdmin(discounts.organizationId);
+    return db
+      .select()
+      .from(discounts)
+      .where(scope)
+      .then((rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+
+  /**
    * Everything a customer could redeem: published offers and coded coupons.
    * Checkout resolves against this, so a staff or comp discount synced from
    * Clover is never in the set to begin with.

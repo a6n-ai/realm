@@ -16,7 +16,7 @@ import { CloverEmployeesSyncActions } from "@/components/admin/clover-employees-
 import { SyncOneEmployeeButton } from "@/components/admin/sync-one-employee-button";
 import { requirePermission } from "@/lib/auth/guards";
 import { employeesService } from "@/lib/services/employees.service";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export default function CloverEmployeesPage() {
 async function HeaderActions() {
   await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
   return (
     <CloverEmployeesSyncActions
       cloverConnected={Boolean(clover.connected && clover.merchantId)}
@@ -56,7 +56,7 @@ async function HeaderActions() {
 async function EmployeesTable() {
   await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
   const rows = await employeesService.listAll();
 

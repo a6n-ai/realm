@@ -12,7 +12,7 @@ import {
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService, type TaxRateSortColumn } from "@/lib/services/inventory.service";
 import { TaxesTable, TaxesTableSkeleton } from "./taxes-table";
 
@@ -74,14 +74,14 @@ export default function CloverTaxesPage({ searchParams }: { searchParams: Search
 async function HeaderActions() {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
   return <CloverCatalogSyncActions cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
 }
 
 async function TaxesData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
   const sp = await searchParams;
   const sort = parseSort(sp, TAX_SORT_COLUMNS, { column: "name", dir: "asc" });

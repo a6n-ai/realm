@@ -12,7 +12,7 @@ import { redirect } from "next/navigation";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import {
   inventoryCatalogService,
   type MenuSortColumn,
@@ -74,7 +74,7 @@ export default function CloverMenusPage({
 async function HeaderActions() {
   await requirePermission({ product: ["write"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
   return (
     <CloverCatalogSyncActions
       cloverConnected={Boolean(clover.connected && clover.merchantId)}
@@ -85,7 +85,7 @@ async function HeaderActions() {
 async function MenusData({ searchParams }: { searchParams: SearchParams }) {
   await requirePermission({ product: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
   const sp = await searchParams;
   const sort = parseSort(sp, MENU_SORT_COLUMNS, { column: "order", dir: "asc" });

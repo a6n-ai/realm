@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requireAdmin } from "@/lib/auth/guards";
 import { DiscountsTable } from "./discounts-table";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default function CloverDiscountsPage() {
 async function HeaderActions() {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
   return (
     <CloverCatalogSyncActions
       cloverConnected={Boolean(clover.connected && clover.merchantId)}
@@ -47,9 +47,9 @@ async function HeaderActions() {
 async function DiscountsTableSection() {
   await requireAdmin();
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
-  const rows = await inventoryCatalogService.discounts.listAll();
+  const rows = await inventoryCatalogService.discounts.listAllAdmin();
 
   if (rows.length === 0) {
     return (

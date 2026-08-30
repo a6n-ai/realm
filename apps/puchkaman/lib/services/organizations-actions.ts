@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 import {
   addMember,
   deriveUniqueClientCode,
@@ -21,6 +22,20 @@ import {
 } from "./organizations.service";
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
+
+// requireAdmin only checks the global admin role — it has no idea which
+// org the caller is scoped to. Without this, any admin-role staff member,
+// regardless of which franchise the UI has them scoped to, could call these
+// actions directly with an arbitrary organizationId (another franchise's, or
+// the brand's) and add/remove members, edit org details, or read member rows
+// they have no business seeing. "all" (brand/super_admin) passes for any org;
+// a franchise session passes only for its own id.
+async function assertOrgInScope(organizationId: string): Promise<void> {
+  const scopeMode = await resolveOrgScopeMode();
+  if (scopeMode.mode === "all") return;
+  if (scopeMode.orgId === organizationId) return;
+  throw new Error("Not authorized for this organization.");
+}
 
 // Better-auth's internal user id is the stringified users.id bigint, never the
 // publicId getSession() exposes (see lib/auth/session.ts) — resolve it here.
@@ -70,6 +85,11 @@ export async function createFranchise(
   name: string,
 ): Promise<CreateFranchiseResult> {
   await requireAdmin();
+  // Only "all" (brand/super_admin) may mint a new franchise — a franchise-
+  // scoped session has no business creating siblings under an arbitrary
+  // brandOrganizationId, its own or anyone else's.
+  const scopeMode = await resolveOrgScopeMode();
+  if (scopeMode.mode !== "all") return { ok: false, error: "Not authorized to create a franchise." };
   try {
     const actingUserId = await resolveActingUserId();
     if (!actingUserId) return { ok: false, error: "No user available to create this organization." };
@@ -113,6 +133,7 @@ export async function addMemberAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
   try {
+    await assertOrgInScope(organizationId);
     await addMember(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/clients/${organizationId}`);
     return { ok: true };
@@ -126,6 +147,11 @@ export async function updateOrganizationAction(
   fields: UpdateOrganizationInput,
 ): Promise<UpdateOrganizationResult> {
   await requireAdmin();
+  try {
+    await assertOrgInScope(id);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Not authorized." };
+  }
   const result = await updateOrganization(id, fields);
   if (result.ok) revalidatePath(`/dashboard/organization/clients/${id}`);
   return result;
@@ -133,6 +159,7 @@ export async function updateOrganizationAction(
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
   await requireAdmin();
+  await assertOrgInScope(organizationId);
   await removeMember(organizationId, userPublicId);
   revalidatePath(`/dashboard/organization/clients/${organizationId}`);
 }
@@ -149,6 +176,7 @@ export async function updateMemberRoleAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
   try {
+    await assertOrgInScope(organizationId);
     await updateMemberRole(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/clients/${organizationId}`);
     return { ok: true };

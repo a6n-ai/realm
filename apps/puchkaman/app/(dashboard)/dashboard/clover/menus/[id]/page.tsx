@@ -10,7 +10,7 @@ import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { requirePermission } from "@/lib/auth/guards";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default function MenuDetailPage({ params }: { params: Promise<{ id: strin
 async function MenuDetailLoader({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission({ product: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
   const { id } = await params;
   const data = await inventoryCatalogService.menus.menuWithItems(id).catch((e) => {

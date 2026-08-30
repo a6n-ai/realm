@@ -16,7 +16,7 @@ import { CloverCustomersSyncActions } from "@/components/admin/clover-customers-
 import { InviteCustomerButton } from "@/components/admin/invite-customer-button";
 import { requirePermission } from "@/lib/auth/guards";
 import { cloverCustomersService } from "@/lib/services/clover-customers.service";
-import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 
 export const dynamic = "force-dynamic";
 
@@ -45,14 +45,14 @@ export default function CloverCustomersPage() {
 async function HeaderActions() {
   await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
   return <CloverCustomersSyncActions cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
 }
 
 async function CustomersTable() {
   await requirePermission({ clover: ["read"] });
   const clover = await getCloverConnection(integrationsConfigStore);
-  if (!clover.installed) redirect("/dashboard/settings/integrations");
+  if (!(await isCloverVisibleInNav())) redirect("/dashboard/settings/integrations");
 
   const rows = await cloverCustomersService.listAll();
 
