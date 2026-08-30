@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Role } from "@realm/commons";
 import { resolveStatuses } from "@realm/crm/server";
+import { CLOVER_PLUGIN_ID } from "@realm/clover/plugin";
 import { Toaster } from "@realm/ui/sonner";
 import { TooltipProvider } from "@realm/ui/tooltip";
 import { CrmShell } from "@realm/crm";
@@ -11,6 +12,7 @@ import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
+import { isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { PLUGINS } from "@/lib/plugins.server";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
@@ -33,7 +35,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard. /set-password sits
   // outside this layout so it can't trap the user.
-  const [u, statuses] = await Promise.all([
+  const [u, statuses, cloverVisibleInNav] = await Promise.all([
     db
       .select({ passwordSet: users.passwordSet, name: users.name, status: users.status })
       .from(users)
@@ -41,8 +43,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       .limit(1)
       .then((rows) => rows[0]),
     resolveStatuses(PLUGINS),
+    isCloverVisibleInNav(),
   ]);
   if (!u) redirect("/login");
+  // A brand admin with no direct Clover connection of its own still manages
+  // every franchise's Clover catalog — see isCloverVisibleInNav. Settings'
+  // own status card is untouched by this; it still correctly reports the
+  // active org's own connection.
+  if (cloverVisibleInNav && !statuses[CLOVER_PLUGIN_ID]?.installed) {
+    statuses[CLOVER_PLUGIN_ID] = { ...statuses[CLOVER_PLUGIN_ID], installed: true };
+  }
   // Re-check status on the read path: the session.create.before hook stops a
   // suspended account signing IN, but a session issued before the suspension
   // would otherwise stay usable until it expires.

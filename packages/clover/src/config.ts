@@ -242,11 +242,15 @@ export function resolveIntegrationsConfig(
   org: { integrationsConfig: unknown },
   parent: { integrationsConfig: unknown } | null,
 ): IntegrationsConfig {
+  // Per-key merge, own wins: clover is franchise-scoped (own's own connection
+  // fully replaces the parent's, never merged field-by-field — a franchise
+  // with its own Clover must never see the brand's), while a global plugin
+  // like googleReviews lives on the brand and every franchise without its own
+  // key should inherit it. Gating the WHOLE object on `own.clover` (the old
+  // behavior) silently dropped any other key an org had of its own the
+  // moment it had no clover key — that's why a brand with only googleReviews
+  // configured showed as having no integrations at all.
   const own = parseIntegrationsConfig(org.integrationsConfig);
-  if (own.clover) return own;
-  if (parent) {
-    const parentConfig = parseIntegrationsConfig(parent.integrationsConfig);
-    if (parentConfig.clover) return parentConfig;
-  }
-  return DEFAULT_INTEGRATIONS_CONFIG;
+  const parentConfig = parent ? parseIntegrationsConfig(parent.integrationsConfig) : {};
+  return { ...parentConfig, ...own };
 }

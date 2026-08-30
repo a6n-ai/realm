@@ -40,6 +40,28 @@ describe("resolveIntegrationsConfig", () => {
     const result = resolveIntegrationsConfig(org, parent);
     expect(result).toEqual({});
   });
+
+  it("keeps the org's own non-clover keys even when it has no clover connection", () => {
+    // Regression: the old implementation gated the WHOLE object on
+    // own.clover, so an org (e.g. the brand) with only googleReviews
+    // configured and no clover key of its own lost googleReviews entirely.
+    const org = { integrationsConfig: { googleReviews: { installed: true, placeId: "abc" } } };
+    const result = resolveIntegrationsConfig(org, null);
+    expect(result.googleReviews).toEqual({ installed: true, placeId: "abc" });
+  });
+
+  it("a franchise's own clover fully replaces the parent's, other keys still fall back", () => {
+    const org = { integrationsConfig: { clover: { installed: true, connected: true, merchantId: "franchise-merchant" } } };
+    const parent = {
+      integrationsConfig: {
+        clover: { installed: true, connected: true, merchantId: "brand-merchant" },
+        googleReviews: { installed: true, placeId: "brand-place" },
+      },
+    };
+    const result = resolveIntegrationsConfig(org, parent);
+    expect(result.clover?.merchantId).toBe("franchise-merchant");
+    expect(result.googleReviews).toEqual({ installed: true, placeId: "brand-place" });
+  });
 });
 
 describe("resolveWebOrderTypeId", () => {

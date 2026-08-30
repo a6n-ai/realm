@@ -114,3 +114,29 @@ export async function resolveActingOrgId(): Promise<string | null> {
   const org = await resolveActingOrg();
   return org?.id ?? null;
 }
+
+/**
+ * Nav-only: should the Clover sidebar section show at all? Distinct from
+ * getIntegrationsConfig (the functional resolution used for checkout/sync/
+ * Settings' own status card, which correctly reports the ACTIVE org's own
+ * connection — a brand admin with no Clover of its own should see Settings
+ * say "not connected" for the brand). Here we additionally ask "does any
+ * franchise under me have one", because a brand admin manages every
+ * franchise's Clover catalog and losing the whole nav section the moment the
+ * brand itself has no direct connection would hide Products/Orders/Menus
+ * management for a franchise that IS integrated. Only brand-level orgs check
+ * descendants — a franchise's own resolution is unchanged.
+ */
+export async function isCloverVisibleInNav(): Promise<boolean> {
+  const cfg = await getIntegrationsConfig();
+  if (cfg.clover?.installed) return true;
+
+  const org = await resolveActingOrg();
+  if (!org || org.parentOrganizationId !== null) return false;
+
+  const children = await db
+    .select({ integrationsConfig: organization.integrationsConfig })
+    .from(organization)
+    .where(eq(organization.parentOrganizationId, org.id));
+  return children.some((c) => parseIntegrationsConfig(c.integrationsConfig).clover?.installed);
+}
