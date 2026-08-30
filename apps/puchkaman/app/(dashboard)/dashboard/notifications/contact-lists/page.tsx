@@ -3,7 +3,12 @@ import { SectionCard } from "@realm/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
-import { ContactListUpload, formatConsentDate } from "@realm/notifications/ui";
+import {
+  ContactListFromSegment,
+  ContactListResyncButton,
+  ContactListUpload,
+  formatConsentDate,
+} from "@realm/notifications/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +30,7 @@ export default async function ContactListsPage() {
         consentAt: contactList.consentAt,
         consentNote: contactList.consentNote,
         memberCount: contactList.memberCount,
+        segmentDef: contactList.segmentDef,
       })
       .from(contactList)
       .orderBy(desc(contactList.createdAt)),
@@ -49,13 +55,18 @@ export default async function ContactListsPage() {
                     {l.consentNote ? ` · ${l.consentNote}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 tabular-nums text-sm text-muted-foreground">
-                  {l.memberCount}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="tabular-nums text-sm text-muted-foreground">{l.memberCount}</span>
+                  {l.segmentDef && <ContactListResyncButton publicId={l.publicId} />}
+                </div>
               </li>
             ))}
           </ul>
         )}
+      </SectionCard>
+
+      <SectionCard title="Create from existing customers" subtitle="Snapshot customers matching filters (min orders, min spend) into a list. Doesn't update live — use Resync to pull in new matches.">
+        <ContactListFromSegment requiresVerifiedPhone />
       </SectionCard>
 
       <SectionCard title="Import a list" subtitle="CSV. Duplicates and invalid rows are reported, not silently dropped.">

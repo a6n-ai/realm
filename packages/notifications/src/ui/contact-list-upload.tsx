@@ -25,6 +25,9 @@ const CONSENT_SOURCES = [
 
 const NONE = "__none__";
 
+const SAMPLE_CSV = "name,email,phone\nJane Doe,jane@example.com,+16135551234\nJohn Smith,john@example.com,+16135555678\n";
+const SAMPLE_CSV_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(SAMPLE_CSV)}`;
+
 /**
  * Create a list, then import a CSV into it.
  *
@@ -161,7 +164,16 @@ export function ContactListUpload() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="csv">CSV file</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="csv">CSV file</Label>
+          <a
+            href={SAMPLE_CSV_HREF}
+            download="contact-list-sample.csv"
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Download sample CSV
+          </a>
+        </div>
         <Input
           id="csv"
           type="file"

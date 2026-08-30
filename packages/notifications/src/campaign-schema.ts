@@ -86,6 +86,8 @@ export function makeCampaignTables<L extends [string, ...string[]]>(deps: { loca
     consentAt: bigint("consent_at", { mode: "number" }).notNull(),
     consentNote: text("consent_note"),
     memberCount: integer("member_count").notNull().default(0),
+    /** Set when the list was built from a segment (min orders/spend/etc), enabling resync. */
+    segmentDef: jsonb("segment_def").$type<Record<string, unknown>>(),
   });
 
   const contactListMember = pgTable("contact_list_member", {

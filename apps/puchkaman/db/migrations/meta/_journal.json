@@ -225,6 +225,13 @@
       "when": 1788088320271,
       "tag": "0031_add_clover_customer_invite_event",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788125909430,
+      "tag": "0032_organic_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

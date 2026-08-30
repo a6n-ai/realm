@@ -2,6 +2,8 @@ export * from "./api-fetch";
 export * from "./audience-builder";
 export * from "./campaign-composer";
 export * from "./campaign-send-button";
+export * from "./contact-list-from-segment";
+export * from "./contact-list-resync-button";
 export * from "./contact-list-upload";
 export * from "./date";
 export * from "./email-compat";
