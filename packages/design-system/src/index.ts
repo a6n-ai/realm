@@ -32,4 +32,5 @@ export * from "./presence-dot";
 export * from "./message-composer";
 export * from "./chat-message-list";
 export { makeImageThumbnail } from "./make-image-thumbnail";
+export { StaticMap, type StaticMapMarker } from "./static-map";
 

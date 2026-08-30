@@ -54,6 +54,9 @@ export type TrackedOrder = {
     address?: string;
     /** Epoch ms, for scheduled fulfilment. */
     scheduledFor?: number;
+    /** Present only when the address resolved to a place at checkout. */
+    lat?: number;
+    lng?: number;
   };
   // No phone here on purpose: the number is the PIN source, so it stays in the
   // access path (`TrackingSubject`) and never reaches a rendered view model.

@@ -3,6 +3,7 @@
 import type { TrackedOrder } from "@realm/order-tracking";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { StaticMap } from "@realm/design-system";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import {
@@ -68,6 +69,15 @@ function Timeline({ order }: { order: TrackedOrder }) {
         {order.fulfillment.summary}
         {order.fulfillment.address ? ` · ${order.fulfillment.address}` : ""}
       </p>
+      {order.fulfillment.lat != null && order.fulfillment.lng != null && (
+        <div style={{ marginTop: 14 }}>
+          <StaticMap
+            center={{ lat: order.fulfillment.lat, lng: order.fulfillment.lng }}
+            markers={[{ lat: order.fulfillment.lat, lng: order.fulfillment.lng, title: order.fulfillment.address }]}
+            heightPx={200}
+          />
+        </div>
+      )}
       <div style={{ marginTop: 14 }}>
         <Btn href={`tel:${PHONE_TEL}`} variant="white" size="sm">
           Call the shop · {PHONE_DISPLAY}

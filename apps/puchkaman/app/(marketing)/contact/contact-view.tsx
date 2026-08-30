@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
-import { StaticMap } from "@/components/map/static-map";
+import { StaticMap } from "@realm/design-system";
 import { ADDRESS, LOCATIONS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 import { INSTAGRAM_URL } from "@/lib/seo";

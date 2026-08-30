@@ -3,16 +3,10 @@
 import { useRouter } from "next/navigation";
 import { Navigation } from "lucide-react";
 import { Button } from "@realm/ui/button";
-import { writeFranchiseCookie } from "@realm/design-system";
+import { StaticMap, writeFranchiseCookie } from "@realm/design-system";
 import type { FranchiseLocation } from "@/lib/services/organizations.service";
 
-// output=embed needs no API key — a plain lat,lng query is enough for a pin.
-function mapEmbedSrc(loc: FranchiseLocation): string | null {
-  if (loc.latitude == null || loc.longitude == null) return null;
-  return `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}&output=embed`;
-}
-
-// Turn-by-turn directions link, also key-free — distinct from the embed above.
+// Turn-by-turn directions link, key-free.
 function directionsHref(loc: FranchiseLocation): string {
   if (loc.latitude != null && loc.longitude != null) {
     return `https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}`;
@@ -22,7 +16,7 @@ function directionsHref(loc: FranchiseLocation): string {
 
 export function LocationCard({ location }: { location: FranchiseLocation }) {
   const router = useRouter();
-  const mapSrc = mapEmbedSrc(location);
+  const hasCoords = location.latitude != null && location.longitude != null;
 
   // Explicitly overrides any franchise already picked — someone ordering for
   // a friend in another city should be able to switch right from this list,
@@ -35,8 +29,12 @@ export function LocationCard({ location }: { location: FranchiseLocation }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border-[1.5px] border-foreground">
-      {mapSrc && (
-        <iframe title={`Map for ${location.name}`} src={mapSrc} className="h-48 w-full border-0" loading="lazy" />
+      {hasCoords && (
+        <StaticMap
+          center={{ lat: location.latitude!, lng: location.longitude! }}
+          markers={[{ lat: location.latitude!, lng: location.longitude!, title: location.name }]}
+          heightPx={192}
+        />
       )}
       <div className="space-y-3 p-4">
         <div>

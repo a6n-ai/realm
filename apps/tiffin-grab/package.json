@@ -21,6 +21,7 @@
     "audit:skeletons": "playwright test skeleton-audit/capture.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-geo-maps": "^3.1106.0",
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.4.0",
     "@react-email/components": "^1.0.12",
@@ -59,6 +60,7 @@
     "libphonenumber-js": "^1.13.7",
     "lottie-react": "^2.4.1",
     "lucide-react": "^1.20.0",
+    "maplibre-gl": "^5.24.0",
     "motion": "^12.0.0",
     "nanoid": "^5.1.14",
     "next": "16.3.3",

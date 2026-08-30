@@ -136,9 +136,9 @@ export function StaticMap({
           fontWeight: 600,
           fontSize: "0.86rem",
           padding: 16,
-          border: "var(--border)",
+          border: "var(--border, 1px solid #ddd)",
           borderRadius: 10,
-          background: "var(--cream)",
+          background: "var(--cream, #f5f5f0)",
         }}
       >
         Map couldn&apos;t load — see the address above.
@@ -150,7 +150,16 @@ export function StaticMap({
     <div className={className} style={{ position: "relative", overflow: "hidden", height: heightPx }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
       {!ready && (
-        <div aria-hidden="true" className="skeleton" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
+        <div
+          aria-hidden="true"
+          className="skeleton"
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 0,
+            background: "var(--cream, #f0efe9)",
+          }}
+        />
       )}
     </div>
   );

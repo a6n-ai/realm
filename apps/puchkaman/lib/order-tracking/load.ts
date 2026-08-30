@@ -54,6 +54,8 @@ export async function loadTrackedOrder(publicId: string): Promise<TrackedOrder |
       summary: fulfillmentSummary(order),
       address: order.deliveryAddress ?? undefined,
       scheduledFor: order.scheduledFor ?? undefined,
+      lat: order.deliveryLat != null ? Number(order.deliveryLat) : undefined,
+      lng: order.deliveryLng != null ? Number(order.deliveryLng) : undefined,
     },
     contact: { name: order.customerName, email: order.customerEmail },
     actions: availableActions(order, balanceDue),

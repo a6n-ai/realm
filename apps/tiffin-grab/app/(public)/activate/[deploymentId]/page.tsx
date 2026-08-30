@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
 import { Card } from "@realm/ui/card";
 import { Separator } from "@realm/ui/separator";
+import { StaticMap } from "@realm/design-system";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getClaimPaymentContext } from "@/lib/services/orders.service";
@@ -81,6 +82,16 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
               </>
             )}
           </Card>
+        )}
+
+        {sub.latitude != null && sub.longitude != null && (
+          <div className="mt-6 overflow-hidden rounded-2xl">
+            <StaticMap
+              center={{ lat: sub.latitude, lng: sub.longitude }}
+              markers={[{ lat: sub.latitude, lng: sub.longitude }]}
+              heightPx={200}
+            />
+          </div>
         )}
 
         <div className="border-foreground mt-8 flex flex-col gap-3 border-y-[1.5px] border-dashed py-4 text-left text-sm">

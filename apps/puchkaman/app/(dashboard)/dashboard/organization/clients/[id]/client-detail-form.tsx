@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { AddressFields } from "@realm/ui/address-fields";
+import { StaticMap } from "@realm/design-system";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 
 export function ClientDetailForm({
@@ -109,6 +110,16 @@ export function ClientDetailForm({
         Longitude
       </label>
       <Input id="org-store-lng" value={storeLng} readOnly placeholder="Resolved from address" />
+
+      {storeLat && storeLng && (
+        <div className="col-span-2">
+          <StaticMap
+            center={{ lat: Number(storeLat), lng: Number(storeLng) }}
+            markers={[{ lat: Number(storeLat), lng: Number(storeLng) }]}
+            heightPx={200}
+          />
+        </div>
+      )}
 
       <div className="col-span-2">
         <Button type="submit" size="sm" disabled={pending || !name || !clientCode}>
