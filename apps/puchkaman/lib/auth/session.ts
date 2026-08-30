@@ -29,14 +29,14 @@ export const getSession = cache(async () => {
     return null;
   }
   if (!s?.user) return null;
-  const u = s.user as { publicId?: string; id: string; role?: RoleValue; email?: string };
+  const u = s.user as { publicId?: string; id: string; role?: RoleValue; email?: string; platformRole?: string | null };
   if (!u.publicId) return null;
   const activeOrganizationId =
     (s.session as { activeOrganizationId?: string | null } | undefined)?.activeOrganizationId ?? null;
   // A session that somehow carries no role authorizes as a customer, never as
   // staff — the read path must agree with the fail-closed column default.
   return {
-    user: { id: u.publicId, role: roleOrCustomer(u.role), email: u.email ?? "" },
+    user: { id: u.publicId, role: roleOrCustomer(u.role), email: u.email ?? "", platformRole: u.platformRole ?? null },
     session: { activeOrganizationId },
   };
 });

@@ -2,6 +2,7 @@ import { isNull, or, eq, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { organization } from "@/db/schema";
+import { getSession } from "@/lib/auth/session";
 import { resolveActingOrgId } from "@/lib/services/integrations.service";
 
 /**
@@ -28,12 +29,20 @@ export type OrgScopeMode = { mode: "all" } | { mode: "org"; orgId: string };
 /**
  * Same "which franchise" resolution as orgScopeWhere, but for admin listings
  * that show a franchise-scoped view by default (Orders, Finance) and switch
- * to an all-franchises-with-a-clientCode-column view when the active org IS
- * the brand itself (parentOrganizationId null) — a brand admin manages every
- * location, so scoping them to "brand + null rows" the same way a franchise
- * session would be would just hide every franchise's rows outright.
+ * to an all-franchises-with-a-clientCode-column view when either:
+ *   - the session's platformRole is "super_admin" — a person-level bypass
+ *     (see @realm/auth resolveVisibleOrgIds), independent of which org is
+ *     active. This is the ONLY thing that sees across every brand once a
+ *     second one exists; ordinary staff never get it regardless of org.
+ *   - the active org IS a brand itself (parentOrganizationId null) — a brand
+ *     admin manages every location under it, so scoping them to "brand + null
+ *     rows" the same way a franchise session would be would just hide every
+ *     franchise's rows outright.
  */
 export async function resolveOrgScopeMode(): Promise<OrgScopeMode> {
+  const session = await getSession();
+  if (session?.user.platformRole === "super_admin") return { mode: "all" };
+
   const orgId = await resolveActingOrgId();
   if (!orgId) return { mode: "all" };
   const [org] = await db
