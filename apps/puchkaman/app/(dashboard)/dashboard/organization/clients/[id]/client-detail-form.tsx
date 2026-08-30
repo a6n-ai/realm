@@ -12,7 +12,6 @@ import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 export function ClientDetailForm({
   organizationId,
   organization,
-  cities,
 }: {
   organizationId: string;
   organization: {
@@ -24,7 +23,6 @@ export function ClientDetailForm({
     storeLat: string | null;
     storeLng: string | null;
   };
-  cities: string[];
 }) {
   const router = useRouter();
   const [name, setName] = useState(organization.name);
@@ -75,23 +73,14 @@ export function ClientDetailForm({
       </label>
       <Input id="org-region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="—" />
 
-      <label className="text-sm text-muted-foreground" htmlFor="org-city">
-        City
-      </label>
-      <Input id="org-city" list="org-cities" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Toronto" />
-      <datalist id="org-cities">
-        {cities.map((c) => (
-          <option key={c} value={c} />
-        ))}
-      </datalist>
-
       <div className="col-span-2">
         <AddressFields
           idPrefix="org-address"
-          fields={["addressLine"]}
-          values={{ addressLine: address }}
+          fields={["addressLine", "city"]}
+          values={{ addressLine: address, city }}
           onChange={(patch) => {
             if (patch.addressLine !== undefined) setAddress(patch.addressLine);
+            if (patch.city !== undefined) setCity(patch.city);
           }}
           onResolve={({ lat, lng }) => {
             setStoreLat(String(lat));
@@ -101,28 +90,25 @@ export function ClientDetailForm({
         />
       </div>
 
-      <label className="text-sm text-muted-foreground" htmlFor="org-store-lat">
-        Latitude
-      </label>
-      <Input id="org-store-lat" value={storeLat} readOnly placeholder="Resolved from address" />
-
-      <label className="text-sm text-muted-foreground" htmlFor="org-store-lng">
-        Longitude
-      </label>
-      <Input id="org-store-lng" value={storeLng} readOnly placeholder="Resolved from address" />
-
       {storeLat && storeLng && (
-        <div className="col-span-2">
+        <div className="col-span-2 grid gap-1.5">
+          <p className="text-sm text-muted-foreground">Pinned location</p>
           <StaticMap
             center={{ lat: Number(storeLat), lng: Number(storeLng) }}
             markers={[{ lat: Number(storeLat), lng: Number(storeLng) }]}
             heightPx={200}
+            className="overflow-hidden rounded-lg outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
           />
         </div>
       )}
 
       <div className="col-span-2">
-        <Button type="submit" size="sm" disabled={pending || !name || !clientCode}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending || !name || !clientCode}
+          className="cursor-pointer transition-transform active:scale-[0.96]"
+        >
           Save
         </Button>
       </div>

@@ -129,16 +129,6 @@ export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
     .where(sql`${organization.city} is not null`);
 }
 
-// Distinct cities already set on an org, for the admin location dropdown —
-// no hardcoded city list to keep in sync.
-export async function listFranchiseCities(): Promise<string[]> {
-  const rows = await db
-    .selectDistinct({ city: organization.city })
-    .from(organization)
-    .where(sql`${organization.city} is not null`);
-  return rows.map((r) => r.city!).sort();
-}
-
 export type UpdateOrganizationInput = {
   name: string;
   clientCode: string;
