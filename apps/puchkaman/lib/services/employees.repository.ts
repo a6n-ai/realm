@@ -1,17 +1,19 @@
-import { UpdatableRepository, stripCreateOnly } from "@realm/database";
+import { stripCreateOnly } from "@realm/database";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { employees } from "@/db/schema";
+import { ClientScopedRepository } from "@/lib/services/client-scoped-repository";
 
 export type EmployeeRow = typeof employees.$inferSelect;
 
-export class EmployeesRepository extends UpdatableRepository<typeof employees> {
+export class EmployeesRepository extends ClientScopedRepository<typeof employees> {
   async findAll(): Promise<EmployeeRow[]> {
-    return this.db.select().from(employees);
+    return this.db.select().from(employees).where(await this.scope());
   }
 
   async findActive(): Promise<EmployeeRow[]> {
-    return this.db.select().from(employees).where(eq(employees.active, true));
+    const orgScope = await this.scope();
+    return this.db.select().from(employees).where(orgScope ? and(eq(employees.active, true), orgScope) : eq(employees.active, true));
   }
 
   async findByCloverEmployeeId(cloverEmployeeId: string): Promise<EmployeeRow | null> {
@@ -55,4 +57,5 @@ export const employeesRepository = new EmployeesRepository(
   employees,
   employees.publicId,
   employees.id,
+  employees.organizationId,
 );

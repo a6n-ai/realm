@@ -4,7 +4,7 @@ import type { Condition, FilterCondition } from "@realm/commons/model/condition"
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { getCloverConnection } from "@realm/clover";
 import { columnResolver, conditionToSql } from "@realm/database";
-import { asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   orderItems,
@@ -17,6 +17,7 @@ import { filesService } from "@/lib/files";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { orgScopeWhere } from "@/lib/services/org-scope";
 import { productSchema } from "@/lib/products/schema";
 import {
   cloverInventorySyncService,
@@ -214,7 +215,7 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     page: PageRequest,
     sort: SortState<ProductSortColumn> = { column: "category", dir: "asc" },
   ): Promise<Page<ProductListRow>> {
-    const where = conditionToSql(condition, resolveProductFacet);
+    const where = and(conditionToSql(condition, resolveProductFacet), await orgScopeWhere(products.organizationId));
     const col = PRODUCT_SORT_COL[sort.column] ?? products.category;
 
     const [items, [{ count }]] = await Promise.all([

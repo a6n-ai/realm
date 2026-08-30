@@ -1,7 +1,8 @@
-import { UpdatableRepository, stripCreateOnly } from "@realm/database";
+import { stripCreateOnly } from "@realm/database";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { products } from "@/db/schema";
+import { ClientScopedRepository } from "@/lib/services/client-scoped-repository";
 
 export type ProductRow = typeof products.$inferSelect;
 
@@ -9,9 +10,9 @@ export type ProductRow = typeof products.$inferSelect;
  * Product DAO — extends shared {@link UpdatableRepository} with Clover / catalog
  * lookups used by ProductsService + inventory sync.
  */
-export class ProductsRepository extends UpdatableRepository<typeof products> {
+export class ProductsRepository extends ClientScopedRepository<typeof products> {
   async findAll(): Promise<ProductRow[]> {
-    return this.db.select().from(products);
+    return this.db.select().from(products).where(await this.scope());
   }
 
   async findByPublicIds(publicIds: string[]): Promise<ProductRow[]> {
@@ -62,4 +63,5 @@ export const productsRepository = new ProductsRepository(
   products,
   products.publicId,
   products.id,
+  products.organizationId,
 );

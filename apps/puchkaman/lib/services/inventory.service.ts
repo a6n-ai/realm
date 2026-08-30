@@ -23,6 +23,7 @@ import {
 import type { CloverApiClient } from "@realm/clover";
 import { createCloverClient } from "@/lib/clover/client";
 import { productsRepository } from "@/lib/services/products.repository";
+import { orgScopeWhere } from "@/lib/services/org-scope";
 import type { SortState } from "@/lib/list/sort";
 import type { CategoryEditInput, ModifierGroupEditInput } from "@/lib/inventory/schema";
 import {
@@ -293,7 +294,7 @@ class ProductCategoriesService extends SessionUpdatableService<typeof productCat
     page: PageRequest,
     sort: SortState<CategorySortColumn> = { column: "order", dir: "asc" },
   ): Promise<Page<CategoryListRow>> {
-    const where = conditionToSql(condition, resolveCategoryFacet);
+    const where = and(conditionToSql(condition, resolveCategoryFacet), await orgScopeWhere(productCategories.organizationId));
     const col = CATEGORY_SORT_COL[sort.column] ?? productCategories.sortOrder;
 
     const [items, [{ count }]] = await Promise.all([
@@ -325,7 +326,7 @@ class ProductCategoriesService extends SessionUpdatableService<typeof productCat
     return db
       .select()
       .from(productCategories)
-      .where(eq(productCategories.active, true))
+      .where(and(eq(productCategories.active, true), await orgScopeWhere(productCategories.organizationId)))
       .orderBy(asc(productCategories.sortOrder), asc(productCategories.name));
   }
 }
@@ -349,7 +350,7 @@ class ModifierGroupsService extends SessionUpdatableService<typeof modifierGroup
     page: PageRequest,
     sort: SortState<ModifierGroupSortColumn> = { column: "order", dir: "asc" },
   ): Promise<Page<ModifierGroupListRow>> {
-    const where = conditionToSql(condition, resolveModifierGroupFacet);
+    const where = and(conditionToSql(condition, resolveModifierGroupFacet), await orgScopeWhere(modifierGroups.organizationId));
     const col = MODIFIER_GROUP_SORT_COL[sort.column] ?? modifierGroups.sortOrder;
 
     const [rows, [{ count }]] = await Promise.all([
@@ -461,7 +462,7 @@ class TaxRatesService extends SessionUpdatableService<typeof taxRates> {
     page: PageRequest,
     sort: SortState<TaxRateSortColumn> = { column: "name", dir: "asc" },
   ): Promise<Page<TaxRateListRow>> {
-    const where = conditionToSql(condition, resolveTaxRateFacet);
+    const where = and(conditionToSql(condition, resolveTaxRateFacet), await orgScopeWhere(taxRates.organizationId));
     const col = TAX_RATE_SORT_COL[sort.column] ?? taxRates.name;
 
     const [items, [{ count }]] = await Promise.all([
@@ -504,7 +505,7 @@ class PrinterLabelsService extends SessionUpdatableService<typeof printerLabels>
     page: PageRequest,
     sort: SortState<PrinterLabelSortColumn> = { column: "name", dir: "asc" },
   ): Promise<Page<PrinterLabelListRow>> {
-    const where = conditionToSql(condition, resolvePrinterLabelFacet);
+    const where = and(conditionToSql(condition, resolvePrinterLabelFacet), await orgScopeWhere(printerLabels.organizationId));
     const col = PRINTER_LABEL_SORT_COL[sort.column] ?? printerLabels.name;
 
     const [items, [{ count }]] = await Promise.all([
@@ -549,7 +550,7 @@ class MenusService extends SessionUpdatableService<typeof menus> {
     page: PageRequest,
     sort: SortState<MenuSortColumn> = { column: "order", dir: "asc" },
   ): Promise<Page<MenuListRow>> {
-    const where = conditionToSql(condition, resolveMenuFacet);
+    const where = and(conditionToSql(condition, resolveMenuFacet), await orgScopeWhere(menus.organizationId));
     const col = MENU_SORT_COL[sort.column] ?? menus.sortOrder;
     const itemCount = sql<number>`cast((
       select count(*)::int from ${menuItems}

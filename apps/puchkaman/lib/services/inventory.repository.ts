@@ -1,6 +1,7 @@
 import { UpdatableRepository, stripCreateOnly } from "@realm/database";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
+import { ClientScopedRepository } from "@/lib/services/client-scoped-repository";
 import {
   discounts,
   menus,
@@ -31,9 +32,9 @@ export type PrinterLabelRow = typeof printerLabels.$inferSelect;
 export type ProductTaxRateRow = typeof productTaxRates.$inferSelect;
 export type ProductPrinterLabelRow = typeof productPrinterLabels.$inferSelect;
 
-export class ProductCategoriesRepository extends UpdatableRepository<typeof productCategories> {
+export class ProductCategoriesRepository extends ClientScopedRepository<typeof productCategories> {
   async findAll(): Promise<ProductCategoryRow[]> {
-    return this.db.select().from(productCategories);
+    return this.db.select().from(productCategories).where(await this.scope());
   }
 
   async findByCloverCategoryId(cloverCategoryId: string): Promise<ProductCategoryRow | null> {
@@ -66,9 +67,9 @@ export class ProductCategoriesRepository extends UpdatableRepository<typeof prod
   }
 }
 
-export class ModifierGroupsRepository extends UpdatableRepository<typeof modifierGroups> {
+export class ModifierGroupsRepository extends ClientScopedRepository<typeof modifierGroups> {
   async findAll(): Promise<ModifierGroupRow[]> {
-    return this.db.select().from(modifierGroups);
+    return this.db.select().from(modifierGroups).where(await this.scope());
   }
 
   async findByCloverModifierGroupId(
@@ -103,9 +104,9 @@ export class ModifierGroupsRepository extends UpdatableRepository<typeof modifie
   }
 }
 
-export class ModifiersRepository extends UpdatableRepository<typeof modifiers> {
+export class ModifiersRepository extends ClientScopedRepository<typeof modifiers> {
   async findAll(): Promise<ModifierRow[]> {
-    return this.db.select().from(modifiers);
+    return this.db.select().from(modifiers).where(await this.scope());
   }
 
   async findByGroupId(modifierGroupId: bigint): Promise<ModifierRow[]> {
@@ -137,9 +138,9 @@ export class ModifiersRepository extends UpdatableRepository<typeof modifiers> {
   }
 }
 
-export class DiscountsRepository extends UpdatableRepository<typeof discounts> {
+export class DiscountsRepository extends ClientScopedRepository<typeof discounts> {
   async findAll(): Promise<DiscountRow[]> {
-    return this.db.select().from(discounts);
+    return this.db.select().from(discounts).where(await this.scope());
   }
 
   async findByCloverDiscountId(cloverDiscountId: string): Promise<DiscountRow | null> {
@@ -169,9 +170,9 @@ export class DiscountsRepository extends UpdatableRepository<typeof discounts> {
   }
 }
 
-export class MenusRepository extends UpdatableRepository<typeof menus> {
+export class MenusRepository extends ClientScopedRepository<typeof menus> {
   async findAll(): Promise<MenuRow[]> {
-    return this.db.select().from(menus);
+    return this.db.select().from(menus).where(await this.scope());
   }
 
   async findByName(name: string): Promise<MenuRow | null> {
@@ -309,9 +310,9 @@ export class ProductModifierGroupsRepository extends UpdatableRepository<
   }
 }
 
-export class TaxRatesRepository extends UpdatableRepository<typeof taxRates> {
+export class TaxRatesRepository extends ClientScopedRepository<typeof taxRates> {
   async findAll(): Promise<TaxRateRow[]> {
-    return this.db.select().from(taxRates);
+    return this.db.select().from(taxRates).where(await this.scope());
   }
 
   async findByCloverTaxRateId(cloverTaxRateId: string): Promise<TaxRateRow | null> {
@@ -339,9 +340,9 @@ export class TaxRatesRepository extends UpdatableRepository<typeof taxRates> {
   }
 }
 
-export class PrinterLabelsRepository extends UpdatableRepository<typeof printerLabels> {
+export class PrinterLabelsRepository extends ClientScopedRepository<typeof printerLabels> {
   async findAll(): Promise<PrinterLabelRow[]> {
-    return this.db.select().from(printerLabels);
+    return this.db.select().from(printerLabels).where(await this.scope());
   }
 
   async findByCloverTagId(cloverTagId: string): Promise<PrinterLabelRow | null> {
@@ -462,6 +463,7 @@ export const productCategoriesRepository = new ProductCategoriesRepository(
   productCategories,
   productCategories.publicId,
   productCategories.id,
+  productCategories.organizationId,
 );
 
 export const modifierGroupsRepository = new ModifierGroupsRepository(
@@ -469,6 +471,7 @@ export const modifierGroupsRepository = new ModifierGroupsRepository(
   modifierGroups,
   modifierGroups.publicId,
   modifierGroups.id,
+  modifierGroups.organizationId,
 );
 
 export const modifiersRepository = new ModifiersRepository(
@@ -476,6 +479,7 @@ export const modifiersRepository = new ModifiersRepository(
   modifiers,
   modifiers.publicId,
   modifiers.id,
+  modifiers.organizationId,
 );
 
 export const discountsRepository = new DiscountsRepository(
@@ -483,9 +487,10 @@ export const discountsRepository = new DiscountsRepository(
   discounts,
   discounts.publicId,
   discounts.id,
+  discounts.organizationId,
 );
 
-export const menusRepository = new MenusRepository(db, menus, menus.publicId, menus.id);
+export const menusRepository = new MenusRepository(db, menus, menus.publicId, menus.id, menus.organizationId);
 
 export const menuItemsRepository = new MenuItemsRepository(
   db,
@@ -520,6 +525,7 @@ export const taxRatesRepository = new TaxRatesRepository(
   taxRates,
   taxRates.publicId,
   taxRates.id,
+  taxRates.organizationId,
 );
 
 export const printerLabelsRepository = new PrinterLabelsRepository(
@@ -527,6 +533,7 @@ export const printerLabelsRepository = new PrinterLabelsRepository(
   printerLabels,
   printerLabels.publicId,
   printerLabels.id,
+  printerLabels.organizationId,
 );
 
 export const productTaxRatesRepository = new ProductTaxRatesRepository(
