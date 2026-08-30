@@ -17,7 +17,7 @@ import { filesService } from "@/lib/files";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
-import { orgScopeWhere } from "@/lib/services/org-scope";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 import { productSchema } from "@/lib/products/schema";
 import {
   cloverInventorySyncService,
@@ -215,7 +215,13 @@ class ProductsService extends SessionUpdatableService<typeof products> {
     page: PageRequest,
     sort: SortState<ProductSortColumn> = { column: "category", dir: "asc" },
   ): Promise<Page<ProductListRow>> {
-    const where = and(conditionToSql(condition, resolveProductFacet), await orgScopeWhere(products.organizationId));
+    const scopeMode = await resolveOrgScopeMode();
+    const where = and(
+      conditionToSql(condition, resolveProductFacet),
+      scopeMode.mode === "org"
+        ? or(isNull(products.organizationId), eq(products.organizationId, scopeMode.orgId))
+        : undefined,
+    );
     const col = PRODUCT_SORT_COL[sort.column] ?? products.category;
 
     const [items, [{ count }]] = await Promise.all([

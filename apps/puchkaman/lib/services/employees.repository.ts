@@ -3,12 +3,15 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { employees } from "@/db/schema";
 import { ClientScopedRepository } from "@/lib/services/client-scoped-repository";
+import { orgScopeWhereForAdmin } from "@/lib/services/org-scope";
 
 export type EmployeeRow = typeof employees.$inferSelect;
 
 export class EmployeesRepository extends ClientScopedRepository<typeof employees> {
+  /** Admin listing — hierarchy-aware (see orgScopeWhereForAdmin), unlike the
+   * sync-facing methods below which stay franchise-strict via this.scope(). */
   async findAll(): Promise<EmployeeRow[]> {
-    return this.db.select().from(employees).where(await this.scope());
+    return this.db.select().from(employees).where(await orgScopeWhereForAdmin(employees.organizationId));
   }
 
   async findActive(): Promise<EmployeeRow[]> {

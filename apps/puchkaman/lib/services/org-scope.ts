@@ -53,3 +53,18 @@ export async function resolveOrgScopeMode(): Promise<OrgScopeMode> {
   if (!org || org.parentOrganizationId === null) return { mode: "all" };
   return { mode: "org", orgId };
 }
+
+/**
+ * Drop-in replacement for orgScopeWhere in admin listings: `undefined` (no
+ * filter) in "all" mode instead of an isNull/eq pair keyed to one org id —
+ * the bug orgScopeWhere has for a brand admin is that "all" only shows
+ * organizationId IS NULL OR = <brand's own id>, which hides every franchise's
+ * rows (they carry the franchise's id, not the brand's). Sync/dedupe lookups
+ * should keep using orgScopeWhere/this.scope() directly — this one is only
+ * for what an admin's listing page renders.
+ */
+export async function orgScopeWhereForAdmin(organizationIdColumn: PgColumn): Promise<SQL | undefined> {
+  const scopeMode = await resolveOrgScopeMode();
+  if (scopeMode.mode === "all") return undefined;
+  return or(isNull(organizationIdColumn), eq(organizationIdColumn, scopeMode.orgId));
+}
