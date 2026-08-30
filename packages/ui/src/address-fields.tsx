@@ -197,6 +197,7 @@ export function AddressLineAutocomplete({
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards a stale response (from an earlier keystroke) landing after a
   // newer one and clobbering the dropdown with outdated suggestions.
@@ -218,10 +219,12 @@ export function AddressLineAutocomplete({
       requestIdRef.current++;
       setSuggestions([]);
       setOpen(false);
+      setLoading(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
       const requestId = ++requestIdRef.current;
+      setLoading(true);
       try {
         const res = await fetch(suggestUrl, {
           method: "POST",
@@ -236,6 +239,8 @@ export function AddressLineAutocomplete({
         setActiveIndex(-1);
       } catch {
         // A failed typeahead request is silent — the plain input still submits.
+      } finally {
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     }, DEBOUNCE_MS);
   }
@@ -246,6 +251,7 @@ export function AddressLineAutocomplete({
     setSuggestions([]);
     setOpen(false);
     setActiveIndex(-1);
+    setLoading(false);
     try {
       const res = await fetch(resolveUrl, {
         method: "POST",
@@ -293,6 +299,7 @@ export function AddressLineAutocomplete({
         aria-autocomplete="list"
         aria-controls={listId}
         aria-activedescendant={activeId}
+        className={loading ? "pr-8" : undefined}
         onChange={(e) => {
           onChange(e.target.value);
           scheduleFetch(e.target.value);
@@ -300,11 +307,17 @@ export function AddressLineAutocomplete({
         onKeyDown={onKeyDown}
         onBlur={() => setOpen(false)}
       />
+      {loading ? (
+        <span
+          aria-hidden="true"
+          className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
+        />
+      ) : null}
       {open && suggestions.length > 0 ? (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-10 mt-1 w-full rounded-lg border border-input bg-popover p-1 shadow-md"
+          className="absolute z-10 mt-1 w-full rounded-lg bg-popover p-1 shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_-4px_rgba(0,0,0,0.5)]"
         >
           {suggestions.map((suggestion, i) => (
             <li
@@ -313,8 +326,8 @@ export function AddressLineAutocomplete({
               role="option"
               aria-selected={i === activeIndex}
               className={cn(
-                "cursor-pointer rounded-md px-2 py-1.5 text-sm",
-                i === activeIndex ? "bg-accent text-accent-foreground" : undefined,
+                "cursor-pointer rounded px-2 py-1.5 text-sm transition-colors",
+                i === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
               )}
               // onMouseDown (not onClick) fires before the input's onBlur, so
               // the pick registers before the dropdown closes itself away.
