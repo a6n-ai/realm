@@ -1,6 +1,7 @@
 export * from "./card";
 export * from "./page-shell";
 export * from "./page-header";
+export { BackButton } from "./back-button";
 export * from "./breadcrumbs";
 export * from "./stat-card";
 export * from "./section-card";

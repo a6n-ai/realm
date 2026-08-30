@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, PackageIcon } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 import { formatMoney } from "@realm/commons";
 import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { BackButton, PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
 import { requirePermission } from "@/lib/auth/guards";
@@ -50,12 +48,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             {canCheckStatus ? (
               <CheckPaymentStatusButton orderPublicId={order.publicId} />
             ) : null}
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/orders">
-                <ArrowLeftIcon />
-                Back
-              </Link>
-            </Button>
+            <BackButton href="/dashboard/orders" />
           </div>
         }
       />

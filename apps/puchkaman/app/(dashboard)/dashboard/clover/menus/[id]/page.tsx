@@ -1,12 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeftIcon, BookOpenIcon } from "lucide-react";
+import { BookOpenIcon } from "lucide-react";
 import { NotFoundError } from "@realm/commons";
 import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { BackButton, PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
 import { Skeleton } from "@realm/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
 import { requirePermission } from "@/lib/auth/guards";
@@ -48,12 +47,7 @@ async function MenuDetailLoader({ params }: { params: Promise<{ id: string }> })
         subtitle="Clover online-ordering menu. Items and prices are managed in Clover."
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5" asChild>
-          <Link href="/dashboard/clover/menus">
-            <ArrowLeftIcon className="size-3.5" />
-            Menus
-          </Link>
-        </Button>
+        <BackButton href="/dashboard/clover/menus" label="Menus" />
         <Badge variant={menu.cloverPublishedAt ? "secondary" : "outline"}>
           {menu.cloverPublishedAt ? "Published" : "Draft"}
         </Badge>

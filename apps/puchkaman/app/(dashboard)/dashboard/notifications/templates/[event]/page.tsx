@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
-import { SectionCard } from "@realm/design-system";
+import { BackButton, SectionCard } from "@realm/design-system";
 import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@realm/notifications/ui";
 import { Skeleton } from "@realm/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -19,12 +17,7 @@ function assertEditableEvent(event: string): asserts event is AppEvent {
 export default function Page({ params }: { params: Promise<{ event: string }> }) {
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/notifications/templates"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeftIcon className="size-4" /> All templates
-      </Link>
+      <BackButton href="/dashboard/notifications/templates" label="All templates" />
       <Suspense
         fallback={
           <div className="space-y-1">

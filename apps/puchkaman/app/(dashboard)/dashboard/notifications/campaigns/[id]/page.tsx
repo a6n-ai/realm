@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { ArrowLeftIcon } from "lucide-react";
 import { countAudience, type AudienceDef } from "@realm/notifications";
-import { SectionCard, StatGrid } from "@realm/design-system";
+import { BackButton, SectionCard, StatGrid } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
@@ -62,12 +60,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/notifications/campaigns"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeftIcon className="size-4" /> All campaigns
-      </Link>
+      <BackButton href="/dashboard/notifications/campaigns" label="All campaigns" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">

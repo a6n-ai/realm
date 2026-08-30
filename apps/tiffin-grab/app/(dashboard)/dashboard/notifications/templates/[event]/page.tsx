@@ -1,25 +1,19 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { TemplateEditor, TemplateEditorSkeleton } from "@realm/notifications/ui";
 import { eventLabel } from "@realm/notifications/ui";
+import { BackButton } from "@realm/design-system";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
 
 export default function Page({ params }: { params: Promise<{ event: string }> }) {
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/notifications/templates"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeftIcon className="size-4" /> All templates
-      </Link>
+      <BackButton href="/dashboard/notifications/templates" label="All templates" />
       <Suspense
         fallback={
           <div className="space-y-1">

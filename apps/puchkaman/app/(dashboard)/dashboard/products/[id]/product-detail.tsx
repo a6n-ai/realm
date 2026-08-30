@@ -1,20 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import type { FileDetail } from "@realm/storage/model";
-import {
-  ArrowLeftIcon,
-  CloudDownloadIcon,
-  CloudUploadIcon,
-  LinkIcon,
-  Loader2Icon,
-} from "lucide-react";
-import { SectionCard } from "@realm/design-system";
+import { CloudDownloadIcon, CloudUploadIcon, LinkIcon, Loader2Icon } from "lucide-react";
+import { BackButton, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import {
@@ -238,12 +231,7 @@ export function ProductDetail({
       <SyncLoadingOverlay open={syncBusy !== null} label={syncOverlayLabel} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" className="gap-1.5" asChild>
-            <Link href="/dashboard/products">
-              <ArrowLeftIcon className="size-3.5" />
-              Products
-            </Link>
-          </Button>
+          <BackButton href="/dashboard/products" label="Products" />
           <Badge variant={effectivelyAvailable ? "secondary" : "outline"}>{statusLabel}</Badge>
           <CloverColorSwatch color={product.cloverColorCode} size={14} />
           {product.source === "uber_eats" ? <Badge variant="outline">Uber Eats</Badge> : null}
