@@ -204,6 +204,13 @@
       "when": 1788016958398,
       "tag": "0028_lively_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788083881754,
+      "tag": "0029_add_session_active_organization_id",
+      "breakpoints": true
     }
   ]
 }

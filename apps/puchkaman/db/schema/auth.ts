@@ -74,6 +74,11 @@ export const session = pgTable(
     userAgent: text("user_agent"),
     // Declared by the admin plugin's schema; impersonation is not enabled here.
     impersonatedBy: text("impersonated_by"),
+    // Declared by the organization plugin's schema. No FK to organization — the
+    // org plugin's own adapter isn't registered for this app (see
+    // lib/auth/organization-actions.ts), so nothing in better-auth itself
+    // validates this id; switchActiveOrganization does that check.
+    activeOrganizationId: text("active_organization_id"),
     userId: bigint("user_id", { mode: "bigint" })
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { Input } from "@realm/ui/input";
 import { readFranchiseCookie, writeFranchiseCookie } from "./franchise-cookie";
@@ -37,9 +37,14 @@ export function LocationPicker<T extends PickableLocation>({
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [query, setQuery] = useState("");
+  // Cookie is the source of truth (proxy.ts reads it server-side too); this
+  // state just mirrors it so the FAB/dialog can render the current pick
+  // without re-parsing document.cookie on every render.
+  const [activeCode, setActiveCode] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLocations().then(setLocations);
+    setActiveCode(readFranchiseCookie());
   }, [fetchLocations]);
 
   useEffect(() => {
@@ -60,10 +65,13 @@ export function LocationPicker<T extends PickableLocation>({
 
   function selectLocation(loc: T) {
     writeFranchiseCookie(loc.clientCode);
+    setActiveCode(loc.clientCode);
     setShowSuggestion(false);
     setShowPicker(false);
     router.refresh();
   }
+
+  const active = locations.find((l) => l.clientCode === activeCode) ?? null;
 
   const filtered = locations.filter((l) => {
     const q = query.trim().toLowerCase();
@@ -121,11 +129,14 @@ export function LocationPicker<T extends PickableLocation>({
                 key={loc.id}
                 type="button"
                 onClick={() => selectLocation(loc)}
-                className="location-picker-card flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted"
+                aria-pressed={loc.clientCode === activeCode}
+                className="location-picker-card flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-muted data-[active=true]:border-primary"
+                data-active={loc.clientCode === activeCode}
               >
-                <span className="flex items-center gap-1.5 font-medium">
+                <span className="flex w-full items-center gap-1.5 font-medium">
                   <MapPin className="size-4 shrink-0 text-primary" />
                   {loc.name}
+                  {loc.clientCode === activeCode && <Check className="location-picker-check ml-auto size-4 shrink-0 text-primary" />}
                 </span>
                 <span className="text-sm text-muted-foreground">{loc.address ?? loc.city}</span>
               </button>
@@ -140,11 +151,11 @@ export function LocationPicker<T extends PickableLocation>({
       <button
         type="button"
         onClick={() => setShowPicker(true)}
-        aria-label="Change delivery location"
+        aria-label={active ? `Delivering to ${active.name}. Change location.` : "Change delivery location"}
         className="location-picker-fab fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border bg-background px-3 py-2 text-sm shadow-lg hover:bg-muted"
       >
         <MapPin className="size-4 text-primary" />
-        Deliver to
+        {active ? active.city ?? active.name : "Deliver to"}
       </button>
     </>
   );

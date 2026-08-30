@@ -58,7 +58,13 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
+    // activeOrganizationId is declared on `session` (db/schema/auth.ts) so
+    // getSession()/setSession() through this adapter can read/write it, even
+    // though the org plugin's own model registration for organization/member
+    // is intentionally left out (see organization-actions.ts).
     schema: { user: users, account, session, verification },
+    // No `additionalFields` entry needed — drizzleAdapter maps unknown model
+    // fields onto matching table columns by name already.
   }),
   advanced: {
     database: { generateId: false },
