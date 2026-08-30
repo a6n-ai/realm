@@ -13,6 +13,11 @@ import { CustomerSearch } from "@/components/customer/customer-search";
 import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
 import { AppBrand } from "@/components/app-brand";
 
+// Every page under here is auth-gated (getSession() reads headers()), so none can
+// ever actually be static — this stops Next from wastefully rendering all of them
+// once at build time only to discard the result.
+export const dynamic = "force-dynamic";
+
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
   if (!session?.user) redirect("/login");

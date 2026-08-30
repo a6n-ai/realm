@@ -14,6 +14,11 @@ import { CustomerBottomNav } from "@/components/customer/customer-bottom-nav";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { ModeToggle } from "@/components/mode-toggle";
 
+// Every page under here is auth-gated (getSession() reads headers()), so none can
+// ever actually be static — this stops Next from wastefully rendering all of them
+// once at build time only to discard the result.
+export const dynamic = "force-dynamic";
+
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me");

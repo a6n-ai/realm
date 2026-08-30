@@ -14,8 +14,6 @@ import { Wizard } from "@/components/wizard/wizard";
 import { selectionsFromPriorOrder } from "@/components/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 
-export const dynamic = "force-dynamic";
-
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
 export default async function RenewPlanPage() {

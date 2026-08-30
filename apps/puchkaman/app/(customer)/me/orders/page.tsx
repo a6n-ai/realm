@@ -7,8 +7,6 @@ import { getSession } from "@/lib/auth/session";
 import { myOrders, splitOrders } from "@/lib/customers/my-orders";
 import { OrderSummaryList } from "@/components/customer/order-summary-list";
 
-export const dynamic = "force-dynamic";
-
 export default async function CustomerOrdersPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me/orders");

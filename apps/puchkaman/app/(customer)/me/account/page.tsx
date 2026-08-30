@@ -9,8 +9,6 @@ import { ChangePasswordForm } from "@/app/(dashboard)/dashboard/account/change-p
 import { ChangeEmailForm } from "@/app/(dashboard)/dashboard/account/change-email-form";
 import { SetPasswordForm } from "@/components/customer/account/set-password-form";
 
-export const dynamic = "force-dynamic";
-
 export default async function CustomerAccountPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me/account");

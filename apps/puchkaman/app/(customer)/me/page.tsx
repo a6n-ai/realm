@@ -9,8 +9,6 @@ import { OrderSummaryList } from "@/components/customer/order-summary-list";
 
 // Every read here is per-viewer and live; a cached render would show one
 // customer's orders to another.
-export const dynamic = "force-dynamic";
-
 export default async function CustomerHomePage() {
   const session = await getSession();
   if (!session?.user) redirect("/login?callbackUrl=/me");

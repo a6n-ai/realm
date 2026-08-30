@@ -7,8 +7,6 @@ import { auth } from "@/lib/auth";
 import { getSession } from "@/lib/auth/session";
 import { loadTrackedOrder } from "@/lib/order-tracking/load";
 
-export const dynamic = "force-dynamic";
-
 export default async function CustomerOrderPage({
   params,
 }: {
