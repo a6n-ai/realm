@@ -33,4 +33,5 @@ export * from "./message-composer";
 export * from "./chat-message-list";
 export { makeImageThumbnail } from "./make-image-thumbnail";
 export { StaticMap, type StaticMapMarker } from "./static-map";
+export { RoutedTabNav, type RoutedTabNavItem } from "./routed-tab-nav";
 

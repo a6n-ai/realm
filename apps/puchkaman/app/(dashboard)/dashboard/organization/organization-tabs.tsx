@@ -1,11 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2Icon, UsersIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
-import { PageHeader } from "@realm/design-system";
+import { PageHeader, RoutedTabNav } from "@realm/design-system";
 
 // "Users" points at the existing staff/user management page — puchkaman
 // already has one at /dashboard/settings/users, so this tab reuses it rather
@@ -32,20 +30,7 @@ function activeTab(pathname: string) {
 }
 
 export function OrganizationTabs() {
-  const pathname = usePathname();
-  const active = activeTab(pathname).id;
-
-  return (
-    <Tabs value={active}>
-      <TabsList aria-label="Organization sections">
-        {TABS.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} asChild>
-            <Link href={tab.href}>{tab.label}</Link>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
+  return <RoutedTabNav tabs={TABS} ariaLabel="Organization sections" />;
 }
 
 // Shared header for both organization tabs (Users, Clients) so the two pages
