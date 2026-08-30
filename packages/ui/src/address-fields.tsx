@@ -53,10 +53,11 @@ export type AddressFieldsProps = {
   postalSlot?: ReactNode;
   onPostalBlur?: () => void;
   /**
-   * When supplied together with `resolveUrl`, the address-line field becomes
-   * a debounced autocomplete: typing calls `${resolveUrl}/../suggest`-shaped
-   * suggest endpoint (see `suggestUrl`), picking a suggestion resolves it and
-   * reports coordinates here. Omit either prop to keep today's plain input.
+   * When `resolveUrl` is supplied, the address-line field becomes a debounced
+   * autocomplete: typing calls `${resolveUrl}/../suggest`-shaped suggest
+   * endpoint (see `suggestUrl`), picking a suggestion resolves it. `onResolve`
+   * is optional — pass it only if the caller needs the resolved coordinates.
+   * Omit `resolveUrl` to keep today's plain input.
    */
   onResolve?: (place: { lat: number; lng: number }) => void;
   /** App's resolve API route (POST { placeId, address } -> { place }). */
@@ -90,7 +91,7 @@ export function AddressFields({
   suggestUrl,
 }: AddressFieldsProps) {
   const resolvedFields = resolveFields(preset, fields);
-  const autocompleteEnabled = Boolean(onResolve && resolveUrl);
+  const autocompleteEnabled = Boolean(resolveUrl);
 
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
@@ -141,7 +142,7 @@ export function AddressFields({
                 onResolve={(place) => {
                   const { lat, lng, ...structured } = place;
                   onChange(structured);
-                  onResolve!({ lat, lng });
+                  if (onResolve) onResolve({ lat, lng });
                 }}
               />
               {error ? <p className="text-xs text-destructive">{error}</p> : null}

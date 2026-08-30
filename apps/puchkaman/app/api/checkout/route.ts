@@ -17,6 +17,20 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   // own lat/lng could plant a point next to the shop. Re-resolve the same
   // placeId/address the client typed server-side (AWS-only, persist bucket)
   // and store only that result; a typed-but-unresolved address just gets null.
+  //
+  // This is a second geocode of the same address: ordersService.createCheckout
+  // (lib/services/orders.service.ts) independently calls resolveAddress()
+  // (lib/delivery/resolve-address.ts) to derive deliveryDistanceKm/zone/pricing,
+  // via a Google-first-then-AWS advisory chain, persist: false. That chain has
+  // to stay Google-first because the zone-boundary data it feeds was tuned
+  // against Google's outputs elsewhere in the codebase. This route's call is
+  // AWS-only because it's the one path allowed to persist a geocode (cost/legal
+  // ruling — see resolveAndPersist's doc comment in @realm/places).
+  // Two different provider chains for one address means the stored map point
+  // and the priced distance can, in theory, disagree slightly. Accepted: the
+  // two paths are already provider-independent by design, and unifying them
+  // would mean threading a resolved point through createCheckout's internals —
+  // out of scope here.
   const resolvedDelivery =
     parsed.data.fulfillment.type === "delivery"
       ? await resolveAndPersist({

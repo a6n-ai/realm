@@ -705,6 +705,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const [zones, origin] = await Promise.all([getZonesWithTypes(), getStoreOrigin()]);
       // Core bucket, not storage-licensed: the coordinates are used to derive
       // deliveryDistanceKm and then discarded, never written to a column.
+      //
+      // This is a second geocode of the same address: app/api/checkout/route.ts
+      // separately calls resolveAndPersist (AWS-only) on the same address string
+      // to get the lat/lng it stores for the map. Deliberate, not a bug — see
+      // the comment there for the full tradeoff (different provider chains,
+      // pricing path stays Google-first for zone-boundary compatibility, map
+      // path stays AWS-only per the persist cost/legal ruling; unifying them
+      // is out of scope for this fix).
       const resolved = await resolveAddress({
         placeId: parsed.fulfillment.placeId,
         address: parsed.fulfillment.address,

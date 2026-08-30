@@ -28,11 +28,13 @@ function buildAdvisoryProviders(): PlaceProvider[] {
   return process.env.PLACES_PROVIDER === "aws" ? [aws, google, nominatim] : [google, aws, nominatim];
 }
 
-// No storage chain exists here on purpose. Nothing in this app persists
-// coordinates any more, so every call is advisory and no provider ever needs
-// a storage-licensed bucket. Reintroducing a column that stores a geocoded
-// lat/lng means reintroducing that chain — Google can never be in it, because
-// Places API (New) has no storage-licensed bucket at any price.
+// No storage chain exists here on purpose. Lat/lng IS persisted now — orders
+// has deliveryLat/deliveryLng — but only via the AWS-only resolveAndPersist
+// path in app/api/checkout/route.ts, at the actual checkout write point.
+// This file's resolveAddress()/suggestAddresses() stay advisory-only
+// (persist: false) and never write anything; they can safely include Google,
+// because Google can never sit in a storage chain — Places API (New) has no
+// storage-licensed bucket at any price.
 
 // Built lazily, not at module load — awsPlaceProvider() constructs a real
 // GeoPlacesClient even when PLACES_PROVIDER never selects AWS. SDK v3 defers

@@ -38,8 +38,6 @@ type Contact = {
   addressLine: string;
   city: string;
   postalCode: string;
-  lat?: number;
-  lng?: number;
 };
 const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
 
@@ -110,15 +108,6 @@ export function Checkout({
   };
 
   const set = (patch: Partial<Contact>) => setContact((c) => ({ ...c, ...patch }));
-  // A retyped address line invalidates any previously resolved coordinates —
-  // clear them here so a stale pick never rides along with an edited address;
-  // onResolve (fired after this, on a fresh pick) sets fresh ones right after.
-  const setAddress = (patch: Partial<Contact>) =>
-    setContact((c) => ({
-      ...c,
-      ...patch,
-      ...("addressLine" in patch ? { lat: undefined, lng: undefined } : {}),
-    }));
 
   const joinWaitlist = async () => {
     try {
@@ -260,8 +249,7 @@ export function Checkout({
                   idPrefix="checkout"
                   fields={["addressLine", "city", "postalCode"]}
                   values={contact}
-                  onChange={setAddress}
-                  onResolve={({ lat, lng }) => set({ lat, lng })}
+                  onChange={set}
                   resolveUrl="/api/address/resolve"
                   onPostalBlur={checkPostal}
                   postalSlot={

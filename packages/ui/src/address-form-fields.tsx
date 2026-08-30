@@ -40,10 +40,11 @@ export type AddressFormFieldsProps<T extends FieldValues> = {
   disabled?: boolean;
   postalSlot?: ReactNode;
   onPostalBlur?: () => void;
-  /** Reported when a picked suggestion resolves — see `AddressFields`' same prop. */
+  /** Reported when a picked suggestion resolves — see `AddressFields`' same prop.
+   *  Optional; the autocomplete itself is gated on `resolveUrl` alone. */
   onResolve?: (place: { lat: number; lng: number }) => void;
-  /** App's resolve API route. Supplying this + `onResolve` turns the address-line
-   *  field into a debounced autocomplete; omit either to keep the plain input. */
+  /** App's resolve API route. Supplying this turns the address-line field into
+   *  a debounced autocomplete; omit it to keep the plain input. */
   resolveUrl?: string;
   suggestUrl?: string;
   /** Structured fields (city/province/postalCode/addressLine) from a resolved pick,
@@ -69,7 +70,7 @@ export function AddressFormFields<T extends FieldValues>({
   onAutofill,
 }: AddressFormFieldsProps<T>) {
   const resolvedFields = resolveFields(preset, fields);
-  const autocompleteEnabled = Boolean(onResolve && resolveUrl);
+  const autocompleteEnabled = Boolean(resolveUrl);
 
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
@@ -133,7 +134,7 @@ export function AddressFormFields<T extends FieldValues>({
                       onResolve={(place) => {
                         const { lat, lng, ...structured } = place;
                         onAutofill?.(structured);
-                        onResolve!({ lat, lng });
+                        if (onResolve) onResolve({ lat, lng });
                       }}
                     />
                   </FormControl>

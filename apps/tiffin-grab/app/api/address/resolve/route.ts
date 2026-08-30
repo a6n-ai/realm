@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { clientIp, isRateLimited } from "@realm/commons";
 import { handler, json } from "@realm/routes";
-import { resolveAndPersist } from "@realm/places";
+import { awsPlaceProvider } from "@realm/places";
 
 const resolveSchema = z.object({
   placeId: z.string().trim().min(1).optional(),
@@ -13,8 +13,10 @@ const RESOLVE_LIMIT = 20;
 const RESOLVE_WINDOW_MS = 60_000;
 
 // Public (unauthenticated), always 200 — a throttled or empty result both
-// degrade to "no coordinates yet", never a toast. AWS-only: this is the one
-// path that persists a geocode, so it must never route through Google.
+// degrade to "no coordinates yet", never a toast. Preview-only: nothing this
+// route returns is ever persisted (checkout re-resolves server-side at the
+// actual write point), so it uses the cheap non-persist bucket, not
+// resolveAndPersist's storage-licensed one.
 export const POST = handler(async (request: Request): Promise<Response> => {
   const ip = clientIp(request) ?? "unknown";
   if (isRateLimited(ip, RESOLVE_LIMIT, RESOLVE_WINDOW_MS, "address-resolve-ip")) {
@@ -24,6 +26,9 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   const parsed = resolveSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return json({ place: null });
 
-  const place = await resolveAndPersist(parsed.data, { region: process.env.AWS_REGION });
+  const place = await awsPlaceProvider({ region: process.env.AWS_REGION }).resolve({
+    ...parsed.data,
+    persist: false,
+  });
   return json({ place });
 });

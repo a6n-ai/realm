@@ -64,12 +64,11 @@ export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmR
   // account; anonymous checkout provisions by phone.
   const userId = session?.user?.id ?? null;
 
-  // input.contact.lat/lng is only a client-side preview (from the browser's
-  // earlier /api/address/resolve call while typing) — never trust it directly,
-  // a client could assert any coordinate regardless of the typed address. This
-  // is the public checkout entry point (a Server Action a request can call
-  // directly), so re-resolve the same address text server-side here and store
-  // only that result; a resolve failure just stores null, same as before.
+  // The client never sends lat/lng at all — a client could assert any
+  // coordinate regardless of the typed address. This is the public checkout
+  // entry point (a Server Action a request can call directly), so re-resolve
+  // the address text server-side here and store only that result; a resolve
+  // failure just stores null.
   const resolvedDelivery = input.contact.addressLine.trim()
     ? await resolveAndPersist({
         address: [input.contact.addressLine, input.contact.city, input.contact.postalCode]

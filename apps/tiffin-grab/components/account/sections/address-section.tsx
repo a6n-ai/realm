@@ -77,7 +77,7 @@ export function AddressSection({
               // `users` has no lat/lng column for a profile default address (only
               // orders/deliveries carry coordinates) — a resolved pick autofills
               // the structured text fields, coordinates are not persisted here.
-              onResolve={() => {}}
+              // No onResolve needed: autocomplete is gated on resolveUrl alone.
               onAutofill={(patch) => {
                 for (const [key, value] of Object.entries(patch)) {
                   form.setValue(key as keyof ProfileAddressValues, value, { shouldDirty: true });
