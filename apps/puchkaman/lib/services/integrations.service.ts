@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import {
   DEFAULT_INTEGRATIONS_CONFIG,
   parseIntegrationsConfig,
@@ -31,11 +32,37 @@ const appService = new AppService(appRepository);
  * (staff, set via the header OrgSwitcher) if set, else the franchise
  * proxy.ts resolved from the request (public visitor — URL segment/
  * `franchise` cookie; null on /dashboard, so this never overrides a staff
- * session), else the brand (`isDefaultLocation`) org.
+ * session), else — since proxy.ts's RESOLUTION_EXEMPT deliberately never
+ * sets that header for ANY /api/* route, resolveRequestOrg() is always null
+ * there — read the `franchise` cookie directly the same way proxy.ts does
+ * for every other path. Without this, a guest's checkout/delivery API calls
+ * (no staff session, so no activeOrganizationId either) silently fell
+ * through to the brand's `isDefaultLocation` org regardless of which
+ * franchise's site they were actually ordering from. Only then does it fall
+ * to the brand.
  */
 async function resolveActingOrg() {
   const session = await getSession();
-  const activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
+  let activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
+
+  if (!activeOrgId) {
+    // Same "no request scope" edge case resolveRequestOrg() guards against
+    // (a script/cron/test calling this with no active Next.js request) —
+    // cookies() throws synchronously there, not a rejected promise, so this
+    // needs try/catch rather than .catch(). "No org resolved" either way,
+    // not an error worth surfacing.
+    let pickedCode: string | null = null;
+    try {
+      const jar = await cookies();
+      pickedCode = jar.get("franchise")?.value ?? null;
+    } catch {
+      // no request scope — fall through with pickedCode still null
+    }
+    if (pickedCode) {
+      const [picked] = await db.select({ id: organization.id }).from(organization).where(eq(organization.clientCode, pickedCode)).limit(1);
+      if (picked) activeOrgId = picked.id;
+    }
+  }
 
   const [activeOrg] = activeOrgId
     ? await db.select().from(organization).where(eq(organization.id, activeOrgId)).limit(1)

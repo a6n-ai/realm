@@ -1,8 +1,10 @@
 import { cache } from "react";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { UpdatableRepository } from "@realm/database";
 import { db } from "@/db/client";
-import { app, deliveryTypes, deliveryZoneTypes, deliveryZones } from "@/db/schema";
+import { app, deliveryTypes, deliveryZoneTypes, deliveryZones, organization } from "@/db/schema";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
+import { orgScopeWhere } from "@/lib/services/org-scope";
 import { SessionUpdatableService } from "@/lib/services/session-service";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
 import type { DeliveryType, Zone, ZoneWithTypes } from "./zones";
@@ -69,31 +71,42 @@ const typeService = new TypeService(
 
 // Cached per-request (React cache()) — order/page.tsx calls this from both
 // generateMetadata() and the page body, and both run within the same request.
+// Org-scoped (franchise's own + shared/null rows) — see getStoreOrigin for why
+// mixing another franchise's delivery config in here would be actively wrong,
+// not just noisy.
 export const getDeliveryTypes = cache(async (): Promise<DeliveryType[]> => {
+  const scope = await orgScopeWhere(deliveryTypes.organizationId);
   const rows = await db
     .select()
     .from(deliveryTypes)
-    .where(eq(deliveryTypes.active, true))
+    .where(scope ? and(eq(deliveryTypes.active, true), scope) : eq(deliveryTypes.active, true))
     .orderBy(deliveryTypes.sortOrder);
   return rows.map(rowToType);
 });
 
 /** Every delivery type, retired included — the catalogue admin manages both, unlike {@link getDeliveryTypes}. */
 export async function getAllDeliveryTypes(): Promise<DeliveryType[]> {
-  const rows = await db.select().from(deliveryTypes).orderBy(deliveryTypes.sortOrder);
+  const rows = await db
+    .select()
+    .from(deliveryTypes)
+    .where(await orgScopeWhere(deliveryTypes.organizationId))
+    .orderBy(deliveryTypes.sortOrder);
   return rows.map(rowToType);
 }
 
 /**
  * Every zone with the delivery types it offers, in one query (zones LEFT JOIN
- * the join table LEFT JOIN types) grouped in JS — never N+1 per zone.
+ * the join table LEFT JOIN types) grouped in JS — never N+1 per zone. Zones
+ * are org-scoped the same way; a zone's attached types ride along via the
+ * join, so they don't need their own filter here.
  */
 export async function getZonesWithTypes(): Promise<ZoneWithTypes[]> {
   const rows = await db
     .select({ zone: deliveryZones, type: deliveryTypes })
     .from(deliveryZones)
     .leftJoin(deliveryZoneTypes, eq(deliveryZoneTypes.zoneId, deliveryZones.id))
-    .leftJoin(deliveryTypes, eq(deliveryTypes.id, deliveryZoneTypes.typeId));
+    .leftJoin(deliveryTypes, eq(deliveryTypes.id, deliveryZoneTypes.typeId))
+    .where(await orgScopeWhere(deliveryZones.organizationId));
 
   const byZoneId = new Map<bigint, ZoneWithTypes>();
   for (const row of rows) {
@@ -107,7 +120,23 @@ export async function getZonesWithTypes(): Promise<ZoneWithTypes[]> {
   return [...byZoneId.values()];
 }
 
+/**
+ * The point delivery distance is measured from. Resolves the ACTIVE
+ * franchise's own storeLat/storeLng first (set on the Clients detail page —
+ * see client-detail-form.tsx) — a delivery radius measured from the wrong
+ * franchise's coordinates would accept or reject addresses on the wrong
+ * basis entirely. Falls back to the app-table singleton (pre-multi-franchise
+ * data, or a franchise with no pin set yet), then the hardcoded default.
+ */
 export async function getStoreOrigin(): Promise<{ lat: number; lng: number }> {
+  const orgId = await resolveActingOrgId();
+  const [orgRow] = orgId
+    ? await db.select({ lat: organization.storeLat, lng: organization.storeLng }).from(organization).where(eq(organization.id, orgId)).limit(1)
+    : [];
+  if (orgRow?.lat != null && orgRow?.lng != null) {
+    return { lat: Number(orgRow.lat), lng: Number(orgRow.lng) };
+  }
+
   const [row] = await db.select({ lat: app.storeLat, lng: app.storeLng }).from(app).limit(1);
   return {
     lat: row?.lat != null ? Number(row.lat) : DEFAULT_STORE_LAT,
