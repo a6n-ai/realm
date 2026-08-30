@@ -270,16 +270,24 @@ type ProductRow = typeof products.$inferSelect;
  * checkout go through it, which is what stops the quoted total from drifting from
  * the charged one.
  */
-async function priceCart(items: CreateCheckoutInput["items"]): Promise<{
+async function priceCart(
+  items: CreateCheckoutInput["items"],
+  orgId?: string | null,
+): Promise<{
   lines: OrderPricingSnapshot["lines"];
   subtotal: number;
   byPublic: Map<string, ProductRow>;
 }> {
   const publicIds = [...new Set(items.map((i) => i.productPublicId))];
+  // Same org scope as listOrderableCatalog (null = shared across every
+  // franchise, otherwise this org's own products) — without this, a line
+  // item for another franchise's product would price and check out fine
+  // even though it never appeared on this visitor's menu or catalog.
+  const orgScope = orgId ? or(isNull(products.organizationId), eq(products.organizationId, orgId)) : undefined;
   const productRows = await db
     .select()
     .from(products)
-    .where(and(inArray(products.publicId, publicIds), eq(products.active, true)));
+    .where(and(inArray(products.publicId, publicIds), eq(products.active, true), orgScope));
 
   const byPublic = new Map(productRows.map((p) => [p.publicId, p]));
   // Modifier prices come from our Clover mirror, never from the request — whatever
@@ -399,7 +407,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    */
   async quoteCart(input: QuoteCartInput): Promise<CartQuoteResult> {
     const parsed = quoteCartSchema.parse(input);
-    const { lines, subtotal, byPublic } = await priceCart(parsed.items);
+    const orgId = await resolveActingOrgId();
+    const { lines, subtotal, byPublic } = await priceCart(parsed.items, orgId);
     const discounts = await resolveCartDiscounts(parsed.discounts, subtotal);
 
     // Fold in the picked delivery option's discount so the quoted total matches
@@ -681,7 +690,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const pakms = await client.getPakmsApiKey();
     const environment = client.environment();
 
-    const { lines, subtotal, byPublic } = await priceCart(parsed.items);
+    const { lines, subtotal, byPublic } = await priceCart(parsed.items, orgId);
 
     // Delivery is resolved server-side from a fresh geocode — the client only ever
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).

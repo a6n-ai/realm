@@ -19,7 +19,6 @@ export function CreateFranchiseButton({ brandOrganizationId }: { brandOrganizati
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [clientCode, setClientCode] = useState("");
   const [pending, startTransition] = useTransition();
 
   return (
@@ -33,14 +32,13 @@ export function CreateFranchiseButton({ brandOrganizationId }: { brandOrganizati
         </DialogHeader>
         <div className="space-y-3">
           <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input placeholder="Client code" value={clientCode} onChange={(e) => setClientCode(e.target.value)} />
         </div>
         <DialogFooter>
           <Button
-            disabled={pending || !name || !clientCode}
+            disabled={pending || !name}
             onClick={() => {
               startTransition(async () => {
-                const result = await createFranchise(brandOrganizationId, name, clientCode);
+                const result = await createFranchise(brandOrganizationId, name);
                 if (!result.ok) {
                   toast.error(result.error);
                   return;

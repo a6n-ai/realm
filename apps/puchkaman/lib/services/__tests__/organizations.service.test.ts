@@ -182,7 +182,7 @@ describe("member add/remove (integration)", () => {
 describe("updateOrganization (integration)", () => {
   afterEach(reset);
 
-  it("updates name, clientCode, and region", async () => {
+  it("updates name and region, leaving clientCode untouched", async () => {
     const [org] = await db
       .insert(organization)
       .values({ name: "Old Name", clientCode: `test-org-old-${runId}` })
@@ -191,35 +191,14 @@ describe("updateOrganization (integration)", () => {
 
     const result = await updateOrganization(org.id, {
       name: "New Name",
-      clientCode: `test-org-new-${runId}`,
       region: "ON", city: null, address: null, storeLat: null, storeLng: null,
     });
 
     expect(result.ok).toBe(true);
     const [row] = await db.select().from(organization).where(eq(organization.id, org.id)).limit(1);
     expect(row.name).toBe("New Name");
-    expect(row.clientCode).toBe(`test-org-new-${runId}`);
+    expect(row.clientCode).toBe(`test-org-old-${runId}`);
     expect(row.region).toBe("ON");
-  });
-
-  it("rejects a duplicate clientCode as a correctable error", async () => {
-    const [orgA] = await db
-      .insert(organization)
-      .values({ name: "Org A", clientCode: `test-org-dup-a-${runId}` })
-      .returning({ id: organization.id });
-    const [orgB] = await db
-      .insert(organization)
-      .values({ name: "Org B", clientCode: `test-org-dup-b-${runId}` })
-      .returning({ id: organization.id });
-    createdOrgIds = [orgA.id, orgB.id];
-
-    const result = await updateOrganization(orgB.id, {
-      name: "Org B",
-      clientCode: `test-org-dup-a-${runId}`,
-      region: null, city: null, address: null, storeLat: null, storeLng: null,
-    });
-
-    expect(result.ok).toBe(false);
   });
 });
 

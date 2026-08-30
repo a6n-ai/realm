@@ -63,14 +63,14 @@ describe("createFranchise (integration)", () => {
       .returning({ id: organization.id });
     createdOrgIds = [brand.id];
 
-    const result = await createFranchise(brand.id, "Franchise Y1", `test-franchise-y1-${runId}`);
+    const result = await createFranchise(brand.id, `Franchise Y1 ${runId}`);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       createdOrgIds.push(result.id);
       const [row] = await db.select().from(organization).where(eq(organization.id, result.id)).limit(1);
       expect(row.parentOrganizationId).toBe(brand.id);
-      expect(row.clientCode).toBe(`test-franchise-y1-${runId}`);
+      expect(row.clientCode).toMatch(/^FRANCHISE-Y1-/);
       const [memberRow] = await db
         .select()
         .from(member)
@@ -93,7 +93,7 @@ describe("createFranchise (integration)", () => {
       .returning({ id: organization.id });
     createdOrgIds = [brand.id, franchise.id];
 
-    const result = await createFranchise(franchise.id, "Illegal Sub-Franchise", `test-illegal-${runId}`);
+    const result = await createFranchise(franchise.id, `Illegal Sub-Franchise ${runId}`);
 
     expect(result.ok).toBe(false);
   });
@@ -146,7 +146,6 @@ describe("updateOrganizationAction (integration)", () => {
 
     const result = await updateOrganizationAction(org.id, {
       name: "New Action Name",
-      clientCode: `test-org-action-new-${runId}`,
       region: "BC", city: null, address: null, storeLat: null, storeLng: null,
     });
 

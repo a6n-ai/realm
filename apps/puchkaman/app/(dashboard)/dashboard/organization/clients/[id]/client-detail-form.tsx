@@ -26,7 +26,6 @@ export function ClientDetailForm({
 }) {
   const router = useRouter();
   const [name, setName] = useState(organization.name);
-  const [clientCode, setClientCode] = useState(organization.clientCode);
   const [region, setRegion] = useState(organization.region ?? "");
   const [city, setCity] = useState(organization.city ?? "");
   const [address, setAddress] = useState(organization.address ?? "");
@@ -42,7 +41,6 @@ export function ClientDetailForm({
         startTransition(async () => {
           const result = await updateOrganizationAction(organizationId, {
             name,
-            clientCode,
             region: region || null,
             city: city || null,
             address: address || null,
@@ -66,7 +64,12 @@ export function ClientDetailForm({
       <label className="text-sm text-muted-foreground" htmlFor="org-client-code">
         Client code
       </label>
-      <Input id="org-client-code" value={clientCode} onChange={(e) => setClientCode(e.target.value)} />
+      {/* Set once at creation (derived from the name) and never editable after —
+          every URL segment, the `franchise` cookie, and the auth org-code lookup
+          all key off it; a rename would desync them. */}
+      <p id="org-client-code" className="flex items-center text-sm font-mono">
+        {organization.clientCode}
+      </p>
 
       <label className="text-sm text-muted-foreground" htmlFor="org-region">
         Region
@@ -106,7 +109,7 @@ export function ClientDetailForm({
         <Button
           type="submit"
           size="sm"
-          disabled={pending || !name || !clientCode}
+          disabled={pending || !name}
           className="cursor-pointer transition-transform active:scale-[0.96]"
         >
           Save

@@ -149,9 +149,13 @@ export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
     .where(sql`${organization.city} is not null`);
 }
 
+// clientCode is intentionally absent: it's set once at creation (derived from
+// the name, see deriveClientCode) and never editable after — every table with
+// an organizationId FK stores the id, not the code, but a renamed code would
+// still desync every URL, cookie, and proxy.ts clientCode lookup pointing at
+// the old value.
 export type UpdateOrganizationInput = {
   name: string;
-  clientCode: string;
   region: string | null;
   city: string | null;
   address: string | null;
@@ -171,6 +175,42 @@ function isClientCodeConflict(e: unknown): boolean {
   );
 }
 
+// Base code from the name (letters/digits only, upper-cased, capped so a
+// "-2"/"-3" disambiguation suffix always fits under typical column limits).
+// Not exported: only deriveUniqueClientCode (below) is meant to produce a
+// code that's actually safe to insert.
+function slugifyClientCode(name: string): string {
+  const base = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 20);
+  return base || "ORG";
+}
+
+// Retries with a numeric suffix on collision rather than pre-checking
+// existence — same race the unique index is already there to catch, just
+// resolved automatically instead of surfacing an error to the admin.
+// `executor` accepts either `db` or an open transaction (only `.select` is
+// used, so a structural Pick avoids fighting the transaction type's missing
+// `$client`), so the caller can run the check-and-insert atomically inside
+// its own transaction.
+export async function deriveUniqueClientCode(executor: Pick<typeof db, "select">, name: string): Promise<string> {
+  const base = slugifyClientCode(name);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const [existing] = await executor
+      .select({ id: organization.id })
+      .from(organization)
+      .where(eq(organization.clientCode, candidate))
+      .limit(1);
+    if (!existing) return candidate;
+  }
+  throw new Error(`Could not derive a unique client code for "${name}".`);
+}
+
 export async function updateOrganization(
   id: string,
   fields: UpdateOrganizationInput,
@@ -180,8 +220,6 @@ export async function updateOrganization(
       .update(organization)
       .set({
         name: fields.name,
-        clientCode: fields.clientCode,
-        slug: fields.clientCode,
         region: fields.region,
         city: fields.city,
         address: fields.address,

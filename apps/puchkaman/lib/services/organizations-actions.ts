@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
   addMember,
+  deriveUniqueClientCode,
   removeMember,
   searchUsersByEmail,
   updateMemberRole,
@@ -67,7 +68,6 @@ async function resolveActingUserId(): Promise<bigint> {
 export async function createFranchise(
   brandOrganizationId: string,
   name: string,
-  clientCode: string,
 ): Promise<CreateFranchiseResult> {
   await requireAdmin();
   try {
@@ -81,6 +81,13 @@ export async function createFranchise(
         .where(eq(organization.id, brandOrganizationId))
         .limit(1);
       assertHierarchyDepth(parent ?? null);
+
+      // clientCode is create-once, derived from the name — not admin input.
+      // See organizations.service.ts's deriveUniqueClientCode for why: every
+      // FK in this app stores organization.id, but clientCode is still the
+      // resolution key for URL segments, the `franchise` cookie, and the
+      // Better Auth client-code lookups — a rename would desync all three.
+      const clientCode = await deriveUniqueClientCode(tx, name);
 
       const [created] = await tx
         .insert(organization)
