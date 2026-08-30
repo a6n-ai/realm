@@ -214,6 +214,13 @@
   }
 }
 
+/* Dashboard/CRM shell only — Geist Sans, not the public Poppins. `@theme inline`
+   bakes --font-poppins directly into the compiled font-sans utility, so this
+   overrides via plain inheritance instead of trying to override --font-sans. */
+.crm-app {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
 /* ── Visual flare ─────────────────────────────────────────────
    Motion + depth within the monochrome system. Respects
    prefers-reduced-motion (all keyframe animations disabled below). */

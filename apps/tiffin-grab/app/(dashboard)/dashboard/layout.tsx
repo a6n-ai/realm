@@ -82,6 +82,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
+    <div className="crm-app">
     <TimezoneProvider tz={timezone}>
     <QuickAddProvider>
     <CrmShell
@@ -112,5 +113,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     </CrmShell>
     </QuickAddProvider>
     </TimezoneProvider>
+    </div>
   );
 }

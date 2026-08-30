@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Poppins, Geist_Mono } from "next/font/google";
+import { Poppins } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { ThemeProvider, themeInitScript } from "@realm/themes";
 import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@realm/ui/sonner";
@@ -19,10 +21,10 @@ const poppins = Poppins({
   weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Self-hosted via the `geist` npm package (Vercel's own font, full glyph set +
+// font-feature-settings) rather than next/font/google. GeistMono is the app-wide
+// mono; GeistSans's --font-geist-sans is scoped to the dashboard shell only
+// (.crm-app in globals.css) — public/customer pages keep Poppins.
 
 export const metadata: Metadata = {
   title: "Tiffin Grab",
@@ -38,7 +40,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <head>
         <InlineScript html={themeInitScript} />

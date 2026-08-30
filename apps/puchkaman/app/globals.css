@@ -133,7 +133,7 @@ body {
 body:has(.crm-app) {
   background: oklch(0.988 0.015 90.2); /* --paper */
   color: oklch(0.191 0.014 94); /* --ink */
-  font-family: var(--font-crm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 img { max-width: 100%; display: block; }

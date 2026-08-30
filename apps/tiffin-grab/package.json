@@ -62,6 +62,7 @@
     "lucide-react": "^1.20.0",
     "maplibre-gl": "^5.24.0",
     "motion": "^12.0.0",
+    "geist": "^1.7.2",
     "nanoid": "^5.1.14",
     "next": "16.3.3",
     "next-themes": "^0.4.6",
