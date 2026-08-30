@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { HistoryIcon } from "lucide-react";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, SkeletonStatCards, StatGrid, type Column } from "@/components/ds";
 import { TableCell } from "@realm/ui/table";
-import { Skeleton } from "@realm/ui/skeleton";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";
@@ -34,19 +33,6 @@ type DiscountLogRow = {
   orderPublicId: string | null;
 };
 
-function StatsGrid({ stats }: { stats: Stat[] }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {stats.map((s) => (
-        <div key={s.label} className="rounded-lg border p-4">
-          <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function DiscountLogs({
   stats,
   rows,
@@ -60,7 +46,7 @@ export function DiscountLogs({
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
   return (
     <>
-      <StatsGrid stats={stats} />
+      <StatGrid cols={4} items={stats} />
 
       <DataTable
         columns={COLUMNS}
@@ -103,15 +89,7 @@ export function DiscountLogs({
 export function DiscountLogsSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-4">
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="mt-2 h-3 w-20" />
-          </div>
-        ))}
-      </div>
-
+      <SkeletonStatCards count={4} />
       <DataTable.Skeleton columns={COLUMNS} />
     </>
   );

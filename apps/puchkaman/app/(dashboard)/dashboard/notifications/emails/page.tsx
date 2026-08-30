@@ -5,6 +5,8 @@ import { conditionToSql } from "@realm/database";
 import {
   ListPagination,
   SectionCard,
+  SkeletonStatCards,
+  StatGrid,
   parseFilterState,
   type FacetDef,
 } from "@realm/design-system";
@@ -45,17 +47,6 @@ export default function EmailsPage({ searchParams }: { searchParams: SearchParam
     <Suspense fallback={<EmailsSkeleton />}>
       <EmailsData searchParams={searchParams} />
     </Suspense>
-  );
-}
-
-function Tile({ label, value, tone }: { label: string; value: number; tone?: "bad" }) {
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="text-muted-foreground text-sm">{label}</div>
-      <div className={`text-2xl font-semibold ${tone === "bad" && value > 0 ? "text-destructive" : ""}`}>
-        {value}
-      </div>
-    </div>
   );
 }
 
@@ -102,14 +93,18 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   const rows = items as unknown as ActivityRow[];
   const total = Number((totalRes as unknown as { total: number }[])[0]?.total ?? 0);
 
+  const failedCount = failed24[0]?.n ?? 0;
+  const suppressedCount = suppressed[0]?.n ?? 0;
+  const cards = [
+    { label: "Sent (24h)", value: sent24[0]?.n ?? 0 },
+    { label: "Failed (24h)", value: failedCount, tone: failedCount > 0 ? ("bad" as const) : undefined },
+    { label: "Total sent", value: totalSent[0]?.n ?? 0 },
+    { label: "Suppressed", value: suppressedCount, tone: suppressedCount > 0 ? ("bad" as const) : undefined },
+  ];
+
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="Sent (24h)" value={sent24[0]?.n ?? 0} />
-        <Tile label="Failed (24h)" value={failed24[0]?.n ?? 0} tone="bad" />
-        <Tile label="Total sent" value={totalSent[0]?.n ?? 0} />
-        <Tile label="Suppressed" value={suppressed[0]?.n ?? 0} tone="bad" />
-      </div>
+      <StatGrid cols={4} items={cards} />
 
       <SectionCard title="Email log" subtitle="Every send and every suppressed address, newest first.">
         <div className="space-y-4">
@@ -157,11 +152,7 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
 function EmailsSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-20 w-full" />
-        ))}
-      </div>
+      <SkeletonStatCards count={4} />
       <SectionCard title="Email log">
         <div className="space-y-2">
           {[0, 1, 2, 3, 4, 5].map((i) => (

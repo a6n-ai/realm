@@ -113,6 +113,11 @@ body:has(.crm-app) {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* StatCard/StatBar hero numbers — Geist Pixel's circle-dot digit shapes. */
+.crm-app .font-pixel-circle {
+  font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace;
+}
+
 /* ThemeProvider toggles .dark on <html> (and data-theme for public CSS).
    Dark stays readable; lifted public dark --green (#3ECC5A); red status only. */
 html.dark body:has(.crm-app) {

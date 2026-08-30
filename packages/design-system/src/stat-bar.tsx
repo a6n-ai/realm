@@ -9,6 +9,7 @@ export type StatItem = {
   hint?: string;
   icon?: LucideIcon;
   delta?: { dir: "up" | "down"; text: string };
+  tone?: "ok" | "bad";
   pixelValue?: boolean;
 };
 
@@ -32,7 +33,9 @@ export function StatBar({ items }: { items: StatItem[] }) {
           <span
             className={cn(
               "nums text-base leading-none font-semibold whitespace-nowrap",
-              it.pixelValue && "font-pixel-circle",
+              it.pixelValue !== false && "font-pixel-circle",
+              it.tone === "ok" && "text-ok",
+              it.tone === "bad" && "text-bad",
             )}
           >
             {it.value}

@@ -5,8 +5,8 @@ import { StatBar, type StatItem } from "./stat-bar";
 
 export type { StatItem };
 
-const lgCols = (cols: 3 | 4 | 5) =>
-  cols === 3 ? "lg:grid-cols-3" : cols === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4";
+const lgCols = (cols: 3 | 4 | 5 | 6) =>
+  cols === 3 ? "lg:grid-cols-3" : cols === 5 ? "lg:grid-cols-5" : cols === 6 ? "lg:grid-cols-6" : "lg:grid-cols-4";
 
 // Stat metrics. Pass `items` (preferred): a compact segmented StatBar on mobile,
 // StatCards at md+. Legacy `children` still renders the plain 2-up card grid
@@ -18,7 +18,7 @@ export function StatGrid({
 }: {
   items?: StatItem[];
   children?: ReactNode;
-  cols?: 3 | 4 | 5;
+  cols?: 3 | 4 | 5 | 6;
 }) {
   if (items) {
     return (

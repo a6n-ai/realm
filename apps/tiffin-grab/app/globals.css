@@ -221,9 +221,10 @@
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Hero KPI numbers only (StatCard/StatBar `pixelValue`) — Geist Pixel's
-   circle-dot digit shapes, trialed on the dashboard overview page. */
-.font-pixel-circle {
+/* StatCard/StatBar hero numbers, dashboard only — Geist Pixel's circle-dot
+   digit shapes. StatCard is also used on customer/public pages (e.g. /me),
+   which stay on Poppins, so this rule is scoped to .crm-app rather than global. */
+.crm-app .font-pixel-circle {
   font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace;
 }
 

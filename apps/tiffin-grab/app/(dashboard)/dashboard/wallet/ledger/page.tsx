@@ -5,7 +5,7 @@ import { unexpired } from "@realm/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import { SkeletonStatCards } from "@/components/ds";
+import { SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 
 const SORT_COL = {
@@ -94,21 +94,11 @@ async function WalletStatsData() {
     {
       label: "Highest balance",
       value: (topWallet?.balance ?? 0).toLocaleString(),
-      sublabel: topWallet ? (topWallet.name ?? topWallet.email ?? undefined) : undefined,
+      hint: topWallet ? (topWallet.name ?? topWallet.email ?? undefined) : undefined,
     },
   ];
 
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      {stats.map((s) => (
-        <div key={s.label} className="rounded-lg border p-4">
-          <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{s.label}</div>
-          {s.sublabel && <div className="mt-0.5 truncate text-xs text-muted-foreground/80">{s.sublabel}</div>}
-        </div>
-      ))}
-    </div>
-  );
+  return <StatGrid cols={6} items={stats} />;
 }
 
 async function WalletLedgerData({ searchParams }: { searchParams: SearchParams }) {

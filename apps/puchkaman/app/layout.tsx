@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Space_Mono } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { GeistPixelCircle } from "geist/font/pixel";
 import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@realm/themes";
 import { SITE_NAME, SITE_URL, buildMetadata, localBusinessJsonLd } from "@/lib/seo";
 import { InlineScript } from "@/components/inline-script";
@@ -58,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${archivo.variable} ${spaceMono.variable} ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${archivo.variable} ${spaceMono.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelCircle.variable}`}
     >
       <head>
         <InlineScript html={THEME_BOOT} />
