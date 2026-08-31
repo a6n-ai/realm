@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { ShoppingBagIcon, UserPlusIcon, UsersIcon, UserCheckIcon } from "lucide-react";
 import { formatMoney } from "@realm/commons";
+import { getCloverConnection } from "@realm/clover";
 import {
   PageHeader,
   PageShell,
@@ -12,6 +13,8 @@ import {
 import { Skeleton } from "@realm/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
+import { PushCustomersToCloverButton } from "@/components/admin/push-customers-to-clover-button";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   customerStats,
   listCustomersPage,
@@ -56,6 +59,11 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
         icon={UsersIcon}
         title="Customers"
         subtitle="People who order and can sign in to their own account."
+        actions={
+          <Suspense fallback={null}>
+            <HeaderActions />
+          </Suspense>
+        }
       />
       <Suspense fallback={<Skeleton className="h-24 w-full" />}>
         <CustomersStats />
@@ -67,6 +75,12 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
       </SectionCard>
     </PageShell>
   );
+}
+
+async function HeaderActions() {
+  await requirePermission({ user: ["list"] });
+  const clover = await getCloverConnection(integrationsConfigStore);
+  return <PushCustomersToCloverButton cloverConnected={Boolean(clover.connected && clover.merchantId)} />;
 }
 
 async function CustomersStats() {

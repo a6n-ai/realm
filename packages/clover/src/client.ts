@@ -16,6 +16,7 @@ import {
   type ListEmployeesParams,
 } from "./employees";
 import {
+  buildCustomerCreateBody,
   normalizeCloverCustomer,
   type CloverCustomer,
   type CloverCustomerCreateInput,
@@ -694,7 +695,7 @@ export class CloverApiClient {
   }
 
   async createCustomer(input: CloverCustomerCreateInput): Promise<CloverCustomer> {
-    const data = await this.post(this.merchantPath("customers"), input);
+    const data = await this.post(this.merchantPath("customers"), buildCustomerCreateBody(input));
     return normalizeCloverCustomer(data);
   }
 

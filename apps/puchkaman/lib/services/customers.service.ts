@@ -1,11 +1,19 @@
 import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
+import { ValidationError } from "@realm/commons";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { createCloverClient } from "@/lib/clover/client";
 import { resolveOrgScopeMode } from "@/lib/services/org-scope";
+import {
+  pushCustomersToCloverService,
+  type PushAllCustomersResult,
+  type PushCustomerResult,
+} from "@/lib/sync/push-customers-to-clover.service";
+import { currentUserId, recordAudit } from "./session-service";
 
 export type CustomerRow = {
   publicId: string;
@@ -17,9 +25,21 @@ export type CustomerRow = {
   orderCount: number;
   totalSpent: string;
   lastOrderAt: number | null;
+  cloverCustomerId: string | null;
 };
 
-export type CustomerSortColumn = "name" | "email" | "joined" | "orders" | "spent" | "lastOrder";
+export type CustomerSortColumn =
+  | "name"
+  | "email"
+  | "joined"
+  | "orders"
+  | "spent"
+  | "lastOrder"
+  // Not a real sortable field — the trailing Actions column's key, per
+  // DataTable's "empty label = actions cell" convention. Never reaches
+  // parseSort's allowed-columns list, so SORT_COL[...] below is dead code
+  // for it, kept only so the exhaustive index type-checks.
+  | "actions";
 
 const SPENT_SQL = sql<string>`coalesce(sum(${orders.total}) filter (where ${orders.status} in ('paid','fulfilled')), 0)`;
 
@@ -75,6 +95,7 @@ export async function listCustomersPage(
     orders: sql`count(${orders.id})`,
     spent: SPENT_SQL,
     lastOrder: sql`max(${orders.createdAt})`,
+    actions: users.createdAt,
   } as const;
   const col = SORT_COL[sort.column] ?? users.createdAt;
 
@@ -100,11 +121,21 @@ export async function listCustomersPage(
         orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
         totalSpent: SPENT_SQL,
         lastOrderAt: sql<number | null>`max(${orders.createdAt})`,
+        cloverCustomerId: users.cloverCustomerId,
       })
       .from(users)
       .leftJoin(orders, orderJoin)
       .where(where)
-      .groupBy(users.id, users.publicId, users.name, users.email, users.phone, users.status, users.createdAt)
+      .groupBy(
+        users.id,
+        users.publicId,
+        users.name,
+        users.email,
+        users.phone,
+        users.status,
+        users.createdAt,
+        users.cloverCustomerId,
+      )
       .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
       .limit(page.size)
       .offset(page.page * page.size),
@@ -217,4 +248,42 @@ export async function getCustomerDetail(publicId: string): Promise<CustomerDetai
 
   const { id: _id, role: _role, ...rest } = user;
   return { ...rest, orders: orderRows, orderCount: count, totalSpent: spent };
+}
+
+/** Push one app customer to Clover as a customer. */
+export async function pushCustomerToClover(publicId: string): Promise<PushCustomerResult> {
+  const client = await createCloverClient();
+  if (!client) {
+    throw new ValidationError(
+      "Clover is not connected. Connect a merchant under Settings → Clover.",
+    );
+  }
+  const result = await pushCustomersToCloverService.pushOne(client, publicId);
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: publicId,
+    operation: "update",
+    changes: { _action: "clover_customer_push", ...result },
+    createdBy: await currentUserId(),
+  });
+  return result;
+}
+
+/** Push every unsynced app customer to Clover as a customer. */
+export async function pushAllCustomersToClover(): Promise<PushAllCustomersResult> {
+  const client = await createCloverClient();
+  if (!client) {
+    throw new ValidationError(
+      "Clover is not connected. Connect a merchant under Settings → Clover.",
+    );
+  }
+  const result = await pushCustomersToCloverService.pushAll(client);
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: "bulk",
+    operation: "update",
+    changes: { _action: "clover_customers_push", result },
+    createdBy: await currentUserId(),
+  });
+  return result;
 }
