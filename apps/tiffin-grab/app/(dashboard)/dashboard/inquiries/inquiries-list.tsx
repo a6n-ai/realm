@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
+import { formatPhone } from "@realm/commons";
 import {
   DataTable, ListPagination, StageBadge, type Column, type FacetDef,
 } from "@/components/ds";
@@ -78,7 +79,7 @@ export function InquiriesList({
             >
               {r.fullName}
             </Link>
-            <div className="text-muted-foreground text-xs">{r.phone}</div>
+            <div className="text-muted-foreground text-xs">{formatPhone(r.phone)}</div>
           </TableCell>
           <TableCell>
             {canReassign && staff && reassignAction ? (

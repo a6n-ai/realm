@@ -6,6 +6,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { Badge } from "@realm/ui/badge";
 import { Button } from "@realm/ui/button";
 import { cn } from "@realm/ui/cn";
+import { formatPhone } from "@realm/commons";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { formatMoney } from "@/lib/format/money";
 import type { InquiryStage, ActivityType } from "@/lib/services/inquiries.service";
@@ -157,7 +158,7 @@ export function InquiryDetailClient({
             <div className={cn("mt-3 space-y-4", detailsOpen ? "block" : "hidden", "lg:block")}>
               <div className="space-y-2">
                 <InfoRow label="Name" value={contact.fullName} />
-                <InfoRow label="Phone" value={contact.phone} />
+                <InfoRow label="Phone" value={formatPhone(contact.phone)} />
                 {contact.email ? <InfoRow label="Email" value={contact.email} /> : null}
                 <InfoRow
                   label="Source"

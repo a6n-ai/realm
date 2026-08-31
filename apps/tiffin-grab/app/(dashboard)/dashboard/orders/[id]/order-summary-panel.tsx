@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatMoney as fmt } from "@realm/commons";
 import { OrderStatusBadge } from "@/components/ds";
-import { Invoice } from "@/components/wizard/invoice";
+import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import type { OrderDetail } from "@/lib/services/orders.service";
@@ -94,7 +94,7 @@ export function OrderSummaryPanel({
       <div className="space-y-2">
         <p className="text-sm font-medium">Pricing</p>
         {isPricingSnapshot(snap) ? (
-          <Invoice result={snap} />
+          <OrderPricingBreakdown result={snap} currency={currency} />
         ) : (
           <div className="rounded-lg border p-4 text-sm">
             <div className="flex justify-between gap-2 font-semibold">

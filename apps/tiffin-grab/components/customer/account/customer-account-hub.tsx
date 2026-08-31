@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { formatPhone } from "@realm/commons";
 import {
   ArrowLeftRightIcon,
   BellIcon,
@@ -30,7 +31,7 @@ function initials(name: string | null, email: string): string {
 }
 
 function displayPhone(phone: string | null | undefined, email: string): string {
-  if (phone?.trim()) return phone.trim();
+  if (phone?.trim()) return formatPhone(phone.trim());
   return email;
 }
 

@@ -58,6 +58,7 @@ async function main() {
         email,
         emailVerified: true,
         role: "admin",
+        platformRole: "super_admin",
         status: "active",
         passwordSet: false,
       })

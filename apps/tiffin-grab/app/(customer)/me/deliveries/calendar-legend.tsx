@@ -29,7 +29,10 @@ export function DayStatusMark({ status, className }: { status: DayStatus; classN
 export function CalendarLegend({ className }: { className?: string }) {
   return (
     <ul
-      className={className ?? "flex w-full flex-nowrap items-center justify-between gap-2 overflow-x-auto text-[11px] font-medium whitespace-nowrap text-foreground sm:gap-4 sm:text-xs"}
+      className={
+        className ??
+        "bg-muted/40 flex w-full flex-nowrap items-center justify-between gap-2 overflow-x-auto rounded-lg border px-3 py-2 text-[11px] font-medium whitespace-nowrap text-foreground sm:gap-4 sm:text-xs"
+      }
       aria-label="Delivery status"
     >
       {CALENDAR_LEGEND.map((item) => (

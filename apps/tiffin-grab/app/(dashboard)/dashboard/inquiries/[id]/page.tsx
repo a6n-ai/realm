@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ClipboardListIcon } from "lucide-react";
 import { eq } from "drizzle-orm";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError, formatPhone } from "@realm/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -106,7 +106,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
       <PageHeader
         icon={ClipboardListIcon}
         title={inq.fullName}
-        subtitle={inq.phone}
+        subtitle={formatPhone(inq.phone)}
         actions={<StageBadge stage={inq.stage} />}
       />
       <InquiryDetailClient

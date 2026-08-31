@@ -63,8 +63,7 @@ export function AdminOrderDeliveries({
         today={bundle.today}
         tiffinCounts={bundle.tiffinCounts}
         basePath={basePath}
-        title="Deliveries"
-        subtitle="Same calendar, vacation, skip, and pool controls the customer sees."
+        showHeader={false}
         showBrowsePlans={false}
         onMonthChange={onMonthChange}
         onDeliveriesChanged={onChanged}

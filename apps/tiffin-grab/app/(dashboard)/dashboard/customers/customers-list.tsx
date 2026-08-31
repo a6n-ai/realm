@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
+import { formatPhone } from "@realm/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@realm/ui/table";
@@ -56,7 +57,7 @@ export function CustomersList({
               </Link>
             </TableCell>
             <TableCell>{c.email ?? "(no email)"}</TableCell>
-            <TableCell>{c.phone ?? "no phone"}</TableCell>
+            <TableCell>{c.phone ? formatPhone(c.phone) : "no phone"}</TableCell>
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell>
               {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangleIcon } from "lucide-react";
 import { Button } from "@realm/ui/button";
 import { ResponsiveDialog } from "@realm/design-system";
+import { formatPhone } from "@realm/commons";
 import { formatMoney } from "@/lib/format/money";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import type { OrderFormInput } from "./order-schema";
@@ -81,7 +82,7 @@ export function ConvertSheet({
           </p>
           <p className="text-sm font-medium">
             {contact.fullName}
-            <span className="text-muted-foreground"> · {contact.phone}</span>
+            <span className="text-muted-foreground"> · {formatPhone(contact.phone)}</span>
           </p>
           {chips.length ? (
             <div className="flex flex-wrap gap-1.5">

@@ -233,6 +233,7 @@ export function DeliveryCalendar({
   basePath = "/me/deliveries",
   title = "My deliveries",
   subtitle = "Month calendar, day details, and vacation pause for your plan.",
+  showHeader = true,
   showBrowsePlans = true,
   onMonthChange,
   onDeliveriesChanged,
@@ -252,6 +253,9 @@ export function DeliveryCalendar({
   basePath?: string;
   title?: string;
   subtitle?: string;
+  /** False when an outer container (e.g. the admin order page's SectionCard) already
+   * renders its own "Deliveries" heading — avoids a duplicate title/subtitle. */
+  showHeader?: boolean;
   showBrowsePlans?: boolean;
   /** When set, month arrows call this instead of router navigation (admin order detail). */
   onMonthChange?: (monthKey: string) => void;
@@ -291,11 +295,13 @@ export function DeliveryCalendar({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
-      <PageHeader
-        icon={CalendarDaysIcon}
-        title={title}
-        subtitle={subtitle}
-      />
+      {showHeader && (
+        <PageHeader
+          icon={CalendarDaysIcon}
+          title={title}
+          subtitle={subtitle}
+        />
+      )}
       <TiffinCalendarSection
         key={selected.publicId}
         sub={selected}
