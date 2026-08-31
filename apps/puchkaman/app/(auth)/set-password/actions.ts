@@ -1,8 +1,8 @@
 "use server";
 
 import { eq, and } from "drizzle-orm";
-import { passwordSchema } from "@realm/commons";
-import { hashPassword } from "@realm/auth";
+import { passwordSchema } from "@foundry/commons";
+import { hashPassword } from "@foundry/auth";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";

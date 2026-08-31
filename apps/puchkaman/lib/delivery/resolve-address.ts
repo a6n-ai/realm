@@ -1,4 +1,4 @@
-import { createLogger } from "@realm/commons/logger";
+import { createLogger } from "@foundry/commons/logger";
 import {
   awsPlaceProvider,
   googlePlaceProvider,
@@ -7,7 +7,7 @@ import {
   type PlaceProvider,
   type PlaceSuggestion,
   type ResolvedPlace,
-} from "@realm/places";
+} from "@foundry/places";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
 
 const log = createLogger("delivery-address");

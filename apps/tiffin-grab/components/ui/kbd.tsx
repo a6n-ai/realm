@@ -1,4 +1,4 @@
-import { cn } from "@realm/ui/cn"
+import { cn } from "@foundry/ui/cn"
 
 function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   return (

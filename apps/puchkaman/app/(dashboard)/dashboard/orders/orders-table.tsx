@@ -7,9 +7,9 @@ import {
   ListPagination,
   type Column,
   type FacetDef,
-} from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+} from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";

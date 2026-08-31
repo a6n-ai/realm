@@ -1,9 +1,9 @@
 import { desc } from "drizzle-orm";
-import { BackButton, SectionCard } from "@realm/design-system";
+import { BackButton, SectionCard } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
-import { CampaignComposer } from "@realm/notifications/ui";
+import { CampaignComposer } from "@relay/engine/ui";
 
 export default async function NewCampaignPage() {
   await requireAdmin();

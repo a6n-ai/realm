@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, UserIcon } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
-import type { PluginCatalogStatus } from "@realm/crm";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/drawer";
+import type { PluginCatalogStatus } from "@foundry/crm";
 import { signOut } from "@/lib/auth/client";
 import { getNavSections } from "./app-sidebar";
 

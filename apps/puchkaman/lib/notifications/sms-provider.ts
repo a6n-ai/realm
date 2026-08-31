@@ -1,5 +1,5 @@
-import { TwilioSmsProvider } from "@realm/sms";
-import type { ChannelProvider } from "@realm/notifications";
+import { TwilioSmsProvider } from "@relay/sms";
+import type { ChannelProvider } from "@relay/engine";
 
 let cached: ChannelProvider | undefined;
 

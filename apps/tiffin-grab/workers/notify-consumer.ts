@@ -1,5 +1,5 @@
 import amqplib from "amqplib";
-import { createLogger } from "@realm/commons/logger";
+import { createLogger } from "@foundry/commons/logger";
 import { broadcast, type BroadcastInput } from "../lib/notifications/broadcast";
 import { assertNotifyTopology, NOTIFY_QUEUE } from "../lib/notifications/rabbit";
 

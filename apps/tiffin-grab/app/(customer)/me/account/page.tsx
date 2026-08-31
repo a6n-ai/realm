@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 import { CustomerAccountHub } from "@/components/customer/account/customer-account-hub";

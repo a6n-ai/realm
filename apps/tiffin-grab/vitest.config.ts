@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
     // pnpm installs two physical `next` copies (differing peer sets), so the app
-    // and @realm/* packages import different `next/navigation` modules — a
+    // and @foundry/* packages import different `next/navigation` modules — a
     // `vi.mock("next/navigation")` would only patch one. Dedupe to a single copy.
     dedupe: ["next"],
   },

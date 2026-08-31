@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
 import { SectionCard } from "@/components/ds";
 import { Reveal, Pressable, LottieEmptyState } from "@/components/motion";
 import type { CustomerDish } from "@/lib/services/dishes.service";

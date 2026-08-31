@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import { PackageIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
+import { formatMoney } from "@foundry/commons";
 import {
   PageHeader,
   PageShell,
   SectionCard,
   parseFilterState,
   type FacetDef,
-} from "@realm/design-system";
+} from "@foundry/design-system";
 import { OrderingDisabledNotice } from "@/components/admin/ordering-disabled-notice";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";

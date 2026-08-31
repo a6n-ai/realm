@@ -1,6 +1,6 @@
 import { StarIcon } from "lucide-react";
-import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv } from "@realm/google-reviews";
-import { GoogleReviewsSettingsPanel } from "@realm/google-reviews/ui";
+import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv } from "@foundry/google-reviews";
+import { GoogleReviewsSettingsPanel } from "@foundry/google-reviews/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";

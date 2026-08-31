@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { like } from "drizzle-orm";
-import { and, eq as cEq, like as cLike } from "@realm/commons/model/condition";
+import { and, eq as cEq, like as cLike } from "@foundry/commons/model/condition";
 import { db } from "@/db/client";
 import { inquiries, leadSources } from "@/db/schema";
 

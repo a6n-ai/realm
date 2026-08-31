@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { FilterChips } from "@realm/design-system";
+import { FilterChips } from "@foundry/design-system";
 afterEach(cleanup);
 describe("FilterChips", () => {
   it("is a single no-wrap horizontally scrollable row", () => {

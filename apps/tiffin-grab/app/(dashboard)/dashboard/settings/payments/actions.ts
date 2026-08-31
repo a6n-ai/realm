@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@realm/commons";
-import { paymentConfigSchema, type PaymentConfig } from "@realm/payments";
-import { findPaymentProvider } from "@realm/payments/providers";
+import { ValidationError } from "@foundry/commons";
+import { paymentConfigSchema, type PaymentConfig } from "@foundry/payments";
+import { findPaymentProvider } from "@foundry/payments/providers";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getPaymentConfig, setPaymentConfig } from "@/lib/services/app-settings.service";
 

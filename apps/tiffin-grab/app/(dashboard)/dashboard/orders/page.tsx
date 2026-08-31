@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq, sql } from "drizzle-orm";
 import { PackageIcon, PlusIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
+import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryZones, leadSources, leadSubsources, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -13,8 +13,8 @@ import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
   PageHeader,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ds";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { ORDER_STATUS_PILLS, ongoingFilter } from "./status-pills";
-import { and } from "@realm/commons/model/condition";
+import { and } from "@foundry/commons/model/condition";
 import { NewOrderSheet } from "./new-order-sheet";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

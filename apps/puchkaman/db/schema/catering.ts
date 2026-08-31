@@ -1,4 +1,4 @@
-import { baseColumns } from "@realm/database";
+import { baseColumns } from "@foundry/database";
 import { index, pgTable, text } from "drizzle-orm/pg-core";
 
 // One row per "Request a Catering Quote" submission (app/(marketing)/catering).

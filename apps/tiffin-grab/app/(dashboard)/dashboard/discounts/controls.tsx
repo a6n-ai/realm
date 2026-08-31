@@ -2,19 +2,19 @@
 
 import * as React from "react";
 import { ChevronsUpDownIcon, XIcon } from "lucide-react";
-import { tzOffsetMinutes } from "@realm/commons";
+import { tzOffsetMinutes } from "@foundry/commons";
 import type { planType } from "@/db/schema/catalog";
 import { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS } from "./kind-labels";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@realm/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { cn } from "@foundry/ui/cn";
 
 // Shared label tables + typed controls for the discounts sub-pages.
 export { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS };

@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { ResponsiveDialog } from "@realm/design-system";
+import { Button } from "@foundry/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
 
 export type AdminOrderCreated = {
   publicId: string;

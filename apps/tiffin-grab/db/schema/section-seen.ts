@@ -1,4 +1,4 @@
-import { baseColumns } from "@realm/database";
+import { baseColumns } from "@foundry/database";
 import { bigint, pgEnum, pgTable, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 

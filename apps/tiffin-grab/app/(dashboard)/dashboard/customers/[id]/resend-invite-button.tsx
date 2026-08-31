@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { resendCustomerInvite } from "../actions";
 
 // Admin-only: mail a customer without a password the "set your password" link

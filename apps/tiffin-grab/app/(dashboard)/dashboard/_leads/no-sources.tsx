@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SettingsIcon, TagIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 /** Shown inside a lead sheet when no active lead sources exist — the form
  * cannot be filled without one, so we route the user to add one. */

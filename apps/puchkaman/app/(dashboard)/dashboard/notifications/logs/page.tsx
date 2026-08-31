@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { asc, count, desc, eq } from "drizzle-orm";
-import { columnResolver, conditionToSql } from "@realm/database";
-import { parseFilterState, type FacetDef } from "@realm/design-system";
-import { eventLabel } from "@realm/notifications/ui";
+import { columnResolver, conditionToSql } from "@foundry/database";
+import { parseFilterState, type FacetDef } from "@foundry/design-system";
+import { eventLabel } from "@relay/engine/ui";
 import { db } from "@/db/client";
 import { appEvent, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";

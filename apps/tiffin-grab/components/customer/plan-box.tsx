@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { PlanTags } from "@/components/customer/home/plan-tags";
 import { mealChipLabel } from "@/lib/menu/format-tu";
 import { SUB_STATUS_LABEL, TONE_CLASS, type SubscriptionStatus } from "@/app/(customer)/me/deliveries/calendar-constants";

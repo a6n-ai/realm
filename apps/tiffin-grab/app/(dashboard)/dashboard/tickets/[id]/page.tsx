@@ -2,7 +2,7 @@ import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import { LifeBuoyIcon } from "lucide-react";
 import { inArray } from "drizzle-orm";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -14,10 +14,10 @@ import {
   type TicketStatus,
 } from "@/lib/services/tickets.service";
 import { attachmentHref } from "@/lib/services/ticket-attachments";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/ds";

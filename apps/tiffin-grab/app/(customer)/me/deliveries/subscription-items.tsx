@@ -2,7 +2,7 @@
 
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
+} from "@foundry/ui/select";
 import type { Subscription, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import { MealInfoChips, PlanBox, PlanHeadingRow } from "@/components/customer/plan-box";
 import { SchedulePoolControl } from "./schedule-pool-control";

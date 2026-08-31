@@ -35,7 +35,7 @@ BETTER_AUTH_URL, BETTER_AUTH_SECRET, ACME_EMAIL, AWS_REGION, FILES_S3_BUCKET,
 FILES_S3_REGION, GOOGLE_PLACES_API_KEY, PLACES_PROVIDER. (DATABASE_URL uses
 pgbouncer:6432; DIRECT_DATABASE_URL ends `?sslmode=no-verify`.) Also copy
 ACME_EMAIL into `proxy/.env.production`. GOOGLE_PLACES_API_KEY and
-PLACES_PROVIDER back the delivery address lookup (`@realm/places`) — see
+PLACES_PROVIDER back the delivery address lookup (`@foundry/places`) — see
 `apps/puchkaman/.env.example` for what each does when unset. Never commit a
 real key value; this repo is public.
 

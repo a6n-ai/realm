@@ -2,14 +2,14 @@
 
 import { Building2Icon } from "lucide-react";
 import Link from "next/link";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import {
   DataTable,
   ListPagination,
   SkeletonFilterBar,
   type Column,
   type FacetDef,
-} from "@realm/design-system";
+} from "@foundry/design-system";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { OrganizationListPageRow, OrgSortColumn } from "@/lib/services/organizations.service";

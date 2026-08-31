@@ -1,4 +1,4 @@
-import type { TaxLine } from "@realm/payments";
+import type { TaxLine } from "@foundry/payments";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 
@@ -33,7 +33,7 @@ export function priceSubscription(
 
   // Per-method taxes apply to the discounted base; taxTotal is summed from per-line rounding so
   // it always matches the printed receipt. No taxes ⇒ taxTotal 0 ⇒ total == taxableBase. This
-  // mirrors @realm/payments `computeTax` (the canonical server-side implementation); kept inline
+  // mirrors @foundry/payments `computeTax` (the canonical server-side implementation); kept inline
   // here so the client-bundled pricing engine takes no runtime dependency on that package.
   const taxLines = taxes.map((t) => ({
     name: t.name,

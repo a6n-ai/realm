@@ -1,4 +1,4 @@
-import { UpdatableRepository, type Database } from "@realm/database";
+import { UpdatableRepository, type Database } from "@foundry/database";
 import type { SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { orgScopeWhere } from "@/lib/services/org-scope";

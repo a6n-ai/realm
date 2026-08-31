@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import { ListIcon, UsersIcon } from "lucide-react";
-import { ResponsiveDialog, SectionCard, StatCard } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { ResponsiveDialog, SectionCard, StatCard } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
@@ -11,7 +11,7 @@ import {
   ContactListResyncButton,
   ContactListUpload,
   formatConsentDate,
-} from "@realm/notifications/ui";
+} from "@relay/engine/ui";
 
 export const dynamic = "force-dynamic";
 

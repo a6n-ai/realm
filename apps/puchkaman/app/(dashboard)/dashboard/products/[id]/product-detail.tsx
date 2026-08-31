@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { CloudDownloadIcon, CloudUploadIcon, LinkIcon, Loader2Icon } from "lucide-react";
-import { BackButton, SectionCard } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
+import { BackButton, SectionCard } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
 import {
   Form,
   FormControl,
@@ -18,18 +18,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
-import { Textarea } from "@realm/ui/textarea";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
+import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
+import { Textarea } from "@foundry/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@realm/ui/select";
-import { Switch } from "@realm/ui/switch";
+} from "@foundry/ui/select";
+import { Switch } from "@foundry/ui/switch";
 import { CloverLinkDialog } from "@/components/admin/clover-link-dialog";
 import { SyncLoadingOverlay } from "@/components/admin/sync-loading-overlay";
 import { ImageUploader } from "@/components/files/image-uploader";

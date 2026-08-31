@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq, inArray, like as sqlLike } from "drizzle-orm";
-import { like } from "@realm/commons/model/condition";
+import { like } from "@foundry/commons/model/condition";
 import { db } from "@/db/client";
 import { notificationPrefs, orders, users } from "@/db/schema";
 import { getCustomerDetail, listCustomersPage } from "@/lib/services/customers.service";

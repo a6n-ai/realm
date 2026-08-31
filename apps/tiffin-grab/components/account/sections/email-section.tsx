@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { ChangeEmailForm } from "@/components/account/leaves/change-email-form";
 
 export function EmailSection({ currentEmail, titleAs }: { currentEmail?: string | null; titleAs?: "h2" | "h3" }) {

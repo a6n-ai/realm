@@ -1,5 +1,5 @@
-import { UpdatableRepository } from "@realm/database";
-import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@realm/commons";
+import { UpdatableRepository } from "@foundry/database";
+import { Role, AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, session, users } from "@/db/schema";

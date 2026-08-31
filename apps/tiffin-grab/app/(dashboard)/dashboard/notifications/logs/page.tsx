@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 import { asc, count, desc, eq } from "drizzle-orm";
-import { conditionToSql, columnResolver } from "@realm/database";
+import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
 import { notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { eventLabel } from "@realm/notifications/ui";
+import { eventLabel } from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 const SORT_COL = {

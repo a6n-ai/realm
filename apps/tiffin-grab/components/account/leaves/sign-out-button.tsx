@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth/client";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 export function SignOutButton() {
   const router = useRouter();

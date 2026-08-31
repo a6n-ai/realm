@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError } from "@foundry/commons";
 import {
   claimPayment,
   getClaimPaymentContext,

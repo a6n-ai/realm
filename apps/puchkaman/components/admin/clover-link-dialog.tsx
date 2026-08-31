@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon, LinkIcon, UnlinkIcon } from "lucide-react";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Switch } from "@realm/ui/switch";
-import { Label } from "@realm/ui/label";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Switch } from "@foundry/ui/switch";
+import { Label } from "@foundry/ui/label";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { CloverUnlinkedItem } from "@/lib/sync/clover-inventory-sync.service";
 

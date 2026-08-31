@@ -5,8 +5,8 @@
 // inline detail panel below.
 
 import { motion, useReducedMotion } from "motion/react";
-import type { FileDetail } from "@realm/storage/model";
-import { cn } from "@realm/ui/cn";
+import type { FileDetail } from "@foundry/storage/model";
+import { cn } from "@foundry/ui/cn";
 import { calendarLegendLabel, DELIVERED_DATE_RING_CLASS, type DayStatus } from "./day-status";
 import { DayStatusMark } from "./calendar-legend";
 

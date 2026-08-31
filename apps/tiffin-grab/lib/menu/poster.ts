@@ -1,4 +1,4 @@
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import type { MealSlot } from "./meal-types";
 
 export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;

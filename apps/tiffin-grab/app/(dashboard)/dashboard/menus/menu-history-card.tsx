@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { parseIsoDateUtc } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
+import { parseIsoDateUtc } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { buildPosterColumns, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";

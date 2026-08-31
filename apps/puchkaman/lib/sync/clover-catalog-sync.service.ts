@@ -33,7 +33,7 @@ import {
   type CloverTag,
   type CloverTaxRate,
   cloverRateToPercent,
-} from "@realm/clover";
+} from "@foundry/clover";
 import {
   discountsRepository,
   printerLabelsRepository,

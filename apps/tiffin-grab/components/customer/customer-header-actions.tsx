@@ -1,8 +1,8 @@
 "use client";
 
 import { WalletIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
-import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
+import { cn } from "@foundry/ui/cn";
+import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TransitionLink } from "@/components/motion/transition-link";
 

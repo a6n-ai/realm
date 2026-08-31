@@ -13,8 +13,8 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { IntegrationsConfig } from "@realm/clover";
-import type { PaymentConfig } from "@realm/payments";
+import type { IntegrationsConfig } from "@foundry/clover";
+import type { PaymentConfig } from "@foundry/payments";
 import type { DiscountPolicy } from "./coupons";
 import { users } from "./auth";
 

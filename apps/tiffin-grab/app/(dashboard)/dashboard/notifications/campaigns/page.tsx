@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { asc, count, desc } from "drizzle-orm";
-import { columnResolver, conditionToSql } from "@realm/database";
-import { SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { columnResolver, conditionToSql } from "@foundry/database";
+import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign } from "@/db/schema";

@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { AudienceDef } from "@realm/notifications";
+import type { AudienceDef } from "@relay/engine";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 

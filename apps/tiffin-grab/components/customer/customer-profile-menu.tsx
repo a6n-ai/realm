@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { TransitionLink } from "@/components/motion/transition-link";
 
 function initials(name: string | null, email: string): string {

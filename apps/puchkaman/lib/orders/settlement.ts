@@ -1,4 +1,4 @@
-import { dollarsToCloverCents } from "@realm/clover";
+import { dollarsToCloverCents } from "@foundry/clover";
 
 /**
  * Decide how to record a settlement when Clover reports what it actually charged.

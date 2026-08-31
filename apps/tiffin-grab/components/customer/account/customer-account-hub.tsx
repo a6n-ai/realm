@@ -20,8 +20,8 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
-import { Button } from "@realm/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
+import { Button } from "@foundry/ui/button";
 import { PageShell } from "@/components/ds";
 import { TransitionLink } from "@/components/motion/transition-link";
 

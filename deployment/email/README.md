@@ -2,7 +2,7 @@
 
 Provisions the SES sending identity so transactional mail (password reset, email
 verification, notification outbox) actually leaves. App code sends via
-`@realm/email` `SesEmailProvider`; nothing delivers until the steps below are done.
+`@relay/email` `SesEmailProvider`; nothing delivers until the steps below are done.
 
 `realm-admin` has no SES/SNS/IAM permissions — run these with an elevated principal
 or the AWS console.

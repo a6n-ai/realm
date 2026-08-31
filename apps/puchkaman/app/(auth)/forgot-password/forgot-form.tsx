@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ForgotPasswordForm } from "@realm/auth-ui";
-import { Card, CardContent } from "@realm/ui/card";
+import { ForgotPasswordForm } from "@foundry/auth-ui";
+import { Card, CardContent } from "@foundry/ui/card";
 import { authClient } from "@/lib/auth/client";
 
 export function ForgotForm() {

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { PasswordSection } from "@/components/account/sections/password-section";
 import { PinSection } from "@/components/account/sections/pin-section";
 import { EmailSection } from "@/components/account/sections/email-section";

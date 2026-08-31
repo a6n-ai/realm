@@ -5,7 +5,7 @@ import {
   getGoogleReviewsConfig,
   setGoogleReviewsConfig,
   placesProvider,
-} from "@realm/google-reviews";
+} from "@foundry/google-reviews";
 import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";

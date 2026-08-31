@@ -9,11 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@realm/ui/dialog";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
+} from "@foundry/ui/dialog";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
 import { ZoneMap, clampRadiusKm, type MapZone } from "./zone-map";
 import { retireZoneAction, saveZoneAction, setZoneTypesAction } from "./actions";
 import type { TypeOption, ZoneRow } from "./types";

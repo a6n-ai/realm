@@ -1,7 +1,7 @@
 import { StarIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv } from "@realm/google-reviews";
-import { GoogleReviewsList, GoogleReviewsSettingsPanel } from "@realm/google-reviews/ui";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv } from "@foundry/google-reviews";
+import { GoogleReviewsList, GoogleReviewsSettingsPanel } from "@foundry/google-reviews/ui";
 import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { saveGoogleReviewsPlaceId } from "./actions";

@@ -1,5 +1,5 @@
-import { dispatchReviewNudge as dispatch } from "@realm/google-reviews";
-import { createLogger } from "@realm/commons/logger";
+import { dispatchReviewNudge as dispatch } from "@foundry/google-reviews";
+import { createLogger } from "@foundry/commons/logger";
 import { getEmailProvider } from "@/lib/email/provider";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";

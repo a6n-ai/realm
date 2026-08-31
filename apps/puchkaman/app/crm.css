@@ -1,4 +1,4 @@
-/* CRM / admin shell — shared @realm/ui + design-system structure.
+/* CRM / admin shell — shared @foundry/ui + design-system structure.
    Light mode reuses public brand tokens (yellow + green + cream/paper/ink)
    from globals.css — warm cream surfaces, green primary/accent (public
    --green), red only for destructive/status — not a white + yellow-only
@@ -8,10 +8,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@source "../../../packages/ui/src";
-@source "../../../packages/design-system/src";
-@source "../../../packages/crm/src";
-@source "../../../packages/auth-ui/src";
+@source "../../../foundry/packages/ui/src";
+@source "../../../foundry/packages/design-system/src";
+@source "../../../foundry/packages/crm/src";
+@source "../../../foundry/packages/auth-ui/src";
 
 @custom-variant dark (&:is(.dark *));
 

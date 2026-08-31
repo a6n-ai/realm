@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Card, CardContent } from "@realm/ui/card";
+import { Card, CardContent } from "@foundry/ui/card";
 import { getSession } from "@/lib/auth/session";
 import { SignOutButton } from "./sign-out-button";
 

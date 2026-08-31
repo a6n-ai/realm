@@ -1,5 +1,5 @@
-import { Role } from "@realm/commons";
-import type { RealtimeRole } from "@realm/realtime";
+import { Role } from "@foundry/commons";
+import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
 
 /** Extract the user public id from a `notify:<publicId>` channel, or null. */

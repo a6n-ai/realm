@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { and, eq, gte, sql, type SQL } from "drizzle-orm";
-import type { FilterCondition } from "@realm/commons";
-import { conditionToSql } from "@realm/database";
+import type { FilterCondition } from "@foundry/commons";
+import { conditionToSql } from "@foundry/database";
 import {
   ListPagination,
   SectionCard,
@@ -9,10 +9,10 @@ import {
   StatGrid,
   parseFilterState,
   type FacetDef,
-} from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+} from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import { db } from "@/db/client";
 import { emailLog, messageSuppression } from "@/db/schema";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";

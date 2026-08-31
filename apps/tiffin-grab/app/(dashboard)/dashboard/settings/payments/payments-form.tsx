@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { SaveIcon, Trash2Icon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
-import { Textarea } from "@realm/ui/textarea";
-import { Skeleton } from "@realm/ui/skeleton";
-import type { PaymentConfig, PaymentMethodConfig, TaxLine } from "@realm/payments";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
+import { Textarea } from "@foundry/ui/textarea";
+import { Skeleton } from "@foundry/ui/skeleton";
+import type { PaymentConfig, PaymentMethodConfig, TaxLine } from "@foundry/payments";
 import { savePaymentConfig } from "./actions";
 
 export function PaymentsForm({

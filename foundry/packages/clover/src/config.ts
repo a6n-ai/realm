@@ -1,0 +1,256 @@
+import { z } from "zod";
+import type { CloverEnvironment, CloverRegion } from "./urls";
+
+/** App credentials from env — never persist the secret in client-readable JSON. */
+export const cloverAppCredentialsSchema = z.object({
+  appId: z.string().min(1),
+  appSecret: z.string().min(1),
+  environment: z.enum(["sandbox", "production"]).default("sandbox"),
+  region: z.enum(["na", "eu", "la"]).default("na"),
+});
+export type CloverAppCredentials = z.infer<typeof cloverAppCredentialsSchema>;
+
+/** Expiring OAuth token pair from /oauth/v2/token or /oauth/v2/refresh. */
+export const cloverTokenPairSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  /** Unix seconds (Clover returns these as integers). */
+  accessTokenExpiration: z.number().int().positive(),
+  refreshTokenExpiration: z.number().int().positive(),
+});
+export type CloverTokenPair = z.infer<typeof cloverTokenPairSchema>;
+
+/**
+ * Persisted connection state for Settings → Clover (after install).
+ * Secrets (appSecret) stay in env; tokens live server-side only.
+ */
+export const cloverConnectionSchema = z.object({
+  installed: z.boolean().default(false),
+  connected: z.boolean().default(false),
+  merchantId: z.string().min(1).optional(),
+  environment: z.enum(["sandbox", "production"]).default("sandbox"),
+  region: z.enum(["na", "eu", "la"]).default("na"),
+  /**
+   * How this merchant is authenticated. Defaults to "oauth" so every
+   * connection persisted before API-token support keeps working.
+   */
+  authMode: z.enum(["oauth", "apiToken"]).default("oauth"),
+  tokens: cloverTokenPairSchema.optional(),
+  /**
+   * Permanent Platform (v3) merchant API token — items, categories, atomic
+   * orders, employees. Clover dashboard → Setup → API Tokens.
+   */
+  apiToken: z.string().min(1).optional(),
+  /**
+   * Ecommerce (v1) credentials — pay order, charges, and the PAKMS iframe key.
+   * A separate Clover surface with its own tokens: the Platform token above is
+   * not accepted there. Only needed for checkout. Dashboard → Ecommerce API Tokens.
+   */
+  ecommercePublicKey: z.string().min(1).optional(),
+  ecommercePrivateToken: z.string().min(1).optional(),
+  /**
+   * Clover order type ids to stamp on website orders, by fulfillment.
+   *
+   * Website orders are created through the API (atomic_order/orders), which lands
+   * them in the Orders list UNTYPED. Uber Eats / DoorDash orders arrive tagged by
+   * their own Clover integration, and it is that tag which drives Register's
+   * new-order alert and the kitchen print rules. Untagged, a website order is
+   * silent — staff only find it by opening the admin dashboard.
+   *
+   * Optional on purpose: a merchant that has not created order types yet keeps
+   * the previous untyped behaviour rather than having checkout fail.
+   */
+  webOrderTypes: z
+    .object({
+      pickup: z.string().min(1).optional(),
+      delivery: z.string().min(1).optional(),
+    })
+    // .optional(), not .default({}): a zod default makes the INFERRED OUTPUT type
+    // required, which would break every hand-built CloverConnection literal that
+    // never goes through .parse() (create-client, test fixtures). Optional keeps
+    // this an additive field.
+    .optional(),
+  /** ISO timestamp of last successful OAuth connect/refresh. */
+  connectedAt: z.string().min(1).optional(),
+});
+export type CloverConnection = z.infer<typeof cloverConnectionSchema>;
+export type CloverAuthMode = CloverConnection["authMode"];
+
+/** Admin-submitted API-token connection. Token is input-only, never returned. */
+export const cloverApiTokenConnectSchema = z.object({
+  merchantId: z.string().trim().min(1, "Merchant ID is required"),
+  apiToken: z.string().trim().min(1, "API token is required"),
+  /** Optional — required only for website checkout (Ecommerce API). */
+  ecommercePublicKey: z.string().trim().min(1).optional(),
+  ecommercePrivateToken: z.string().trim().min(1).optional(),
+  environment: z.enum(["sandbox", "production"]).default("production"),
+  region: z.enum(["na", "eu", "la"]).default("na"),
+});
+export type CloverApiTokenConnectInput = z.infer<typeof cloverApiTokenConnectSchema>;
+
+/**
+ * Outcome of an admin-submitted API-token connect.
+ *
+ * A rejected token is an expected, user-correctable answer — not an exception.
+ * Throwing it from a Server Action reaches the error boundary and, in a
+ * production build, arrives as a bare digest: a mistyped token renders as a
+ * crashed page instead of "check your token".
+ */
+export type CloverApiTokenConnectResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Broader integrations blob (mirrors payment_config style on the app row).
+ * Other plugins can add keys later without a new column per plugin.
+ *
+ * `.loose()` is load-bearing: a stripping object would silently DELETE any other plugin's
+ * key every time this parses on the way in or out, so an app-local integration (e.g.
+ * tiffin-grab's OptimoRoute block) would vanish the next time Clover settings were saved.
+ */
+export const integrationsConfigSchema = z
+  .object({
+    clover: cloverConnectionSchema.optional(),
+  })
+  .loose();
+export type IntegrationsConfig = z.infer<typeof integrationsConfigSchema>;
+
+export const DEFAULT_INTEGRATIONS_CONFIG: IntegrationsConfig = {};
+export const DEFAULT_CLOVER_CONNECTION: CloverConnection = {
+  installed: false,
+  connected: false,
+  environment: "sandbox",
+  region: "na",
+  authMode: "oauth",
+};
+
+/**
+ * Never substitute `{}` on a parse failure — every plugin install/uninstall is a
+ * read-modify-write through this (get → merge own key → set), and the merged
+ * result gets PERSISTED. Falling back to `{}` here would silently wipe every
+ * other plugin's config (e.g. live Clover merchant tokens) the next time any
+ * unrelated plugin toggles. Best-effort preserve the raw blob instead — an
+ * unparseable sibling key round-trips unchanged rather than vanishing.
+ */
+export function parseIntegrationsConfig(raw: unknown): IntegrationsConfig {
+  const parsed = integrationsConfigSchema.safeParse(raw ?? {});
+  if (parsed.success) return parsed.data;
+  return raw && typeof raw === "object" ? (raw as IntegrationsConfig) : DEFAULT_INTEGRATIONS_CONFIG;
+}
+
+export function parseCloverConnection(raw: unknown): CloverConnection {
+  const parsed = cloverConnectionSchema.safeParse(raw ?? {});
+  return parsed.success ? parsed.data : { ...DEFAULT_CLOVER_CONNECTION };
+}
+
+/**
+ * Can this connection call the Ecommerce (v1) API — PAKMS, pay order, charges?
+ *
+ * Under OAuth the single access token covers both surfaces, so a connected
+ * merchant is always ecommerce-capable. Under API-token auth Ecommerce is a
+ * separate credential pair the admin may not have entered: catalog and
+ * employee sync work fine without it, checkout does not.
+ */
+export function isCloverEcommerceConfigured(conn: CloverConnection): boolean {
+  if (conn.authMode !== "apiToken") return true;
+  return Boolean(conn.ecommercePublicKey && conn.ecommercePrivateToken);
+}
+
+/**
+ * Which Clover order type a website order should carry.
+ *
+ * Both scheduled and instant delivery map to the same "delivery" type: the
+ * distinction matters to our own scheduling, not to how Register should announce
+ * and print the ticket. Returns undefined when the merchant has not chosen a
+ * type, which leaves the order untyped exactly as before.
+ */
+export function resolveWebOrderTypeId(
+  conn: CloverConnection,
+  fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled",
+): string | undefined {
+  const types = conn.webOrderTypes ?? {};
+  return fulfillment === "pickup" ? types.pickup : types.delivery;
+}
+
+/** Safe projection for admin UI — never includes tokens or app secret. */
+export type CloverConnectionPublic = {
+  installed: boolean;
+  connected: boolean;
+  merchantId?: string;
+  environment: CloverEnvironment;
+  region: CloverRegion;
+  authMode: CloverAuthMode;
+  connectedAt?: string;
+  /**
+   * OAuth: access token exists and is not expired (60s skew).
+   * API token: always true — merchant API tokens do not expire.
+   */
+  accessTokenValid: boolean;
+  /** Connected *and* able to reach the Ecommerce API — i.e. checkout can work. */
+  ecommerceReady: boolean;
+  /** Chosen order types for website orders. Ids only — not secret. */
+  webOrderTypes: { pickup?: string; delivery?: string };
+};
+
+export function toPublicCloverConnection(conn: CloverConnection): CloverConnectionPublic {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = conn.tokens?.accessTokenExpiration;
+  const apiTokenMode = conn.authMode === "apiToken";
+  const credentialPresent = apiTokenMode ? Boolean(conn.apiToken) : Boolean(conn.tokens);
+  const connected = conn.connected && Boolean(conn.merchantId) && credentialPresent;
+  return {
+    installed: conn.installed,
+    connected,
+    merchantId: conn.merchantId,
+    environment: conn.environment,
+    region: conn.region,
+    authMode: conn.authMode,
+    connectedAt: conn.connectedAt,
+    accessTokenValid: apiTokenMode
+      ? Boolean(conn.apiToken)
+      : Boolean(exp && exp - 60 > nowSec),
+    ecommerceReady: connected && isCloverEcommerceConfigured(conn),
+    webOrderTypes: conn.webOrderTypes ?? {},
+  };
+}
+
+/**
+ * Read app credentials from process env.
+ * Required: CLOVER_APP_ID, CLOVER_APP_SECRET
+ * Optional: CLOVER_ENVIRONMENT (sandbox|production), CLOVER_REGION (na|eu|la)
+ */
+export function loadCloverAppCredentialsFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): CloverAppCredentials | null {
+  const appId = env.CLOVER_APP_ID?.trim();
+  const appSecret = env.CLOVER_APP_SECRET?.trim();
+  if (!appId || !appSecret) return null;
+  const parsed = cloverAppCredentialsSchema.safeParse({
+    appId,
+    appSecret,
+    environment: env.CLOVER_ENVIRONMENT?.trim() || "sandbox",
+    region: env.CLOVER_REGION?.trim() || "na",
+  });
+  return parsed.success ? parsed.data : null;
+}
+
+// Resolves which integrationsConfig applies to an acting organization: its own
+// if set (has a clover connection), else its parent's, else the empty default.
+// A single explicit 2-level walk — the org hierarchy this resolves for is
+// capped at 2 levels (brand -> franchise) by assertHierarchyDepth in @foundry/auth,
+// so there is never a third level to walk to.
+// docs/superpowers/specs/2026-08-25-puchkaman-org-hierarchy-design.md
+export function resolveIntegrationsConfig(
+  org: { integrationsConfig: unknown },
+  parent: { integrationsConfig: unknown } | null,
+): IntegrationsConfig {
+  // Per-key merge, own wins: clover is franchise-scoped (own's own connection
+  // fully replaces the parent's, never merged field-by-field — a franchise
+  // with its own Clover must never see the brand's), while a global plugin
+  // like googleReviews lives on the brand and every franchise without its own
+  // key should inherit it. Gating the WHOLE object on `own.clover` (the old
+  // behavior) silently dropped any other key an org had of its own the
+  // moment it had no clover key — that's why a brand with only googleReviews
+  // configured showed as having no integrations at all.
+  const own = parseIntegrationsConfig(org.integrationsConfig);
+  const parentConfig = parent ? parseIntegrationsConfig(parent.integrationsConfig) : {};
+  return { ...parentConfig, ...own };
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { UserRoundIcon } from "lucide-react";
 import {
   Command, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@realm/ui/command";
+} from "@foundry/ui/command";
 import { searchCustomers, type CustomerHit } from "./match-actions";
 
 /** Step-1 typeahead: find an existing customer by name or phone and prefill the

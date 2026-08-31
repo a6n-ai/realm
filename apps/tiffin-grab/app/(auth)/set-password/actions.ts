@@ -1,7 +1,7 @@
 "use server";
 
-import { ValidationError } from "@realm/commons";
-import { passwordSchema } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
+import { passwordSchema } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
 

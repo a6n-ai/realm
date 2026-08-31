@@ -145,7 +145,7 @@ Resources:
                   - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/puchkaman.ca"
                   - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/puchkaman-prod"
               # Address autocomplete and geocoding for delivery checkout, via
-              # @realm/places. Only the three commands aws-provider.ts issues:
+              # @foundry/places. Only the three commands aws-provider.ts issues:
               # Autocomplete (typeahead), Geocode and GetPlace (resolve).
               # geo-places resources carry no account id — the empty field
               # between region and "provider" is correct, not a typo.

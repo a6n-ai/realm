@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError, type RoleValue } from "@realm/commons";
+import { ValidationError, type RoleValue } from "@foundry/commons";
 import { auth } from "@/lib/auth";
 import { requirePermission } from "@/lib/auth/guards";
 import { resolveActingOrgId } from "@/lib/services/integrations.service";

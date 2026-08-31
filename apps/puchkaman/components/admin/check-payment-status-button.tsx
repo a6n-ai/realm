@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 type CheckResult = {

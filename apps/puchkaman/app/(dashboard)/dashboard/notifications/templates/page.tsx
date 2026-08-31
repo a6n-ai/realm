@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CheckCircleIcon, CircleSlashIcon, LayersIcon } from "lucide-react";
-import { SectionCard, SkeletonStatCards, StatCard, StatGrid } from "@realm/design-system";
+import { SectionCard, SkeletonStatCards, StatCard, StatGrid } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";

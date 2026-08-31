@@ -14,7 +14,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { Role, formatMoney as fmt } from "@realm/commons";
+import { Role, formatMoney as fmt } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -22,10 +22,10 @@ import { orders, users } from "@/db/schema";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import {
   PageShell,
   PageHeader,

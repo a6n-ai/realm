@@ -28,7 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@realm/ui/sidebar";
+} from "@foundry/ui/sidebar";
 
 type NavItem = { title: string; href: string; icon: LucideIcon };
 type NavSection = { label: string; items: NavItem[] };

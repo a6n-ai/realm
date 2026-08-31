@@ -8,9 +8,9 @@ import {
   FilterSheet,
   RowActionButton,
   RowActions,
-} from "@realm/design-system";
-import { TableCell } from "@realm/ui/table";
-import { eventLabel } from "@realm/notifications/ui";
+} from "@foundry/design-system";
+import { TableCell } from "@foundry/ui/table";
+import { eventLabel } from "@relay/engine/ui";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";

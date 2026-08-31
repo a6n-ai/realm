@@ -2,9 +2,9 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Role, type RoleValue } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Role, type RoleValue } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { removeUser, sendPasswordReset, setUserRole, setUserStatus } from "./actions";
 import type { UserStatusValue } from "@/lib/services/users.service";
 

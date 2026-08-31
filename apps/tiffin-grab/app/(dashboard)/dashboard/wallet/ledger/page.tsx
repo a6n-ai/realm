@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { unexpired } from "@realm/wallet";
+import { unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@/lib/list/sort";

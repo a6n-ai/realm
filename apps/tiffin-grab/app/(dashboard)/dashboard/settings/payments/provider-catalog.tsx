@@ -4,9 +4,9 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { IntegrationPluginCard, IntegrationPluginCardSkeleton } from "@realm/crm";
-import { Button } from "@realm/ui/button";
-import { PAYMENT_PROVIDERS } from "@realm/payments/providers";
+import { IntegrationPluginCard, IntegrationPluginCardSkeleton } from "@foundry/crm";
+import { Button } from "@foundry/ui/button";
+import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
 import { installPaymentPlugin } from "./actions";
 
 /**

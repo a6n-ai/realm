@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@realm/ui/select";
+} from "@foundry/ui/select";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 const UNASSIGNED = "__none__";

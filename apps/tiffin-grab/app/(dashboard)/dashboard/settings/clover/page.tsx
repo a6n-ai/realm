@@ -6,8 +6,8 @@ import {
   loadCloverAppCredentialsFromEnv,
   setCloverConnection,
   toPublicCloverConnection,
-} from "@realm/clover";
-import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@realm/clover/ui";
+} from "@foundry/clover";
+import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";

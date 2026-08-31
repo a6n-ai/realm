@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { type AnyPgColumn, bigint, boolean, index, jsonb, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import type { IntegrationsConfig } from "@realm/clover";
+import type { IntegrationsConfig } from "@foundry/clover";
 import { users } from "./auth";
 
 const nextIdText = sql`(next_id())::text`;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { UtensilsIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";

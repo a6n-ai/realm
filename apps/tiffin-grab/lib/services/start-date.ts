@@ -1,4 +1,4 @@
-import { isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@realm/commons";
+import { isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
 
 // Validate a customer-chosen subscription start date.
 // - must be on/after the next weekday after `today` (no past, no same-day, skip weekends)

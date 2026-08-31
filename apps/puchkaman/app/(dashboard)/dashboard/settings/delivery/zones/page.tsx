@@ -1,4 +1,4 @@
-import { SectionCard } from "@realm/design-system";
+import { SectionCard } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes, getStoreOrigin, getZonesWithTypes } from "@/lib/delivery/zones.service";
 import { ZoneEditor, type TypeOption, type ZoneRow } from "./zone-editor";

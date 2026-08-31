@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LockIcon, LogOutIcon, UserIcon } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/drawer";
 import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { SECTIONS } from "./app-sidebar";

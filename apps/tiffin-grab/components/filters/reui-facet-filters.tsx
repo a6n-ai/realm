@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FacetDef, Option } from "@/components/ds";
-import { DateRangePicker } from "@realm/ui/date-range-picker";
+import { DateRangePicker } from "@foundry/ui/date-range-picker";
 import {
   Filters,
   type Filter,

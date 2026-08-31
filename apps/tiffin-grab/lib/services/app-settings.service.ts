@@ -1,11 +1,11 @@
-import { UpdatableRepository } from "@realm/database";
-import { cutoffMsFor, tzToDefaultCountry } from "@realm/commons";
+import { UpdatableRepository } from "@foundry/database";
+import { cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
 import {
   parseIntegrationsConfig,
   type IntegrationsConfig,
   type IntegrationsConfigStore,
-} from "@realm/clover";
-import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@realm/payments";
+} from "@foundry/clover";
+import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { and, eq, gt } from "drizzle-orm";
 import { sharedCache } from "@/lib/cache";

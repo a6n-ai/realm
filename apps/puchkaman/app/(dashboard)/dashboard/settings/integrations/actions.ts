@@ -15,8 +15,8 @@ import {
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
   type CloverApiTokenConnectResult,
-} from "@realm/clover";
-import { blockedBy, resolveStatuses } from "@realm/crm/server";
+} from "@foundry/clover";
+import { blockedBy, resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";

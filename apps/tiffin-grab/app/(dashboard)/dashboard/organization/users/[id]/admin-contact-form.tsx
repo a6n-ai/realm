@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
 import { adminUpdateContact } from "../actions";
 
 export function AdminContactForm({ userId, email, phone }: { userId: string; email: string; phone: string }) {

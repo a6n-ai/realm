@@ -1,4 +1,4 @@
-import type { UsersRef } from "@realm/notifications";
+import type { UsersRef } from "@relay/engine";
 import { notificationTables, users } from "@/db/schema";
 
 export { notificationTables };

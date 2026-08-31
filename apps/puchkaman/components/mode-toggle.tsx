@@ -1,8 +1,8 @@
 "use client";
 
 import { MoonIcon, SunIcon } from "lucide-react";
-import { useTheme } from "@realm/themes";
-import { Button } from "@realm/ui/button";
+import { useTheme } from "@foundry/themes";
+import { Button } from "@foundry/ui/button";
 
 export function ModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();

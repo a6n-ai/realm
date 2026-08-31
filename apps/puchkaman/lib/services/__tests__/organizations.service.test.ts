@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
-import { eq as filterEq, like as filterLike } from "@realm/commons/model/condition";
+import { eq as filterEq, like as filterLike } from "@foundry/commons/model/condition";
 import {
   addMember,
   getMemberOrganizations,

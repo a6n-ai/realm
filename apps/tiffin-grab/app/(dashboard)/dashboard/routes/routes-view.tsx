@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPinnedIcon } from "lucide-react";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@/components/ds";
 import type { PlannedOrder } from "@/lib/services/optimoroute/push";
 

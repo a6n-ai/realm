@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { parseIsoDateUtc } from "@realm/commons";
-import { Button } from "@realm/ui/button";
+import { parseIsoDateUtc } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
 import { buildPosterColumns, DAYS, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { formatMoney } from "@realm/commons";
-import { SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { formatMoney } from "@foundry/commons";
+import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { paymentsService, type PaymentSortColumn } from "@/lib/services/payments.service";

@@ -1,4 +1,4 @@
-import { createRateLimiter, drainPending as drain } from "@realm/notifications";
+import { createRateLimiter, drainPending as drain } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables } from "./tables";
 import { buildAppHandlers } from "./handlers";

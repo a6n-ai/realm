@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { clientIp, isRateLimited } from "@realm/commons";
-import { toE164 } from "@realm/notifications";
-import { handler, json, problem } from "@realm/routes";
+import { clientIp, isRateLimited } from "@foundry/commons";
+import { toE164 } from "@relay/engine";
+import { handler, json, problem } from "@foundry/routes";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { confirmVerification } from "@/lib/notifications/phone-verify";

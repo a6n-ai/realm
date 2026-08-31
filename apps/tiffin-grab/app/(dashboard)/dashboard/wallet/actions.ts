@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { ValidationError } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
+import { ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate, durationPackages, eventPayout, mealPayout, mealSizes, users } from "@/db/schema";

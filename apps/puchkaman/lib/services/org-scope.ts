@@ -31,7 +31,7 @@ export type OrgScopeMode = { mode: "all" } | { mode: "org"; orgId: string };
  * that show a franchise-scoped view by default (Orders, Finance) and switch
  * to an all-franchises-with-a-clientCode-column view when either:
  *   - the session's platformRole is "super_admin" — a person-level bypass
- *     (see @realm/auth resolveVisibleOrgIds), independent of which org is
+ *     (see @foundry/auth resolveVisibleOrgIds), independent of which org is
  *     active. This is the ONLY thing that sees across every brand once a
  *     second one exists; ordinary staff never get it regardless of org.
  *   - the active org IS a brand itself (parentOrganizationId null) — a brand

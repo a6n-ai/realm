@@ -12,7 +12,7 @@
 // e.g. giving up 1 rice pick (1 TU) into roti (0.25 TU/pick) buys exactly 4 roti
 // picks, matching the pick-count-driven categoryCounts/pickIndex machinery
 // unchanged (see lib/menu/resolve-delivery-meal.ts).
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, mealSizeItems, orderActivities, orders } from "@/db/schema";

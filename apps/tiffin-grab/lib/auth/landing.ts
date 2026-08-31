@@ -1,4 +1,4 @@
-import { Role, type RoleValue } from "@realm/commons";
+import { Role, type RoleValue } from "@foundry/commons";
 
 // Staff = admin or member (mirrors requireStaff in guards.ts). Non-throwing so
 // pages can branch on it rather than guard.

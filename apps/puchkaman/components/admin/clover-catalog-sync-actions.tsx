@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon, RefreshCwIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { toastSyncErrors } from "@/lib/http/sync-errors";
 import { SyncLoadingOverlay } from "./sync-loading-overlay";

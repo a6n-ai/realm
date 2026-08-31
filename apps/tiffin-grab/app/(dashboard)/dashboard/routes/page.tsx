@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { MapPinnedIcon } from "lucide-react";
-import { zonedDateIso } from "@realm/commons";
-import { Skeleton } from "@realm/ui/skeleton";
+import { zonedDateIso } from "@foundry/commons";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";

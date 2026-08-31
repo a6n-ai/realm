@@ -1,5 +1,5 @@
 import { BanknoteIcon, CoinsIcon, ScrollTextIcon } from "lucide-react";
-import { RoutedTabNav } from "@realm/design-system";
+import { RoutedTabNav } from "@foundry/design-system";
 
 const SUBTABS = [
   { label: "Ledger", href: "/dashboard/wallet/ledger", icon: ScrollTextIcon },

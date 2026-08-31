@@ -3,8 +3,8 @@
 // Month calendar: deliveries for the whole visible month; menu options attach per released week.
 
 import { useEffect, useState } from "react";
-import { Calendar } from "@realm/ui/calendar";
-import { cn } from "@realm/ui/cn";
+import { Calendar } from "@foundry/ui/calendar";
+import { cn } from "@foundry/ui/cn";
 import { parseIsoLocal, toIsoLocal, type CalendarCell } from "./calendar-constants";
 import { TiffinTile } from "./tiffin-tile";
 import { cellToTileData } from "./tile-data";

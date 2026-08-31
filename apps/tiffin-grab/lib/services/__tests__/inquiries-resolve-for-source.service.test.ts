@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { inquiriesService } = await import("../inquiries.service");

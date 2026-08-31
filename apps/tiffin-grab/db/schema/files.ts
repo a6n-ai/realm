@@ -4,4 +4,4 @@ export {
   fileSystem,
   filesAccessPath,
   filesSecuredAccessKey,
-} from "@realm/storage/schema";
+} from "@foundry/storage/schema";

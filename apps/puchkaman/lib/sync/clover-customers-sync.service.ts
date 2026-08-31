@@ -6,7 +6,7 @@
  * "gone" — a removed customer's row just stops getting touched on future pulls.
  */
 
-import type { CloverApiClient, CloverCustomer } from "@realm/clover";
+import type { CloverApiClient, CloverCustomer } from "@foundry/clover";
 import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import {
   cloverCustomersRepository,

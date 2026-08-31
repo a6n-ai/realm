@@ -3,8 +3,8 @@
 import { BellIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { TableCell } from "@realm/ui/table";
-import { eventLabel } from "@realm/notifications/ui";
+import { TableCell } from "@foundry/ui/table";
+import { eventLabel } from "@relay/engine/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";

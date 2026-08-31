@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
+} from "@foundry/ui/select";
 
 export function ReassignControl({
   currentOwnerId,

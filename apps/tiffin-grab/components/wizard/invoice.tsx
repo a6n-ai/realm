@@ -1,5 +1,5 @@
 import type { PricingResult } from "@/lib/pricing";
-import { Separator } from "@realm/ui/separator";
+import { Separator } from "@foundry/ui/separator";
 
 export function Invoice({ result }: { result: PricingResult | null }) {
   if (!result) return <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;

@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MailIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 /** Per-row invite for a Clover customer with no app account — emails them a link to order online. */

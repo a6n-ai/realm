@@ -1,4 +1,4 @@
-import type { TrackingSubject } from "@realm/order-tracking";
+import type { TrackingSubject } from "@foundry/order-tracking";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";

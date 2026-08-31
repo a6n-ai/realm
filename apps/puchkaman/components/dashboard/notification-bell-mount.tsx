@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { NotificationBell } from "@realm/notifications/ui";
+import { NotificationBell } from "@relay/engine/ui";
 import { makeSubscriber } from "@/components/notifications/realtime";
 
 /**

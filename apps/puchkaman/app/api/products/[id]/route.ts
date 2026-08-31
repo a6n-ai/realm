@@ -1,4 +1,4 @@
-import { createResourceRoute } from "@realm/routes";
+import { createResourceRoute } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 

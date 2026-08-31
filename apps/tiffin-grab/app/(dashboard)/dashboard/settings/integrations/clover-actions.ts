@@ -12,7 +12,7 @@ import {
   verifyCloverApiToken,
   type CloverApiTokenConnectInput,
   type CloverApiTokenConnectResult,
-} from "@realm/clover";
+} from "@foundry/clover";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { createCloverOAuthState } from "@/lib/clover/oauth-state";

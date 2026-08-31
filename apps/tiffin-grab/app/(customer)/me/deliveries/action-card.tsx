@@ -3,7 +3,7 @@
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRightIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { IOS_PRESS } from "@/components/customer/ios-button";
 
 /** Customer delivery sheets open from the thumb edge. Admin create/edit stays top. */

@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { parseIsoDateUtc, weekdayKey, type Weekday } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Calendar } from "@realm/ui/calendar";
-import { Label } from "@realm/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { useIsMobile } from "@realm/ui/use-mobile";
+import { parseIsoDateUtc, weekdayKey, type Weekday } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Calendar } from "@foundry/ui/calendar";
+import { Label } from "@foundry/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { useIsMobile } from "@foundry/ui/use-mobile";
 import { CalendarIcon } from "lucide-react";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { formatMoney as fmt } from "@realm/commons";
+import { formatMoney as fmt } from "@foundry/commons";
 import { OrderStatusBadge } from "@/components/ds";
 import { Invoice } from "@/components/wizard/invoice";
 import { formatEpoch } from "@/lib/format/datetime";

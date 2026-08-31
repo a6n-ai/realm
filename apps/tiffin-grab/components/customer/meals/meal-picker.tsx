@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { LockIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { Badge } from "@realm/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Badge } from "@foundry/ui/badge";
 import { Reveal } from "@/components/motion";
 import { DishImage } from "@/components/customer/home/dish-image";
 import { pickMyDish, applyMyDishToWeek } from "@/app/(customer)/me/meals/actions";

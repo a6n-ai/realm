@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { BarChart3Icon } from "lucide-react";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@realm/ui/table";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@foundry/ui/table";
 import { currentUserId } from "@/lib/services/session-service";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";

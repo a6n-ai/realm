@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@realm/commons";
+import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "../selections";
-import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
-import { Label } from "@realm/ui/label";
+import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
+import { Label } from "@foundry/ui/label";
 import { Invoice } from "../invoice";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { formatDateOnly } from "@/lib/format/datetime";

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { LogOutIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { signOut } from "@/lib/auth/client";
 
 export function SignOutButton() {

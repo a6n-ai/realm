@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { PageHeader, PageShell } from "@realm/design-system";
+import { PageHeader, PageShell } from "@foundry/design-system";
 import { TrackingView } from "@/components/order/tracking-view";
 import { auth } from "@/lib/auth";
 import { getSession } from "@/lib/auth/session";

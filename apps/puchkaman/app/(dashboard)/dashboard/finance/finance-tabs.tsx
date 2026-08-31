@@ -1,5 +1,5 @@
 import { CreditCardIcon, ScrollTextIcon } from "lucide-react";
-import { RoutedTabNav } from "@realm/design-system";
+import { RoutedTabNav } from "@foundry/design-system";
 
 const SUBTABS = [
   { label: "Transactions", href: "/dashboard/finance/transactions", icon: CreditCardIcon },

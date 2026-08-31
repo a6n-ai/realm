@@ -1,5 +1,5 @@
 import { CheckIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 /** Compact numbered stepper for the 2-step lead sheets (Customer → Order). */
 export function StepHeader({ step, steps }: { step: number; steps: string[] }) {

@@ -1,5 +1,5 @@
 import { HistoryIcon, PercentIcon, SlidersHorizontalIcon, TicketPercentIcon } from "lucide-react";
-import { RoutedTabNav } from "@realm/design-system";
+import { RoutedTabNav } from "@foundry/design-system";
 
 const SUBTABS = [
   { label: "Logs", href: "/dashboard/discounts/logs", icon: HistoryIcon },

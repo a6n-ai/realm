@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
 import { OrderStatusBadge } from "@/components/ds";
-import { Badge } from "@realm/ui/badge";
+import { Badge } from "@foundry/ui/badge";
 import { Reveal } from "@/components/motion";
 import { KIND_LABELS } from "@/app/(dashboard)/dashboard/discounts/kind-labels";
 import type { SubSummary } from "@/lib/services/customer-deliveries.service";

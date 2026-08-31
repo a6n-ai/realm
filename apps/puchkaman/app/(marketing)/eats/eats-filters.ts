@@ -1,4 +1,4 @@
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import type { PublicModifierGroup } from "@/lib/orders/modifier-types";
 
 export type EatsItem = {

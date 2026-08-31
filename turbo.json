@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.base.json", "tooling/eslint-config/**"],
+  "globalDependencies": ["tsconfig.base.json", "foundry/tooling/eslint-config/**"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"] },
     "lint": {},

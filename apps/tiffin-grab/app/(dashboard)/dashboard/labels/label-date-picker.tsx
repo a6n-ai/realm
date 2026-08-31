@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 // Native date input rather than a calendar component: this picks one day, and the browser's
 // own control is keyboard- and mobile-friendly for free.

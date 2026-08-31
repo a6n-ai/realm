@@ -1,4 +1,4 @@
-import { BaseRepository } from "@realm/database";
+import { BaseRepository } from "@foundry/database";
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, organization, payments } from "@/db/schema";

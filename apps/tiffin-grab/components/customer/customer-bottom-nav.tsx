@@ -1,7 +1,7 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDaysIcon, HomeIcon, UserIcon, UtensilsCrossedIcon } from "lucide-react";
-import { BottomNav, type BottomNavItem } from "@realm/design-system";
+import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 
 const TABS = [
   { href: "/me", title: "Home", icon: HomeIcon },

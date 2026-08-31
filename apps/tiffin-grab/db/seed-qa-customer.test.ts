@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
-import { nextWeekday } from "@realm/commons";
+import { nextWeekday } from "@foundry/commons";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/db/client";
 import { account, orders, users } from "@/db/schema";

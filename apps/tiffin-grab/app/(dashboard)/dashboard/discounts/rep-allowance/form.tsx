@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { DiscountPolicy } from "@/db/schema/coupons";
 import { SectionCard } from "@/components/ds";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
 import { NumberField, ToggleRow, numOrNull } from "../controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
 

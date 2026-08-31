@@ -5,7 +5,7 @@ import { account, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createCustomer, listCustomersPage } = await import("../customers.service");
-const { like: cLike } = await import("@realm/commons/model/condition");
+const { like: cLike } = await import("@foundry/commons/model/condition");
 
 // Unique-name isolation (memory: realm-integration-test-isolation) — parallel
 // live-DB service tests share the `users` table, so scope every assertion to

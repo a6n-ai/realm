@@ -4,13 +4,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
-import { profileAddressSchema, type ProfileAddressValues } from "@realm/commons";
-import { cn } from "@realm/ui/cn";
+import { profileAddressSchema, type ProfileAddressValues } from "@foundry/commons";
+import { cn } from "@foundry/ui/cn";
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Button } from "@realm/ui/button";
-import { Form } from "@realm/ui/form";
-import { AddressFormFields } from "@realm/ui/address-form-fields";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Form } from "@foundry/ui/form";
+import { AddressFormFields } from "@foundry/ui/address-form-fields";
 import { updateMyAddress } from "@/app/(dashboard)/dashboard/account/actions";
 
 const ADDRESS_FIELDS: { name: keyof ProfileAddressValues; className?: string }[] = [

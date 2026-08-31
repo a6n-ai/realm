@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { LayersIcon } from "lucide-react";
 import { redirect } from "next/navigation";
-import { getCloverConnection } from "@realm/clover";
+import { getCloverConnection } from "@foundry/clover";
 import {
   PageHeader,
   PageShell,
   SectionCard,
   parseFilterState,
   type FacetDef,
-} from "@realm/design-system";
+} from "@foundry/design-system";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";

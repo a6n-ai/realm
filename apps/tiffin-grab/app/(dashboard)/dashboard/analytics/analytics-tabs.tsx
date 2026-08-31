@@ -8,7 +8,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { RoutedTabNav } from "@realm/design-system";
+import { RoutedTabNav } from "@foundry/design-system";
 
 const SUBTABS = [
   { label: "Overview", href: "/dashboard/analytics/overview", icon: LayoutDashboardIcon },

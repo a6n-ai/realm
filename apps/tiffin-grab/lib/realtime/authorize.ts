@@ -1,5 +1,5 @@
-import { Role, type RoleValue } from "@realm/commons";
-import type { RealtimeRole } from "@realm/realtime";
+import { Role, type RoleValue } from "@foundry/commons";
+import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
 import { ticketsService } from "@/lib/services/tickets.service";
 

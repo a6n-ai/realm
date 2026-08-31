@@ -13,8 +13,8 @@ vi.mock("@/db/client", () => ({
   },
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@realm/database", async (orig) => {
-  const actual = await orig<typeof import("@realm/database")>();
+vi.mock("@foundry/database", async (orig) => {
+  const actual = await orig<typeof import("@foundry/database")>();
   class FakeBase {
     repo = { tableName: "secrets" };
     async read(id: string) { return { publicId: id, secret: "x" }; }

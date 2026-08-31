@@ -12,8 +12,8 @@ import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { parseSort } from "@/lib/list/sort";
 import { loadOwnerOptions, loadSourceOptions } from "@/lib/list/facet-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
   PageHeader,

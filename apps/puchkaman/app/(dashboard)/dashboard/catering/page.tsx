@@ -1,6 +1,6 @@
 import { CalendarHeartIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import { requirePermission } from "@/lib/auth/guards";
 import { listCateringInquiries } from "@/lib/services/catering.service";
 

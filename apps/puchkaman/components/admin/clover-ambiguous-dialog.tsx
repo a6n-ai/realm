@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type { CloverAmbiguousMatch } from "@/lib/sync/clover-inventory-sync.service";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";

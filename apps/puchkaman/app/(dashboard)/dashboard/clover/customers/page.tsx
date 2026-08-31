@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { ContactIcon } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
+import { getCloverConnection } from "@foundry/clover";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@realm/ui/table";
+} from "@foundry/ui/table";
 import { redirect } from "next/navigation";
 import { CloverCustomersSyncActions } from "@/components/admin/clover-customers-sync-actions";
 import { InviteCustomerButton } from "@/components/admin/invite-customer-button";

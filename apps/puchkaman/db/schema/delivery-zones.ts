@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import { bigint, boolean, numeric, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { deliveryTypes } from "./delivery-types";
 import { organization } from "./organizations";

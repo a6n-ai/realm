@@ -1,4 +1,4 @@
-import { emailSchema, Role, ValidationError, type RoleValue } from "@realm/commons";
+import { emailSchema, Role, ValidationError, type RoleValue } from "@foundry/commons";
 import { auth } from "@/lib/auth";
 import { usersService } from "./users.service";
 

@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
+import { Button } from "@foundry/ui/button";
+import { Label } from "@foundry/ui/label";
 import { NumberField } from "../discounts/controls";
 import { saveCoinRate } from "./actions";
 

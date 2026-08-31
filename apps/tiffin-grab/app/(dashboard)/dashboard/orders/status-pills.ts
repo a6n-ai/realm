@@ -1,4 +1,4 @@
-import { inList, type Condition } from "@realm/commons/model/condition";
+import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Single source of truth for the Status facet — also the pill/badge label map.
 // "all" is a client-only pseudo-bucket, never a valid `orders.status` value, so

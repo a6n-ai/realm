@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ResolvedPlace } from "@realm/places";
+import type { ResolvedPlace } from "@foundry/places";
 
 // resolve-address.ts builds its provider chain from real awsPlaceProvider()/
 // googlePlaceProvider()/nominatimProvider() at module load — the real AWS
@@ -15,8 +15,8 @@ const googleResolve = vi.hoisted(() => vi.fn());
 const googleSuggest = vi.hoisted(() => vi.fn());
 const nominatimResolve = vi.hoisted(() => vi.fn());
 
-vi.mock("@realm/places", async () => {
-  const actual = await vi.importActual<typeof import("@realm/places")>("@realm/places");
+vi.mock("@foundry/places", async () => {
+  const actual = await vi.importActual<typeof import("@foundry/places")>("@foundry/places");
   return {
     ...actual,
     awsPlaceProvider: () => ({ id: "aws", resolve: awsResolve, suggest: awsSuggest }),

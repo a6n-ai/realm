@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import { bigint, index, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";

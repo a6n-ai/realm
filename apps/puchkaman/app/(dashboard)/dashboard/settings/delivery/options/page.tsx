@@ -1,4 +1,4 @@
-import { SectionCard } from "@realm/design-system";
+import { SectionCard } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
 import { TypesTable, type TypeRow } from "./types-table";

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getIntegrationsConfig, setIntegrationsConfig } from "@/lib/services/app-settings.service";
 
-// App-local, not @realm/clover: OptimoRoute is delivery routing for this client, and
+// App-local, not @foundry/clover: OptimoRoute is delivery routing for this client, and
 // nothing has proven it shared. It rides in the same integrations_config blob, which is
 // z.loose() precisely so an app-local key survives another plugin's save.
 export const OPTIMOROUTE_KEY = "optimoroute" as const;

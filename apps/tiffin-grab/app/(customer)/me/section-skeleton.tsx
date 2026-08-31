@@ -1,5 +1,5 @@
-import { SectionCard } from "@realm/design-system";
-import { Skeleton } from "@realm/ui/skeleton";
+import { SectionCard } from "@foundry/design-system";
+import { Skeleton } from "@foundry/ui/skeleton";
 
 // Shared Suspense fallback for every home section. Keeps the section's title
 // visible while its data component resolves (no layout shift, no title flash).

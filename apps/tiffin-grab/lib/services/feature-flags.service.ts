@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/database";
+import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { featureFlags } from "@/db/schema";
 import { SessionUpdatableService } from "./session-service";

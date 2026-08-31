@@ -1,5 +1,5 @@
-import { TwilioWhatsAppProvider } from "@realm/whatsapp";
-import type { ChannelProvider } from "@realm/notifications";
+import { TwilioWhatsAppProvider } from "@relay/whatsapp";
+import type { ChannelProvider } from "@relay/engine";
 
 let cached: ChannelProvider | undefined;
 

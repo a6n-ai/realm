@@ -5,7 +5,7 @@ import {
   loadCloverAppCredentialsFromEnv,
   parseCloverOAuthCallback,
   setCloverConnection,
-} from "@realm/clover";
+} from "@foundry/clover";
 import { getSession } from "@/lib/auth/session";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { consumeCloverOAuthState } from "@/lib/clover/oauth-state";

@@ -1,8 +1,8 @@
 "use client";
 
-import { cn } from "@realm/ui/cn";
-import { FormItem, FormLabel, FormMessage } from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+import { cn } from "@foundry/ui/cn";
+import { FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { PostalCombobox } from "./postal-combobox";
 

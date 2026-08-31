@@ -1,4 +1,4 @@
-import { Badge } from "@realm/ui/badge";
+import { Badge } from "@foundry/ui/badge";
 import type { MealSizeView } from "@/lib/catalog/types";
 import { MealSizePrice } from "@/components/wizard/meal-size-price";
 

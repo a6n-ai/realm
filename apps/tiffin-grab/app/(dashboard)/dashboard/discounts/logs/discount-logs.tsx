@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { HistoryIcon } from "lucide-react";
 import { DataTable, SkeletonStatCards, StatGrid, type Column } from "@/components/ds";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { SortState } from "@/lib/list/sort";

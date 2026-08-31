@@ -1,10 +1,10 @@
-import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
-import type { Condition } from "@realm/commons/model/condition";
-import type { Page, PageRequest } from "@realm/commons/util/pagination";
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { canClaim, canVerify, enabledMethods, findMethod } from "@realm/payments";
-import { resolveVisibleOrgIds } from "@realm/auth";
+import { generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
+import type { Condition } from "@foundry/commons/model/condition";
+import type { Page, PageRequest } from "@foundry/commons/util/pagination";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
+import { canClaim, canVerify, enabledMethods, findMethod } from "@foundry/payments";
+import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -110,7 +110,7 @@ export interface CreateOrderInput {
     addressLine: string;
     city: string;
     postalCode: string;
-    // Resolved via @realm/places' resolveAndPersist() at the action layer, not here —
+    // Resolved via @foundry/places' resolveAndPersist() at the action layer, not here —
     // this service only stores whatever it's given, null when omitted.
     lat?: number | null;
     lng?: number | null;
@@ -864,7 +864,7 @@ export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "tota
 // alone with the identical `where` so the nullable owner join can't inflate it.
 // Client-scoping: which orgs a session may see. super_admin bypasses to "all";
 // everyone else is scoped to their `member` rows — zero rows means zero orders,
-// never the whole table (see @realm/auth resolveVisibleOrgIds).
+// never the whole table (see @foundry/auth resolveVisibleOrgIds).
 export async function resolveSessionVisibleOrgIds(session: {
   user: { id: string; platformRole?: string | null };
 } | null): Promise<"all" | string[]> {
@@ -964,7 +964,7 @@ export type OrderDetail = typeof orders.$inferSelect & {
   payments: OrderPaymentDetail[];
 };
 
-// Same org scoping as listOrdersPage (see @realm/auth resolveVisibleOrgIds). A
+// Same org scoping as listOrdersPage (see @foundry/auth resolveVisibleOrgIds). A
 // publicId is unguessable but not a permission — direct-link/URL access must not
 // bypass membership scoping. Out-of-scope orders fail exactly like nonexistent ones
 // (NotFoundError) so a caller can't distinguish "not visible" from "doesn't exist".

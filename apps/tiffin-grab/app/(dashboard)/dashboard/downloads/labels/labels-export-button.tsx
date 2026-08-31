@@ -1,7 +1,7 @@
 "use client";
 
 import { DownloadIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import type { PackingLabelRow } from "@/lib/services/labels.service";
 import { LABEL_COLUMNS, labelRowToExcelRecord } from "./label-columns";
 

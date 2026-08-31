@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
-import { drainPending, enqueue, suppress } from "@realm/notifications";
+import { drainPending, enqueue, suppress } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationOutbox, users } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";

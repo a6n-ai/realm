@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Loader2Icon } from "lucide-react";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@/lib/http/api-fetch";
 import type {
   CloverAmbiguousMatch,

@@ -1,4 +1,4 @@
-import { UpdatableRepository, stripCreateOnly } from "@realm/database";
+import { UpdatableRepository, stripCreateOnly } from "@foundry/database";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ClientScopedRepository } from "@/lib/services/client-scoped-repository";

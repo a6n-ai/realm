@@ -1,4 +1,4 @@
-import { baseColumns } from "@realm/database";
+import { baseColumns } from "@foundry/database";
 import { index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 
 export const emailStatus = pgEnum("email_status", ["sent", "failed"]);

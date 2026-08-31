@@ -4,7 +4,7 @@
  * apps/puchkaman/db/seed-admin.ts.
  *
  * The password comes from the environment and is never hardcoded. It is hashed
- * with scrypt via @realm/auth — better-auth's email/password provider does NOT
+ * with scrypt via @foundry/auth — better-auth's email/password provider does NOT
  * read a `users.password` column (there isn't one); it reads the hash from an
  * `account` row where providerId = "credential".
  *
@@ -18,7 +18,7 @@
  *   tsx apps/tiffin-grab/db/seed-admin.ts
  */
 import { eq, sql } from "drizzle-orm";
-import { hashPassword } from "@realm/auth";
+import { hashPassword } from "@foundry/auth";
 import { db } from "./client";
 import { account, users } from "./schema";
 

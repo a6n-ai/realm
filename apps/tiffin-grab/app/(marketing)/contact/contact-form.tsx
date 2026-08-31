@@ -6,17 +6,17 @@ import dynamic from "next/dynamic";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import { Textarea } from "@realm/ui/textarea";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
+import { Textarea } from "@foundry/ui/textarea";
 import { contactFormSchema, type ContactFormValues } from "./schema";
 import { createWebsiteInquiry } from "./actions";
 
 const PhoneInput = dynamic(
-  () => import("@realm/ui/phone-input").then((m) => m.PhoneInput),
+  () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
   { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
 );
 

@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MenuIcon, UtensilsCrossedIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@realm/ui/sheet";
+import { Button } from "@foundry/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@foundry/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useSession } from "@/lib/auth/client";
 import { roleLanding } from "@/lib/auth/landing";
-import { Role, type RoleValue } from "@realm/commons";
+import { Role, type RoleValue } from "@foundry/commons";
 
 const LINKS = [
   { href: "/menu/weekly", label: "Menu" },

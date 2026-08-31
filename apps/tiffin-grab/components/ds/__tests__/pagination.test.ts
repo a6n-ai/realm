@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageRange } from "@realm/design-system";
+import { pageRange } from "@foundry/design-system";
 
 describe("pageRange", () => {
   it("returns all pages when few", () => {

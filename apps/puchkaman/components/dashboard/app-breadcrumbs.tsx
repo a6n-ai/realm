@@ -1,6 +1,6 @@
 "use client";
 
-import { Breadcrumbs } from "@realm/design-system";
+import { Breadcrumbs } from "@foundry/design-system";
 
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",

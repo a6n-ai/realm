@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SearchInput } from "@realm/design-system";
+import { SearchInput } from "@foundry/design-system";
 import { searchCatalog, type CatalogSearchResults } from "@/app/(customer)/me/search-actions";
 
 const EMPTY: CatalogSearchResults = { plans: [], meals: [] };

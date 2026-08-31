@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@realm/commons";
-import { handler, json } from "@realm/routes";
+import { clientIp, isRateLimited } from "@foundry/commons";
+import { handler, json } from "@foundry/routes";
 import { suggestAddresses } from "@/lib/delivery/resolve-address";
 
 const suggestSchema = z.object({ query: z.string().trim().min(1) });

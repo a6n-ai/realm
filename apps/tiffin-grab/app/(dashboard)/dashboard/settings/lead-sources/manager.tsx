@@ -10,12 +10,12 @@ import {
   RotateCcwIcon,
   XIcon,
 } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Badge } from "@realm/ui/badge";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +23,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@realm/ui/dialog";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/dialog";
+import { cn } from "@foundry/ui/cn";
 import { saveSource, saveSubsource, setSourceActive, setSubsourceActive } from "./actions";
 
 type Sub = { publicId: string; key: string; label: string; active: boolean };

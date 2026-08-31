@@ -1,5 +1,5 @@
-import { UpdatableRepository, UpdatableService } from "@realm/database";
-import { ValidationError } from "@realm/commons";
+import { UpdatableRepository, UpdatableService } from "@foundry/database";
+import { ValidationError } from "@foundry/commons";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";
 import { featureFlags } from "../schema";

@@ -1,5 +1,5 @@
-import { baseStatement, createAccessControl } from "@realm/auth";
-import { Role } from "@realm/commons";
+import { baseStatement, createAccessControl } from "@foundry/auth";
+import { Role } from "@foundry/commons";
 
 export const statement = {
   ...baseStatement,

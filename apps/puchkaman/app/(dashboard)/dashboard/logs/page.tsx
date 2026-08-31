@@ -6,7 +6,7 @@ import {
   SectionCard,
   parseFilterState,
   type FacetDef,
-} from "@realm/design-system";
+} from "@foundry/design-system";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { auditService, type AuditSortColumn } from "@/lib/services/audit.service";

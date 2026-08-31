@@ -745,7 +745,7 @@ section { position: relative; }
 [data-theme="dark"] .theme-toggle .icon-moon { display: block; }
 
 /* ---------- Location picker (floating "Deliver to" + suggest/choose popups) ----------
-   Shared component (@realm/design-system) exposes bare `location-picker-*`
+   Shared component (@foundry/design-system) exposes bare `location-picker-*`
    class hooks with no styling of its own — this is puchkaman's brutalist skin
    for them. !important because the hooked elements are shadcn Dialog/Drawer/
    Button/Input primitives whose own utility classes (rounded-lg, bg-background,
@@ -986,7 +986,7 @@ header a:active .logo-mark {
   --danger: var(--red);
 }
 
-/* Keyboard focus — marketing only. CRM uses @realm/ui focus rings +
+/* Keyboard focus — marketing only. CRM uses @foundry/ui focus rings +
    --radius tokens; the 4px square ring here fought button/filter radius. */
 body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: 2.5px solid var(--ink);

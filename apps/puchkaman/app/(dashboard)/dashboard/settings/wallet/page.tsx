@@ -1,6 +1,6 @@
 import { CoinsIcon } from "lucide-react";
 import { desc } from "drizzle-orm";
-import { PageHeader, PageShell } from "@realm/design-system";
+import { PageHeader, PageShell } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { coinRate, eventPayout } from "@/db/schema";

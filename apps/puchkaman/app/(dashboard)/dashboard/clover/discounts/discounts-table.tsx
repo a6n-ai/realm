@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { PencilIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
+import { formatMoney } from "@foundry/commons";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@realm/ui/table";
+} from "@foundry/ui/table";
 import { DiscountEditDialog } from "./discount-edit-dialog";
 import type { DiscountRow } from "@/lib/services/inventory.repository";
 

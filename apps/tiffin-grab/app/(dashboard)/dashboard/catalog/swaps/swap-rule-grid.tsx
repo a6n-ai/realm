@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@realm/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Button } from "@foundry/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { addSwapPair, removeSwapPair } from "./actions";
 
 export type CategoryOption = { key: string; label: string };

@@ -5,7 +5,7 @@
 // re-deriving the pick → default fallback here would let the label disagree with what the
 // customer sees on their calendar, which is the one failure this must not have.
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { weekdayKey, parseIsoDateUtc } from "@realm/commons";
+import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveries,

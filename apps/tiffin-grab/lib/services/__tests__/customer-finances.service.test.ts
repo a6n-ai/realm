@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
-import { nextWeekday } from "@realm/commons";
+import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -105,7 +105,7 @@ describe("customer-finances.service (integration)", () => {
   });
 
   it("myMoneyLedgerPage filters by type facet", async () => {
-    const { eq: condEq } = await import("@realm/commons/model/condition");
+    const { eq: condEq } = await import("@foundry/commons/model/condition");
     const [user] = await db.insert(users).values({ email: "money-facet@x.com", role: "user" }).returning();
 
     await db.transaction(async (tx) => {

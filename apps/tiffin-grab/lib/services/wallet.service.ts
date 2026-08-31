@@ -6,9 +6,9 @@ import {
   unexpired,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
-} from "@realm/wallet";
+} from "@foundry/wallet";
 import { and, eq, inArray, notExists, sql } from "drizzle-orm";
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { coinRate, durationPackages, eventPayout, ledgerEntries, mealPayout, mealSizes, orders, users, walletLedger } from "@/db/schema";
 import { getMaxWalletBalance } from "./app-settings.service";
@@ -78,7 +78,7 @@ async function filterUnderCap(userIds: bigint[], coins: number): Promise<{ ok: b
 
 // The original class-based wallet.service.ts folded balance/ledgerPage/award/
 // recentTransactions/earnSpendTotals/moneyValue/activeRate/redeem into the
-// shared @realm/wallet package (createWalletService) — puchkaman reuses the
+// shared @foundry/wallet package (createWalletService) — puchkaman reuses the
 // same factory. Only the tiffin-grab-specific pieces (the wallet cap, Meal
 // Payouts) stay here, layered on top via canAward + object spread below.
 const baseWalletService = createWalletService<BusinessEvent>({

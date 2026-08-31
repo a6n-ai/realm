@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveBreadcrumbs } from "@realm/design-system";
+import { deriveBreadcrumbs } from "@foundry/design-system";
 import { labelForSegment } from "../route-labels";
 
 describe("deriveBreadcrumbs", () => {

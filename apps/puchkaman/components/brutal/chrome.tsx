@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTheme } from "@realm/themes";
+import { useTheme } from "@foundry/themes";
 import { NavCartButton } from "@/components/cart/nav-cart-button";
 import { useCart } from "@/components/cart/cart-provider";
 import { IconBike, IconUser } from "./icons";
@@ -39,7 +39,7 @@ function MobileCartLink() {
 }
 
 /* ---------- Theme toggle (sun / moon) ---------- */
-/** Public marketing toggle — shares @realm/themes preference with admin auth/CRM. */
+/** Public marketing toggle — shares @foundry/themes preference with admin auth/CRM. */
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const dark = resolvedTheme === "dark";

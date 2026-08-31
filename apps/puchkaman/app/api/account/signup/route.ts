@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@realm/commons";
-import { handler, json, problem } from "@realm/routes";
+import { clientIp, isRateLimited } from "@foundry/commons";
+import { handler, json, problem } from "@foundry/routes";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { upsertCustomer } from "@/lib/customers/upsert-customer";

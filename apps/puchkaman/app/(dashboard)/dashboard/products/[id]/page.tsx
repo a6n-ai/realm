@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError } from "@realm/commons";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { getCloverConnection } from "@realm/clover";
-import { Skeleton } from "@realm/ui/skeleton";
+import { NotFoundError } from "@foundry/commons";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { getCloverConnection } from "@foundry/clover";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession, roleOrCustomer } from "@/lib/auth/session";
 import { grantedKeys } from "@/lib/auth/nav-permissions";

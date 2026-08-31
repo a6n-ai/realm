@@ -1,4 +1,4 @@
-import { handler } from "@realm/routes";
+import { handler } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { listTemplates, upsertTemplate } from "@/lib/services/notification-template.service";
 

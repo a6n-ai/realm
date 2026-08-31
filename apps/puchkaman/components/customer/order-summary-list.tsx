@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge } from "@realm/ui/badge";
+import { Badge } from "@foundry/ui/badge";
 import type { MyOrderSummary } from "@/lib/customers/my-orders";
 
 const money = (v: number) =>

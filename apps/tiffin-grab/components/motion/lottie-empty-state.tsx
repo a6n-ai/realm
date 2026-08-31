@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { Lottie } from "./lottie";
 import { lottiePath, type LottieName } from "@/lib/lottie/manifest";
 

@@ -1,5 +1,5 @@
-import { type EmailAddress, type EmailMessage, type EmailProvider, SesEmailProvider } from "@realm/email";
-import { createLogger } from "@realm/commons/logger";
+import { type EmailAddress, type EmailMessage, type EmailProvider, SesEmailProvider } from "@relay/email";
+import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { emailLog } from "@/db/schema";
 

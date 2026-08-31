@@ -1,4 +1,4 @@
-import { handler, json, problem } from "@realm/routes";
+import { handler, json, problem } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 import type { MenuSourceItem } from "@/lib/sync/menu-source";

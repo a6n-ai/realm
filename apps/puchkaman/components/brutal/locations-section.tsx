@@ -2,7 +2,7 @@
 
 import { SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
-import { StaticMap } from "@realm/design-system";
+import { StaticMap } from "@foundry/design-system";
 import { LOCATIONS } from "@/lib/links";
 
 /** Homepage "find us" section — one card per LOCATIONS entry, each with its

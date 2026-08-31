@@ -10,8 +10,8 @@ const updated: Record<string, unknown>[] = [];
 vi.mock("@/db/client", () => ({ db: { insert: () => ({ values: async () => {} }) } }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
-vi.mock("@realm/database", async (orig) => {
-  const actual = await orig<typeof import("@realm/database")>();
+vi.mock("@foundry/database", async (orig) => {
+  const actual = await orig<typeof import("@foundry/database")>();
   class FakeBase {
     repo = { tableName: "widgets", findByPublicId: async () => null };
     async create(v: Record<string, unknown>) { created.push(v); return { publicId: "wid_1", ...v }; }

@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon, PlusIcon } from "lucide-react";
-import { ResponsiveDialog, SectionCard } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { ResponsiveDialog, SectionCard } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { toastSyncErrors } from "@/lib/http/sync-errors";
 import { CloverColorSwatch } from "@/components/products/clover-color-swatch";
@@ -165,7 +165,7 @@ export function AssociationSection({
             <ul className="max-h-72 divide-y overflow-y-auto rounded-lg border">
               {visible.map((o) => (
                 <li key={o.publicId}>
-                  {/* Native checkbox: @realm/ui has no Checkbox, and this needs nothing more. */}
+                  {/* Native checkbox: @foundry/ui has no Checkbox, and this needs nothing more. */}
                   <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm">
                     <input
                       type="checkbox"

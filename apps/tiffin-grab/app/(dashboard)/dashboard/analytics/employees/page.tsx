@@ -3,8 +3,8 @@ import { StatGrid, SkeletonStatCards } from "@/components/ds";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownBarChart } from "@/components/analytics/charts";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@realm/ui/table";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@foundry/ui/table";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { getEmployeeRollup, type EmployeeRow } from "@/lib/services/analytics/employees.service";
 
 export default function EmployeesAnalyticsPage() {

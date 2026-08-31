@@ -1,4 +1,4 @@
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 
 export interface PricingTier {
   minQty: number;

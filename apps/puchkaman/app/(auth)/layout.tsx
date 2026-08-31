@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { TooltipProvider } from "@realm/ui/tooltip";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import { AuthNav } from "./auth-nav";
 
 /** Admin auth — CRM shell + shared auth composition (same pattern as tiffin-grab). */

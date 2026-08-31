@@ -1,6 +1,6 @@
-import { handler, json, problem } from "@realm/routes";
-import { ValidationError } from "@realm/commons";
-import { resolveAndPersist } from "@realm/places";
+import { handler, json, problem } from "@foundry/routes";
+import { ValidationError } from "@foundry/commons";
+import { resolveAndPersist } from "@foundry/places";
 import {
   createCheckoutSchema,
   ordersService,
@@ -25,7 +25,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   // to stay Google-first because the zone-boundary data it feeds was tuned
   // against Google's outputs elsewhere in the codebase. This route's call is
   // AWS-only because it's the one path allowed to persist a geocode (cost/legal
-  // ruling — see resolveAndPersist's doc comment in @realm/places).
+  // ruling — see resolveAndPersist's doc comment in @foundry/places).
   // Two different provider chains for one address means the stored map point
   // and the priced distance can, in theory, disagree slightly. Accepted: the
   // two paths are already provider-independent by design, and unifying them

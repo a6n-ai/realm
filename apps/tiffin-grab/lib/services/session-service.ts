@@ -1,5 +1,5 @@
-import { BaseService, UpdatableService, stripManaged } from "@realm/database";
-import { createLogger } from "@realm/commons/logger";
+import { BaseService, UpdatableService, stripManaged } from "@foundry/database";
+import { createLogger } from "@foundry/commons/logger";
 import { eq } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";

@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 
 const FIELDS = [
   { label: "Allergens", control: "select" },

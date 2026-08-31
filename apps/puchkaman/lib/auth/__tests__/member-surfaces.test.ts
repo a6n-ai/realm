@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { roleCan } from "@/lib/auth/guards";
 
 /**

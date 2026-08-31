@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { and, eq } from "drizzle-orm";
-import { UpdatableRepository } from "@realm/database";
+import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app, deliveryTypes, deliveryZoneTypes, deliveryZones, organization } from "@/db/schema";
 import { resolveActingOrgId } from "@/lib/services/integrations.service";

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -12,10 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@realm/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { Textarea } from "@realm/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
+} from "@foundry/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Textarea } from "@foundry/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { HelpCircleIcon } from "lucide-react";
 import { markLost, setStage } from "../actions";
 import type { InquiryStage, LostReason } from "@/lib/services/inquiries.service";

@@ -1,8 +1,8 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { capRedemption } from "@realm/wallet";
-import { enabledMethods, findMethod } from "@realm/payments";
+import { capRedemption } from "@foundry/wallet";
+import { enabledMethods, findMethod } from "@foundry/payments";
 import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";

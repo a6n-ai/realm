@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangePasswordForm as SharedChangePasswordForm } from "@realm/auth-ui";
+import { ChangePasswordForm as SharedChangePasswordForm } from "@foundry/auth-ui";
 import { authClient, useSession } from "@/lib/auth/client";
 
 /** App wiring for the shared change-password form. */

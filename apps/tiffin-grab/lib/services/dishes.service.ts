@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
-import { UpdatableRepository } from "@realm/database";
-import { ValidationError } from "@realm/commons";
-import type { FileDetail } from "@realm/storage/model";
+import { UpdatableRepository } from "@foundry/database";
+import { ValidationError } from "@foundry/commons";
+import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishPlans, dishes, plans } from "@/db/schema";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";

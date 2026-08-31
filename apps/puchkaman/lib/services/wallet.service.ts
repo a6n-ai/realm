@@ -5,7 +5,7 @@ import {
   reverseRedemption,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
-} from "@realm/wallet";
+} from "@foundry/wallet";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, orders, users, walletLedger } from "@/db/schema";
 import { ledgerService } from "./ledger.service";

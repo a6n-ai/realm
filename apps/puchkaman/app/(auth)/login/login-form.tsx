@@ -7,9 +7,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { z } from "zod";
-import { CodeOtp } from "@realm/auth-ui";
-import { Button } from "@realm/ui/button";
-import { Card, CardContent } from "@realm/ui/card";
+import { CodeOtp } from "@foundry/auth-ui";
+import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form,
   FormControl,
@@ -17,8 +17,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 import { landingPathFor } from "@/lib/auth/landing";
 import { useResendCooldown } from "@/lib/auth/use-resend-cooldown";

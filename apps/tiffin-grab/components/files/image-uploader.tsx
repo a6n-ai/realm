@@ -3,10 +3,10 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import type { FileDetail } from "@realm/storage/model";
-import { Button } from "@realm/ui/button";
-import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@realm/ui/file-upload";
-import { cn } from "@realm/ui/cn";
+import type { FileDetail } from "@foundry/storage/model";
+import { Button } from "@foundry/ui/button";
+import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@foundry/ui/file-upload";
+import { cn } from "@foundry/ui/cn";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { ImageCropperDialog } from "./image-cropper-dialog";
 

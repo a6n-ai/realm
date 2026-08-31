@@ -23,7 +23,7 @@ Report privately through either channel:
 
 Please include:
 
-- affected area (app/package, route, or `@realm/*` package),
+- affected area (app/package, route, or `@foundry/*` package),
 - steps to reproduce or a proof of concept,
 - impact (what an attacker can read, change, or bypass),
 - any suggested fix.
@@ -37,7 +37,7 @@ Please include:
 
 ## Scope
 
-In scope: this repository's apps and `@realm/*` packages — authn/authz (better-auth,
+In scope: this repository's apps and `@foundry/*` packages — authn/authz (better-auth,
 role guards), the pricing/server-action trust boundary, audit-field stamping, file
 storage access control, SQL/injection, secret exposure, and dependency vulnerabilities.
 

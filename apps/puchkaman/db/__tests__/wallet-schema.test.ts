@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { coinRate, eventPayout, walletLedger } from "@/db/schema";
 
-describe("wallet tables (from @realm/wallet factory)", () => {
+describe("wallet tables (from @foundry/wallet factory)", () => {
   it("names the tables exactly as the shared factory does", () => {
     expect(getTableConfig(walletLedger).name).toBe("wallet_ledger");
     expect(getTableConfig(eventPayout).name).toBe("event_payout");

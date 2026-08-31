@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { handler, problem } from "@realm/routes";
+import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";

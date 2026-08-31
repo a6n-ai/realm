@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import sharp from "sharp";
-import type { FileDetail } from "@realm/storage/model";
-import { createLogger } from "@realm/commons/logger";
+import type { FileDetail } from "@foundry/storage/model";
+import { createLogger } from "@foundry/commons/logger";
 import { filesService } from "@/lib/files";
 
 const log = createLogger("sync-rehost-image");

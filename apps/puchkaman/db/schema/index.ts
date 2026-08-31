@@ -10,7 +10,7 @@ export * from "./delivery-types";
 export * from "./delivery-zones";
 export * from "./orders";
 export * from "./carts";
-export { reviewNudges } from "@realm/google-reviews/db";
+export { reviewNudges } from "@foundry/google-reviews/db";
 export * from "./events";
 export * from "./notifications";
 export * from "./email-log";

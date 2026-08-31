@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import { queryOrganizations, type OrgSortColumn } from "@/lib/services/organizations.service";

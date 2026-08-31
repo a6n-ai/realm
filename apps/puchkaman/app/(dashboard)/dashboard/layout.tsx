@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { Role } from "@realm/commons";
-import { resolveStatuses } from "@realm/crm/server";
-import { CLOVER_PLUGIN_ID } from "@realm/clover/plugin";
-import { Toaster } from "@realm/ui/sonner";
-import { TooltipProvider } from "@realm/ui/tooltip";
-import { CrmShell } from "@realm/crm";
+import { Role } from "@foundry/commons";
+import { resolveStatuses } from "@foundry/crm/server";
+import { CLOVER_PLUGIN_ID } from "@foundry/clover/plugin";
+import { Toaster } from "@foundry/ui/sonner";
+import { TooltipProvider } from "@foundry/ui/tooltip";
+import { CrmShell } from "@foundry/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";

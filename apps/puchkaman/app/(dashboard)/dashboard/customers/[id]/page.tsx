@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UserIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
-import { PageHeader, PageShell, SectionCard, StatGrid } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
+import { formatMoney } from "@foundry/commons";
+import { PageHeader, PageShell, SectionCard, StatGrid } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
 import { requirePermission } from "@/lib/auth/guards";
 import { getCustomerDetail } from "@/lib/services/customers.service";
 

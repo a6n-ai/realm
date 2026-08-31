@@ -1,8 +1,8 @@
 "use client";
 
 import { TicketPercentIcon } from "lucide-react";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, EmptyState, SectionCard } from "@/components/ds";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";

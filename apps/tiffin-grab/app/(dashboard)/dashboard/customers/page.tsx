@@ -9,8 +9,8 @@ import { listCustomersPage, type CustomerSortColumn } from "@/lib/services/custo
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@/lib/list/sort";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
   PageHeader,

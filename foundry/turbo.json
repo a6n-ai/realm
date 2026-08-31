@@ -1,0 +1,11 @@
+{
+  "$schema": "https:@foundry/@foundry/turbo.build@foundry/schema.json",
+  "globalDependencies": ["tsconfig.base.json", "tooling@foundry/eslint-config@foundry/**"],
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "outputs": [".next@foundry/**", "!.next@foundry/cache@foundry/**"] },
+    "lint": {},
+    "typecheck": { "dependsOn": ["^typecheck"] },
+    "test": {},
+    "dev": { "cache": false, "persistent": true }
+  }
+}

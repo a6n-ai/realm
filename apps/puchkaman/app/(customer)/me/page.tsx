@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { EmptyState, PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { EmptyState, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import { getSession } from "@/lib/auth/session";
 import { myOrders, splitOrders } from "@/lib/customers/my-orders";
 import { OrderSummaryList } from "@/components/customer/order-summary-list";

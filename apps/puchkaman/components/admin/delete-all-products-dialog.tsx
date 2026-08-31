@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangleIcon } from "lucide-react";
 import { toast } from "sonner";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 const PHRASE = "DELETE ALL PRODUCTS";

@@ -1,5 +1,5 @@
-import { BaseRepository, UpdatableRepository } from "@realm/database";
-import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@realm/commons";
+import { BaseRepository, UpdatableRepository } from "@foundry/database";
+import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type RoleValue } from "@foundry/commons";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";

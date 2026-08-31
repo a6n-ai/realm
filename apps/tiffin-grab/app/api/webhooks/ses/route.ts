@@ -1,6 +1,6 @@
 import MessageValidator from "sns-validator";
-import { handler, problem } from "@realm/routes";
-import { createLogger } from "@realm/commons/logger";
+import { handler, problem } from "@foundry/routes";
+import { createLogger } from "@foundry/commons/logger";
 import { suppressEmailRecipient } from "@/lib/notifications/suppression";
 
 // sns-validator uses node crypto + fetches the signing cert over https.

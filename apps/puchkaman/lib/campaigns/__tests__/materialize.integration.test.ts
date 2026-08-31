@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
-import { materializeCampaign } from "@realm/notifications";
+import { materializeCampaign } from "@relay/engine";
 import { db } from "@/db/client";
 import {
   campaign,

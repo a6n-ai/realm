@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * SSE transport for the bell. @realm/realtime's message frame carries no
+ * SSE transport for the bell. @foundry/realtime's message frame carries no
  * payload, so this calls back with nothing and the hook refetches the feed.
  * Auth rides the session cookie (same-origin EventSource).
  */

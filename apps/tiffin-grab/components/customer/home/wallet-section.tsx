@@ -1,10 +1,10 @@
 "use client";
 
 import { CoinsIcon } from "lucide-react";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, SectionCard } from "@/components/ds";
 import { AnimatedNumber, LottieEmptyState, TransitionLink } from "@/components/motion";
-import { eventLabel } from "@realm/notifications/ui";
+import { eventLabel } from "@relay/engine/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { WalletTx } from "@/lib/services/wallet.service";

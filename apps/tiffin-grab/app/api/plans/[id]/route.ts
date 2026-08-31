@@ -1,4 +1,4 @@
-import { createResourceRoute } from "@realm/routes";
+import { createResourceRoute } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { planService } from "@/lib/services/catalog.service";
 

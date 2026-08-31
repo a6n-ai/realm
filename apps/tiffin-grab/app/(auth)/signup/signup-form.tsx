@@ -6,19 +6,19 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { emailSchema, passwordSchema } from "@realm/commons";
+import { emailSchema, passwordSchema } from "@foundry/commons";
 import type { Country } from "react-phone-number-input";
 import { z } from "zod";
-import { Button } from "@realm/ui/button";
-import { Card, CardContent } from "@realm/ui/card";
+import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { signUpCustomer } from "./actions";
 
 const PhoneInput = dynamic(
-  () => import("@realm/ui/phone-input").then((m) => m.PhoneInput),
+  () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
   { ssr: false, loading: () => <Input disabled placeholder="Phone" /> },
 );
 

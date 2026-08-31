@@ -9,7 +9,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, ne } from "drizzle-orm";
-import { nextWeekday } from "@realm/commons";
+import { nextWeekday } from "@foundry/commons";
 
 const { db } = await import("@/db/client");
 const { orders, orderActivities, payments, ledgerEntries, walletLedger, eventPayout, users } =

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFilterState } from "@realm/design-system";
+import { parseFilterState } from "@foundry/design-system";
 import { SPEC } from "@/app/(dashboard)/dashboard/settings/users/page";
 
 function roleFacet() {

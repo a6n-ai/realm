@@ -1,0 +1,29 @@
+{
+  "name": "@foundry/commons",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./logger": "./src/logger.ts",
+    "./model/condition": "./src/model/condition.ts",
+    "./util/pagination": "./src/util/pagination.ts",
+    "./plugin": "./src/plugin.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "libphonenumber-js": "^1.11.0",
+    "lru-cache": "^11.5.1",
+    "pino": "^9.5.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^4.1.9",
+    "lucide-react": "^1.20.0"
+  }
+}

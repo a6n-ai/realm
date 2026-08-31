@@ -1,7 +1,7 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { isFrequencyDisabled, type WizardSelections } from "../selections";
-import { RadioGroup, RadioGroupItem } from "@realm/ui/radio-group";
-import { Label } from "@realm/ui/label";
+import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
+import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
 export function StepSchedule({

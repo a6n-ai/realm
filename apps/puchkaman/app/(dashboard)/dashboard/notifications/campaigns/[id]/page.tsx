@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { countAudience, type AudienceDef } from "@realm/notifications";
-import { BackButton, SectionCard, StatGrid } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
+import { countAudience, type AudienceDef } from "@relay/engine";
+import { BackButton, SectionCard, StatGrid } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign, campaignContent } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
-import { CampaignSendButton } from "@realm/notifications/ui";
+import { CampaignSendButton } from "@relay/engine/ui";
 
 // Resolves a live audience count on every view.
 const STAT_KEYS = [

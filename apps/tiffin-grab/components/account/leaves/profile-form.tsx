@@ -6,11 +6,11 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { updateMyProfile } from "@/app/(dashboard)/dashboard/account/actions";
 
 const profileFormSchema = z.object({

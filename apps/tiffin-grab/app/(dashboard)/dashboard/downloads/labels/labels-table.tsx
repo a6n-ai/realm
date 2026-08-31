@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { PackageOpenIcon } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import type { PackingLabelRow } from "@/lib/services/labels.service";
 import { LABEL_COLUMNS } from "./label-columns";
 

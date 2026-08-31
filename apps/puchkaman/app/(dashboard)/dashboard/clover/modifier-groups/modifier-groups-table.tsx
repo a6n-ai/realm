@@ -8,10 +8,10 @@ import {
   SkeletonFilterBar,
   type Column,
   type FacetDef,
-} from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { TableCell } from "@realm/ui/table";
+} from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { TableCell } from "@foundry/ui/table";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type {

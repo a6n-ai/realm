@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { Card } from "@/components/ds";
 import { AnimatedNumber, Lottie } from "@/components/motion";
 

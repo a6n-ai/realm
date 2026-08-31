@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { AddressFields } from "@realm/ui/address-fields";
-import { StaticMap } from "@realm/design-system";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { AddressFields } from "@foundry/ui/address-fields";
+import { StaticMap } from "@foundry/design-system";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 
 export function ClientDetailForm({

@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { FacetDef, Option } from "@realm/design-system";
-import { DateRangePicker } from "@realm/ui/date-range-picker";
+import type { FacetDef, Option } from "@foundry/design-system";
+import { DateRangePicker } from "@foundry/ui/date-range-picker";
 import {
   Filters,
   type Filter,

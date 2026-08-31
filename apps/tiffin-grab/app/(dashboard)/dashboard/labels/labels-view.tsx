@@ -1,8 +1,8 @@
 "use client";
 
 import { TagIcon, UtensilsCrossedIcon } from "lucide-react";
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import { Card, DataTable, EmptyState, type Column } from "@/components/ds";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 

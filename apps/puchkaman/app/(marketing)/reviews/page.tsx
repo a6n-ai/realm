@@ -4,7 +4,7 @@ import { PageBanner, Pill, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { MAP_DIRECTIONS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
-import { getReviewsSummary } from "@realm/google-reviews";
+import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 export const metadata: Metadata = buildMetadata({

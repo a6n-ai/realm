@@ -1,4 +1,4 @@
-import { makeCampaignTables, makeNotificationTables } from "@realm/notifications/schema";
+import { makeCampaignTables, makeNotificationTables } from "@relay/engine/schema";
 import { locale, users } from "./auth";
 import { appEvent } from "./events";
 

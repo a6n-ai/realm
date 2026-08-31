@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { NotFoundError } from "@realm/commons";
-import { CrmShell } from "@realm/crm";
+import { NotFoundError } from "@foundry/commons";
+import { CrmShell } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";

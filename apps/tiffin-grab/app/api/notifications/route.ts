@@ -1,4 +1,4 @@
-import { handler, problem } from "@realm/routes";
+import { handler, problem } from "@foundry/routes";
 import { currentUserId, getFeed, markRead } from "@/lib/notifications/feed";
 
 /** GET: recent feed + unread count for the logged-in user. */

@@ -10,8 +10,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@realm/ui/command";
-import { useIsMobile } from "@realm/ui/use-mobile";
+} from "@foundry/ui/command";
+import { useIsMobile } from "@foundry/ui/use-mobile";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 import { useQuickAdd, type QuickAddKind } from "@/components/dashboard/quick-add-provider";

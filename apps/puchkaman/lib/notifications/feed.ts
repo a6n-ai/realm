@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getFeed as pkgGetFeed, markRead as pkgMarkRead, type FeedItem } from "@realm/notifications";
+import { getFeed as pkgGetFeed, markRead as pkgMarkRead, type FeedItem } from "@relay/engine";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";

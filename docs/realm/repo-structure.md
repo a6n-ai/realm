@@ -5,58 +5,37 @@ UI, CRM shell, services, and utilities. TiffinGrab is the first client; Gym,
 Dentist, Realtor, etc. are added as sibling apps.
 
 ```
-realm/  (repo root)
-├── apps/
-│   └── tiffin-grab/          the first client app (Next.js 16, App Router)
-├── packages/                 shared platform code — scope @realm/*
-│   ├── commons/              framework-agnostic core: DTOs, Condition DSL,
-│   │                         errors, enums(Role), pagination, util/* (dates,
-│   │                         zoned-time, code, pin, contact, password schema,
-│   │                         money), LRU cache, pino logger (./logger subpath)
-│   ├── database/             Drizzle repo + service base (BaseService,
-│   │                         BaseRepository, managed-field stamping, actor hook)
-│   ├── routes/               Next route factories (createCollectionRoute/…),
-│   │                         list-param parse, response + error-mapper
-│   ├── storage/              S3/local/memory storage, file-detail, secured
-│   │                         access, files schema  (server-only)
-│   ├── email/                SES email, react-email render, interpolate
-│   │                         (server-only)
-│   ├── ui/                   33 shadcn/radix primitives + cn + Text + support hooks
-│   ├── design-system/        generic ds/* compositions over @realm/ui
-│   │                         (page-shell, stat-card, filter-bar, breadcrumbs…)
-│   ├── crm/                  slot-based <CrmShell> dashboard scaffold
-│   ├── themes/               ThemeProvider/useTheme + no-flash script + tokens
-│   └── auth/                 createRoleGuards(getSession) + bcrypt hashing
-│                             (server-only)
-├── tooling/
-│   └── eslint-config/        shared Next ESLint presets (@realm/eslint-config)
-├── turbo.json                task graph + cache config
-├── pnpm-workspace.yaml       globs: apps/*, packages/*, tooling/*
-└── tsconfig.base.json        base TS config every package extends
+realm/  (repo root — apps only plus extractable product trees)
+├── apps/                     TiffinGrab, Puchkaman
+├── foundry/                  @foundry/* packages (incl. @foundry/ai for Monarch)
+├── relay/                    notification product: apps/relay + @relay/*
+├── turbo.json
+├── pnpm-workspace.yaml       apps/*, foundry/packages/*, relay/{apps,packages}/*
+└── tsconfig.base.json
 ```
 
 ## Package taxonomy
 
 | Package | Scope/name | Purpose | Client-consumed? |
 |---|---|---|---|
-| `commons` | `@realm/commons` | core utils, DTOs, errors, enums, money, logger | yes |
-| `database` | `@realm/database` | Drizzle service/repo base | yes |
-| `routes` | `@realm/routes` | Next route factories | yes |
-| `storage` | `@realm/storage` | file storage subsystem | server-only |
-| `email` | `@realm/email` | SES email / render | server-only |
-| `ui` | `@realm/ui` | primitives + `cn` + `Text` (+ subpaths `./button`, `./cn`, …) | yes |
-| `design-system` | `@realm/design-system` | ds compositions over ui | yes |
-| `crm` | `@realm/crm` | `<CrmShell>` + generic Integrations plugin card chrome | yes |
-| `themes` | `@realm/themes` | provider + tokens + no-flash script | yes |
-| `auth` | `@realm/auth` | guard factory + bcrypt | server-only |
-| `payments` | `@realm/payments` | payment method config + providers | server-only |
-| `wallet` | `@realm/wallet` | coin ledger/earn/redeem service + `makeWalletTables` schema factory | server-only |
-| `clover` | `@realm/clover` | Clover OAuth + API + inventory/employees + OAuth helpers; `./plugin` + `./ui` for Integrations/Settings | server + client UI (`./ui`) |
-| `eslint-config` | `@realm/eslint-config` | shared lint presets | build-time |
+| `commons` | `@foundry/commons` | core utils, DTOs, errors, enums, money, logger | yes |
+| `database` | `@foundry/database` | Drizzle service/repo base | yes |
+| `routes` | `@foundry/routes` | Next route factories | yes |
+| `storage` | `@foundry/storage` | file storage subsystem | server-only |
+| `email` | `@relay/email` | SES email / render | server-only |
+| `ui` | `@foundry/ui` | primitives + `cn` + `Text` (+ subpaths `./button`, `./cn`, …) | yes |
+| `design-system` | `@foundry/design-system` | ds compositions over ui | yes |
+| `crm` | `@foundry/crm` | `<CrmShell>` + generic Integrations plugin card chrome | yes |
+| `themes` | `@foundry/themes` | provider + tokens + no-flash script | yes |
+| `auth` | `@foundry/auth` | guard factory + bcrypt | server-only |
+| `payments` | `@foundry/payments` | payment method config + providers | server-only |
+| `wallet` | `@foundry/wallet` | coin ledger/earn/redeem service + `makeWalletTables` schema factory | server-only |
+| `clover` | `@foundry/clover` | Clover OAuth + API + inventory/employees + OAuth helpers; `./plugin` + `./ui` for Integrations/Settings | server + client UI (`./ui`) |
+| `eslint-config` | `@foundry/eslint-config` | shared lint presets | build-time |
 
 **Client-consumed** packages must be listed in `apps/<client>/next.config.ts`
 `transpilePackages` (they ship raw `.ts`/`.tsx` source — no build step).
-**Server-only** packages (`@realm/storage`, `@realm/email`, `@realm/auth`) are NOT
+**Server-only** packages (`@foundry/storage`, `@relay/email`, `@foundry/auth`) are NOT
 transpiled — they run only in server code and Next resolves them directly.
 
 ## Dependency layering (acyclic, bottom-up)
@@ -80,9 +59,9 @@ Rules that keep it acyclic:
 - `design-system` composes `ui`; `ui` never imports `design-system`.
 - **`crm` never imports the app or clover.** Generic admin chrome only
   (`CrmShell`, `IntegrationPluginCard`). Clover-specific UI stays in
-  `@realm/clover/ui` and may compose crm cards.
+  `@foundry/clover/ui` and may compose crm cards.
 - **Orders / payments / ledger domains stay in apps** — do not extract into
-  shared packages; `@realm/clover` exposes Clover API helpers that apps wire
+  shared packages; `@foundry/clover` exposes Clover API helpers that apps wire
   into their own schemas/services.
 - App-specific things injected as props/stores, never baked into a package:
   `SECTIONS` (nav), `ROUTE_LABELS` (breadcrumbs `resolveLabel`), `getSession`

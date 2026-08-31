@@ -1,4 +1,4 @@
-import { emailSchema } from "@realm/commons";
+import { emailSchema } from "@foundry/commons";
 import { z } from "zod";
 
 export const inquiryFormSchema = z.object({

@@ -1,4 +1,4 @@
-import type { Column } from "@realm/design-system";
+import type { Column } from "@foundry/design-system";
 
 // Single source of truth for the table's columns: TemplateList renders the header
 // and DataTableSkeleton renders the loading twin from this same array, so the two

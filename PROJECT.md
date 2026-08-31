@@ -1,9 +1,8 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. One Turborepo, many Next.js client
-apps sharing `@realm/*` packages (UI, CRM shell, services, utilities). **TiffinGrab**
-is the first client — a customizable tiffin (home-style meal) delivery service in the
-Greater Toronto Area (GTA). Gym, Dentist, Realtor, etc. are added as sibling apps.
+A multi-client CRM + subscription **platform**. Realm is **apps only** (TiffinGrab, Puchkaman). Shared packages live in [`foundry/`](foundry/README.md) as `@foundry/*` (including `@foundry/ai` for Monarch). Notifications live in [`relay/`](relay/README.md).
+
+**TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA).
 
 See [`docs/realm/`](docs/realm/) for the repo structure, package taxonomy,
 add-a-client / add-a-package guides, and the dev/build workflow.
@@ -26,7 +25,7 @@ One platform spanning three audiences per client app, behind a single login:
 ## Roles
 
 A single login per client serves all three role types (resolved at sign-in).
-`Role` enum lives in `@realm/commons` (`enums.ts`):
+`Role` enum lives in `@foundry/commons` (`enums.ts`):
 
 | Role | Who | Capabilities |
 |------|-----|--------------|
@@ -71,40 +70,40 @@ spec → plan → implementation cycle. Specs live in `docs/superpowers/specs/`.
 
 - **Monorepo:** Turborepo + pnpm workspaces (`pnpm@10.34.4`, pinned).
 - **Apps:** Next.js 16 (App Router, Server Actions), TypeScript, React 19.
-- **UI:** Tailwind v4 + shadcn/ui (radix base), shared via `@realm/ui` + `@realm/design-system`.
-- **Auth:** better-auth (credentials + database sessions), wrapped by `@realm/auth`
+- **UI:** Tailwind v4 + shadcn/ui (radix base), shared via `@foundry/ui` + `@foundry/design-system`.
+- **Auth:** better-auth (credentials + database sessions), wrapped by `@foundry/auth`
   (`createRoleGuards` guard factory + bcrypt).
 - **Data:** PostgreSQL + Drizzle ORM (`drizzle-kit` migrations + seed).
 - **Testing:** Vitest — pure-logic/component tests + a live-seeded-Postgres harness.
 
-### Shared packages (`@realm/*`)
+### Shared packages (`@foundry/*`)
 
 Layered, acyclic, bottom-up. Full taxonomy in
 [`docs/realm/repo-structure.md`](docs/realm/repo-structure.md).
 
 | Package | Purpose |
 |---|---|
-| `@realm/commons` | Framework-agnostic core: DTOs, Condition DSL, errors, enums, money, logger |
-| `@realm/database` | Drizzle repo + service base (managed-field stamping, actor hook) |
-| `@realm/routes` | Next route factories, list-param parse, response + error mapper |
-| `@realm/storage` | S3/local/memory file storage (server-only) |
-| `@realm/email` | SES email, react-email render (server-only) |
-| `@realm/ui` | shadcn/radix primitives + `cn` + `Text` |
-| `@realm/design-system` | `ds/*` compositions over `@realm/ui` |
-| `@realm/crm` | Slot-based `<CrmShell>` dashboard scaffold |
-| `@realm/themes` | ThemeProvider/useTheme + no-flash script + tokens |
-| `@realm/auth` | `createRoleGuards(getSession)` + bcrypt (server-only) |
-| `@realm/eslint-config` | Shared Next ESLint presets (`tooling/`) |
+| `@foundry/commons` | Framework-agnostic core: DTOs, Condition DSL, errors, enums, money, logger |
+| `@foundry/database` | Drizzle repo + service base (managed-field stamping, actor hook) |
+| `@foundry/routes` | Next route factories, list-param parse, response + error mapper |
+| `@foundry/storage` | S3/local/memory file storage (server-only) |
+| `@relay/email` | SES email, react-email render (server-only) |
+| `@foundry/ui` | shadcn/radix primitives + `cn` + `Text` |
+| `@foundry/design-system` | `ds/*` compositions over `@foundry/ui` |
+| `@foundry/crm` | Slot-based `<CrmShell>` dashboard scaffold |
+| `@foundry/themes` | ThemeProvider/useTheme + no-flash script + tokens |
+| `@foundry/auth` | `createRoleGuards(getSession)` + bcrypt (server-only) |
+| `@foundry/eslint-config` | Shared Next ESLint presets (`tooling/`) |
 
 **Client-consumed** packages ship raw `.ts`/`.tsx` (no build step) and must be listed in
 `apps/<client>/next.config.ts` `transpilePackages`. **Server-only** packages
-(`@realm/storage`, `@realm/email`, `@realm/auth`) are not transpiled.
+(`@foundry/storage`, `@relay/email`, `@foundry/auth`) are not transpiled.
 
 ### Entity convention
 
 Every table carries `id`, `created_at`, and audit `created_by`; updatable tables add
 `updated_at` (auto-stamped) and `updated_by`. Two composable column sets mirror the
-immutable vs updatable base DTOs in `@realm/database`.
+immutable vs updatable base DTOs in `@foundry/database`.
 
 ---
 
@@ -114,12 +113,12 @@ immutable vs updatable base DTOs in `@realm/database`.
 realm/
 ├─ apps/
 │  └─ tiffin-grab/             # first client app (Next.js 16)
-├─ packages/                   # shared platform code — scope @realm/*
+├─ packages/                   # shared platform code — scope @foundry/*
 │  ├─ commons/  database/  routes/
 │  ├─ storage/  email/
 │  ├─ ui/  design-system/  crm/  themes/  auth/
 ├─ tooling/
-│  └─ eslint-config/           # @realm/eslint-config
+│  └─ eslint-config/           # @foundry/eslint-config
 ├─ docs/realm/                 # platform docs (structure, add-a-*, workflow)
 ├─ docs/superpowers/specs/     # design specs per slice
 ├─ turbo.json
@@ -136,6 +135,6 @@ realm/
 - Pricing is computed **server-side only** — the client never submits totals.
 - Audit fields (`created_by` / `updated_by`) are stamped from the session, never trusted from input.
 - Product surface + client-specific policy stay in `apps/<client>` until a second
-  client proves something is genuinely shared — then it graduates to a `@realm/*` package.
+  client proves something is genuinely shared — then it graduates to a `@foundry/*` package.
 - **Next.js 16 note:** route protection lives in `proxy.ts` (the renamed `middleware.ts`);
   see `AGENTS.md` — read `node_modules/next/dist/docs/` before writing framework code.

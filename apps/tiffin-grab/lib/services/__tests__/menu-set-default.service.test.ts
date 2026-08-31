@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -10,8 +10,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@realm/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
+} from "@foundry/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { searchUsersByEmailAction } from "@/lib/services/organizations-actions";
 import type { UserSearchRow } from "@/lib/services/organizations.service";
 

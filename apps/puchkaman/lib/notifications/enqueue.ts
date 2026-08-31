@@ -3,7 +3,7 @@ import {
   enqueueToRole,
   type EnqueueInput,
   type EnqueueToRoleInput,
-} from "@realm/notifications";
+} from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 

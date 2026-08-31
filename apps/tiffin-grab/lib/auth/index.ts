@@ -4,9 +4,9 @@ import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin, emailOTP, organization as organizationPlugin } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { eq } from "drizzle-orm";
-import { assertHierarchyDepth, authAuditAction } from "@realm/auth";
-import { Role } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
+import { assertHierarchyDepth, authAuditAction } from "@foundry/auth";
+import { Role } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { account, organization, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
@@ -98,7 +98,7 @@ export const auth = betterAuth({
       role: { type: "string", required: false, defaultValue: Role.USER, input: false },
       publicId: { type: "string", required: false, input: false },
       // Platform-wide override role (e.g. "super_admin"), separate from the
-      // per-org `member.role`. See @realm/auth resolveVisibleOrgIds — this is
+      // per-org `member.role`. See @foundry/auth resolveVisibleOrgIds — this is
       // the ONLY bypass of membership-scoped visibility, and it's audited.
       platformRole: { type: "string", required: false, defaultValue: null, input: false },
     },
@@ -115,7 +115,7 @@ export const auth = betterAuth({
 
     // Email OTP: 6-digit codes for password reset and email change. Codes are
     // stored hashed and expire in 10 min. The single sendVerificationOTP callback
-    // routes each type to the shared @realm/auth copy via SES.
+    // routes each type to the shared @foundry/auth copy via SES.
     emailOTP({
       otpLength: 6,
       expiresIn: 600,
@@ -136,7 +136,7 @@ export const auth = betterAuth({
     // Admin user management — createUser and setUserPassword only. ban/unban,
     // removeUser and impersonation stay unmounted: users.status is the single sign-in
     // switch, softDelete is the only delete, and impersonation needs its own audit
-    // story. No adminClient(): it would pull @realm/auth (server-only, not in
+    // story. No adminClient(): it would pull @foundry/auth (server-only, not in
     // transpilePackages) into the browser bundle.
     adminPlugin({ ac, roles, defaultRole: Role.USER, adminRoles: [Role.ADMIN] }),
     // Client hierarchy: org = brand or franchise/shop, capped at 2 levels
@@ -257,7 +257,7 @@ export const auth = betterAuth({
 
       // Security audit: every mapped auth event lands in the SAME append-only
       // audit_log as the rest of the app, via the shared vocabulary in
-      // @realm/auth. Sign-in/out keep their dedicated operations below; this
+      // @foundry/auth. Sign-in/out keep their dedicated operations below; this
       // covers password changes, resets, verification, revocations, deletion.
       // Placed before the early returns so nothing downstream can skip it.
       const auditAction = authAuditAction(ctx.path);

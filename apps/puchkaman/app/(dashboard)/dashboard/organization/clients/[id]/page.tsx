@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/guards";
-import { SectionCard } from "@realm/design-system";
+import { SectionCard } from "@foundry/design-system";
 import { getOrganization, listMembers, type MemberRole } from "@/lib/services/organizations.service";
 import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 import { ClientDetailForm } from "./client-detail-form";

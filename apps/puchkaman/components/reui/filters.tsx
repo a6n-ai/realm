@@ -21,8 +21,8 @@ import {
 } from "react"
 import { cva } from "class-variance-authority"
 
-import { cn } from "@realm/ui/cn"
-import { Button } from "@realm/ui/button"
+import { cn } from "@foundry/ui/cn"
+import { Button } from "@foundry/ui/button"
 import {
   ButtonGroup,
   ButtonGroupText,
@@ -38,22 +38,22 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@realm/ui/dropdown-menu"
-import { Input } from "@realm/ui/input"
+} from "@foundry/ui/dropdown-menu"
+import { Input } from "@foundry/ui/input"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
   InputGroupText,
-} from "@realm/ui/input-group"
+} from "@foundry/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
-import { ScrollArea } from "@realm/ui/scroll-area"
+import { ScrollArea } from "@foundry/ui/scroll-area"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@realm/ui/tooltip"
+} from "@foundry/ui/tooltip"
 import { AlertCircleIcon, XIcon, CheckIcon } from "lucide-react"
 
 // i18n Configuration Interface

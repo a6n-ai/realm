@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import { Card } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { cn } from "@realm/ui/cn";
+import { Card } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { cn } from "@foundry/ui/cn";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@realm/ui/collapsible";
+} from "@foundry/ui/collapsible";
 import type { SyncResult } from "@/lib/sync/menu-sync.service";
 
 type Tone = "ok" | "warn" | "bad" | "muted";

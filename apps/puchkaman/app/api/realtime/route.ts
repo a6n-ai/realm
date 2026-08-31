@@ -1,4 +1,4 @@
-import { sseResponse } from "@realm/realtime/server";
+import { sseResponse } from "@foundry/realtime/server";
 import { authorizeChannel } from "@/lib/realtime/authorize";
 
 export async function GET(request: Request): Promise<Response> {

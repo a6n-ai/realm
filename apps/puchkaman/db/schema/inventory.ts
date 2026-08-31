@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import {
   bigint,
   boolean,

@@ -1,5 +1,5 @@
-import { handler } from "@realm/routes";
-import { renderEmailTemplate } from "@realm/email";
+import { handler } from "@foundry/routes";
+import { renderEmailTemplate } from "@relay/email";
 import { requireAdmin } from "@/lib/auth/guards";
 import { sampleVars } from "@/lib/services/notification-template.service";
 

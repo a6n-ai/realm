@@ -1,7 +1,9 @@
 packages:
   - "apps/*"
-  - "packages/*"
-  - "tooling/*"
+  - "foundry/packages/*"
+  - "foundry/tooling/*"
+  - "relay/apps/*"
+  - "relay/packages/*"
 
 overrides:
   "postcss@<8.5.23": ">=8.5.26"

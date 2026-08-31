@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@realm/ui/button";
-import { Collapsible, CollapsibleContent } from "@realm/ui/collapsible";
-import { Input } from "@realm/ui/input";
-import { Textarea } from "@realm/ui/textarea";
-import { cn } from "@realm/ui/cn";
+import { Button } from "@foundry/ui/button";
+import { Collapsible, CollapsibleContent } from "@foundry/ui/collapsible";
+import { Input } from "@foundry/ui/input";
+import { Textarea } from "@foundry/ui/textarea";
+import { cn } from "@foundry/ui/cn";
 import { logActivity } from "../actions";
 import type { ActivityType } from "@/lib/services/inquiries.service";
 

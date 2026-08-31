@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UsersIcon } from "lucide-react";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { PageShell, PageHeader, SectionCard, ListRow, OrderStatusBadge, EmptyState, SkeletonListRows } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { ResendInviteButton } from "./resend-invite-button";
 // Single source of truth for the section cards. The real view and the loading
 // twin below both render from this, so the skeleton can never drift from the page.

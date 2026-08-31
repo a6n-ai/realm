@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, CopyPlus, Plus, Star, X } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@realm/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { cn } from "@foundry/ui/cn";
 import { DAYS, DAY_LABELS, type DayOfWeek } from "@/lib/menu/poster";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };

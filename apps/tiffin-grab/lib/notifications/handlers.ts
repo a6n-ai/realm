@@ -1,11 +1,11 @@
-import { buildHandlers, type BroadcastInput, type ChannelProvider } from "@realm/notifications";
+import { buildHandlers, type BroadcastInput, type ChannelProvider } from "@relay/engine";
 import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
 import { publishPush } from "./rabbit";
 
-/** Adapt @realm/email's EmailProvider to the package's ChannelProvider shape. */
+/** Adapt @relay/email's EmailProvider to the package's ChannelProvider shape. */
 function emailChannelProvider(): ChannelProvider {
   const provider = getEmailProvider();
   return {

@@ -1,7 +1,7 @@
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
-import type { IntegrationsConfig } from "@realm/clover";
-import type { PaymentConfig } from "@realm/payments";
+import type { IntegrationsConfig } from "@foundry/clover";
+import type { PaymentConfig } from "@foundry/payments";
 import type { DiscountPolicy } from "./coupons";
 
 // The app/tenant entity (formerly app_settings): one row today. Holds currency,

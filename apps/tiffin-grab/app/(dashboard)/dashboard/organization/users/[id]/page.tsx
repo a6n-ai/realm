@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { NotFoundError, Role } from "@realm/commons";
+import { NotFoundError, Role } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -10,8 +10,8 @@ import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard } from "@/components/ds";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   RoleSelect,
   StatusSelect,

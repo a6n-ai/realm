@@ -43,72 +43,72 @@ importers:
       '@aws-sdk/client-geo-maps':
         specifier: ^3.1106.0
         version: 3.1106.0
+      '@foundry/auth':
+        specifier: workspace:*
+        version: link:../../foundry/packages/auth
+      '@foundry/auth-ui':
+        specifier: workspace:*
+        version: link:../../foundry/packages/auth-ui
+      '@foundry/clover':
+        specifier: workspace:*
+        version: link:../../foundry/packages/clover
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../foundry/packages/commons
+      '@foundry/coupons':
+        specifier: workspace:*
+        version: link:../../foundry/packages/coupons
+      '@foundry/crm':
+        specifier: workspace:*
+        version: link:../../foundry/packages/crm
+      '@foundry/database':
+        specifier: workspace:*
+        version: link:../../foundry/packages/database
+      '@foundry/design-system':
+        specifier: workspace:*
+        version: link:../../foundry/packages/design-system
+      '@foundry/google-reviews':
+        specifier: workspace:*
+        version: link:../../foundry/packages/google-reviews
+      '@foundry/order-tracking':
+        specifier: workspace:*
+        version: link:../../foundry/packages/order-tracking
+      '@foundry/places':
+        specifier: workspace:*
+        version: link:../../foundry/packages/places
+      '@foundry/realtime':
+        specifier: workspace:*
+        version: link:../../foundry/packages/realtime
+      '@foundry/routes':
+        specifier: workspace:*
+        version: link:../../foundry/packages/routes
+      '@foundry/storage':
+        specifier: workspace:*
+        version: link:../../foundry/packages/storage
+      '@foundry/themes':
+        specifier: workspace:*
+        version: link:../../foundry/packages/themes
+      '@foundry/ui':
+        specifier: workspace:*
+        version: link:../../foundry/packages/ui
+      '@foundry/wallet':
+        specifier: workspace:*
+        version: link:../../foundry/packages/wallet
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
-      '@realm/auth':
+      '@relay/email':
         specifier: workspace:*
-        version: link:../../packages/auth
-      '@realm/auth-ui':
+        version: link:../../relay/packages/email
+      '@relay/engine':
         specifier: workspace:*
-        version: link:../../packages/auth-ui
-      '@realm/clover':
+        version: link:../../relay/packages/engine
+      '@relay/sms':
         specifier: workspace:*
-        version: link:../../packages/clover
-      '@realm/commons':
+        version: link:../../relay/packages/sms
+      '@relay/whatsapp':
         specifier: workspace:*
-        version: link:../../packages/commons
-      '@realm/coupons':
-        specifier: workspace:*
-        version: link:../../packages/coupons
-      '@realm/crm':
-        specifier: workspace:*
-        version: link:../../packages/crm
-      '@realm/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@realm/design-system':
-        specifier: workspace:*
-        version: link:../../packages/design-system
-      '@realm/email':
-        specifier: workspace:*
-        version: link:../../packages/email
-      '@realm/google-reviews':
-        specifier: workspace:*
-        version: link:../../packages/google-reviews
-      '@realm/notifications':
-        specifier: workspace:*
-        version: link:../../packages/notifications
-      '@realm/order-tracking':
-        specifier: workspace:*
-        version: link:../../packages/order-tracking
-      '@realm/places':
-        specifier: workspace:*
-        version: link:../../packages/places
-      '@realm/realtime':
-        specifier: workspace:*
-        version: link:../../packages/realtime
-      '@realm/routes':
-        specifier: workspace:*
-        version: link:../../packages/routes
-      '@realm/sms':
-        specifier: workspace:*
-        version: link:../../packages/sms
-      '@realm/storage':
-        specifier: workspace:*
-        version: link:../../packages/storage
-      '@realm/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@realm/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      '@realm/wallet':
-        specifier: workspace:*
-        version: link:../../packages/wallet
-      '@realm/whatsapp':
-        specifier: workspace:*
-        version: link:../../packages/whatsapp
+        version: link:../../relay/packages/whatsapp
       better-auth:
         specifier: 1.6.30
         version: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
@@ -191,9 +191,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@realm/eslint-config':
+      '@foundry/eslint-config':
         specifier: workspace:*
-        version: link:../../tooling/eslint-config
+        version: link:../../foundry/tooling/eslint-config
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.1
@@ -245,6 +245,54 @@ importers:
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@foundry/auth':
+        specifier: workspace:*
+        version: link:../../foundry/packages/auth
+      '@foundry/auth-ui':
+        specifier: workspace:*
+        version: link:../../foundry/packages/auth-ui
+      '@foundry/clover':
+        specifier: workspace:*
+        version: link:../../foundry/packages/clover
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../foundry/packages/commons
+      '@foundry/crm':
+        specifier: workspace:*
+        version: link:../../foundry/packages/crm
+      '@foundry/database':
+        specifier: workspace:*
+        version: link:../../foundry/packages/database
+      '@foundry/design-system':
+        specifier: workspace:*
+        version: link:../../foundry/packages/design-system
+      '@foundry/google-reviews':
+        specifier: workspace:*
+        version: link:../../foundry/packages/google-reviews
+      '@foundry/payments':
+        specifier: workspace:*
+        version: link:../../foundry/packages/payments
+      '@foundry/places':
+        specifier: workspace:*
+        version: link:../../foundry/packages/places
+      '@foundry/realtime':
+        specifier: workspace:*
+        version: link:../../foundry/packages/realtime
+      '@foundry/routes':
+        specifier: workspace:*
+        version: link:../../foundry/packages/routes
+      '@foundry/storage':
+        specifier: workspace:*
+        version: link:../../foundry/packages/storage
+      '@foundry/themes':
+        specifier: workspace:*
+        version: link:../../foundry/packages/themes
+      '@foundry/ui':
+        specifier: workspace:*
+        version: link:../../foundry/packages/ui
+      '@foundry/wallet':
+        specifier: workspace:*
+        version: link:../../foundry/packages/wallet
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
@@ -260,60 +308,12 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.4)
-      '@realm/auth':
+      '@relay/email':
         specifier: workspace:*
-        version: link:../../packages/auth
-      '@realm/auth-ui':
+        version: link:../../relay/packages/email
+      '@relay/engine':
         specifier: workspace:*
-        version: link:../../packages/auth-ui
-      '@realm/clover':
-        specifier: workspace:*
-        version: link:../../packages/clover
-      '@realm/commons':
-        specifier: workspace:*
-        version: link:../../packages/commons
-      '@realm/crm':
-        specifier: workspace:*
-        version: link:../../packages/crm
-      '@realm/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@realm/design-system':
-        specifier: workspace:*
-        version: link:../../packages/design-system
-      '@realm/email':
-        specifier: workspace:*
-        version: link:../../packages/email
-      '@realm/google-reviews':
-        specifier: workspace:*
-        version: link:../../packages/google-reviews
-      '@realm/notifications':
-        specifier: workspace:*
-        version: link:../../packages/notifications
-      '@realm/payments':
-        specifier: workspace:*
-        version: link:../../packages/payments
-      '@realm/places':
-        specifier: workspace:*
-        version: link:../../packages/places
-      '@realm/realtime':
-        specifier: workspace:*
-        version: link:../../packages/realtime
-      '@realm/routes':
-        specifier: workspace:*
-        version: link:../../packages/routes
-      '@realm/storage':
-        specifier: workspace:*
-        version: link:../../packages/storage
-      '@realm/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@realm/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      '@realm/wallet':
-        specifier: workspace:*
-        version: link:../../packages/wallet
+        version: link:../../relay/packages/engine
       '@uiw/react-md-editor':
         specifier: ^4.0.7
         version: 4.1.1(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
@@ -429,12 +429,12 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@foundry/eslint-config':
+        specifier: workspace:*
+        version: link:../../foundry/tooling/eslint-config
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
-      '@realm/eslint-config':
-        specifier: workspace:*
-        version: link:../../tooling/eslint-config
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.1
@@ -478,12 +478,28 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/auth:
+  foundry/packages/ai:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/email':
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  foundry/packages/auth:
+    dependencies:
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../commons
+      '@foundry/email':
         specifier: workspace:*
         version: link:../email
       better-auth:
@@ -494,17 +510,17 @@ importers:
         specifier: ^5
         version: 5.9.3
 
-  packages/auth-ui:
+  foundry/packages/auth-ui:
     dependencies:
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../commons
+      '@foundry/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
-      '@realm/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@realm/ui':
-        specifier: workspace:*
-        version: link:../ui
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
@@ -537,18 +553,18 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/clover:
+  foundry/packages/clover:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/crm':
+      '@foundry/crm':
         specifier: workspace:*
         version: link:../crm
-      '@realm/design-system':
+      '@foundry/design-system':
         specifier: workspace:*
         version: link:../design-system
-      '@realm/ui':
+      '@foundry/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:
@@ -577,7 +593,7 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/commons:
+  foundry/packages/commons:
     dependencies:
       libphonenumber-js:
         specifier: ^1.11.0
@@ -594,7 +610,7 @@ importers:
     devDependencies:
       lucide-react:
         specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
+        version: 1.21.0(react@19.2.8)
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -602,7 +618,7 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/coupons:
+  foundry/packages/coupons:
     devDependencies:
       typescript:
         specifier: ^5
@@ -611,12 +627,12 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/crm:
+  foundry/packages/crm:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/ui':
+      '@foundry/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:
@@ -642,9 +658,9 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/database:
+  foundry/packages/database:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
       nanoid:
@@ -664,15 +680,15 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/design-system:
+  foundry/packages/design-system:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/realtime':
+      '@foundry/realtime':
         specifier: workspace:*
         version: link:../realtime
-      '@realm/ui':
+      '@foundry/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:
@@ -701,17 +717,17 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/email:
+  foundry/packages/email:
     dependencies:
       '@aws-sdk/client-sesv2':
         specifier: ^3.700.0
         version: 3.1075.0
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../commons
       '@react-email/components':
         specifier: ^1.0.12
         version: 1.0.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@realm/commons':
-        specifier: workspace:*
-        version: link:../commons
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -732,15 +748,15 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/google-reviews:
+  foundry/packages/google-reviews:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/email':
+      '@foundry/email':
         specifier: workspace:*
         version: link:../email
-      '@realm/ui':
+      '@foundry/ui':
         specifier: workspace:*
         version: link:../ui
       lucide-react:
@@ -778,76 +794,9 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/notifications:
+  foundry/packages/order-tracking:
     dependencies:
-      '@react-email/components':
-        specifier: ^1.0.12
-        version: 1.0.12(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      '@react-email/editor':
-        specifier: ^1.5.10
-        version: 1.5.10(patch_hash=6c9d940248f055e16e00c9f705e5440d3c75801c7ce0bd34343a8b06df8dfa0b)(@floating-ui/dom@1.7.6)(@tiptap/extension-list@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(happy-dom@20.10.6)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
-      '@react-email/render':
-        specifier: ^2.0.9
-        version: 2.0.9(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      '@realm/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@realm/database':
-        specifier: workspace:*
-        version: link:../database
-      '@realm/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@realm/ui':
-        specifier: workspace:*
-        version: link:../ui
-      '@uiw/react-md-editor':
-        specifier: ^4.0.7
-        version: 4.1.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
-      lucide-react:
-        specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
-      prettier:
-        specifier: ^3.9.1
-        version: 3.9.1
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      sucrase:
-        specifier: ^3.35.1
-        version: 3.35.1
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22
-        version: 22.20.1
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
-      next:
-        specifier: 16.3.3
-        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  packages/order-tracking:
-    dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
       zod:
@@ -867,14 +816,14 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/payments:
+  foundry/packages/payments:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
       lucide-react:
         specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
+        version: 1.21.0(react@19.2.8)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -886,12 +835,12 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/places:
+  foundry/packages/places:
     dependencies:
       '@aws-sdk/client-geo-places':
         specifier: ^3.700.0
         version: 3.1106.0
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
       zod:
@@ -914,9 +863,9 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/realtime:
+  foundry/packages/realtime:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
     devDependencies:
@@ -936,12 +885,12 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/routes:
+  foundry/packages/routes:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/database':
+      '@foundry/database':
         specifier: workspace:*
         version: link:../database
     devDependencies:
@@ -958,26 +907,7 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/sms:
-    dependencies:
-      '@realm/commons':
-        specifier: workspace:*
-        version: link:../commons
-    devDependencies:
-      '@realm/notifications':
-        specifier: workspace:*
-        version: link:../notifications
-      '@types/node':
-        specifier: ^22
-        version: 22.20.1
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  packages/storage:
+  foundry/packages/storage:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: 3.1077.0
@@ -985,10 +915,10 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1077.0
         version: 3.1077.0
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/database':
+      '@foundry/database':
         specifier: workspace:*
         version: link:../database
       nanoid:
@@ -1008,7 +938,7 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/themes:
+  foundry/packages/themes:
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -1020,15 +950,15 @@ importers:
         specifier: ^5
         version: 5.9.3
 
-  packages/ui:
+  foundry/packages/ui:
     dependencies:
       '@chenglou/pretext':
         specifier: 0.0.8
         version: 0.0.8
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/themes':
+      '@foundry/themes':
         specifier: workspace:*
         version: link:../themes
       class-variance-authority:
@@ -1096,12 +1026,12 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/wallet:
+  foundry/packages/wallet:
     dependencies:
-      '@realm/commons':
+      '@foundry/commons':
         specifier: workspace:*
         version: link:../commons
-      '@realm/database':
+      '@foundry/database':
         specifier: workspace:*
         version: link:../database
     devDependencies:
@@ -1118,15 +1048,234 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  packages/whatsapp:
+  foundry/tooling/eslint-config:
     dependencies:
-      '@realm/commons':
+      eslint:
+        specifier: ^9
+        version: 9.39.4(jiti@2.7.0)(supports-color@7.2.0)
+      eslint-config-next:
+        specifier: 16.3.3
+        version: 16.3.3(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+
+  relay/apps/relay:
+    dependencies:
+      '@foundry/auth':
         specifier: workspace:*
-        version: link:../commons
+        version: link:../../../foundry/packages/auth
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/commons
+      '@foundry/crm':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/crm
+      '@foundry/database':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/database
+      '@foundry/design-system':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/design-system
+      '@foundry/themes':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/themes
+      '@foundry/ui':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/ui
+      '@hookform/resolvers':
+        specifier: ^5.4.0
+        version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
+      '@relay/email':
+        specifier: workspace:*
+        version: link:../../packages/email
+      '@relay/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@relay/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@relay/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      better-auth:
+        specifier: 1.6.30
+        version: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+      geist:
+        specifier: ^1.7.2
+        version: 1.7.2(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
+      next:
+        specifier: 16.3.3
+        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      react-hook-form:
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.4)
+      sns-validator:
+        specifier: ^0.3.5
+        version: 0.3.5
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
-      '@realm/notifications':
+      '@foundry/eslint-config':
         specifier: workspace:*
-        version: link:../notifications
+        version: link:../../../foundry/tooling/eslint-config
+      '@tailwindcss/postcss':
+        specifier: ^4
+        version: 4.3.1
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 19.2.5
+        version: 19.2.5(@types/react@19.2.18)
+      drizzle-kit:
+        specifier: ^0.31.10
+        version: 0.31.10
+      eslint:
+        specifier: ^9
+        version: 9.39.4(jiti@2.7.0)(supports-color@7.2.0)
+      tailwindcss:
+        specifier: ^4
+        version: 4.3.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  relay/packages/email:
+    dependencies:
+      '@aws-sdk/client-sesv2':
+        specifier: ^3.700.0
+        version: 3.1075.0
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/commons
+      '@react-email/components':
+        specifier: ^1.0.12
+        version: 1.0.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  relay/packages/engine:
+    dependencies:
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/commons
+      '@foundry/database':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/database
+      '@foundry/design-system':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/design-system
+      '@foundry/ui':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/ui
+      '@react-email/components':
+        specifier: ^1.0.12
+        version: 1.0.12(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
+      '@react-email/editor':
+        specifier: ^1.5.10
+        version: 1.5.10(patch_hash=6c9d940248f055e16e00c9f705e5440d3c75801c7ce0bd34343a8b06df8dfa0b)(@floating-ui/dom@1.7.6)(@tiptap/extension-list@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(happy-dom@20.10.6)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
+      '@react-email/render':
+        specifier: ^2.0.9
+        version: 2.0.9(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
+      '@uiw/react-md-editor':
+        specifier: ^4.0.7
+        version: 4.1.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)(supports-color@7.2.0)
+      lucide-react:
+        specifier: ^1.20.0
+        version: 1.21.0(react@19.2.4)
+      prettier:
+        specifier: ^3.9.1
+        version: 3.9.1
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
+      sucrase:
+        specifier: ^3.35.1
+        version: 3.35.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+      next:
+        specifier: 16.3.3
+        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  relay/packages/sdk:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
       '@types/node':
         specifier: ^22
         version: 22.20.1
@@ -1137,14 +1286,56 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  tooling/eslint-config:
+  relay/packages/sms:
     dependencies:
-      eslint:
-        specifier: ^9
-        version: 9.39.4(jiti@2.7.0)(supports-color@7.2.0)
-      eslint-config-next:
-        specifier: 16.3.3
-        version: 16.3.3(@typescript-eslint/parser@8.61.1(eslint@9.39.4(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/commons
+    devDependencies:
+      '@relay/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  relay/packages/ui:
+    dependencies:
+      '@relay/engine':
+        specifier: workspace:*
+        version: link:../engine
+      react:
+        specifier: ^19
+        version: 19.2.4
+    devDependencies:
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  relay/packages/whatsapp:
+    dependencies:
+      '@foundry/commons':
+        specifier: workspace:*
+        version: link:../../../foundry/packages/commons
+    devDependencies:
+      '@relay/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@types/node':
+        specifier: ^22
+        version: 22.20.1
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
 packages:
 
@@ -1203,72 +1394,36 @@ packages:
     resolution: {integrity: sha512-j2iQxzu24mpF53qTXG/F5ybLjPTRBmleDnF7cBtT/nKoMhR6xiwcaNixTg3bQ2AAPC+VVJwh0gd1UOdlgeTzkg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/core@3.974.26':
-    resolution: {integrity: sha512-wRj7Pthvjk3anees97pUWlxlTa0DUjeGrEQU5fKDZVdWZV0ekaprbof0df2uaE9g8u67t035v2j+ne2AW2UMkA==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/core@3.977.6':
     resolution: {integrity: sha512-QiaJV4/zDrB4ZY2mfeSXSzSTc36W16sZXcGz+SPFk0CJ26gziO0cS+4LjJUMAbdeeBOvS0k0Aq1cZpfGdUXxSw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-env@3.972.52':
-    resolution: {integrity: sha512-sxuaHZGHqOgKB8OdL3doXa1NJjqmO60FPfyTnYVKGjX9taRsIEGS9pd+2yALmo06hijZ8L94uSK0kfXZsRmVyA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-env@3.972.67':
     resolution: {integrity: sha512-rcIpk5kxUqDaaNa6Xk23pQ6ViY7jlqzmfFWCahQcBT97ddXaXYYwzCen9Tz1Jvo6aJft6wDl5bN44/Jw5B4oLA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-http@3.972.54':
-    resolution: {integrity: sha512-e6yz52nq3SpR1oPLcvfsDM7H7k2gIYk/NSn/rwsFqzGXEwr3g0mRMlPbLaKCPCGNZJMU/gZg6/64B3eSam+gBw==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-http@3.972.69':
     resolution: {integrity: sha512-nggwJtZ4eeNsUw5IeWBMXsi1ryct5idi0K+/SCRF3kybLubOMaNTb3XCihXpWMiVpyzyPeIrl0zTkzhBH9porA==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-ini@3.972.59':
-    resolution: {integrity: sha512-9Um/UpruN76AdpiLnvwChVkJJwJ9Vx9ykk/2AeLxxSCM/YYRD8Kkq2towUk9fZQLV7dd9ATlsi87U7hKs0z/iQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-ini@3.973.12':
     resolution: {integrity: sha512-pNEf/OeyN5X3VmLKlgSO6TqaWmW10CvI3TfwL1XhsuhYjSLT2VDaxFnCPHnOeQXSaFisMX4jNhpETriqN8DOmg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-login@3.972.58':
-    resolution: {integrity: sha512-H3q96qF8/DJsPsXMVtMRqSWOc85K5O4zos32untdw+vE5vw0f3a6qJo1YqbND4BsEIKd4iZmzzVUq9kV4LjbHg==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-login@3.972.74':
     resolution: {integrity: sha512-0AQfDcf99TNmqVKv0owHrw/TQs6i4ZE5t9qmz6NvO53bE/sA/tpXhXL9AAcEP1qHc6Zzjd1UMb69+/9zdhvY3g==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-node@3.972.61':
-    resolution: {integrity: sha512-2U2KHMRCt1dlZoLU3KZR5g5EL4b0h2HHw96SkaUBK7qvEXPZj5rGRO/3ZTeJmh37dIYQuCnA2273rZOQvmsiHw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-node@3.972.78':
     resolution: {integrity: sha512-OgPAnfvbGAMWac6yvxJ1ihslrvDpPVwR68D2csospdNCCyPvHk9JLzYKwz48SNiS1T2znDwHauywRKRFfpyYng==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-process@3.972.52':
-    resolution: {integrity: sha512-Aff9Ebs42lz+Ep1wkS+Nlwh5S0eahakpyskPsuKGjiBJ6ExOjNtxbfKJTKovQtQNgJ7oG1BH6esJwGrbs7qgSA==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-process@3.972.67':
     resolution: {integrity: sha512-IlUEejorGTWKb4/Dm7K5Yw4QxUmXLThLhrvBmzVBqZFTbW72cv9LTcITmo1dsnYriALE4h68mOq4LB99x6sQ7Q==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/credential-provider-sso@3.972.58':
-    resolution: {integrity: sha512-syloC58mXOacUqM2toPNfwd7X3jT+tWj0F/cN7qdW1FQyI0q41J0tPf6DIZ56BF0x82iS9j3ALP45MoBz79YuQ==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/credential-provider-sso@3.973.11':
     resolution: {integrity: sha512-gAQBkBZxUB84d71+pPcI9L+jh2ujhuAVxc/4FgGiWFDjkPBlMKxzd5XDtkSXTFX8Ro7ansnT88+XadasxMeCRw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/credential-provider-web-identity@3.972.58':
-    resolution: {integrity: sha512-pTBImKzcGK+pcMKjL0fAJbnYzzYd1c0UDc7BSIOGNQhF9Nuk66vWlIXfYTYyzNSs+w8Q/vfbbNDDU8zdrouwLg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/credential-provider-web-identity@3.972.73':
@@ -1279,10 +1434,6 @@ packages:
     resolution: {integrity: sha512-E7tRmmUb64LlsoI6pZZRTov21K74Fr/MVgYBeNFfBkFzpF8e2tuJkKd4YGmcNwz0UjDs8fMoS0v/MGgHASIx+Q==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/nested-clients@3.997.26':
-    resolution: {integrity: sha512-Lwe3F6K7bs+jEubp1LbrvzeMBYb5fMazJ1IxV9TtKWPF8CSh67Fmwyq9fLz3NL/k55Dfpuph5Dimw76JFgr+SA==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/nested-clients@3.997.41':
     resolution: {integrity: sha512-RDHqPGQWlF6tatA/Tp3rg6oIwtgN9IVderxE+9av2Y93Dfyu+mO1hZ5Bu2jpfZg2rwdNbsssnwM+sLafIczMlQ==}
     engines: {node: '>=20.0.0'}
@@ -1291,24 +1442,12 @@ packages:
     resolution: {integrity: sha512-gmj0nvnnuLDvXHekQNCTljcp/0XrQ1Mi6EpFYv6TF/u9oa4PugIhO5BpIDoKf4qvaQuOX+71E8KMkn9GS75dPw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/signature-v4-multi-region@3.996.38':
-    resolution: {integrity: sha512-C379Sk+MiFZCfWZphKlMyLHKxV22OjoGM5KJjj5IJNJcOCWL4IGIpnEGzv1FQiRwhYXfq55SJMfxlqPE08JJ9g==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/signature-v4-multi-region@3.996.43':
     resolution: {integrity: sha512-lKekx8bLBXSv4O+cslk9Zfnw2XKSkWBs3uWL5QGhH2ZAQfNS7FE0vcSSN2vD/AhxX54ZTywWxR4STThoeOXlBA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/token-providers@3.1078.0':
-    resolution: {integrity: sha512-/uyXLBGu3Lw1GbBA2X66hcOMnKtMcqAIF+3/eHfxBQmUeXF2sdqozDPrTfEr/TnSd0D6deZar+eVyhEqqWu29w==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/token-providers@3.1103.0':
     resolution: {integrity: sha512-N4wy26MNn31ItGVHYHPrEuCIFY4MBBjC+C5v1lJKqIUSA7OZBdhleCY53zCCrXn27hsk7YNOaTuhQu807S4AfQ==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/types@3.973.15':
-    resolution: {integrity: sha512-IULn8uBV/SMtmOIANsm4WHXIOtVPBWfOWs3WGL0j/sI+KhaYehvOw0ET+9urnn8MBpiijuU/0JOpuwKOE451PQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/types@3.974.2':
@@ -1319,17 +1458,9 @@ packages:
     resolution: {integrity: sha512-uUbMs1cBZPafD0ohUj6EwNf0fPZ534NvBxHox4hjX+0Rxq5paSYUem7+hi833pYrzrcnBATKIYpR02MDXT5M9g==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/xml-builder@3.972.33':
-    resolution: {integrity: sha512-ezbwz9WpuLctm6o7P2t2naDhVVPI5jFGrVefVybhcKGjU57VIyT46pQVO0RI2RYkUdhdj2Z9uSIlAzGZE9NW9A==}
-    engines: {node: '>=20.0.0'}
-
   '@aws-sdk/xml-builder@3.972.37':
     resolution: {integrity: sha512-zKq4HQum8JwDyEuyfuI4bbiAcU0KxP6qy+9PR/IsR92IyE/DaBAikzAS50tjxip4bqIIANpCcG+Yyj6CVhXupg==}
     engines: {node: '>=20.0.0'}
-
-  '@aws/lambda-invoke-store@0.2.4':
-    resolution: {integrity: sha512-iY8yvjE0y651BixKNPgmv1WrQc+GZ142sb0z4gYnChDDY2YqI4P/jsSopBWrKfAt7LOJAkOXt7rC/hms+WclQQ==}
-    engines: {node: '>=18.0.0'}
 
   '@aws/lambda-invoke-store@0.3.0':
     resolution: {integrity: sha512-sl4Bm6yiMNYrZKkqqDFWN0UfnWhlS8ivKxrYl+6t0gCLrqr8y3B2IqZZbFRkfaVVp7C/baApyh71P+LeE1A2sQ==}
@@ -3464,10 +3595,6 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
-  '@smithy/core@3.29.0':
-    resolution: {integrity: sha512-sEvpvkBVoMxjoek35XyJFn2ZD3EJ1RpiZrT47WaZodxzAIWS44zkdvbqGE/ZlugtjiQp62cffYZ9ldyRkjAGnA==}
-    engines: {node: '>=18.0.0'}
-
   '@smithy/core@3.31.1':
     resolution: {integrity: sha512-CyogUINxvi7C7LDsh8Syo6hVJOT9ckz4rG8dRZfTJ8r91HkMY59PnNooaj7WcHyxEkxPfBAmbgztZU+xTo76lg==}
     engines: {node: '>=18.0.0'}
@@ -3476,16 +3603,8 @@ packages:
     resolution: {integrity: sha512-QfuLWAkLzptffFW980AFeHZFdqds2B64rpEd3uJ6lgs3xVn9QegGMUgUcj+4d7dRrAsya3r58ZKpku97WcFb4w==}
     engines: {node: '>=18.0.0'}
 
-  '@smithy/credential-provider-imds@4.4.5':
-    resolution: {integrity: sha512-LnjUTNG0GgQlKIq7IioeOrPaEmC5xOd1WtAz24TLSiYQnWX2uHr53GrFuQhkrJBktPYCMga/NbUOW7hFbSA2Cg==}
-    engines: {node: '>=18.0.0'}
-
   '@smithy/fetch-http-handler@5.6.13':
     resolution: {integrity: sha512-4fW86pEUOMbrD5nkbyl/tTvPHHWJFbuB2odl6ps9lWfHoXf9HWh3Q/Smh59qH1g7+c/BSZghX6bbUk4gsiMs8A==}
-    engines: {node: '>=18.0.0'}
-
-  '@smithy/fetch-http-handler@5.6.2':
-    resolution: {integrity: sha512-q96PSDOAGw+X+nuELd7Cjebps0SYr+YlPbviEX9sLVw+VM4M7VV8hn1nL1mGS6urDu33eQ5A7WhlphaDO6kUyQ==}
     engines: {node: '>=18.0.0'}
 
   '@smithy/is-array-buffer@2.2.0':
@@ -3496,20 +3615,8 @@ packages:
     resolution: {integrity: sha512-Nmd/Nl35zfYrd+a6OO2cDJb3GPh9bgTjIUhcM+JFfjpp8/osCgboDV5nCT1I01Pv6R13eSKDKLSoVa5ZB6Zsfw==}
     engines: {node: '>=18.0.0'}
 
-  '@smithy/node-http-handler@4.9.2':
-    resolution: {integrity: sha512-s0yAIRj6TVfHgl+QzVyqal1KMGZ9B5512IrxKc6+dOpw8fUmFL3CvuAhjv0J+aNjUPfVZ2IhqPEDvkB5Ncx9oA==}
-    engines: {node: '>=18.0.0'}
-
-  '@smithy/signature-v4@5.6.1':
-    resolution: {integrity: sha512-SqvuP75p/DmgWWI7jv4kf/UW+V4LFmlUn19s604SgAcRuJRB1vDnWwzZMYCLUcmKxko9wDn6iLgGEIpTNgZbIQ==}
-    engines: {node: '>=18.0.0'}
-
   '@smithy/signature-v4@5.6.12':
     resolution: {integrity: sha512-I6KLtq3H0qqSuV9vLglfi8puHqzygzWHOnI4z/Rdoo+q50vvo18vBRdPAvvEtcaKROz7Zn6qnPa14kRfPH6PcQ==}
-    engines: {node: '>=18.0.0'}
-
-  '@smithy/types@4.15.1':
-    resolution: {integrity: sha512-x3L0XSACF6UYzKpa9biqiRMgvH5+wnFFew9Tm/grFYqgaupPwx/+ojDPpPJM8dZON3S9tjz5U+PQYsCBd1Mw5Q==}
     engines: {node: '>=18.0.0'}
 
   '@smithy/types@4.16.1':
@@ -8204,7 +8311,7 @@ snapshots:
       '@aws-crypto/sha256-js': 5.2.0
       '@aws-crypto/supports-web-crypto': 5.2.0
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/types': 3.974.2
       '@aws-sdk/util-locate-window': 3.965.8
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
@@ -8212,7 +8319,7 @@ snapshots:
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/types': 3.974.2
       tslib: 2.8.1
 
   '@aws-crypto/supports-web-crypto@5.2.0':
@@ -8227,10 +8334,10 @@ snapshots:
 
   '@aws-sdk/checksums@3.1000.11':
     dependencies:
-      '@aws-sdk/core': 3.974.26
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/types': 4.15.1
+      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/client-geo-maps@3.1106.0':
@@ -8258,40 +8365,29 @@ snapshots:
   '@aws-sdk/client-s3@3.1077.0':
     dependencies:
       '@aws-sdk/checksums': 3.1000.11
-      '@aws-sdk/core': 3.974.26
-      '@aws-sdk/credential-provider-node': 3.972.61
+      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/credential-provider-node': 3.972.78
       '@aws-sdk/middleware-sdk-s3': 3.972.57
-      '@aws-sdk/signature-v4-multi-region': 3.996.38
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/fetch-http-handler': 5.6.2
-      '@smithy/node-http-handler': 4.9.2
-      '@smithy/types': 4.15.1
+      '@aws-sdk/signature-v4-multi-region': 3.996.43
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/fetch-http-handler': 5.6.13
+      '@smithy/node-http-handler': 4.9.13
+      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/client-sesv2@3.1075.0':
     dependencies:
       '@aws-crypto/sha256-browser': 5.2.0
       '@aws-crypto/sha256-js': 5.2.0
-      '@aws-sdk/core': 3.974.26
-      '@aws-sdk/credential-provider-node': 3.972.61
-      '@aws-sdk/signature-v4-multi-region': 3.996.38
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/fetch-http-handler': 5.6.2
-      '@smithy/node-http-handler': 4.9.2
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
-  '@aws-sdk/core@3.974.26':
-    dependencies:
-      '@aws-sdk/types': 3.973.15
-      '@aws-sdk/xml-builder': 3.972.33
-      '@aws/lambda-invoke-store': 0.2.4
-      '@smithy/core': 3.29.0
-      '@smithy/signature-v4': 5.6.1
-      '@smithy/types': 4.15.1
-      bowser: 2.14.1
+      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/credential-provider-node': 3.972.78
+      '@aws-sdk/signature-v4-multi-region': 3.996.43
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/fetch-http-handler': 5.6.13
+      '@smithy/node-http-handler': 4.9.13
+      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/core@3.977.6':
@@ -8305,29 +8401,11 @@ snapshots:
       bowser: 2.14.1
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-env@3.972.52':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-env@3.972.67':
     dependencies:
       '@aws-sdk/core': 3.977.6
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-http@3.972.54':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/fetch-http-handler': 5.6.13
-      '@smithy/node-http-handler': 4.9.13
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
@@ -8338,22 +8416,6 @@ snapshots:
       '@smithy/core': 3.31.1
       '@smithy/fetch-http-handler': 5.6.13
       '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-ini@3.972.59':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/credential-provider-env': 3.972.52
-      '@aws-sdk/credential-provider-http': 3.972.54
-      '@aws-sdk/credential-provider-login': 3.972.58
-      '@aws-sdk/credential-provider-process': 3.972.52
-      '@aws-sdk/credential-provider-sso': 3.972.58
-      '@aws-sdk/credential-provider-web-identity': 3.972.58
-      '@aws-sdk/nested-clients': 3.997.26
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/credential-provider-imds': 4.4.5
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
@@ -8373,15 +8435,6 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-login@3.972.58':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/nested-clients': 3.997.26
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-login@3.972.74':
     dependencies:
       '@aws-sdk/core': 3.977.6
@@ -8389,20 +8442,6 @@ snapshots:
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-node@3.972.61':
-    dependencies:
-      '@aws-sdk/credential-provider-env': 3.972.52
-      '@aws-sdk/credential-provider-http': 3.972.54
-      '@aws-sdk/credential-provider-ini': 3.972.59
-      '@aws-sdk/credential-provider-process': 3.972.52
-      '@aws-sdk/credential-provider-sso': 3.972.58
-      '@aws-sdk/credential-provider-web-identity': 3.972.58
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/credential-provider-imds': 4.4.5
-      '@smithy/types': 4.15.1
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-node@3.972.78':
@@ -8419,27 +8458,9 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
-  '@aws-sdk/credential-provider-process@3.972.52':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@aws-sdk/credential-provider-process@3.972.67':
     dependencies:
       '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-sso@3.972.58':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/nested-clients': 3.997.26
-      '@aws-sdk/token-providers': 3.1078.0
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
@@ -8450,15 +8471,6 @@ snapshots:
       '@aws-sdk/core': 3.977.6
       '@aws-sdk/nested-clients': 3.997.41
       '@aws-sdk/token-providers': 3.1103.0
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/credential-provider-web-identity@3.972.58':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/nested-clients': 3.997.26
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
@@ -8475,21 +8487,10 @@ snapshots:
 
   '@aws-sdk/middleware-sdk-s3@3.972.57':
     dependencies:
-      '@aws-sdk/core': 3.974.26
-      '@aws-sdk/signature-v4-multi-region': 3.996.38
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
-  '@aws-sdk/nested-clients@3.997.26':
-    dependencies:
       '@aws-sdk/core': 3.977.6
-      '@aws-sdk/signature-v4-multi-region': 3.996.38
+      '@aws-sdk/signature-v4-multi-region': 3.996.43
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
-      '@smithy/fetch-http-handler': 5.6.13
-      '@smithy/node-http-handler': 4.9.13
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
@@ -8506,33 +8507,17 @@ snapshots:
 
   '@aws-sdk/s3-request-presigner@3.1077.0':
     dependencies:
-      '@aws-sdk/core': 3.974.26
-      '@aws-sdk/signature-v4-multi-region': 3.996.38
-      '@aws-sdk/types': 3.973.15
-      '@smithy/core': 3.29.0
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
-  '@aws-sdk/signature-v4-multi-region@3.996.38':
-    dependencies:
-      '@aws-sdk/types': 3.973.15
-      '@smithy/signature-v4': 5.6.1
-      '@smithy/types': 4.15.1
+      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/signature-v4-multi-region': 3.996.43
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/signature-v4-multi-region@3.996.43':
     dependencies:
       '@aws-sdk/types': 3.974.2
       '@smithy/signature-v4': 5.6.12
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/token-providers@3.1078.0':
-    dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/nested-clients': 3.997.26
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
@@ -8545,11 +8530,6 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
-  '@aws-sdk/types@3.973.15':
-    dependencies:
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
   '@aws-sdk/types@3.974.2':
     dependencies:
       '@smithy/types': 4.16.1
@@ -8559,17 +8539,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@aws-sdk/xml-builder@3.972.33':
-    dependencies:
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@aws-sdk/xml-builder@3.972.37':
     dependencies:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
-
-  '@aws/lambda-invoke-store@0.2.4': {}
 
   '@aws/lambda-invoke-store@0.3.0': {}
 
@@ -10759,11 +10732,6 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@smithy/core@3.29.0':
-    dependencies:
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
   '@smithy/core@3.31.1':
     dependencies:
       '@smithy/types': 4.16.1
@@ -10775,22 +10743,10 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
-  '@smithy/credential-provider-imds@4.4.5':
-    dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@smithy/fetch-http-handler@5.6.13':
     dependencies:
       '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@smithy/fetch-http-handler@5.6.2':
-    dependencies:
-      '@smithy/core': 3.29.0
-      '@smithy/types': 4.15.1
       tslib: 2.8.1
 
   '@smithy/is-array-buffer@2.2.0':
@@ -10803,26 +10759,10 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
-  '@smithy/node-http-handler@4.9.2':
-    dependencies:
-      '@smithy/core': 3.29.0
-      '@smithy/types': 4.15.1
-      tslib: 2.8.1
-
-  '@smithy/signature-v4@5.6.1':
-    dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
   '@smithy/signature-v4@5.6.12':
     dependencies:
       '@smithy/core': 3.31.1
       '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@smithy/types@4.15.1':
-    dependencies:
       tslib: 2.8.1
 
   '@smithy/types@4.16.1':
@@ -13789,6 +13729,10 @@ snapshots:
   lucide-react@1.21.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  lucide-react@1.21.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   lz-string@1.5.0: {}
 

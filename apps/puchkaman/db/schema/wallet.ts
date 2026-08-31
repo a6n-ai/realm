@@ -1,4 +1,4 @@
-import { makeWalletTables } from "@realm/wallet/schema";
+import { makeWalletTables } from "@foundry/wallet/schema";
 import { appEvent } from "./events";
 import { ledgerDirection, orders } from "./orders";
 import { users } from "./auth";

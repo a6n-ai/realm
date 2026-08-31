@@ -1,4 +1,4 @@
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 export const CATEGORY_LABEL: Record<string, string> = {
   order: "Order",

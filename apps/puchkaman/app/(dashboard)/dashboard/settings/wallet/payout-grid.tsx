@@ -3,10 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SectionCard } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
+import { SectionCard } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
 import type { AwardableEvent } from "@/lib/services/wallet.service";
 import { NumberField } from "./controls";
 import { savePayoutRow } from "./actions";

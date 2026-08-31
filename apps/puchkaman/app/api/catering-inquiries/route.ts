@@ -1,5 +1,5 @@
-import { handler, json, problem } from "@realm/routes";
-import { createLogger } from "@realm/commons/logger";
+import { handler, json, problem } from "@foundry/routes";
+import { createLogger } from "@foundry/commons/logger";
 import { getEmailProvider } from "@/lib/email/provider";
 import { cateringInquirySchema } from "@/lib/catering/schema";
 import { createCateringInquiry } from "@/lib/services/catering.service";

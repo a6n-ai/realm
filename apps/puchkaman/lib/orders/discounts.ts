@@ -12,7 +12,7 @@
  * negative.
  */
 
-import { couponValue, resolveCoupons, type CouponCandidate } from "@realm/coupons";
+import { couponValue, resolveCoupons, type CouponCandidate } from "@foundry/coupons";
 
 export type DiscountSource = {
   publicId: string;

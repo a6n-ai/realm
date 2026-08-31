@@ -31,7 +31,7 @@ import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +44,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@realm/ui/sidebar";
+} from "@foundry/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,8 +53,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@realm/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@realm/ui/avatar";
+} from "@foundry/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 
 export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
 export type NavSection = { label: string; items: NavItem[] };

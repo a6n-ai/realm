@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { featureFlags, inquiries, userFeatureFlags, users } from "@/db/schema";
-import { ForbiddenError, ValidationError } from "@realm/commons";
+import { ForbiddenError, ValidationError } from "@foundry/commons";
 
 const REASSIGN_FLAG = "reassign_records";
 

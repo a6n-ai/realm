@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { ChevronRightIcon, LifeBuoyIcon } from "lucide-react";
 import { DataTable, FilterPill, FilterSheet, type Column } from "@/components/ds";
-import { TableCell } from "@realm/ui/table";
-import { Badge } from "@realm/ui/badge";
+import { TableCell } from "@foundry/ui/table";
+import { Badge } from "@foundry/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
+} from "@foundry/ui/select";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { useUrlState } from "@/lib/list/use-url-state";

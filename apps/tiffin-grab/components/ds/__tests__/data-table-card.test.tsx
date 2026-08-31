@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, within } from "@testing-library/react";
-import { DataTable } from "@realm/design-system";
-import { TableCell } from "@realm/ui/table";
+import { DataTable } from "@foundry/design-system";
+import { TableCell } from "@foundry/ui/table";
 
 // DataTable reads "q" URL state via next/navigation hooks; stub them for jsdom.
 vi.mock("next/navigation", () => ({

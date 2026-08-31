@@ -4,14 +4,14 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@realm/ui/cn";
-import { Button } from "@realm/ui/button";
+import { cn } from "@foundry/ui/cn";
+import { Button } from "@foundry/ui/button";
 import dynamic from "next/dynamic";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { ResponsiveDialog } from "@realm/design-system";
-import { isValidPhone } from "@realm/ui/phone-input";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { isValidPhone } from "@foundry/ui/phone-input";
 import type { CreateOrderInput } from "@/lib/services/orders.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { InquiryMatch } from "../_leads/inquiry-match";
@@ -49,7 +49,7 @@ function Req() {
 }
 
 // Heavy (~265 flag SVGs); sheet-gated, so lazy-load behind a plain skeleton.
-const PhoneInput = dynamic(() => import("@realm/ui/phone-input").then((m) => m.PhoneInput), {
+const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m.PhoneInput), {
   ssr: false,
   loading: () => <Input disabled placeholder="Phone" />,
 });

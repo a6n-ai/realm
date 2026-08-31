@@ -1,0 +1,20 @@
+{
+  "name": "@foundry/order-tracking",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./client": "./src/client.ts" },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": { "@foundry/commons": "workspace:*", "zod": "^4.4.3" },
+  "peerDependencies": { "better-auth": "1.6.30" },
+  "devDependencies": {
+    "@types/node": "^22",
+    "better-auth": "1.6.30",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}

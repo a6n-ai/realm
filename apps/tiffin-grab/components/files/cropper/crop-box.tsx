@@ -1,7 +1,7 @@
 "use client";
 
 import type { Handle, Rect } from "./crop-geometry";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const POS: Record<Handle, string> = {

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { LayoutDashboardIcon, ReceiptIcon, UserIcon } from "lucide-react";
-import { BottomNav, type BottomNavItem } from "@realm/design-system";
+import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 
 const TABS = [
   { href: "/me", title: "Overview", icon: LayoutDashboardIcon },

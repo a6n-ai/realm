@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/services/tickets.service";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { PageShell, PageHeader } from "@/components/ds";
 import { BackLink } from "@/components/back-link";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";

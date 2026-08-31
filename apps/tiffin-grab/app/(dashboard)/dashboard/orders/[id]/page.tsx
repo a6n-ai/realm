@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarIcon, PackageIcon } from "lucide-react";
-import { NotFoundError } from "@realm/commons";
+import { NotFoundError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
-import { findMethod } from "@realm/payments";
-import { Button } from "@realm/ui/button";
+import { findMethod } from "@foundry/payments";
+import { Button } from "@foundry/ui/button";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
@@ -18,7 +18,7 @@ import {
   PageHeader,
   SectionCard,
 } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";

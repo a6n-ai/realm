@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   ChatMessageList,
   ChatMessageListSkeleton,

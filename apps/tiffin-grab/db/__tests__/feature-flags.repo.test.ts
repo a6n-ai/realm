@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/database";
+import { UpdatableRepository } from "@foundry/database";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../client";
 import { featureFlags } from "../schema";

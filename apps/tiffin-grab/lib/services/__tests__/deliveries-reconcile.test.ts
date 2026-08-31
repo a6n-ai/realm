@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
-import { nextWeekday } from "@realm/commons";
+import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 

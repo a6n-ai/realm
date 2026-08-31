@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { ordersService } from "@/lib/services/orders.service";
 import { productsService } from "@/lib/services/products.service";

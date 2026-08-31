@@ -1,6 +1,6 @@
-import { handler } from "@realm/routes";
+import { handler } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
-import { renderEmailTemplate } from "@realm/email";
+import { renderEmailTemplate } from "@relay/email";
 import { sampleVars } from "@/lib/services/notification-template.service";
 
 /** Render a template (with sample data) to email HTML for the editor iframe. */

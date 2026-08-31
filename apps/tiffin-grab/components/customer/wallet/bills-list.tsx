@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@realm/ui/dialog";
+} from "@foundry/ui/dialog";
 import { ListPagination, OrderStatusBadge } from "@/components/ds";
 import { Reveal, LottieEmptyState } from "@/components/motion";
 import { formatEpoch } from "@/lib/format/datetime";

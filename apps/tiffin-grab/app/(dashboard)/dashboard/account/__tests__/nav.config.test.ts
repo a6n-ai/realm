@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { ACCOUNT_NAV, ALLOWED_SECTIONS, isSectionAllowed } from "../nav.config";
 
 function keys(role: keyof typeof ACCOUNT_NAV): string[] {

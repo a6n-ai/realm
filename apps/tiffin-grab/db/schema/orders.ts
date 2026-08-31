@@ -1,4 +1,4 @@
-import { baseColumns, updatableColumns } from "@realm/database";
+import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, boolean, date, doublePrecision, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { deliveryFrequencies, deliveryZones, mealSizes, plans } from "./catalog";
 import { users } from "./auth";
@@ -51,7 +51,7 @@ export const orders = pgTable("orders", {
   addressLine: text("address_line").notNull(),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
-  // Geocoded coordinates for the map display, resolved via @realm/places'
+  // Geocoded coordinates for the map display, resolved via @foundry/places'
   // AWS-only resolveAndPersist() at the UI/action layer — never populated from
   // the free-text address alone. Nullable: orders created before this existed,
   // and any order whose resolution failed, still need to save.

@@ -1,5 +1,5 @@
-import { UpdatableRepository } from "@realm/database";
-import { ValidationError } from "@realm/commons";
+import { UpdatableRepository } from "@foundry/database";
+import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categoryPlans, categorySwapPairs, dishCategories, plans } from "@/db/schema";

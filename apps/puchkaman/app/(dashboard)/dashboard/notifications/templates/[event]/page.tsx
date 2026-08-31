@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { BackButton, SectionCard } from "@realm/design-system";
-import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@realm/notifications/ui";
-import { Skeleton } from "@realm/ui/skeleton";
+import { BackButton, SectionCard } from "@foundry/design-system";
+import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";

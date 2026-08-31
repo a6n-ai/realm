@@ -1,3 +1,3 @@
-import next from "@realm/eslint-config/next";
+import next from "@foundry/eslint-config/next";
 
 export default next;

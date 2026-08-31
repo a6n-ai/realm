@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handle = vi.fn();
-vi.mock("@realm/notifications", async (orig) => ({
-  ...(await orig<typeof import("@realm/notifications")>()),
+vi.mock("@relay/engine", async (orig) => ({
+  ...(await orig<typeof import("@relay/engine")>()),
   handleUnsubscribe: (...args: unknown[]) => handle(...args),
 }));
 

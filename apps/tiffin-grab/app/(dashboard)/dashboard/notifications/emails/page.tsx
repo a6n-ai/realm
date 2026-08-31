@@ -1,16 +1,16 @@
 import { Suspense } from "react";
 import { and, eq, gte, sql, type SQL } from "drizzle-orm";
-import type { FilterCondition } from "@realm/commons";
-import { conditionToSql } from "@realm/database";
+import type { FilterCondition } from "@foundry/commons";
+import { conditionToSql } from "@foundry/database";
 import { db } from "@/db/client";
 import { emailLog, messageSuppression } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, ListPagination, SkeletonStatCards, StatGrid, parseFilterState, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

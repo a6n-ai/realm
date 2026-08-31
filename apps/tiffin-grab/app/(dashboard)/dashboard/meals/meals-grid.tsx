@@ -3,15 +3,15 @@
 import { useState, useTransition } from "react";
 import { CalendarCheckIcon, ChevronDownIcon, LockIcon } from "lucide-react";
 import { formatDeliveryTime } from "@/lib/format/datetime";
-import { cn } from "@realm/ui/cn";
-import { Skeleton } from "@realm/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
+import { Skeleton } from "@foundry/ui/skeleton";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@realm/ui/sheet";
+} from "@foundry/ui/sheet";
 import { pickDish, applyDishToWeek } from "./actions";
 import type { GridCell } from "@/lib/menu/meals-grid";
 

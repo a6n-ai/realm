@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
 import { SignOutButton } from "@/components/account/leaves/sign-out-button";
 

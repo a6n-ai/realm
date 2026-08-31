@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UsersIcon } from "lucide-react";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import {
   DataTable,
   FilterBar,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { reserveRedemption, reverseRedemption, settleReservation } from "@realm/wallet";
+import { reserveRedemption, reverseRedemption, settleReservation } from "@foundry/wallet";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
 import { walletService } from "../wallet.service";

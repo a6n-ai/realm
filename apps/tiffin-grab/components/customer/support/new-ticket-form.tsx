@@ -3,19 +3,19 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlusIcon, Loader2Icon, SendIcon, XIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@realm/ui/select";
-import { Textarea } from "@realm/ui/textarea";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/select";
+import { Textarea } from "@foundry/ui/textarea";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
 import { makeImageThumbnail } from "@/components/ds";
 import { createTicket } from "@/app/(customer)/me/support/actions";
 

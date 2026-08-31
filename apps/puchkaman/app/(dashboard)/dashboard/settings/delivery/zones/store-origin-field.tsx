@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { StoreIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
+import { Button } from "@foundry/ui/button";
+import { Label } from "@foundry/ui/label";
 import { AddressAutocomplete } from "@/components/order/address-autocomplete";
 import { saveStoreOriginFromAddressAction } from "./actions";
 
@@ -51,7 +51,7 @@ export function StoreOriginField({
           id="store-origin"
           // The component defaults to the public site's brutalist `.input`
           // class, which is scoped out of the CRM stylesheet — without this the
-          // field renders unstyled here. Mirrors @realm/ui's Input.
+          // field renders unstyled here. Mirrors @foundry/ui's Input.
           className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-8 w-full min-w-0 rounded-lg border bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:ring-3 md:text-sm"
           value={address}
           onChange={(v) => {

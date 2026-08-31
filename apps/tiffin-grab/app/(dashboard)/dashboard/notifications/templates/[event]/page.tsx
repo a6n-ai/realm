@@ -4,11 +4,11 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
-import { TemplateEditor, TemplateEditorSkeleton } from "@realm/notifications/ui";
-import { eventLabel } from "@realm/notifications/ui";
-import { BackButton } from "@realm/design-system";
+import { TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
+import { eventLabel } from "@relay/engine/ui";
+import { BackButton } from "@foundry/design-system";
 import { SectionCard } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 
 export default function Page({ params }: { params: Promise<{ event: string }> }) {
   return (

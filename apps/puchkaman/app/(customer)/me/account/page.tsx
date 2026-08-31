@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { UserIcon } from "lucide-react";
 import { redirect } from "next/navigation";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";

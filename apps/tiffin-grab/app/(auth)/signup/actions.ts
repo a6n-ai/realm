@@ -2,8 +2,8 @@
 
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { emailSchema, passwordSchema, phoneSchema } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
+import { emailSchema, passwordSchema, phoneSchema } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { account, users } from "@/db/schema";
 import { auth } from "@/lib/auth";

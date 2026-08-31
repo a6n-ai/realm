@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, within } from "@testing-library/react";
-import { StatGrid, DataTable } from "@realm/design-system";
-import { TableCell } from "@realm/ui/table";
+import { StatGrid, DataTable } from "@foundry/design-system";
+import { TableCell } from "@foundry/ui/table";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),

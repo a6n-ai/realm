@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { phoneSchema } from "@realm/commons";
+import { phoneSchema } from "@foundry/commons";
 
 const cartLineSchema = z.object({
   productPublicId: z.string().min(1),

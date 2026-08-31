@@ -1,5 +1,5 @@
-import { baseStatement, createAccessControl } from "@realm/auth";
-import { Role } from "@realm/commons";
+import { baseStatement, createAccessControl } from "@foundry/auth";
+import { Role } from "@foundry/commons";
 
 // Resource/action vocabulary for this app. `baseStatement` brings better-auth's own
 // `user` and `session` resources (which the admin plugin's endpoints check) plus the

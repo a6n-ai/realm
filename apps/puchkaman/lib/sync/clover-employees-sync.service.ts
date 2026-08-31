@@ -3,7 +3,7 @@
  * Idempotent upsert by cloverEmployeeId; missing remote rows marked inactive.
  */
 
-import type { CloverApiClient, CloverEmployee } from "@realm/clover";
+import type { CloverApiClient, CloverEmployee } from "@foundry/clover";
 import {
   employeesRepository,
   type EmployeeRow,

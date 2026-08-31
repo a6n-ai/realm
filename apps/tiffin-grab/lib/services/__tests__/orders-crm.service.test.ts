@@ -6,10 +6,10 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { nextWeekday } = await import("@realm/commons");
+const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../orders.service");
 const { listOrdersPage, readOrder, resolveSessionVisibleOrgIds } = await import("../orders.service");
-const { eq: cEq } = await import("@realm/commons/model/condition");
+const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const { eq } = await import("drizzle-orm");
 

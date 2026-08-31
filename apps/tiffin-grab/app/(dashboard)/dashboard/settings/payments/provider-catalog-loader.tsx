@@ -1,4 +1,4 @@
-import { resolveStatuses } from "@realm/crm/server";
+import { resolveStatuses } from "@foundry/crm/server";
 import { PLUGINS } from "@/lib/plugins.server";
 import { ProviderCatalog } from "./provider-catalog";
 

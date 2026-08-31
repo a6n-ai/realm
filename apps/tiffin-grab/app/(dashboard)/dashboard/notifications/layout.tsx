@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BellIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
-import { NotificationsNav } from "@realm/notifications/ui";
+import { NotificationsNav } from "@relay/engine/ui";
 
 export default async function NotificationsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
-import { drainPending as pkgDrain } from "@realm/notifications";
+import { drainPending as pkgDrain } from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationOutbox, notificationPrefs, users } from "@/db/schema";
 import { notificationTables } from "@/lib/notifications/tables";

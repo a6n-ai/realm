@@ -1,6 +1,6 @@
 "use client";
 
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { ResponsiveDialog } from "@/components/ds";
 import { PlanTags } from "./plan-tags";
 import type { PlanTag } from "@/lib/services/dishes.service";

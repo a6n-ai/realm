@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { passwordSchema } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Card, CardContent } from "@realm/ui/card";
+import { passwordSchema } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form,
   FormControl,
@@ -16,8 +16,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { setInitialPassword } from "./actions";
 
 const schema = z

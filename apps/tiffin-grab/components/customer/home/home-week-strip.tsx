@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard } from "@/components/ds";
 import { TransitionLink } from "@/components/motion";
 import { WeekRail } from "@/app/(customer)/me/deliveries/week-rail";

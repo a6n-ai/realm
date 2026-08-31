@@ -3,10 +3,10 @@ import { Poppins } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelCircle } from "geist/font/pixel";
-import { ThemeProvider, themeInitScript } from "@realm/themes";
+import { ThemeProvider, themeInitScript } from "@foundry/themes";
 import { InlineScript } from "@/components/inline-script";
-import { Toaster } from "@realm/ui/sonner";
-import { TooltipProvider } from "@realm/ui/tooltip";
+import { Toaster } from "@foundry/ui/sonner";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import "./globals.css";
 

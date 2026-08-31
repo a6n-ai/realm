@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const isMobile = vi.fn(() => false);
-vi.mock("@realm/ui/use-mobile", () => ({ useIsMobile: () => isMobile() }));
+vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => isMobile() }));
 
 import { VacationDateField } from "../vacation-date-field";
 

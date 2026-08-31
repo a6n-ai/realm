@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 /**
  * Shared rounded-square backdrop every illustration in this set sits on — same corner

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Building2Icon, UsersIcon } from "lucide-react";
-import { PageHeader, RoutedTabNav } from "@realm/design-system";
+import { PageHeader, RoutedTabNav } from "@foundry/design-system";
 
 // "Users" points at the existing staff/user management page — puchkaman
 // already has one at /dashboard/settings/users, so this tab reuses it rather

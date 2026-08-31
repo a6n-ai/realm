@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { PackageIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { EmptyState, SectionCard } from "@/components/ds";
 import { IOS_BUTTON } from "@/components/customer/ios-button";
 import { MealInfoChips, PlanBox, PlanHeadingRow } from "@/components/customer/plan-box";

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { WeekStartPicker } from "./week-start-picker";
 import { upsertWeek } from "./actions";
 

@@ -10,9 +10,9 @@ import {
   UserIcon,
   type LucideIcon,
 } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
-import { getGoogleReviewsConfig } from "@realm/google-reviews";
-import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@realm/design-system";
+import { getCloverConnection } from "@foundry/clover";
+import { getGoogleReviewsConfig } from "@foundry/google-reviews";
+import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 

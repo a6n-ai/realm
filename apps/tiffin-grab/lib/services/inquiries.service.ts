@@ -1,7 +1,7 @@
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@realm/database";
-import { ValidationError, phoneSchema, emailSchema } from "@realm/commons";
-import type { Condition, FilterCondition } from "@realm/commons/model/condition";
-import type { PageRequest } from "@realm/commons/util/pagination";
+import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver } from "@foundry/database";
+import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
+import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
+import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
@@ -340,7 +340,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   // The pipeline list: server-side unified filters (Condition) + offset
   // pagination + unpaginated total. Named `listForPipeline` (not `list`) on
   // purpose — the framework reserves `BaseService.list` for the generic
-  // raw-row paged API that @realm/routes exposes, and a projected/joined shape
+  // raw-row paged API that @foundry/routes exposes, and a projected/joined shape
   // can't override it. Tasks 7/8 copy this method, not the base `list`.
   // No explicit return annotation: PipelineRow is inferred from it (below), so
   // annotating `Promise<Page<PipelineRow>>` would be a circular type reference.

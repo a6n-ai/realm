@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { handler, problem } from "@realm/routes";
+import { handler, problem } from "@foundry/routes";
 import { requireStaff } from "@/lib/auth/guards";
 import { filesService } from "@/lib/files";
 import { sanitizeFilename, validateUpload } from "./validate";

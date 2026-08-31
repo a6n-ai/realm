@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CoinsIcon, ReceiptIcon, ScrollTextIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@realm/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import type { FinancesTab } from "./finances-tab";
 
 const TABS: { id: FinancesTab; label: string; icon: typeof CoinsIcon }[] = [

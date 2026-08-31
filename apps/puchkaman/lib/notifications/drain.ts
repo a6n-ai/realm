@@ -3,7 +3,7 @@ import {
   drainPending as drain,
   dueCampaigns,
   materializeCampaign,
-} from "@realm/notifications";
+} from "@relay/engine";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";

@@ -15,8 +15,8 @@ import {
   StickyNoteIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@realm/ui/badge";
-import { cn } from "@realm/ui/cn";
+import { Badge } from "@foundry/ui/badge";
+import { cn } from "@foundry/ui/cn";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@/lib/format/money";

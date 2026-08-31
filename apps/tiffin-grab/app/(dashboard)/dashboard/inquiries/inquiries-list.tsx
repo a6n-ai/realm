@@ -7,8 +7,8 @@ import {
   DataTable, ListPagination, StageBadge, type Column, type FacetDef,
 } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { TableCell } from "@realm/ui/table";
-import { Badge } from "@realm/ui/badge";
+import { TableCell } from "@foundry/ui/table";
+import { Badge } from "@foundry/ui/badge";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";

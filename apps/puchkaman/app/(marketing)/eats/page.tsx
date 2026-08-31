@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { CATEGORIES, CATEGORY_IDS, type CategoryId } from "@/lib/menu-categories";
 import { groupByCloverSections } from "@/lib/products/public-menu";

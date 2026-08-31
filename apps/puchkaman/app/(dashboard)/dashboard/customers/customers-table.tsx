@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
-import { DataTable, ListPagination, type Column, type FacetDef } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+import { DataTable, ListPagination, type Column, type FacetDef } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { DownloadIcon, Loader2Icon, UploadIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Button } from "@foundry/ui/button";
+import { Label } from "@foundry/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { IMPORT_FIELDS, suggestMapping, type ImportFieldKey, type ImportMapping } from "./inquiry-import-columns";
 

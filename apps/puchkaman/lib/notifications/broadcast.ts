@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { memoryBus } from "@realm/realtime/server";
+import { memoryBus } from "@foundry/realtime/server";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 
@@ -9,7 +9,7 @@ export function notifyChannel(userPublicId: string): string {
 }
 
 /**
- * Live "something new" ping. @realm/realtime's message frame carries no payload,
+ * Live "something new" ping. @foundry/realtime's message frame carries no payload,
  * so the bell refetches the feed rather than being handed the row — which also
  * keeps the notification body off a transport with no per-frame authorization.
  *

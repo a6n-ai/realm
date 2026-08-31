@@ -1,5 +1,5 @@
 import { and, eq, ilike, sql } from "drizzle-orm";
-import type { OrgLocation } from "@realm/commons";
+import type { OrgLocation } from "@foundry/commons";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 

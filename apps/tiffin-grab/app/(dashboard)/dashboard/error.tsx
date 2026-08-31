@@ -1,6 +1,6 @@
 "use client";
 import { AlertTriangleIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 
 export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {

@@ -1,7 +1,7 @@
 import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
-import { Card } from "@realm/ui/card";
-import { Badge } from "@realm/ui/badge";
+import { Card } from "@foundry/ui/card";
+import { Badge } from "@foundry/ui/badge";
 import { MealSizeItems } from "../meal-size-items";
 import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";

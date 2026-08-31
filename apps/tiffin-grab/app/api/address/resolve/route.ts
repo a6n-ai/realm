@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@realm/commons";
-import { handler, json } from "@realm/routes";
-import { awsPlaceProvider } from "@realm/places";
+import { clientIp, isRateLimited } from "@foundry/commons";
+import { handler, json } from "@foundry/routes";
+import { awsPlaceProvider } from "@foundry/places";
 
 const resolveSchema = z.object({
   placeId: z.string().trim().min(1).optional(),

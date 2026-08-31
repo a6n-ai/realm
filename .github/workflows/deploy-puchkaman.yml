@@ -13,7 +13,8 @@ on:
     branches: [main]
     paths:
       - "apps/puchkaman/**"
-      - "packages/**"
+      - "foundry/**"
+      - "relay/**"
       - "deployment/prod/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

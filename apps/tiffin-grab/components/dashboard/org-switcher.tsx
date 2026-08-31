@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@realm/ui/dropdown-menu";
+} from "@foundry/ui/dropdown-menu";
 import { switchActiveOrganization } from "@/lib/auth/organization-actions";
 import type { MemberOrganization } from "@/lib/services/organizations.service";
 

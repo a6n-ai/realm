@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TriangleAlertIcon } from "lucide-react";
-import { getCloverConnection, toPublicCloverConnection } from "@realm/clover";
+import { getCloverConnection, toPublicCloverConnection } from "@foundry/clover";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 /**

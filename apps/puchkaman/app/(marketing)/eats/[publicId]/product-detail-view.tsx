@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { useCart } from "@/components/cart/cart-provider";
 import { ModifierPicker } from "@/components/order/modifier-picker";

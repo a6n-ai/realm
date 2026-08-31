@@ -1,5 +1,5 @@
-import { updatableColumns } from "@realm/database";
-import { makeWalletTables } from "@realm/wallet/schema";
+import { updatableColumns } from "@foundry/database";
+import { makeWalletTables } from "@foundry/wallet/schema";
 import { bigint, integer, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { ledgerDirection } from "./coupons";
 import { durationPackages, mealSizes } from "./catalog";

@@ -1,4 +1,4 @@
-import type { CloverApiClient, CloverEmployee } from "@realm/clover";
+import type { CloverApiClient, CloverEmployee } from "@foundry/clover";
 import { eq, inArray } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/db/client";

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@realm/commons";
-import { handler, json, problem } from "@realm/routes";
+import { clientIp, isRateLimited } from "@foundry/commons";
+import { handler, json, problem } from "@foundry/routes";
 import { haversineKm } from "@/lib/delivery/distance";
 import { resolveAddress } from "@/lib/delivery/resolve-address";
 import { availableTypes, deliveryLimitKm, unavailableTypesByDistance } from "@/lib/delivery/zones";
@@ -12,7 +12,7 @@ const checkAddressSchema = z.object({
 });
 
 // This route calls Places Details/Text Search per request against
-// GOOGLE_PLACES_API_KEY — the same key @realm/google-reviews uses for the
+// GOOGLE_PLACES_API_KEY — the same key @foundry/google-reviews uses for the
 // marketing site. It's public and unauthenticated, so throttle per IP to
 // keep an unattended loop from running up billing / starving reviews.
 const CHECK_ADDRESS_LIMIT = 20;

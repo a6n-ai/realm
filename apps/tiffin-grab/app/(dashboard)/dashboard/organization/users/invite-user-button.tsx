@@ -1,6 +1,6 @@
 "use client";
 
-import { UserInviteDialog } from "@realm/crm";
+import { UserInviteDialog } from "@foundry/crm";
 import { inviteUserAction } from "./actions";
 
 export function InviteUserButton({ roles }: { roles: { value: string; label: string }[] }) {

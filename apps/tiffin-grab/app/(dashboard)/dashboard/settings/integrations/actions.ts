@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { blockedBy, resolveStatuses } from "@realm/crm/server";
+import { blockedBy, resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 import { PLUGINS } from "@/lib/plugins.server";

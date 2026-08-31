@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { Role } from "@realm/commons";
-import { CLOVER_PLUGIN_ID } from "@realm/clover/plugin";
+import { Role } from "@foundry/commons";
+import { CLOVER_PLUGIN_ID } from "@foundry/clover/plugin";
 import { grantedKeys } from "@/lib/auth/nav-permissions";
 import { getNavSections, getUserMenuItems } from "../app-sidebar";
 

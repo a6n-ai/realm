@@ -1,6 +1,6 @@
 "use client";
 
-import { PluginCatalog, PluginCatalogSkeleton, type PluginCatalogStatus } from "@realm/crm";
+import { PluginCatalog, PluginCatalogSkeleton, type PluginCatalogStatus } from "@foundry/crm";
 import { PLUGIN_METAS } from "@/lib/plugins";
 import { setPluginInstalledAction } from "./actions";
 

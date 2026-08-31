@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 /** Sticky top chrome for public subscribe/checkout — Back + Close so users aren't trapped. */
 export function SubscribeChrome({

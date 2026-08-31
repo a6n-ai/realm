@@ -1,4 +1,4 @@
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "Pending", active: "Active", upcoming: "Upcoming", waitlisted: "Waitlisted", paused: "Paused", cancelled: "Cancelled", completed: "Completed",

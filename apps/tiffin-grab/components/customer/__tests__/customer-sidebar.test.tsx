@@ -2,8 +2,8 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SidebarProvider } from "@realm/ui/sidebar";
-import { TooltipProvider } from "@realm/ui/tooltip";
+import { SidebarProvider } from "@foundry/ui/sidebar";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/me",
@@ -17,7 +17,7 @@ afterEach(cleanup);
 
 const user = { name: "Demo Customer", email: "demo@x.ca", image: null };
 
-// Sidebar (from @realm/ui/sidebar) reads its collapsed/open state off
+// Sidebar (from @foundry/ui/sidebar) reads its collapsed/open state off
 // SidebarContext via useSidebar(), and SidebarMenuButton's tooltip requires a
 // TooltipProvider (normally supplied app-wide by app/layout.tsx) — both throw
 // if missing, so the test mirrors the real render tree.

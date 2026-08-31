@@ -1,4 +1,4 @@
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import {
   CALENDAR_LEGEND,
   calendarLegendKey,

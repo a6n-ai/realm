@@ -3,7 +3,7 @@ import { and, eq, isNull, like, not, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox } from "@/db/schema";
 import { StatGrid, SkeletonStatCards } from "@/components/ds";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 

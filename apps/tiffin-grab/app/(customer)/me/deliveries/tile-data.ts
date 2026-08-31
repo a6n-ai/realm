@@ -3,7 +3,7 @@
 // an abstract grid number. Kept separate from calendar-constants.ts because this is presentation
 // derivation (which pick to show as the tile's face), not the CalendarCell shape itself.
 
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import type { CalendarCell } from "./calendar-constants";
 import { calendarDayStatus, type DayStatus } from "./day-status";
 

@@ -2,7 +2,7 @@
 // service — the builder's working copy, the poster, the meal grid, the customer picker —
 // speaks in category keys ("sabzi", "rice"). Keys are stable, readable and already on the
 // wire, so the translation lives here at the storage boundary rather than rippling upward.
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories } from "@/db/schema";
 

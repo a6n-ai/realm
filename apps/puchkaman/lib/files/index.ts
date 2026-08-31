@@ -1,4 +1,4 @@
-import { FileSystemService, LocalStorageProvider, S3StorageProvider, type StorageProvider } from "@realm/storage";
+import { FileSystemService, LocalStorageProvider, S3StorageProvider, type StorageProvider } from "@foundry/storage";
 import { db } from "@/db/client";
 
 function required(name: string): string {

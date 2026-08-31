@@ -1,5 +1,5 @@
-import type { FileDetail } from "@realm/storage/model";
-import { cn } from "@realm/ui/cn";
+import type { FileDetail } from "@foundry/storage/model";
+import { cn } from "@foundry/ui/cn";
 import Image from "next/image";
 import { Utensils } from "lucide-react";
 import { DISH_CATEGORY_ILLUSTRATION } from "@/components/illustrations/dish-categories";

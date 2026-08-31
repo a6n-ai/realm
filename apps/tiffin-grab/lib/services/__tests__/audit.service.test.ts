@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 // recordAudit logs failures through pino (createLogger → stdout via fd 1), which
 // no console/stdout spy can catch. Mock the logger so its `.error` is assertable.
 const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
-vi.mock("@realm/commons/logger", () => {
+vi.mock("@foundry/commons/logger", () => {
   const stub = {
     error: logError,
     info: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {},

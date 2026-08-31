@@ -1,4 +1,4 @@
-import { RoutedTabNav } from "@realm/design-system";
+import { RoutedTabNav } from "@foundry/design-system";
 
 const TABS = [
   { label: "Users", href: "/dashboard/organization/users" },

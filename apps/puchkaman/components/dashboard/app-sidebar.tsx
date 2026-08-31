@@ -24,8 +24,8 @@ import {
   UtensilsCrossedIcon,
   type LucideIcon,
 } from "lucide-react";
-import { CLOVER_PLUGIN_ID, cloverNavSections } from "@realm/clover/plugin";
-import type { PluginCatalogStatus } from "@realm/crm";
+import { CLOVER_PLUGIN_ID, cloverNavSections } from "@foundry/clover/plugin";
+import type { PluginCatalogStatus } from "@foundry/crm";
 import { signOut } from "@/lib/auth/client";
 import {
   Sidebar,
@@ -38,7 +38,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@realm/ui/sidebar";
+} from "@foundry/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,8 +47,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@realm/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@realm/ui/avatar";
+} from "@foundry/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 
 export type NavItem = {
   title: string;

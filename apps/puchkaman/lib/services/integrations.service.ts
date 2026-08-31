@@ -6,8 +6,8 @@ import {
   resolveIntegrationsConfig,
   type IntegrationsConfig,
   type IntegrationsConfigStore,
-} from "@realm/clover";
-import { UpdatableRepository } from "@realm/database";
+} from "@foundry/clover";
+import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app, organization } from "@/db/schema";
 import { getSession } from "../auth/session";

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Role, type RoleValue } from "@realm/commons";
+import { Role, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { Switch } from "@realm/ui/switch";
-import { TableCell } from "@realm/ui/table";
+import { Button } from "@foundry/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Switch } from "@foundry/ui/switch";
+import { TableCell } from "@foundry/ui/table";
 import { resetStaffPassword, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 

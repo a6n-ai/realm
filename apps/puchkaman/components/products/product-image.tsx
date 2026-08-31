@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { FileDetail } from "@realm/storage/model";
+import type { FileDetail } from "@foundry/storage/model";
 import { Ph } from "@/components/brutal/shared";
 
 // Real photo when the admin has uploaded one; otherwise the same striped

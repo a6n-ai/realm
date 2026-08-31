@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { resolveStatuses } from "@realm/crm/server";
+import { resolveStatuses } from "@foundry/crm/server";
 import { requireAdmin } from "@/lib/auth/guards";
 import { PLUGINS } from "@/lib/plugins.server";
 import { PluginsCatalog, PluginsCatalogSkeleton } from "./plugins-catalog";

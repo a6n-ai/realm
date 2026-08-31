@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@realm/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 
 // Thin client shell around two server-loaded <ResourceEditor> trees (passed as
 // children props, not rendered here) — keeps CatalogData/ResourceEditor

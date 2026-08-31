@@ -1,5 +1,5 @@
-import { ValidationError } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
+import { ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { optimoRouteApiKey } from "./config";
 
 const log = createLogger("optimoroute.client");

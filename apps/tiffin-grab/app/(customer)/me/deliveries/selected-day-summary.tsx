@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { ChevronUpIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import type { CalendarCell } from "./calendar-constants";
 import type { DeliveryCardMeal } from "./meal-chips";
 import { selectedDaySummaryMessage } from "./day-summary-message";

@@ -1,5 +1,5 @@
 import { authorizeChannel } from "@/lib/realtime/authorize";
-import { memoryBus } from "@realm/realtime/server";
+import { memoryBus } from "@foundry/realtime/server";
 
 export async function POST(request: Request): Promise<Response> {
   const { channel, typing } = (await request.json()) as { channel?: string; typing?: boolean };

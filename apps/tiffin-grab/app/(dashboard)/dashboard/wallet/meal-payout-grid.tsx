@@ -4,9 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@realm/ui/button";
-import { Label } from "@realm/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Button } from "@foundry/ui/button";
+import { Label } from "@foundry/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { NumberField } from "../discounts/controls";
 import { addMealPayoutOverride, removeMealPayoutOverride, saveMealPayoutRow, type MealPayoutAwardResult } from "./actions";
 

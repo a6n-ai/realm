@@ -1,4 +1,4 @@
-import { getCloverConnection, isCloverEcommerceConfigured } from "@realm/clover";
+import { getCloverConnection, isCloverEcommerceConfigured } from "@foundry/clover";
 import { createCloverClient } from "@/lib/clover/client";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 

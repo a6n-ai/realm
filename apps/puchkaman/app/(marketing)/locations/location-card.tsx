@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { StaticMap, writeFranchiseCookie } from "@realm/design-system";
+import { StaticMap, writeFranchiseCookie } from "@foundry/design-system";
 import { Btn } from "@/components/brutal/shared";
 import type { FranchiseLocation } from "@/lib/services/organizations.service";
 

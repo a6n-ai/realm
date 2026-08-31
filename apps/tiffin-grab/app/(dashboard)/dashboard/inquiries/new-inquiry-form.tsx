@@ -6,16 +6,16 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
+import { cn } from "@foundry/ui/cn";
 import dynamic from "next/dynamic";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Textarea } from "@realm/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@realm/ui/tooltip";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Textarea } from "@foundry/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { inquiryFormSchema, type InquiryFormInput, type InquiryFormValues } from "./inquiry-schema";
 import { createInquiry } from "./actions";
 import { NoSources } from "../_leads/no-sources";
@@ -41,7 +41,7 @@ function Req() {
   return <span className="text-primary">*</span>;
 }
 
-const PhoneInput = dynamic(() => import("@realm/ui/phone-input").then((m) => m.PhoneInput), {
+const PhoneInput = dynamic(() => import("@foundry/ui/phone-input").then((m) => m.PhoneInput), {
   ssr: false,
   loading: () => <Input disabled placeholder="Phone" />,
 });

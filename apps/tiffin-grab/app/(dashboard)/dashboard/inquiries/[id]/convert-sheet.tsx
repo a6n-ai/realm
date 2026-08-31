@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { AlertTriangleIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { ResponsiveDialog } from "@realm/design-system";
+import { Button } from "@foundry/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
 import { formatMoney } from "@/lib/format/money";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import type { OrderFormInput } from "./order-schema";

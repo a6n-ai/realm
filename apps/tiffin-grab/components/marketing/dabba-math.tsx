@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 export function DabbaMath({ eyebrow, cta = "See my price →" }: { eyebrow?: string; cta?: string }) {
   return (

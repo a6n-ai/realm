@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { PackageIcon } from "lucide-react";
-import { formatMoney as fmt } from "@realm/commons";
+import { formatMoney as fmt } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Country } from "react-phone-number-input";
-import { PhoneInput } from "@realm/ui/phone-input";
+import { PhoneInput } from "@foundry/ui/phone-input";
 import type { PricingResult } from "@/lib/pricing";
 import {
   reprice,
@@ -15,16 +15,16 @@ import {
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
-import { emailSchema, phoneSchema } from "@realm/commons";
+import { emailSchema, phoneSchema } from "@foundry/commons";
 import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/components/wizard/selections";
 import { Invoice } from "@/components/wizard/invoice";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { AddressFields } from "@realm/ui/address-fields";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { AddressFields } from "@foundry/ui/address-fields";
 import { Card } from "@/components/ds";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { Check, Coins, MapPin, ShieldCheck, Tag } from "lucide-react";
 import { Stepper } from "@/components/stepper";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";

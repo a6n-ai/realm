@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PercentIcon } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { getCloverConnection } from "@foundry/clover";
+import { PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { redirect } from "next/navigation";
 import { CloverCatalogSyncActions } from "@/components/admin/clover-catalog-sync-actions";
 import { requireAdmin } from "@/lib/auth/guards";

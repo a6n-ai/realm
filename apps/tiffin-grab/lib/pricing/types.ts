@@ -1,4 +1,4 @@
-import type { ComputedTaxLine } from "@realm/payments";
+import type { ComputedTaxLine } from "@foundry/payments";
 import type { PricingTier } from "./tiers";
 
 export interface PricingSelections {

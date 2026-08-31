@@ -6,7 +6,7 @@ import {
   type CloverItem,
   type CloverItemCreateInput,
   type CloverPriceType,
-} from "@realm/clover";
+} from "@foundry/clover";
 import { CATEGORIES, type CategoryId } from "@/lib/menu-categories";
 import { uniqueSlug } from "@/lib/products/slug";
 import { resolveActingOrgId } from "@/lib/services/integrations.service";

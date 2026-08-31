@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { cn } from "@realm/ui/cn";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { cn } from "@foundry/ui/cn";
 import type { ZoneLike } from "@/lib/catalog/postal";
 import { formatMoney } from "@/lib/format/money";
 import type { InquiryStage, ActivityType } from "@/lib/services/inquiries.service";

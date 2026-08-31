@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
-import { Skeleton } from "@realm/ui/skeleton";
-import { cn } from "@realm/ui/cn";
-import type { RealtimeRole } from "@realm/realtime";
+} from "@foundry/ui/select";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { cn } from "@foundry/ui/cn";
+import type { RealtimeRole } from "@foundry/realtime";
 import { MessageComposer } from "@/components/ds";
 import { assignOwner, replyTicket, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";

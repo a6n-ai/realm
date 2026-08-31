@@ -7,17 +7,17 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { emailSchema } from "@realm/commons";
+import { emailSchema } from "@foundry/commons";
 import { authClient, signIn } from "@/lib/auth/client";
 import { clearLockSession } from "@/lib/auth/lock-actions";
 import { PinOtp } from "@/components/pin-otp";
-import { CodeOtp } from "@realm/auth-ui";
-import { Button } from "@realm/ui/button";
-import { Card, CardContent } from "@realm/ui/card";
+import { CodeOtp } from "@foundry/auth-ui";
+import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { verifyPinAction } from "./actions";
 
 // Single auth screen. Password by default; when a locked session with a PIN

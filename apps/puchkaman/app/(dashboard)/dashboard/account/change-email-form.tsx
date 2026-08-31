@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChangeEmailForm as SharedChangeEmailForm } from "@realm/auth-ui";
+import { ChangeEmailForm as SharedChangeEmailForm } from "@foundry/auth-ui";
 import { authClient } from "@/lib/auth/client";
 
 /** App wiring for the shared OTP change-email form. */

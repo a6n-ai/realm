@@ -1,4 +1,4 @@
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import { boolean, pgTable, text } from "drizzle-orm/pg-core";
 
 export const featureFlags = pgTable("feature_flags", {

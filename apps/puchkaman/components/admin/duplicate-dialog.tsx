@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import type { DuplicateCandidate } from "@/lib/sync/menu-sync.service";
 import { apiFetch } from "@/lib/http/api-fetch";
 

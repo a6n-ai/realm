@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { passwordSchema } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+import { passwordSchema } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { setInitialPassword } from "@/app/(auth)/set-password/actions";
 
 const schema = z
@@ -20,7 +20,7 @@ type FormValues = z.infer<typeof schema>;
 
 // OTP-only customers have no credential row yet, so this calls the same
 // setInitialPassword action the forced first-login /set-password screen uses
-// (no current-password prompt) instead of @realm/auth-ui's ChangePasswordForm,
+// (no current-password prompt) instead of @foundry/auth-ui's ChangePasswordForm,
 // which always requires one.
 export function SetPasswordForm() {
   const router = useRouter();

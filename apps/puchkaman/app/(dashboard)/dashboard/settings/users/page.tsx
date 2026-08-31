@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { and, inList } from "@realm/commons/model/condition";
-import { getCloverConnection } from "@realm/clover";
-import { PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
+import { and, inList } from "@foundry/commons/model/condition";
+import { getCloverConnection } from "@foundry/clover";
+import { PageShell, SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { ZoneMap, clampRadiusKm, type MapZone } from "./zone-map";
 import { ZonesTable } from "./zones-table";
 import { ZoneEditDialog } from "./zone-edit-dialog";

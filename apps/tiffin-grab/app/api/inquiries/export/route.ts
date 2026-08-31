@@ -1,4 +1,4 @@
-import { handler } from "@realm/routes";
+import { handler } from "@foundry/routes";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { requireStaff } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/services/inquiries.service";

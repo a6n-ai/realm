@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 // Reuses the app's existing ok(green)/warn(orange) status-semantic tokens — the same pair
 // every other status pill in the app already uses (see TONE_CLASS in

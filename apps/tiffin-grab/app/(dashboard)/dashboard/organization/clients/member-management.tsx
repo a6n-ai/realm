@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { addMemberAction, removeMemberAction, updateMemberRoleAction } from "@/lib/services/organizations-actions";
 import type { MemberRole, UserSearchRow } from "@/lib/services/organizations.service";
 import { UserPicker } from "./user-picker";

@@ -1,4 +1,4 @@
-import { createQueryRoute } from "@realm/routes";
+import { createQueryRoute } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 

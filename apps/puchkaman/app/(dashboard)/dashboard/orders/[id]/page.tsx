@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
-import { getCloverConnection } from "@realm/clover";
-import { BackButton, PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
+import { formatMoney } from "@foundry/commons";
+import { getCloverConnection } from "@foundry/clover";
+import { BackButton, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
 import { CheckPaymentStatusButton } from "@/components/admin/check-payment-status-button";
 import { OrderEmployeeAssign } from "@/components/admin/order-employee-assign";
 import { requirePermission } from "@/lib/auth/guards";

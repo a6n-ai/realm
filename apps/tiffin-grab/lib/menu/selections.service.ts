@@ -2,7 +2,7 @@
 // resolveCategoriesForDay (resolve-delivery-meal.ts). buildMealsGrid consumes it, and any
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";

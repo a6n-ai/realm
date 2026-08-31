@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { SectionCard } from "@/components/ds";
 
 /** Slim subscribe strip — replaces oversized Browse plans + Meal sizes cards on Menu. */

@@ -7,17 +7,17 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, ChevronsUpDown, X } from "lucide-react";
 import { SectionCard } from "@/components/ds";
-import { Button } from "@realm/ui/button";
-import { Badge } from "@realm/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
 import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Textarea } from "@realm/ui/textarea";
+} from "@foundry/ui/form";
+import { Textarea } from "@foundry/ui/textarea";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@realm/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { cn } from "@foundry/ui/cn";
 import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
 
 const ALLERGEN_OPTIONS = [

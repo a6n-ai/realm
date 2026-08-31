@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ClipboardListIcon, LayoutDashboardIcon, MenuIcon, PackageIcon } from "lucide-react";
-import { BottomNav, type BottomNavItem } from "@realm/design-system";
+import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 import { MoreDrawer } from "./more-drawer";
 import { QuickCreateDrawer } from "./quick-create-drawer";
 

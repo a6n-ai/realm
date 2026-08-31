@@ -2,9 +2,9 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import type { FileDetail } from "@realm/storage/model";
-import { Button } from "@realm/ui/button";
-import { cn } from "@realm/ui/cn";
+import type { FileDetail } from "@foundry/storage/model";
+import { Button } from "@foundry/ui/button";
+import { cn } from "@foundry/ui/cn";
 import { apiFetch } from "@/lib/http/api-fetch";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];

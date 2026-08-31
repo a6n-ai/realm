@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { CloverInventorySyncDialog } from "@/components/admin/clover-inventory-sync-dialog";
 import { DeleteAllProductsDialog } from "@/components/admin/delete-all-products-dialog";
 import { SyncDialog } from "@/components/admin/sync-dialog";

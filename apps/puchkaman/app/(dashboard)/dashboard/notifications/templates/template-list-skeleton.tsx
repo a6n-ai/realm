@@ -1,4 +1,4 @@
-import { DataTableSkeleton } from "@realm/design-system";
+import { DataTableSkeleton } from "@foundry/design-system";
 import { TEMPLATE_COLUMNS } from "@/components/notifications/template-columns";
 
 // Loading twin is owned by DataTable — same COLUMNS, zero drift. This module is a

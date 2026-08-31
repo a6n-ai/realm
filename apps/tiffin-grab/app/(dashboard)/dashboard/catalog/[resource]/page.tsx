@@ -8,8 +8,8 @@ import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, dur
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishesService } from "@/lib/services/dishes.service";
-import { columnResolver, conditionToSql, type FilterResolver } from "@realm/database";
-import { parseFilterState, type FacetDef } from "@realm/design-system";
+import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
+import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";

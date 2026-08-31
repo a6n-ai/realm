@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BellIcon } from "lucide-react";
-import { PageHeader, PageShell } from "@realm/design-system";
-import { NotificationsNav } from "@realm/notifications/ui";
+import { PageHeader, PageShell } from "@foundry/design-system";
+import { NotificationsNav } from "@relay/engine/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 
 export default async function NotificationsLayout({ children }: { children: ReactNode }) {

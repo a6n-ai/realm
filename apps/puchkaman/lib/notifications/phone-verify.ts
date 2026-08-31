@@ -1,6 +1,6 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
-import { toE164, type ChannelProvider } from "@realm/notifications";
+import { toE164, type ChannelProvider } from "@relay/engine";
 import { db } from "@/db/client";
 import { phoneVerification } from "@/db/schema";
 

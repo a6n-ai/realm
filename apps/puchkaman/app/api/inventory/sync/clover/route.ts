@@ -1,5 +1,5 @@
-import { ValidationError } from "@realm/commons";
-import { handler, json } from "@realm/routes";
+import { ValidationError } from "@foundry/commons";
+import { handler, json } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 

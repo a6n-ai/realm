@@ -1,5 +1,5 @@
-import { NotFoundError, ValidationError } from "@realm/commons";
-import { handler, json, problem } from "@realm/routes";
+import { NotFoundError, ValidationError } from "@foundry/commons";
+import { handler, json, problem } from "@foundry/routes";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/guards";
 import { ASSOCIATION_KINDS, inventoryCatalogService } from "@/lib/services/inventory.service";

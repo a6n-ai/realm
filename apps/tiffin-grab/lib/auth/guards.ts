@@ -1,5 +1,5 @@
-import { Role } from "@realm/commons";
-import { createPermissionGuards, createRoleGuards } from "@realm/auth";
+import { Role } from "@foundry/commons";
+import { createPermissionGuards, createRoleGuards } from "@foundry/auth";
 import { getSession } from "./session";
 import { roles } from "./permissions";
 

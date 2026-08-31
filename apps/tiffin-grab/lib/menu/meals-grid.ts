@@ -1,6 +1,6 @@
 import { asc, eq, inArray } from "drizzle-orm";
-import { parseIsoDateUtc, weekdayKey } from "@realm/commons";
-import type { FileDetail } from "@realm/storage/model";
+import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
+import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { mondayOfIso, thisWeekStartIso, type DayOfWeek, type DeliveryDate } from "./delivery-dates";

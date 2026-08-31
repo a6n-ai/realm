@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { Navigation } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { StaticMap, writeFranchiseCookie } from "@realm/design-system";
+import { Button } from "@foundry/ui/button";
+import { StaticMap, writeFranchiseCookie } from "@foundry/design-system";
 import type { FranchiseLocation } from "@/lib/services/organizations.service";
 
 // Turn-by-turn directions link, key-free.

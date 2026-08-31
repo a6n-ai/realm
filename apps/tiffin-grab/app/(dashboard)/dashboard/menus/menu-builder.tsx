@@ -3,18 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { CheckCircle2, Copy, Eye, EyeOff } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@realm/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@realm/ui/dropdown-menu";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { DAYS, DAY_LABELS, type DayOfWeek, type PosterItem } from "@/lib/menu/poster";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { MenuGrid } from "./menu-grid";
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 const AUTOSAVE_MS = 1500;
 

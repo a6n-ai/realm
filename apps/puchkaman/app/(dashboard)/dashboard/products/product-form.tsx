@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import type { FileDetail } from "@realm/storage/model";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import type { FileDetail } from "@foundry/storage/model";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 import {
   Form,
   FormControl,
@@ -15,18 +15,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import { Textarea } from "@realm/ui/textarea";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
+import { Textarea } from "@foundry/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@realm/ui/select";
-import { Switch } from "@realm/ui/switch";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/select";
+import { Switch } from "@foundry/ui/switch";
+import { cn } from "@foundry/ui/cn";
 import { ImageUploader } from "@/components/files/image-uploader";
 import { apiFetch } from "@/lib/http/api-fetch";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/menu-categories";

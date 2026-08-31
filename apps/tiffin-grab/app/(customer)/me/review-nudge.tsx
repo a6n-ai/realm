@@ -1,5 +1,5 @@
-import { getGoogleReviewsConfig, shouldNudge, writeReviewUrl } from "@realm/google-reviews";
-import { ReviewNudgeCard } from "@realm/google-reviews/ui";
+import { getGoogleReviewsConfig, shouldNudge, writeReviewUrl } from "@foundry/google-reviews";
+import { ReviewNudgeCard } from "@foundry/google-reviews/ui";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 import { getSession } from "@/lib/auth/session";

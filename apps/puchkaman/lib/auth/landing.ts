@@ -1,4 +1,4 @@
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 
 const ADMIN_HOME = "/dashboard";
 const CUSTOMER_HOME = "/me";

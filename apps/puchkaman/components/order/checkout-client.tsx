@@ -11,7 +11,7 @@ import { type PublicOffer } from "@/components/order/discount-picker";
 import { SavingsPanel } from "@/components/order/savings-panel";
 import { OrderSummary } from "@/components/order/order-summary";
 import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/phone-field";
-import { StaticMap } from "@realm/design-system";
+import { StaticMap } from "@foundry/design-system";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";

@@ -1,5 +1,5 @@
 import { GeoMapsClient } from "@aws-sdk/client-geo-maps";
-import { createLogger } from "@realm/commons/logger";
+import { createLogger } from "@foundry/commons/logger";
 
 export const mapsLog = createLogger("geo-maps-proxy");
 

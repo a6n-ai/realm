@@ -8,9 +8,9 @@ import {
   SectionCard,
   SkeletonStatCards,
   StatGrid,
-} from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+} from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { getSession } from "@/lib/auth/session";
 import { roleCan } from "@/lib/auth/guards";
 import { productsService, type ProductListRow } from "@/lib/services/products.service";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { RoleValue } from "@realm/commons";
+import type { RoleValue } from "@foundry/commons";
 import { UsersIcon } from "lucide-react";
 import { DataTable, type Column } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";

@@ -3,7 +3,7 @@ import { Archivo, Space_Mono } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelCircle } from "geist/font/pixel";
-import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@realm/themes";
+import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@foundry/themes";
 import { SITE_NAME, SITE_URL, buildMetadata, localBusinessJsonLd } from "@/lib/seo";
 import { InlineScript } from "@/components/inline-script";
 import "./globals.css";
@@ -37,7 +37,7 @@ const businessJsonLd = localBusinessJsonLd();
 // its own <script>, not one array in a single tag, since Google's structured
 // data tooling expects one JSON-LD object (or one top-level @graph) per block.
 
-// Migrate legacy marketing-only key → shared @realm/themes key, then apply
+// Migrate legacy marketing-only key → shared @foundry/themes key, then apply
 // `.dark` + `data-theme` before first paint (same contract as tiffin-grab).
 const THEME_BOOT = `(function(){try{var k="${THEME_STORAGE_KEY}";if(!localStorage.getItem(k)){var l=localStorage.getItem("puchkaman-theme");if(l==="light"||l==="dark")localStorage.setItem(k,l)}}catch(e){}})();${themeInitScript}`;
 

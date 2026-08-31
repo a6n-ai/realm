@@ -1,6 +1,6 @@
 "use client";
 import { ClipboardListIcon, PackageIcon, UserPlusIcon, type LucideIcon } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@realm/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/drawer";
 import { useQuickAdd, type QuickAddKind } from "./quick-add-provider";
 
 // The FAB chooser: three large create rows. Each opens the matching add-popup

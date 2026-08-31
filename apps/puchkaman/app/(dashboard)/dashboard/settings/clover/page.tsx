@@ -7,9 +7,9 @@ import {
   setCloverConnection,
   toPublicCloverConnection,
   type CloverOrderType,
-} from "@realm/clover";
-import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@realm/clover/ui";
-import { PageHeader, PageShell } from "@realm/design-system";
+} from "@foundry/clover";
+import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
+import { PageHeader, PageShell } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {

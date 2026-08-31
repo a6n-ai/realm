@@ -1,4 +1,4 @@
-import { createCollectionRoute } from "@realm/routes";
+import { createCollectionRoute } from "@foundry/routes";
 import { requirePermission } from "@/lib/auth/guards";
 import { productsService } from "@/lib/services/products.service";
 

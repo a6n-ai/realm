@@ -1,5 +1,5 @@
 import { StarIcon } from "lucide-react";
-import { getReviewsSummary } from "@realm/google-reviews";
+import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { Section } from "./section";
 

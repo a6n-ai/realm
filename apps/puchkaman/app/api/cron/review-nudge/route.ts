@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lt } from "drizzle-orm";
-import { getGoogleReviewsConfig } from "@realm/google-reviews";
+import { getGoogleReviewsConfig } from "@foundry/google-reviews";
 import { db } from "@/db/client";
 import { orders, reviewNudges } from "@/db/schema";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";

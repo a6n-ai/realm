@@ -8,18 +8,18 @@ import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { DataTable, SectionCard, type Column } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
 import type { CouponSortColumn } from "./page";
-import { Button } from "@realm/ui/button";
-import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
+import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@realm/ui/select";
-import { TableCell } from "@realm/ui/table";
+} from "@foundry/ui/select";
+import { TableCell } from "@foundry/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@realm/ui/dialog";
+} from "@foundry/ui/dialog";
 import {
   BUSINESS_TZ_LABEL,
   CREATABLE_KINDS,

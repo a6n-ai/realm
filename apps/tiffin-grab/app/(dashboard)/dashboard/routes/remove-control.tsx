@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TrashIcon, TriangleAlertIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Badge } from "@realm/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
 import { ResponsiveDialog } from "@/components/ds";
 import { removeStopsAction } from "./actions";
 import type { PushPreview } from "@/lib/services/optimoroute/push";
@@ -69,7 +69,7 @@ export function RemoveControl({
       <ul className="divide-y rounded-lg border">
         {stale.map((s) => (
           <li key={s.orderNo} className="flex items-start gap-3 p-3">
-            {/* Native checkbox: @realm/ui has no Checkbox, and this needs nothing more. */}
+            {/* Native checkbox: @foundry/ui has no Checkbox, and this needs nothing more. */}
             <input
               type="checkbox"
               id={`rm-${s.orderNo}`}

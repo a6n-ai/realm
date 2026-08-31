@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 
 const LINKS = [
   { href: "/me", label: "Overview" },

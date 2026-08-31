@@ -6,12 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { pinSchema } from "@realm/commons";
-import { Button } from "@realm/ui/button";
+import { pinSchema } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
+} from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
 import { PinOtp } from "@/components/pin-otp";
 import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
 

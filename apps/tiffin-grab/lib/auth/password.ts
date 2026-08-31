@@ -1,4 +1,4 @@
-import { hashPassword, verifyPassword } from "@realm/auth";
+import { hashPassword, verifyPassword } from "@foundry/auth";
 
 export { hashPassword, verifyPassword };
 

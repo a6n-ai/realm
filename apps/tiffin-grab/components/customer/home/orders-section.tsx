@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { OrderStatusBadge, SectionCard } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { SubSummary } from "@/lib/services/customer-deliveries.service";

@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { PackageIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
-import { getCloverConnection } from "@realm/clover";
-import { Skeleton } from "@realm/ui/skeleton";
+import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
+import { getCloverConnection } from "@foundry/clover";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession, roleOrCustomer } from "@/lib/auth/session";
 import { grantedKeys } from "@/lib/auth/nav-permissions";

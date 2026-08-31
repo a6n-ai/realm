@@ -1,8 +1,8 @@
 "use client";
 
 import { MonitorIcon, MoonIcon, SunIcon, type LucideIcon } from "lucide-react";
-import { useTheme } from "@realm/themes";
-import { cn } from "@realm/ui/cn";
+import { useTheme } from "@foundry/themes";
+import { cn } from "@foundry/ui/cn";
 
 const OPTIONS: { value: "light" | "system" | "dark"; label: string; icon: LucideIcon }[] = [
   { value: "light", label: "Light", icon: SunIcon },

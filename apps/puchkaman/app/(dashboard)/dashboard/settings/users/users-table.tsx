@@ -1,16 +1,16 @@
 "use client";
 
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import {
   DataTable,
   ListPagination,
   SkeletonFilterBar,
   type Column,
   type FacetDef,
-} from "@realm/design-system";
+} from "@foundry/design-system";
 import { UsersIcon } from "lucide-react";
-import type { RoleValue } from "@realm/commons";
+import type { RoleValue } from "@foundry/commons";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { UserSortColumn, UserStatusValue } from "@/lib/services/users.service";

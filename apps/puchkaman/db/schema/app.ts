@@ -1,6 +1,6 @@
-import { updatableColumns } from "@realm/database";
+import { updatableColumns } from "@foundry/database";
 import { jsonb, numeric, pgTable, text } from "drizzle-orm/pg-core";
-import type { IntegrationsConfig } from "@realm/clover";
+import type { IntegrationsConfig } from "@foundry/clover";
 
 // The app/tenant singleton: one row. current_app_id() (in the baseline
 // migration) resolves every other table's app_id FK through this row.

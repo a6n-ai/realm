@@ -8,7 +8,7 @@
  *   DATABASE_URL="$DIRECT_DATABASE_URL" tsx apps/puchkaman/db/seed-brand-org.ts
  */
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { db } from "./client";
 import { app, member, organization, users } from "./schema";
 

@@ -1,4 +1,4 @@
-import { baseColumns, updatableColumns } from "@realm/database";
+import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, index, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { deliveryTypes } from "./delivery-types";
@@ -23,7 +23,7 @@ export const orderFulfillment = pgEnum("order_fulfillment", [
 ]);
 
 /**
- * Mirrors tiffin-grab payment_status (subset) + @realm/payments lifecycle.
+ * Mirrors tiffin-grab payment_status (subset) + @foundry/payments lifecycle.
  * Online Clover charges settle immediately → `paid`.
  */
 export const paymentStatus = pgEnum("payment_status", [
@@ -97,7 +97,7 @@ export const orders = pgTable(
     note: text("note"),
     /** Delivery-only fields — null for pickup orders. */
     deliveryAddress: text("delivery_address"),
-    // Lat/lng are now captured — but ONLY via @realm/places' AWS-only
+    // Lat/lng are now captured — but ONLY via @foundry/places' AWS-only
     // resolveAndPersist() (see Task 1), never via googlePlaceProvider. That's
     // the storage-licensed (~8x) geocoder tier this column used to be blocked
     // on; AWS's terms carry no such restriction, so the concern no longer

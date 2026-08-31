@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { ScrollTextIcon } from "lucide-react";
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import { DataTable, DEFAULT_SIZE, PAGE_SIZES, type Column } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@/components/providers/timezone-provider";

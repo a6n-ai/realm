@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { PackageIcon, PencilIcon, PlusIcon } from "lucide-react";
-import { DataTable, type Column } from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
-import { TableCell } from "@realm/ui/table";
+import { DataTable, type Column } from "@foundry/design-system";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
+import { TableCell } from "@foundry/ui/table";
 import type { DeliveryType } from "@/lib/delivery/zones";
 import { TypeEditDialog } from "./type-edit-dialog";
 

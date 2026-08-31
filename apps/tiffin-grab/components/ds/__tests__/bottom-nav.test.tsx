@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { HomeIcon, MenuIcon } from "lucide-react";
-import { BottomNav, type BottomNavItem } from "@realm/design-system";
+import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 afterEach(cleanup);
 describe("BottomNav", () => {
   it("renders link + action items, marks active with aria-current, and fires the FAB", () => {

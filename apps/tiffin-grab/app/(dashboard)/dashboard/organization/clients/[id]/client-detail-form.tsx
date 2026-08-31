@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import type { OrgLocation } from "@realm/commons";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import type { OrgLocation } from "@foundry/commons";
 import { updateOrganizationAction } from "@/lib/services/organizations-actions";
 
 export function ClientDetailForm({

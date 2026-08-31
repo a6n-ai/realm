@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { HomeIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 
 /** Shared top nav for every (auth) screen — matches tiffin-grab. */
 export function AuthNav() {

@@ -1,4 +1,4 @@
-import { createCloverClient as createFromStore } from "@realm/clover";
+import { createCloverClient as createFromStore } from "@foundry/clover";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 /**

@@ -4,7 +4,7 @@
 // Day-tap stays meal-only. Vacation sits in the day-action tile grid below this card.
 
 import { UtensilsCrossedIcon } from "lucide-react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { DietTag, PlanBox } from "@/components/customer/plan-box";
 import { DishImage } from "@/components/customer/home/dish-image";
 import type { CalendarCell } from "./calendar-constants";

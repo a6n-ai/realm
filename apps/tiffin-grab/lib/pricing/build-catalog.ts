@@ -1,4 +1,4 @@
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";

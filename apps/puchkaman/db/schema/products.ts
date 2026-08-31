@@ -1,5 +1,5 @@
-import { updatableColumns } from "@realm/database";
-import type { FileDetail } from "@realm/storage/model";
+import { updatableColumns } from "@foundry/database";
+import type { FileDetail } from "@foundry/storage/model";
 import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 

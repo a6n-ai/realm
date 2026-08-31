@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { PrinterIcon, TagIcon } from "lucide-react";
-import { zonedDateIso } from "@realm/commons";
-import { Button } from "@realm/ui/button";
-import { Skeleton } from "@realm/ui/skeleton";
+import { zonedDateIso } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dailyLabelSheet } from "@/lib/services/daily-labels.service";

@@ -1,9 +1,6 @@
 # Realm
 
-A multi-client CRM + subscription **platform** — one Turborepo, many Next.js client
-apps sharing `@realm/*` packages (UI, CRM shell, services, utilities). **TiffinGrab**
-(`apps/tiffin-grab`) is the first client; new verticals (Gym, Dentist, Realtor, …)
-are added as sibling apps.
+A multi-client CRM + subscription **platform**. Realm holds **apps** (TiffinGrab, Puchkaman). Shared packages are `@foundry/*` under `foundry/` (Monarch AI packages go there too). The notification product is `relay/`.
 
 ## Quick start
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { PlanRows } from "@/components/marketing/plan-rows";
 import { Section } from "@/components/marketing/section";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

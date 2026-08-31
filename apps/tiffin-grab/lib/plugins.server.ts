@@ -1,7 +1,7 @@
-import type { PluginRegistry } from "@realm/crm/server";
-import { cloverPlugin } from "@realm/clover/server";
-import { paymentsPlugin } from "@realm/payments/server";
-import { googleReviewsPlugin } from "@realm/google-reviews/server";
+import type { PluginRegistry } from "@foundry/crm/server";
+import { cloverPlugin } from "@foundry/clover/server";
+import { paymentsPlugin } from "@foundry/payments/server";
+import { googleReviewsPlugin } from "@foundry/google-reviews/server";
 import {
   getIntegrationsConfig,
   setIntegrationsConfig,

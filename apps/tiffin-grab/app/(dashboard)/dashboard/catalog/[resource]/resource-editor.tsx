@@ -7,17 +7,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
-import { Badge } from "@realm/ui/badge";
-import { Button } from "@realm/ui/button";
+import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { MealCard } from "@/components/marketing/cards";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@realm/ui/form";
-import { Input } from "@realm/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@realm/ui/select";
-import { Switch } from "@realm/ui/switch";
-import { TableCell } from "@realm/ui/table";
-import { cn } from "@realm/ui/cn";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
+import { Input } from "@foundry/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Switch } from "@foundry/ui/switch";
+import { TableCell } from "@foundry/ui/table";
+import { cn } from "@foundry/ui/cn";
 import type { SortState } from "@/lib/list/sort";
 import {
   RESOURCES, emptyForm, rowToForm, slug, type FieldDef, type FieldType, type ResourceDef,

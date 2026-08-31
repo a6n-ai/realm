@@ -14,8 +14,8 @@ vi.mock("@/db/client", () => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/services/audit-config", () => ({ AUDIT_UPDATE_SKIP: new Set(["sessions"]) }));
-vi.mock("@realm/database", async (orig) => {
-  const actual = await orig<typeof import("@realm/database")>();
+vi.mock("@foundry/database", async (orig) => {
+  const actual = await orig<typeof import("@foundry/database")>();
   class FakeBase {
     repo: { tableName: string };
     constructor(repo?: { tableName: string }) { this.repo = repo ?? { tableName: "x" }; }

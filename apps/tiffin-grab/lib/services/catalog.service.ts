@@ -1,5 +1,5 @@
-import { ValidationError } from "@realm/commons";
-import { UpdatableRepository } from "@realm/database";
+import { ValidationError } from "@foundry/commons";
+import { UpdatableRepository } from "@foundry/database";
 import { eq, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";

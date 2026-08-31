@@ -1,4 +1,4 @@
-import { makePublicId, updatableColumns } from "@realm/database";
+import { makePublicId, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
@@ -40,7 +40,7 @@ export const users = pgTable(
     // pass `role` themselves.
     role: userRole("role").notNull().default("user"),
     // Org-independent platform bypass for cross-client visibility. See
-    // resolveVisibleOrgIds in @realm/auth.
+    // resolveVisibleOrgIds in @foundry/auth.
     platformRole: text("platform_role"),
     status: userStatus("status").notNull().default("active"),
     // false = account still on an issued default/temp password and must set its

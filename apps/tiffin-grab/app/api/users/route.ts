@@ -1,4 +1,4 @@
-import { createCollectionRoute } from "@realm/routes";
+import { createCollectionRoute } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 

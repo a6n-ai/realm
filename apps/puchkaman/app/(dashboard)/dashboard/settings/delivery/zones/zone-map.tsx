@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 // Map used for the marker registry below, hence the MapLibreMap alias.
 import type { MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { destinationPoint, haversineKm } from "@/lib/delivery/distance";
 
 const RING_GAP_KM = 0.01;

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { CreditCardIcon, PlusIcon, type LucideIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { RoutedTabNav } from "@realm/design-system";
-import { PAYMENT_PROVIDERS, findPaymentProvider } from "@realm/payments/providers";
+import { Button } from "@foundry/ui/button";
+import { RoutedTabNav } from "@foundry/design-system";
+import { PAYMENT_PROVIDERS, findPaymentProvider } from "@foundry/payments/providers";
 
 export type PaymentTab = {
   id: string;

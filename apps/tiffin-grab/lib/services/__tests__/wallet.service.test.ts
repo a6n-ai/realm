@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
-import { ValidationError } from "@realm/commons";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, orders, walletLedger, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

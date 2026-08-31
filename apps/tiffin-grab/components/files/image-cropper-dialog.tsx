@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { FlipHorizontalIcon, FlipVerticalIcon, Loader2Icon, RotateCcwIcon, RotateCwIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@realm/ui/dialog";
-import { Label } from "@realm/ui/label";
-import { Slider } from "@realm/ui/slider";
-import { Switch } from "@realm/ui/switch";
+import { Button } from "@foundry/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { Label } from "@foundry/ui/label";
+import { Slider } from "@foundry/ui/slider";
+import { Switch } from "@foundry/ui/switch";
 import { encodeCanvasToFile } from "@/lib/images/export-image";
 import { ImageCropper } from "./cropper/image-cropper";
 import { useCropper } from "./cropper/use-cropper";

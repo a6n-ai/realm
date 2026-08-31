@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
-import { assertHierarchyDepth } from "@realm/auth";
+import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";

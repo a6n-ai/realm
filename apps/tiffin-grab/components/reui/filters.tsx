@@ -21,7 +21,7 @@ import {
 } from "react"
 import { cva } from "class-variance-authority"
 
-import { cn } from "@realm/ui/cn"
+import { cn } from "@foundry/ui/cn"
 import { Button } from "@/components/ui/button"
 import {
   ButtonGroup,

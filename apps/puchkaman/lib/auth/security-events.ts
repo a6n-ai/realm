@@ -1,5 +1,5 @@
-import { createLogger } from "@realm/commons/logger";
-import { type OtpType, type SecurityEmailContext, sendOtpEmail } from "@realm/auth";
+import { createLogger } from "@foundry/commons/logger";
+import { type OtpType, type SecurityEmailContext, sendOtpEmail } from "@foundry/auth";
 import { getEmailProvider } from "@/lib/email/provider";
 
 const log = createLogger("auth-security");

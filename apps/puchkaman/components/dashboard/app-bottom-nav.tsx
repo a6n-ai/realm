@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { LayoutDashboardIcon, MenuIcon, PackageIcon } from "lucide-react";
-import { BottomNav, type BottomNavItem } from "@realm/design-system";
-import type { PluginCatalogStatus } from "@realm/crm";
+import { BottomNav, type BottomNavItem } from "@foundry/design-system";
+import type { PluginCatalogStatus } from "@foundry/crm";
 import { MoreDrawer } from "./more-drawer";
 
 const TABS = [

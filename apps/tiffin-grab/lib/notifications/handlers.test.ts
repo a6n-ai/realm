@@ -7,7 +7,7 @@ import { publishPush } from "./rabbit";
 import { broadcast } from "./broadcast";
 import { appBroadcast } from "./handlers";
 
-// The delivery mechanics now live in @realm/notifications and are tested there.
+// The delivery mechanics now live in @relay/engine and are tested there.
 // What stays app-local — and is the only part that can regress here — is the
 // publish-after-commit routing: Rabbit first, inline broadcast as the fallback.
 const input = {

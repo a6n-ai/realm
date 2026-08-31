@@ -3,12 +3,12 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin, emailOTP, organization as organizationPlugin } from "better-auth/plugins";
-import { createLogger } from "@realm/commons/logger";
-import { assertHierarchyDepth, authAuditAction } from "@realm/auth";
+import { createLogger } from "@foundry/commons/logger";
+import { assertHierarchyDepth, authAuditAction } from "@foundry/auth";
 import { ac, roles } from "./permissions";
-import { orderTracking } from "@realm/order-tracking";
+import { orderTracking } from "@foundry/order-tracking";
 import { resolveTrackingSubject } from "@/lib/order-tracking/subject";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, organization, session, users, verification } from "@/db/schema";
@@ -114,7 +114,7 @@ export const auth = betterAuth({
       role: { type: "string", required: false, defaultValue: Role.USER, input: false },
       publicId: { type: "string", required: false, input: false },
       // Platform-wide override role (e.g. "super_admin"), separate from the
-      // per-org `member.role`. See @realm/auth resolveVisibleOrgIds — this is
+      // per-org `member.role`. See @foundry/auth resolveVisibleOrgIds — this is
       // the ONLY bypass of membership-scoped visibility, and it's audited.
       platformRole: { type: "string", required: false, defaultValue: null, input: false },
     },
@@ -158,7 +158,7 @@ export const auth = betterAuth({
     //   impersonateUser   — needs its own audit story before it is safe in a CRM
     //                       holding customer PII.
     // No adminClient() on the browser side: it would need `ac`/`roles`, which live in
-    // @realm/auth — a server-only package that is not in transpilePackages.
+    // @foundry/auth — a server-only package that is not in transpilePackages.
     // defaultRole is Role.USER, which this app's `roles` map deliberately omits, so a
     // caller whose role is somehow missing authorizes as nothing. MEMBER here would be
     // fail-OPEN — better-auth falls back to defaultRole when a session carries no role,
@@ -256,7 +256,7 @@ export const auth = betterAuth({
     after: createAuthMiddleware(async (ctx) => {
       // Security audit: every mapped auth event lands in the SAME append-only
       // audit_log as the rest of the app, via the shared vocabulary in
-      // @realm/auth. Sign-in keeps its dedicated operation below; this covers
+      // @foundry/auth. Sign-in keeps its dedicated operation below; this covers
       // password changes, resets, verification, revocations, deletion.
       const auditAction = authAuditAction(ctx.path);
       if (auditAction && !(ctx.context.returned instanceof APIError)) {

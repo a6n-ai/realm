@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { TriangleAlertIcon } from "lucide-react";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
 
 export function ConfirmDialog({
   open,

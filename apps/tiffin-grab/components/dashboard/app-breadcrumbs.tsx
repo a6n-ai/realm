@@ -1,6 +1,6 @@
 "use client";
 
-import { Breadcrumbs } from "@realm/design-system";
+import { Breadcrumbs } from "@foundry/design-system";
 import { labelForSegment } from "@/components/ds/route-labels";
 
 // Breadcrumbs is a client component; the function prop can't cross the

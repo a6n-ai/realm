@@ -36,7 +36,7 @@ export const PUBLIC_API = [
   // never reach the database.
   "/api/webhooks",
   // Clicked from an email by someone who may have no account at all. The HMAC
-  // token IS the auth (see @realm/notifications/unsubscribe); requiring a
+  // token IS the auth (see @relay/engine/unsubscribe); requiring a
   // session would make the unsubscribe link non-functional, which is the one
   // thing CASL does not forgive.
   "/api/unsubscribe",

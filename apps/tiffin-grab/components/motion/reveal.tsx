@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { cn } from "@realm/ui/cn";
+import { cn } from "@foundry/ui/cn";
 import { transitions } from "@/lib/motion/tokens";
 
 interface RevealProps { children: ReactNode; className?: string; delay?: number; }

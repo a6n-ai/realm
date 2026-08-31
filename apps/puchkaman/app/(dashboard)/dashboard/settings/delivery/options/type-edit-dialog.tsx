@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ResponsiveDialog } from "@realm/design-system";
-import { Button } from "@realm/ui/button";
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { Switch } from "@realm/ui/switch";
-import { Textarea } from "@realm/ui/textarea";
+import { ResponsiveDialog } from "@foundry/design-system";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
+import { Textarea } from "@foundry/ui/textarea";
 import { retireDeliveryTypeAction, saveDeliveryTypeAction, type TypeFormValues } from "./actions";
 import type { TypeRow } from "./types-table";
 

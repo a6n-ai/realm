@@ -10,9 +10,9 @@ import {
   Webhook,
   type LucideIcon,
 } from "lucide-react";
-import { getCloverConnection } from "@realm/clover";
-import { getGoogleReviewsConfig } from "@realm/google-reviews";
-import { PAYMENTS_PLUGIN_ID } from "@realm/payments/plugin";
+import { getCloverConnection } from "@foundry/clover";
+import { getGoogleReviewsConfig } from "@foundry/google-reviews";
+import { PAYMENTS_PLUGIN_ID } from "@foundry/payments/plugin";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";

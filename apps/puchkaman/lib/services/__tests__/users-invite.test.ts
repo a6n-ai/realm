@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Role } from "@realm/commons";
+import { Role } from "@foundry/commons";
 import { inviteUser, type InviteDeps } from "../users-invite";
 
 function deps(overrides: Partial<InviteDeps> = {}): InviteDeps {

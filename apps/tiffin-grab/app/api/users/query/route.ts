@@ -1,4 +1,4 @@
-import { createQueryRoute } from "@realm/routes";
+import { createQueryRoute } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { usersService } from "@/lib/services/users.service";
 

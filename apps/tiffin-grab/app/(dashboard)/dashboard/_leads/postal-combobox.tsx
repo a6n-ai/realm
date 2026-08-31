@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { CheckIcon, ChevronsUpDown, MapPinIcon } from "lucide-react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from "@realm/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@realm/ui/popover";
-import { cn } from "@realm/ui/cn";
+} from "@foundry/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { cn } from "@foundry/ui/cn";
 import { matchZone, type ZoneLike } from "@/lib/catalog/postal";
 
 type Opt = { prefix: string; zone: ZoneLike };

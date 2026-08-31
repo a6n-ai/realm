@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@realm/ui/skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard, StatGrid } from "@/components/ds";
 
 export function AnalyticsTiles({

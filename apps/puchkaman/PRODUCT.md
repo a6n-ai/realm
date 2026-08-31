@@ -67,7 +67,7 @@ The house framing is street food, not restaurant food.
 - A phone number is required at checkout and stored E.164 — the kitchen calls when an
   order stalls and couriers need it.
 - Catering and event inquiries are captured on the site and worked by staff.
-- Built inside the Realm monorepo and shares the `@realm/*` packages with sibling
+- Built inside the Realm monorepo and shares the `@foundry/*` packages with sibling
   client apps; app-specific product decisions live here, not at the repo root.
 
 ## Brand Commitments

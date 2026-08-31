@@ -1,4 +1,4 @@
-import { handleReviewUnsubscribe } from "@realm/google-reviews";
+import { handleReviewUnsubscribe } from "@foundry/google-reviews";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 
 // Unauthenticated by design — the guest email inbox is the only "session" this

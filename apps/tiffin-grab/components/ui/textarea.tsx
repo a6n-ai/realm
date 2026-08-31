@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@realm/ui/cn"
+import { cn } from "@foundry/ui/cn"
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (

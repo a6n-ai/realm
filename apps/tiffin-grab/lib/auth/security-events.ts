@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { createLogger } from "@realm/commons/logger";
+import { createLogger } from "@foundry/commons/logger";
 import {
   type OtpType,
   type SecurityEmailContext,
@@ -8,7 +8,7 @@ import {
   sendOtpEmail,
   sendPasswordChanged,
   sendWelcomeVerify,
-} from "@realm/auth";
+} from "@foundry/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
 import { getEmailProvider } from "@/lib/email/provider";

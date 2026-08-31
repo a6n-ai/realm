@@ -1,4 +1,4 @@
-import { UpdatableRepository } from "@realm/database";
+import { UpdatableRepository } from "@foundry/database";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";

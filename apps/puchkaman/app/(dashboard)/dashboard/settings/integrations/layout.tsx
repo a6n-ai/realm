@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { PuzzleIcon } from "lucide-react";
-import { PageHeader, PageShell } from "@realm/design-system";
+import { PageHeader, PageShell } from "@foundry/design-system";
 
 export default function IntegrationsLayout({ children }: { children: ReactNode }) {
   return (

@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { Role } from "@realm/commons";
-import { CrmShell } from "@realm/crm";
-import { Toaster } from "@realm/ui/sonner";
-import { TooltipProvider } from "@realm/ui/tooltip";
+import { Role } from "@foundry/commons";
+import { CrmShell } from "@foundry/crm";
+import { Toaster } from "@foundry/ui/sonner";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";

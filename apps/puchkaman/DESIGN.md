@@ -84,7 +84,7 @@ components:
 # Design System: Puchkaman
 
 Scope: the **public storefront** only. The admin CRM deliberately runs a different
-visual language built on the shared `@realm/*` conventions, and is not this system's
+visual language built on the shared `@foundry/*` conventions, and is not this system's
 to define. That separation is a rule, not an oversight — see Do's and Don'ts.
 
 ## Overview

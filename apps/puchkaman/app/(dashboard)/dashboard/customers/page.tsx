@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { ShoppingBagIcon, UserPlusIcon, UsersIcon, UserCheckIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
+import { formatMoney } from "@foundry/commons";
 import {
   PageHeader,
   PageShell,
@@ -8,8 +8,8 @@ import {
   StatGrid,
   parseFilterState,
   type FacetDef,
-} from "@realm/design-system";
-import { Skeleton } from "@realm/ui/skeleton";
+} from "@foundry/design-system";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { parseSort } from "@/lib/list/sort";
 import {

@@ -10,12 +10,12 @@ import {
   RowActions,
   type Column,
 } from "@/components/ds";
-import { TableCell } from "@realm/ui/table";
+import { TableCell } from "@foundry/ui/table";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@/lib/list/sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { eventLabel } from "@realm/notifications/ui";
+import { eventLabel } from "@relay/engine/ui";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
 export interface TemplateChannel {

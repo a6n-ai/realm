@@ -19,7 +19,7 @@ vi.mock("@/lib/services/orders.service", async () => {
   );
   return { ...actual, ordersService: { createCheckout } };
 });
-vi.mock("@realm/places", () => ({ resolveAndPersist }));
+vi.mock("@foundry/places", () => ({ resolveAndPersist }));
 
 const { POST } = await import("./route");
 

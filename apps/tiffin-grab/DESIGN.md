@@ -129,7 +129,7 @@ carries the same warm bias, never a cool grey.
 - **Muted Ink** (`#6E6558`, dark mode `#A9AFA3`): supporting text, eyebrow
   labels' non-color state, dates, kcal/macro lines.
 - **Hairline** (`#E3DFD1`): input/form borders where the full-weight
-  foreground border would be too heavy (e.g. shared `@realm/ui` inputs not
+  foreground border would be too heavy (e.g. shared `@foundry/ui` inputs not
   yet reskinned to the `1.5px` foreground treatment — see Components).
 
 ### Status
@@ -236,7 +236,7 @@ rows).
   CTAs.
 - **Secondary/Outline:** transparent background, `1.5px` foreground border,
   same pill radius.
-- **Press state:** shared `@realm/ui` `Button` already applies
+- **Press state:** shared `@foundry/ui` `Button` already applies
   `active:translate-y-px` — respond on press, not just release.
 
 ### Cards / Receipt cards
@@ -247,7 +247,7 @@ rows).
   "🧾"-prefixed header row, and a bold tabular-nums `TOTAL` line.
 
 ### Inputs / Fields
-- Shared `@realm/ui` `Input` still ships its stock `rounded-lg` and
+- Shared `@foundry/ui` `Input` still ships its stock `rounded-lg` and
   `--border` token by default. Reskinned call sites (checkout contact form,
   coupon/coins boxes) pass `className="h-13 rounded-2xl border-[1.5px]
   border-foreground"` at the call site rather than editing the shared
@@ -278,7 +278,7 @@ don't reinvent a different card shape for that job.
   never the lighter `--border` token on a brutalist-system card.
 - **Do** reserve the offset punch shadow for receipt/invoice/summary
   content — it means "this is a real total," not "this card is important."
-- **Do** override shared `@realm/ui` primitives via the `className` prop at
+- **Do** override shared `@foundry/ui` primitives via the `className` prop at
   the call site (e.g. `border-[1.5px] border-foreground rounded-2xl` on
   `Input`) rather than editing the package — the package stays generic for
   other apps in the monorepo; this app's identity lives in its own call

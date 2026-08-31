@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
-import { nextWeekday, parseIsoDateUtc } from "@realm/commons";
+import { nextWeekday, parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

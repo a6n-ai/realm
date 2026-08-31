@@ -1,5 +1,5 @@
 import { authorizeChannel } from "@/lib/realtime/authorize";
-import { sseResponse } from "@realm/realtime/server";
+import { sseResponse } from "@foundry/realtime/server";
 
 export async function GET(request: Request): Promise<Response> {
   const channel = new URL(request.url).searchParams.get("channel");

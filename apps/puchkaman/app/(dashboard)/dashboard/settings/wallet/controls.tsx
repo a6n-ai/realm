@@ -1,8 +1,8 @@
 "use client";
 
-import { Input } from "@realm/ui/input";
-import { Label } from "@realm/ui/label";
-import { cn } from "@realm/ui/cn";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { cn } from "@foundry/ui/cn";
 
 // Shared by the payout grid and the coin-rate form — both are plain
 // number-per-row inputs with an optional currency prefix.

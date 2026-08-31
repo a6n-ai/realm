@@ -22,7 +22,7 @@
  * this is a one-shot DDL-adjacent write, not pooled app traffic.)
  */
 import { eq, sql } from "drizzle-orm";
-import { hashPassword } from "@realm/auth";
+import { hashPassword } from "@foundry/auth";
 import { db } from "./client";
 import { account, users } from "./schema";
 
@@ -65,7 +65,7 @@ async function main() {
         passwordSet: false,
         // Grants visibility into every client org (brand + all franchises),
         // not just orgs with an explicit member row — see resolveVisibleOrgIds
-        // in @realm/auth. Membership rows alone don't survive new franchises
+        // in @foundry/auth. Membership rows alone don't survive new franchises
         // being added later; this does.
         platformRole: "super_admin",
       })

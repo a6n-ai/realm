@@ -1,7 +1,7 @@
-import { NotFoundError, ValidationError } from "@realm/commons";
-import { createLogger } from "@realm/commons/logger";
-import type { Condition, FilterCondition } from "@realm/commons/model/condition";
-import type { Page, PageRequest } from "@realm/commons/util/pagination";
+import { NotFoundError, ValidationError } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
+import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
+import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import {
   cloverCheckoutSdkUrl,
   getCloverConnection,
@@ -11,8 +11,8 @@ import {
   parseCloverWebhookObjectId,
   type CloverWebhookUpdate,
   type MappedCloverPaymentStatus,
-} from "@realm/clover";
-import { columnResolver, conditionToSql } from "@realm/database";
+} from "@foundry/clover";
+import { columnResolver, conditionToSql } from "@foundry/database";
 import { and, asc, eq, exists, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { db } from "@/db/client";
@@ -671,7 +671,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     input: CreateCheckoutInput,
     // AWS-resolved coordinates for the delivery address. The trust boundary is
     // the caller, not here: /api/checkout re-resolves this from the client's
-    // placeId/address via @realm/places' resolveAndPersist() *before* calling
+    // placeId/address via @foundry/places' resolveAndPersist() *before* calling
     // this method — it never forwards a client-supplied lat/lng. Not used for
     // distance/discount here, only stored for the map. Undefined/pickup orders
     // store null.

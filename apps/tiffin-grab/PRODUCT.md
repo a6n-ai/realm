@@ -77,7 +77,7 @@ week.
   attachable and file uploads on create.
 - Transactional email runs through SES, including verification, password reset and
   security alerts.
-- Built inside the Realm monorepo as its first client app, sharing the `@realm/*`
+- Built inside the Realm monorepo as its first client app, sharing the `@foundry/*`
   packages; app-specific product decisions live here, not at the repo root.
 
 ## Brand Commitments

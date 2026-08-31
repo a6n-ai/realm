@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@realm/ui/button";
+import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
 import { activate, cancel } from "./actions";
 

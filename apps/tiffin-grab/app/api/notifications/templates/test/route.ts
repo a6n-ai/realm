@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { handler, problem } from "@realm/routes";
+import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
-import { SesEmailProvider } from "@realm/email";
+import { SesEmailProvider } from "@relay/email";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";

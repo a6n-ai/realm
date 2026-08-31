@@ -1,5 +1,5 @@
-import { handleUnsubscribe } from "@realm/notifications";
-import { handler, json } from "@realm/routes";
+import { handleUnsubscribe } from "@relay/engine";
+import { handler, json } from "@foundry/routes";
 import { db } from "@/db/client";
 import { notificationTables } from "@/lib/notifications/tables";
 

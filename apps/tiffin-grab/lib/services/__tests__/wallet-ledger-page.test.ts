@@ -32,7 +32,7 @@ afterAll(async () => {
 
 describe("walletService.ledgerPage", () => {
   it("returns only the requesting user's rows, newest first", async () => {
-    const { eq: condEq } = await import("@realm/commons/model/condition");
+    const { eq: condEq } = await import("@foundry/commons/model/condition");
     const all = await walletService.ledgerPage(userAId, undefined, { page: 0, size: 25 });
     expect(all.total).toBe(5);
     expect(all.items).toHaveLength(5);
