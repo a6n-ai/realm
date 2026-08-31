@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon } from "lucide-react";
+import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, PhoneIcon, MailIcon } from "lucide-react";
 import { NotFoundError, formatMoney } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
@@ -59,13 +59,26 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
     { label: "Lifetime spend", value: formatMoney(lifetimeSpend), icon: WalletIcon },
     { label: "Wallet coins", value: coinBalance, icon: CoinsIcon },
   ];
+  const initial = (data.profile.email ?? data.profile.phone ?? "?").trim().charAt(0).toUpperCase();
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Profile</h2>
-          <p className="text-sm text-muted-foreground">{data.profile.phone ?? "no phone"} · {data.profile.email ?? "no email"}</p>
+      <div className="flex items-center gap-4">
+        <span className="bg-muted text-muted-foreground flex size-12 shrink-0 items-center justify-center rounded-full text-base font-semibold">
+          {initial}
+        </span>
+        <div className="min-w-0 flex-1 space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight text-balance">Profile</h2>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="inline-flex items-center gap-1.5">
+              <PhoneIcon className="size-3.5" />
+              {data.profile.phone ?? "no phone"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <MailIcon className="size-3.5" />
+              {data.profile.email ?? "no email"}
+            </span>
+          </div>
         </div>
         <ResendInviteButton email={data.profile.email} />
       </div>
@@ -115,10 +128,11 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
 Customer360Data.Skeleton = function Customer360DataSkeleton() {
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-12 shrink-0 rounded-full" />
+        <div className="flex-1 space-y-2">
           <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-64" />
         </div>
         <Skeleton className="h-9 w-32" />
       </div>
