@@ -1,22 +1,11 @@
 import { Suspense } from "react";
 import { and, eq, gte, sql, type SQL } from "drizzle-orm";
-import { MailIcon } from "lucide-react";
 import type { FilterCondition } from "@realm/commons";
 import { conditionToSql } from "@realm/database";
-import {
-  DataTable,
-  ListPagination,
-  SectionCard,
-  SkeletonStatCards,
-  StatGrid,
-  parseFilterState,
-  type FacetDef,
-} from "@realm/design-system";
-import { Badge } from "@realm/ui/badge";
-import { TableCell } from "@realm/ui/table";
+import { SectionCard, SkeletonStatCards, StatGrid, parseFilterState, type FacetDef } from "@realm/design-system";
 import { db } from "@/db/client";
 import { emailLog, messageSuppression } from "@/db/schema";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { EmailsTable, EmailsTableSkeleton } from "./emails-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -58,15 +47,6 @@ type ActivityRow = {
   status: string;
   error: string | null;
 };
-
-// No server-side sort on this union query today — columns are display-only.
-type EmailColumn = "time" | "recipient" | "subject" | "status";
-const COLUMNS: readonly { key: EmailColumn; label: string }[] = [
-  { key: "time", label: "Time" },
-  { key: "recipient", label: "Recipient" },
-  { key: "subject", label: "Subject / reason" },
-  { key: "status", label: "Status" },
-];
 
 async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -118,37 +98,8 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-5">
       <StatGrid cols={4} items={cards} />
-
       <SectionCard title="Email log" subtitle="Every send and every suppressed address, newest first.">
-        <div className="space-y-4">
-          <DataTable
-            columns={COLUMNS}
-            rows={rows}
-            rowKey={(r) => r._rowKey}
-            serial={false}
-            search={{ placeholder: "Search recipient…", shortPlaceholder: "Search…", debounceMs: 250 }}
-            filters={<ReuiFacetFilters spec={SPEC} />}
-            emptyIcon={MailIcon}
-            emptyMessage="No emails sent yet."
-            emptySearchMessage="No emails match your filters."
-            renderRow={(r) => (
-              <>
-                <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                  {new Date(Number(r.at)).toLocaleString()}
-                </TableCell>
-                <TableCell className="text-sm">{r.recipient ?? "—"}</TableCell>
-                <TableCell className="text-sm">
-                  {r.subject}
-                  {r.error && <span className="text-destructive block text-xs">{r.error}</span>}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={r.status === "sent" ? "secondary" : "outline"}>{r.status}</Badge>
-                </TableCell>
-              </>
-            )}
-          />
-          <ListPagination page={page.page} size={page.size} total={total} />
-        </div>
+        <EmailsTable spec={SPEC} rows={rows} page={page.page} size={page.size} total={total} />
       </SectionCard>
     </div>
   );
@@ -159,7 +110,7 @@ function EmailsSkeleton() {
     <div className="space-y-5">
       <SkeletonStatCards count={4} />
       <SectionCard title="Email log">
-        <DataTable.Skeleton columns={COLUMNS} serial={false} />
+        <EmailsTableSkeleton />
       </SectionCard>
     </div>
   );
