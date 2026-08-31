@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { UserIcon } from "lucide-react";
 import { redirect } from "next/navigation";
+import { formatPhone } from "@realm/commons";
 import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -35,7 +36,7 @@ export default async function CustomerAccountPage() {
           </div>
           <div>
             <dt className="text-muted-foreground">Phone</dt>
-            <dd>{u.phone ?? "—"}</dd>
+            <dd>{u.phone ? formatPhone(u.phone) : "—"}</dd>
           </div>
         </dl>
       </SectionCard>
