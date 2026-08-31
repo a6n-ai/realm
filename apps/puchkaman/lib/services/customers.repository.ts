@@ -1,7 +1,7 @@
 import { stripCreateOnly, columnResolver, conditionToSql } from "@realm/database";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { cloverCustomers, organization } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
@@ -75,6 +75,28 @@ export class CloverCustomersRepository extends ClientScopedRepository<typeof clo
       size: page.size,
       total: count,
     };
+  }
+
+  /**
+   * Match candidates for "does this app customer already exist in Clover"
+   * before pushing a new one — franchise-scoped via this.scope() (not
+   * brand-all) since it has to match against the same merchant a push would
+   * actually create the customer on.
+   */
+  async searchForMatch(query: string, limit = 8): Promise<CloverCustomerRow[]> {
+    const q = query.trim();
+    if (!q) return [];
+    const scope = await this.scope();
+    const textMatch = or(
+      ilike(cloverCustomers.name, `%${q}%`),
+      ilike(cloverCustomers.email, `%${q}%`),
+      ilike(cloverCustomers.phone, `%${q}%`),
+    );
+    return this.db
+      .select()
+      .from(cloverCustomers)
+      .where(scope ? and(scope, textMatch) : textMatch)
+      .limit(limit);
   }
 
   async findByCloverCustomerId(cloverCustomerId: string): Promise<CloverCustomerRow | null> {

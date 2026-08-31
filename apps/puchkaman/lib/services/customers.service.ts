@@ -13,6 +13,7 @@ import {
   type PushAllCustomersResult,
   type PushCustomerResult,
 } from "@/lib/sync/push-customers-to-clover.service";
+import { cloverCustomersRepository, type CloverCustomerRow } from "./customers.repository";
 import { currentUserId, recordAudit } from "./session-service";
 
 export type CustomerRow = {
@@ -248,6 +249,37 @@ export async function getCustomerDetail(publicId: string): Promise<CustomerDetai
 
   const { id: _id, role: _role, ...rest } = user;
   return { ...rest, orders: orderRows, orderCount: count, totalSpent: spent };
+}
+
+/** Existing Clover customers matching a name/email/phone query, for "is this person already in Clover" before pushing a new one. */
+export async function searchCloverCustomersForMatch(query: string): Promise<CloverCustomerRow[]> {
+  return cloverCustomersRepository.searchForMatch(query);
+}
+
+/** Link an app customer to an EXISTING Clover customer — no create, just records the match. */
+export async function linkCustomerToClover(
+  publicId: string,
+  cloverCustomerId: string,
+): Promise<void> {
+  const [row] = await db
+    .select({ id: users.id, cloverCustomerId: users.cloverCustomerId })
+    .from(users)
+    .where(and(eq(users.publicId, publicId), eq(users.role, "user")))
+    .limit(1);
+  if (!row) throw new ValidationError(`Customer not found: ${publicId}`);
+  if (row.cloverCustomerId) throw new ValidationError("This customer is already synced to Clover.");
+
+  await db
+    .update(users)
+    .set({ cloverCustomerId, cloverSyncedAt: Date.now() })
+    .where(eq(users.id, row.id));
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: publicId,
+    operation: "update",
+    changes: { _action: "clover_customer_matched", cloverCustomerId },
+    createdBy: await currentUserId(),
+  });
 }
 
 /** Push one app customer to Clover as a customer. */

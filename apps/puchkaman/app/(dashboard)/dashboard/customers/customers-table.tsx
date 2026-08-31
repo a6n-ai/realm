@@ -89,7 +89,7 @@ export function CustomersTable({
               {r.cloverCustomerId ? (
                 <Badge variant="outline">Synced</Badge>
               ) : (
-                <SyncCustomerToCloverButton publicId={r.publicId} />
+                <SyncCustomerToCloverButton publicId={r.publicId} defaultQuery={r.email ?? r.phone ?? r.name ?? ""} />
               )}
             </TableCell>
           </>
