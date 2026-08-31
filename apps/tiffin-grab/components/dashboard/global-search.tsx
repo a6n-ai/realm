@@ -117,6 +117,16 @@ export function GlobalSearch({ role }: { role: string }) {
     return () => clearTimeout(t);
   }, [query, pathname, searchParams, router]);
 
+  // ?q= isn't exclusively this component's to write — a page can carry its own
+  // search box scoped to one table (see ListSearchFilters) that writes the same
+  // param directly. Without this, the effect above still thinks its own stale
+  // `typed.q` is authoritative and immediately clobbers that external write back
+  // to empty. Adopt the URL's value into local state so both stay in sync.
+  useEffect(() => {
+    const urlQ = searchParams.get("q") ?? "";
+    setTyped((prev) => (prev.path === pathname && prev.q !== urlQ ? { path: pathname, q: urlQ } : prev));
+  }, [searchParams, pathname]);
+
   const go = useCallback(
     (href: string) => {
       setOpen(false);

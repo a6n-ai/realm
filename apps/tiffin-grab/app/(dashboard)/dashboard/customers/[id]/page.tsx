@@ -1,28 +1,27 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, PhoneIcon, MailIcon } from "lucide-react";
+import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, CreditCardIcon, MapPinIcon } from "lucide-react";
 import { NotFoundError, formatMoney, formatPhone } from "@realm/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getCustomer360 } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
-import { DataTable, PageShell, PageHeader, Card, SectionCard, SkeletonListRows } from "@/components/ds";
+import { DataTable, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@realm/ui/skeleton";
+import { formatEpoch } from "@/lib/format/datetime";
 import { ResendInviteButton } from "./resend-invite-button";
 import { CustomerOrdersTable, CUSTOMER_ORDERS_COLUMNS } from "./customer-orders-table";
 import { CustomerInquiriesTable, CUSTOMER_INQUIRIES_COLUMNS } from "./customer-inquiries-table";
-import { CustomerTimeline } from "./customer-timeline";
-// Single source of truth for the section cards. The real view and the loading
-// twin below both render from this, so the skeleton can never drift from the page.
-// Profile isn't a section card — it's the sticky left-rail identity panel (see
-// Customer360Data), so it's excluded from this map.
+import { CustomerTimeline, CUSTOMER_TIMELINE_COLUMNS } from "./customer-timeline";
+
+// Section titles — single source of truth so the skeleton twin below can never drift.
 const SECTIONS = {
-  timeline: { title: "Activity timeline", rows: 4 },
+  orders: "Orders",
+  inquiries: "Inquiries",
+  payment: "Payment",
+  account: "Account",
+  timeline: "Activity timeline",
 } as const;
-// Orders + Inquiries render side by side in the right column and aren't part
-// of the single-column SECTIONS map, but keep their titles here too so the
-// skeleton twin can't drift from the real headings.
-const SIDE_BY_SIDE_TITLES = { orders: "Orders", inquiries: "Inquiries" } as const;
 
 // This page is the index across a person's subscriptions — each row links into the order
 // page, which owns the calendar, meal picks, payment, and log for that one order.
@@ -30,7 +29,6 @@ const SIDE_BY_SIDE_TITLES = { orders: "Orders", inquiries: "Inquiries" } as cons
 export default function Customer360Page({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
-      <PageHeader icon={UsersIcon} title="Customer" />
       <Suspense fallback={<Customer360Data.Skeleton />}>
         <Customer360Data params={params} />
       </Suspense>
@@ -61,103 +59,122 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
     { label: "Lifetime spend", value: formatMoney(lifetimeSpend), icon: WalletIcon },
     { label: "Wallet coins", value: coinBalance, icon: CoinsIcon },
   ];
-  const initial = (data.profile.email ?? data.profile.phone ?? "?").trim().charAt(0).toUpperCase();
+
+  const contact = [data.profile.phone ? formatPhone(data.profile.phone) : null, data.profile.email]
+    .filter(Boolean)
+    .join(" · ");
+  const address = [data.profile.addressLine, data.profile.city, data.profile.province, data.profile.postalCode]
+    .filter(Boolean)
+    .join(", ");
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[18rem_1fr] lg:items-start">
-      {/* Left rail: identity + account stats, sticky so it stays in view while
-          the right column (orders/inquiries/timeline) scrolls. */}
-      <Card className="gap-5 p-5 lg:sticky lg:top-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span className="bg-muted text-muted-foreground flex size-16 shrink-0 items-center justify-center rounded-full text-2xl font-semibold">
-            {initial}
-          </span>
-          <div className="min-w-0 space-y-1">
-            <h2 className="text-base font-semibold tracking-tight text-balance">Profile</h2>
-            <div className="text-muted-foreground space-y-1 text-sm">
-              <div className="flex items-center justify-center gap-1.5">
-                <MailIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.profile.email ?? "no email"}</span>
-              </div>
-              <div className="flex items-center justify-center gap-1.5">
-                <PhoneIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.profile.phone ? formatPhone(data.profile.phone) : "no phone"}</span>
-              </div>
-            </div>
-          </div>
-          <ResendInviteButton email={data.profile.email} />
-        </div>
+    <>
+      {/* Identity as the page heading, not a separate card — name/contact is what
+          you're here to look at, not one more box among equals. */}
+      <PageHeader
+        icon={UsersIcon}
+        title={data.profile.name || data.profile.email || "Customer"}
+        subtitle={contact || undefined}
+        actions={<ResendInviteButton email={data.profile.email} />}
+      />
 
-        <dl className="divide-border -mx-5 divide-y border-t px-5">
-          {stats.map((s) => (
-            <div key={s.label} className="flex items-center justify-between gap-3 py-3">
-              <dt className="text-muted-foreground flex items-center gap-2 text-sm">
-                <s.icon className="size-4" />
-                {s.label}
+      <StatGrid cols={4} items={stats} />
+
+      {/* Orders gets its own full-width row — its columns (deployment, plan, city,
+          status, start, total, created) need the room a half-width card starves it of. */}
+      <SectionCard title={SECTIONS.orders}>
+        <CustomerOrdersTable orders={data.orders} />
+      </SectionCard>
+
+      <SectionCard title={SECTIONS.inquiries}>
+        <CustomerInquiriesTable inquiries={data.inquiries} />
+      </SectionCard>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <SectionCard title={SECTIONS.payment}>
+          <dl className="space-y-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground flex items-center gap-2">
+                <CreditCardIcon className="size-4" /> Total paid
               </dt>
-              <dd className="nums text-sm font-semibold">{s.value}</dd>
+              <dd className="tabular-nums font-medium">{formatMoney(data.payment.totalPaid)}</dd>
             </div>
-          ))}
-        </dl>
-      </Card>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Pending verification</dt>
+              <dd className="tabular-nums font-medium">{data.payment.pendingCount}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Last method</dt>
+              <dd className="font-medium capitalize">{data.payment.lastMethod ?? "—"}</dd>
+            </div>
+          </dl>
+        </SectionCard>
 
-      {/* Right column: everything that scrolls — orders, inquiries, timeline. */}
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <SectionCard title={SIDE_BY_SIDE_TITLES.orders}>
-            <CustomerOrdersTable orders={data.orders} />
-          </SectionCard>
-
-          <SectionCard title={SIDE_BY_SIDE_TITLES.inquiries}>
-            <CustomerInquiriesTable inquiries={data.inquiries} />
-          </SectionCard>
-        </div>
-
-        <SectionCard title={SECTIONS.timeline.title}>
-          <CustomerTimeline entries={data.timeline} timezone={timezone} />
+        <SectionCard title={SECTIONS.account}>
+          <dl className="space-y-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Customer since</dt>
+              <dd className="font-medium">{formatEpoch(data.profile.createdAt, { mode: "date", timeZone: timezone })}</dd>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <dt className="text-muted-foreground flex shrink-0 items-center gap-2">
+                <MapPinIcon className="size-4" /> Address
+              </dt>
+              <dd className="text-right font-medium">{address || "—"}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Locale</dt>
+              <dd className="font-medium uppercase">{data.profile.locale}</dd>
+            </div>
+          </dl>
         </SectionCard>
       </div>
-    </div>
+
+      <SectionCard title={SECTIONS.timeline}>
+        <CustomerTimeline entries={data.timeline} timezone={timezone} />
+      </SectionCard>
+    </>
   );
 }
 
-// Exact loading twin: same SECTIONS + same SectionCard markup, grey blocks
-// instead of data. Rendered as the page's <Suspense fallback>, so it always
-// matches Customer360Data by construction.
+// Exact loading twin: same section titles + same markup, grey blocks instead of
+// data. Rendered as the page's <Suspense fallback>, so it always matches
+// Customer360Data by construction.
 Customer360Data.Skeleton = function Customer360DataSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[18rem_1fr] lg:items-start">
-      <Card className="gap-5 p-5">
-        <div className="flex flex-col items-center gap-3">
-          <Skeleton className="size-16 shrink-0 rounded-full" />
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-9 w-32" />
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-9 rounded-lg" />
+          <Skeleton className="h-8 w-48" />
         </div>
-        <div className="divide-border -mx-5 space-y-0 divide-y border-t px-5">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="flex items-center justify-between py-3">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-8" />
-            </div>
-          ))}
-        </div>
-      </Card>
+      </div>
 
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <SectionCard title={SIDE_BY_SIDE_TITLES.orders}>
-            <DataTable.Skeleton columns={CUSTOMER_ORDERS_COLUMNS} idLabel="Deployment" hasId />
-          </SectionCard>
-          <SectionCard title={SIDE_BY_SIDE_TITLES.inquiries}>
-            <DataTable.Skeleton columns={CUSTOMER_INQUIRIES_COLUMNS} />
-          </SectionCard>
-        </div>
-        <SectionCard title={SECTIONS.timeline.title}>
-          <SkeletonListRows rows={SECTIONS.timeline.rows} />
+      <SkeletonStatCards count={4} />
+
+      <SectionCard title={SECTIONS.orders}>
+        <DataTable.Skeleton columns={CUSTOMER_ORDERS_COLUMNS} idLabel="Deployment" hasId />
+      </SectionCard>
+      <SectionCard title={SECTIONS.inquiries}>
+        <DataTable.Skeleton columns={CUSTOMER_INQUIRIES_COLUMNS} />
+      </SectionCard>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <SectionCard title={SECTIONS.payment}>
+          <div className="space-y-2.5">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-4 w-full" />)}
+          </div>
+        </SectionCard>
+        <SectionCard title={SECTIONS.account}>
+          <div className="space-y-2.5">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-4 w-full" />)}
+          </div>
         </SectionCard>
       </div>
-    </div>
+
+      <SectionCard title={SECTIONS.timeline}>
+        <DataTable.Skeleton columns={CUSTOMER_TIMELINE_COLUMNS} />
+      </SectionCard>
+    </>
   );
 };

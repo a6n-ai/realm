@@ -50,8 +50,8 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
       emptySearchMessage="No inquiries match your search."
       filters={
         <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={q} onChange={setQ} placeholder="Search name, source…" shortPlaceholder="Search…" />
-          {stages.length > 1 && (
+          <SearchInput value={q} onChange={setQ} placeholder="Search inquiries…" shortPlaceholder="Search…" />
+          {inquiries.length > 0 && (
             <Select value={stage} onValueChange={setStage}>
               <SelectTrigger size="sm" className="w-36">
                 <SelectValue placeholder="Stage" />

@@ -57,8 +57,8 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
       emptySearchMessage="No orders match your search."
       filters={
         <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={q} onChange={setQ} placeholder="Search plan, deployment, city…" shortPlaceholder="Search…" />
-          {statuses.length > 1 && (
+          <SearchInput value={q} onChange={setQ} placeholder="Search orders…" shortPlaceholder="Search…" />
+          {orders.length > 0 && (
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger size="sm" className="w-36">
                 <SelectValue placeholder="Status" />

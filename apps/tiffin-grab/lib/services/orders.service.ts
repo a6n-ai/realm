@@ -286,7 +286,14 @@ export async function createOrder(
     if (!userId) {
       userId = await provisionCustomerByPhone(
         tx,
-        { fullName: input.contact.fullName, phone, email },
+        {
+          fullName: input.contact.fullName,
+          phone,
+          email,
+          addressLine: input.contact.addressLine,
+          city: input.contact.city,
+          postalCode: input.contact.postalCode,
+        },
         createdBy,
       );
     }

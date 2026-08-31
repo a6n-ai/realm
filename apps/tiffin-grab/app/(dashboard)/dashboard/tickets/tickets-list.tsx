@@ -104,7 +104,7 @@ export function TicketsList({
       sort={sort}
       idAccessor={(r) => r.publicId}
       idHref={(r) => `/dashboard/tickets/${r.publicId}`}
-      search={{ placeholder: "Search by subject, customer or ID…", shortPlaceholder: "Search…", keys: ["subject", "customerName"] }}
+      search={{ placeholder: "Search tickets…", shortPlaceholder: "Search…", keys: ["subject", "customerName"] }}
       rowClassName={() => "group cursor-pointer"}
       emptyIcon={LifeBuoyIcon}
       emptyMessage="No tickets yet."
