@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
 import type { Condition } from "@realm/commons/model/condition";
 import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@realm/database";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 
 export type CustomerRow = {
   publicId: string;
@@ -37,8 +38,24 @@ export async function listCustomersPage(
   page: PageRequest,
   sort: SortState<CustomerSortColumn> = { column: "joined", dir: "desc" },
 ): Promise<Page<CustomerRow>> {
+  const scopeMode = await resolveOrgScopeMode();
+  // A brand admin (mode "all") sees every customer. A franchise admin (mode
+  // "org") sees only customers with at least one order under that franchise —
+  // customers themselves carry no organizationId (they can order from more
+  // than one location), so scoping goes through an EXISTS on their orders.
+  const orgFilter =
+    scopeMode.mode === "org"
+      ? exists(
+          db
+            .select({ one: sql`1` })
+            .from(orders)
+            .where(and(eq(orders.userId, users.id), eq(orders.organizationId, scopeMode.orgId))),
+        )
+      : undefined;
+
   const where = and(
     eq(users.role, "user"),
+    orgFilter,
     conditionToSql(
       condition,
       columnResolver({
@@ -61,6 +78,14 @@ export async function listCustomersPage(
   } as const;
   const col = SORT_COL[sort.column] ?? users.createdAt;
 
+  // Scoping the join itself (not just the EXISTS above) so order count/spend
+  // reflect only the selected client's orders too, not every order this
+  // customer ever placed across every franchise.
+  const orderJoin =
+    scopeMode.mode === "org"
+      ? and(eq(orders.userId, users.id), eq(orders.organizationId, scopeMode.orgId))
+      : eq(orders.userId, users.id);
+
   // The leftJoin fans out one row per order, so the total has to be counted on
   // the base table with the identical `where` — never off this query.
   const [items, [{ count }]] = await Promise.all([
@@ -77,7 +102,7 @@ export async function listCustomersPage(
         lastOrderAt: sql<number | null>`max(${orders.createdAt})`,
       })
       .from(users)
-      .leftJoin(orders, eq(orders.userId, users.id))
+      .leftJoin(orders, orderJoin)
       .where(where)
       .groupBy(users.id, users.publicId, users.name, users.email, users.phone, users.status, users.createdAt)
       .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
@@ -98,12 +123,18 @@ export type CustomerStats = {
 
 export async function customerStats(now = Date.now()): Promise<CustomerStats> {
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const scopeMode = await resolveOrgScopeMode();
+  const ocWhere = scopeMode.mode === "org" ? eq(orders.organizationId, scopeMode.orgId) : undefined;
   const oc = db
     .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })
     .from(orders)
+    .where(ocWhere)
     .groupBy(orders.userId)
     .as("oc");
 
+  // "Total"/"active"/"new this week" describe the account itself, so those
+  // stay unscoped even in org mode — only "withOrders" (this client's orders)
+  // is client-specific.
   const [row] = await db
     .select({
       total: sql<number>`count(*)`.mapWith(Number),
