@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UserIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
-import { PageHeader, PageShell, SectionCard, StatGrid } from "@realm/design-system";
+import { formatMoney, formatPhone } from "@realm/commons";
+import { BackButton, PageHeader, PageShell, SectionCard, StatGrid } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { requirePermission } from "@/lib/auth/guards";
 import { getCustomerDetail } from "@/lib/services/customers.service";
@@ -26,11 +26,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         icon={UserIcon}
         title={customer.name ?? "Customer"}
         subtitle={customer.email ?? undefined}
-        actions={
-          <Link href="/dashboard/customers" className="text-muted-foreground text-sm hover:underline">
-            ← All customers
-          </Link>
-        }
+        actions={<BackButton href="/dashboard/customers" label="All customers" />}
       />
       <StatGrid
         cols={3}
@@ -49,7 +45,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             ) : null}
           </Field>
           <Field label="Phone">
-            {customer.phone ?? "—"}
+            {customer.phone ? formatPhone(customer.phone) : "—"}
             {customer.phone && customer.phoneVerified ? (
               <Badge variant="outline" className="ml-2">verified</Badge>
             ) : null}

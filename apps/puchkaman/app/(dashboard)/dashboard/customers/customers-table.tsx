@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
+import { formatPhone } from "@realm/commons";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
 import { TableCell } from "@realm/ui/table";
@@ -74,7 +75,7 @@ export function CustomersTable({
             </TableCell>
             <TableCell>
               <div className="text-xs">{r.email ?? "—"}</div>
-              <div className="text-muted-foreground text-xs">{r.phone ?? "—"}</div>
+              <div className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "—"}</div>
             </TableCell>
             <TableCell className="text-right tabular-nums">{r.orderCount}</TableCell>
             <TableCell className="text-right tabular-nums">{r.spentLabel}</TableCell>

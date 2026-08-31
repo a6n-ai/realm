@@ -1,18 +1,26 @@
 import { NotFoundError, ValidationError } from "@realm/commons";
+import type { Condition } from "@realm/commons/model/condition";
+import type { Page, PageRequest } from "@realm/commons/util/pagination";
 import { cloverCustomers } from "@/db/schema";
 import { db } from "@/db/client";
 import { createCloverClient } from "@/lib/clover/client";
+import type { SortState } from "@/lib/list/sort";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { SITE_URL } from "@/lib/seo";
 import {
   cloverCustomersSyncService,
   type CloverCustomersPullResult,
 } from "@/lib/sync/clover-customers-sync.service";
-import { cloverCustomersRepository, type CloverCustomerListRow as RepoListRow } from "./customers.repository";
+import {
+  cloverCustomersRepository,
+  type CloverCustomerListRow as RepoListRow,
+  type CloverCustomerSortColumn,
+} from "./customers.repository";
 import { usersRepository } from "./users.repository";
 import { currentUserId, recordAudit, SessionUpdatableService } from "./session-service";
 
 export type CloverCustomerListRow = RepoListRow & { hasAccount: boolean };
+export type { CloverCustomerSortColumn };
 
 /**
  * Clover customers — SessionUpdatableService over CloverCustomersRepository.
@@ -26,13 +34,18 @@ class CloverCustomersService extends SessionUpdatableService<typeof cloverCustom
   }
 
   /** hasAccount = an app `users` row shares this customer's email — cross-referenced in one batch query, not per row. */
-  async listAll(): Promise<CloverCustomerListRow[]> {
-    const rows = await this.repo.findAll();
-    const emails = [...new Set(rows.map((r) => r.email).filter((e): e is string => !!e))];
+  async listPage(
+    condition: Condition | undefined,
+    page: PageRequest,
+    sort?: SortState<CloverCustomerSortColumn>,
+  ): Promise<Page<CloverCustomerListRow>> {
+    const result = await this.repo.findPage(condition, page, sort);
+    const emails = [...new Set(result.items.map((r) => r.email).filter((e): e is string => !!e))];
     const accountEmails = await usersRepository.findEmailsIn(emails);
-    return rows
-      .map((r) => ({ ...r, hasAccount: !!r.email && accountEmails.has(r.email) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      ...result,
+      items: result.items.map((r) => ({ ...r, hasAccount: !!r.email && accountEmails.has(r.email) })),
+    };
   }
 
   /**

@@ -1,22 +1,25 @@
 import { Suspense } from "react";
 import { UsersIcon } from "lucide-react";
 import { getCloverConnection } from "@realm/clover";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { DataTable, PageHeader, PageShell, SectionCard, type Column } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@realm/ui/table";
+import { TableCell } from "@realm/ui/table";
 import { redirect } from "next/navigation";
 import { CloverEmployeesSyncActions } from "@/components/admin/clover-employees-sync-actions";
 import { SyncOneEmployeeButton } from "@/components/admin/sync-one-employee-button";
 import { requirePermission } from "@/lib/auth/guards";
 import { employeesService } from "@/lib/services/employees.service";
 import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
+
+const COLUMNS: readonly Column<"name" | "nickname" | "email" | "role" | "status" | "cloverId" | "actions">[] = [
+  { key: "name", label: "Name" },
+  { key: "nickname", label: "Nickname" },
+  { key: "email", label: "Email" },
+  { key: "role", label: "Role" },
+  { key: "status", label: "Status" },
+  { key: "cloverId", label: "Clover id" },
+  { key: "actions", label: "" },
+];
 
 export default function CloverEmployeesPage() {
   return (
@@ -32,7 +35,7 @@ export default function CloverEmployeesPage() {
         }
       />
       <SectionCard title="All employees">
-        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading…</p>}>
+        <Suspense fallback={<DataTable.Skeleton columns={COLUMNS} serial={false} />}>
           <EmployeesTable />
         </Suspense>
       </SectionCard>
@@ -58,57 +61,48 @@ async function EmployeesTable() {
 
   const rows = await employeesService.listAll();
 
-  if (rows.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        No employees yet. Connect Clover and run Sync from Clover.
-      </p>
-    );
-  }
-
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Nickname</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Clover id</TableHead>
-          <TableHead className="text-right" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.publicId}>
-            <TableCell className="font-medium">
-              {r.name}
-              {r.isOwner ? (
-                <Badge variant="secondary" className="ml-2">
-                  Owner
-                </Badge>
-              ) : null}
-            </TableCell>
-            <TableCell>{r.nickname ?? "—"}</TableCell>
-            <TableCell>{r.email ?? "—"}</TableCell>
-            <TableCell className="text-muted-foreground text-xs uppercase">
-              {r.role ?? "—"}
-            </TableCell>
-            <TableCell>
-              <Badge variant={r.active ? "default" : "outline"}>
-                {r.active ? "Active" : "Inactive"}
+    <DataTable
+      columns={COLUMNS}
+      rows={rows}
+      rowKey={(r) => r.publicId}
+      serial={false}
+      search={{
+        keys: ["name", "nickname", "email"],
+        placeholder: "Search name, nickname or email…",
+        shortPlaceholder: "Search…",
+      }}
+      emptyIcon={UsersIcon}
+      emptyMessage="No employees yet. Connect Clover and run Sync from Clover."
+      emptySearchMessage="No employees match your search."
+      renderRow={(r) => (
+        <>
+          <TableCell className="font-medium">
+            {r.name}
+            {r.isOwner ? (
+              <Badge variant="secondary" className="ml-2">
+                Owner
               </Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground font-mono text-xs">
-              {r.cloverEmployeeId ?? "—"}
-            </TableCell>
-            <TableCell className="text-right">
-              <SyncOneEmployeeButton publicId={r.publicId} disabled={!r.cloverEmployeeId} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            ) : null}
+          </TableCell>
+          <TableCell>{r.nickname ?? "—"}</TableCell>
+          <TableCell>{r.email ?? "—"}</TableCell>
+          <TableCell className="text-muted-foreground text-xs uppercase">
+            {r.role ?? "—"}
+          </TableCell>
+          <TableCell>
+            <Badge variant={r.active ? "default" : "outline"}>
+              {r.active ? "Active" : "Inactive"}
+            </Badge>
+          </TableCell>
+          <TableCell className="text-muted-foreground font-mono text-xs">
+            {r.cloverEmployeeId ?? "—"}
+          </TableCell>
+          <TableCell className="text-right">
+            <SyncOneEmployeeButton publicId={r.publicId} disabled={!r.cloverEmployeeId} />
+          </TableCell>
+        </>
+      )}
+    />
   );
 }

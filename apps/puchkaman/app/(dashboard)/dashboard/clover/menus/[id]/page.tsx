@@ -4,13 +4,20 @@ import { notFound, redirect } from "next/navigation";
 import { BookOpenIcon } from "lucide-react";
 import { NotFoundError } from "@realm/commons";
 import { getCloverConnection } from "@realm/clover";
-import { BackButton, PageHeader, PageShell, SectionCard } from "@realm/design-system";
+import { BackButton, DataTable, PageHeader, PageShell, SectionCard, type Column } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
-import { Skeleton } from "@realm/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { TableCell } from "@realm/ui/table";
 import { requirePermission } from "@/lib/auth/guards";
 import { integrationsConfigStore, isCloverVisibleInNav } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
+
+const MENU_ITEM_COLUMNS: readonly Column<"name" | "basePrice" | "price" | "markup" | "status">[] = [
+  { key: "name", label: "Item" },
+  { key: "basePrice", label: "Register price", align: "right" },
+  { key: "price", label: "Menu price", align: "right" },
+  { key: "markup", label: "Markup", align: "right" },
+  { key: "status", label: "Status" },
+];
 
 export default function MenuDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -66,59 +73,49 @@ async function MenuDetailLoader({ params }: { params: Promise<{ id: string }> })
             : `${items.length} item${items.length === 1 ? "" : "s"}`
         }
       >
-        {items.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-sm">
-            No items on this menu yet. Run Sync from Clover.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Register price</TableHead>
-                <TableHead className="text-right">Menu price</TableHead>
-                <TableHead className="text-right">Markup</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => {
-                const markup =
-                  item.basePrice == null ? null : Number((item.price - item.basePrice).toFixed(2));
-                return (
-                  <TableRow key={item.publicId}>
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/dashboard/products/${item.productPublicId}`}
-                        className="hover:underline"
-                      >
-                        {item.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-right tabular-nums">
-                      {item.basePrice == null ? "—" : `$${item.basePrice.toFixed(2)}`}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      ${item.price.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {markup == null || markup === 0 ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        `${markup > 0 ? "+" : ""}$${markup.toFixed(2)}`
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.enabled ? "default" : "outline"}>
-                        {item.enabled ? "Enabled" : "Disabled"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+        <DataTable
+          columns={MENU_ITEM_COLUMNS}
+          rows={items}
+          rowKey={(item) => item.publicId}
+          serial={false}
+          search={{
+            keys: ["name"],
+            placeholder: "Search items…",
+            shortPlaceholder: "Search…",
+          }}
+          emptyIcon={BookOpenIcon}
+          emptyMessage="No items on this menu yet. Run Sync from Clover."
+          emptySearchMessage="No items match your search."
+          renderRow={(item) => {
+            const markup =
+              item.basePrice == null ? null : Number((item.price - item.basePrice).toFixed(2));
+            return (
+              <>
+                <TableCell className="font-medium">
+                  <Link href={`/dashboard/products/${item.productPublicId}`} className="hover:underline">
+                    {item.name}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-right tabular-nums">
+                  {item.basePrice == null ? "—" : `$${item.basePrice.toFixed(2)}`}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">${item.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {markup == null || markup === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    `${markup > 0 ? "+" : ""}$${markup.toFixed(2)}`
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={item.enabled ? "default" : "outline"}>
+                    {item.enabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </TableCell>
+              </>
+            );
+          }}
+        />
       </SectionCard>
     </>
   );
@@ -129,11 +126,7 @@ function MenuDetailSkeleton() {
     <>
       <PageHeader icon={BookOpenIcon} title="Menu" subtitle="Loading…" />
       <SectionCard title="Items on this menu">
-        <div className="space-y-3">
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-3/4" />
-        </div>
+        <DataTable.Skeleton columns={MENU_ITEM_COLUMNS} serial={false} />
       </SectionCard>
     </>
   );

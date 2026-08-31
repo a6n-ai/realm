@@ -1,16 +1,26 @@
+import { Suspense } from "react";
 import { CalendarHeartIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@realm/design-system";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@realm/ui/table";
+import { PageHeader, PageShell, SectionCard, parseFilterState, type FacetDef } from "@realm/design-system";
 import { requirePermission } from "@/lib/auth/guards";
-import { listCateringInquiries } from "@/lib/services/catering.service";
+import { parseSort } from "@/lib/list/sort";
+import { listCateringInquiriesPage, type CateringSortColumn } from "@/lib/services/catering.service";
+import { CateringTable, CateringTableSkeleton } from "./catering-table";
+
+type SearchParams = Promise<Record<string, string | undefined>>;
 
 const shopDate = (ms: number) =>
   new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 
-export default async function CateringPage() {
-  await requirePermission({ order: ["read"] });
-  const rows = await listCateringInquiries();
+const SORT_COLUMNS = [
+  "submitted",
+  "name",
+  "eventDate",
+  "guests",
+] as const satisfies readonly CateringSortColumn[];
 
+const SPEC: FacetDef[] = [{ kind: "search", fields: ["name", "phone", "email"] }];
+
+export default function CateringPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
       <PageHeader
@@ -18,47 +28,35 @@ export default async function CateringPage() {
         title="Catering"
         subtitle="Quote requests submitted from the public catering page."
       />
-      <SectionCard title="Requests" subtitle={`${rows.length} total, newest first.`}>
-        {rows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No catering requests yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Event date</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Guests</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.publicId}>
-                    <TableCell className="whitespace-nowrap">{shopDate(r.createdAt)}</TableCell>
-                    <TableCell>{r.name}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div>{r.phone}</div>
-                      <div className="text-muted-foreground text-xs">{r.email}</div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{r.eventDate}</TableCell>
-                    <TableCell>{r.location}</TableCell>
-                    <TableCell>{r.guests}</TableCell>
-                    <TableCell>{r.eventType}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={[r.allergies, r.message].filter(Boolean).join(" — ")}>
-                      {[r.allergies, r.message].filter(Boolean).join(" — ") || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+      <SectionCard title="Requests">
+        <Suspense fallback={<CateringTableSkeleton />}>
+          <CateringData searchParams={searchParams} />
+        </Suspense>
       </SectionCard>
     </PageShell>
+  );
+}
+
+async function CateringData({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission({ order: ["read"] });
+
+  const sp = await searchParams;
+  const sort = parseSort(sp, SORT_COLUMNS, { column: "submitted", dir: "desc" });
+  const { condition, page } = parseFilterState(SPEC, sp);
+
+  const result = await listCateringInquiriesPage(condition, page, sort);
+
+  return (
+    <CateringTable
+      spec={SPEC}
+      rows={result.items.map((r) => ({
+        ...r,
+        submittedLabel: shopDate(r.createdAt),
+      }))}
+      total={result.total}
+      page={page.page}
+      size={page.size}
+      sort={sort}
+    />
   );
 }

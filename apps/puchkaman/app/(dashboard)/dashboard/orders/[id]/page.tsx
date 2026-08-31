@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { formatMoney } from "@realm/commons";
+import { formatMoney, formatPhone } from "@realm/commons";
 import { getCloverConnection } from "@realm/clover";
 import { BackButton, PageHeader, PageShell, SectionCard } from "@realm/design-system";
 import { Badge } from "@realm/ui/badge";
@@ -106,7 +106,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Phone</dt>
-              <dd>{order.customerPhone ?? "—"}</dd>
+              <dd>{order.customerPhone ? formatPhone(order.customerPhone) : "—"}</dd>
             </div>
             {cloverEnabled && order.cloverOrderId ? (
               <div className="flex justify-between gap-4">
