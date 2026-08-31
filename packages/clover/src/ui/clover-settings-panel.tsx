@@ -45,6 +45,7 @@ export function CloverSettingsPanel({
   onConnectApiToken,
   orderTypes,
   onSaveWebOrderTypes,
+  onCreateOrderType,
 }: {
   clover: CloverConnectionPublic;
   merchantName?: string;
@@ -64,6 +65,8 @@ export function CloverSettingsPanel({
   orderTypes?: CloverOrderType[];
   /** Persist the website-order type mapping. Omit to hide that section. */
   onSaveWebOrderTypes?: (input: { pickup?: string; delivery?: string }) => Promise<void>;
+  /** Create a new order type on the merchant. Omit to hide the "create new" option. */
+  onCreateOrderType?: (label: string) => Promise<{ id: string; label: string }>;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -279,6 +282,7 @@ export function CloverSettingsPanel({
             orderTypes={orderTypes ?? []}
             initial={clover.webOrderTypes}
             onSave={saveWebOrderTypes}
+            onCreate={onCreateOrderType}
             pending={pending}
           />
         ) : null}
@@ -336,27 +340,54 @@ function WebOrderTypeFields({
   orderTypes,
   initial,
   onSave,
+  onCreate,
   pending,
 }: {
   orderTypes: CloverOrderType[];
   initial: { pickup?: string; delivery?: string };
   onSave: (input: { pickup?: string; delivery?: string }) => void;
+  onCreate?: (label: string) => Promise<{ id: string; label: string }>;
   pending: boolean;
 }) {
+  const router = useRouter();
   // Radix Select treats "" as "no value" and refuses an item with an empty value,
   // so an explicit "not set" choice needs a sentinel that never collides with a
   // Clover id.
   const NONE = "__none__";
+  const CREATE = "__create__";
   const [pickup, setPickup] = useState(initial.pickup ?? NONE);
   const [delivery, setDelivery] = useState(initial.delivery ?? NONE);
+  const [creating, setCreating] = useState<"pickup" | "delivery" | null>(null);
+  const [creatingPending, startCreating] = useTransition();
 
   const dirty = (pickup === NONE ? undefined : pickup) !== initial.pickup
     || (delivery === NONE ? undefined : delivery) !== initial.delivery;
 
-  const rows: { key: "pickup" | "delivery"; label: string; value: string; set: (v: string) => void }[] = [
-    { key: "pickup", label: "Website pickup", value: pickup, set: setPickup },
-    { key: "delivery", label: "Website delivery", value: delivery, set: setDelivery },
+  const rows: {
+    key: "pickup" | "delivery";
+    label: string;
+    defaultName: string;
+    value: string;
+    set: (v: string) => void;
+  }[] = [
+    { key: "pickup", label: "Website pickup", defaultName: "Website Pickup", value: pickup, set: setPickup },
+    { key: "delivery", label: "Website delivery", defaultName: "Website Delivery", value: delivery, set: setDelivery },
   ];
+
+  const createOrderType = (key: "pickup" | "delivery", label: string) => {
+    if (!onCreate) return;
+    startCreating(async () => {
+      try {
+        const created = await onCreate(label);
+        toast.success(`Created "${created.label}" on Clover`);
+        (key === "pickup" ? setPickup : setDelivery)(created.id);
+        setCreating(null);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not create order type");
+      }
+    });
+  };
 
   return (
     <div className="space-y-3 border-t pt-4">
@@ -368,7 +399,7 @@ function WebOrderTypeFields({
         </p>
       </div>
 
-      {orderTypes.length === 0 ? (
+      {orderTypes.length === 0 && !onCreate ? (
         <p className="text-warn text-xs">
           No order types found on this merchant. Create them in the Clover dashboard under
           Setup → Order Types, then reload this page.
@@ -376,24 +407,65 @@ function WebOrderTypeFields({
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            {rows.map((row) => (
-              <div key={row.key} className="space-y-1.5">
-                <Label htmlFor={`order-type-${row.key}`}>{row.label}</Label>
-                <Select value={row.value} onValueChange={row.set} disabled={pending}>
-                  <SelectTrigger id={`order-type-${row.key}`}>
-                    <SelectValue placeholder="Not set" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Not set</SelectItem>
-                    {orderTypes.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+            {rows.map((row) =>
+              creating === row.key ? (
+                <div key={row.key} className="space-y-1.5">
+                  <Label htmlFor={`order-type-new-${row.key}`}>{row.label}</Label>
+                  <form
+                    className="flex gap-1.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const name = new FormData(e.currentTarget).get("name");
+                      createOrderType(row.key, String(name ?? "").trim() || row.defaultName);
+                    }}
+                  >
+                    <Input
+                      id={`order-type-new-${row.key}`}
+                      name="name"
+                      defaultValue={row.defaultName}
+                      disabled={creatingPending}
+                      autoFocus
+                    />
+                    <Button type="submit" size="sm" disabled={creatingPending}>
+                      Create
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={creatingPending}
+                      onClick={() => setCreating(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                </div>
+              ) : (
+                <div key={row.key} className="space-y-1.5">
+                  <Label htmlFor={`order-type-${row.key}`}>{row.label}</Label>
+                  <Select
+                    value={row.value}
+                    onValueChange={(v) => (v === CREATE ? setCreating(row.key) : row.set(v))}
+                    disabled={pending || creatingPending}
+                  >
+                    <SelectTrigger id={`order-type-${row.key}`}>
+                      <SelectValue placeholder="Not set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Not set</SelectItem>
+                      {orderTypes.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                      {onCreate ? (
+                        <SelectItem value={CREATE}>+ Create new order type…</SelectItem>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ),
+            )}
           </div>
           <Button
             type="button"

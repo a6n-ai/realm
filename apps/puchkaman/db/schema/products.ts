@@ -1,6 +1,6 @@
 import { updatableColumns } from "@realm/database";
 import type { FileDetail } from "@realm/storage/model";
-import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 
 export const productSource = pgEnum("product_source", ["manual", "uber_eats"]);
@@ -36,13 +36,15 @@ export const products = pgTable("products", {
    */
   veg: boolean("veg"),
   active: boolean("active").notNull().default(true),
-  slug: text("slug").unique(),
+  // Not globally unique — two orgs' Clover merchants both naming a product
+  // "Water Bottle" would otherwise collide on the same slug at insert time.
+  slug: text("slug"),
   displayOrder: integer("display_order").notNull().default(0),
   featured: boolean("featured").notNull().default(false),
   // Sync bookkeeping (see lib/sync/menu-sync.service.ts) — manual products never
   // touch these beyond their defaults.
   source: productSource("source").notNull().default("manual"),
-  externalId: text("external_id").unique(),
+  externalId: text("external_id"),
   lastSyncedAt: bigint("last_synced_at", { mode: "number" }),
   syncStatus: productSyncStatus("sync_status").notNull().default("none"),
   pendingSync: jsonb("pending_sync").$type<PendingSync>(),
@@ -54,7 +56,8 @@ export const products = pgTable("products", {
   // Clover Inventory link (independent of Uber Eats source/externalId).
   // Clover is inventory SoT for linked items; local catalog fields + the
   // clover* mirror columns below are pushed/pulled together.
-  cloverItemId: text("clover_item_id").unique(),
+  // Not globally unique for the same reason as slug/externalId — see below.
+  cloverItemId: text("clover_item_id"),
   cloverLastSyncedAt: bigint("clover_last_synced_at", { mode: "number" }),
   cloverSku: text("clover_sku"),
   cloverCode: text("clover_code"),
@@ -82,4 +85,11 @@ export const products = pgTable("products", {
   // Client-scoping — null = shared, set = one org's own product (each location
   // syncs from its own Clover merchant). See db/schema/organizations.ts.
   organizationId: text("organization_id").references(() => organization.id),
-});
+}, (t) => [
+  // Scoped per org, not global — Postgres treats NULL as distinct per row, so
+  // multiple shared (organizationId null) rows with the same slug/id are still
+  // rejected only within the same org, matching pre-multi-tenant behavior.
+  uniqueIndex("products_org_slug_unique").on(t.organizationId, t.slug),
+  uniqueIndex("products_org_external_id_unique").on(t.organizationId, t.externalId),
+  uniqueIndex("products_org_clover_item_id_unique").on(t.organizationId, t.cloverItemId),
+]);

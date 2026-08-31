@@ -56,6 +56,7 @@ import {
 } from "./inventory";
 import {
   buildAtomicOrderBody,
+  normalizeOrderType,
   normalizeOrderTypes,
   normalizeAtomicCheckoutResult,
   normalizeAtomicOrderResult,
@@ -723,6 +724,14 @@ export class CloverApiClient {
   async listOrderTypes(): Promise<CloverOrderType[]> {
     const data = await this.get(this.merchantPath("order_types"));
     return normalizeOrderTypes(data);
+  }
+
+  /** Create a merchant order type. POST /v3/merchants/{mId}/order_types */
+  async createOrderType(label: string): Promise<CloverOrderType> {
+    const data = await this.post(this.merchantPath("order_types"), { label });
+    const type = normalizeOrderType(data);
+    if (!type) throw new Error("Clover did not return the created order type");
+    return type;
   }
 
   /**
