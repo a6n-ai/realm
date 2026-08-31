@@ -132,9 +132,14 @@ export async function customerStats(now = Date.now()): Promise<CustomerStats> {
     .groupBy(orders.userId)
     .as("oc");
 
-  // "Total"/"active"/"new this week" describe the account itself, so those
-  // stay unscoped even in org mode — only "withOrders" (this client's orders)
-  // is client-specific.
+  // A franchise view (mode "org") scopes every card to the same population as
+  // the list below it — customers with at least one order at that client —
+  // so Total/Active/New this week agree with what the table actually shows.
+  const scopedToClient =
+    scopeMode.mode === "org"
+      ? exists(db.select({ one: sql`1` }).from(oc).where(eq(oc.userId, users.id)))
+      : undefined;
+
   const [row] = await db
     .select({
       total: sql<number>`count(*)`.mapWith(Number),
@@ -144,7 +149,7 @@ export async function customerStats(now = Date.now()): Promise<CustomerStats> {
     })
     .from(users)
     .leftJoin(oc, eq(oc.userId, users.id))
-    .where(eq(users.role, "user"));
+    .where(and(eq(users.role, "user"), scopedToClient));
 
   return row;
 }
