@@ -329,7 +329,7 @@ export async function getCustomer360(userPublicId: string) {
   ].sort((a, b) => b.at - a.at);
 
   return {
-    profile: { publicId: user.publicId, email: user.email, phone: user.phone },
+    profile: { id: user.id, publicId: user.publicId, email: user.email, phone: user.phone },
     orders: orderRows,
     inquiries: inqRows,
     timeline,
