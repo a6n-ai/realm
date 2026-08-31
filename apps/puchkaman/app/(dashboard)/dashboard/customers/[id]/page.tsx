@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UserIcon } from "lucide-react";
 import { formatMoney, formatPhone } from "@realm/commons";
@@ -6,6 +5,7 @@ import { BackButton, PageHeader, PageShell, SectionCard, StatGrid } from "@realm
 import { Badge } from "@realm/ui/badge";
 import { requirePermission } from "@/lib/auth/guards";
 import { getCustomerDetail } from "@/lib/services/customers.service";
+import { CustomerOrdersTable } from "./customer-orders-table";
 
 /** Toronto wall-clock, like the rest of the app's operator-facing timestamps. */
 const shopDateTime = (ms: number) =>
@@ -61,24 +61,13 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </dl>
       </SectionCard>
       <SectionCard title="Orders">
-        {customer.orders.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No orders yet.</p>
-        ) : (
-          <ul className="divide-y">
-            {customer.orders.map((o) => (
-              <li key={o.publicId} className="flex items-center justify-between gap-3 py-2">
-                <Link href={`/dashboard/orders/${o.publicId}`} className="font-mono text-xs hover:underline">
-                  {o.publicId}
-                </Link>
-                <Badge variant="outline">{o.status}</Badge>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {shopDateTime(o.createdAt)}
-                </span>
-                <span className="tabular-nums">{formatMoney(Number(o.total))}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <CustomerOrdersTable
+          rows={customer.orders.map((o) => ({
+            ...o,
+            totalLabel: formatMoney(Number(o.total)),
+            createdAtLabel: shopDateTime(o.createdAt),
+          }))}
+        />
       </SectionCard>
     </PageShell>
   );
