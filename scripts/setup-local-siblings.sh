@@ -71,7 +71,10 @@ github_base() {
 }
 
 repo_url() {
-  local base="$1" name="$2"
+  # Separate locals: macOS /bin/bash is 3.2; `local a=1 b=$a` leaves b unbound under set -u.
+  local base name
+  base="$1"
+  name="$2"
   case "$base" in
     git@github.com:a6n-ai) printf 'git@github.com:a6n-ai/%s.git\n' "$name" ;;
     *) printf '%s/%s.git\n' "$base" "$name" ;;
@@ -79,7 +82,10 @@ repo_url() {
 }
 
 clone_or_update() {
-  local name="$1" url="$2" dir="$ROOT/$name"
+  local name url dir
+  name="$1"
+  url="$2"
+  dir="$ROOT/$name"
   if [[ -d "$dir/.git" ]]; then
     echo "==> update $dir"
     git -C "$dir" fetch origin
