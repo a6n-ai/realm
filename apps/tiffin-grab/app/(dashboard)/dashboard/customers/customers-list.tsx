@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
+import { formatPhone } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
@@ -44,7 +45,7 @@ export function CustomersList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/customers/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ReuiFacetFilters spec={spec} />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search customers…" shortPlaceholder="Search…" />}
         emptyIcon={UsersIcon}
         emptyMessage="No customers yet."
         emptySearchMessage="No customers match your search."
@@ -56,7 +57,7 @@ export function CustomersList({
               </Link>
             </TableCell>
             <TableCell>{c.email ?? "(no email)"}</TableCell>
-            <TableCell>{c.phone ?? "no phone"}</TableCell>
+            <TableCell>{c.phone ? formatPhone(c.phone) : "no phone"}</TableCell>
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell>
               {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}

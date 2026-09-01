@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
+import { formatPhone } from "@foundry/commons";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { SyncCustomerToCloverButton } from "@/components/admin/sync-customer-to-clover-button";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
 
@@ -19,6 +21,7 @@ const COLUMNS: readonly Column<CustomerSortColumn>[] = [
   { key: "spent", label: "Spent", sortable: true, align: "right" },
   { key: "lastOrder", label: "Last order", sortable: true, align: "right" },
   { key: "joined", label: "Joined", sortable: true, align: "right" },
+  { key: "actions", label: "" },
 ];
 
 export function CustomersTable({
@@ -72,7 +75,7 @@ export function CustomersTable({
             </TableCell>
             <TableCell>
               <div className="text-xs">{r.email ?? "—"}</div>
-              <div className="text-muted-foreground text-xs">{r.phone ?? "—"}</div>
+              <div className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "—"}</div>
             </TableCell>
             <TableCell className="text-right tabular-nums">{r.orderCount}</TableCell>
             <TableCell className="text-right tabular-nums">{r.spentLabel}</TableCell>
@@ -81,6 +84,13 @@ export function CustomersTable({
             </TableCell>
             <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
               {r.joinedLabel}
+            </TableCell>
+            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+              {r.cloverCustomerId ? (
+                <Badge variant="outline">Synced</Badge>
+              ) : (
+                <SyncCustomerToCloverButton publicId={r.publicId} defaultQuery={r.email ?? r.phone ?? r.name ?? ""} />
+              )}
             </TableCell>
           </>
         )}

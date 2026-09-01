@@ -54,7 +54,7 @@ export function DiscountLogs({
         rowKey={(r) => r.publicId}
         sort={sort}
         search={{
-          placeholder: "Search by coupon, user or order…",
+          placeholder: "Search discount logs…",
           shortPlaceholder: "Search…",
           keys: ["code", "email", "redeemedByEmail", "orderPublicId"],
         }}

@@ -460,6 +460,10 @@ async function applyOne(record: MigrationRecord, mealSize: CatalogMealSize): Pro
 
   await db.transaction(async (tx) => {
     await tx.update(orders).set({ status: "active", tiffinCount: record.tiffinCount }).where(eq(orders.id, order.id));
+    // createOrder already materialized its own default delivery calendar (durationWeeks: 1)
+    // on insert above — replace it with the bounded schedule computed from the migrated
+    // customer's real remaining balance, rather than colliding on deliveries_order_date_unique.
+    await tx.delete(deliveries).where(eq(deliveries.orderId, order.id));
     if (rows.length > 0) {
       await tx.insert(deliveries).values(
         rows.map((r) => ({

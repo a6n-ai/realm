@@ -93,7 +93,7 @@ export function OrderActivityLog({ activities }: { activities: OrderActivityLogR
       rowKey={(r) => r.publicId}
       serial={false}
       search={{
-        placeholder: "Search activity, actor, or note…",
+        placeholder: "Search activity…",
         shortPlaceholder: "Search…",
         keys: ["action", "actorLabel", "actorEmail", "note", "type"],
       }}

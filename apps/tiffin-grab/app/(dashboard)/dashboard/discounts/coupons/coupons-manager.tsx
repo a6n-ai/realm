@@ -236,7 +236,7 @@ export function CouponsManager({
         rows={coupons}
         rowKey={(c) => c.publicId}
         sort={sort}
-        search={{ placeholder: "Search by code or name…", shortPlaceholder: "Search…", keys: ["code", "name"] }}
+        search={{ placeholder: "Search coupons…", shortPlaceholder: "Search…", keys: ["code", "name"] }}
         rowClassName={(c) => (c.active ? "" : "opacity-60")}
         emptyIcon={TicketPercentIcon}
         emptyMessage="No coupons yet."

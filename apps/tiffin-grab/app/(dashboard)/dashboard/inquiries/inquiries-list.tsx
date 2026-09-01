@@ -3,10 +3,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardListIcon } from "lucide-react";
+import { formatPhone } from "@foundry/commons";
 import {
   DataTable, ListPagination, StageBadge, type Column, type FacetDef,
 } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@foundry/ui/badge";
 import type { SortState } from "@/lib/list/sort";
@@ -64,7 +65,7 @@ export function InquiriesList({
         idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/inquiries/${r.publicId}`}
         rowClassName={() => "group cursor-pointer"}
-        filters={<ReuiFacetFilters spec={spec} />}
+        filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" />}
         emptyIcon={ClipboardListIcon}
         emptyMessage="No inquiries yet."
         emptySearchMessage="No inquiries match your search."
@@ -78,7 +79,7 @@ export function InquiriesList({
             >
               {r.fullName}
             </Link>
-            <div className="text-muted-foreground text-xs">{r.phone}</div>
+            <div className="text-muted-foreground text-xs">{formatPhone(r.phone)}</div>
           </TableCell>
           <TableCell>
             {canReassign && staff && reassignAction ? (

@@ -2,20 +2,10 @@ import { Suspense } from "react";
 import { and, eq, gte, sql, type SQL } from "drizzle-orm";
 import type { FilterCondition } from "@foundry/commons";
 import { conditionToSql } from "@foundry/database";
-import {
-  ListPagination,
-  SectionCard,
-  SkeletonStatCards,
-  StatGrid,
-  parseFilterState,
-  type FacetDef,
-} from "@foundry/design-system";
-import { Badge } from "@foundry/ui/badge";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
+import { SectionCard, SkeletonStatCards, StatGrid, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { db } from "@/db/client";
 import { emailLog, messageSuppression } from "@/db/schema";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { EmailsTable, EmailsTableSkeleton } from "./emails-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -90,7 +80,10 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
     db.execute(sql`select cast(count(*) as int) as total from ${base}${whereSql}`),
   ]);
 
-  const rows = items as unknown as ActivityRow[];
+  const rows = (items as unknown as ActivityRow[]).map((r, i) => ({
+    ...r,
+    _rowKey: `${r.recipient}-${r.at}-${i}`,
+  }));
   const total = Number((totalRes as unknown as { total: number }[])[0]?.total ?? 0);
 
   const failedCount = failed24[0]?.n ?? 0;
@@ -105,45 +98,8 @@ async function EmailsData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-5">
       <StatGrid cols={4} items={cards} />
-
       <SectionCard title="Email log" subtitle="Every send and every suppressed address, newest first.">
-        <div className="space-y-4">
-          <ReuiFacetFilters spec={SPEC} />
-          {rows.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No emails match.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Subject / reason</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={`${r.recipient}-${r.at}-${i}`}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                        {new Date(Number(r.at)).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-sm">{r.recipient ?? "—"}</TableCell>
-                      <TableCell className="text-sm">
-                        {r.subject}
-                        {r.error && <span className="text-destructive block text-xs">{r.error}</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={r.status === "sent" ? "secondary" : "outline"}>{r.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <ListPagination page={page.page} size={page.size} total={total} />
-        </div>
+        <EmailsTable spec={SPEC} rows={rows} page={page.page} size={page.size} total={total} />
       </SectionCard>
     </div>
   );
@@ -154,11 +110,7 @@ function EmailsSkeleton() {
     <div className="space-y-5">
       <SkeletonStatCards count={4} />
       <SectionCard title="Email log">
-        <div className="space-y-2">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
+        <EmailsTableSkeleton />
       </SectionCard>
     </div>
   );

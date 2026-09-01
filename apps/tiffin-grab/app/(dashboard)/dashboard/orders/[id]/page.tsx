@@ -1,11 +1,9 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarIcon, PackageIcon } from "lucide-react";
+import { PackageIcon } from "lucide-react";
 import { NotFoundError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
-import { Button } from "@foundry/ui/button";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
@@ -103,13 +101,6 @@ async function OrderDetail({
         subtitle={order.deploymentId}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {customer ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/dashboard/customers/${customer.publicId}?order=${order.publicId}`}>
-                  <CalendarIcon data-icon="inline-start" /> Manage deliveries
-                </Link>
-              </Button>
-            ) : null}
             <ActivateCancelControls orderId={order.publicId} status={order.status} />
           </div>
         }
@@ -126,18 +117,24 @@ async function OrderDetail({
           />
         </SectionCard>
 
-        <SectionCard title="Payment">
-          <PaymentsPanel
-            orderId={order.publicId}
-            deploymentId={order.deploymentId}
-            orderTotal={Number(order.total)}
-            currency={settings.currency}
-            timezone={settings.timezone}
-            checkoutMethodLabel={checkoutMethodLabel}
-            pricingSnapshot={order.pricingSnapshot}
-            payments={order.payments}
-          />
-        </SectionCard>
+        <div className="space-y-4">
+          <SectionCard title="Payment">
+            <PaymentsPanel
+              orderId={order.publicId}
+              deploymentId={order.deploymentId}
+              orderTotal={Number(order.total)}
+              currency={settings.currency}
+              timezone={settings.timezone}
+              checkoutMethodLabel={checkoutMethodLabel}
+              pricingSnapshot={order.pricingSnapshot}
+              payments={order.payments}
+            />
+          </SectionCard>
+
+          <SectionCard title="Activity">
+            <OrderActivityLog activities={activities} />
+          </SectionCard>
+        </div>
       </div>
 
       <SubscriptionPanel
@@ -146,10 +143,6 @@ async function OrderDetail({
         basePath={`/dashboard/orders/${order.publicId}`}
         visible={visible}
       />
-
-      <SectionCard title="Activity">
-        <OrderActivityLog activities={activities} />
-      </SectionCard>
     </>
   );
 }
@@ -173,16 +166,18 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Payment">
-          <Skeleton className="h-32 w-full" />
-        </SectionCard>
+        <div className="space-y-4">
+          <SectionCard title="Payment">
+            <Skeleton className="h-32 w-full" />
+          </SectionCard>
+
+          <SectionCard title="Activity">
+            <OrderActivityLogSkeleton />
+          </SectionCard>
+        </div>
       </div>
 
       <SubscriptionPanelSkeleton />
-
-      <SectionCard title="Activity">
-        <OrderActivityLogSkeleton />
-      </SectionCard>
     </>
   );
 };

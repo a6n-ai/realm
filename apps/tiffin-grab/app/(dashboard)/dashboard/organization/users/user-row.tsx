@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Role, type RoleValue } from "@foundry/commons";
+import { Role, formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -118,7 +118,7 @@ export function UserRow({ id, name, email, phone, role, status, flags }: UserLis
           {name || "—"}
         </Link>
       </TableCell>
-      <TableCell>{email ?? phone ?? "—"}</TableCell>
+      <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
       <TableCell><RoleSelect id={id} role={role} /></TableCell>
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
       <TableCell><FlagToggles id={id} flags={flags} /></TableCell>
@@ -133,9 +133,9 @@ export function UserRowCard({ id, name, email, phone, role, status, flags }: Use
   return (
     <div className="space-y-3">
       <Link href={`/dashboard/organization/users/${id}`} className="text-base font-medium underline-offset-4 hover:underline">
-        {name || email || phone || "—"}
+        {name || email || (phone ? formatPhone(phone) : null) || "—"}
       </Link>
-      {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? phone}</div>}
+      {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? (phone ? formatPhone(phone) : null)}</div>}
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Role</span>
         <RoleSelect id={id} role={role} />

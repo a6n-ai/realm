@@ -47,6 +47,14 @@ export const users = pgTable(
     // own on first login. The dashboard gate redirects to /set-password while
     // this is false; setOwnPassword flips it true.
     passwordSet: boolean("password_set").notNull().default(false),
+    // Set once this app's Customer Directory row has been pushed to Clover as
+    // a customer — one mapping per person, not per org: Clover customer ids
+    // are scoped to whichever merchant last created the record, so a person
+    // ordering from more than one franchise still gets a single Clover-side
+    // identity here. Distinct from clover_customers (Clover's OWN directory,
+    // pulled in the other direction).
+    cloverCustomerId: text("clover_customer_id"),
+    cloverSyncedAt: bigint("clover_synced_at", { mode: "number" }),
     // Declared by the better-auth admin plugin and never written by this app —
     // users.status is the only sign-in switch (see the session.create.before hook).
     // Present so the drizzle adapter can resolve every field the plugin declares.

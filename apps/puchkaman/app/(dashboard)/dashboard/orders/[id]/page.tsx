@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { formatMoney } from "@foundry/commons";
+import { formatMoney, formatPhone } from "@foundry/commons";
 import { getCloverConnection } from "@foundry/clover";
 import { BackButton, PageHeader, PageShell, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
@@ -106,7 +106,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Phone</dt>
-              <dd>{order.customerPhone ?? "—"}</dd>
+              <dd>{order.customerPhone ? formatPhone(order.customerPhone) : "—"}</dd>
             </div>
             {cloverEnabled && order.cloverOrderId ? (
               <div className="flex justify-between gap-4">

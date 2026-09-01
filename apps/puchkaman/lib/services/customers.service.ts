@@ -1,10 +1,20 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, sql } from "drizzle-orm";
+import { ValidationError } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql } from "@foundry/database";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { createCloverClient } from "@/lib/clover/client";
+import { resolveOrgScopeMode } from "@/lib/services/org-scope";
+import {
+  pushCustomersToCloverService,
+  type PushAllCustomersResult,
+  type PushCustomerResult,
+} from "@/lib/sync/push-customers-to-clover.service";
+import { cloverCustomersRepository, type CloverCustomerRow } from "./customers.repository";
+import { currentUserId, recordAudit } from "./session-service";
 
 export type CustomerRow = {
   publicId: string;
@@ -16,9 +26,21 @@ export type CustomerRow = {
   orderCount: number;
   totalSpent: string;
   lastOrderAt: number | null;
+  cloverCustomerId: string | null;
 };
 
-export type CustomerSortColumn = "name" | "email" | "joined" | "orders" | "spent" | "lastOrder";
+export type CustomerSortColumn =
+  | "name"
+  | "email"
+  | "joined"
+  | "orders"
+  | "spent"
+  | "lastOrder"
+  // Not a real sortable field — the trailing Actions column's key, per
+  // DataTable's "empty label = actions cell" convention. Never reaches
+  // parseSort's allowed-columns list, so SORT_COL[...] below is dead code
+  // for it, kept only so the exhaustive index type-checks.
+  | "actions";
 
 const SPENT_SQL = sql<string>`coalesce(sum(${orders.total}) filter (where ${orders.status} in ('paid','fulfilled')), 0)`;
 
@@ -37,8 +59,24 @@ export async function listCustomersPage(
   page: PageRequest,
   sort: SortState<CustomerSortColumn> = { column: "joined", dir: "desc" },
 ): Promise<Page<CustomerRow>> {
+  const scopeMode = await resolveOrgScopeMode();
+  // A brand admin (mode "all") sees every customer. A franchise admin (mode
+  // "org") sees only customers with at least one order under that franchise —
+  // customers themselves carry no organizationId (they can order from more
+  // than one location), so scoping goes through an EXISTS on their orders.
+  const orgFilter =
+    scopeMode.mode === "org"
+      ? exists(
+          db
+            .select({ one: sql`1` })
+            .from(orders)
+            .where(and(eq(orders.userId, users.id), eq(orders.organizationId, scopeMode.orgId))),
+        )
+      : undefined;
+
   const where = and(
     eq(users.role, "user"),
+    orgFilter,
     conditionToSql(
       condition,
       columnResolver({
@@ -58,8 +96,17 @@ export async function listCustomersPage(
     orders: sql`count(${orders.id})`,
     spent: SPENT_SQL,
     lastOrder: sql`max(${orders.createdAt})`,
+    actions: users.createdAt,
   } as const;
   const col = SORT_COL[sort.column] ?? users.createdAt;
+
+  // Scoping the join itself (not just the EXISTS above) so order count/spend
+  // reflect only the selected client's orders too, not every order this
+  // customer ever placed across every franchise.
+  const orderJoin =
+    scopeMode.mode === "org"
+      ? and(eq(orders.userId, users.id), eq(orders.organizationId, scopeMode.orgId))
+      : eq(orders.userId, users.id);
 
   // The leftJoin fans out one row per order, so the total has to be counted on
   // the base table with the identical `where` — never off this query.
@@ -75,11 +122,21 @@ export async function listCustomersPage(
         orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
         totalSpent: SPENT_SQL,
         lastOrderAt: sql<number | null>`max(${orders.createdAt})`,
+        cloverCustomerId: users.cloverCustomerId,
       })
       .from(users)
-      .leftJoin(orders, eq(orders.userId, users.id))
+      .leftJoin(orders, orderJoin)
       .where(where)
-      .groupBy(users.id, users.publicId, users.name, users.email, users.phone, users.status, users.createdAt)
+      .groupBy(
+        users.id,
+        users.publicId,
+        users.name,
+        users.email,
+        users.phone,
+        users.status,
+        users.createdAt,
+        users.cloverCustomerId,
+      )
       .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
       .limit(page.size)
       .offset(page.page * page.size),
@@ -98,11 +155,22 @@ export type CustomerStats = {
 
 export async function customerStats(now = Date.now()): Promise<CustomerStats> {
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const scopeMode = await resolveOrgScopeMode();
+  const ocWhere = scopeMode.mode === "org" ? eq(orders.organizationId, scopeMode.orgId) : undefined;
   const oc = db
     .select({ userId: orders.userId, c: sql<number>`count(*)`.as("c") })
     .from(orders)
+    .where(ocWhere)
     .groupBy(orders.userId)
     .as("oc");
+
+  // A franchise view (mode "org") scopes every card to the same population as
+  // the list below it — customers with at least one order at that client —
+  // so Total/Active/New this week agree with what the table actually shows.
+  const scopedToClient =
+    scopeMode.mode === "org"
+      ? exists(db.select({ one: sql`1` }).from(oc).where(eq(oc.userId, users.id)))
+      : undefined;
 
   const [row] = await db
     .select({
@@ -113,7 +181,7 @@ export async function customerStats(now = Date.now()): Promise<CustomerStats> {
     })
     .from(users)
     .leftJoin(oc, eq(oc.userId, users.id))
-    .where(eq(users.role, "user"));
+    .where(and(eq(users.role, "user"), scopedToClient));
 
   return row;
 }
@@ -181,4 +249,73 @@ export async function getCustomerDetail(publicId: string): Promise<CustomerDetai
 
   const { id: _id, role: _role, ...rest } = user;
   return { ...rest, orders: orderRows, orderCount: count, totalSpent: spent };
+}
+
+/** Existing Clover customers matching a name/email/phone query, for "is this person already in Clover" before pushing a new one. */
+export async function searchCloverCustomersForMatch(query: string): Promise<CloverCustomerRow[]> {
+  return cloverCustomersRepository.searchForMatch(query);
+}
+
+/** Link an app customer to an EXISTING Clover customer — no create, just records the match. */
+export async function linkCustomerToClover(
+  publicId: string,
+  cloverCustomerId: string,
+): Promise<void> {
+  const [row] = await db
+    .select({ id: users.id, cloverCustomerId: users.cloverCustomerId })
+    .from(users)
+    .where(and(eq(users.publicId, publicId), eq(users.role, "user")))
+    .limit(1);
+  if (!row) throw new ValidationError(`Customer not found: ${publicId}`);
+  if (row.cloverCustomerId) throw new ValidationError("This customer is already synced to Clover.");
+
+  await db
+    .update(users)
+    .set({ cloverCustomerId, cloverSyncedAt: Date.now() })
+    .where(eq(users.id, row.id));
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: publicId,
+    operation: "update",
+    changes: { _action: "clover_customer_matched", cloverCustomerId },
+    createdBy: await currentUserId(),
+  });
+}
+
+/** Push one app customer to Clover as a customer. */
+export async function pushCustomerToClover(publicId: string): Promise<PushCustomerResult> {
+  const client = await createCloverClient();
+  if (!client) {
+    throw new ValidationError(
+      "Clover is not connected. Connect a merchant under Settings → Clover.",
+    );
+  }
+  const result = await pushCustomersToCloverService.pushOne(client, publicId);
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: publicId,
+    operation: "update",
+    changes: { _action: "clover_customer_push", ...result },
+    createdBy: await currentUserId(),
+  });
+  return result;
+}
+
+/** Push every unsynced app customer to Clover as a customer. */
+export async function pushAllCustomersToClover(): Promise<PushAllCustomersResult> {
+  const client = await createCloverClient();
+  if (!client) {
+    throw new ValidationError(
+      "Clover is not connected. Connect a merchant under Settings → Clover.",
+    );
+  }
+  const result = await pushCustomersToCloverService.pushAll(client);
+  await recordAudit({
+    entity: "customers",
+    entityPublicId: "bulk",
+    operation: "update",
+    changes: { _action: "clover_customers_push", result },
+    createdBy: await currentUserId(),
+  });
+  return result;
 }

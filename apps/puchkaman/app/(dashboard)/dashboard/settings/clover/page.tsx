@@ -14,6 +14,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import {
   connectCloverApiTokenAction,
+  createCloverOrderTypeAction,
   disconnectCloverAction,
   setCloverWebOrderTypesAction,
   startCloverConnectAction,
@@ -83,6 +84,7 @@ async function CloverSettingsLoader() {
       onConnectApiToken={connectCloverApiTokenAction}
       orderTypes={orderTypes}
       onSaveWebOrderTypes={setCloverWebOrderTypesAction}
+      onCreateOrderType={createCloverOrderTypeAction}
     />
   );
 }

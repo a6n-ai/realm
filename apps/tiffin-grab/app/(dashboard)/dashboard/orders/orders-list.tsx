@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ListSearchFilters } from "@/components/filters/list-search-filters";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -62,7 +62,7 @@ export function OrdersList({
       idAccessor={(o) => o.publicId}
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
-      filters={<ReuiFacetFilters spec={spec} />}
+      filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" />}
       emptyIcon={PackageIcon}
       emptyMessage="No orders yet."
       emptySearchMessage="No orders match your search."

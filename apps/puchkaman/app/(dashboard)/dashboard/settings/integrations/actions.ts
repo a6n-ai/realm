@@ -108,6 +108,28 @@ export async function setCloverWebOrderTypesAction(input: {
   revalidatePluginPaths();
 }
 
+/** Create a new Clover order type (e.g. "Website Pickup") without leaving the app. */
+export async function createCloverOrderTypeAction(
+  label: string,
+): Promise<{ id: string; label: string }> {
+  await requireAdmin();
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Order type name is required");
+
+  const client = await createCloverClient();
+  if (!client) throw new Error("Clover is not connected");
+  const created = await client.createOrderType(trimmed);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "create",
+    changes: { _action: "clover_order_type_created", ...created },
+    createdBy: await currentUserId(),
+  });
+  revalidatePluginPaths();
+  return created;
+}
+
 export async function disconnectCloverAction(): Promise<void> {
   await requireAdmin();
   await disconnectClover(integrationsConfigStore);

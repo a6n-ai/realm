@@ -5,6 +5,7 @@ import { UserRoundIcon } from "lucide-react";
 import {
   Command, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@foundry/ui/command";
+import { formatPhone } from "@foundry/commons";
 import { searchCustomers, type CustomerHit } from "./match-actions";
 
 /** Step-1 typeahead: find an existing customer by name or phone and prefill the
@@ -48,7 +49,7 @@ export function CustomerSearch({ onPick }: { onPick: (c: CustomerHit) => void })
                 <div className="grid min-w-0">
                   <span className="truncate font-medium">{c.fullName ?? "Customer"}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {c.phone}{c.email ? ` · ${c.email}` : ""}
+                    {formatPhone(c.phone)}{c.email ? ` · ${c.email}` : ""}
                   </span>
                 </div>
               </CommandItem>

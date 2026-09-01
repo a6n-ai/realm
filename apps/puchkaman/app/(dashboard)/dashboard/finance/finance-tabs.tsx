@@ -1,3 +1,5 @@
+"use client";
+
 import { CreditCardIcon, ScrollTextIcon } from "lucide-react";
 import { RoutedTabNav } from "@foundry/design-system";
 

@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { account, inquiries, leadSources, mealSizes, orders, plans, users } from "@/db/schema";
+import { account, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { ledgerService } from "./ledger.service";
@@ -15,7 +15,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 // Lifted verbatim from createOrder so both paths share one provisioning rule.
 export async function provisionCustomerByPhone(
   tx: Tx,
-  contact: { fullName: string; phone: string; email: string },
+  contact: { fullName: string; phone: string; email: string; addressLine?: string; city?: string; postalCode?: string },
   createdBy: bigint | null,
 ): Promise<bigint> {
   // Email is mandatory: it is the login path and the only channel for
@@ -36,7 +36,19 @@ export async function provisionCustomerByPhone(
   // OTP reset works). Never issue a password on their behalf.
   const inserted = await tx
     .insert(users)
-    .values({ phone: contact.phone, email, name: contact.fullName, role: "user", createdBy })
+    .values({
+      phone: contact.phone,
+      email,
+      name: contact.fullName,
+      role: "user",
+      createdBy,
+      // Only set on first provisioning (never overwrites an existing customer's
+      // own address on conflict) — this is the customer's first known address,
+      // straight from the order/checkout that created their account.
+      addressLine: contact.addressLine,
+      city: contact.city,
+      postalCode: contact.postalCode,
+    })
     .onConflictDoNothing({ target: users.phone, where: sql`${users.phone} is not null` })
     .returning({ id: users.id });
   if (inserted[0]?.id) return inserted[0].id;
@@ -278,7 +290,20 @@ export async function getCustomerDashboard(userPublicId: string): Promise<Custom
 
 export async function getCustomer360(userPublicId: string) {
   const [user] = await db
-    .select({ id: users.id, publicId: users.publicId, email: users.email, phone: users.phone, role: users.role })
+    .select({
+      id: users.id,
+      publicId: users.publicId,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      role: users.role,
+      createdAt: users.createdAt,
+      addressLine: users.addressLine,
+      city: users.city,
+      province: users.province,
+      postalCode: users.postalCode,
+      locale: users.locale,
+    })
     .from(users)
     .where(eq(users.publicId, userPublicId))
     .limit(1);
@@ -291,6 +316,7 @@ export async function getCustomer360(userPublicId: string) {
   const [orderRows, inqRows] = await Promise.all([
     db
       .select({
+        id: orders.id,
         publicId: orders.publicId,
         deploymentId: orders.deploymentId,
         fullName: orders.fullName,
@@ -323,13 +349,41 @@ export async function getCustomer360(userPublicId: string) {
       : Promise.resolve([]),
   ]);
 
+  const orderIds = orderRows.map((o) => o.id);
+  const PAID_STATUSES = new Set(["paid", "simulated_paid"]);
+  const paymentRows = orderIds.length
+    ? await db
+        .select({ status: payments.status, method: payments.method, amount: payments.amount, capturedAt: payments.capturedAt })
+        .from(payments)
+        .where(inArray(payments.orderId, orderIds))
+        .orderBy(desc(payments.capturedAt))
+    : [];
+  const payment = {
+    totalPaid: paymentRows.filter((p) => PAID_STATUSES.has(p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
+    pendingCount: paymentRows.filter((p) => p.status === "pending_verification" || p.status === "awaiting_payment").length,
+    lastMethod: paymentRows[0]?.method ?? null,
+  };
+
   const timeline = [
     ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
     ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${i.fullName} (${i.stage})`, at: i.createdAt })),
   ].sort((a, b) => b.at - a.at);
 
   return {
-    profile: { publicId: user.publicId, email: user.email, phone: user.phone },
+    profile: {
+      id: user.id,
+      publicId: user.publicId,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      createdAt: user.createdAt,
+      addressLine: user.addressLine,
+      city: user.city,
+      province: user.province,
+      postalCode: user.postalCode,
+      locale: user.locale,
+    },
+    payment,
     orders: orderRows,
     inquiries: inqRows,
     timeline,

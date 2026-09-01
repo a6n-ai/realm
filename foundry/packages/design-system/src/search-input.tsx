@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
-import { Input } from "@foundry/ui/input";
+import { cn } from "@foundry/ui/cn";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 
 export function SearchInput({
@@ -44,13 +44,40 @@ export function SearchInput({
     onChange(""); // clearing is always immediate
   };
 
+  const [focused, setFocused] = useState(false);
+
   return (
-    <div className="relative">
-      <SearchIcon className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-      <Input value={draft} onChange={(e) => emit(e.target.value)} placeholder={ph} className="h-11 pl-8 pr-8 sm:h-9" />
+    <div
+      className={cn(
+        // rounded-lg + border-input + ring-3 matches this app's Input/Select/Button
+        // radius and focus treatment exactly (packages/ui/src/input.tsx) — a pill
+        // shape read as a foreign component next to every other bordered control.
+        "bg-background relative flex h-11 items-center rounded-lg border border-input transition-colors sm:h-9",
+        focused && "border-ring ring-3 ring-ring/50",
+      )}
+    >
+      <SearchIcon
+        className={cn(
+          "pointer-events-none absolute left-2.5 size-4 shrink-0 transition-colors duration-150",
+          focused || draft ? "text-foreground" : "text-muted-foreground",
+        )}
+      />
+      <input
+        value={draft}
+        onChange={(e) => emit(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder={ph}
+        className="placeholder:text-muted-foreground w-full min-w-0 rounded-lg bg-transparent py-1 pr-8 pl-8 text-sm outline-none"
+      />
       {draft && (
-        <button type="button" onClick={clear} className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2 p-2 sm:p-0 -m-2 sm:m-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none" aria-label="Clear search">
-          <XIcon className="size-4" />
+        <button
+          type="button"
+          onClick={clear}
+          className="text-muted-foreground hover:text-foreground hover:bg-muted absolute right-1.5 grid size-6 shrink-0 place-items-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          aria-label="Clear search"
+        >
+          <XIcon className="size-3.5" />
         </button>
       )}
     </div>

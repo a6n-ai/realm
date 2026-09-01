@@ -7,9 +7,9 @@
  * - POST      /v3/merchants/{mId}/customers        (create)
  * - POST      /v3/merchants/{mId}/customers/{id}   (update)
  *
- * Pull-only for now (see clover-customers-sync.service.ts) — create/update
- * aren't called from anywhere yet, kept minimal (name only) since this app
- * has no local "edit a Clover customer" UI.
+ * Create is used to push app customers to Clover (see
+ * push-customers-to-clover.service.ts); update/delete still aren't called
+ * from anywhere since this app has no local "edit a Clover customer" UI.
  */
 
 export type CloverCustomerEmail = { emailAddress: string; primaryEmail?: boolean };
@@ -33,7 +33,25 @@ export type CloverCustomerCreateInput = {
   firstName?: string;
   lastName?: string;
   marketingAllowed?: boolean;
+  email?: string;
+  phone?: string;
 };
+
+/** Clover wants email/phone as nested elements, not flat fields — see normalizeCloverCustomer's mirror reads. */
+export function buildCustomerCreateBody(input: CloverCustomerCreateInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    firstName: input.firstName,
+    lastName: input.lastName,
+    marketingAllowed: input.marketingAllowed,
+  };
+  if (input.email) {
+    body.emailAddresses = { elements: [{ emailAddress: input.email, primaryEmail: true }] };
+  }
+  if (input.phone) {
+    body.phoneNumbers = { elements: [{ phoneNumber: input.phone }] };
+  }
+  return body;
+}
 
 export type ListCustomersParams = {
   limit?: number;

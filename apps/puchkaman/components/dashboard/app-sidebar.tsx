@@ -63,11 +63,18 @@ const COMMERCE_ITEMS: NavItem[] = [
   { title: "Products", href: "/dashboard/products", icon: UtensilsCrossedIcon, permission: "product:read" },
   { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, permission: "order:read" },
   { title: "Finance", href: "/dashboard/finance", icon: BanknoteIcon, permission: "finance:read" },
-  // Sits with commerce, above the Clover catalog lists: customers are ours (a
-  // `users` row that signs in at /me), not a Clover entity — Clover's own people
-  // are Employees further down.
-  { title: "Customers", href: "/dashboard/customers", icon: ContactIcon, permission: "user:list" },
 ];
+
+// Customers are ours (a `users` row that signs in at /me), not a Clover
+// entity — Clover's own people are the separate "Customer Directory" further
+// down. Kept out of COMMERCE_ITEMS so it never gets folded into the "Clover"
+// section on install — it belongs in Overview regardless of Clover status.
+const CUSTOMERS_ITEM: NavItem = {
+  title: "Customers",
+  href: "/dashboard/customers",
+  icon: ContactIcon,
+  permission: "user:list",
+};
 
 // Catering inquiries are ours end to end — own table, own service, no Clover
 // sync — so they never move into the Clover group the way COMMERCE_ITEMS does
@@ -118,7 +125,11 @@ export function getNavSections(opts: {
   const sections: NavSection[] = [
     {
       label: "Overview",
-      items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon }, CATERING_ITEM],
+      items: [
+        { title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon },
+        CATERING_ITEM,
+        CUSTOMERS_ITEM,
+      ],
     },
   ];
 

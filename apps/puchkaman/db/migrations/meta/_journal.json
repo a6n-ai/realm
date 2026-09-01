@@ -232,6 +232,20 @@
       "when": 1788125909430,
       "tag": "0032_organic_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788197053228,
+      "tag": "0033_spotty_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788199859513,
+      "tag": "0034_low_reavers",
+      "breakpoints": true
     }
   ]
 }

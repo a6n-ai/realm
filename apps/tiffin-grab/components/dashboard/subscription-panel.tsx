@@ -112,7 +112,10 @@ export async function SubscriptionPanel({
 
   return (
     <>
-      <SectionCard title={SUBSCRIPTION_SECTIONS.deliveries.title}>
+      <SectionCard
+        title={SUBSCRIPTION_SECTIONS.deliveries.title}
+        subtitle="Same calendar, vacation, skip, and pool controls the customer sees."
+      >
         {subscription && deliveriesBundle ? (
           <AdminOrderDeliveries
             initial={{ ...deliveriesBundle, monthKey, today }}

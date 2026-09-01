@@ -42,23 +42,25 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const email = user.email ?? session.user.email ?? "";
 
   return (
-    <TimezoneProvider tz={timezone}>
-      <CrmShell
-        chrome="glass"
-        hideSidebarOnMobile
-        brand={<AppBrand href="/me" subtitle="Meals" />}
-        sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
-        center={<CustomerSearch />}
-        actions={
-          <CustomerHeaderActions
-            user={{ name: user.name ?? null, email, image: user.image ?? null }}
-            coinBalance={coinBalance}
-          />
-        }
-        bottomNav={<CustomerBottomNav />}
-      >
-        {children}
-      </CrmShell>
-    </TimezoneProvider>
+    <div className="crm-app">
+      <TimezoneProvider tz={timezone}>
+        <CrmShell
+          chrome="glass"
+          hideSidebarOnMobile
+          brand={<AppBrand href="/me" subtitle="Meals" />}
+          sidebar={<CustomerSidebar user={{ name: user.name ?? null, email, image: user.image ?? null }} />}
+          center={<CustomerSearch />}
+          actions={
+            <CustomerHeaderActions
+              user={{ name: user.name ?? null, email, image: user.image ?? null }}
+              coinBalance={coinBalance}
+            />
+          }
+          bottomNav={<CustomerBottomNav />}
+        >
+          {children}
+        </CrmShell>
+      </TimezoneProvider>
+    </div>
   );
 }
