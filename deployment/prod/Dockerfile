@@ -6,12 +6,13 @@
 
 FROM node:26-alpine AS base
 RUN apk add --no-cache libc6-compat
-# node:26-alpine no longer bundles corepack; install pnpm pinned to packageManager.
-# KEEP IN SYNC with `packageManager` in the root package.json. A mismatch makes
-# `pnpm install` decide the modules dir `pnpm fetch` produced was built under
-# different settings, and it aborts asking to purge it.
-RUN npm install -g pnpm@11.21.0
 WORKDIR /app
+# node:26-alpine no longer bundles corepack; install pnpm pinned to the root
+# package.json's `packageManager` so the two can never drift. A mismatched
+# global pnpm makes `pnpm install` decide the modules dir `pnpm fetch`
+# produced was built under different settings, and it aborts asking to purge it.
+COPY package.json ./
+RUN npm install -g pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")
 
 # --- build: fetch (cached on lockfile) → offline install → next build ---
 FROM base AS build
