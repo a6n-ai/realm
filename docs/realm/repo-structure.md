@@ -84,4 +84,4 @@ package — until a second client proves something is genuinely shared:
 - Business badges (`order-status-badge`, `stage-badge`), route labels.
 - Design tokens (`globals.css`) — per-client palette.
 
-See `add-a-client.md` and `add-a-package.md`.
+See `add-a-client.md`, `add-a-package.md`, and [deployment/relay-tenant.md](../../deployment/relay-tenant.md) for provisioning Realm apps as Relay tenants.
