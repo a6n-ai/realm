@@ -7,8 +7,11 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dailyLabelSheet } from "@/lib/services/daily-labels.service";
+import { getPackingLabels } from "@/lib/services/labels.service";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
+import { LabelsExportButton } from "./labels-export-button";
+import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
 
 type SearchParams = Promise<{ date?: string }>;
@@ -40,7 +43,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const today = zonedDateIso(Date.now(), timezone);
   const date = dateParam && ISO_DATE.test(dateParam) ? dateParam : today;
 
-  const sheet = await dailyLabelSheet(date);
+  const [sheet, packingRows] = await Promise.all([dailyLabelSheet(date), getPackingLabels(date)]);
   const containers = sheet.counts.reduce((n, c) => n + c.count, 0);
 
   return (
@@ -48,11 +51,14 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
       <SectionCard title="Day">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <LabelDatePicker date={date} today={today} />
-          <Button asChild disabled={sheet.labels.length === 0}>
-            <Link href={`/dashboard/labels/pdf?date=${date}`} prefetch={false}>
-              <PrinterIcon data-icon="inline-start" /> Print labels
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <LabelsExportButton rows={packingRows} dateIso={date} />
+            <Button asChild disabled={sheet.labels.length === 0}>
+              <Link href={`/dashboard/labels/pdf?date=${date}`} prefetch={false}>
+                <PrinterIcon data-icon="inline-start" /> Print labels
+              </Link>
+            </Button>
+          </div>
         </div>
       </SectionCard>
 
@@ -65,6 +71,10 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
           { label: "Menu week", value: sheet.menuWeekPublicId ? sheet.weekStart : "not released" },
         ]}
       />
+
+      <SectionCard title="Packing sheet">
+        <LabelsTable rows={packingRows} />
+      </SectionCard>
 
       {sheet.menuWeekPublicId == null ? (
         <SectionCard title="No menu released">
@@ -95,6 +105,9 @@ LabelsData.Skeleton = function LabelsDataSkeleton() {
         <Skeleton className="h-9 w-64" />
       </SectionCard>
       <SkeletonStatCards count={4} />
+      <SectionCard title="Packing sheet">
+        <Skeleton className="h-64 w-full" />
+      </SectionCard>
       <SectionCard title="Kitchen counts">
         <Skeleton className="h-40 w-full" />
       </SectionCard>

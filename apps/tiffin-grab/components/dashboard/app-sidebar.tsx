@@ -96,12 +96,6 @@ export const SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Downloads",
-    items: [
-      { title: "Labels", href: "/dashboard/downloads/labels", icon: TagIcon, roles: ["admin"] },
-    ],
-  },
-  {
     label: "Engagement",
     items: [
       { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ["admin"] },
