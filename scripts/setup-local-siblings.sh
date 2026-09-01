@@ -135,7 +135,7 @@ write_workspace
 
 if [[ "$INSTALL" -eq 1 ]]; then
   if ! command -v pnpm >/dev/null 2>&1; then
-    echo "pnpm not found. Enable corepack: corepack enable && corepack prepare pnpm@11.21.0 --activate" >&2
+    echo "pnpm not found. Enable corepack: corepack enable && corepack prepare pnpm@11.25.0 --activate" >&2
     exit 1
   fi
   for name in realm foundry relay; do
