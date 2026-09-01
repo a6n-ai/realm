@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
   // outputFileTracingRoot must be the monorepo root or workspace deps get missed.
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
-  transpilePackages: ["@relay/whatsapp", "@relay/sms", "@relay/engine", "@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/auth-ui", "@foundry/clover", "@foundry/google-reviews", "@foundry/order-tracking"],
+  // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
+  // monorepo source; tarballs under node_modules need transpilePackages or
+  // Turbopack reports "Unknown module type".
+  transpilePackages: ["@relay/whatsapp", "@relay/sms", "@relay/engine", "@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/coupons", "@foundry/google-reviews", "@foundry/order-tracking", "@foundry/places", "@foundry/storage", "@foundry/wallet"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
   // Product photos are rehosted via S3 + CloudFront (FILES_PUBLIC_BASE_URL) — when
