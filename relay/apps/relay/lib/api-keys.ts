@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 
 export function hashApiKey(secret: string): string {
+  // High-entropy API secrets: SHA-256 fingerprint for DB lookup, not a password KDF.
+  // codeql[js/insufficient-password-hash]
   return createHash("sha256").update(secret).digest("hex");
 }
 

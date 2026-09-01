@@ -87,7 +87,13 @@ export interface ParsedContact {
 
 // Deliberately loose: rejecting deliverable-but-unusual addresses costs a real
 // customer, and a bounce is the authoritative answer anyway.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function looksLikeEmail(value: string): boolean {
+  const at = value.indexOf("@");
+  if (at <= 0 || at !== value.lastIndexOf("@")) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.indexOf(".");
+  return dot > 0 && dot < domain.length - 1 && !value.includes(" ");
+}
 
 /**
  * Apply the admin's column mapping. Unmapped columns become merge vars, so a
@@ -114,7 +120,7 @@ export function mapRows(
       rejected.push({ row: n + 1, reason: "no email or phone" });
       return;
     }
-    if (rawEmail && !EMAIL_RE.test(rawEmail)) {
+    if (rawEmail && !looksLikeEmail(rawEmail)) {
       rejected.push({ row: n + 1, reason: "invalid email" });
       return;
     }

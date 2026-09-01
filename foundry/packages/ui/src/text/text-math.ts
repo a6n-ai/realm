@@ -1,7 +1,31 @@
 import { layout, layoutWithLines, prepare, prepareWithSegments } from "@chenglou/pretext";
 
 const ELLIPSIS = "…";
-const FONT_SIZE_RE = /(\d+(?:\.\d+)?)px/;
+
+function fontPxParts(font: string): { n: number; prefix: string; suffix: string } | null {
+  const px = font.indexOf("px");
+  if (px < 0) return null;
+  let i = px - 1;
+  while (i >= 0) {
+    const ch = font[i]!;
+    if (ch === "." || (ch >= "0" && ch <= "9")) {
+      i -= 1;
+      continue;
+    }
+    break;
+  }
+  const num = font.slice(i + 1, px);
+  if (!num || num === ".") return null;
+  const n = Number(num);
+  if (!Number.isFinite(n)) return null;
+  return { n, prefix: font.slice(0, i + 1), suffix: font.slice(px + 2) };
+}
+
+function withFontPx(font: string, px: number): string {
+  const parts = fontPxParts(font);
+  if (!parts) throw new Error(`font string has no px size: "${font}"`);
+  return `${parts.prefix}${px}px${parts.suffix}`;
+}
 
 export interface ClampResult {
   lines: string[];
@@ -51,12 +75,12 @@ export function fitFontSize(
   lineHeight: number,
   minFontPx = 8,
 ): FitResult {
-  const match = baseFont.match(FONT_SIZE_RE);
-  if (!match) throw new Error(`font string has no px size: "${baseFont}"`);
-  const baseFontPx = Number(match[1]);
+  const parsed = fontPxParts(baseFont);
+  if (!parsed) throw new Error(`font string has no px size: "${baseFont}"`);
+  const baseFontPx = parsed.n;
 
   const fitsAt = (fontPx: number): boolean => {
-    const font = baseFont.replace(FONT_SIZE_RE, `${fontPx}px`);
+    const font = withFontPx(baseFont, fontPx);
     const scaledLineHeight = lineHeight * (fontPx / baseFontPx);
     return layout(prepare(text, font), maxWidth, scaledLineHeight).height <= maxHeight;
   };
@@ -66,7 +90,7 @@ export function fitFontSize(
   let lo = minFontPx;
   let hi = baseFontPx;
   if (!fitsAt(lo)) {
-    return { font: baseFont.replace(FONT_SIZE_RE, `${lo}px`), fontSizePx: lo };
+    return { font: withFontPx(baseFont, lo), fontSizePx: lo };
   }
 
   for (let i = 0; i < 8; i++) {
@@ -76,5 +100,5 @@ export function fitFontSize(
     else hi = mid;
   }
 
-  return { font: baseFont.replace(FONT_SIZE_RE, `${lo}px`), fontSizePx: lo };
+  return { font: withFontPx(baseFont, lo), fontSizePx: lo };
 }

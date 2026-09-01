@@ -151,8 +151,10 @@ export function ClaimPayment({
         </Label>
         {preview ? (
           <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Payment proof preview" className="size-16 rounded-md border object-cover" />
+            {preview.startsWith("blob:") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Payment proof preview" className="size-16 rounded-md border object-cover" />
+            ) : null}
             <Button
               type="button"
               variant="ghost"

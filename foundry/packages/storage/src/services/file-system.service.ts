@@ -19,8 +19,16 @@ export interface FileSystemServiceOptions {
   keyPrefix?: string;
 }
 
+function trimSlashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === "/") start += 1;
+  while (end > start && value[end - 1] === "/") end -= 1;
+  return value.slice(start, end);
+}
+
 // Storage key = path without a leading slash.
-const toKey = (path: string): string => (normalizePath(path) ?? "").replace(/^\/+/, "");
+const toKey = (path: string): string => trimSlashes(normalizePath(path) ?? "");
 
 export class FileSystemService {
   private readonly repo: UpdatableRepository<typeof fileSystem>;
@@ -38,7 +46,7 @@ export class FileSystemService {
     this.resourceType = opts.resourceType ?? "static";
     this.publicBaseUrl = opts.publicBaseUrl;
     this.ttl = opts.signedUrlTtlSeconds ?? 3600;
-    this.keyPrefix = (opts.keyPrefix ?? "").replace(/^\/+|\/+$/g, "");
+    this.keyPrefix = trimSlashes(opts.keyPrefix ?? "");
   }
 
   async create(path: string, body: Uint8Array | string, opts?: { contentType?: string }): Promise<FileDetail> {

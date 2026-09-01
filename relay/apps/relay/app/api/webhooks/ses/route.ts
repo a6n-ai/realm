@@ -14,6 +14,15 @@ interface SnsEnvelope {
   SubscribeURL?: string;
 }
 
+function isSnsConfirmUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && /^sns\.[a-z0-9-]+\.amazonaws\.com$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function verify(msg: unknown): Promise<void> {
   return new Promise((resolve, reject) => {
     validator.validate(msg as Record<string, unknown>, (err) => (err ? reject(err) : resolve()));
@@ -58,6 +67,9 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ title: "Unexpected topic", status: 403 }, { status: 403 });
   }
   if (msg.Type === "SubscriptionConfirmation" && msg.SubscribeURL) {
+    if (!isSnsConfirmUrl(msg.SubscribeURL)) {
+      return Response.json({ title: "Invalid subscribe URL", status: 400 }, { status: 400 });
+    }
     await fetch(msg.SubscribeURL);
     return new Response(null, { status: 200 });
   }
