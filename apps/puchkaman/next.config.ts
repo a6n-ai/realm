@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
-  // Turbopack reports "Unknown module type".
+  // Turbopack reports "Unknown module type" (seen on deploy-puchkaman).
   transpilePackages: ["@relay/whatsapp", "@relay/sms", "@relay/engine", "@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/coupons", "@foundry/google-reviews", "@foundry/order-tracking", "@foundry/places", "@foundry/storage", "@foundry/wallet"],
   turbopack: { root: monorepoRoot },
   allowedDevOrigins: ["*.ngrok-free.app", "*.ngrok.app", "*.ngrok.io"],
