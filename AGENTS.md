@@ -31,7 +31,7 @@ Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared pa
 
 ## Verify contract
 
-**Do not delete** nested `foundry/` or `relay/` from Realm. Phase 2 of [EXTRACTION.md](EXTRACTION.md) installs only `@foundry/ai` from GitHub; every other package stays `workspace:*` until that CI job is green.
+**Do not delete** nested `foundry/` or `relay/` from Realm. [EXTRACTION.md](EXTRACTION.md) phase 2 (`@foundry/ai` from GitHub) is green; do not convert more packages to `git:` until `a6n-ai/foundry` `main` includes Realm’s `foundry-export` (stale tarball would drop CodeQL fixes). Nested copies stay until phase 4.
 
 Packages ship source, so `tsc` is the fast gate — it resolves every workspace import.
 After a non-trivial change:
