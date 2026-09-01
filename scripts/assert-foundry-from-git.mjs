@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Dual-path: listed @foundry/* packages must resolve from the a6n-ai/foundry
- * GitHub tarball, not the nested foundry/ trees (mirrors stay).
+ * GitHub tarball, not a nested foundry/ tree.
  */
 import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -1,6 +1,6 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Puchkaman) plus nested [`foundry/`](foundry/README.md) (`@foundry/*`, including `@foundry/ai` for Monarch) and [`relay/`](relay/README.md). Those nested trees are **not** removed until [EXTRACTION.md](EXTRACTION.md) tests pass.
+A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Puchkaman). `@foundry/*` (including `@foundry/ai` for Monarch) comes from [a6n-ai/foundry](https://github.com/a6n-ai/foundry). `@relay/*` comes from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
 
 **TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA).
 
@@ -112,17 +112,11 @@ immutable vs updatable base DTOs in `@foundry/database`.
 ```
 realm/
 ├─ apps/
-│  └─ tiffin-grab/             # first client app (Next.js 16)
-├─ packages/                   # shared platform code — scope @foundry/*
-│  ├─ commons/  database/  routes/
-│  ├─ storage/  email/
-│  ├─ ui/  design-system/  crm/  themes/  auth/
-├─ tooling/
-│  └─ eslint-config/           # @foundry/eslint-config
+│  ├─ tiffin-grab/             # first client app (Next.js 16)
+│  └─ puchkaman/
 ├─ docs/realm/                 # platform docs (structure, add-a-*, workflow)
-├─ docs/superpowers/specs/     # design specs per slice
 ├─ turbo.json
-├─ pnpm-workspace.yaml         # globs: apps/*, packages/*, tooling/*
+├─ pnpm-workspace.yaml         # apps/*; @foundry/* and @relay/* from git
 └─ tsconfig.base.json
 ```
 

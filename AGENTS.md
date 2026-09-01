@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Realm — agent guide
 
-Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared packages live in `foundry/` as `@foundry/*` (Monarch AI packages go there too). Notifications live in `relay/` (`@relay/engine`, `@relay/email`, `@relay/sdk`). Orientation:
+Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). Orientation:
 [`PROJECT.md`](PROJECT.md) (product + roles + roadmap) and
 [`docs/realm/`](docs/realm/) (structure, add-a-client, add-a-package, dev/build).
 
@@ -31,7 +31,7 @@ Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared pa
 
 ## Verify contract
 
-**Do not delete** nested `foundry/` or `relay/` from Realm until [EXTRACTION.md](EXTRACTION.md) says to. All `@foundry/*` packages install from `github:a6n-ai/foundry`. All `@relay/*` packages install from `github:a6n-ai/relay`. CSS `@source` scans `node_modules/@foundry/*/src`. The nested Relay app stays in the workspace until nested trees are removed.
+`@foundry/*` packages install from `github:a6n-ai/foundry`. `@relay/*` packages install from `github:a6n-ai/relay`. CSS `@source` scans `node_modules/@foundry/*/src`. Do not re-add nested `foundry/` or `relay/` trees — see [EXTRACTION.md](EXTRACTION.md).
 
 Packages ship source, so `tsc` is the fast gate — it resolves every workspace import.
 After a non-trivial change:

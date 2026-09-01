@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Dual-path: listed @relay/* packages must resolve from the a6n-ai/relay
- * GitHub tarball, not the nested relay/packages/<name> tree (mirrors stay).
+ * GitHub tarball, not a nested relay/packages/<name> tree.
  */
 import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";

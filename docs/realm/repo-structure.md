@@ -5,12 +5,10 @@ UI, CRM shell, services, and utilities. TiffinGrab is the first client; Gym,
 Dentist, Realtor, etc. are added as sibling apps.
 
 ```
-realm/  (repo root — apps only plus extractable product trees)
+realm/  (apps only)
 ├── apps/                     TiffinGrab, Puchkaman
-├── foundry/                  @foundry/* packages (incl. @foundry/ai for Monarch)
-├── relay/                    notification product: apps/relay + @relay/*
 ├── turbo.json
-├── pnpm-workspace.yaml       apps/*, relay/apps/*  (@foundry/* and @relay/* from git)
+├── pnpm-workspace.yaml       apps/*  (@foundry/* and @relay/* from git)
 └── tsconfig.base.json
 ```
 

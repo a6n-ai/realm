@@ -1,5 +1,4 @@
-# Gradual Foundry → Relay → apps gate. Nested foundry/ and relay/ must stay
-# until EXTRACTION.md deletes them; do not delete those trees yet.
+# Foundry git-assert → Relay git-assert → apps typecheck.
 name: ci
 
 on:
@@ -42,9 +41,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node scripts/assert-relay-from-git.mjs
-      - run: pnpm turbo typecheck --filter=relay
-      # @relay/* package tests live on a6n-ai/relay CI. Nested apps/relay stays
-      # in this workspace until nested trees are deleted.
+      # @relay/* typecheck and test on a6n-ai/relay CI. The Relay operator
+      # app lives in that repo, not here.
 
   apps:
     name: Realm apps
