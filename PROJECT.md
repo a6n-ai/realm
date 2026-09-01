@@ -1,6 +1,6 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm is **apps only** (TiffinGrab, Puchkaman). Shared packages live in [`foundry/`](foundry/README.md) as `@foundry/*` (including `@foundry/ai` for Monarch). Notifications live in [`relay/`](relay/README.md).
+A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Puchkaman) plus nested [`foundry/`](foundry/README.md) (`@foundry/*`, including `@foundry/ai` for Monarch) and [`relay/`](relay/README.md). Those nested trees are **not** removed until [EXTRACTION.md](EXTRACTION.md) tests pass.
 
 **TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA).
 

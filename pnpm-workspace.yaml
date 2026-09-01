@@ -1,3 +1,5 @@
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 1 CI is green.
+# Do not replace these globs with git remotes or delete the trees yet.
 packages:
   - "apps/*"
   - "foundry/packages/*"

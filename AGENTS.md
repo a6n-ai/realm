@@ -31,6 +31,10 @@ Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared pa
 
 ## Verify contract
 
+**Do not delete** nested `foundry/` or `relay/` from Realm, and do not switch apps to
+GitHub `git:` deps, until [EXTRACTION.md](EXTRACTION.md) phase 1 is green (`ci` workflow:
+Foundry → Relay → apps). Remotes `a6n-ai/foundry` and `a6n-ai/relay` are mirrors only.
+
 Packages ship source, so `tsc` is the fast gate — it resolves every workspace import.
 After a non-trivial change:
 

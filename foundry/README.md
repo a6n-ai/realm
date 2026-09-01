@@ -2,7 +2,7 @@
 
 Shared TypeScript packages (`@foundry/*`) for Realm apps, Relay, and Monarch (AI).
 
-This tree is the packages repo. It has no apps. Canonical remote: [a6n-ai/foundry](https://github.com/a6n-ai/foundry). Nested copy in Realm stays until apps depend on that remote (git/file).
+This tree is the packages repo. It has no apps. Canonical remote: [a6n-ai/foundry](https://github.com/a6n-ai/foundry). The copy inside Realm **stays** until [EXTRACTION.md](../EXTRACTION.md) phase 1 CI is green — do not delete it or switch Realm to git deps yet.
 
 - Floor: commons, themes, ui, design-system, crm, auth, auth-ui, database, routes, storage, realtime, eslint-config
 - Commerce: clover, payments, wallet, coupons, google-reviews, order-tracking, places

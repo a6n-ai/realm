@@ -1,0 +1,57 @@
+# Gradual Foundry → Relay → apps gate. Nested foundry/ and relay/ must stay
+# until this workflow is green; do not delete those trees or switch to git deps.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundry:
+    name: Foundry packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo typecheck --filter="@foundry/*"
+      - run: pnpm turbo test --filter="@foundry/*"
+
+  relay:
+    name: Relay
+    needs: foundry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo typecheck --filter="@relay/*" --filter=relay
+      - run: pnpm turbo test --filter="@relay/*" --filter=relay
+
+  apps:
+    name: Realm apps
+    needs: relay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman
+      - run: pnpm turbo test --filter=tiffin-grab --filter=puchkaman
