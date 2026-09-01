@@ -26,8 +26,9 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo typecheck --filter="@foundry/*"
-      - run: pnpm turbo test --filter="@foundry/*"
+      - run: pnpm turbo typecheck --filter="@foundry/eslint-config"
+      # Floor/leaf @foundry/* typecheck and test on a6n-ai/foundry CI; Realm
+      # only keeps eslint-config as a workspace package.
 
   foundry-git:
     name: Foundry git deps

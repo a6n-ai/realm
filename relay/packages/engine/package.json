@@ -14,10 +14,10 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@foundry/commons": "workspace:*",
-    "@foundry/database": "workspace:*",
-    "@foundry/design-system": "workspace:*",
-    "@foundry/ui": "workspace:*",
+    "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons",
+    "@foundry/database": "github:a6n-ai/foundry#path:packages/database",
+    "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system",
+    "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@react-email/components": "^1.0.12",
     "@react-email/editor": "^1.5.10",
     "@react-email/render": "^2.0.9",

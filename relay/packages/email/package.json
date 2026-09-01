@@ -14,7 +14,7 @@
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.700.0",
     "@react-email/components": "^1.0.12",
-    "@foundry/commons": "workspace:*",
+    "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons",
     "zod": "^4.4.3"
   },
   "peerDependencies": {

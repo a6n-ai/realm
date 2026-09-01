@@ -1,26 +1,29 @@
-# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. Leaf @foundry/*
-# packages are excluded and installed from a6n-ai/foundry; floor packages stay
-# workspace:*. Do not add foundry/pnpm-workspace.yaml here.
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. @foundry packages
+# (except eslint-config in tooling) install from a6n-ai/foundry. Do not add
+# foundry/pnpm-workspace.yaml here.
 packages:
   - "apps/*"
-  - "foundry/packages/*"
-  - "!foundry/packages/ai"
-  - "!foundry/packages/auth"
-  - "!foundry/packages/auth-ui"
-  - "!foundry/packages/clover"
-  - "!foundry/packages/coupons"
-  - "!foundry/packages/google-reviews"
-  - "!foundry/packages/order-tracking"
-  - "!foundry/packages/payments"
-  - "!foundry/packages/places"
-  - "!foundry/packages/routes"
-  - "!foundry/packages/storage"
-  - "!foundry/packages/wallet"
   - "foundry/tooling/*"
   - "relay/apps/*"
   - "relay/packages/*"
 
+# Git @foundry/* tarballs declare workspace:* on each other. Overrides turn
+# those into github: path deps, which pnpm 11 treats as exotic subdeps unless
+# this is off. Root package.json already pins the same a6n-ai/foundry tarball.
+blockExoticSubdeps: false
+
 overrides:
+  # Git-hosted @foundry/* tarballs still declare workspace:* internals.
+  # Point those at the same GitHub paths so install works after floor packages
+  # leave the Realm workspace.
+  "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
+  "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
+  "@foundry/database": "github:a6n-ai/foundry#path:packages/database"
+  "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system"
+  "@foundry/email": "github:a6n-ai/foundry#path:packages/email"
+  "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime"
+  "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes"
+  "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui"
   "postcss@<8.5.23": ">=8.5.26"
   "esbuild@<0.25.0": ">=0.25.0"
   "@types/react": "19.2.18"

@@ -31,7 +31,7 @@ Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared pa
 
 ## Verify contract
 
-**Do not delete** nested `foundry/` or `relay/` from Realm. Leaf `@foundry/*` packages install from `github:a6n-ai/foundry#path:packages/<name>`; floor packages (`commons`, `themes`, `ui`, `design-system`, `crm`, `database`, `realtime`, `email`, `eslint-config`) stay `workspace:*` until [EXTRACTION.md](EXTRACTION.md) phase 4.
+**Do not delete** nested `foundry/` or `relay/` from Realm. All `@foundry/*` app packages install from `github:a6n-ai/foundry#path:packages/<name>` except `@foundry/eslint-config` (`workspace:*` under `foundry/tooling`). Nested trees stay until [EXTRACTION.md](EXTRACTION.md) phase 4.
 
 Packages ship source, so `tsc` is the fast gate — it resolves every workspace import.
 After a non-trivial change:

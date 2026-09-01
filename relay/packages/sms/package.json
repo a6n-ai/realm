@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@foundry/commons": "workspace:*"
+    "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
   },
   "peerDependencies": {
     "@relay/engine": "workspace:*"
