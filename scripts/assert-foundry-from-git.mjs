@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Dual-path: listed @foundry/* packages must resolve from the a6n-ai/foundry
- * GitHub tarball, not the nested foundry/packages/<name> tree (mirrors stay).
+ * GitHub tarball, not the nested foundry/ trees (mirrors stay).
  */
 import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,6 +18,7 @@ const PACKAGES = [
   "database",
   "design-system",
   "email",
+  "eslint-config",
   "google-reviews",
   "order-tracking",
   "payments",
@@ -34,7 +35,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 for (const name of PACKAGES) {
   const real = realpathSync(join(root, "node_modules/@foundry", name));
-  if (real.includes(`/foundry/packages/${name}`)) {
+  if (
+    real.includes(`/foundry/packages/${name}`) ||
+    real.includes(`/foundry/tooling/${name}`)
+  ) {
     console.error(`@foundry/${name} still workspace-linked:\n${real}`);
     process.exit(1);
   }

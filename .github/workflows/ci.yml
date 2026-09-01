@@ -16,23 +16,7 @@ concurrency:
 
 jobs:
   foundry:
-    name: Foundry packages
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo typecheck --filter="@foundry/eslint-config"
-      # Floor/leaf @foundry/* typecheck and test on a6n-ai/foundry CI; Realm
-      # only keeps eslint-config as a workspace package.
-
-  foundry-git:
     name: Foundry git deps
-    needs: foundry
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -43,6 +27,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node scripts/assert-foundry-from-git.mjs
+      # @foundry/* typecheck and test on a6n-ai/foundry CI.
 
   relay:
     name: Relay
@@ -61,7 +46,7 @@ jobs:
 
   apps:
     name: Realm apps
-    needs: [relay, foundry-git]
+    needs: [relay, foundry]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

@@ -21,6 +21,7 @@
     "@foundry/database": "github:a6n-ai/foundry#path:packages/database",
     "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system",
     "@foundry/email": "github:a6n-ai/foundry#path:packages/email",
+    "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config",
     "@foundry/google-reviews": "github:a6n-ai/foundry#path:packages/google-reviews",
     "@foundry/order-tracking": "github:a6n-ai/foundry#path:packages/order-tracking",
     "@foundry/payments": "github:a6n-ai/foundry#path:packages/payments",

@@ -66,7 +66,7 @@
     "@foundry/coupons": "github:a6n-ai/foundry#path:packages/coupons"
   },
   "devDependencies": {
-    "@foundry/eslint-config": "workspace:*",
+    "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

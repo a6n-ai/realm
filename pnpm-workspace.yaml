@@ -1,9 +1,8 @@
-# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. @foundry packages
-# (except eslint-config in tooling) install from a6n-ai/foundry. Do not add
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. All @foundry
+# packages (including eslint-config) install from a6n-ai/foundry. Do not add
 # foundry/pnpm-workspace.yaml here.
 packages:
   - "apps/*"
-  - "foundry/tooling/*"
   - "relay/apps/*"
   - "relay/packages/*"
 
@@ -17,6 +16,7 @@ overrides:
   # Point those at the same GitHub paths so install works after floor packages
   # leave the Realm workspace.
   "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
+  "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
   "@foundry/database": "github:a6n-ai/foundry#path:packages/database"
   "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system"

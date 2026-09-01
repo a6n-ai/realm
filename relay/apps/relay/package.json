@@ -41,7 +41,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@foundry/eslint-config": "workspace:*",
+    "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
