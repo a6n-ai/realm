@@ -1,9 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { scryptSync, randomBytes } from "node:crypto";
+
+const API_KEY_SALT = "relay-api-key-v1";
 
 export function hashApiKey(secret: string): string {
-  // High-entropy API secrets: SHA-256 fingerprint for DB lookup, not a password KDF.
-  // codeql[js/insufficient-password-hash]
-  return createHash("sha256").update(secret).digest("hex");
+  return scryptSync(secret, API_KEY_SALT, 32).toString("hex");
 }
 
 export function generateApiKey(): { secret: string; prefix: string; hash: string } {

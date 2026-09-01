@@ -11,16 +11,6 @@ interface SnsEnvelope {
   Type: string;
   TopicArn?: string;
   Message: string;
-  SubscribeURL?: string;
-}
-
-function isSnsConfirmUrl(raw: string): boolean {
-  try {
-    const url = new URL(raw);
-    return url.protocol === "https:" && /^sns\.[a-z0-9-]+\.amazonaws\.com$/i.test(url.hostname);
-  } catch {
-    return false;
-  }
 }
 
 function verify(msg: unknown): Promise<void> {
@@ -66,11 +56,8 @@ export async function POST(req: Request): Promise<Response> {
   if (expected && msg.TopicArn !== expected) {
     return Response.json({ title: "Unexpected topic", status: 403 }, { status: 403 });
   }
-  if (msg.Type === "SubscriptionConfirmation" && msg.SubscribeURL) {
-    if (!isSnsConfirmUrl(msg.SubscribeURL)) {
-      return Response.json({ title: "Invalid subscribe URL", status: 400 }, { status: 400 });
-    }
-    await fetch(msg.SubscribeURL);
+  if (msg.Type === "SubscriptionConfirmation") {
+    log.info({ topic: msg.TopicArn }, "SNS subscription confirmation; confirm the subscription in AWS");
     return new Response(null, { status: 200 });
   }
   if (msg.Type === "Notification") {

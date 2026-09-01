@@ -38,7 +38,6 @@ export function ClaimPayment({
   const router = useRouter();
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,8 +53,6 @@ export function ClaimPayment({
 
   function pickFile(f: File | null) {
     setError(null);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
     setFile(null);
     if (!f) return;
     if (!ACCEPT.includes(f.type)) {
@@ -67,7 +64,6 @@ export function ClaimPayment({
       return;
     }
     setFile(f);
-    setPreview(URL.createObjectURL(f));
   }
 
   function submit() {
@@ -149,12 +145,9 @@ export function ClaimPayment({
         <Label>
           Screenshot {ctx.requireProof ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(optional)</span>}
         </Label>
-        {preview ? (
+        {file ? (
           <div className="flex items-center gap-3">
-            {preview.startsWith("blob:") ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Payment proof preview" className="size-16 rounded-md border object-cover" />
-            ) : null}
+            <span className="text-sm truncate">{file.name}</span>
             <Button
               type="button"
               variant="ghost"
