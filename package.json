@@ -6,5 +6,10 @@
     "dev": "turbo run dev --filter=relay",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.18",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }
