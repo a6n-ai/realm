@@ -68,7 +68,7 @@ spec → plan → implementation cycle. Specs live in `docs/superpowers/specs/`.
 
 ## Tech stack
 
-- **Monorepo:** Turborepo + pnpm workspaces (`pnpm@10.34.4`, pinned).
+- **Monorepo:** Turborepo + pnpm workspaces (`pnpm@11.25.0`, pinned in `packageManager`).
 - **Apps:** Next.js 16 (App Router, Server Actions), TypeScript, React 19.
 - **UI:** Tailwind v4 + shadcn/ui (radix base), shared via `@foundry/ui` + `@foundry/design-system`.
 - **Auth:** better-auth (credentials + database sessions), wrapped by `@foundry/auth`

@@ -6,11 +6,6 @@
 
 FROM node:26-alpine AS base
 RUN apk add --no-cache libc6-compat
-# node:26-alpine no longer bundles corepack; install pnpm pinned to packageManager.
-# KEEP IN SYNC with `packageManager` in the root package.json. A mismatch makes
-# `pnpm install` decide the modules dir `pnpm fetch` produced was built under
-# different settings, and it aborts asking to purge it.
-RUN npm install -g pnpm@11.25.0
 WORKDIR /app
 
 # --- build: fetch (cached on lockfile) → offline install → next build ---
@@ -20,10 +15,14 @@ ARG APP=tiffin-grab
 # an outright failure rather than a prompt. Saying "this is CI" up front makes it
 # take the non-interactive branch instead of aborting.
 ENV CI=true
+# Install the same pnpm as `packageManager` in package.json. A hardcoded pin here
+# is what broke deploy when the field moved to 11.25.0 and this image still had
+# 11.21.0: offline `pnpm install` then tried to download the new version.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
+RUN npm install -g pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")
 # fetch populates the pnpm store from the lockfile alone; this layer is cached
 # until pnpm-lock.yaml changes, so source edits don't re-download deps.
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm fetch
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
