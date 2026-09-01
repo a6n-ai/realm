@@ -31,7 +31,13 @@
     "@foundry/storage": "github:a6n-ai/foundry#path:packages/storage",
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
-    "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet"
+    "@foundry/wallet": "github:a6n-ai/foundry#path:packages/wallet",
+    "@relay/email": "github:a6n-ai/relay#path:packages/email",
+    "@relay/engine": "github:a6n-ai/relay#path:packages/engine",
+    "@relay/sdk": "github:a6n-ai/relay#path:packages/sdk",
+    "@relay/sms": "github:a6n-ai/relay#path:packages/sms",
+    "@relay/ui": "github:a6n-ai/relay#path:packages/ui",
+    "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp"
   },
   "devDependencies": {
     "jose": "^6.2.3",

@@ -1,5 +1,5 @@
 # Gradual Foundry → Relay → apps gate. Nested foundry/ and relay/ must stay
-# until EXTRACTION.md phase 4; do not delete those trees.
+# until EXTRACTION.md deletes them; do not delete those trees yet.
 name: ci
 
 on:
@@ -30,7 +30,7 @@ jobs:
       # @foundry/* typecheck and test on a6n-ai/foundry CI.
 
   relay:
-    name: Relay
+    name: Relay git deps
     needs: foundry
     runs-on: ubuntu-latest
     steps:
@@ -41,8 +41,10 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo typecheck --filter="@relay/*" --filter=relay
-      - run: pnpm turbo test --filter="@relay/*" --filter=relay
+      - run: node scripts/assert-relay-from-git.mjs
+      - run: pnpm turbo typecheck --filter=relay
+      # @relay/* package tests live on a6n-ai/relay CI. Nested apps/relay stays
+      # in this workspace until nested trees are deleted.
 
   apps:
     name: Realm apps

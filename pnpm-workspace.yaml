@@ -1,20 +1,18 @@
-# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. All @foundry
-# packages (including eslint-config) install from a6n-ai/foundry. Do not add
-# foundry/pnpm-workspace.yaml here.
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4 delete step.
+# @foundry/* from a6n-ai/foundry; @relay/* from a6n-ai/relay. Keep the
+# nested Relay Next app in the workspace. Do not add nested
+# foundry/pnpm-workspace.yaml or relay/pnpm-workspace.yaml here.
 packages:
   - "apps/*"
   - "relay/apps/*"
-  - "relay/packages/*"
 
-# Git @foundry/* tarballs declare workspace:* on each other. Overrides turn
-# those into github: path deps, which pnpm 11 treats as exotic subdeps unless
-# this is off. Root package.json already pins the same a6n-ai/foundry tarball.
+# Git @foundry/* and @relay/* tarballs declare workspace:* on each other.
+# Overrides turn those into github: path deps, which pnpm 11 treats as
+# exotic subdeps unless this is off.
 blockExoticSubdeps: false
 
 overrides:
-  # Git-hosted @foundry/* tarballs still declare workspace:* internals.
-  # Point those at the same GitHub paths so install works after floor packages
-  # leave the Realm workspace.
+  # Git-hosted tarballs still declare workspace:* internals.
   "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons"
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
@@ -24,6 +22,12 @@ overrides:
   "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime"
   "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes"
   "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui"
+  "@relay/email": "github:a6n-ai/relay#path:packages/email"
+  "@relay/engine": "github:a6n-ai/relay#path:packages/engine"
+  "@relay/sdk": "github:a6n-ai/relay#path:packages/sdk"
+  "@relay/sms": "github:a6n-ai/relay#path:packages/sms"
+  "@relay/ui": "github:a6n-ai/relay#path:packages/ui"
+  "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp"
   "postcss@<8.5.23": ">=8.5.26"
   "esbuild@<0.25.0": ">=0.25.0"
   "@types/react": "19.2.18"

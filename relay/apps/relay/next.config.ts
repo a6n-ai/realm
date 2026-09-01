@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     "@foundry/auth",
     "@foundry/email",
     "@relay/engine",
+    "@relay/email",
     "@relay/ui",
     "@relay/sdk",
   ],

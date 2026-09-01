@@ -10,7 +10,7 @@ realm/  (repo root — apps only plus extractable product trees)
 ├── foundry/                  @foundry/* packages (incl. @foundry/ai for Monarch)
 ├── relay/                    notification product: apps/relay + @relay/*
 ├── turbo.json
-├── pnpm-workspace.yaml       apps/*, relay/{apps,packages}/*  (@foundry/* from git)
+├── pnpm-workspace.yaml       apps/*, relay/apps/*  (@foundry/* and @relay/* from git)
 └── tsconfig.base.json
 ```
 
