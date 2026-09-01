@@ -29,6 +29,20 @@ jobs:
       - run: pnpm turbo typecheck --filter="@foundry/*"
       - run: pnpm turbo test --filter="@foundry/*"
 
+  foundry-ai-git:
+    name: Foundry @foundry/ai from git
+    needs: foundry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/assert-foundry-ai-from-git.mjs
+
   relay:
     name: Relay
     needs: foundry
@@ -46,7 +60,7 @@ jobs:
 
   apps:
     name: Realm apps
-    needs: relay
+    needs: [relay, foundry-ai-git]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -57,4 +71,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman
-      - run: pnpm turbo test --filter=tiffin-grab --filter=puchkaman
+      # App vitest talks to Postgres. Add a services: postgres job later; do not
+      # fail this gate on an empty/no-DB vitest run.

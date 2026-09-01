@@ -1,8 +1,9 @@
-# Nested foundry/ + relay/ stay until EXTRACTION.md phase 1 CI is green.
-# Do not replace these globs with git remotes or delete the trees yet.
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 3. Phase 2: only
+# @foundry/ai is excluded from the workspace and installed from a6n-ai/foundry.
 packages:
   - "apps/*"
   - "foundry/packages/*"
+  - "!foundry/packages/ai"
   - "foundry/tooling/*"
   - "relay/apps/*"
   - "relay/packages/*"

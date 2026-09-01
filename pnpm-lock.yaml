@@ -24,6 +24,10 @@ patchedDependencies:
 importers:
 
   .:
+    dependencies:
+      '@foundry/ai':
+        specifier: github:a6n-ai/foundry#path:packages/ai
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai
     devDependencies:
       jose:
         specifier: ^6.2.3
@@ -477,22 +481,6 @@ importers:
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/ai:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
   foundry/packages/auth:
     dependencies:
@@ -2169,6 +2157,10 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai':
+    resolution: {gitHosted: true, integrity: sha512-eubyjkTGP+p0YnmVE2cymz6Z6TLsRyGGO7YF1d1IFVJzQTvx+799y1a5ewPsXMCkVv8ZVcH+qpucuceocAPAvQ==, path: packages/ai, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252}
+    version: 0.0.0
 
   '@hono/node-server@1.19.17':
     resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
@@ -9150,6 +9142,11 @@ snapshots:
       react-dom: 19.2.8(react@19.2.4)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      zod: 4.4.3
 
   '@hono/node-server@1.19.17(hono@4.13.5)':
     dependencies:

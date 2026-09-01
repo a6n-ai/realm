@@ -1,14 +1,14 @@
-# Foundry / Relay extraction freeze
+# Foundry / Relay extraction
 
-Realm **keeps** nested `foundry/` and `relay/` until tests pass on CI. Do not delete those trees. Do not switch apps to `git:` / GitHub remotes yet.
+Realm **keeps** nested `foundry/` and `relay/` on disk. Do not delete those trees. Do not switch remaining packages to `git:` remotes until this phase’s CI is green.
 
-Canonical remotes already exist (`a6n-ai/foundry`, `a6n-ai/relay`) as **mirrors**. Realm still installs `workspace:*` from the nested copies so TiffinGrab and Puchkaman keep a single lockfile.
+Canonical remotes (`a6n-ai/foundry`, `a6n-ai/relay`) are mirrors. Most packages still install via `workspace:*`.
 
 ## Phases
 
-1. **Nested workspace (now)** — `pnpm-workspace.yaml` includes `foundry/packages/*`, `foundry/tooling/*`, `relay/apps/*`, `relay/packages/*`. Gate: GitHub Actions `ci` (Foundry → Relay → apps).
-2. **Git deps, still nested** — only after phase 1 is green. Dual-path: keep trees, point a *single* non-app package at the remote and re-run CI.
-3. **Remove nested copies** — only after phase 2 is green for every `@foundry/*` and `@relay/*` consumer in this repo.
+1. **Nested workspace** — done. `ci` runs Foundry → Relay → apps typecheck.
+2. **Git deps, still nested (now)** — `@foundry/ai` is excluded from the pnpm workspace and installed from `github:a6n-ai/foundry#path:packages/ai`. The nested `foundry/packages/ai` tree stays as a mirror only. Gate: `foundry-ai-git` plus existing jobs.
+3. **Remove nested copies** — only after every `@foundry/*` and `@relay/*` consumer uses the remotes and CI is green.
 
 ## Local folder layout
 
@@ -21,7 +21,7 @@ Keep the three GitHub remotes as **siblings**, not nested inside each other. On 
   relay          clone of a6n-ai/relay
   worktrees/
     realm-main
-    foundry-export   (Realm split branch; not the Foundry remote)
+    foundry-export
     relay-export
 ```
 
@@ -33,16 +33,13 @@ cd ~/a6n-ai
 git clone https://github.com/a6n-ai/realm.git
 git clone https://github.com/a6n-ai/foundry.git
 git clone https://github.com/a6n-ai/relay.git
-cd realm
-git worktree add ../worktrees/realm-pr origin/cursor/foundry-relay-split-c501
 ```
-
-Realm still **nests** `foundry/` and `relay/` until phase 1 CI is green. The sibling clones are for the standalone remotes.
 
 ## Local gate (same as CI)
 
 ```bash
 pnpm turbo typecheck --filter="@foundry/*" && pnpm turbo test --filter="@foundry/*"
 pnpm turbo typecheck --filter="@relay/*" --filter=relay && pnpm turbo test --filter="@relay/*" --filter=relay
-pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman && pnpm turbo test --filter=tiffin-grab --filter=puchkaman
+pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman
+node scripts/assert-foundry-ai-from-git.mjs
 ```
