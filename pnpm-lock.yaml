@@ -27,7 +27,40 @@ importers:
     dependencies:
       '@foundry/ai':
         specifier: github:a6n-ai/foundry#path:packages/ai
-        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/ai
+      '@foundry/auth':
+        specifier: github:a6n-ai/foundry#path:packages/auth
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+      '@foundry/auth-ui':
+        specifier: github:a6n-ai/foundry#path:packages/auth-ui
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@foundry/clover':
+        specifier: github:a6n-ai/foundry#path:packages/clover
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@foundry/coupons':
+        specifier: github:a6n-ai/foundry#path:packages/coupons
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/coupons
+      '@foundry/google-reviews':
+        specifier: github:a6n-ai/foundry#path:packages/google-reviews
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@foundry/order-tracking':
+        specifier: github:a6n-ai/foundry#path:packages/order-tracking
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/order-tracking(better-auth@1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))))
+      '@foundry/payments':
+        specifier: github:a6n-ai/foundry#path:packages/payments
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/payments(react@19.2.8)
+      '@foundry/places':
+        specifier: github:a6n-ai/foundry#path:packages/places
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places(react@19.2.8)
+      '@foundry/routes':
+        specifier: github:a6n-ai/foundry#path:packages/routes
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+      '@foundry/storage':
+        specifier: github:a6n-ai/foundry#path:packages/storage
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/storage(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
+      '@foundry/wallet':
+        specifier: github:a6n-ai/foundry#path:packages/wallet
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/wallet(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
     devDependencies:
       jose:
         specifier: ^6.2.3
@@ -48,20 +81,20 @@ importers:
         specifier: ^3.1106.0
         version: 3.1106.0
       '@foundry/auth':
-        specifier: workspace:*
-        version: link:../../foundry/packages/auth
+        specifier: github:a6n-ai/foundry#path:packages/auth
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
       '@foundry/auth-ui':
-        specifier: workspace:*
-        version: link:../../foundry/packages/auth-ui
+        specifier: github:a6n-ai/foundry#path:packages/auth-ui
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/clover':
-        specifier: workspace:*
-        version: link:../../foundry/packages/clover
+        specifier: github:a6n-ai/foundry#path:packages/clover
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/commons':
         specifier: workspace:*
         version: link:../../foundry/packages/commons
       '@foundry/coupons':
-        specifier: workspace:*
-        version: link:../../foundry/packages/coupons
+        specifier: github:a6n-ai/foundry#path:packages/coupons
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/coupons
       '@foundry/crm':
         specifier: workspace:*
         version: link:../../foundry/packages/crm
@@ -72,23 +105,23 @@ importers:
         specifier: workspace:*
         version: link:../../foundry/packages/design-system
       '@foundry/google-reviews':
-        specifier: workspace:*
-        version: link:../../foundry/packages/google-reviews
+        specifier: github:a6n-ai/foundry#path:packages/google-reviews
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/order-tracking':
-        specifier: workspace:*
-        version: link:../../foundry/packages/order-tracking
+        specifier: github:a6n-ai/foundry#path:packages/order-tracking
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/order-tracking(better-auth@1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))))
       '@foundry/places':
-        specifier: workspace:*
-        version: link:../../foundry/packages/places
+        specifier: github:a6n-ai/foundry#path:packages/places
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places(react@19.2.4)
       '@foundry/realtime':
         specifier: workspace:*
         version: link:../../foundry/packages/realtime
       '@foundry/routes':
-        specifier: workspace:*
-        version: link:../../foundry/packages/routes
+        specifier: github:a6n-ai/foundry#path:packages/routes
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@foundry/storage':
-        specifier: workspace:*
-        version: link:../../foundry/packages/storage
+        specifier: github:a6n-ai/foundry#path:packages/storage
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/storage(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
       '@foundry/themes':
         specifier: workspace:*
         version: link:../../foundry/packages/themes
@@ -96,8 +129,8 @@ importers:
         specifier: workspace:*
         version: link:../../foundry/packages/ui
       '@foundry/wallet':
-        specifier: workspace:*
-        version: link:../../foundry/packages/wallet
+        specifier: github:a6n-ai/foundry#path:packages/wallet
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/wallet(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
@@ -250,14 +283,14 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/auth':
-        specifier: workspace:*
-        version: link:../../foundry/packages/auth
+        specifier: github:a6n-ai/foundry#path:packages/auth
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
       '@foundry/auth-ui':
-        specifier: workspace:*
-        version: link:../../foundry/packages/auth-ui
+        specifier: github:a6n-ai/foundry#path:packages/auth-ui
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/clover':
-        specifier: workspace:*
-        version: link:../../foundry/packages/clover
+        specifier: github:a6n-ai/foundry#path:packages/clover
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/commons':
         specifier: workspace:*
         version: link:../../foundry/packages/commons
@@ -271,23 +304,23 @@ importers:
         specifier: workspace:*
         version: link:../../foundry/packages/design-system
       '@foundry/google-reviews':
-        specifier: workspace:*
-        version: link:../../foundry/packages/google-reviews
+        specifier: github:a6n-ai/foundry#path:packages/google-reviews
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@foundry/payments':
-        specifier: workspace:*
-        version: link:../../foundry/packages/payments
+        specifier: github:a6n-ai/foundry#path:packages/payments
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/payments(react@19.2.4)
       '@foundry/places':
-        specifier: workspace:*
-        version: link:../../foundry/packages/places
+        specifier: github:a6n-ai/foundry#path:packages/places
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places(react@19.2.4)
       '@foundry/realtime':
         specifier: workspace:*
         version: link:../../foundry/packages/realtime
       '@foundry/routes':
-        specifier: workspace:*
-        version: link:../../foundry/packages/routes
+        specifier: github:a6n-ai/foundry#path:packages/routes
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       '@foundry/storage':
-        specifier: workspace:*
-        version: link:../../foundry/packages/storage
+        specifier: github:a6n-ai/foundry#path:packages/storage
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/storage(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
       '@foundry/themes':
         specifier: workspace:*
         version: link:../../foundry/packages/themes
@@ -295,8 +328,8 @@ importers:
         specifier: workspace:*
         version: link:../../foundry/packages/ui
       '@foundry/wallet':
-        specifier: workspace:*
-        version: link:../../foundry/packages/wallet
+        specifier: github:a6n-ai/foundry#path:packages/wallet
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/wallet(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
@@ -482,105 +515,6 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  foundry/packages/auth:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/email':
-        specifier: workspace:*
-        version: link:../email
-      better-auth:
-        specifier: 1.6.30
-        version: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
-    devDependencies:
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-
-  foundry/packages/auth-ui:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/ui':
-        specifier: workspace:*
-        version: link:../ui
-      '@hookform/resolvers':
-        specifier: ^5.4.0
-        version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
-      input-otp:
-        specifier: ^1.4.2
-        version: 1.4.2(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      lucide-react:
-        specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
-      react-hook-form:
-        specifier: ^7.79.0
-        version: 7.79.0(react@19.2.4)
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-      next:
-        specifier: 16.3.3
-        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/clover:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/crm':
-        specifier: workspace:*
-        version: link:../crm
-      '@foundry/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@foundry/ui':
-        specifier: workspace:*
-        version: link:../ui
-      lucide-react:
-        specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-      next:
-        specifier: 16.3.3
-        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
   foundry/packages/commons:
     dependencies:
       libphonenumber-js:
@@ -599,15 +533,6 @@ importers:
       lucide-react:
         specifier: ^1.20.0
         version: 1.21.0(react@19.2.8)
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/coupons:
-    devDependencies:
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -736,121 +661,6 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  foundry/packages/google-reviews:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/email':
-        specifier: workspace:*
-        version: link:../email
-      '@foundry/ui':
-        specifier: workspace:*
-        version: link:../ui
-      lucide-react:
-        specifier: ^1.20.0
-        version: 1.21.0(react@19.2.4)
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22
-        version: 22.20.1
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
-      next:
-        specifier: 16.3.3
-        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/order-tracking:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22
-        version: 22.20.1
-      better-auth:
-        specifier: 1.6.30
-        version: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/payments:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      lucide-react:
-        specifier: ^1.20.0
-        version: 1.21.0(react@19.2.8)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/places:
-    dependencies:
-      '@aws-sdk/client-geo-places':
-        specifier: ^3.700.0
-        version: 3.1106.0
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22
-        version: 22.20.1
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-      react:
-        specifier: 19.2.4
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
   foundry/packages/realtime:
     dependencies:
       '@foundry/commons':
@@ -866,59 +676,6 @@ importers:
       react:
         specifier: ^19
         version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/routes:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/database':
-        specifier: workspace:*
-        version: link:../database
-    devDependencies:
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
-      next:
-        specifier: 16.3.3
-        version: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
-  foundry/packages/storage:
-    dependencies:
-      '@aws-sdk/client-s3':
-        specifier: 3.1077.0
-        version: 3.1077.0
-      '@aws-sdk/s3-request-presigner':
-        specifier: 3.1077.0
-        version: 3.1077.0
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/database':
-        specifier: workspace:*
-        version: link:../database
-      nanoid:
-        specifier: ^5.1.14
-        version: 5.1.16
-    devDependencies:
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -1014,28 +771,6 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
-  foundry/packages/wallet:
-    dependencies:
-      '@foundry/commons':
-        specifier: workspace:*
-        version: link:../commons
-      '@foundry/database':
-        specifier: workspace:*
-        version: link:../database
-    devDependencies:
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
-
   foundry/tooling/eslint-config:
     dependencies:
       eslint:
@@ -1048,8 +783,8 @@ importers:
   relay/apps/relay:
     dependencies:
       '@foundry/auth':
-        specifier: workspace:*
-        version: link:../../../foundry/packages/auth
+        specifier: github:a6n-ai/foundry#path:packages/auth
+        version: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
       '@foundry/commons':
         specifier: workspace:*
         version: link:../../../foundry/packages/commons
@@ -2158,9 +1893,73 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai':
-    resolution: {gitHosted: true, integrity: sha512-eubyjkTGP+p0YnmVE2cymz6Z6TLsRyGGO7YF1d1IFVJzQTvx+799y1a5ewPsXMCkVv8ZVcH+qpucuceocAPAvQ==, path: packages/ai, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252}
+  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/ai':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/ai, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
     version: 0.0.0
+
+  '@foundry/auth-ui@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/auth-ui, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      next: 16.3.3
+      react: ^19
+
+  '@foundry/auth@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/auth, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+
+  '@foundry/clover@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/clover, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      next: 16.3.3
+      react: ^19
+
+  '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/coupons':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/coupons, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+
+  '@foundry/google-reviews@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/google-reviews, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      drizzle-orm: ^0.45.2
+      next: 16.3.3
+      react: ^19
+
+  '@foundry/order-tracking@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/order-tracking':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/order-tracking, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      better-auth: 1.6.30
+
+  '@foundry/payments@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/payments':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/payments, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+
+  '@foundry/places@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/places, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      react: ^19
+
+  '@foundry/routes@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/routes, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      next: 16.3.3
+
+  '@foundry/storage@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/storage':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/storage, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      drizzle-orm: ^0.45.2
+
+  '@foundry/wallet@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/wallet':
+    resolution: {gitHosted: true, integrity: sha512-dN0lESLWrD5HktBRPkhIyc38Q40q3/vU85wypfPvCBmyY2+G8hNnyVPG7PTLzWwsOXMVYOk1FyLdgx5zqfrdYA==, path: packages/wallet, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba}
+    version: 0.0.0
+    peerDependencies:
+      drizzle-orm: ^0.45.2
 
   '@hono/node-server@1.19.17':
     resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
@@ -9143,10 +8942,223 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/60e21ea8b201e9ba159aaf3b21fa2f879407f252#path:packages/ai':
+  '@foundry/ai@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/ai':
     dependencies:
       '@foundry/commons': link:foundry/packages/commons
       zod: 4.4.3
+
+  '@foundry/auth-ui@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/ui': link:foundry/packages/ui
+      '@hookform/resolvers': 5.4.0(react-hook-form@7.79.0(react@19.2.4))
+      input-otp: 1.4.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      lucide-react: 1.21.0(react@19.2.4)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-hook-form: 7.79.0(react@19.2.4)
+      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/auth-ui@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth-ui(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/ui': link:foundry/packages/ui
+      '@hookform/resolvers': 5.4.0(react-hook-form@7.79.0(react@19.2.8))
+      input-otp: 1.4.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      lucide-react: 1.21.0(react@19.2.8)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+      react-hook-form: 7.79.0(react@19.2.8)
+      sonner: 2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/auth@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/email': link:foundry/packages/email
+      better-auth: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@foundry/auth@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/auth(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/email': link:foundry/packages/email
+      better-auth: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@foundry/clover@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/crm': link:foundry/packages/crm
+      '@foundry/design-system': link:foundry/packages/design-system
+      '@foundry/ui': link:foundry/packages/ui
+      lucide-react: 1.21.0(react@19.2.4)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/clover@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/clover(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/crm': link:foundry/packages/crm
+      '@foundry/design-system': link:foundry/packages/design-system
+      '@foundry/ui': link:foundry/packages/ui
+      lucide-react: 1.21.0(react@19.2.8)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+      sonner: 2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/coupons@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/coupons': {}
+
+  '@foundry/google-reviews@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/email': link:foundry/packages/email
+      '@foundry/ui': link:foundry/packages/ui
+      drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+      lucide-react: 1.21.0(react@19.2.4)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      sonner: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/google-reviews@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/google-reviews(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/email': link:foundry/packages/email
+      '@foundry/ui': link:foundry/packages/ui
+      drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+      lucide-react: 1.21.0(react@19.2.8)
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+      sonner: 2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react-dom
+
+  '@foundry/order-tracking@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/order-tracking(better-auth@1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      better-auth: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.11.6)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+      zod: 4.4.3
+
+  '@foundry/order-tracking@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/order-tracking(better-auth@1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      better-auth: 1.6.30(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))(mysql2@3.9.9)(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.11.6)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)))
+      zod: 4.4.3
+
+  '@foundry/payments@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/payments(react@19.2.4)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      lucide-react: 1.21.0(react@19.2.4)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react
+
+  '@foundry/payments@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/payments(react@19.2.8)':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      lucide-react: 1.21.0(react@19.2.8)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - react
+
+  '@foundry/places@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places(react@19.2.4)':
+    dependencies:
+      '@aws-sdk/client-geo-places': 3.1106.0
+      '@foundry/commons': link:foundry/packages/commons
+      react: 19.2.4
+      zod: 4.4.3
+
+  '@foundry/places@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/places(react@19.2.8)':
+    dependencies:
+      '@aws-sdk/client-geo-places': 3.1106.0
+      '@foundry/commons': link:foundry/packages/commons
+      react: 19.2.8
+      zod: 4.4.3
+
+  '@foundry/routes@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/database': link:foundry/packages/database
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+
+  '@foundry/routes@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/routes(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/database': link:foundry/packages/database
+      next: 16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@22.20.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+
+  '@foundry/storage@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/storage(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))':
+    dependencies:
+      '@aws-sdk/client-s3': 3.1077.0
+      '@aws-sdk/s3-request-presigner': 3.1077.0
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/database': link:foundry/packages/database
+      drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+      nanoid: 5.1.16
+
+  '@foundry/wallet@https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/wallet(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))':
+    dependencies:
+      '@foundry/commons': link:foundry/packages/commons
+      '@foundry/database': link:foundry/packages/database
+      drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
 
   '@hono/node-server@1.19.17(hono@4.13.5)':
     dependencies:
@@ -9156,6 +9168,11 @@ snapshots:
     dependencies:
       '@standard-schema/utils': 0.3.0
       react-hook-form: 7.79.0(react@19.2.4)
+
+  '@hookform/resolvers@5.4.0(react-hook-form@7.79.0(react@19.2.8))':
+    dependencies:
+      '@standard-schema/utils': 0.3.0
+      react-hook-form: 7.79.0(react@19.2.8)
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -13260,10 +13277,10 @@ snapshots:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
 
-  input-otp@1.4.2(react-dom@19.2.8(react@19.2.4))(react@19.2.4):
+  input-otp@1.4.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
-      react: 19.2.4
-      react-dom: 19.2.8(react@19.2.4)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   internal-slot@1.1.0:
     dependencies:
@@ -14976,6 +14993,10 @@ snapshots:
     dependencies:
       react: 19.2.4
 
+  react-hook-form@7.79.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
   react-is@16.13.1: {}
 
   react-is@17.0.2: {}
@@ -15607,6 +15628,11 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.8(react@19.2.4)
+
+  sonner@2.0.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   source-map-js@1.2.1: {}
 

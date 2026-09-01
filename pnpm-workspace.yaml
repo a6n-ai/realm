@@ -1,9 +1,21 @@
-# Nested foundry/ + relay/ stay until EXTRACTION.md phase 3. Phase 2: only
-# @foundry/ai is excluded from the workspace and installed from a6n-ai/foundry.
+# Nested foundry/ + relay/ stay until EXTRACTION.md phase 4. Leaf @foundry/*
+# packages are excluded and installed from a6n-ai/foundry; floor packages stay
+# workspace:*. Do not add foundry/pnpm-workspace.yaml here.
 packages:
   - "apps/*"
   - "foundry/packages/*"
   - "!foundry/packages/ai"
+  - "!foundry/packages/auth"
+  - "!foundry/packages/auth-ui"
+  - "!foundry/packages/clover"
+  - "!foundry/packages/coupons"
+  - "!foundry/packages/google-reviews"
+  - "!foundry/packages/order-tracking"
+  - "!foundry/packages/payments"
+  - "!foundry/packages/places"
+  - "!foundry/packages/routes"
+  - "!foundry/packages/storage"
+  - "!foundry/packages/wallet"
   - "foundry/tooling/*"
   - "relay/apps/*"
   - "relay/packages/*"

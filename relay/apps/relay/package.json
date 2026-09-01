@@ -14,7 +14,7 @@
     "db:seed": "tsx db/seed.ts"
   },
   "dependencies": {
-    "@foundry/auth": "workspace:*",
+    "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/commons": "workspace:*",
     "@foundry/crm": "workspace:*",
     "@foundry/database": "workspace:*",
