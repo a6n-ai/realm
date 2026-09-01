@@ -34,7 +34,10 @@ export IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 git -C ../../.. pull --ff-only           # refresh compose/config only — source is in the image
 
-docker compose pull                      # pull web + tools images at IMAGE_TAG
+# `compose pull` already fetches tools via the unprofiled drainer; also pull
+# the tools profile so migrate's tag is present even if drainer is removed.
+docker compose pull
+docker compose --profile tools pull
 docker compose --profile tools run --rm migrate   # drizzle-kit migrate against RDS (direct)
 docker compose up -d
 docker image prune -af

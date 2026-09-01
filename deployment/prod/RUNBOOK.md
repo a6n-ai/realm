@@ -6,8 +6,8 @@ Each client app runs on its OWN EC2 box + OWN RDS:
 - **puchkaman** — Box B, https://puchkaman.ca (web + pgbouncer + RDS + S3 admin).
   Deploy config + its own RUNBOOK + Caddy under `puchkaman/`.
 
-CI is **push-only**: pushing to `main` builds `tiffin-grab-web` + `-tools` **and**
-`puchkaman-web` images and pushes them to GHCR. The deploy job is gated behind repo
+CI is **push-only**: pushing to `main` builds `tiffin-grab-web` + `tiffin-grab-tools`
+**and** `puchkaman-web` + `puchkaman-tools` and pushes them to GHCR. The deploy job is gated behind repo
 variable `ENABLE_SSH_DEPLOY` (unset = off), so **you pull + run on the box yourself**.
 
 ## Folder layout (`deployment/prod/`)
@@ -96,9 +96,9 @@ commit-SHA tag).
 4. **DNS**: A record → the Elastic IP — `app` (tiffin-grab). Caddy issues the cert
    once 80/443 resolve. (`puchkaman.ca` / `www.puchkaman.ca` point at Box B — see
    `puchkaman/RUNBOOK.md`.)
-5. **GHCR**: set `tiffin-grab-web` + `-tools` **Public** (org Settings → Packages
+5. **GHCR**: set `tiffin-grab-web` + `tiffin-grab-tools` **Public** (org Settings → Packages
    must allow public first), so the box pulls with no creds. CI also builds and
-   pushes `puchkaman-web`, but this box never pulls it.
+   pushes `puchkaman-web` + `puchkaman-tools`, but this box never pulls them.
 6. On the box:
    ```bash
    sudo dnf install -y docker git jq        # jq: deploy.sh renders .env.production from SSM

@@ -50,7 +50,10 @@ git -C ../../.. pull --ff-only           # refresh compose/config only — sourc
 # PAT in ~/.ghcr_token on the box and uncomment:
 #   echo "$(cat ~/.ghcr_token)" | docker login ghcr.io -u a6n-ai --password-stdin
 
-docker compose pull                      # pull web + tools images at IMAGE_TAG
+# Default `compose pull` skips profiled services. tiffin-grab-tools is only
+# referenced by migrate (tools) and worker (worker), so pull it explicitly.
+docker compose pull
+docker compose --profile tools pull
 docker compose --profile tools run --rm migrate   # drizzle-kit migrate against RDS (direct)
 docker compose up -d
 # -a, not just dangling: CI deploys with IMAGE_TAG=<commit sha>, so every deploy

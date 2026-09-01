@@ -102,7 +102,7 @@ AFTER.
        curl -I https://puchkaman.ca/login     # 200
 
 3. On Box A: `cd ~/realm/deployment/prod && (cd puchkaman && docker compose down)`
-   then `docker image rm ghcr.io/a6n-ai/puchkaman-web:latest || true`. Box A's
+   then `docker image rm ghcr.io/a6n-ai/puchkaman-web:latest ghcr.io/a6n-ai/puchkaman-tools:latest || true`. Box A's
    shared Caddy no longer references puchkaman (see proxy/conf/Caddyfile).
 
 ## 5. Redeploy (steady state)
