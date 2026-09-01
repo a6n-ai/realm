@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import {
@@ -12,6 +13,7 @@ import {
 import { UsersIcon } from "lucide-react";
 import type { RoleValue } from "@foundry/commons";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { UserAvatar } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
 import type { UserSortColumn, UserStatusValue } from "@/lib/services/users.service";
 import { RoleSelect, StatusActions } from "./user-row";
@@ -72,7 +74,12 @@ export function UsersTable({
         emptySearchMessage="No accounts match your filters."
         renderRow={(row) => (
           <>
-            <TableCell className="font-medium">{row.name ?? "—"}</TableCell>
+            <TableCell className="font-medium">
+              <Link href={`/dashboard/settings/users/${row.publicId}`} className="flex items-center gap-3 hover:underline">
+                <UserAvatar name={row.name} fallbackText={row.email} presence={row.status === "active" ? "active" : "off"} size="sm" />
+                {row.name ?? "—"}
+              </Link>
+            </TableCell>
             <TableCell>{row.email ?? "—"}</TableCell>
             <TableCell>
               <RoleSelect

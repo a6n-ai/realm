@@ -1,64 +1,48 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/guards";
+import { parseSort } from "@/lib/list/sort";
 import { SectionCard } from "@/components/ds";
 import { listOrganizations } from "@/lib/services/organizations.service";
-import { CreateFranchiseButton } from "./create-franchise-button";
+import { ClientsList, ClientsListSkeleton, type ClientListRow } from "./clients-list";
 
-export default function ClientsPage() {
+type SearchParams = Promise<{ sort?: string; dir?: string }>;
+
+export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <SectionCard title="Clients">
-      <Suspense fallback={<div className="p-6 text-muted-foreground">Loading…</div>}>
-        <ClientsData />
+      <Suspense fallback={<ClientsListSkeleton />}>
+        <ClientsData searchParams={searchParams} />
       </Suspense>
     </SectionCard>
   );
 }
 
-async function ClientsData() {
+async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const orgs = await listOrganizations();
-  const brands = orgs.filter((o) => !o.parentOrganizationId);
-  const franchisesByBrand = new Map<string, typeof orgs>();
-  for (const o of orgs) {
-    if (!o.parentOrganizationId) continue;
-    const list = franchisesByBrand.get(o.parentOrganizationId) ?? [];
-    list.push(o);
-    franchisesByBrand.set(o.parentOrganizationId, list);
-  }
+  const sort = parseSort(await searchParams, ["name", "clientCode", "memberCount"], {
+    column: "name",
+    dir: "asc",
+  });
 
-  return (
-    <div className="space-y-4">
-      {brands.map((brand) => (
-        <div key={brand.id} className="rounded-lg border">
-          <Link
-            href={`/dashboard/organization/clients/${brand.id}`}
-            className="flex items-center justify-between p-4 hover:bg-accent"
-          >
-            <div>
-              <div className="font-medium">{brand.name}</div>
-              <div className="text-sm text-muted-foreground">{brand.clientCode} · {brand.memberCount} members</div>
-            </div>
-          </Link>
-          <div className="border-t pl-8">
-            {(franchisesByBrand.get(brand.id) ?? []).map((f) => (
-              <Link
-                key={f.id}
-                href={`/dashboard/organization/clients/${f.id}`}
-                className="flex items-center justify-between border-b p-4 last:border-b-0 hover:bg-accent"
-              >
-                <div>
-                  <div className="font-medium">{f.name}</div>
-                  <div className="text-sm text-muted-foreground">{f.clientCode} · {f.memberCount} members</div>
-                </div>
-              </Link>
-            ))}
-            <div className="p-4">
-              <CreateFranchiseButton brandOrganizationId={brand.id} />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const orgs = await listOrganizations();
+  const nameById = new Map(orgs.map((o) => [o.id, o.name]));
+
+  const rows: ClientListRow[] = orgs.map((o) => ({
+    id: o.id,
+    name: o.name,
+    clientCode: o.clientCode,
+    parentName: o.parentOrganizationId ? (nameById.get(o.parentOrganizationId) ?? null) : null,
+    memberCount: o.memberCount,
+    isBrand: !o.parentOrganizationId,
+  }));
+
+  const dir = sort.dir === "asc" ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = a[sort.column];
+    const bv = b[sort.column];
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+
+  return <ClientsList rows={rows} sort={sort} />;
 }

@@ -254,6 +254,21 @@ export async function listMembers(organizationId: string): Promise<MemberRow[]> 
   return rows.map((r) => ({ userId: r.userId, email: r.email ?? "", role: r.role }));
 }
 
+export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };
+
+// Read-only, for the user detail page's Client access section. Editing
+// membership from that direction is out of scope (see member-management.tsx's
+// header comment) — only clients/[id] can add/remove members today.
+export async function listMembershipsForUser(userPublicId: string): Promise<UserMembershipRow[]> {
+  const userId = await resolveUserId(userPublicId);
+  if (!userId) return [];
+  return db
+    .select({ organizationId: organization.id, organizationName: organization.name, role: member.role })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(eq(member.userId, userId));
+}
+
 // True when a Postgres unique-violation (23505) hit the member org+user unique
 // index. drizzle wraps the driver error, so the real PostgresError (with code +
 // constraint_name) sits on .cause; postgres.js names the field constraint_name.

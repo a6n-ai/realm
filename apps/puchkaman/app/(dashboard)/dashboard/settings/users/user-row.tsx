@@ -2,9 +2,11 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { Ban, CircleCheck, KeyRound, Trash2 } from "lucide-react";
 import { Role, type RoleValue } from "@foundry/commons";
-import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { RowActions } from "@foundry/design-system";
+import { RowActionTooltipButton } from "@/components/ds";
 import { removeUser, sendPasswordReset, setUserRole, setUserStatus } from "./actions";
 import type { UserStatusValue } from "@/lib/services/users.service";
 
@@ -84,10 +86,10 @@ export function StatusActions({
     });
 
   return (
-    <div className="flex justify-end gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
+    <RowActions>
+      <RowActionTooltipButton
+        icon={KeyRound}
+        label="Send password reset"
         disabled={pending || !email}
         onClick={() =>
           run(
@@ -96,12 +98,10 @@ export function StatusActions({
             "Could not send the reset code.",
           )
         }
-      >
-        Send reset
-      </Button>
-      <Button
-        variant={status === "active" ? "outline" : "default"}
-        size="sm"
+      />
+      <RowActionTooltipButton
+        icon={status === "active" ? Ban : CircleCheck}
+        label={label}
         disabled={pending}
         onClick={() =>
           run(
@@ -110,20 +110,15 @@ export function StatusActions({
             "Could not change the account status.",
           )
         }
-      >
-        {label}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive"
+      />
+      <RowActionTooltipButton
+        icon={Trash2}
+        label="Remove account"
         disabled={pending}
         onClick={() =>
           run(() => removeUser(publicId), "Account removed and signed out.", "Could not remove the account.")
         }
-      >
-        Remove
-      </Button>
-    </div>
+      />
+    </RowActions>
   );
 }

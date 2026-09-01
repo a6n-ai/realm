@@ -3,3 +3,5 @@
 export * from "@foundry/design-system";
 export * from "./stage-badge";
 export * from "./order-status-badge";
+export * from "./user-avatar";
+export * from "./row-action-tooltip-button";

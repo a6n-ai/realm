@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -13,9 +14,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@foundry/ui/dialog";
+import { RowActionTooltipButton } from "@/components/ds";
 import { createFranchise } from "@/lib/services/organizations-actions";
 
-export function CreateFranchiseButton({ brandOrganizationId }: { brandOrganizationId: string }) {
+export function CreateFranchiseButton({
+  brandOrganizationId,
+  variant = "button",
+}: {
+  brandOrganizationId: string;
+  /** "button": labeled outline button (brand detail page). "icon": tooltip icon button for a table row action. */
+  variant?: "button" | "icon";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -24,8 +33,12 @@ export function CreateFranchiseButton({ brandOrganizationId }: { brandOrganizati
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">Add franchise</Button>
+      <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+        {variant === "icon" ? (
+          <RowActionTooltipButton icon={Plus} label="Add franchise" />
+        ) : (
+          <Button variant="outline" size="sm">Add franchise</Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

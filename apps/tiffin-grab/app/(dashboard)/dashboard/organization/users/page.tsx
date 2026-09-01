@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { asc, desc } from "drizzle-orm";
 import { db } from "@/db/client";
-import { featureFlags, userFeatureFlags, users } from "@/db/schema";
+import { users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { parseSort } from "@/lib/list/sort";
@@ -30,43 +30,24 @@ export default function UsersPage({ searchParams }: { searchParams: SearchParams
 
 async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
-  const sort = parseSort(await searchParams, ["email", "role"], {
+  const sort = parseSort(await searchParams, ["name", "email", "role", "status"], {
     column: "email",
     dir: "asc",
   });
-  const sortCol = sort.column === "role" ? users.role : users.email;
-  const orderBy = sort.dir === "asc" ? asc(sortCol) : desc(sortCol);
+  const SORT_COLUMNS = { name: users.name, email: users.email, role: users.role, status: users.status } as const;
+  const orderBy = sort.dir === "asc" ? asc(SORT_COLUMNS[sort.column]) : desc(SORT_COLUMNS[sort.column]);
 
-  const [allUsers, allFlags, allOverrides] = await Promise.all([
-    db.select().from(users).orderBy(orderBy),
-    db.select().from(featureFlags),
-    db.select().from(userFeatureFlags),
-  ]);
+  const allUsers = await db.select().from(users).orderBy(orderBy);
 
-  const overridesByUser = new Map<bigint, Map<bigint, boolean>>();
-  for (const o of allOverrides) {
-    let m = overridesByUser.get(o.userId);
-    if (!m) overridesByUser.set(o.userId, (m = new Map()));
-    m.set(o.flagId, Boolean(o.enabled));
-  }
-
-  const rows = allUsers.map((u) => {
-    const ov = overridesByUser.get(u.id);
-    return {
-      id: u.publicId,
-      name: u.name,
-      email: u.email,
-      phone: u.phone,
-      role: u.role,
-      status: u.status,
-      flags: allFlags.map((f) => ({
-        id: f.publicId,
-        key: f.key,
-        label: f.label,
-        enabled: ov?.has(f.id) ? (ov.get(f.id) as boolean) : f.defaultEnabled,
-      })),
-    };
-  });
+  const rows = allUsers.map((u) => ({
+    id: u.publicId,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    role: u.role,
+    status: u.status,
+    passwordSet: u.passwordSet,
+  }));
 
   return <UsersList rows={rows} sort={sort} />;
 }

@@ -9,7 +9,7 @@ import { listMembershipsForUser, type MemberRole } from "@/lib/services/organiza
 import { db } from "@/db/client";
 import { featureFlags, userFeatureFlags } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
-import { SectionCard } from "@/components/ds";
+import { SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
@@ -66,15 +66,37 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
   }));
 
   const isStaff = user.role === Role.ADMIN || user.role === Role.MEMBER;
+  const contact = [user.email, user.phone].filter(Boolean).join(" · ");
 
   return (
     <>
+      {/* Identity as the page heading, not a separate card — mirrors
+          customers/[id]'s PageHeader pattern, swapping the icon square for the
+          user's avatar since this page is about one specific person. */}
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <UserAvatar name={user.name} fallbackText={user.email} presence={user.status === "active" ? "active" : "off"} size="lg" className="mt-0.5" />
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">
+              {user.name || user.email || "User"}
+            </h1>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="secondary">{user.role}</Badge>
+              <Badge variant={user.status === "active" ? "secondary" : "outline"}>{user.status}</Badge>
+            </div>
+            {contact && <p className="text-muted-foreground text-sm">{contact}</p>}
+          </div>
+        </div>
+        {isStaff && (
+          <div className="flex shrink-0 items-center gap-2">
+            <ResetPasswordButton id={user.publicId} role={user.role} passwordSet={user.passwordSet} variant="button" />
+          </div>
+        )}
+      </header>
+
       <SectionCard title="Identity">
         <dl>
-          <Field label="Name" value={user.name ?? "—"} />
           <Field label="Username" value={user.displayUsername ?? user.username ?? "—"} />
-          <Field label="Role" value={<Badge variant="secondary">{user.role}</Badge>} />
-          <Field label="Status" value={<Badge variant={user.status === "active" ? "secondary" : "outline"}>{user.status}</Badge>} />
           <Field label="Created" value={formatEpoch(user.createdAt, { mode: "datetime", timeZone: timezone })} />
           <Field label="ID" value={<code className="text-xs">{user.publicId}</code>} />
         </dl>
@@ -112,12 +134,6 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
               <FlagToggles id={user.publicId} flags={flags} />
             </div>
           )}
-          {isStaff && (
-            <div className="flex items-center justify-between gap-3 border-t pt-4">
-              <span className="text-muted-foreground text-sm">Reset to a temporary password</span>
-              <ResetPasswordButton id={user.publicId} role={user.role} />
-            </div>
-          )}
         </div>
       </SectionCard>
 
@@ -149,6 +165,14 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
 function UserDetailSkeleton() {
   return (
     <>
+      <div className="flex items-start gap-3">
+        <Skeleton className="size-10 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+
       {["Identity", "Contact", "Access", "Profile", "Client access"].map((t) => (
         <SectionCard key={t} title={t}>
           <div className="space-y-2">

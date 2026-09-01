@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { Role, formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
+import { KeyRound, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
+import { RowActions } from "@foundry/design-system";
+import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
 import { resetStaffPassword, setUserFlag, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
@@ -77,32 +80,48 @@ export function FlagToggles({ id, flags }: { id: string; flags: FlagState[] }) {
   );
 }
 
-// Admin-only: mail a staff member the OTP reset code. Nothing is shown to the
-// admin — the code goes to the user's inbox. Staff rows only.
-export function ResetPasswordButton({ id, role }: { id: string; role: RoleValue }) {
+// Admin-only: mail a staff member the OTP code — the same send either sets up
+// a brand-new account (invite never completed) or resets an existing password,
+// so one server call covers both; only the label/icon differ by passwordSet.
+// Staff rows only. "icon": tooltip icon button for a table row. "button":
+// labeled outline button for the detail page header (mirrors customers/[id]'s
+// ResendInviteButton).
+export function ResetPasswordButton({
+  id,
+  role,
+  passwordSet,
+  variant = "icon",
+}: {
+  id: string;
+  role: RoleValue;
+  passwordSet: boolean;
+  variant?: "icon" | "button";
+}) {
   const [pending, start] = useTransition();
   if (role === Role.USER) return null;
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={() =>
-        start(async () => {
-          try {
-            const { email } = await resetStaffPassword(id);
-            toast.success("Reset code sent", {
-              description: `They'll get a 6-digit code at ${email} to set a new password.`,
-              duration: 8000,
-            });
-          } catch {
-            toast.error("Could not send the reset code.");
-          }
-        })
+  const label = passwordSet ? "Reset password" : "Resend invite";
+  const onClick = () =>
+    start(async () => {
+      try {
+        const { email } = await resetStaffPassword(id);
+        toast.success(passwordSet ? "Reset code sent" : "Invite resent", {
+          description: `They'll get a 6-digit code at ${email} to set ${passwordSet ? "a new" : "their"} password.`,
+          duration: 8000,
+        });
+      } catch {
+        toast.error(passwordSet ? "Could not send the reset code." : "Could not resend the invite.");
       }
-    >
-      Reset password
-    </Button>
+    });
+
+  if (variant === "button") {
+    return (
+      <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>
+        {label}
+      </Button>
+    );
+  }
+  return (
+    <RowActionTooltipButton icon={passwordSet ? KeyRound : SendHorizonal} label={label} disabled={pending} onClick={onClick} />
   );
 }
 
@@ -110,30 +129,42 @@ export type FlagState = { id: string; key: string; label: string; enabled: boole
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
 // <TableRow>. Interactive role/flag controls stay client-side here.
-export function UserRow({ id, name, email, phone, role, status, flags }: UserListRow) {
+// Feature flags live on the user detail page only (this list row stays lean as
+// the flag set grows) — see [id]/page.tsx's own FlagToggles usage.
+export function UserRow({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
   return (
     <>
       <TableCell>
-        <Link href={`/dashboard/organization/users/${id}`} className="font-medium underline-offset-4 hover:underline">
-          {name || "—"}
+        <Link
+          href={`/dashboard/organization/users/${id}`}
+          className="group flex items-center gap-3 font-medium underline-offset-4 hover:[&>span]:underline"
+        >
+          <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} size="sm" />
+          <span>{name || "—"}</span>
         </Link>
       </TableCell>
       <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
       <TableCell><RoleSelect id={id} role={role} /></TableCell>
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
-      <TableCell><FlagToggles id={id} flags={flags} /></TableCell>
-      <TableCell><ResetPasswordButton id={id} role={role} /></TableCell>
+      <TableCell>
+        <RowActions>
+          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+        </RowActions>
+      </TableCell>
     </>
   );
 }
 
 // Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-export function UserRowCard({ id, name, email, phone, role, status, flags }: UserListRow) {
+export function UserRowCard({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
   return (
     <div className="space-y-3">
-      <Link href={`/dashboard/organization/users/${id}`} className="text-base font-medium underline-offset-4 hover:underline">
-        {name || email || (phone ? formatPhone(phone) : null) || "—"}
+      <Link href={`/dashboard/organization/users/${id}`} className="flex items-center gap-3">
+        <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} />
+        <span className="text-base font-medium underline-offset-4 hover:underline">
+          {name || email || (phone ? formatPhone(phone) : null) || "—"}
+        </span>
       </Link>
       {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? (phone ? formatPhone(phone) : null)}</div>}
       <div className="flex items-center justify-between gap-3">
@@ -144,16 +175,10 @@ export function UserRowCard({ id, name, email, phone, role, status, flags }: Use
         <span className="text-muted-foreground text-sm">Status</span>
         <StatusSelect id={id} status={status} />
       </div>
-      {flags.length > 0 && (
-        <div className="space-y-1.5">
-          <span className="text-muted-foreground text-sm">Feature flags</span>
-          <FlagToggles id={id} flags={flags} />
-        </div>
-      )}
       {role !== Role.USER && (
         <div className="flex items-center justify-between gap-3">
           <span className="text-muted-foreground text-sm">Password</span>
-          <ResetPasswordButton id={id} role={role} />
+          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
         </div>
       )}
     </div>

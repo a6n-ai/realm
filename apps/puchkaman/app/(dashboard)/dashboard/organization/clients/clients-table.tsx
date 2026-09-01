@@ -11,6 +11,7 @@ import {
   type FacetDef,
 } from "@foundry/design-system";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { UserAvatar } from "@/components/ds";
 import type { SortState } from "@/lib/list/sort";
 import type { OrganizationListPageRow, OrgSortColumn } from "@/lib/services/organizations.service";
 import { CreateFranchiseButton } from "./create-franchise-button";
@@ -61,7 +62,8 @@ export function ClientsTable({
         renderRow={(row) => (
           <>
             <TableCell className="font-medium">
-              <Link href={`/dashboard/organization/clients/${row.id}`} className="hover:underline">
+              <Link href={`/dashboard/organization/clients/${row.id}`} className="flex items-center gap-3 hover:underline">
+                <UserAvatar name={row.name} size="sm" />
                 {row.name}
               </Link>
             </TableCell>
