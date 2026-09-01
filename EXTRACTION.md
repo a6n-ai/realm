@@ -1,17 +1,18 @@
 # Foundry / Relay extraction
 
-Realm **keeps** nested `foundry/` and `relay/` on disk. Do not delete those trees
-until CSS `@source` points at `node_modules` and CI is green.
+Nested `foundry/` and `relay/` stay on disk until they are deleted in the last
+step. Do not delete them until CSS `@source` is on `node_modules` and CI is green.
 
-Canonical remotes ([a6n-ai/foundry](https://github.com/a6n-ai/foundry), [a6n-ai/relay](https://github.com/a6n-ai/relay)) are mirrors. All `@foundry/*` install from `a6n-ai/foundry`. All `@relay/*` packages install from `a6n-ai/relay`. The nested Relay Next app (`relay/apps/relay`) stays in the Realm workspace.
+Canonical remotes ([a6n-ai/foundry](https://github.com/a6n-ai/foundry), [a6n-ai/relay](https://github.com/a6n-ai/relay)) are mirrors. All `@foundry/*` install from `a6n-ai/foundry`. All `@relay/*` packages install from `a6n-ai/relay`. The nested Relay Next app (`relay/apps/relay`) stays in the Realm workspace until nested trees are removed.
 
 ## Phases
 
 1. **Nested workspace** — done.
 2. **Git deps, still nested (`@foundry/ai`)** — done.
 3. **Promote remotes + git `@foundry/*`** — done.
-4. **Git `@relay/*` (now)** — Realm installs packages from `github:a6n-ai/relay#path:packages/<name>`. Nested trees stay as mirrors; CSS `@source` still scans nested Foundry `ui` / `design-system` / `crm` / `auth-ui`. Gate: foundry-assert + relay-assert + `turbo typecheck --filter=relay` + apps typecheck. Do not add `foundry/pnpm-workspace.yaml` or `relay/pnpm-workspace.yaml` inside Realm.
-5. **Retarget CSS + remove nested copies** — point `@source` at `node_modules`, then delete nested `foundry/` and `relay/` trees. Only after CI is green.
+4. **Git `@relay/*`** — done (packages from `github:a6n-ai/relay#path:packages/<name>`; nested app stays).
+5. **Retarget CSS `@source` (now)** — scan `node_modules/@foundry/{ui,design-system,crm,auth-ui}/src`. Nested trees stay as unused mirrors. Gate: foundry-assert + relay-assert + apps typecheck. Do not add nested `pnpm-workspace.yaml` files.
+6. **Remove nested copies** — delete nested `foundry/` and `relay/` (the Relay operator app lives in a6n-ai/relay). Only after CI is green.
 
 ## Local folder layout
 

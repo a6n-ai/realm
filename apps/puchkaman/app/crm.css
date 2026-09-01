@@ -8,10 +8,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@source "../../../foundry/packages/ui/src";
-@source "../../../foundry/packages/design-system/src";
-@source "../../../foundry/packages/crm/src";
-@source "../../../foundry/packages/auth-ui/src";
+@source "../../../node_modules/@foundry/ui/src";
+@source "../../../node_modules/@foundry/design-system/src";
+@source "../../../node_modules/@foundry/crm/src";
+@source "../../../node_modules/@foundry/auth-ui/src";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -3,11 +3,11 @@
 @import "shadcn/tailwind.css";
 @import "react-phone-number-input/style.css";
 
-/* Tailwind v4 ignores node_modules; @foundry/* ship raw source symlinked there, so
-   scan their source explicitly or their classes (rounded-*, sidebar, nav) vanish. */
-@source "../../../foundry/packages/ui/src";
-@source "../../../foundry/packages/design-system/src";
-@source "../../../foundry/packages/crm/src";
+/* Tailwind v4 skips node_modules for auto-scan. Git-hosted @foundry/* ship raw
+   source — @source those trees or classes (rounded-*, sidebar, nav) vanish. */
+@source "../../../node_modules/@foundry/ui/src";
+@source "../../../node_modules/@foundry/design-system/src";
+@source "../../../node_modules/@foundry/crm/src";
 
 @custom-variant dark (&:is(.dark *));
 
