@@ -15,12 +15,23 @@ Do not add nested `foundry/` or `relay/` trees, and do not add `foundry/pnpm-wor
 
 ## Local folder layout
 
+Keep the three GitHub remotes as **siblings**, not nested inside each other.
+
 ```
 ~/a6n-ai/
   realm
   foundry
   relay
 ```
+
+On a machine that still has an old nested Realm clone (or a fresh laptop):
+
+```bash
+# from this repo, or after cloning realm
+./scripts/setup-local-siblings.sh --install
+```
+
+That clones or fast-forwards `~/a6n-ai/{realm,foundry,relay}` (`A6N_ROOT` to override), deletes leftover nested `realm/foundry` and `realm/relay` trees, writes `~/a6n-ai/a6n-ai.code-workspace`, and (with `--install`) runs `pnpm install` in all three. Open the workspace file in Cursor. Do not clone Foundry or Relay *inside* Realm.
 
 ## Local gate (same as CI)
 

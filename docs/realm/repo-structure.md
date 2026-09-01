@@ -4,12 +4,17 @@ Realm is a **multi-client Turborepo**. One platform, many client apps that share
 UI, CRM shell, services, and utilities. TiffinGrab is the first client; Gym,
 Dentist, Realtor, etc. are added as sibling apps.
 
+Local machines clone three remotes as siblings (`~/a6n-ai/{realm,foundry,relay}`). Run `./scripts/setup-local-siblings.sh --install` (see [EXTRACTION.md](../../EXTRACTION.md)).
+
 ```
-realm/  (apps only)
-├── apps/                     TiffinGrab, Puchkaman
-├── turbo.json
-├── pnpm-workspace.yaml       apps/*  (@foundry/* and @relay/* from git)
-└── tsconfig.base.json
+~/a6n-ai/
+├── realm/                    apps only (this repo)
+│   ├── apps/                 TiffinGrab, Puchkaman
+│   ├── turbo.json
+│   ├── pnpm-workspace.yaml   apps/*  (@foundry/* and @relay/* from git)
+│   └── tsconfig.base.json
+├── foundry/                  @foundry/* (a6n-ai/foundry)
+└── relay/                    operator app + @relay/* (a6n-ai/relay)
 ```
 
 ## Package taxonomy

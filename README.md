@@ -4,8 +4,17 @@ A multi-client CRM + subscription **platform**. Realm holds **apps** (TiffinGrab
 
 ## Quick start
 
+On a local machine, keep Foundry and Relay as **sibling** clones (not inside Realm):
+
 ```bash
-pnpm install          # link workspace packages (pnpm@10.34.4, pinned)
+./scripts/setup-local-siblings.sh --install
+# opens ~/a6n-ai/{realm,foundry,relay} and ~/a6n-ai/a6n-ai.code-workspace
+```
+
+Then in `realm`:
+
+```bash
+pnpm install          # pnpm@11.21.0 (packageManager)
 pnpm dev              # turbo run dev — starts the app(s)
 pnpm dev:fresh        # kill :3000, clear .next, then dev
 ```

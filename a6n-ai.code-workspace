@@ -1,0 +1,8 @@
+{
+  "folders": [
+    { "name": "realm", "path": "." },
+    { "name": "foundry", "path": "../foundry" },
+    { "name": "relay", "path": "../relay" }
+  ],
+  "settings": {}
+}
