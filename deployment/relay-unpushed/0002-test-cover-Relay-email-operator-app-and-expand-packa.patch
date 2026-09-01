@@ -1,0 +1,1489 @@
+From 6e9087e4a27bed02fbcfff6f1224d8325049e8a3 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 1 Sep 2026 17:18:01 +0000
+Subject: [PATCH 2/2] test: cover Relay email operator app and expand package
+ cases
+
+Extract form, API body, session-gate, SES, and audit helpers so they can
+be unit-tested without Postgres. Add compose.yaml plus TESTING.md for a
+local migrate/seed/dev plan.
+---
+ README.md                                     |  3 +
+ TESTING.md                                    | 90 +++++++++++++++++++
+ .../(dashboard)/dashboard/domains/actions.ts  |  8 +-
+ .../(dashboard)/dashboard/sending/actions.ts  | 21 +----
+ .../(dashboard)/dashboard/tenants/actions.ts  | 14 +--
+ apps/relay/app/api/webhooks/ses/route.ts      | 26 ++----
+ apps/relay/app/v1/messages/route.ts           | 30 ++-----
+ apps/relay/lib/api-keys.test.ts               |  6 ++
+ apps/relay/lib/audit/diff.test.ts             | 39 ++++++++
+ apps/relay/lib/audit/diff.ts                  | 32 +++++++
+ apps/relay/lib/audit/redact.test.ts           | 37 ++++++++
+ apps/relay/lib/audit/redact.ts                | 11 +++
+ apps/relay/lib/auth/permissions.test.ts       | 19 ++++
+ apps/relay/lib/auth/public-paths.test.ts      | 33 +++++++
+ apps/relay/lib/auth/public-paths.ts           | 21 +++++
+ apps/relay/lib/email/domain-form.test.ts      | 22 +++++
+ apps/relay/lib/email/domain-form.ts           | 12 +++
+ apps/relay/lib/email/smtp-env.test.ts         | 39 ++++++++
+ apps/relay/lib/email/smtp-form.test.ts        | 50 +++++++++++
+ apps/relay/lib/email/smtp-form.ts             | 31 +++++++
+ .../lib/notifications/ses-events.test.ts      | 50 +++++++++++
+ apps/relay/lib/notifications/ses-events.ts    | 36 ++++++++
+ apps/relay/lib/services/sending.service.ts    | 12 +--
+ apps/relay/lib/services/session-service.ts    | 34 +------
+ apps/relay/lib/services/tenants.service.ts    |  6 +-
+ apps/relay/lib/tenants/forms.test.ts          | 40 +++++++++
+ apps/relay/lib/tenants/forms.ts               | 20 +++++
+ apps/relay/lib/v1/message-body.test.ts        | 57 ++++++++++++
+ apps/relay/lib/v1/message-body.ts             | 35 ++++++++
+ apps/relay/proxy.ts                           | 29 +++---
+ apps/relay/vitest.config.ts                   |  4 +
+ compose.yaml                                  | 19 ++++
+ .../email/src/channels/email/address.test.ts  | 12 +++
+ .../email/src/channels/email/domain.test.ts   | 28 ++++++
+ .../email/src/channels/email/from-env.test.ts | 18 +++-
+ .../src/channels/email/smtp-provider.test.ts  | 28 ++++++
+ packages/engine/src/compliance.test.ts        | 42 +++++++++
+ packages/sdk/src/index.test.ts                | 12 +++
+ 38 files changed, 890 insertions(+), 136 deletions(-)
+ create mode 100644 TESTING.md
+ create mode 100644 apps/relay/lib/audit/diff.test.ts
+ create mode 100644 apps/relay/lib/audit/diff.ts
+ create mode 100644 apps/relay/lib/audit/redact.test.ts
+ create mode 100644 apps/relay/lib/audit/redact.ts
+ create mode 100644 apps/relay/lib/auth/permissions.test.ts
+ create mode 100644 apps/relay/lib/auth/public-paths.test.ts
+ create mode 100644 apps/relay/lib/auth/public-paths.ts
+ create mode 100644 apps/relay/lib/email/domain-form.test.ts
+ create mode 100644 apps/relay/lib/email/domain-form.ts
+ create mode 100644 apps/relay/lib/email/smtp-env.test.ts
+ create mode 100644 apps/relay/lib/email/smtp-form.test.ts
+ create mode 100644 apps/relay/lib/email/smtp-form.ts
+ create mode 100644 apps/relay/lib/notifications/ses-events.test.ts
+ create mode 100644 apps/relay/lib/notifications/ses-events.ts
+ create mode 100644 apps/relay/lib/tenants/forms.test.ts
+ create mode 100644 apps/relay/lib/tenants/forms.ts
+ create mode 100644 apps/relay/lib/v1/message-body.test.ts
+ create mode 100644 apps/relay/lib/v1/message-body.ts
+ create mode 100644 compose.yaml
+ create mode 100644 packages/email/src/channels/email/address.test.ts
+
+diff --git a/README.md b/README.md
+index bb482e7..f1b0d96 100644
+--- a/README.md
++++ b/README.md
+@@ -27,3 +27,6 @@ pnpm install
+ pnpm typecheck
+ pnpm test
+ ```
++
++Local Postgres, seed, API smoke, and the case catalog: [`TESTING.md`](TESTING.md).
++This VM has no Docker/Postgres daemon; `compose.yaml` is for a machine that can run `docker compose up -d`.
+diff --git a/TESTING.md b/TESTING.md
+new file mode 100644
+index 0000000..8084d1d
+--- /dev/null
++++ b/TESTING.md
+@@ -0,0 +1,90 @@
++# Testing Relay
++
++Three layers. Unit tests are the gate (`pnpm test`). Local Postgres is for
++migrate/seed and the operator UI. Manual checks cover DNS and SMTP you cannot
++fake in CI.
++
++## 1. Automated (always)
++
++```bash
++pnpm install
++pnpm typecheck
++pnpm test
++```
++
++Packages already cover engine (outbox, campaigns, lists, compliance, drain),
++email (SES/SMTP/domain DNS), SMS keywords, WhatsApp session window, and the
++HTTP SDK.
++
++The operator app (`apps/relay`) now unit-tests:
++
++| Area | File |
++| --- | --- |
++| API key hash / Bearer | `lib/api-keys.test.ts` |
++| Tenant / SMTP / domain forms | `lib/tenants/forms.test.ts`, `lib/email/smtp-form.test.ts`, `lib/email/domain-form.test.ts` |
++| `POST /v1/messages` body | `lib/v1/message-body.test.ts` |
++| Session cookie gate | `lib/auth/public-paths.test.ts` |
++| Audit diffs + secret redaction | `lib/audit/*.test.ts` |
++| SMTP env hydrate | `lib/email/smtp-env.test.ts` |
++| SES bounce/complaint mapping | `lib/notifications/ses-events.test.ts` |
++| Permissions statement | `lib/auth/permissions.test.ts` |
++
++## 2. Local stack (Postgres + app)
++
++Needs Docker (or any Postgres 16 that matches `.env.example`).
++
++```bash
++docker compose up -d
++cp apps/relay/.env.example apps/relay/.env.local
++# BETTER_AUTH_SECRET must be a long random string
++pnpm --filter relay db:migrate
++SEED_ADMIN_PASSWORD=dev pnpm --filter relay db:seed
++pnpm dev   # http://localhost:3010
++```
++
++Seed prints operator email (`ops@relay.local` unless `SEED_ADMIN_EMAIL` is set)
++and one-time tenant API secrets (`realm-dev`, `tiffin-grab`, `puchkaman`). Copy
++the secrets; they are not stored in plaintext.
++
++### Smoke the public API
++
++```bash
++curl -sS -D - -o /tmp/relay-msg.json \
++  -H "Authorization: Bearer $RELAY_API_KEY" \
++  -H "Content-Type: application/json" \
++  -d '{"title":"Hello","body":"World","to":{"email":"dev@example.com"}}' \
++  http://localhost:3010/v1/messages
++# expect 202 { "accepted": true }
++```
++
++Without a key, expect **401**. Invalid JSON / missing recipient → **400**.
++
++### Operator UI
++
++Sign in at `/login` (password from seed). Then:
++
++1. **Tenants** — create a tenant; copy the API key; provision Tiffin Grab +
++   Puchkaman if they were not seeded.
++2. **Sending** — save SMTP host/port (Mailpit, Mailhog, or a real relay).
++   Password is redacted in audit.
++3. **Domains** — add `example.test`; confirm TXT rows (ownership, SPF, DKIM,
++   DMARC). Check DNS should stay pending until `_relay-verify` exists.
++4. **Logs / templates** — pages render (campaign tables still live in engine;
++   this app is the tenant + sending control plane).
++
++## 3. Manual / live (not in CI)
++
++- Publish `_relay-verify`, SPF, DKIM, DMARC on a real domain and use Check DNS.
++- Send through SMTP and confirm `messageId` in the provider.
++- CASL/CAN-SPAM/GDPR: marketing enqueue vs unsubscribe (engine unit tests cover
++  the rules; live send needs a verified domain).
++
++## Package cases (already implemented)
++
++- **Compliance:** US opt-out, CA 730-day implied purchase, EU/UK express opt-in,
++  physical address, unsubscribe always blocks.
++- **Audience:** consent + recipient dedupe.
++- **SMTP provider:** maps to `sendMail`; errors without `messageId`.
++- **Domain:** chunked TXT ownership, PEM → DKIM `p=`, Hostinger-style hosts.
++- **Outbox:** 6 attempts, 1m→1h backoff (`drain.test.ts`).
++- **SDK:** Bearer POST `/v1/messages`.
+diff --git a/apps/relay/app/(dashboard)/dashboard/domains/actions.ts b/apps/relay/app/(dashboard)/dashboard/domains/actions.ts
+index ead94be..50a4074 100644
+--- a/apps/relay/app/(dashboard)/dashboard/domains/actions.ts
++++ b/apps/relay/app/(dashboard)/dashboard/domains/actions.ts
+@@ -5,20 +5,20 @@ import { revalidatePath } from "next/cache";
+ import {
+   generateDkimKeyPair,
+   generateDomainVerifyToken,
+-  normalizeDomain,
+   verifySendingDomainOwnership,
+ } from "@relay/email";
+ import { requirePermission } from "@/lib/auth/guards";
+ import { db } from "@/db/client";
+ import { emailSmtpSettings } from "@/db/schema";
++import { parseAddSendingDomainForm } from "@/lib/email/domain-form";
+ import { sendingDomainsService } from "@/lib/services/sending.service";
+ import { tenantsService } from "@/lib/services/tenants.service";
+ 
+ export async function addSendingDomainAction(formData: FormData): Promise<{ error?: string }> {
+   await requirePermission({ sending: ["write"] });
+-  const slug = String(formData.get("slug") ?? "").trim();
+-  const domain = normalizeDomain(String(formData.get("domain") ?? ""));
+-  if (!slug || !domain) return { error: "Tenant and domain are required" };
++  const parsed = parseAddSendingDomainForm(formData);
++  if ("error" in parsed) return parsed;
++  const { slug, domain } = parsed.value;
+ 
+   const tenant = await tenantsService.findBySlug(slug);
+   if (!tenant) return { error: "Unknown tenant" };
+diff --git a/apps/relay/app/(dashboard)/dashboard/sending/actions.ts b/apps/relay/app/(dashboard)/dashboard/sending/actions.ts
+index c74b53b..cc01932 100644
+--- a/apps/relay/app/(dashboard)/dashboard/sending/actions.ts
++++ b/apps/relay/app/(dashboard)/dashboard/sending/actions.ts
+@@ -6,28 +6,15 @@ import { db } from "@/db/client";
+ import { emailSmtpSettings } from "@/db/schema";
+ import { resetEmailProvider } from "@/lib/email/provider";
+ import { applySmtpRowToEnv } from "@/lib/email/smtp-env";
++import { parseSmtpSettingsForm } from "@/lib/email/smtp-form";
+ import { smtpSettingsService } from "@/lib/services/sending.service";
+ 
+ export async function saveSmtpSettingsAction(formData: FormData): Promise<{ error?: string }> {
+   await requirePermission({ sending: ["write"] });
+-  const host = String(formData.get("host") ?? "").trim();
+-  const port = Number(formData.get("port") ?? "587");
+-  const username = String(formData.get("username") ?? "").trim() || null;
+-  const passwordIn = String(formData.get("password") ?? "");
+-  const spfInclude = String(formData.get("spfInclude") ?? "").trim() || null;
+-  const secure = String(formData.get("secure") ?? "") === "on" || String(formData.get("secure") ?? "") === "true";
+-  if (!host) return { error: "SMTP host is required" };
+-
+   const [existing] = await db.select().from(emailSmtpSettings).limit(1);
+-  const password = passwordIn || existing?.password || null;
+-  const row = {
+-    host,
+-    port: Number.isFinite(port) ? port : 587,
+-    secure,
+-    username,
+-    password,
+-    spfInclude,
+-  };
++  const parsed = parseSmtpSettingsForm(formData, existing?.password);
++  if ("error" in parsed) return parsed;
++  const row = parsed.value;
+   if (existing) {
+     await smtpSettingsService.update(existing.publicId, row);
+   } else {
+diff --git a/apps/relay/app/(dashboard)/dashboard/tenants/actions.ts b/apps/relay/app/(dashboard)/dashboard/tenants/actions.ts
+index 86cd433..9c217b5 100644
+--- a/apps/relay/app/(dashboard)/dashboard/tenants/actions.ts
++++ b/apps/relay/app/(dashboard)/dashboard/tenants/actions.ts
+@@ -2,20 +2,14 @@
+ 
+ import { revalidatePath } from "next/cache";
+ import { requirePermission } from "@/lib/auth/guards";
++import { REALM_SLUGS, parseCreateTenantForm } from "@/lib/tenants/forms";
+ import { issueTenantApiKey, tenantsService } from "@/lib/services/tenants.service";
+ 
+-const REALM_SLUGS = [
+-  { name: "Tiffin Grab", slug: "tiffin-grab", mailingCountry: "CA" },
+-  { name: "Puchkaman", slug: "puchkaman", mailingCountry: "CA" },
+-] as const;
+-
+ export async function createTenantAction(formData: FormData): Promise<{ secret?: string; error?: string }> {
+   await requirePermission({ tenant: ["write"] });
+-  const name = String(formData.get("name") ?? "").trim();
+-  const slug = String(formData.get("slug") ?? "").trim();
+-  const mailingCountry = String(formData.get("mailingCountry") ?? "CA").trim().toUpperCase() || "CA";
+-  const physicalAddress = String(formData.get("physicalAddress") ?? "").trim() || null;
+-  if (!name || !slug) return { error: "Name and slug are required" };
++  const parsed = parseCreateTenantForm(formData);
++  if ("error" in parsed) return parsed;
++  const { name, slug, mailingCountry, physicalAddress } = parsed.value;
+   try {
+     const tenant = await tenantsService.create({ name, slug, mailingCountry, physicalAddress });
+     const secret = await issueTenantApiKey(tenant.id, "default");
+diff --git a/apps/relay/app/api/webhooks/ses/route.ts b/apps/relay/app/api/webhooks/ses/route.ts
+index 60cbb5c..1ebfb8c 100644
+--- a/apps/relay/app/api/webhooks/ses/route.ts
++++ b/apps/relay/app/api/webhooks/ses/route.ts
+@@ -1,5 +1,6 @@
+ import MessageValidator from "sns-validator";
+ import { createLogger } from "@foundry/commons/logger";
++import { parseSnsEnvelope, sesSuppressionsFromEvent } from "@/lib/notifications/ses-events";
+ import { suppressEmailRecipient } from "@/lib/notifications/suppression";
+ 
+ export const runtime = "nodejs";
+@@ -20,32 +21,19 @@ function verify(msg: unknown): Promise<void> {
+ }
+ 
+ export async function processSesEvent(messageJson: string): Promise<void> {
+-  const event = JSON.parse(messageJson) as {
+-    eventType?: string;
+-    notificationType?: string;
+-    bounce?: { bounceType?: string; bouncedRecipients?: { emailAddress: string }[] };
+-    complaint?: { complainedRecipients?: { emailAddress: string }[] };
+-  };
+-  const type = event.eventType ?? event.notificationType;
+-  if (type === "Bounce" && event.bounce?.bounceType === "Permanent") {
+-    for (const r of event.bounce.bouncedRecipients ?? []) {
+-      await suppressEmailRecipient(r.emailAddress, "SES hard bounce");
+-    }
+-  } else if (type === "Complaint") {
+-    for (const r of event.complaint?.complainedRecipients ?? []) {
+-      await suppressEmailRecipient(r.emailAddress, "SES complaint");
+-    }
++  const event = JSON.parse(messageJson) as Parameters<typeof sesSuppressionsFromEvent>[0];
++  for (const row of sesSuppressionsFromEvent(event)) {
++    await suppressEmailRecipient(row.email, row.reason);
+   }
+ }
+ 
+ export async function POST(req: Request): Promise<Response> {
+   const raw = await req.text();
+-  let msg: SnsEnvelope;
+-  try {
+-    msg = JSON.parse(raw) as SnsEnvelope;
+-  } catch {
++  const parsed = parseSnsEnvelope(raw);
++  if (!parsed) {
+     return Response.json({ title: "Invalid JSON", status: 400 }, { status: 400 });
+   }
++  const msg: SnsEnvelope = parsed;
+   try {
+     await verify(msg);
+   } catch (err) {
+diff --git a/apps/relay/app/v1/messages/route.ts b/apps/relay/app/v1/messages/route.ts
+index 5eec4a9..ea4acf1 100644
+--- a/apps/relay/app/v1/messages/route.ts
++++ b/apps/relay/app/v1/messages/route.ts
+@@ -1,24 +1,8 @@
+-import { z } from "zod";
+ import { enqueueTenant } from "@relay/engine";
+ import { db } from "@/db/client";
+ import { notificationTables } from "@/db/schema";
+ import { authenticateTenant } from "@/lib/tenants/auth";
+-
+-const bodySchema = z.object({
+-  kind: z.enum(["transactional", "marketing"]).optional(),
+-  channels: z.array(z.enum(["email", "in_app", "sms", "whatsapp"])).optional(),
+-  to: z.object({
+-    userId: z.string().optional(),
+-    email: z.string().email().optional(),
+-    phone: z.string().optional(),
+-  }),
+-  event: z.string().optional(),
+-  title: z.string().min(1),
+-  body: z.string().min(1),
+-  href: z.string().optional(),
+-  vars: z.record(z.string(), z.unknown()).optional(),
+-  idempotencyKey: z.string().optional(),
+-});
++import { parseMessageJson } from "@/lib/v1/message-body";
+ 
+ export async function POST(req: Request) {
+   const tenant = await authenticateTenant(req);
+@@ -31,14 +15,14 @@ export async function POST(req: Request) {
+   } catch {
+     return Response.json({ title: "Invalid JSON", status: 400 }, { status: 400 });
+   }
+-  const parsed = bodySchema.safeParse(json);
+-  if (!parsed.success) {
+-    return Response.json({ title: "Invalid body", status: 400, issues: parsed.error.issues }, { status: 400 });
++  const parsed = parseMessageJson(json);
++  if (!parsed.ok) {
++    return Response.json(
++      { title: parsed.title, status: parsed.status, issues: parsed.issues },
++      { status: parsed.status },
++    );
+   }
+   const input = parsed.data;
+-  if (!input.to.email && !input.to.phone && !input.to.userId) {
+-    return Response.json({ title: "Recipient required", status: 400 }, { status: 400 });
+-  }
+   await enqueueTenant(db, notificationTables, {
+     tenantId: tenant.tenantId,
+     event: input.event,
+diff --git a/apps/relay/lib/api-keys.test.ts b/apps/relay/lib/api-keys.test.ts
+index 68bf80a..4708dc8 100644
+--- a/apps/relay/lib/api-keys.test.ts
++++ b/apps/relay/lib/api-keys.test.ts
+@@ -18,5 +18,11 @@ describe("api keys", () => {
+     expect(bearerToken("Bearer pk_live_x")).toBe("pk_live_x");
+     expect(bearerToken("Basic x")).toBeNull();
+     expect(bearerToken(null)).toBeNull();
++    expect(bearerToken("Bearer")).toBeNull();
++    expect(bearerToken("")).toBeNull();
++  });
++
++  it("issues distinct secrets", () => {
++    expect(generateApiKey().secret).not.toBe(generateApiKey().secret);
+   });
+ });
+diff --git a/apps/relay/lib/audit/diff.test.ts b/apps/relay/lib/audit/diff.test.ts
+new file mode 100644
+index 0000000..ce83230
+--- /dev/null
++++ b/apps/relay/lib/audit/diff.test.ts
+@@ -0,0 +1,39 @@
++import { describe, expect, it } from "vitest";
++import { coerceBigints, diffChanges, jsonSafe } from "./diff";
++
++describe("diffChanges", () => {
++  it("records only keys present in the patch that actually changed", () => {
++    expect(
++      diffChanges({ host: "old", port: 25 }, { host: "new", port: 25 }, { host: "new" }),
++    ).toEqual({ host: { from: "old", to: "new" } });
++  });
++
++  it("returns null when the patch is a no-op", () => {
++    expect(diffChanges({ host: "a" }, { host: "a" }, { host: "a" })).toBeNull();
++  });
++
++  it("treats missing before as from undefined", () => {
++    expect(diffChanges(null, { host: "smtp.example" }, { host: "smtp.example" })).toEqual({
++      host: { from: undefined, to: "smtp.example" },
++    });
++  });
++});
++
++describe("jsonSafe", () => {
++  it("stringifies nested bigints so audit_log JSON can store them", () => {
++    expect(jsonSafe({ id: 1n, nested: { n: 2n }, list: [3n] })).toEqual({
++      id: "1",
++      nested: { n: "2" },
++      list: ["3"],
++    });
++  });
++
++  it("passes null through", () => {
++    expect(jsonSafe(null)).toBeNull();
++  });
++
++  it("leaves primitives other than bigint alone", () => {
++    expect(coerceBigints("x")).toBe("x");
++    expect(coerceBigints(1)).toBe(1);
++  });
++});
+diff --git a/apps/relay/lib/audit/diff.ts b/apps/relay/lib/audit/diff.ts
+new file mode 100644
+index 0000000..5be53cc
+--- /dev/null
++++ b/apps/relay/lib/audit/diff.ts
+@@ -0,0 +1,32 @@
++import { stripManaged } from "@foundry/database";
++
++export function diffChanges(
++  before: Record<string, unknown> | null,
++  after: Record<string, unknown>,
++  patch: Record<string, unknown>,
++): Record<string, { from: unknown; to: unknown }> | null {
++  const keys = Object.keys(stripManaged(patch));
++  const diff: Record<string, { from: unknown; to: unknown }> = {};
++  for (const k of keys) {
++    const from = before?.[k];
++    const to = after[k];
++    if (from !== to) diff[k] = { from, to };
++  }
++  return Object.keys(diff).length ? diff : null;
++}
++
++export function coerceBigints(v: unknown): unknown {
++  if (typeof v === "bigint") return v.toString();
++  if (Array.isArray(v)) return v.map(coerceBigints);
++  if (v && typeof v === "object") {
++    const out: Record<string, unknown> = {};
++    for (const [k, val] of Object.entries(v)) out[k] = coerceBigints(val);
++    return out;
++  }
++  return v;
++}
++
++export function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown> | null {
++  if (value == null) return value;
++  return coerceBigints(value) as Record<string, unknown>;
++}
+diff --git a/apps/relay/lib/audit/redact.test.ts b/apps/relay/lib/audit/redact.test.ts
+new file mode 100644
+index 0000000..e709931
+--- /dev/null
++++ b/apps/relay/lib/audit/redact.test.ts
+@@ -0,0 +1,37 @@
++import { describe, expect, it } from "vitest";
++import { redactFields } from "./redact";
++
++describe("redactFields", () => {
++  it("masks named secrets and leaves other fields", () => {
++    expect(
++      redactFields(
++        {
++          host: { from: "a", to: "b" },
++          password: { from: "old", to: "new" },
++        },
++        ["password"],
++      ),
++    ).toEqual({
++      host: { from: "a", to: "b" },
++      password: { from: "***", to: "***" },
++    });
++  });
++
++  it("masks API key hashes, DKIM private keys, and verify tokens", () => {
++    const out = redactFields(
++      {
++        keyHash: { from: "aa", to: "bb" },
++        dkimPrivate: { from: "pem1", to: "pem2" },
++        verifyToken: { from: "t1", to: "t2" },
++      },
++      ["keyHash", "dkimPrivate", "verifyToken"],
++    );
++    expect(out?.keyHash).toEqual({ from: "***", to: "***" });
++    expect(out?.dkimPrivate).toEqual({ from: "***", to: "***" });
++    expect(out?.verifyToken).toEqual({ from: "***", to: "***" });
++  });
++
++  it("returns null when there is no diff", () => {
++    expect(redactFields(null, ["password"])).toBeNull();
++  });
++});
+diff --git a/apps/relay/lib/audit/redact.ts b/apps/relay/lib/audit/redact.ts
+new file mode 100644
+index 0000000..1d69d17
+--- /dev/null
++++ b/apps/relay/lib/audit/redact.ts
+@@ -0,0 +1,11 @@
++export type FieldDiff = Record<string, { from: unknown; to: unknown }>;
++
++/** Mask named fields in an audit diff so secrets never land in audit_log. */
++export function redactFields(changes: FieldDiff | null, fields: readonly string[]): FieldDiff | null {
++  if (!changes) return null;
++  const next = { ...changes };
++  for (const field of fields) {
++    if (next[field]) next[field] = { from: "***", to: "***" };
++  }
++  return next;
++}
+diff --git a/apps/relay/lib/auth/permissions.test.ts b/apps/relay/lib/auth/permissions.test.ts
+new file mode 100644
+index 0000000..5be6b48
+--- /dev/null
++++ b/apps/relay/lib/auth/permissions.test.ts
+@@ -0,0 +1,19 @@
++import { describe, expect, it } from "vitest";
++import { createPermissionGuards } from "@foundry/auth";
++import { roles, statement } from "./permissions";
++
++const { roleCan } = createPermissionGuards(async () => ({ user: { role: "admin" } }), roles);
++
++describe("Relay access control", () => {
++  it("adds tenant, message, and sending verbs on top of the Foundry base statement", () => {
++    expect(statement.tenant).toEqual(["read", "write"]);
++    expect(statement.message).toEqual(["read", "write"]);
++    expect(statement.sending).toEqual(["read", "write"]);
++  });
++
++  it("lets the operator admin read/write tenants, sending, and messages", () => {
++    expect(roleCan("admin", { tenant: ["read", "write"] })).toBe(true);
++    expect(roleCan("admin", { sending: ["read", "write"] })).toBe(true);
++    expect(roleCan("admin", { message: ["read", "write"] })).toBe(true);
++  });
++});
+diff --git a/apps/relay/lib/auth/public-paths.test.ts b/apps/relay/lib/auth/public-paths.test.ts
+new file mode 100644
+index 0000000..97a38f8
+--- /dev/null
++++ b/apps/relay/lib/auth/public-paths.test.ts
+@@ -0,0 +1,33 @@
++import { describe, expect, it } from "vitest";
++import { gateRelayPath, isPublicRelayPath } from "./public-paths";
++
++describe("isPublicRelayPath", () => {
++  it("allows auth, login, forgot-password, tenant API, and SES webhooks", () => {
++    expect(isPublicRelayPath("/login")).toBe(true);
++    expect(isPublicRelayPath("/forgot-password")).toBe(true);
++    expect(isPublicRelayPath("/api/auth/ok")).toBe(true);
++    expect(isPublicRelayPath("/v1/messages")).toBe(true);
++    expect(isPublicRelayPath("/api/webhooks/ses")).toBe(true);
++    expect(isPublicRelayPath("/dashboard")).toBe(false);
++    expect(isPublicRelayPath("/api/internal")).toBe(false);
++  });
++});
++
++describe("gateRelayPath", () => {
++  it("sends anonymous dashboard visitors to login", () => {
++    expect(gateRelayPath("/dashboard/tenants", [])).toBe("login");
++  });
++
++  it("returns 401 JSON for anonymous /api (not auth/webhooks)", () => {
++    expect(gateRelayPath("/api/secret", [])).toBe("unauthorized");
++  });
++
++  it("lets a session cookie through to the dashboard", () => {
++    expect(gateRelayPath("/dashboard", ["better-auth.session_token"])).toBe("allow");
++    expect(gateRelayPath("/dashboard", ["__Secure-better-auth.session_token"])).toBe("allow");
++  });
++
++  it("does not session-gate /v1 (tenant API key is checked in the route)", () => {
++    expect(gateRelayPath("/v1/messages", [])).toBe("allow");
++  });
++});
+diff --git a/apps/relay/lib/auth/public-paths.ts b/apps/relay/lib/auth/public-paths.ts
+new file mode 100644
+index 0000000..cfb2817
+--- /dev/null
++++ b/apps/relay/lib/auth/public-paths.ts
+@@ -0,0 +1,21 @@
++export const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
++
++export const PUBLIC_PREFIXES = ["/api/auth", "/v1", "/login", "/forgot-password", "/api/webhooks"];
++
++export function isPublicRelayPath(pathname: string): boolean {
++  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
++}
++
++export function hasSessionCookie(cookieNames: Iterable<string>): boolean {
++  const set = new Set(cookieNames);
++  return SESSION_COOKIES.some((name) => set.has(name));
++}
++
++/** Dashboard HTML and other /api routes require a session; /v1 is tenant-key auth. */
++export function gateRelayPath(pathname: string, cookieNames: Iterable<string>): "allow" | "login" | "unauthorized" {
++  if (isPublicRelayPath(pathname)) return "allow";
++  if (hasSessionCookie(cookieNames)) return "allow";
++  if (pathname.startsWith("/dashboard")) return "login";
++  if (pathname.startsWith("/api")) return "unauthorized";
++  return "allow";
++}
+diff --git a/apps/relay/lib/email/domain-form.test.ts b/apps/relay/lib/email/domain-form.test.ts
+new file mode 100644
+index 0000000..d89f15f
+--- /dev/null
++++ b/apps/relay/lib/email/domain-form.test.ts
+@@ -0,0 +1,22 @@
++import { describe, expect, it } from "vitest";
++import { parseAddSendingDomainForm } from "./domain-form";
++
++function form(entries: Record<string, string>): FormData {
++  const fd = new FormData();
++  for (const [k, v] of Object.entries(entries)) fd.set(k, v);
++  return fd;
++}
++
++describe("parseAddSendingDomainForm", () => {
++  it("requires tenant slug and domain", () => {
++    expect(parseAddSendingDomainForm(form({ slug: "", domain: "x.com" }))).toEqual({
++      error: "Tenant and domain are required",
++    });
++  });
++
++  it("normalizes the domain (trim, lowercase, strip trailing dot)", () => {
++    expect(parseAddSendingDomainForm(form({ slug: "tiffin-grab", domain: " TiffinGrab.CA. " }))).toEqual({
++      value: { slug: "tiffin-grab", domain: "tiffingrab.ca" },
++    });
++  });
++});
+diff --git a/apps/relay/lib/email/domain-form.ts b/apps/relay/lib/email/domain-form.ts
+new file mode 100644
+index 0000000..52a9ca7
+--- /dev/null
++++ b/apps/relay/lib/email/domain-form.ts
+@@ -0,0 +1,12 @@
++import { normalizeDomain } from "@relay/email";
++
++export type AddSendingDomainInput = { slug: string; domain: string };
++
++export function parseAddSendingDomainForm(
++  formData: FormData,
++): { error: string } | { value: AddSendingDomainInput } {
++  const slug = String(formData.get("slug") ?? "").trim();
++  const domain = normalizeDomain(String(formData.get("domain") ?? ""));
++  if (!slug || !domain) return { error: "Tenant and domain are required" };
++  return { value: { slug, domain } };
++}
+diff --git a/apps/relay/lib/email/smtp-env.test.ts b/apps/relay/lib/email/smtp-env.test.ts
+new file mode 100644
+index 0000000..dc0732f
+--- /dev/null
++++ b/apps/relay/lib/email/smtp-env.test.ts
+@@ -0,0 +1,39 @@
++import { afterEach, describe, expect, it } from "vitest";
++import { applySmtpRowToEnv } from "./smtp-env";
++
++const KEYS = ["EMAIL_TRANSPORT", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASS"] as const;
++
++describe("applySmtpRowToEnv", () => {
++  afterEach(() => {
++    for (const k of KEYS) delete process.env[k];
++  });
++
++  it("switches the process to SMTP and stringifies port/secure", () => {
++    applySmtpRowToEnv({
++      host: "smtp.example.com",
++      port: 465,
++      secure: true,
++      username: "relay",
++      password: "s3cret",
++    });
++    expect(process.env.EMAIL_TRANSPORT).toBe("smtp");
++    expect(process.env.SMTP_HOST).toBe("smtp.example.com");
++    expect(process.env.SMTP_PORT).toBe("465");
++    expect(process.env.SMTP_SECURE).toBe("true");
++    expect(process.env.SMTP_USER).toBe("relay");
++    expect(process.env.SMTP_PASS).toBe("s3cret");
++  });
++
++  it("omits auth env when username/password are null", () => {
++    applySmtpRowToEnv({
++      host: "127.0.0.1",
++      port: 1025,
++      secure: false,
++      username: null,
++      password: null,
++    });
++    expect(process.env.SMTP_SECURE).toBe("false");
++    expect(process.env.SMTP_USER).toBeUndefined();
++    expect(process.env.SMTP_PASS).toBeUndefined();
++  });
++});
+diff --git a/apps/relay/lib/email/smtp-form.test.ts b/apps/relay/lib/email/smtp-form.test.ts
+new file mode 100644
+index 0000000..0955ddb
+--- /dev/null
++++ b/apps/relay/lib/email/smtp-form.test.ts
+@@ -0,0 +1,50 @@
++import { describe, expect, it } from "vitest";
++import { parseSmtpSettingsForm } from "./smtp-form";
++
++function form(entries: Record<string, string>): FormData {
++  const fd = new FormData();
++  for (const [k, v] of Object.entries(entries)) fd.set(k, v);
++  return fd;
++}
++
++describe("parseSmtpSettingsForm", () => {
++  it("requires a host", () => {
++    expect(parseSmtpSettingsForm(form({}))).toEqual({ error: "SMTP host is required" });
++  });
++
++  it("defaults port 587 and keeps the stored password when the field is blank", () => {
++    expect(parseSmtpSettingsForm(form({ host: "smtp.example.com" }), "stored-secret")).toEqual({
++      value: {
++        host: "smtp.example.com",
++        port: 587,
++        secure: false,
++        username: null,
++        password: "stored-secret",
++        spfInclude: null,
++      },
++    });
++  });
++
++  it("treats secure=on and an invalid port", () => {
++    const parsed = parseSmtpSettingsForm(
++      form({
++        host: "smtp.example.com",
++        port: "not-a-number",
++        secure: "on",
++        username: "relay",
++        password: "pw",
++        spfInclude: "amazonses.com",
++      }),
++    );
++    expect(parsed).toEqual({
++      value: {
++        host: "smtp.example.com",
++        port: 587,
++        secure: true,
++        username: "relay",
++        password: "pw",
++        spfInclude: "amazonses.com",
++      },
++    });
++  });
++});
+diff --git a/apps/relay/lib/email/smtp-form.ts b/apps/relay/lib/email/smtp-form.ts
+new file mode 100644
+index 0000000..91f4b6f
+--- /dev/null
++++ b/apps/relay/lib/email/smtp-form.ts
+@@ -0,0 +1,31 @@
++export type SmtpSettingsInput = {
++  host: string;
++  port: number;
++  secure: boolean;
++  username: string | null;
++  password: string | null;
++  spfInclude: string | null;
++};
++
++export function parseSmtpSettingsForm(
++  formData: FormData,
++  existingPassword?: string | null,
++): { error: string } | { value: SmtpSettingsInput } {
++  const host = String(formData.get("host") ?? "").trim();
++  const port = Number(formData.get("port") ?? "587");
++  const username = String(formData.get("username") ?? "").trim() || null;
++  const passwordIn = String(formData.get("password") ?? "");
++  const spfInclude = String(formData.get("spfInclude") ?? "").trim() || null;
++  const secure = String(formData.get("secure") ?? "") === "on" || String(formData.get("secure") ?? "") === "true";
++  if (!host) return { error: "SMTP host is required" };
++  return {
++    value: {
++      host,
++      port: Number.isFinite(port) ? port : 587,
++      secure,
++      username,
++      password: passwordIn || existingPassword || null,
++      spfInclude,
++    },
++  };
++}
+diff --git a/apps/relay/lib/notifications/ses-events.test.ts b/apps/relay/lib/notifications/ses-events.test.ts
+new file mode 100644
+index 0000000..f5f88d7
+--- /dev/null
++++ b/apps/relay/lib/notifications/ses-events.test.ts
+@@ -0,0 +1,50 @@
++import { describe, expect, it } from "vitest";
++import { parseSnsEnvelope, sesSuppressionsFromEvent } from "./ses-events";
++
++describe("sesSuppressionsFromEvent", () => {
++  it("suppresses permanent bounces", () => {
++    expect(
++      sesSuppressionsFromEvent({
++        eventType: "Bounce",
++        bounce: {
++          bounceType: "Permanent",
++          bouncedRecipients: [{ emailAddress: "a@x.com" }, { emailAddress: "b@x.com" }],
++        },
++      }),
++    ).toEqual([
++      { email: "a@x.com", reason: "SES hard bounce" },
++      { email: "b@x.com", reason: "SES hard bounce" },
++    ]);
++  });
++
++  it("ignores transient bounces", () => {
++    expect(
++      sesSuppressionsFromEvent({
++        notificationType: "Bounce",
++        bounce: { bounceType: "Transient", bouncedRecipients: [{ emailAddress: "a@x.com" }] },
++      }),
++    ).toEqual([]);
++  });
++
++  it("suppresses complaints", () => {
++    expect(
++      sesSuppressionsFromEvent({
++        eventType: "Complaint",
++        complaint: { complainedRecipients: [{ emailAddress: "c@x.com" }] },
++      }),
++    ).toEqual([{ email: "c@x.com", reason: "SES complaint" }]);
++  });
++});
++
++describe("parseSnsEnvelope", () => {
++  it("returns null for invalid JSON or a payload missing Type/Message", () => {
++    expect(parseSnsEnvelope("not-json")).toBeNull();
++    expect(parseSnsEnvelope("{}")).toBeNull();
++  });
++
++  it("reads a Notification envelope", () => {
++    expect(
++      parseSnsEnvelope(JSON.stringify({ Type: "Notification", TopicArn: "arn:aws:sns:x", Message: "{}" })),
++    ).toEqual({ Type: "Notification", TopicArn: "arn:aws:sns:x", Message: "{}" });
++  });
++});
+diff --git a/apps/relay/lib/notifications/ses-events.ts b/apps/relay/lib/notifications/ses-events.ts
+new file mode 100644
+index 0000000..04f33c1
+--- /dev/null
++++ b/apps/relay/lib/notifications/ses-events.ts
+@@ -0,0 +1,36 @@
++export type SesSuppression = { email: string; reason: string };
++
++type SesEvent = {
++  eventType?: string;
++  notificationType?: string;
++  bounce?: { bounceType?: string; bouncedRecipients?: { emailAddress: string }[] };
++  complaint?: { complainedRecipients?: { emailAddress: string }[] };
++};
++
++/** Map an SES/SNS payload to suppressions. Transactional-safe: only hard bounce + complaint. */
++export function sesSuppressionsFromEvent(event: SesEvent): SesSuppression[] {
++  const type = event.eventType ?? event.notificationType;
++  if (type === "Bounce" && event.bounce?.bounceType === "Permanent") {
++    return (event.bounce.bouncedRecipients ?? []).map((r) => ({
++      email: r.emailAddress,
++      reason: "SES hard bounce",
++    }));
++  }
++  if (type === "Complaint") {
++    return (event.complaint?.complainedRecipients ?? []).map((r) => ({
++      email: r.emailAddress,
++      reason: "SES complaint",
++    }));
++  }
++  return [];
++}
++
++export function parseSnsEnvelope(raw: string): { Type: string; TopicArn?: string; Message: string } | null {
++  try {
++    const msg = JSON.parse(raw) as { Type?: string; TopicArn?: string; Message?: string };
++    if (typeof msg?.Type !== "string" || typeof msg.Message !== "string") return null;
++    return { Type: msg.Type, TopicArn: msg.TopicArn, Message: msg.Message };
++  } catch {
++    return null;
++  }
++}
+diff --git a/apps/relay/lib/services/sending.service.ts b/apps/relay/lib/services/sending.service.ts
+index 0441f1a..ef8dd43 100644
+--- a/apps/relay/lib/services/sending.service.ts
++++ b/apps/relay/lib/services/sending.service.ts
+@@ -1,17 +1,14 @@
+ import { UpdatableRepository } from "@foundry/database";
+ import { db } from "@/db/client";
+ import { emailSmtpSettings, sendingDomains } from "@/db/schema";
++import { redactFields } from "@/lib/audit/redact";
+ import { SessionUpdatableService } from "./session-service";
+ 
+ class SendingDomainsService extends SessionUpdatableService<typeof sendingDomains> {
+   protected redactChanges(
+     changes: Record<string, { from: unknown; to: unknown }> | null,
+   ): Record<string, { from: unknown; to: unknown }> | null {
+-    if (!changes) return null;
+-    const next = { ...changes };
+-    if (next.dkimPrivate) next.dkimPrivate = { from: "***", to: "***" };
+-    if (next.verifyToken) next.verifyToken = { from: "***", to: "***" };
+-    return next;
++    return redactFields(changes, ["dkimPrivate", "verifyToken"]);
+   }
+ }
+ 
+@@ -19,10 +16,7 @@ class SmtpSettingsService extends SessionUpdatableService<typeof emailSmtpSettin
+   protected redactChanges(
+     changes: Record<string, { from: unknown; to: unknown }> | null,
+   ): Record<string, { from: unknown; to: unknown }> | null {
+-    if (!changes) return null;
+-    const next = { ...changes };
+-    if (next.password) next.password = { from: "***", to: "***" };
+-    return next;
++    return redactFields(changes, ["password"]);
+   }
+ }
+ 
+diff --git a/apps/relay/lib/services/session-service.ts b/apps/relay/lib/services/session-service.ts
+index 82058ab..5a5d69e 100644
+--- a/apps/relay/lib/services/session-service.ts
++++ b/apps/relay/lib/services/session-service.ts
+@@ -2,6 +2,7 @@ import { BaseService, UpdatableService, stripManaged } from "@foundry/database";
+ import { createLogger } from "@foundry/commons/logger";
+ import { eq } from "drizzle-orm";
+ import type { PgTable } from "drizzle-orm/pg-core";
++import { diffChanges, jsonSafe } from "@/lib/audit/diff";
+ import { getSession } from "@/lib/auth/session";
+ import { db } from "@/db/client";
+ import { auditLog, users } from "@/db/schema";
+@@ -24,6 +25,8 @@ export function currentUserId(): Promise<bigint | null> {
+   return sessionActorId();
+ }
+ 
++export { diffChanges } from "@/lib/audit/diff";
++
+ export type AuditEntry = {
+   entity: string;
+   entityPublicId: string;
+@@ -32,37 +35,6 @@ export type AuditEntry = {
+   createdBy: bigint | null;
+ };
+ 
+-export function diffChanges(
+-  before: Record<string, unknown> | null,
+-  after: Record<string, unknown>,
+-  patch: Record<string, unknown>,
+-): Record<string, { from: unknown; to: unknown }> | null {
+-  const keys = Object.keys(stripManaged(patch));
+-  const diff: Record<string, { from: unknown; to: unknown }> = {};
+-  for (const k of keys) {
+-    const from = before?.[k];
+-    const to = after[k];
+-    if (from !== to) diff[k] = { from, to };
+-  }
+-  return Object.keys(diff).length ? diff : null;
+-}
+-
+-function coerceBigints(v: unknown): unknown {
+-  if (typeof v === "bigint") return v.toString();
+-  if (Array.isArray(v)) return v.map(coerceBigints);
+-  if (v && typeof v === "object") {
+-    const out: Record<string, unknown> = {};
+-    for (const [k, val] of Object.entries(v)) out[k] = coerceBigints(val);
+-    return out;
+-  }
+-  return v;
+-}
+-
+-function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown> | null {
+-  if (value == null) return value;
+-  return coerceBigints(value) as Record<string, unknown>;
+-}
+-
+ export async function recordAudit(entry: AuditEntry): Promise<void> {
+   try {
+     await db.insert(auditLog).values({
+diff --git a/apps/relay/lib/services/tenants.service.ts b/apps/relay/lib/services/tenants.service.ts
+index efa3769..a96d7ef 100644
+--- a/apps/relay/lib/services/tenants.service.ts
++++ b/apps/relay/lib/services/tenants.service.ts
+@@ -2,6 +2,7 @@ import { UpdatableRepository } from "@foundry/database";
+ import { eq } from "drizzle-orm";
+ import { db } from "@/db/client";
+ import { apiKeys, tenants } from "@/db/schema";
++import { redactFields } from "@/lib/audit/redact";
+ import { generateApiKey } from "@/lib/api-keys";
+ import { SessionUpdatableService } from "./session-service";
+ 
+@@ -16,10 +17,7 @@ class ApiKeysService extends SessionUpdatableService<typeof apiKeys> {
+   protected redactChanges(
+     changes: Record<string, { from: unknown; to: unknown }> | null,
+   ): Record<string, { from: unknown; to: unknown }> | null {
+-    if (!changes) return null;
+-    const next = { ...changes };
+-    if (next.keyHash) next.keyHash = { from: "***", to: "***" };
+-    return next;
++    return redactFields(changes, ["keyHash"]);
+   }
+ }
+ 
+diff --git a/apps/relay/lib/tenants/forms.test.ts b/apps/relay/lib/tenants/forms.test.ts
+new file mode 100644
+index 0000000..1f3c054
+--- /dev/null
++++ b/apps/relay/lib/tenants/forms.test.ts
+@@ -0,0 +1,40 @@
++import { describe, expect, it } from "vitest";
++import { REALM_SLUGS, parseCreateTenantForm } from "./forms";
++
++function form(entries: Record<string, string>): FormData {
++  const fd = new FormData();
++  for (const [k, v] of Object.entries(entries)) fd.set(k, v);
++  return fd;
++}
++
++describe("parseCreateTenantForm", () => {
++  it("requires name and slug", () => {
++    expect(parseCreateTenantForm(form({ name: "  ", slug: "x" }))).toEqual({
++      error: "Name and slug are required",
++    });
++    expect(parseCreateTenantForm(form({ name: "Tiffin", slug: "" }))).toEqual({
++      error: "Name and slug are required",
++    });
++  });
++
++  it("defaults mailing country to CA and uppercases an explicit ISO", () => {
++    expect(parseCreateTenantForm(form({ name: "Tiffin Grab", slug: "tiffin-grab" }))).toEqual({
++      value: {
++        name: "Tiffin Grab",
++        slug: "tiffin-grab",
++        mailingCountry: "CA",
++        physicalAddress: null,
++      },
++    });
++    expect(
++      parseCreateTenantForm(form({ name: "US Co", slug: "us-co", mailingCountry: "us", physicalAddress: "1 Main" })),
++    ).toMatchObject({ value: { mailingCountry: "US", physicalAddress: "1 Main" } });
++  });
++});
++
++describe("REALM_SLUGS", () => {
++  it("provisions the two Realm client apps in Canada", () => {
++    expect(REALM_SLUGS.map((s) => s.slug)).toEqual(["tiffin-grab", "puchkaman"]);
++    expect(REALM_SLUGS.every((s) => s.mailingCountry === "CA")).toBe(true);
++  });
++});
+diff --git a/apps/relay/lib/tenants/forms.ts b/apps/relay/lib/tenants/forms.ts
+new file mode 100644
+index 0000000..31dbb04
+--- /dev/null
++++ b/apps/relay/lib/tenants/forms.ts
+@@ -0,0 +1,20 @@
++export const REALM_SLUGS = [
++  { name: "Tiffin Grab", slug: "tiffin-grab", mailingCountry: "CA" },
++  { name: "Puchkaman", slug: "puchkaman", mailingCountry: "CA" },
++] as const;
++
++export type CreateTenantInput = {
++  name: string;
++  slug: string;
++  mailingCountry: string;
++  physicalAddress: string | null;
++};
++
++export function parseCreateTenantForm(formData: FormData): { error: string } | { value: CreateTenantInput } {
++  const name = String(formData.get("name") ?? "").trim();
++  const slug = String(formData.get("slug") ?? "").trim();
++  const mailingCountry = String(formData.get("mailingCountry") ?? "CA").trim().toUpperCase() || "CA";
++  const physicalAddress = String(formData.get("physicalAddress") ?? "").trim() || null;
++  if (!name || !slug) return { error: "Name and slug are required" };
++  return { value: { name, slug, mailingCountry, physicalAddress } };
++}
+diff --git a/apps/relay/lib/v1/message-body.test.ts b/apps/relay/lib/v1/message-body.test.ts
+new file mode 100644
+index 0000000..0e71928
+--- /dev/null
++++ b/apps/relay/lib/v1/message-body.test.ts
+@@ -0,0 +1,57 @@
++import { describe, expect, it } from "vitest";
++import { parseMessageJson } from "./message-body";
++
++describe("parseMessageJson", () => {
++  it("accepts a transactional email with defaults applied by the route", () => {
++    const parsed = parseMessageJson({
++      title: "Hello",
++      body: "World",
++      to: { email: "dev@example.com" },
++    });
++    expect(parsed.ok).toBe(true);
++    if (parsed.ok) {
++      expect(parsed.data.title).toBe("Hello");
++      expect(parsed.data.kind).toBeUndefined();
++      expect(parsed.data.channels).toBeUndefined();
++    }
++  });
++
++  it("accepts phone-only or userId-only recipients", () => {
++    expect(parseMessageJson({ title: "a", body: "b", to: { phone: "+15551212" } }).ok).toBe(true);
++    expect(parseMessageJson({ title: "a", body: "b", to: { userId: "usr_1" } }).ok).toBe(true);
++  });
++
++  it("rejects missing recipient, bad email, and empty title", () => {
++    expect(parseMessageJson({ title: "a", body: "b", to: {} })).toMatchObject({
++      ok: false,
++      title: "Recipient required",
++      status: 400,
++    });
++    expect(parseMessageJson({ title: "a", body: "b", to: { email: "not-an-email" } })).toMatchObject({
++      ok: false,
++      title: "Invalid body",
++    });
++    expect(parseMessageJson({ title: "", body: "b", to: { email: "a@b.com" } })).toMatchObject({
++      ok: false,
++      title: "Invalid body",
++    });
++  });
++
++  it("accepts marketing + extra channels and an idempotency key", () => {
++    const parsed = parseMessageJson({
++      kind: "marketing",
++      channels: ["email", "sms"],
++      title: "Sale",
++      body: "Hi",
++      to: { email: "a@b.com" },
++      idempotencyKey: "sale:1",
++      vars: { city: "Toronto" },
++    });
++    expect(parsed.ok).toBe(true);
++    if (parsed.ok) {
++      expect(parsed.data.kind).toBe("marketing");
++      expect(parsed.data.channels).toEqual(["email", "sms"]);
++      expect(parsed.data.idempotencyKey).toBe("sale:1");
++    }
++  });
++});
+diff --git a/apps/relay/lib/v1/message-body.ts b/apps/relay/lib/v1/message-body.ts
+new file mode 100644
+index 0000000..d76b299
+--- /dev/null
++++ b/apps/relay/lib/v1/message-body.ts
+@@ -0,0 +1,35 @@
++import { z } from "zod";
++
++export const messageBodySchema = z.object({
++  kind: z.enum(["transactional", "marketing"]).optional(),
++  channels: z.array(z.enum(["email", "in_app", "sms", "whatsapp"])).optional(),
++  to: z.object({
++    userId: z.string().optional(),
++    email: z.string().email().optional(),
++    phone: z.string().optional(),
++  }),
++  event: z.string().optional(),
++  title: z.string().min(1),
++  body: z.string().min(1),
++  href: z.string().optional(),
++  vars: z.record(z.string(), z.unknown()).optional(),
++  idempotencyKey: z.string().optional(),
++});
++
++export type MessageBody = z.infer<typeof messageBodySchema>;
++
++export type ParseMessageResult =
++  | { ok: true; data: MessageBody }
++  | { ok: false; status: number; title: string; issues?: unknown };
++
++export function parseMessageJson(json: unknown): ParseMessageResult {
++  const parsed = messageBodySchema.safeParse(json);
++  if (!parsed.success) {
++    return { ok: false, status: 400, title: "Invalid body", issues: parsed.error.issues };
++  }
++  const input = parsed.data;
++  if (!input.to.email && !input.to.phone && !input.to.userId) {
++    return { ok: false, status: 400, title: "Recipient required" };
++  }
++  return { ok: true, data: input };
++}
+diff --git a/apps/relay/proxy.ts b/apps/relay/proxy.ts
+index 61cf13b..93846fb 100644
+--- a/apps/relay/proxy.ts
++++ b/apps/relay/proxy.ts
+@@ -1,27 +1,20 @@
+ import { NextResponse } from "next/server";
+ import type { NextRequest } from "next/server";
+-
+-const SESSION_COOKIES = ["better-auth.session_token", "__Secure-better-auth.session_token"];
+-const PUBLIC_PREFIXES = ["/api/auth", "/v1", "/login", "/forgot-password", "/api/webhooks"];
++import { gateRelayPath } from "@/lib/auth/public-paths";
+ 
+ export async function proxy(request: NextRequest) {
+   const { pathname } = request.nextUrl;
+-  const publicPath = PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+-  if (publicPath) return NextResponse.next();
+-
+-  const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
+-  if (!hasSession && (pathname.startsWith("/dashboard") || pathname.startsWith("/api"))) {
+-    if (pathname.startsWith("/api")) {
+-      return new NextResponse(JSON.stringify({ title: "Unauthorized", status: 401 }), {
+-        status: 401,
+-        headers: { "content-type": "application/problem+json" },
+-      });
+-    }
+-    const url = request.nextUrl.clone();
+-    url.pathname = "/login";
+-    return NextResponse.redirect(url);
++  const decision = gateRelayPath(pathname, request.cookies.getAll().map((c) => c.name));
++  if (decision === "allow") return NextResponse.next();
++  if (decision === "unauthorized") {
++    return new NextResponse(JSON.stringify({ title: "Unauthorized", status: 401 }), {
++      status: 401,
++      headers: { "content-type": "application/problem+json" },
++    });
+   }
+-  return NextResponse.next();
++  const url = request.nextUrl.clone();
++  url.pathname = "/login";
++  return NextResponse.redirect(url);
+ }
+ 
+ export const config = {
+diff --git a/apps/relay/vitest.config.ts b/apps/relay/vitest.config.ts
+index 40c5b19..b9f5ffe 100644
+--- a/apps/relay/vitest.config.ts
++++ b/apps/relay/vitest.config.ts
+@@ -1,5 +1,9 @@
++import path from "node:path";
+ import { defineConfig } from "vitest/config";
+ 
+ export default defineConfig({
+   test: { environment: "node", include: ["**/*.test.ts"] },
++  resolve: {
++    alias: { "@": path.resolve(__dirname) },
++  },
+ });
+diff --git a/compose.yaml b/compose.yaml
+new file mode 100644
+index 0000000..fe11dbd
+--- /dev/null
++++ b/compose.yaml
+@@ -0,0 +1,19 @@
++# Local Postgres for operator app + automated/manual checks.
++#   docker compose up -d
++#   cp apps/relay/.env.example apps/relay/.env.local
++#   pnpm --filter relay db:migrate && SEED_ADMIN_PASSWORD=dev pnpm --filter relay db:seed
++#   pnpm dev
++services:
++  postgres:
++    image: postgres:16-alpine
++    environment:
++      POSTGRES_USER: relay
++      POSTGRES_PASSWORD: relay
++      POSTGRES_DB: relay
++    ports:
++      - "5432:5432"
++    healthcheck:
++      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
++      interval: 2s
++      timeout: 5s
++      retries: 20
+diff --git a/packages/email/src/channels/email/address.test.ts b/packages/email/src/channels/email/address.test.ts
+new file mode 100644
+index 0000000..e0e1090
+--- /dev/null
++++ b/packages/email/src/channels/email/address.test.ts
+@@ -0,0 +1,12 @@
++import { describe, expect, it } from "vitest";
++import { formatAddress } from "./address";
++
++describe("formatAddress", () => {
++  it("wraps a display name", () => {
++    expect(formatAddress({ email: "a@b.com", name: "Ada" })).toBe("Ada <a@b.com>");
++  });
++
++  it("omits angle brackets when there is no name", () => {
++    expect(formatAddress({ email: "a@b.com" })).toBe("a@b.com");
++  });
++});
+diff --git a/packages/email/src/channels/email/domain.test.ts b/packages/email/src/channels/email/domain.test.ts
+index 1507a37..774f08c 100644
+--- a/packages/email/src/channels/email/domain.test.ts
++++ b/packages/email/src/channels/email/domain.test.ts
+@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
+ import {
+   buildSendingDomainRecords,
+   DOMAIN_VERIFY_HOST,
++  generateDkimKeyPair,
++  generateDomainVerifyToken,
++  normalizeDomain,
+   ownershipTxtValue,
+   pemToDkimPublic,
+   verifySendingDomainOwnership,
+@@ -62,3 +65,28 @@ describe("ownershipTxtValue", () => {
+     expect(ownershipTxtValue("x")).toBe("relay-domain-verify=x");
+   });
+ });
++
++describe("normalizeDomain", () => {
++  it("trims, lowercases, and strips a trailing dot", () => {
++    expect(normalizeDomain(" Example.COM. ")).toBe("example.com");
++  });
++});
++
++describe("generateDomainVerifyToken / generateDkimKeyPair", () => {
++  it("issues a hex token and a DKIM p= without PEM headers", () => {
++    const token = generateDomainVerifyToken();
++    expect(token).toMatch(/^[0-9a-f]{32}$/);
++    const keys = generateDkimKeyPair();
++    expect(keys.dkimP).not.toMatch(/BEGIN/);
++    expect(keys.dkimP.length).toBeGreaterThan(100);
++    expect(keys.privateKeyPem).toMatch(/BEGIN PRIVATE KEY/);
++  });
++});
++
++describe("buildSendingDomainRecords without DKIM", () => {
++  it("emits mx SPF when include is omitted", () => {
++    const records = buildSendingDomainRecords({ domain: "example.com", token: "t" });
++    expect(records.find((r) => r.purpose === "spf")?.value).toBe("v=spf1 mx ~all");
++    expect(records.some((r) => r.purpose === "dkim")).toBe(false);
++  });
++});
+diff --git a/packages/email/src/channels/email/from-env.test.ts b/packages/email/src/channels/email/from-env.test.ts
+index 01bc933..8b5a185 100644
+--- a/packages/email/src/channels/email/from-env.test.ts
++++ b/packages/email/src/channels/email/from-env.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "vitest";
+-import { createEmailProviderFromEnv, emailTransportKind } from "./from-env";
++import { createEmailProviderFromEnv, defaultFromAddress, emailTransportKind } from "./from-env";
+ 
+ describe("createEmailProviderFromEnv", () => {
+   it("defaults to SES", () => {
+@@ -15,4 +15,20 @@ describe("createEmailProviderFromEnv", () => {
+     });
+     expect(p.name).toBe("smtp");
+   });
++
++  it("treats EMAIL_PROVIDER=smtp as SMTP and port 465 as implicit TLS", () => {
++    expect(emailTransportKind({ EMAIL_PROVIDER: "smtp" })).toBe("smtp");
++    const p = createEmailProviderFromEnv({
++      EMAIL_TRANSPORT: "smtp",
++      SMTP_PORT: "465",
++    });
++    expect(p.name).toBe("smtp");
++  });
++
++  it("reads the From address from env", () => {
++    expect(defaultFromAddress({ NOTIFY_FROM_EMAIL: "ops@relay.local", NOTIFY_FROM_NAME: "Ops" })).toEqual({
++      email: "ops@relay.local",
++      name: "Ops",
++    });
++  });
+ });
+diff --git a/packages/email/src/channels/email/smtp-provider.test.ts b/packages/email/src/channels/email/smtp-provider.test.ts
+index c496611..10c7d5d 100644
+--- a/packages/email/src/channels/email/smtp-provider.test.ts
++++ b/packages/email/src/channels/email/smtp-provider.test.ts
+@@ -34,6 +34,34 @@ describe("SmtpEmailProvider", () => {
+     });
+   });
+ 
++  it("passes cc, bcc, and replyTo", async () => {
++    const sent: unknown[] = [];
++    const p = new SmtpEmailProvider({
++      defaultFrom,
++      host: "smtp.example.com",
++      client: {
++        sendMail: async (opts) => {
++          sent.push(opts);
++          return { messageId: "<id>" };
++        },
++      },
++    });
++    await p.send({
++      to: [{ email: "a@b.com" }, { email: "c@d.com", name: "C" }],
++      cc: [{ email: "cc@x.com" }],
++      bcc: [{ email: "bcc@x.com" }],
++      replyTo: { email: "ops@x.com" },
++      subject: "x",
++      text: "y",
++    });
++    expect(sent[0]).toMatchObject({
++      to: ["a@b.com", "C <c@d.com>"],
++      cc: ["cc@x.com"],
++      bcc: ["bcc@x.com"],
++      replyTo: "ops@x.com",
++    });
++  });
++
+   it("throws when SMTP returns no messageId", async () => {
+     const client: SmtpSendClient = { sendMail: async () => ({}) };
+     const p = new SmtpEmailProvider({ defaultFrom, host: "smtp.example.com", client });
+diff --git a/packages/engine/src/compliance.test.ts b/packages/engine/src/compliance.test.ts
+index 9275c9c..69410ba 100644
+--- a/packages/engine/src/compliance.test.ts
++++ b/packages/engine/src/compliance.test.ts
+@@ -106,3 +106,45 @@ describe("tenantCanSendMarketing", () => {
+     expect(tenantCanSendMarketing({ country: "US", physicalAddress: "1 King St W, Toronto" })).toBeNull();
+   });
+ });
++
++describe("AU / IN / missing consent", () => {
++  const now = 1_000 * DAY;
++
++  it("lets Australia send marketing without prior opt-in", () => {
++    expect(complianceProfile("AU").marketingRequiresExpressOptIn).toBe(false);
++    expect(marketingConsentBlockReason({ country: "AU", consentSource: null, consentAt: null, now })).toBeNull();
++  });
++
++  it("requires express opt-in in India; purchase is not enough", () => {
++    expect(
++      marketingConsentBlockReason({
++        country: "IN",
++        consentSource: "purchase",
++        consentAt: now,
++        now,
++      }),
++    ).toBe("purchase_not_express");
++  });
++
++  it("blocks CA marketing with no recorded consent", () => {
++    expect(
++      marketingConsentBlockReason({
++        country: "CA",
++        consentSource: null,
++        consentAt: null,
++        now,
++      }),
++    ).toBe("missing_consent");
++  });
++
++  it("allows a CASL import_other attestation", () => {
++    expect(
++      marketingConsentBlockReason({
++        country: "CA",
++        consentSource: "import_other",
++        consentAt: now,
++        now,
++      }),
++    ).toBeNull();
++  });
++});
+diff --git a/packages/sdk/src/index.test.ts b/packages/sdk/src/index.test.ts
+index 4fdade1..5bb5272 100644
+--- a/packages/sdk/src/index.test.ts
++++ b/packages/sdk/src/index.test.ts
+@@ -22,4 +22,16 @@ describe("RelayClient", () => {
+     expect(init.method).toBe("POST");
+     expect((init.headers as Record<string, string>).authorization).toBe("Bearer pk_test_abc");
+   });
++
++  it("throws with status and body when Relay rejects the call", async () => {
++    const fetch = vi.fn(async () => new Response(JSON.stringify({ title: "Unauthorized" }), { status: 401 }));
++    const client = new RelayClient({
++      baseUrl: "https://relay.example",
++      apiKey: "bad",
++      fetch: fetch as unknown as typeof globalThis.fetch,
++    });
++    await expect(
++      client.messages.create({ title: "Hello", body: "World", to: { email: "a@b.com" } }),
++    ).rejects.toThrow(/401/);
++  });
+ });
+-- 
+2.43.0
+
