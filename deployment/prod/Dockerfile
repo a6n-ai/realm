@@ -10,7 +10,7 @@ RUN apk add --no-cache libc6-compat
 # KEEP IN SYNC with `packageManager` in the root package.json. A mismatch makes
 # `pnpm install` decide the modules dir `pnpm fetch` produced was built under
 # different settings, and it aborts asking to purge it.
-RUN npm install -g pnpm@11.21.0
+RUN npm install -g pnpm@11.25.0
 WORKDIR /app
 
 # --- build: fetch (cached on lockfile) → offline install → next build ---

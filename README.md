@@ -14,7 +14,7 @@ On a local machine, keep Foundry and Relay as **sibling** clones (not inside Rea
 Then in `realm`:
 
 ```bash
-pnpm install          # pnpm@11.21.0 (packageManager)
+pnpm install          # pnpm@11.25.0 (packageManager)
 pnpm dev              # turbo run dev — starts the app(s)
 pnpm dev:fresh        # kill :3000, clear .next, then dev
 ```
