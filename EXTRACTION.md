@@ -10,6 +10,35 @@ Canonical remotes already exist (`a6n-ai/foundry`, `a6n-ai/relay`) as **mirrors*
 2. **Git deps, still nested** — only after phase 1 is green. Dual-path: keep trees, point a *single* non-app package at the remote and re-run CI.
 3. **Remove nested copies** — only after phase 2 is green for every `@foundry/*` and `@relay/*` consumer in this repo.
 
+## Local folder layout
+
+Keep the three GitHub remotes as **siblings**, not nested inside each other. On this VM:
+
+```
+/home/ubuntu/a6n-ai/
+  realm          → /workspace (PR branch)
+  foundry        clone of a6n-ai/foundry
+  relay          clone of a6n-ai/relay
+  worktrees/
+    realm-main
+    foundry-export   (Realm split branch; not the Foundry remote)
+    relay-export
+```
+
+On your laptop:
+
+```bash
+mkdir -p ~/a6n-ai/worktrees
+cd ~/a6n-ai
+git clone https://github.com/a6n-ai/realm.git
+git clone https://github.com/a6n-ai/foundry.git
+git clone https://github.com/a6n-ai/relay.git
+cd realm
+git worktree add ../worktrees/realm-pr origin/cursor/foundry-relay-split-c501
+```
+
+Realm still **nests** `foundry/` and `relay/` until phase 1 CI is green. The sibling clones are for the standalone remotes.
+
 ## Local gate (same as CI)
 
 ```bash
