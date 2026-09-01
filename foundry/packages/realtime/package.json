@@ -9,7 +9,7 @@
     "./client": "./src/client/index.ts"
   },
   "types": "./src/index.ts",
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
   "dependencies": { "@foundry/commons": "workspace:*" },
   "peerDependencies": { "react": "^19" },
   "devDependencies": {

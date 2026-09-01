@@ -8,7 +8,7 @@
     "./server": "./src/plugin.server.ts"
   },
   "types": "./src/index.ts",
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
   "dependencies": {
     "@foundry/commons": "workspace:*",
     "@foundry/ui": "workspace:*",
