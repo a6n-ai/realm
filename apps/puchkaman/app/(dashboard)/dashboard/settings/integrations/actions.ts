@@ -130,6 +130,29 @@ export async function createCloverOrderTypeAction(
   return created;
 }
 
+/** Rename an existing Clover order type in place. */
+export async function updateCloverOrderTypeAction(
+  id: string,
+  label: string,
+): Promise<{ id: string; label: string }> {
+  await requireAdmin();
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Order type name is required");
+
+  const client = await createCloverClient();
+  if (!client) throw new Error("Clover is not connected");
+  const updated = await client.updateOrderType(id, trimmed);
+  await recordAudit({
+    entity: "integrations",
+    entityPublicId: "clover",
+    operation: "update",
+    changes: { _action: "clover_order_type_renamed", ...updated },
+    createdBy: await currentUserId(),
+  });
+  revalidatePluginPaths();
+  return updated;
+}
+
 export async function disconnectCloverAction(): Promise<void> {
   await requireAdmin();
   await disconnectClover(integrationsConfigStore);

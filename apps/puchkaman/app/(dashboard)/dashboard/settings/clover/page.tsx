@@ -18,6 +18,7 @@ import {
   disconnectCloverAction,
   setCloverWebOrderTypesAction,
   startCloverConnectAction,
+  updateCloverOrderTypeAction,
 } from "../integrations/actions";
 
 export default async function CloverSettingsPage() {
@@ -85,6 +86,7 @@ async function CloverSettingsLoader() {
       orderTypes={orderTypes}
       onSaveWebOrderTypes={setCloverWebOrderTypesAction}
       onCreateOrderType={createCloverOrderTypeAction}
+      onUpdateOrderType={updateCloverOrderTypeAction}
     />
   );
 }
