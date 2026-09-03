@@ -47,8 +47,8 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
         title="Come Say Hi"
         sub={
           deltaFirst
-            ? "We're in Delta, BC, and on Danforth Ave in Scarborough too. Pull up, call ahead, or slide into our DMs."
-            : "We're on Danforth Ave in Scarborough, and now in Delta, BC too. Pull up, call ahead, or slide into our DMs."
+            ? "We're in Delta, BC (Metro Vancouver), and on Danforth Ave in Scarborough too. Pull up, call ahead, or slide into our DMs."
+            : "We're on Danforth Ave in Scarborough, and now in Delta, BC (Metro Vancouver) too. Pull up, call ahead, or slide into our DMs."
         }
         bg="var(--ink)"
         color="var(--cream)"
@@ -163,11 +163,11 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap">
           <h2 className="display" style={{ fontSize: "1.7rem", marginBottom: 20 }}>
-            {deltaFirst ? "Delta, BC" : "Also in Delta, BC"}
+            {deltaFirst ? "Delta, BC (Metro Vancouver)" : "Also in Delta, BC (Metro Vancouver)"}
           </h2>
           <div className="contact-grid" style={{ display: "grid", gap: 24 }}>
             <div className="card" style={{ background: "var(--white)", padding: 24, alignSelf: "start" }}>
-              <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC</h3>
+              <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC (Metro Vancouver)</h3>
               <p style={{ fontWeight: 600, fontSize: "1.05rem" }}>
                 {DELTA.addressLines[0]}
                 <br />

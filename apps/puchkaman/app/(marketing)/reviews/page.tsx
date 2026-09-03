@@ -9,8 +9,8 @@ import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Reviews — Puchkaman Scarborough",
-  description: "What Scarborough says about Puchkaman — real Google reviews from the neighbourhood.",
+  title: "Reviews — Puchkaman Canada",
+  description: "What Scarborough, ON and Delta, BC (Metro Vancouver) say about Puchkaman — real Google reviews from the neighbourhood.",
   path: "/reviews",
 });
 

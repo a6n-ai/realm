@@ -17,9 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const types = await getDeliveryTypes();
   const instantPct = types.find((t) => t.key === "instant")?.discountPct ?? 0;
   return buildMetadata({
-    title: "Order Puchkaman Online — Pickup & Delivery in Scarborough",
+    title: "Order Puchkaman Online — Pickup & Delivery in Canada",
     description:
-      `Order Puchkaman for pickup in ~15 min, instant delivery within 7km${instantPct > 0 ? ` at ${Math.round(instantPct)}% off` : ""}, or scheduled delivery across the GTA. Also on Uber Eats & DoorDash.`,
+      `Order Puchkaman for pickup in ~15 min, instant delivery within 7km${instantPct > 0 ? ` at ${Math.round(instantPct)}% off` : ""}, or scheduled delivery across Scarborough, ON and Delta, BC (Metro Vancouver). Also on Uber Eats & DoorDash.`,
     path: "/order",
   });
 }

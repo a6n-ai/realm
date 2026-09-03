@@ -17,9 +17,9 @@ import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Fusion Puchkas Toronto — Chicken Corn Cheese, Schezwan Paneer | Puchkaman",
+  title: "Fusion Puchkas — Chicken Corn Cheese, Schezwan Paneer | Puchkaman Canada",
   description:
-    "Toronto's first fusion puchka spot. Crispy puchka shells stuffed with chicken corn cheese, schezwan paneer, momo filling & more — made fresh in Scarborough.",
+    "Canada's first fusion puchka spot. Crispy puchka shells stuffed with chicken corn cheese, schezwan paneer, momo filling & more — made fresh in Scarborough, ON and Delta, BC (Metro Vancouver).",
   path: "/fusion",
 });
 

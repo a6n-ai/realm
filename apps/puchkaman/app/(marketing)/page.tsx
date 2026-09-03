@@ -20,7 +20,7 @@ import { getActiveLocation } from "@/lib/services/organizations.service";
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
   description:
-    "Puchkaman — fusion puchka & Indian street food, now in two cities: Scarborough, ON and Delta, BC. Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering.",
+    "Puchkaman — fusion puchka & Indian street food, now in two cities: Scarborough, ON and Delta, BC (Metro Vancouver). Pani puri, golgappa, chaat, kathi rolls, vada pav, pav bhaji. Pickup, delivery & live catering.",
   path: "/",
 });
 

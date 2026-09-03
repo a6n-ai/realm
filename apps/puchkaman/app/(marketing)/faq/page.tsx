@@ -5,9 +5,9 @@ import { FAQS } from "@/lib/faq";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "FAQ — Hours, Delivery, Catering & Ordering | Puchkaman",
+  title: "FAQ — Hours, Delivery, Catering & Ordering | Puchkaman Canada",
   description:
-    "Answers on Puchkaman's hours, delivery radius & discount, pickup time, catering, food allergies and payment — Scarborough's fusion puchka spot.",
+    "Answers on Puchkaman's hours, delivery radius & discount, pickup time, catering, food allergies and payment — fusion puchka spots in Scarborough, ON and Delta, BC (Metro Vancouver).",
   path: "/faq",
 });
 

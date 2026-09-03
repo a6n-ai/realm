@@ -4,9 +4,9 @@ import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getActiveLocation } from "@/lib/services/organizations.service";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Contact Puchkaman — Scarborough, ON & Delta, BC | Hours & Directions",
+  title: "Contact Puchkaman — Scarborough, ON & Delta, BC (Metro Vancouver) | Hours & Directions",
   description:
-    "Visit Puchkaman at 3315 Danforth Ave, Scarborough, ON (open Sun–Thu 3pm–2am, Fri–Sat 3pm–3am) or 9253 120 St, Delta, BC. Call, WhatsApp, get directions, or book catering.",
+    "Visit Puchkaman at 3315 Danforth Ave, Scarborough, ON (open Sun–Thu 3pm–2am, Fri–Sat 3pm–3am) or 9253 120 St, Delta, BC (Metro Vancouver). Call, WhatsApp, get directions, or book catering.",
   path: "/contact",
 });
 
