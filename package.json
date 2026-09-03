@@ -1,6 +1,7 @@
 {
   "name": "realm",
   "private": true,
+  "license": "AGPL-3.0-only",
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "dev": "turbo run dev",
