@@ -6,6 +6,7 @@ import { MAP_DIRECTIONS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { getActiveLocation } from "@/lib/services/organizations.service";
 
 export const metadata: Metadata = buildMetadata({
   title: "Reviews — Puchkaman Scarborough",
@@ -22,7 +23,11 @@ const breadcrumb = breadcrumbJsonLd([
 export const dynamic = "force-dynamic";
 
 export default async function ReviewsPage() {
-  const summary = await getReviewsSummary(integrationsConfigStore);
+  const [summary, location] = await Promise.all([
+    getReviewsSummary(integrationsConfigStore),
+    getActiveLocation(),
+  ]);
+  const cityLabel = location?.city ?? "Scarborough";
 
   return (
     <div>
@@ -30,7 +35,7 @@ export default async function ReviewsPage() {
       <PageBanner
         kicker="Social Proof"
         title="Reviews"
-        sub="What Scarborough says about Puchkaman."
+        sub={`What ${cityLabel} says about Puchkaman.`}
         bg="var(--page-bg)"
         color="var(--ink)"
         surface="surface-yellow"

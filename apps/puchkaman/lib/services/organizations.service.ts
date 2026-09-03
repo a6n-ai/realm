@@ -6,6 +6,7 @@ import { conditionToSql } from "@foundry/database";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
+import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 
 // Same publicId -> internal bigint resolution used elsewhere in this app's
@@ -156,6 +157,32 @@ export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
     })
     .from(organization)
     .where(sql`${organization.city} is not null`);
+}
+
+// The franchise a public request resolved to (see resolveActingOrgId —
+// franchise cookie / URL segment, falling back to the brand's default
+// location org). Marketing copy that names a city/address should read this
+// instead of hardcoding Scarborough, so it follows the same switch the menu
+// already responds to. Only address/city/coords come from here — phone and
+// hours aren't columns yet because only Scarborough's are known; callers
+// needing those still read lib/links.ts until a second location has its own.
+export async function getActiveLocation(): Promise<FranchiseLocation | null> {
+  const orgId = await resolveActingOrgId();
+  if (!orgId) return null;
+  const [row] = await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      clientCode: organization.clientCode,
+      city: organization.city,
+      address: organization.address,
+      storeLat: organization.storeLat,
+      storeLng: organization.storeLng,
+    })
+    .from(organization)
+    .where(eq(organization.id, orgId))
+    .limit(1);
+  return row ?? null;
 }
 
 // clientCode is intentionally absent: it's set once at creation (derived from

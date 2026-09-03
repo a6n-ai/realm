@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ContactView } from "./contact-view";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { getActiveLocation } from "@/lib/services/organizations.service";
 
 export const metadata: Metadata = buildMetadata({
   title: "Contact Puchkaman — Scarborough, ON & Delta, BC | Hours & Directions",
@@ -14,11 +15,14 @@ const breadcrumb = breadcrumbJsonLd([
   { name: "Contact", path: "/contact" },
 ]);
 
-export default function ContactPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ContactPage() {
+  const location = await getActiveLocation();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      <ContactView />
+      <ContactView activeCity={location?.city ?? null} />
     </>
   );
 }

@@ -16,7 +16,11 @@ const HOURS: [string, string][] = [
   ["Fri – Sat", "3:00pm – 3:00am"],
 ];
 
-export function ContactView() {
+export function ContactView({ activeCity }: { activeCity: string | null }) {
+  // Only Scarborough's card has phone/hours; Delta stays the lighter
+  // address-only card either way. Delta as the active franchise just swaps
+  // which one renders first, so the visitor's own location leads.
+  const deltaFirst = activeCity === "Delta";
   const [copied, setCopied] = useState("");
   // One timer, cleared on each copy: without it a second copy inherited the
   // first one's clock and the "Copied" label vanished a moment after the tap.
@@ -41,12 +45,18 @@ export function ContactView() {
       <PageBanner
         kicker="Find Us"
         title="Come Say Hi"
-        sub="We're on Danforth Ave in Scarborough, and now in Delta, BC too. Pull up, call ahead, or slide into our DMs."
+        sub={
+          deltaFirst
+            ? "We're in Delta, BC, and on Danforth Ave in Scarborough too. Pull up, call ahead, or slide into our DMs."
+            : "We're on Danforth Ave in Scarborough, and now in Delta, BC too. Pull up, call ahead, or slide into our DMs."
+        }
         bg="var(--ink)"
         color="var(--cream)"
         crumb="Contact"
       />
 
+      {(() => {
+        const scarboroughSection = (
       <section className="section-pad" style={{ background: "var(--page-bg)", borderBottom: "var(--border)" }}>
         <div className="wrap">
           <div className="contact-grid" style={{ display: "grid", gap: 24 }}>
@@ -145,12 +155,16 @@ export function ContactView() {
           </div>
         </div>
       </section>
+        );
 
-      {/* second storefront — lighter card than Scarborough's above since only
-          the address is confirmed yet (no published phone/hours for Delta). */}
+        // Lighter card than Scarborough's above since only the address is
+        // confirmed yet (no published phone/hours for Delta).
+        const deltaSection = (
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap">
-          <h2 className="display" style={{ fontSize: "1.7rem", marginBottom: 20 }}>Also in Delta, BC</h2>
+          <h2 className="display" style={{ fontSize: "1.7rem", marginBottom: 20 }}>
+            {deltaFirst ? "Delta, BC" : "Also in Delta, BC"}
+          </h2>
           <div className="contact-grid" style={{ display: "grid", gap: 24 }}>
             <div className="card" style={{ background: "var(--white)", padding: 24, alignSelf: "start" }}>
               <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC</h3>
@@ -177,6 +191,20 @@ export function ContactView() {
           </div>
         </div>
       </section>
+        );
+
+        return deltaFirst ? (
+          <>
+            {deltaSection}
+            {scarboroughSection}
+          </>
+        ) : (
+          <>
+            {scarboroughSection}
+            {deltaSection}
+          </>
+        );
+      })()}
     </div>
   );
 }

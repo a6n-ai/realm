@@ -183,10 +183,11 @@ class ProductsService extends SessionUpdatableService<typeof products> {
   }
 
   async listActive() {
+    const scope = await orgScopeWhereForAdmin(products.organizationId);
     return db
       .select()
       .from(products)
-      .where(eq(products.active, true))
+      .where(and(eq(products.active, true), scope))
       .orderBy(asc(products.category), asc(products.name));
   }
 

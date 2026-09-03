@@ -15,6 +15,7 @@ import { CATEGORIES, type CategoryId, TAG_STYLE } from "@/lib/menu-categories";
 import { buildMetadata } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
+import { getActiveLocation } from "@/lib/services/organizations.service";
 
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
@@ -71,7 +72,12 @@ const COMBOS = [
 ];
 
 export default async function HomePage() {
-  const reviews = await getReviewsSummary(integrationsConfigStore);
+  const [reviews, location] = await Promise.all([
+    getReviewsSummary(integrationsConfigStore),
+    getActiveLocation(),
+  ]);
+  const cityLabel = location?.city ?? "Scarborough";
+  const addressLabel = location?.address ?? "3315 Danforth Ave, Scarborough";
 
   // Curated "featured" products first; if none are flagged, fall back to real
   // active products that have a photo (so home shows the actual menu, not empty
@@ -131,7 +137,7 @@ export default async function HomePage() {
               <span>🔥 Now serving fusion puchkas</span>
               {reviews && <span>{`★ ${reviews.rating.toFixed(1)} on Google · ${reviews.total}+ reviews`}</span>}
               <span>🛵 Order pickup & skip the fees</span>
-              <span>📍 3315 Danforth Ave, Scarborough</span>
+              <span>📍 {addressLabel}</span>
             </span>
           ))}
         </div>
@@ -144,7 +150,7 @@ export default async function HomePage() {
             <div>
               <div className="flex wrap-gap anim" style={{ marginBottom: 22, "--d": ".05s" } as CSSProperties}>
                 {reviews && <Pill variant="green">{`★ ${reviews.rating.toFixed(1)} · ${reviews.total}+ Google Reviews`}</Pill>}
-                <Pill variant="ink">Scarborough · GTA</Pill>
+                <Pill variant="ink">{cityLabel}</Pill>
               </div>
               <h1 className="display anim" style={{ fontSize: "clamp(2.6rem, 8vw, 5rem)", "--d": ".13s" } as CSSProperties}>
                 Canada&apos;s <span className="marker" style={{ color: "#fff" }}>First</span> Fusion Puchka Spot
@@ -301,7 +307,7 @@ export default async function HomePage() {
           <div className="wrap">
             <SectionHead
               kicker="Social Proof"
-              title="Scarborough Is Obsessed"
+              title={`${cityLabel} Is Obsessed`}
               align="center"
               light
               sub={`${reviews.rating.toFixed(1)}★ across ${reviews.total}+ Google reviews. Here's what the neighbourhood says.`}
