@@ -6,6 +6,7 @@ import { Reveal } from "@/components/brutal/reveal";
 import { AssemblyGuide } from "@/components/brutal/assembly-guide";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
+import { getActiveLocation } from "@/lib/services/organizations.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
@@ -45,7 +46,9 @@ const FUSION_ITEMS: [string, string, string, string][] = [
 export default async function FusionPage() {
   // Real fusion-category products with photos; fall back to the static copy when
   // the menu has none (fresh DB).
-  const fusionProducts = (await productsService.listActive()).filter((p) => p.category === "fusion");
+  const [products, location] = await Promise.all([productsService.listActive(), getActiveLocation()]);
+  const cityLabel = location?.city ?? "Scarborough";
+  const fusionProducts = products.filter((p) => p.category === "fusion");
   const fusionCards: FusionCard[] = fusionProducts.length
     ? fusionProducts.map((p) => {
         const tag = (p.tags ?? []).find((t) => TAG_STYLE[t]);
@@ -176,7 +179,7 @@ export default async function FusionPage() {
         <div className="wrap tac">
           <h2 className="display" style={{ fontSize: "clamp(2.2rem,6vw,4rem)" }}>Try Fusion Puchkas Today</h2>
           <p style={{ fontSize: "1.15rem", fontWeight: 600, margin: "14px auto 26px", maxWidth: 460 }}>
-            Pickup in Scarborough or get them delivered. One bite and you&apos;ll get it.
+            Pickup in {cityLabel} or get them delivered. One bite and you&apos;ll get it.
           </p>
           <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
             <Btn page="order" variant="green" size="lg">🛵 Order Now</Btn>
