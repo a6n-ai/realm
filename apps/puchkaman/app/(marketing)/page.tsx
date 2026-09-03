@@ -120,11 +120,14 @@ export default async function HomePage() {
     (withPhoto.find((p) => (p.tags ?? []).includes("viral"))?.image as FileDetail | null)?.url ??
     photoUrls[0] ??
     null;
+  // Fusion-only, no fallback to other categories — this section is explicitly
+  // "What is a fusion puchka", so a vada pav photo here would be wrong, not
+  // just a lower-quality pick. Falls to the Ph placeholder when the menu has
+  // no fusion photo yet.
   const fusionUrl =
     (fusionPhotos.find((p) => (p.image as FileDetail | null)?.url !== heroUrl)?.image as FileDetail | null)?.url ??
     (fusionPhotos[0]?.image as FileDetail | null)?.url ??
-    photoUrls.find((u) => u !== heroUrl) ??
-    heroUrl;
+    null;
   const galleryUrls = photoUrls.slice(0, 6);
 
   return (
