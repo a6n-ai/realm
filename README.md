@@ -41,3 +41,9 @@ Scope to one app/package with a filter, e.g. `pnpm turbo typecheck --filter=tiff
 
 Turborepo + pnpm · Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 +
 shadcn/ui · better-auth · PostgreSQL + Drizzle ORM · Vitest.
+
+## License
+
+GNU Affero General Public License v3.0. See [`LICENSE`](LICENSE).
+
+Shared UI and data packages live in [a6n-ai/foundry](https://github.com/a6n-ai/foundry) under Apache 2.0. Notifications live in [a6n-ai/relay](https://github.com/a6n-ai/relay), also AGPL-3.0. Importing Foundry does not relicense Foundry; the Realm apps as shipped are AGPL.
