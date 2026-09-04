@@ -17,6 +17,7 @@ const PACKAGES = [
   "crm",
   "database",
   "design-system",
+  "doordash",
   "email",
   "eslint-config",
   "google-reviews",
@@ -27,6 +28,7 @@ const PACKAGES = [
   "routes",
   "storage",
   "themes",
+  "uber-eats",
   "ui",
   "wallet",
 ];

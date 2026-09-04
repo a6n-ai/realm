@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { PageBanner, Pill } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { OrderPaths } from "@/components/order/order-paths";
-import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { getDeliveryTypes, getStoreLocation } from "@/lib/delivery/zones.service";
+import { getDoorDashConfig } from "@foundry/doordash";
+import { getUberEatsConfig } from "@foundry/uber-eats";
+import { integrationsConfigStore } from "@/lib/services/integrations.service";
 
 // Reads live delivery-type config (instant discount %, scheduled minimum) so
 // the numbers this page advertises can never drift from what checkout
@@ -42,26 +44,43 @@ function buildWhy(instantPct: number): [string, string][] {
 
 // Secondary channel by design: the apps exist for people already in them, and
 // for addresses outside our own delivery range. SkipTheDishes is not live.
-const APPS = [
-  {
-    name: "Uber Eats",
-    desc: "Delivered by Uber couriers across Scarborough. Same food — their fees and their prices.",
-    cta: "Open Uber Eats",
-    url: UBER_EATS_URL,
-  },
-  {
-    name: "DoorDash",
-    desc: "Live courier tracking through the DoorDash app, wherever they'll take it.",
-    cta: "Open DoorDash",
-    url: DOORDASH_URL,
-  },
-];
+// Each entry is per-franchise (Settings → Uber Eats / DoorDash) — a client
+// with no storefront link set for either just doesn't show that card.
+function buildApps(uberEatsUrl: string | undefined, doorDashUrl: string | undefined) {
+  return [
+    uberEatsUrl
+      ? {
+          name: "Uber Eats",
+          desc: "Delivered by Uber couriers. Same food — their fees and their prices.",
+          cta: "Open Uber Eats",
+          url: uberEatsUrl,
+        }
+      : null,
+    doorDashUrl
+      ? {
+          name: "DoorDash",
+          desc: "Live courier tracking through the DoorDash app, wherever they'll take it.",
+          cta: "Open DoorDash",
+          url: doorDashUrl,
+        }
+      : null,
+  ].filter((app): app is NonNullable<typeof app> => app !== null);
+}
 
 export default async function OrderPage() {
-  const [types, storeLocation] = await Promise.all([getDeliveryTypes(), getStoreLocation()]);
+  const [types, storeLocation, uberEats, doorDash] = await Promise.all([
+    getDeliveryTypes(),
+    getStoreLocation(),
+    getUberEatsConfig(integrationsConfigStore),
+    getDoorDashConfig(integrationsConfigStore),
+  ]);
   const instantType = types.find((t) => t.key === "instant");
   const scheduledType = types.find((t) => t.key === "scheduled");
   const why = buildWhy(instantType?.discountPct ?? 0);
+  const apps = buildApps(
+    uberEats.installed ? uberEats.url : undefined,
+    doorDash.installed ? doorDash.url : undefined,
+  );
 
   return (
     <div>
@@ -104,28 +123,32 @@ export default async function OrderPage() {
             </div>
           </div>
 
-          <h2 className="display order-apps__head">Already On An App?</h2>
-          <p className="order-apps__sub">
-            We&apos;re on both — worth it if you&apos;re outside our delivery range, though ordering
-            direct above is cheaper.
-          </p>
-          <div className="order-apps">
-            {APPS.map((app, i) => (
-              <Reveal key={app.name} delay={i * 60}>
-                <a
-                  href={app.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card card--lift order-app"
-                >
-                  <Pill>Third-party</Pill>
-                  <h3 className="order-app__name">{app.name}</h3>
-                  <p className="order-app__desc">{app.desc}</p>
-                  <span className="btn btn--ink btn--block">{app.cta} ↗</span>
-                </a>
-              </Reveal>
-            ))}
-          </div>
+          {apps.length > 0 ? (
+            <>
+              <h2 className="display order-apps__head">Already On An App?</h2>
+              <p className="order-apps__sub">
+                {apps.length > 1 ? "We're on both" : `We're on ${apps[0].name}`} — worth it if
+                you&apos;re outside our delivery range, though ordering direct above is cheaper.
+              </p>
+              <div className="order-apps">
+                {apps.map((app, i) => (
+                  <Reveal key={app.name} delay={i * 60}>
+                    <a
+                      href={app.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="card card--lift order-app"
+                    >
+                      <Pill>Third-party</Pill>
+                      <h3 className="order-app__name">{app.name}</h3>
+                      <p className="order-app__desc">{app.desc}</p>
+                      <span className="btn btn--ink btn--block">{app.cta} ↗</span>
+                    </a>
+                  </Reveal>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
     </div>
