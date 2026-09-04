@@ -34,6 +34,7 @@ export function AccountNav({ role }: { role: RoleValue }) {
               <li key={item.key} className="shrink-0">
                 <Link
                   href={item.href}
+                  prefetch={false}
                   aria-current={active ? "page" : undefined}
                   className={cn(linkClass(active), "block px-3 py-1.5 whitespace-nowrap")}
                 >
@@ -72,6 +73,7 @@ export function AccountNav({ role }: { role: RoleValue }) {
                     <li key={item.key}>
                       <Link
                         href={item.href}
+                        prefetch={false}
                         aria-current={active ? "page" : undefined}
                         className={cn(linkClass(active), "block px-3 py-1.5")}
                       >

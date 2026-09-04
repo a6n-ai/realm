@@ -21,6 +21,7 @@ export function AccountSettingsNav() {
             <li key={item.key}>
               <Link
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "ring-offset-background focus-visible:ring-ring flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",

@@ -113,7 +113,7 @@ export default async function SettingsPage() {
       <PageHeader icon={SettingsIcon} title="Settings" subtitle="Configure how the platform runs." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sections.map((s) => (
-          <Link key={s.key} href={s.href} className="group">
+          <Link key={s.key} href={s.href} className="group" prefetch={false}>
             <Card variant="lift" className="h-full">
               <CardHeader className="flex flex-row items-start justify-between">
                 <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">

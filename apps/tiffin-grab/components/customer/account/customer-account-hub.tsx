@@ -84,6 +84,7 @@ function MenuList({
         <li key={href}>
           <TransitionLink
             href={href}
+            prefetch={false}
             className="hover:bg-accent/50 flex min-h-12 items-center gap-3 px-4 py-3 text-sm transition-colors"
           >
             <Icon className="text-primary size-4 shrink-0" aria-hidden />
@@ -160,6 +161,7 @@ export function CustomerAccountHub({
               <TransitionLink
                 key={href}
                 href={href}
+                prefetch={false}
                 className="bg-card flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center shadow-sm transition-transform active:scale-[0.98]"
               >
                 <span className="bg-primary/10 text-primary grid size-10 place-items-center rounded-full">
@@ -221,6 +223,7 @@ export function CustomerAccountHub({
               <TransitionLink
                 key={href}
                 href={href}
+                prefetch={false}
                 className="bg-card hover:bg-accent/40 flex items-center gap-3 rounded-xl border px-4 py-4 transition-colors active:scale-[0.98]"
               >
                 <span className="bg-primary/10 text-primary grid size-10 place-items-center rounded-full">

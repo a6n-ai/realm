@@ -29,7 +29,7 @@ export function PaymentTabs({ methods }: { methods: PaymentTab[] }) {
       <RoutedTabNav tabs={tabs} ariaLabel="Payment methods" />
       {hasMoreToAdd && (
         <Button asChild variant="outline" size="sm" className="gap-1.5">
-          <Link href="/dashboard/settings/payments/add">
+          <Link href="/dashboard/settings/payments/add" prefetch={false}>
             <PlusIcon className="size-3.5" />
             Add provider
           </Link>

@@ -238,7 +238,7 @@ function QuickLinks() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {CUSTOMER_LINKS.map((link) => (
-        <Link key={link.href} href={link.href} className="group rounded-xl">
+        <Link key={link.href} href={link.href} className="group rounded-xl" prefetch={false}>
           <Card className="flex h-full items-start justify-between gap-4 p-5 transition-colors group-hover:border-foreground/20">
             <div className="flex items-start gap-3">
               <link.icon className="text-muted-foreground mt-0.5 size-5 shrink-0" aria-hidden />
