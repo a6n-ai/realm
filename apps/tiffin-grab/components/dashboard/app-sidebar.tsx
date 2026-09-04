@@ -176,7 +176,7 @@ export function AppSidebar({
                       tooltip={item.title}
                       className="group/nav"
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} prefetch={false}>
                         <item.icon className="transition-transform duration-200 group-hover/nav:scale-110" />
                         <span>{item.title}</span>
                         {(() => {

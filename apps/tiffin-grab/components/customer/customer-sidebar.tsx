@@ -105,7 +105,7 @@ export function CustomerSidebar({
               {section.items.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.title}>
-                    <Link href={item.href}>
+                    <Link href={item.href} prefetch={false}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
