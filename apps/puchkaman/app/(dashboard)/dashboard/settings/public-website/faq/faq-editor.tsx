@@ -24,7 +24,12 @@ export function FaqEditor({ faqs }: { faqs: Faq[] }) {
         </Button>
       </div>
       <FaqTable faqs={faqs} onEdit={setEditing} />
-      <FaqEditDialog faq={editing} onOpenChange={(open) => !open && setEditing(null)} onSaved={() => router.refresh()} />
+      <FaqEditDialog
+        key={editing?.publicId ?? "closed"}
+        faq={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSaved={() => router.refresh()}
+      />
     </div>
   );
 }
