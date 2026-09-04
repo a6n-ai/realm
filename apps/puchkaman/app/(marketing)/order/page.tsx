@@ -4,7 +4,7 @@ import { Reveal } from "@/components/brutal/reveal";
 import { OrderPaths } from "@/components/order/order-paths";
 import { DOORDASH_URL, UBER_EATS_URL } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
-import { getDeliveryTypes } from "@/lib/delivery/zones.service";
+import { getDeliveryTypes, getStoreLocation } from "@/lib/delivery/zones.service";
 
 // Reads live delivery-type config (instant discount %, scheduled minimum) so
 // the numbers this page advertises can never drift from what checkout
@@ -58,7 +58,7 @@ const APPS = [
 ];
 
 export default async function OrderPage() {
-  const types = await getDeliveryTypes();
+  const [types, storeLocation] = await Promise.all([getDeliveryTypes(), getStoreLocation()]);
   const instantType = types.find((t) => t.key === "instant");
   const scheduledType = types.find((t) => t.key === "scheduled");
   const why = buildWhy(instantType?.discountPct ?? 0);
@@ -84,6 +84,7 @@ export default async function OrderPage() {
             <OrderPaths
               instantDiscountPct={instantType?.discountPct ?? 0}
               scheduledMinSubtotal={scheduledType?.minSubtotal ?? 0}
+              pickupAddress={storeLocation.address}
             />
           </Reveal>
 

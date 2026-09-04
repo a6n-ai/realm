@@ -14,7 +14,6 @@ import { DEFAULT_DIAL_CODE, joinPhone, PhoneField } from "@/components/order/pho
 import { StaticMap } from "@foundry/design-system";
 import { money } from "@/lib/cart/types";
 import { useCartQuote, type DiscountSelection } from "@/lib/cart/use-cart-quote";
-import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
 import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import {
   SCHEDULE_MAX_AHEAD_MS,
@@ -88,6 +87,7 @@ export function CheckoutClient({
   pickupDiscountPct = 0,
   canRedeemCoins = false,
   coinBalance = 0,
+  storeLocation,
 }: {
   /** Resolved server-side from ?fulfillment= so the first render is already correct. */
   initialFulfillment?: Fulfillment;
@@ -101,6 +101,8 @@ export function CheckoutClient({
   canRedeemCoins?: boolean;
   /** Wallet balance read server-side; walletService never reaches the client. */
   coinBalance?: number;
+  /** The acting franchise's pickup point — see getStoreLocation. Drives the map marker and every pickup-address string below. */
+  storeLocation: { lat: number; lng: number; address: string };
 }) {
   const { items, subtotal, count, clear, hydrated, addItem } = useCart();
   // The only way to reach a guest who abandons: their address is typed here but
@@ -388,7 +390,7 @@ export function CheckoutClient({
             ? "On its way to you shortly — instant delivery, usually within 45 min."
             : session?.fulfillment === "delivery_scheduled" && session.scheduledFor
               ? `Scheduled for delivery ${new Date(session.scheduledFor).toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" })}.`
-              : "Ready in about 15 minutes at 3315 Danforth Ave."}
+              : `Ready in about 15 minutes at ${storeLocation.address}.`}
         </p>
         {session ? (
           <p className="checkout-orderid" style={{ marginTop: 14 }}>
@@ -524,8 +526,8 @@ export function CheckoutClient({
                     "pickup",
                     "Pickup",
                     pickupDiscountPct > 0
-                      ? `3315 Danforth Ave · ~15 min · ${Math.round(pickupDiscountPct)}% off`
-                      : "3315 Danforth Ave · ~15 min",
+                      ? `${storeLocation.address} · ~15 min · ${Math.round(pickupDiscountPct)}% off`
+                      : `${storeLocation.address} · ~15 min`,
                   ],
                   ["delivery", "Delivery", "Enter your address to see what's available"],
                 ] as const
@@ -609,11 +611,11 @@ export function CheckoutClient({
                   <div className="card" style={{ marginTop: 10, padding: 0, overflow: "hidden" }}>
                     <StaticMap
                       center={{
-                        lat: (DEFAULT_STORE_LAT + addressCheck.lat) / 2,
-                        lng: (DEFAULT_STORE_LNG + addressCheck.lng) / 2,
+                        lat: (storeLocation.lat + addressCheck.lat) / 2,
+                        lng: (storeLocation.lng + addressCheck.lng) / 2,
                       }}
                       markers={[
-                        { lat: DEFAULT_STORE_LAT, lng: DEFAULT_STORE_LNG, color: "#111", title: "Puchkaman" },
+                        { lat: storeLocation.lat, lng: storeLocation.lng, color: "#111", title: "Puchkaman" },
                         { lat: addressCheck.lat, lng: addressCheck.lng, color: "var(--green)", title: "Your address" },
                       ]}
                       zoom={12}

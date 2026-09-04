@@ -24,7 +24,7 @@ type CheckResult =
 /** Public "do we deliver to you?" checker — same endpoint checkout uses, no
  *  cart/subtotal context here, so it just lists what an address qualifies
  *  for rather than picking one. */
-export function DeliveryChecker() {
+export function DeliveryChecker({ pickupAddress }: { pickupAddress: string }) {
   const { count, hydrated } = useCart();
   const [address, setAddress] = useState("");
   const [placeId, setPlaceId] = useState<string | undefined>(undefined);
@@ -145,7 +145,7 @@ export function DeliveryChecker() {
             {result.limitKm != null
               ? ` — outside our ${result.limitKm}km delivery range.`
               : " — outside our delivery range."}{" "}
-            Pickup at 3315 Danforth Ave is still ~15 min.
+            Pickup at {pickupAddress} is still ~15 min.
           </p>
           <Btn page="eats" variant="ink" block>
             Order for pickup instead →

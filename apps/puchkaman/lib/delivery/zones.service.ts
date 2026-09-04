@@ -7,6 +7,7 @@ import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import { orgScopeWhere } from "@/lib/services/org-scope";
 import { SessionUpdatableService } from "@/lib/services/session-service";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "./distance";
+import { ADDRESS as DEFAULT_STORE_ADDRESS } from "@/lib/links";
 import type { DeliveryType, Zone, ZoneWithTypes } from "./zones";
 
 type ZoneRow = {
@@ -142,6 +143,31 @@ export async function getStoreOrigin(): Promise<{ lat: number; lng: number }> {
     lat: row?.lat != null ? Number(row.lat) : DEFAULT_STORE_LAT,
     lng: row?.lng != null ? Number(row.lng) : DEFAULT_STORE_LNG,
   };
+}
+
+/**
+ * Same resolution as {@link getStoreOrigin}, plus the display text (address,
+ * city) customers actually read on pickup/delivery copy. The app-table
+ * singleton has no address/city columns (pre-multi-franchise), so that rung
+ * of the fallback — and the hardcoded final default — both use the same
+ * Scarborough address/coords getStoreOrigin falls back to, so the two never
+ * disagree about which shop they mean.
+ */
+export async function getStoreLocation(): Promise<{ lat: number; lng: number; address: string; city: string | null }> {
+  const orgId = await resolveActingOrgId();
+  const [orgRow] = orgId
+    ? await db
+        .select({ lat: organization.storeLat, lng: organization.storeLng, address: organization.address, city: organization.city })
+        .from(organization)
+        .where(eq(organization.id, orgId))
+        .limit(1)
+    : [];
+  if (orgRow?.lat != null && orgRow?.lng != null && orgRow.address) {
+    return { lat: Number(orgRow.lat), lng: Number(orgRow.lng), address: orgRow.address, city: orgRow.city };
+  }
+
+  const origin = await getStoreOrigin();
+  return { ...origin, address: DEFAULT_STORE_ADDRESS, city: null };
 }
 
 export async function saveZone(

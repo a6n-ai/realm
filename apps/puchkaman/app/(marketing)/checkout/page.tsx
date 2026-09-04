@@ -4,7 +4,7 @@ import { Reveal } from "@/components/brutal/reveal";
 import { CheckoutClient } from "@/components/order/checkout-client";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
-import { getAllDeliveryTypes } from "@/lib/delivery/zones.service";
+import { getAllDeliveryTypes, getStoreLocation } from "@/lib/delivery/zones.service";
 import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
@@ -25,13 +25,14 @@ export default async function CheckoutPage({
 }: {
   searchParams: Promise<{ fulfillment?: string }>;
 }) {
-  const [orderingEnabled, params, offerRows, catalog, deliveryTypes, wallet] = await Promise.all([
+  const [orderingEnabled, params, offerRows, catalog, deliveryTypes, wallet, storeLocation] = await Promise.all([
     isPublicOrderingEnabled(),
     searchParams,
     inventoryCatalogService.discounts.listPublicOffers(),
     ordersService.listOrderableCatalog(),
     getAllDeliveryTypes(),
     ordersService.getCheckoutWalletBalance(),
+    getStoreLocation(),
   ]);
   // Pickup's own discount, so the fulfillment choice can name it before the
   // quote lands rather than leaving the saving to appear out of nowhere.
@@ -85,6 +86,7 @@ export default async function CheckoutPage({
                 pickupDiscountPct={pickupDiscountPct}
                 canRedeemCoins={wallet.canRedeem}
                 coinBalance={wallet.balance}
+                storeLocation={storeLocation}
               />
             ) : (
               <OrderingUnavailableNotice title="Checkout coming soon" />

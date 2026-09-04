@@ -15,11 +15,14 @@ import { money } from "@/lib/cart/types";
 export function OrderPaths({
   instantDiscountPct,
   scheduledMinSubtotal,
+  pickupAddress,
 }: {
   /** delivery_types.discount_pct for the "instant" (≤7km) type — admin-configured, see Settings → Delivery. */
   instantDiscountPct: number;
   /** delivery_types.min_subtotal for the "scheduled" (>7km) type. */
   scheduledMinSubtotal: number;
+  /** The acting franchise's pickup point — see getStoreLocation. */
+  pickupAddress: string;
 }) {
   const { count, subtotal, openDrawer, hydrated, orderingEnabled } = useCart();
   const hasItems = hydrated && count > 0;
@@ -52,7 +55,7 @@ export function OrderPaths({
             Order ahead, walk in, walk out. No fees, no waiting on a courier — and the crunch is
             minutes old.
           </p>
-          <p className="order-path__meta mono">3315 Danforth Ave, Scarborough</p>
+          <p className="order-path__meta mono">{pickupAddress}</p>
         </div>
 
         <div>
@@ -103,7 +106,7 @@ export function OrderPaths({
             {scheduledMinSubtotal > 0 ? `, ${money(scheduledMinSubtotal)} minimum` : ""}.
           </p>
         </div>
-        <DeliveryChecker />
+        <DeliveryChecker pickupAddress={pickupAddress} />
       </div>
     </div>
   );
