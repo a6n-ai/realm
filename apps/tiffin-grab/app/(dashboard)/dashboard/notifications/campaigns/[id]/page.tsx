@@ -40,21 +40,22 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     .where(eq(campaign.publicId, id));
   if (!row) notFound();
 
-  const content = await db
-    .select({ channel: campaignContent.channel, locale: campaignContent.locale, subject: campaignContent.subject })
-    .from(campaignContent)
-    .where(eq(campaignContent.campaignId, row.id));
-
   const sendable = row.status === "draft" || row.status === "scheduled";
   // Only resolve a count when it can still be acted on — for a sent campaign
   // the stored counts are the record, and re-resolving would show today's
   // audience rather than the one that was actually mailed.
-  const count = sendable
-    ? await countAudience(
-        { db, tables: notificationTables, users: usersRef, resolveSegment },
-        row.audience as AudienceDef,
-      )
-    : 0;
+  const [content, count] = await Promise.all([
+    db
+      .select({ channel: campaignContent.channel, locale: campaignContent.locale, subject: campaignContent.subject })
+      .from(campaignContent)
+      .where(eq(campaignContent.campaignId, row.id)),
+    sendable
+      ? countAudience(
+          { db, tables: notificationTables, users: usersRef, resolveSegment },
+          row.audience as AudienceDef,
+        )
+      : Promise.resolve(0),
+  ]);
 
   const counts = (row.counts ?? {}) as Record<string, number>;
 

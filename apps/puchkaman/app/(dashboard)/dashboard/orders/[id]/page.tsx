@@ -28,12 +28,12 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
   ]);
   if (!detailResult.ok) notFound();
   const { order, items, payments, assignedEmployee } = detailResult.d;
-  const customerRequests = await listCustomerRequests(order.publicId);
+  const [customerRequests, deliveryLabels] = await Promise.all([
+    listCustomerRequests(order.publicId),
+    getDeliveryLabelsForOrder(order.deliveryTypeId, order.deliveryZoneId),
+  ]);
   const cloverEnabled = Boolean(clover.installed);
-  const { typeLabel: deliveryTypeLabel, zoneName: deliveryZoneName } = await getDeliveryLabelsForOrder(
-    order.deliveryTypeId,
-    order.deliveryZoneId,
-  );
+  const { typeLabel: deliveryTypeLabel, zoneName: deliveryZoneName } = deliveryLabels;
   const canCheckStatus =
     cloverEnabled && Boolean(order.cloverOrderId || payments.some((p) => p.cloverChargeId));
 

@@ -16,9 +16,8 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   // such org" by probing ids.
   const scopeMode = await resolveOrgScopeMode();
   if (scopeMode.mode === "org" && scopeMode.orgId !== id) notFound();
-  const org = await getOrganization(id);
+  const [org, members] = await Promise.all([getOrganization(id), listMembers(id)]);
   if (!org) notFound();
-  const members = await listMembers(id);
 
   return (
     <div className="space-y-4">
