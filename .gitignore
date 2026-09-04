@@ -62,6 +62,7 @@ graphify-out/
 skills-lock.json
 docs/
 .vcscore
+.impeccable/
 
 # playwright mcp session artifacts (console dumps + page snapshots)
 .playwright-mcp/
