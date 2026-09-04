@@ -14,6 +14,7 @@ export function SiteFooter() {
           </span>
           <div className="flex flex-wrap items-center gap-6 text-sm">
             <Button asChild size="sm" className="rounded-full"><Link href="/subscribe">Start a plan →</Link></Button>
+            <Link href="/faq" className="text-background/70 hover:text-background">FAQ</Link>
             <Link href="/contact" className="text-background/70 hover:text-background">Contact</Link>
           </div>
         </div>

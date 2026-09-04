@@ -20,4 +20,5 @@ export * from "./email-log";
 export * from "./files";
 export * from "./subscription-pauses";
 export * from "./organizations";
+export * from "./faqs";
 export { reviewNudges } from "@foundry/google-reviews/db";

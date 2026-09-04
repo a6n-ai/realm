@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   CreditCardIcon,
+  HelpCircleIcon,
   PuzzleIcon,
   SettingsIcon,
   StarIcon,
@@ -60,6 +61,13 @@ export default async function SettingsPage() {
       description: "Plan types, dish categories, and menu configuration.",
       icon: UtensilsCrossedIcon,
       href: "/dashboard/settings/meal-types",
+    },
+    {
+      key: "public-website",
+      label: "Public Website",
+      description: "Content shown on the public site, like the FAQ.",
+      icon: HelpCircleIcon,
+      href: "/dashboard/settings/public-website",
     },
     {
       key: "integrations",
