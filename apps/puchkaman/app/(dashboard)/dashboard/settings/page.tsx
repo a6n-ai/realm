@@ -3,6 +3,7 @@ import {
   ArrowRightIcon,
   CoinsIcon,
   CreditCardIcon,
+  HelpCircleIcon,
   MapPinnedIcon,
   PuzzleIcon,
   SettingsIcon,
@@ -66,6 +67,14 @@ export default async function SettingsPage() {
     description: "Delivery types, zone radii, and the shop's map origin.",
     icon: MapPinnedIcon,
     href: "/dashboard/settings/delivery/zones",
+  });
+
+  sections.push({
+    key: "public-website",
+    label: "Public Website",
+    description: "Content shown on the public site, like the FAQ.",
+    icon: HelpCircleIcon,
+    href: "/dashboard/settings/public-website",
   });
 
   sections.push({

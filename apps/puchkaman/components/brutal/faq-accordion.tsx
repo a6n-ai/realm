@@ -1,4 +1,4 @@
-import type { Faq } from "@/lib/faq";
+export type Faq = { q: string; a: string };
 
 /**
  * FAQ accordion built on native <details>/<summary>: no JS ships, it works

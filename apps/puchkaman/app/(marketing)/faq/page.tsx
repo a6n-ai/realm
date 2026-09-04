@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Btn, PageBanner, SectionHead } from "@/components/brutal/shared";
-import { FaqAccordion } from "@/components/brutal/faq-accordion";
-import { FAQS } from "@/lib/faq";
+import { FaqAccordion, type Faq } from "@/components/brutal/faq-accordion";
+import { listPublicFaqs } from "@/lib/services/faqs.service";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -11,24 +11,31 @@ export const metadata: Metadata = buildMetadata({
   path: "/faq",
 });
 
+// Content itself is now admin-editable (Settings → Public Website → FAQ),
+// franchise-overridable — force-dynamic since it's org-scoped from the
+// franchise cookie, same reason as the homepage.
+export const dynamic = "force-dynamic";
+
 const breadcrumb = breadcrumbJsonLd([
   { name: "Home", path: "/" },
   { name: "FAQ", path: "/faq" },
 ]);
 
-// FAQPage schema lives here and only here — the homepage teases the same
-// questions, and marking both up would submit duplicate FAQ entities.
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQS.map((f) => ({
-    "@type": "Question",
-    name: f.q,
-    acceptedAnswer: { "@type": "Answer", text: f.a },
-  })),
-};
+export default async function FaqPage() {
+  const faqs: Faq[] = (await listPublicFaqs()).map((f) => ({ q: f.question, a: f.answer }));
 
-export default function FaqPage() {
+  // FAQPage schema lives here and only here — the homepage teases the same
+  // questions, and marking both up would submit duplicate FAQ entities.
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
@@ -44,7 +51,7 @@ export default function FaqPage() {
       <section className="section-pad" style={{ background: "var(--page-bg)" }}>
         <div className="wrap" style={{ maxWidth: 780 }}>
           <SectionHead title="Common Questions" />
-          <FaqAccordion items={FAQS} name="faq-page" defaultOpen={0} />
+          <FaqAccordion items={faqs} name="faq-page" defaultOpen={0} />
           <div className="card card--cream" style={{ padding: 24, marginTop: 24, textAlign: "center" }}>
             <p style={{ fontWeight: 600, marginBottom: 14 }}>Still have a question?</p>
             <Btn page="contact" variant="green">

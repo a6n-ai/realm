@@ -246,6 +246,13 @@
       "when": 1788199859513,
       "tag": "0034_low_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788504805731,
+      "tag": "0035_add_public_faqs",
+      "breakpoints": true
     }
   ]
 }

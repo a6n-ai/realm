@@ -5,8 +5,8 @@ import type { CSSProperties } from "react";
 import type { FileDetail } from "@foundry/storage/model";
 import { Btn, Marquee, Ph, Pill, SectionHead, Stars } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
-import { FaqAccordion } from "@/components/brutal/faq-accordion";
-import { FAQS } from "@/lib/faq";
+import { FaqAccordion, type Faq } from "@/components/brutal/faq-accordion";
+import { listPublicFaqs } from "@/lib/services/faqs.service";
 import { HeroVideo } from "@/components/brutal/hero-video";
 import { LocationsSection } from "@/components/brutal/locations-section";
 import { ProductImage } from "@/components/products/product-image";
@@ -72,12 +72,14 @@ const COMBOS = [
 ];
 
 export default async function HomePage() {
-  const [reviews, location] = await Promise.all([
+  const [reviews, location, faqRows] = await Promise.all([
     getReviewsSummary(integrationsConfigStore),
     getActiveLocation(),
+    listPublicFaqs(),
   ]);
   const cityLabel = location?.city ?? "Scarborough";
   const addressLabel = location?.address ?? "3315 Danforth Ave, Scarborough";
+  const faqs: Faq[] = faqRows.map((f) => ({ q: f.question, a: f.answer }));
 
   // Curated "featured" products first; if none are flagged, fall back to real
   // active products that have a photo (so home shows the actual menu, not empty
@@ -421,7 +423,7 @@ export default async function HomePage() {
                 the /faq link (desktop-hidden) carries the rest. Cutting server-side
                 instead would drop the answers out of the HTML entirely. */}
             <Reveal>
-              <FaqAccordion items={FAQS} name="faq-home" defaultOpen={0} className="faq-list--home" />
+              <FaqAccordion items={faqs} name="faq-home" defaultOpen={0} className="faq-list--home" />
               <div className="tac faq-more" style={{ marginTop: 24 }}>
                 <Btn href="/faq" variant="ink" size="lg">Read all FAQs →</Btn>
               </div>
