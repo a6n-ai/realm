@@ -988,6 +988,12 @@ header a:active .logo-mark {
 .tik-h::after { content: ''; flex: 1; border-top: 2px dotted var(--ink); opacity: .4; }
 .tik-line { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 0.86rem; font-weight: 700; padding: 5px 0; color: var(--ink-deep); }
 .tik-line i { flex: 1; border-top: 2px dotted var(--ink); opacity: .35; transform: translateY(-3px); }
+/* Multi-line addresses don't fit the single-line dotted-rule row above —
+   the dots only ever lined up with the first line, leaving the wrapped
+   second line floating with no rule beside it. */
+.tik-loc + .tik-loc { margin-top: 12px; }
+.tik-loc-city { font-family: var(--mono); font-size: 0.78rem; font-weight: 700; padding-bottom: 4px; border-bottom: 2px dotted var(--ink); opacity: .7; }
+.tik-loc-addr { margin: 6px 0 0; font-weight: 500; line-height: 1.4; }
 a.tik-line:hover { color: var(--green); }
 .tik-stamp { display: inline-block; font-family: var(--mono); font-weight: 700; font-size: 0.72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--green); border: 3px double var(--green); border-radius: 8px; padding: 8px 12px; transform: rotate(-4deg); margin-top: 16px; }
 .tik-barcode { display: flex; align-items: stretch; gap: 0; height: 40px; margin-top: 16px; }

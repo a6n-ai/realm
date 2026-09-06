@@ -292,17 +292,16 @@ export function Footer() {
           <div className="tik-col">
             <h4 className="tik-h">Find Us</h4>
             {LOCATIONS.map((loc) => (
-              <p key={loc.city} className="tik-line" style={{ alignItems: "flex-start" }}>
-                {loc.city}
-                <i />
-                <span style={{ textAlign: "right", fontWeight: 500 }}>
+              <div key={loc.city} className="tik-loc">
+                <p className="tik-loc-city">{loc.city}</p>
+                <p className="tik-loc-addr">
                   {loc.addressLines[0]}
                   <br />
                   {loc.addressLines[1]}
-                </span>
-              </p>
+                </p>
+              </div>
             ))}
-            <p className="tik-line">
+            <p className="tik-line" style={{ marginTop: 8 }}>
               Phone
               <i />
               {PHONE_DISPLAY}
