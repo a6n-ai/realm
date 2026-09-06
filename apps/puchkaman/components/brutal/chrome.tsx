@@ -232,18 +232,39 @@ export function Nav() {
 }
 
 /* ---------- Footer ---------- */
+const TIK_BARS = [3, 1, 4, 2, 1, 5, 2, 3, 1, 2, 4, 1, 3, 5, 1, 2, 3, 1, 4, 2, 5, 1, 3, 2, 1, 4, 2, 3, 1, 5, 2, 1, 3, 4, 1, 2];
+
 export function Footer() {
   return (
-    <footer className="surface-ink" style={{ background: "var(--ink)", color: "var(--cream)", borderTop: "var(--border)" }}>
-      <div className="wrap" style={{ padding: "54px 20px 30px" }}>
-        <div className="footer-grid" style={{ display: "grid", gap: 36 }}>
+    <footer className="surface-ink" style={{ background: "var(--ink)", borderTop: "var(--border)", padding: "clamp(36px,6vw,64px) 20px" }}>
+      <div className="tik">
+        <div className="tik-route">
           <div>
-            <div style={{ marginBottom: 16 }}>
-              <Logo size={42} wordmarkColor="var(--yellow)" wordmarkSize="1.5rem" />
+            <p className="tik-sub">From</p>
+            <p className="display" style={{ fontSize: "clamp(2rem,6vw,3.4rem)", lineHeight: 1 }}>KOL</p>
+            <p className="tik-sub">Kolkata</p>
+          </div>
+          <div className="tik-dots" aria-hidden="true">
+            <i />
+            <b>💧</b>
+            <i />
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <p className="tik-sub">To</p>
+            <p className="display" style={{ fontSize: "clamp(2rem,6vw,3.4rem)", lineHeight: 1, color: "var(--green)" }}>CAN</p>
+            <p className="tik-sub">Canada</p>
+          </div>
+        </div>
+
+        <div className="tik-body">
+          <div className="tik-col">
+            <div style={{ marginBottom: 12 }}>
+              <Logo size={32} wordmarkColor="var(--ink)" wordmarkSize="1.35rem" />
             </div>
-            <p style={{ maxWidth: 320, fontWeight: 500, opacity: 0.85, lineHeight: 1.5 }}>
-              Toronto&apos;s first fusion puchka spot. Kolkata street food, reimagined in Scarborough.
+            <p style={{ fontWeight: 500, lineHeight: 1.5, maxWidth: 300, opacity: 0.85 }}>
+              Toronto&apos;s first fusion puchka spot. Kolkata street food, reimagined in Scarborough — crunching across Canada.
             </p>
+            <p className="tik-stamp">★ Franchise Approved ★</p>
             <div className="flex wrap-gap" style={{ marginTop: 18 }}>
               <Btn page="order" variant="green" size="sm">
                 Order Now
@@ -254,65 +275,69 @@ export function Footer() {
             </div>
           </div>
 
-          <div>
-            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
-              Explore
-            </h2>
-            <div style={{ display: "grid", gap: 10 }}>
-              {NAV_LINKS.concat([["order", "Order Online", "Order"], ["reviews", "Reviews", "Reviews"]]).map(([p, label]) => (
-                <Link key={p} href={hrefFor(p)} style={{ fontWeight: 600, opacity: 0.9 }} className="foot-link">
-                  {label}
-                </Link>
-              ))}
-            </div>
+          <div className="tik-col">
+            <h4 className="tik-h">Explore</h4>
+            {NAV_LINKS.concat([
+              ["order", "Order Online", "Order"],
+              ["reviews", "Reviews", "Reviews"],
+            ]).map(([p, label]) => (
+              <Link key={p} href={hrefFor(p)} className="tik-line">
+                {label}
+                <i />
+                <span aria-hidden="true">→</span>
+              </Link>
+            ))}
           </div>
 
-          <div>
-            <h2 className="kicker" style={{ color: "var(--yellow)", marginBottom: 14 }}>
-              Visit Us
-            </h2>
-            <div style={{ display: "grid", gap: 16, fontWeight: 500 }}>
-              {LOCATIONS.map((loc) => (
-                <p key={loc.city} style={{ margin: 0 }}>
-                  📍 {loc.addressLines[0]},
+          <div className="tik-col">
+            <h4 className="tik-h">Find Us</h4>
+            {LOCATIONS.map((loc) => (
+              <p key={loc.city} className="tik-line" style={{ alignItems: "flex-start" }}>
+                {loc.city}
+                <i />
+                <span style={{ textAlign: "right", fontWeight: 500 }}>
+                  {loc.addressLines[0]}
                   <br />
                   {loc.addressLines[1]}
-                </p>
+                </span>
+              </p>
+            ))}
+            <p className="tik-line">
+              Phone
+              <i />
+              {PHONE_DISPLAY}
+            </p>
+            <p className="tik-line">
+              Hours
+              <i />
+              Sun–Thu 3pm–2am
+            </p>
+            <div className="flex wrap-gap" style={{ marginTop: 14 }}>
+              <Link href="/contact" className="pill pill--yellow">
+                Instagram ↗
+              </Link>
+              <Link href="/contact" className="pill" style={{ background: "#25D366", color: "#fff" }}>
+                WhatsApp ↗
+              </Link>
+            </div>
+            <div className="tik-barcode" aria-hidden="true">
+              {TIK_BARS.map((w, i) => (
+                <i key={i} style={{ width: w, marginRight: 3 }} />
               ))}
-              <p style={{ margin: 0 }}>📞 {PHONE_DISPLAY}</p>
-              <p style={{ margin: 0 }}>🕑 Sun–Thu 3pm–2am · Fri–Sat 3pm–3am <span style={{ opacity: 0.7 }}>(Scarborough)</span></p>
-              <div className="flex wrap-gap" style={{ marginTop: 4 }}>
-                <Link href="/contact" className="pill pill--yellow">
-                  Instagram ↗
-                </Link>
-                <Link href="/contact" className="pill" style={{ background: "#25D366", color: "#fff" }}>
-                  WhatsApp ↗
-                </Link>
-              </div>
             </div>
           </div>
         </div>
 
-        <div
-          className="flex center between wrap-gap"
-          style={{
-            marginTop: 44,
-            paddingTop: 22,
-            borderTop: "2px solid rgba(255,244,218,.2)",
-            fontSize: "0.82rem",
-            opacity: 0.7,
-            fontFamily: "var(--mono)",
-          }}
-        >
-          <span>© 2026 Puchkaman · Scarborough, ON & Delta, BC</span>
+        <div className="tik-foot">
+          <span>© 2026 PUCHKAMAN · Scarborough, ON & Delta, BC</span>
           <div className="flex wrap-gap" style={{ gap: 14 }}>
-            <Link href="/faq" className="foot-link">
+            <Link href="/faq" className="foot-link" style={{ minHeight: "auto" }}>
               FAQ
             </Link>
-            <Link href="/privacy" className="foot-link">
+            <Link href="/privacy" className="foot-link" style={{ minHeight: "auto" }}>
               Privacy
             </Link>
-            <Link href="/terms" className="foot-link">
+            <Link href="/terms" className="foot-link" style={{ minHeight: "auto" }}>
               Terms
             </Link>
           </div>

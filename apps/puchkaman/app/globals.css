@@ -944,7 +944,6 @@ header a:active .logo-mark {
   .nav-desk { display: flex !important; }
   .burger { display: none !important; }
   .hero-grid { grid-template-columns: 1.05fr 0.95fr !important; }
-  .footer-grid { grid-template-columns: 1.6fr 1fr 1.2fr !important; }
   .contact-grid { grid-template-columns: 1fr 1.1fr !important; }
 }
 /* Grid items default to min-width: auto, so a replaced element inside (the
@@ -974,6 +973,30 @@ header a:active .logo-mark {
   padding: 2px 0;
 }
 .foot-link:hover { color: var(--yellow); }
+
+/* Footer "boarding pass" ticket — Kolkata to Canada route card. */
+.tik { max-width: 1060px; margin: 0 auto; background: var(--cream); color: var(--ink-deep); border: var(--border); border-radius: 18px; box-shadow: var(--sh-lg); overflow: hidden; }
+.tik-route { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 22px clamp(18px, 4vw, 36px); border-bottom: 3px dashed var(--ink); }
+.tik-sub { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .65; }
+.tik-dots { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 60px; }
+.tik-dots i { flex: 1; border-top: 3px dotted var(--ink); opacity: .5; }
+.tik-dots b { width: 38px; height: 38px; border-radius: 50%; background: var(--green); border: 3px solid var(--ink); display: grid; place-items: center; flex-shrink: 0; font-size: 17px; box-shadow: var(--sh-sm); }
+.tik-body { display: grid; grid-template-columns: 1fr; gap: 0; }
+.tik-col { padding: 26px clamp(18px, 4vw, 36px); }
+.tik-col + .tik-col { border-top: 3px dashed var(--ink); }
+.tik-h { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.tik-h::after { content: ''; flex: 1; border-top: 2px dotted var(--ink); opacity: .4; }
+.tik-line { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 0.86rem; font-weight: 700; padding: 5px 0; color: var(--ink-deep); }
+.tik-line i { flex: 1; border-top: 2px dotted var(--ink); opacity: .35; transform: translateY(-3px); }
+a.tik-line:hover { color: var(--green); }
+.tik-stamp { display: inline-block; font-family: var(--mono); font-weight: 700; font-size: 0.72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--green); border: 3px double var(--green); border-radius: 8px; padding: 8px 12px; transform: rotate(-4deg); margin-top: 16px; }
+.tik-barcode { display: flex; align-items: stretch; gap: 0; height: 40px; margin-top: 16px; }
+.tik-barcode i { background: var(--ink); flex-shrink: 0; }
+.tik-foot { background: var(--ink-bg); color: var(--cream); border-top: var(--border); padding: 14px clamp(18px, 4vw, 36px); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-family: var(--mono); font-size: 0.78rem; font-weight: 700; }
+@media (min-width: 820px) {
+  .tik-body { grid-template-columns: 1.1fr 1fr 1fr; }
+  .tik-col + .tik-col { border-top: none; border-left: 3px dashed var(--ink); }
+}
 
 /* ============================================================
    ADMIN — same brand system, admin-only structural pieces.
