@@ -1003,6 +1003,13 @@ a.tik-line:hover { color: var(--green); }
   .tik-body { grid-template-columns: 1.1fr 1fr 1fr; }
   .tik-col + .tik-col { border-top: none; border-left: 3px dashed var(--ink); }
 }
+@media (max-width: 480px) {
+  .tik-route { padding: 16px 16px; gap: 10px; }
+  .tik-dots { min-width: 32px; }
+  .tik-dots b { width: 32px; height: 32px; font-size: 14px; }
+  .tik-col { padding: 20px 16px; }
+  .tik-stamp { font-size: 0.66rem; padding: 6px 10px; }
+}
 
 /* ============================================================
    ADMIN — same brand system, admin-only structural pieces.

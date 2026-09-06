@@ -311,14 +311,6 @@ export function Footer() {
               <i />
               Sun–Thu 3pm–2am
             </p>
-            <div className="flex wrap-gap" style={{ marginTop: 14 }}>
-              <Link href="/contact" className="pill pill--yellow">
-                Instagram ↗
-              </Link>
-              <Link href="/contact" className="pill" style={{ background: "#25D366", color: "#fff" }}>
-                WhatsApp ↗
-              </Link>
-            </div>
             <div className="tik-barcode" aria-hidden="true">
               {TIK_BARS.map((w, i) => (
                 <i key={i} style={{ width: w, marginRight: 3 }} />
