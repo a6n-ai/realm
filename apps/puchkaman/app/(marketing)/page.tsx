@@ -52,18 +52,26 @@ const BEST_SELLERS: Omit<BestSellerCard, "image">[] = [
   { key: "kathi-rolls", name: "Kathi Rolls", tag: "Wrapped", desc: "Flaky paratha rolled with smoky fillings.", price: "$9" },
 ];
 
-// Real reels from @puchkamancanada, picked by hand, each with its actual cover
-// frame (the reel's public og:image, downloaded once into public/instagram/
-// rather than hotlinked — Instagram has no public API for this and gates
-// thumbnails behind login for logged-out visitors). Every tile links out to
-// the real reel — clicking plays the real video on Instagram.
-const INSTAGRAM_REELS: { url: string; thumbnail?: string }[] = [
-  { url: "https://www.instagram.com/reel/DX7gkx6OSGS/", thumbnail: "/instagram/reel-DX7gkx6OSGS.jpg" },
-  { url: "https://www.instagram.com/reel/DXbuVG8kezT/", thumbnail: "/instagram/reel-DXbuVG8kezT.jpg" },
-  { url: "https://www.instagram.com/reel/DXIU0CHEQBj/", thumbnail: "/instagram/reel-DXIU0CHEQBj.jpg" },
-  { url: "https://www.instagram.com/reel/DV1qr9VE3zA/", thumbnail: "/instagram/reel-DV1qr9VE3zA.jpg" },
-  { url: "https://www.instagram.com/reel/DTikLkokYyX/", thumbnail: "/instagram/reel-DTikLkokYyX.jpg" },
-  { url: "https://www.instagram.com/reel/DYAWaeouRci/", thumbnail: "/instagram/reel-DYAWaeouRci.jpg" },
+// Real posts picked by hand from each storefront's own account, every one with
+// its actual cover frame (the post's public og:image, downloaded once into
+// public/instagram/ rather than hotlinked — Instagram has no public API for
+// this and gates thumbnails behind login for logged-out visitors). Every tile
+// links out to the real post, so clicking plays the real video on Instagram.
+// `city` matches a LOCATIONS entry: the grid leads with the account belonging
+// to whichever storefront the visitor is browsing.
+const INSTAGRAM_REELS: { url: string; thumbnail?: string; city: string }[] = [
+  { url: "https://www.instagram.com/reel/DX7gkx6OSGS/", thumbnail: "/instagram/reel-DX7gkx6OSGS.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/reel/DXbuVG8kezT/", thumbnail: "/instagram/reel-DXbuVG8kezT.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/reel/DXIU0CHEQBj/", thumbnail: "/instagram/reel-DXIU0CHEQBj.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/reel/DV1qr9VE3zA/", thumbnail: "/instagram/reel-DV1qr9VE3zA.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/reel/DTikLkokYyX/", thumbnail: "/instagram/reel-DTikLkokYyX.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/reel/DYAWaeouRci/", thumbnail: "/instagram/reel-DYAWaeouRci.jpg", city: "Scarborough" },
+  { url: "https://www.instagram.com/p/DctZ5mctiij/", thumbnail: "/instagram/post-DctZ5mctiij.jpg", city: "Delta" },
+  { url: "https://www.instagram.com/p/DcM9S1iyEhJ/", thumbnail: "/instagram/post-DcM9S1iyEhJ.jpg", city: "Delta" },
+  { url: "https://www.instagram.com/p/Db7MhStq1Ry/", thumbnail: "/instagram/post-Db7MhStq1Ry.jpg", city: "Delta" },
+  { url: "https://www.instagram.com/p/Da9TYDosSjE/", thumbnail: "/instagram/post-Da9TYDosSjE.jpg", city: "Delta" },
+  { url: "https://www.instagram.com/p/DZzEIsfMnTo/", thumbnail: "/instagram/post-DZzEIsfMnTo.jpg", city: "Delta" },
+  { url: "https://www.instagram.com/p/DZPQXTYgvL1/", thumbnail: "/instagram/post-DZPQXTYgvL1.jpg", city: "Delta" },
 ];
 
 const COMBOS = [
@@ -83,6 +91,10 @@ export default async function HomePage() {
   // Each storefront has its own number, so the "call us" CTA has to follow the
   // active franchise; Scarborough stays the fallback like the labels above.
   const activeStore = LOCATIONS.find((l) => l.city === cityLabel) ?? LOCATIONS[0];
+  // Each storefront runs its own Instagram, so lead with the one the visitor is
+  // actually browsing — both accounts still render, just in that order.
+  const storesByRelevance = [activeStore, ...LOCATIONS.filter((l) => l.city !== activeStore.city)];
+  const reels = storesByRelevance.flatMap((store) => INSTAGRAM_REELS.filter((r) => r.city === store.city));
   const faqs: Faq[] = faqRows.map((f) => ({ q: f.question, a: f.answer }));
 
   // Curated "featured" products first; if none are flagged, fall back to real
@@ -441,21 +453,30 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="flex center between wrap-gap" style={{ marginBottom: 28 }}>
             <div>
-              <span className="tape kicker">@puchkamancanada</span>
+              <span className="tape kicker">{storesByRelevance.map((s) => s.instagramHandle).join("  ·  ")}</span>
               <h2 className="display" style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", marginTop: 12 }}>Straight From The &apos;Gram</h2>
             </div>
-            <Btn href="https://www.instagram.com/puchkamancanada/" variant="green" size="lg">Follow Us ↗</Btn>
+            {/* One button per storefront: the two shops post to separate
+                accounts, so a single "Follow Us" would strand half the audience. */}
+            <div className="flex wrap-gap" style={{ gap: 10 }}>
+              {storesByRelevance.map((store) => (
+                <Btn key={store.city} href={store.instagramUrl} variant="green" size="lg">
+                  {store.city} ↗
+                </Btn>
+              ))}
+            </div>
           </div>
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
-            {INSTAGRAM_REELS.map((reel, i) => {
+            {reels.map((reel, i) => {
               const thumbnail = reel.thumbnail ?? galleryUrls[i];
+              const store = LOCATIONS.find((l) => l.city === reel.city) ?? activeStore;
               return (
                 <a
                   key={reel.url}
                   href={reel.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Watch reel on Instagram (opens in a new tab)"
+                  aria-label={`Watch ${store.instagramHandle} reel on Instagram (opens in a new tab)`}
                   style={{ position: "relative", display: "block" }}
                 >
                   {thumbnail ? (
@@ -484,6 +505,24 @@ export default async function HomePage() {
                     <Ph label="Reel" ratio="4 / 5" className="card--lift" />
                   )}
                   <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>▶</span>
+                  {/* The grid mixes both accounts, so each tile says whose it is. */}
+                  <span
+                    className="mono"
+                    style={{
+                      position: "absolute",
+                      bottom: 8,
+                      left: 8,
+                      fontSize: "0.62rem",
+                      fontWeight: 800,
+                      letterSpacing: "0.04em",
+                      padding: "3px 7px",
+                      borderRadius: 999,
+                      background: "var(--ink)",
+                      color: "var(--yellow)",
+                    }}
+                  >
+                    {reel.city.toUpperCase()}
+                  </span>
                 </a>
               );
             })}
