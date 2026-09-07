@@ -5,9 +5,9 @@ import { Reveal } from "@/components/brutal/reveal";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "About Puchkaman — Kolkata Street Food in Scarborough | Our Story",
+  title: "About Puchkaman — Kolkata Street Food in Scarborough & Delta | Our Story",
   description:
-    "From Kolkata's streets to Danforth Ave. Puchkaman brought fusion puchkas to Toronto — bold flavours, fresh-made shells, and a Scarborough community hub.",
+    "From Kolkata's streets to Danforth Ave and 120 St. Puchkaman brought fusion puchkas to Toronto and Metro Vancouver — bold flavours, fresh-made shells, and community hubs in Scarborough and Delta.",
   path: "/about",
 });
 
@@ -35,7 +35,7 @@ export default function AboutPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <PageBanner
         kicker="Our Story"
-        title="From Kolkata Streets To Scarborough"
+        title="From Kolkata Streets To Canada"
         sub="We didn't want another Indian restaurant. We wanted the street, the crunch, and the chaos — done right."
         bg="var(--green)"
         crumb="About"
@@ -140,7 +140,7 @@ export default function AboutPage() {
         <div className="wrap tac">
           <h2 className="display" style={{ fontSize: "clamp(2rem,6vw,3.6rem)" }}>Come Taste The Story</h2>
           <p style={{ fontSize: "1.12rem", fontWeight: 600, margin: "14px auto 26px", maxWidth: 440 }}>
-            Pull up to Danforth Ave or order in — either way, the streets are calling.
+            Pull up to Danforth Ave in Scarborough or 120 St in Delta — or order in. Either way, the streets are calling.
           </p>
           <div className="flex wrap-gap" style={{ justifyContent: "center" }}>
             <Btn page="order" variant="green" size="lg">Order Now</Btn>
