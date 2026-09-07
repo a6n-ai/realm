@@ -30,19 +30,31 @@ export async function saveFaqAction(values: FaqFormValues): Promise<{ error?: st
   try {
     // New rows are scoped by which org is acting: a brand admin (scopeMode
     // "all") writes the shared default (organizationId null); a franchise
-    // admin writes their own override row. Edits of an existing row keep
-    // whatever scope it already has — only saveFaq's create path stamps this.
-    const scopeMode = v.publicId ? null : await resolveOrgScopeMode();
-    const values2 = v.publicId
-      ? { question: v.question, answer: v.answer, active: v.active }
-      : {
-          question: v.question,
-          answer: v.answer,
-          active: v.active,
-          organizationId: scopeMode?.mode === "org" ? scopeMode.orgId : null,
-          sortOrder: (await listAllFaqs()).length,
-        };
-    const faq = await saveFaq(v.publicId, values2);
+    // admin writes their own override row.
+    const scopeMode = await resolveOrgScopeMode();
+    const all = await listAllFaqs();
+    const existing = v.publicId ? all.find((f) => f.publicId === v.publicId) : null;
+
+    // A franchise admin editing a row it doesn't own (the brand's shared
+    // default, or another franchise's — both only show up here as fallback
+    // rows a franchise sees but never owns) must NOT mutate it in place: that
+    // row is what every other franchise without an override still reads.
+    // Fork it into a new row scoped to this org instead.
+    const editingUnowned =
+      existing && scopeMode.mode === "org" && existing.organizationId !== scopeMode.orgId;
+    const publicIdToUpdate = editingUnowned ? null : v.publicId;
+
+    const values2 =
+      publicIdToUpdate
+        ? { question: v.question, answer: v.answer, active: v.active }
+        : {
+            question: v.question,
+            answer: v.answer,
+            active: v.active,
+            organizationId: scopeMode.mode === "org" ? scopeMode.orgId : null,
+            sortOrder: existing?.sortOrder ?? all.length,
+          };
+    const faq = await saveFaq(publicIdToUpdate, values2);
     revalidate();
     return { publicId: faq.publicId };
   } catch (err) {

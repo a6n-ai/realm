@@ -9,7 +9,7 @@ import { FaqEditDialog } from "./faq-edit-dialog";
 import { FaqTable } from "./faq-table";
 
 /** Blank row that puts the dialog into create mode. */
-const NEW_FAQ: Faq = { publicId: "", question: "", answer: "", sortOrder: 0, active: true };
+const NEW_FAQ: Faq = { publicId: "", question: "", answer: "", sortOrder: 0, active: true, organizationId: null };
 
 export function FaqEditor({ faqs }: { faqs: Faq[] }) {
   const router = useRouter();

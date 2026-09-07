@@ -6,12 +6,33 @@ import { resolveActingOrgId } from "@/lib/services/integrations.service";
 import { orgScopeWhereForAdmin } from "@/lib/services/org-scope";
 import { SessionUpdatableService } from "@/lib/services/session-service";
 
-export type Faq = { publicId: string; question: string; answer: string; sortOrder: number; active: boolean };
+export type Faq = {
+  publicId: string;
+  question: string;
+  answer: string;
+  sortOrder: number;
+  active: boolean;
+  organizationId: string | null;
+};
 
-type FaqRow = { publicId?: string; question: string; answer: string; sortOrder: number; active: boolean };
+type FaqRow = {
+  publicId?: string;
+  question: string;
+  answer: string;
+  sortOrder: number;
+  active: boolean;
+  organizationId: string | null;
+};
 
 function rowToFaq(row: FaqRow): Faq {
-  return { publicId: row.publicId ?? "", question: row.question, answer: row.answer, sortOrder: row.sortOrder, active: row.active };
+  return {
+    publicId: row.publicId ?? "",
+    question: row.question,
+    answer: row.answer,
+    sortOrder: row.sortOrder,
+    active: row.active,
+    organizationId: row.organizationId,
+  };
 }
 
 class FaqService extends SessionUpdatableService<typeof publicFaqs> {}
