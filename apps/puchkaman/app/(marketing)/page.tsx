@@ -180,9 +180,9 @@ export default async function HomePage() {
                 style={{ position: "absolute", inset: 0, transform: "translate(16px, 18px) rotate(3deg)", background: "var(--ink-bg)", border: "var(--border)", borderRadius: "var(--r)" }}
               />
               <HeroVideo
-                src="/hero/chocolate-puchka.mp4"
-                poster="/hero/chocolate-puchka-poster.jpg"
-                ariaLabel="Chocolate puchkas — Puchkaman"
+                src="/hero/loaded-puchka.mp4"
+                poster="/hero/loaded-puchka-poster.jpg"
+                ariaLabel="Loaded puchka, fresh from the fryer — Puchkaman"
                 className="rotate-r"
                 style={{
                   position: "relative",
