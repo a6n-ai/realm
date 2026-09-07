@@ -16,7 +16,7 @@ import { buildMetadata } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
-import { FUSION_FALLBACK_IMAGE, LOCATIONS } from "@/lib/links";
+import { FUSION_FALLBACK_IMAGE, storeForFranchise } from "@/lib/links";
 
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
@@ -88,9 +88,12 @@ export default async function HomePage() {
   ]);
   const cityLabel = location?.city ?? "Scarborough";
   const addressLabel = location?.address ?? "3315 Danforth Ave, Scarborough";
-  // Each storefront has its own number, so the "call us" CTA has to follow the
-  // active franchise; Scarborough stays the fallback like the labels above.
-  const activeStore = LOCATIONS.find((l) => l.city === cityLabel) ?? LOCATIONS[0];
+  // Each storefront has its own number, hours and Instagram, so the CTAs and the
+  // feed follow the active franchise. Resolved by clientCode, not by city: the
+  // org row labels the Ontario shop "Toronto" while LOCATIONS calls it
+  // "Scarborough", so a city match misses and silently falls back to the first
+  // entry — right today only because Scarborough happens to be first.
+  const activeStore = storeForFranchise(location);
   // Each storefront runs its own Instagram, and the feed shows only the active
   // one's posts — a Delta visitor has no use for Scarborough's reels. The
   // fallback keeps the section from rendering empty if a franchise's city ever

@@ -32,6 +32,13 @@ export type OpeningHours = {
 };
 
 export type StoreLocation = {
+  /**
+   * The organization row's clientCode — the stable key for matching a
+   * franchise to its storefront data. `city` is a display label that differs
+   * between the two ("Toronto" on the org row vs "Scarborough" here), so
+   * matching on it silently misses and falls back to the first entry.
+   */
+  clientCode: string;
   city: string;
   province: string;
   /** Wider region a visitor is more likely to search for, if the city alone is obscure. */
@@ -82,6 +89,22 @@ export const CATERING_REGIONS: CateringRegion[] = [
   { label: "Metro Vancouver & the Lower Mainland", city: "Delta", tag: "Vancouver" },
 ];
 
+/**
+ * The storefront serving a franchise. Keyed on clientCode first because the
+ * org row's `city` is a display label that need not equal ours ("Toronto" vs
+ * "Scarborough"); the city match is a secondary path for callers that only
+ * have a label, and the first entry is the last resort.
+ */
+export function storeForFranchise(
+  location: { clientCode?: string | null; city?: string | null } | null,
+): StoreLocation {
+  return (
+    LOCATIONS.find((l) => !!location?.clientCode && l.clientCode === location.clientCode) ??
+    LOCATIONS.find((l) => !!location?.city && l.city === location.city) ??
+    LOCATIONS[0]
+  );
+}
+
 export const CATERING_REGION_LABELS = CATERING_REGIONS.map((r) => r.label);
 
 export function cateringRegionTag(label: string): string {
@@ -104,6 +127,7 @@ export function formatHours(h: OpeningHours): string {
 
 export const LOCATIONS: StoreLocation[] = [
   {
+    clientCode: "PK-TOR",
     city: "Scarborough",
     province: "ON",
     addressLines: ["3315 Danforth Ave", "Scarborough, ON"],
@@ -121,6 +145,7 @@ export const LOCATIONS: StoreLocation[] = [
     instagramHandle: "@puchkamancanada",
   },
   {
+    clientCode: "PK-VAN",
     city: "Delta",
     province: "BC",
     // The storefront sits on 120 St / Scott Road, right on the Delta-Surrey
