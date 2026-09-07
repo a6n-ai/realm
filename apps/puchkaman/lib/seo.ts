@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
-import { ADDRESS, LOCATIONS, PHONE_TEL } from "@/lib/links";
+import { ADDRESS, LOCATIONS } from "@/lib/links";
 
 export const SITE_NAME = "Puchkaman";
 export const SITE_URL = "https://puchkaman.ca";
+/** Brand-level handle. Each storefront also runs its own account — see
+ *  `instagramUrl` on the LOCATIONS entries, which is what per-location UI
+ *  and each Restaurant node's `sameAs` should use. */
 export const INSTAGRAM_URL = "https://www.instagram.com/puchkamancanada";
 
 // Reuses the storefront photo already on the site — no purpose-built 1200x630
 // OG image exists yet, and a real photo beats a placeholder.
 export const DEFAULT_OG_IMAGE = "/about/storefront.jpg";
-
-// Matches the hours shown on /contact and the footer — keep in sync if either changes.
-export const OPENING_HOURS = [
-  { days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"], opens: "15:00", closes: "02:00" },
-  { days: ["Friday", "Saturday"], opens: "15:00", closes: "03:00" },
-];
 
 /** Per-page metadata builder — fills canonical/OG/Twitter consistently from a title+description. */
 export function buildMetadata({
@@ -61,13 +58,12 @@ export function buildMetadata({
  * multi-location business as multiple LocalBusiness/Restaurant nodes sharing
  * a brand name, not one node with two addresses.
  *
- * Only Scarborough has known phone/hours (it's the operating location — see
- * the comment on ADDRESS in lib/links.ts); Delta's entry omits those fields
- * rather than guessing them. Both entries share `sameAs`/branding.
+ * Every field is read off the LOCATIONS entry, so each storefront publishes
+ * its own phone, hours and Instagram — the two stores share neither a
+ * schedule nor a social account.
  */
 export function localBusinessJsonLd() {
   return LOCATIONS.map((loc) => {
-    const isScarborough = loc.city === "Scarborough";
     return {
       "@context": "https://schema.org",
       "@type": "Restaurant",
@@ -76,7 +72,7 @@ export function localBusinessJsonLd() {
       url: SITE_URL,
       image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
       logo: `${SITE_URL}/logo.webp`,
-      ...(isScarborough ? { telephone: PHONE_TEL } : {}),
+      telephone: loc.phoneTel,
       servesCuisine: ["Indian Street Food", "Fusion", "Chaat"],
       priceRange: "$$",
       address: {
@@ -91,17 +87,13 @@ export function localBusinessJsonLd() {
         latitude: loc.lat,
         longitude: loc.lng,
       },
-      ...(isScarborough
-        ? {
-            openingHoursSpecification: OPENING_HOURS.map((h) => ({
-              "@type": "OpeningHoursSpecification",
-              dayOfWeek: h.days,
-              opens: h.opens,
-              closes: h.closes,
-            })),
-          }
-        : {}),
-      sameAs: [INSTAGRAM_URL],
+      openingHoursSpecification: loc.hours.map((h) => ({
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: h.days,
+        opens: h.opens,
+        closes: h.closes,
+      })),
+      sameAs: [loc.instagramUrl],
     };
   });
 }

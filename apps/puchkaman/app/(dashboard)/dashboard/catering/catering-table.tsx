@@ -16,6 +16,7 @@ const COLUMNS: readonly Column<CateringSortColumn>[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "contact", label: "Contact" },
   { key: "eventDate", label: "Event date", sortable: true },
+  { key: "region", label: "Service area" },
   { key: "location", label: "Location" },
   { key: "guests", label: "Guests", sortable: true, align: "right" },
   { key: "type", label: "Type" },
@@ -65,6 +66,8 @@ export function CateringTable({
                 <div className="text-muted-foreground text-xs">{r.email}</div>
               </TableCell>
               <TableCell className="whitespace-nowrap">{r.eventDate}</TableCell>
+              {/* Null for rows submitted before catering went two-region. */}
+              <TableCell>{r.region ?? "—"}</TableCell>
               <TableCell>{r.location}</TableCell>
               <TableCell className="text-right tabular-nums">{r.guests}</TableCell>
               <TableCell>{r.eventType}</TableCell>

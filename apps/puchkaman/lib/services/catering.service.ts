@@ -13,6 +13,7 @@ export async function createCateringInquiry(input: CateringInquiry): Promise<voi
     phone: input.phone,
     email: input.email,
     eventDate: input.date,
+    region: input.region,
     location: input.location,
     guests: input.guests,
     eventType: input.type,
@@ -27,6 +28,7 @@ export type CateringInquiryRow = {
   phone: string;
   email: string;
   eventDate: string;
+  region: string | null;
   location: string;
   guests: string;
   eventType: string;
@@ -43,6 +45,7 @@ export type CateringSortColumn =
   // Non-sortable column keys — never reach parseSort's allowed list, kept
   // only so DataTable's Column<K> type-checks against this union.
   | "contact"
+  | "region"
   | "location"
   | "type"
   | "notes";
@@ -59,6 +62,7 @@ export async function listCateringInquiriesPage(
       phone: cateringInquiries.phone,
       email: cateringInquiries.email,
       eventDate: cateringInquiries.eventDate,
+      region: cateringInquiries.region,
       location: cateringInquiries.location,
       eventType: cateringInquiries.eventType,
       createdAt: cateringInquiries.createdAt,

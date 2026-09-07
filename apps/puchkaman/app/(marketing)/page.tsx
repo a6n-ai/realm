@@ -16,6 +16,7 @@ import { buildMetadata } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
+import { LOCATIONS } from "@/lib/links";
 
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
@@ -68,7 +69,7 @@ const INSTAGRAM_REELS: { url: string; thumbnail?: string }[] = [
 const COMBOS = [
   { e: "🥤", t: "Summer Drinks", d: "Masala soda, rose lassi, cold coffee & more to beat the GTA heat.", cta: "Sip the menu", pg: "menu", bg: "var(--white)" },
   { e: "🍱", t: "Combos & Deals", d: "Mix puchkas + a roll + a drink and save. Built for sharing.", cta: "See combos", pg: "menu", bg: "var(--cream)" },
-  { e: "🎉", t: "Live Catering", d: "Live puchka & chaat stations for any event across the GTA.", cta: "Get a quote", pg: "catering", bg: "var(--white)" },
+  { e: "🎉", t: "Live Catering", d: "Live puchka & chaat stations for any event — Toronto & Vancouver.", cta: "Get a quote", pg: "catering", bg: "var(--white)" },
 ];
 
 export default async function HomePage() {
@@ -79,6 +80,9 @@ export default async function HomePage() {
   ]);
   const cityLabel = location?.city ?? "Scarborough";
   const addressLabel = location?.address ?? "3315 Danforth Ave, Scarborough";
+  // Each storefront has its own number, so the "call us" CTA has to follow the
+  // active franchise; Scarborough stays the fallback like the labels above.
+  const activeStore = LOCATIONS.find((l) => l.city === cityLabel) ?? LOCATIONS[0];
   const faqs: Faq[] = faqRows.map((f) => ({ q: f.question, a: f.answer }));
 
   // Curated "featured" products first; if none are flagged, fall back to real
@@ -413,7 +417,7 @@ export default async function HomePage() {
                 </p>
                 <div className="flex wrap-gap">
                   <Btn page="contact" variant="green">Contact us →</Btn>
-                  <Btn href="tel:+14167383833" variant="white">(416) 738-3833</Btn>
+                  <Btn href={`tel:${activeStore.phoneTel}`} variant="white">{activeStore.phoneDisplay}</Btn>
                 </div>
               </div>
             </div>

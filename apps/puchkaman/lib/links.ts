@@ -6,10 +6,11 @@ export const DOORDASH_URL =
   "https://www.doordash.com/store/puchkaman-canada-street-food-cafe-scarborough-38408175/";
 
 // Storefront address + phone (verified via the Google business listing).
-// This is the operating Scarborough location — delivery zones, checkout's
-// origin pin, and the contact page all key off it. Keep it as the lone
-// exported ADDRESS/PHONE for that reason; the Delta location below is
-// display-only (LOCATIONS) until it has its own delivery/ordering setup.
+// This is the Scarborough location — delivery zones, checkout's origin pin,
+// and the contact page's ordering CTAs all key off it. Keep it as the lone
+// exported ADDRESS/PHONE for that reason: Delta is a published storefront
+// with its own phone/hours (see LOCATIONS) but has no delivery/ordering
+// setup of its own yet, so anything order-shaped still resolves to here.
 export const ADDRESS = "3315 Danforth Ave, Scarborough, ON";
 export const PHONE_DISPLAY = "(416) 738-3833";
 export const PHONE_TEL = "+14167383833";
@@ -20,15 +21,78 @@ export const MAP_DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destin
 // homepage display (see components/brutal/locations-section.tsx). Coordinates
 // geocoded from each full address; Scarborough's mirrors the values already
 // baked into lib/delivery/distance.ts's DEFAULT_STORE_LAT/LNG.
+export type OpeningHours = {
+  /** schema.org day names, so this feeds JSON-LD without a second mapping. */
+  days: string[];
+  /** Human label for the same span, e.g. "Sun – Thu". */
+  label: string;
+  /** 24h "HH:MM"; `closes` may be past midnight (e.g. "04:00" = 4am next day). */
+  opens: string;
+  closes: string;
+};
+
 export type StoreLocation = {
   city: string;
   province: string;
+  /** Wider region a visitor is more likely to search for, if the city alone is obscure. */
+  region?: string;
   addressLines: [street: string, cityLine: string];
   fullAddress: string;
   lat: number;
   lng: number;
   directionsUrl: string;
+  phoneDisplay: string;
+  phoneTel: string;
+  hours: OpeningHours[];
+  /** Each storefront runs its own account; there is no single brand handle. */
+  instagramUrl: string;
+  instagramHandle: string;
 };
+
+const DELTA_ADDRESS = "9253 120 St, Delta, BC V4C 6R8";
+
+/**
+ * Catering service areas — one per storefront that runs catering.
+ *
+ * The public catering form requires one of these. Both regions currently
+ * notify the same inbox and the same WhatsApp number, so the region is what
+ * makes an enquiry triageable: without it a Vancouver job and a Toronto job
+ * arrive indistinguishable. `city` ties the region back to the LOCATIONS
+ * entry that serves it.
+ */
+export type CateringRegion = {
+  /** Stored on the inquiry row and shown in admin — human-readable on purpose,
+   *  matching the other free-text columns on catering_inquiries. */
+  label: string;
+  city: string;
+  /** Short form for the notification subject line, e.g. "[Toronto]". */
+  tag: string;
+};
+
+export const CATERING_REGIONS: CateringRegion[] = [
+  { label: "Toronto & the GTA", city: "Scarborough", tag: "Toronto" },
+  { label: "Metro Vancouver & the Lower Mainland", city: "Delta", tag: "Vancouver" },
+];
+
+export const CATERING_REGION_LABELS = CATERING_REGIONS.map((r) => r.label);
+
+export function cateringRegionTag(label: string): string {
+  return CATERING_REGIONS.find((r) => r.label === label)?.tag ?? "Unspecified";
+}
+
+/** "15:00" -> "3pm", "12:00" -> "12pm", "02:30" -> "2:30am". Minutes are
+ *  dropped when :00 so the common case reads as street signage, not a table. */
+function formatTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const suffix = h < 12 || h === 24 ? "am" : "pm";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
+}
+
+/** Display form of one opening span, e.g. "3pm – 2am". */
+export function formatHours(h: OpeningHours): string {
+  return `${formatTime(h.opens)} – ${formatTime(h.closes)}`;
+}
 
 export const LOCATIONS: StoreLocation[] = [
   {
@@ -39,14 +103,35 @@ export const LOCATIONS: StoreLocation[] = [
     lat: 43.69234,
     lng: -79.28251,
     directionsUrl: MAP_DIRECTIONS_URL,
+    phoneDisplay: PHONE_DISPLAY,
+    phoneTel: PHONE_TEL,
+    hours: [
+      { days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"], label: "Sun – Thu", opens: "15:00", closes: "02:00" },
+      { days: ["Friday", "Saturday"], label: "Fri – Sat", opens: "15:00", closes: "03:00" },
+    ],
+    instagramUrl: "https://www.instagram.com/puchkamancanada",
+    instagramHandle: "@puchkamancanada",
   },
   {
     city: "Delta",
     province: "BC",
+    // The storefront sits on 120 St / Scott Road, right on the Delta-Surrey
+    // line — which is why its own Instagram handle reads "surrey".
+    region: "Metro Vancouver",
     addressLines: ["9253 120 St", "Delta, BC V4C 6R8"],
-    fullAddress: "9253 120 St, Delta, BC V4C 6R8",
+    fullAddress: DELTA_ADDRESS,
     lat: 49.1545,
     lng: -122.8904,
-    directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent("9253 120 St, Delta, BC V4C 6R8")}`,
+    directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(DELTA_ADDRESS)}`,
+    phoneDisplay: "(778) 794-0222",
+    phoneTel: "+17787940222",
+    // Opens earlier and runs later than Scarborough — this location trades on
+    // late-night, so the two stores genuinely do not share a schedule.
+    hours: [
+      { days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"], label: "Sun – Thu", opens: "12:00", closes: "02:00" },
+      { days: ["Friday", "Saturday"], label: "Fri – Sat", opens: "12:00", closes: "04:00" },
+    ],
+    instagramUrl: "https://www.instagram.com/surreypuchkaman/",
+    instagramHandle: "@surreypuchkaman",
   },
 ];

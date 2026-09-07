@@ -13,6 +13,8 @@ export const cateringInquiries = pgTable(
     email: text("email").notNull(),
     eventDate: text("event_date").notNull(),
     location: text("location").notNull(),
+    // Nullable: rows predating the two-region rollout have no region to record.
+    region: text("region"),
     guests: text("guests").notNull(),
     eventType: text("event_type").notNull(),
     allergies: text("allergies"),

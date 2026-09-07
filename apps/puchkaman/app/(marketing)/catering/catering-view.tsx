@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Btn, Ph, PageBanner, SectionHead } from "@/components/brutal/shared";
 import { focusFirstError } from "@/lib/a11y/focus-first-error";
 import { Reveal } from "@/components/brutal/reveal";
+import { CATERING_REGION_LABELS } from "@/lib/links";
 
 const EVENT_TYPES = ["Birthday Party", "Office Event", "Wedding", "Private Party", "Community Event", "Other"];
 
@@ -17,22 +18,26 @@ const STATIONS: [string, string, string, string?][] = [
 const OCCASIONS = ["Birthday Parties", "Office Events", "Weddings", "Private Parties", "Community Events"];
 const OCCASION_EMOJI = ["🎂", "💼", "💍", "🎊", "🤝"];
 
-type CForm = { name: string; phone: string; email: string; date: string; location: string; guests: string; type: string; allergies: string; message: string };
-const EMPTY: CForm = { name: "", phone: "", email: "", date: "", location: "", guests: "", type: "", allergies: "", message: "" };
-const REQUIRED: (keyof CForm)[] = ["name", "phone", "email", "date", "location", "guests", "type"];
+type CForm = { name: string; phone: string; email: string; date: string; region: string; location: string; guests: string; type: string; allergies: string; message: string };
+const EMPTY: CForm = { name: "", phone: "", email: "", date: "", region: "", location: "", guests: "", type: "", allergies: "", message: "" };
+const REQUIRED: (keyof CForm)[] = ["name", "phone", "email", "date", "region", "location", "guests", "type"];
 
 // The business's WhatsApp number — there's no WhatsApp Business API account
 // wired up (that needs Meta/Twilio credentials), so this sends the request
 // straight from the customer's own WhatsApp app instead of via any backend.
+// One number covers both regions, which is exactly why the message leads with
+// the service area: a Vancouver enquiry lands in the same Toronto thread as a
+// local one, and the region is the only thing that distinguishes them.
 const CATERING_WHATSAPP_NUMBER = "16472449813";
 
 function whatsAppUrlFor(form: CForm): string {
   const lines = [
-    "New catering quote request",
+    `New catering quote request — ${form.region}`,
     `Name: ${form.name}`,
     `Phone: ${form.phone}`,
     `Email: ${form.email}`,
     `Event date: ${form.date}`,
+    `Service area: ${form.region}`,
     `Location: ${form.location}`,
     `Guests: ${form.guests}`,
     `Type: ${form.type}`,
@@ -122,6 +127,7 @@ function CateringForm() {
     if (!/^[+]?[\d\s().-]{7,}$/.test(form.phone)) er.phone = "Enter a valid phone";
     if (!/^\S+@\S+\.\S+$/.test(form.email)) er.email = "Enter a valid email";
     if (!form.date) er.date = "Pick a date";
+    if (!form.region) er.region = "Choose a service area";
     if (!form.location.trim()) er.location = "Required";
     if (!form.guests || +form.guests < 1) er.guests = "How many guests?";
     if (!form.type) er.type = "Choose one";
@@ -184,13 +190,14 @@ function CateringForm() {
   return (
     <form ref={formRef} onSubmit={submit} className="card" style={{ background: "var(--white)", padding: "clamp(22px,4vw,36px)" }} noValidate>
       <h3 className="display" style={{ fontSize: "1.7rem", marginBottom: 6 }}>Request a Catering Quote</h3>
-      <p style={{ fontWeight: 500, opacity: 0.75, marginBottom: 24, fontSize: "0.95rem" }}>Tell us about your event — we reply within 24 hours.</p>
+      <p style={{ fontWeight: 500, opacity: 0.75, marginBottom: 24, fontSize: "0.95rem" }}>Tell us about your event — pick your service area so it reaches the right kitchen. We reply within 24 hours.</p>
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 18 }}>
         <Field id={`${formId}-name`} k="name" label="Full Name" placeholder="Your name" value={form.name} onChange={set("name")} error={errors.name} />
         <Field id={`${formId}-phone`} k="phone" label="Phone" type="tel" placeholder="(416) 000-0000" value={form.phone} onChange={set("phone")} error={errors.phone} />
         <Field id={`${formId}-email`} k="email" label="Email" type="email" placeholder="you@email.com" value={form.email} onChange={set("email")} error={errors.email} />
         <Field id={`${formId}-date`} k="date" label="Event Date" type="date" value={form.date} onChange={set("date")} error={errors.date} />
-        <Field id={`${formId}-location`} k="location" label="Event Location" placeholder="Venue / address in the GTA" value={form.location} onChange={set("location")} error={errors.location} />
+        <Field id={`${formId}-region`} k="region" label="Service Area" options={CATERING_REGION_LABELS} value={form.region} onChange={set("region")} error={errors.region} />
+        <Field id={`${formId}-location`} k="location" label="Event Location" placeholder="Venue / address" value={form.location} onChange={set("location")} error={errors.location} />
         <Field id={`${formId}-guests`} k="guests" label="Number of Guests" type="number" placeholder="e.g. 50" value={form.guests} onChange={set("guests")} error={errors.guests} />
         <Field id={`${formId}-type`} k="type" label="Type of Event" options={EVENT_TYPES} value={form.type} onChange={set("type")} error={errors.type} />
         <Field id={`${formId}-allergies`} k="allergies" label="Food Allergies" placeholder="Any allergies or dietary restrictions? (e.g. nuts, dairy)" value={form.allergies} onChange={set("allergies")} error={errors.allergies} />
@@ -207,9 +214,9 @@ export function CateringView() {
   return (
     <div>
       <PageBanner
-        kicker="Catering · GTA-Wide"
-        title="Live Puchka & Chaat Catering in the GTA"
-        sub="Bring the street-food show to your event. Live stations, bold flavours, unforgettable energy."
+        kicker="Catering · Toronto & Vancouver"
+        title="Live Puchka & Chaat Catering, Coast To Coast"
+        sub="Bring the street-food show to your event — from our Scarborough and Delta kitchens. Live stations, bold flavours, unforgettable energy."
         bg="var(--green)"
         crumb="Catering"
       />
@@ -217,7 +224,7 @@ export function CateringView() {
       {/* occasions */}
       <section className="section-pad" style={{ background: "var(--page-bg)", borderBottom: "var(--border)" }}>
         <div className="wrap">
-          <SectionHead kicker="Any Occasion" title="We Cater It All" sub="From 20-guest birthdays to 500-guest weddings — across Scarborough, Toronto & the GTA." />
+          <SectionHead kicker="Any Occasion" title="We Cater It All" sub="From 20-guest birthdays to 500-guest weddings — across Toronto & the GTA, and Metro Vancouver & the Lower Mainland." />
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 14 }}>
             {OCCASIONS.map((o, i) => (
               <Reveal key={o} delay={i * 40}>

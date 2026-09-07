@@ -20,7 +20,7 @@ const TIMELINE: [string, string][] = [
   ["Kolkata", "It starts on the streets of Kolkata — the puchka stall, the spiced water, the one-bite ritual that brings a city together."],
   ["The move", "That flavour travelled to Canada with us. We missed the real thing — so we decided to build it in Scarborough."],
   ["The first fusion", "We asked: what if the puchka met the world? Chicken corn cheese. Schezwan paneer. Toronto's first fusion puchka was born."],
-  ["Today", "A neighbourhood spot on Danforth Ave fuelling Scarborough's street-food cravings, watch parties and catering across the GTA."],
+  ["Today", "Two neighbourhood spots — Danforth Ave in Scarborough and 120 St in Delta — fuelling street-food cravings, watch parties and catering across the GTA and Metro Vancouver."],
 ];
 
 const VALUES: [string, string, string][] = [

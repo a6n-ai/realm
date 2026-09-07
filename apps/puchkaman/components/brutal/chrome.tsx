@@ -9,7 +9,7 @@ import { NavCartButton } from "@/components/cart/nav-cart-button";
 import { useCart } from "@/components/cart/cart-provider";
 import { IconBike, IconUser } from "./icons";
 import { Btn } from "./shared";
-import { LOCATIONS, PHONE_DISPLAY } from "@/lib/links";
+import { LOCATIONS, formatHours } from "@/lib/links";
 
 /* [route-name, long label, short label] */
 export const NAV_LINKS: [string, string, string][] = [
@@ -291,26 +291,39 @@ export function Footer() {
 
           <div className="tik-col">
             <h4 className="tik-h">Find Us</h4>
+            {/* Phone and hours sit inside each location block: the two stores
+                keep different schedules and their own numbers, so a single
+                shared line under the list would be wrong for one of them. */}
             {LOCATIONS.map((loc) => (
               <div key={loc.city} className="tik-loc">
-                <p className="tik-loc-city">{loc.city}</p>
+                <p className="tik-loc-city">
+                  {loc.city}
+                  {loc.region ? ` (${loc.region})` : ""}
+                </p>
                 <p className="tik-loc-addr">
                   {loc.addressLines[0]}
                   <br />
                   {loc.addressLines[1]}
                 </p>
+                <a className="tik-line" href={`tel:${loc.phoneTel}`}>
+                  Phone
+                  <i />
+                  {loc.phoneDisplay}
+                </a>
+                {loc.hours.map((h) => (
+                  <p key={h.label} className="tik-line">
+                    {h.label}
+                    <i />
+                    {formatHours(h)}
+                  </p>
+                ))}
+                <a className="tik-line" href={loc.instagramUrl} target="_blank" rel="noopener noreferrer">
+                  Instagram
+                  <i />
+                  {loc.instagramHandle} ↗
+                </a>
               </div>
             ))}
-            <p className="tik-line" style={{ marginTop: 8 }}>
-              Phone
-              <i />
-              {PHONE_DISPLAY}
-            </p>
-            <p className="tik-line">
-              Hours
-              <i />
-              Sun–Thu 3pm–2am
-            </p>
             <div className="tik-barcode" aria-hidden="true">
               {TIK_BARS.map((w, i) => (
                 <i key={i} style={{ width: w, marginRight: 3 }} />

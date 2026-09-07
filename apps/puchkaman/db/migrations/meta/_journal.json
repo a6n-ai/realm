@@ -253,6 +253,13 @@
       "when": 1788504805731,
       "tag": "0035_add_public_faqs",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788767085654,
+      "tag": "0036_add_catering_region",
+      "breakpoints": true
     }
   ]
 }

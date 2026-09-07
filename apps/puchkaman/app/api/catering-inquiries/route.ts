@@ -3,8 +3,15 @@ import { createLogger } from "@foundry/commons/logger";
 import { getEmailProvider } from "@/lib/email/provider";
 import { cateringInquirySchema } from "@/lib/catering/schema";
 import { createCateringInquiry } from "@/lib/services/catering.service";
+import { cateringRegionTag } from "@/lib/links";
 
 const log = createLogger("catering-inquiries");
+// Both regions notify one shared inbox today. That is why every enquiry
+// carries a region and why the subject line leads with it: a Vancouver job and
+// a Toronto job are otherwise indistinguishable in the inbox, and neither
+// filters nor forwarding rules have anything to key on. If the Vancouver team
+// ever gets its own address, make this a per-region lookup — the region is
+// already on the inquiry, so nothing else has to change.
 const NOTIFY_TO = "puchkamancanada@gmail.com";
 
 function escapeHtml(s: string): string {
@@ -28,6 +35,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     ["Phone", inquiry.phone],
     ["Email", inquiry.email],
     ["Event date", inquiry.date],
+    ["Service area", inquiry.region],
     ["Location", inquiry.location],
     ["Guests", inquiry.guests],
     ["Type", inquiry.type],
@@ -39,7 +47,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     await getEmailProvider().send({
       to: { email: NOTIFY_TO },
       replyTo: { email: inquiry.email, name: inquiry.name },
-      subject: `New catering quote request — ${inquiry.name} (${inquiry.guests} guests, ${inquiry.type})`,
+      subject: `[${cateringRegionTag(inquiry.region)}] Catering quote — ${inquiry.name} (${inquiry.guests} guests, ${inquiry.type})`,
       html: `<h2>New catering quote request</h2><table>${rows
         .map(([k, v]) => `<tr><td><strong>${escapeHtml(k)}</strong></td><td>${escapeHtml(v)}</td></tr>`)
         .join("")}</table>`,

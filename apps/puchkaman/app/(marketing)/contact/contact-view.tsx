@@ -3,18 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { StaticMap } from "@foundry/design-system";
-import { ADDRESS, LOCATIONS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL } from "@/lib/links";
+import { ADDRESS, LOCATIONS, MAP_DIRECTIONS_URL, PHONE_DISPLAY, PHONE_TEL, formatHours } from "@/lib/links";
 import { DEFAULT_STORE_LAT, DEFAULT_STORE_LNG } from "@/lib/delivery/distance";
-import { INSTAGRAM_URL } from "@/lib/seo";
 
-// Only Scarborough (the operating location) has known phone/hours — Delta
-// gets its own, lighter card below rather than a fabricated symmetric one.
+// Both storefronts now publish their own phone, hours and Instagram, so the
+// two sections are symmetric. Hours come off the LOCATIONS entry rather than
+// a local copy — the stores keep different schedules.
+const SCARBOROUGH = LOCATIONS.find((l) => l.city === "Scarborough")!;
 const DELTA = LOCATIONS.find((l) => l.city === "Delta")!;
-
-const HOURS: [string, string][] = [
-  ["Sun – Thu", "3:00pm – 2:00am"],
-  ["Fri – Sat", "3:00pm – 3:00am"],
-];
 
 export function ContactView({ activeCity }: { activeCity: string | null }) {
   // Only Scarborough's card has phone/hours; Delta stays the lighter
@@ -101,13 +97,13 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
                     <span style={{ opacity: 0.8 }}>↗</span>
                   </a>
                   <a
-                    href={INSTAGRAM_URL}
+                    href={SCARBOROUGH.instagramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex center between contact-row"
                     style={{ background: "var(--ink)", color: "var(--yellow)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
                   >
-                    <span>📸 @puchkamancanada</span>
+                    <span>📸 {SCARBOROUGH.instagramHandle}</span>
                     <span style={{ opacity: 0.8 }}>↗</span>
                   </a>
                 </div>
@@ -116,14 +112,14 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
               <div className="card" style={{ background: "var(--white)", padding: 24 }}>
                 <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>🕑 Hours</h3>
                 <div style={{ display: "grid", gap: 8 }}>
-                  {HOURS.map(([d, h]) => (
+                  {SCARBOROUGH.hours.map((h) => (
                     <div
-                      key={d}
+                      key={h.label}
                       className="flex center between"
                       style={{ borderBottom: "2px dotted rgba(22,20,13,.2)", paddingBottom: 7, fontWeight: 600 }}
                     >
-                      <span>{d}</span>
-                      <span style={{ color: h === "Closed" ? "var(--red)" : "inherit", fontFamily: "var(--mono)", fontSize: "0.86rem" }}>{h}</span>
+                      <span>{h.label}</span>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: "0.86rem" }}>{formatHours(h)}</span>
                     </div>
                   ))}
                 </div>
@@ -157,8 +153,8 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
       </section>
         );
 
-        // Lighter card than Scarborough's above since only the address is
-        // confirmed yet (no published phone/hours for Delta).
+        // Mirrors Scarborough's layout above now that Delta publishes its own
+        // phone, hours and Instagram.
         const deltaSection = (
       <section className="section-pad" style={{ background: "var(--paper)", borderBottom: "var(--border)" }}>
         <div className="wrap">
@@ -166,26 +162,85 @@ export function ContactView({ activeCity }: { activeCity: string | null }) {
             {deltaFirst ? "Delta, BC (Metro Vancouver)" : "Also in Delta, BC (Metro Vancouver)"}
           </h2>
           <div className="contact-grid" style={{ display: "grid", gap: 24 }}>
-            <div className="card" style={{ background: "var(--white)", padding: 24, alignSelf: "start" }}>
-              <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC (Metro Vancouver)</h3>
-              <p style={{ fontWeight: 600, fontSize: "1.05rem" }}>
-                {DELTA.addressLines[0]}
-                <br />
-                {DELTA.addressLines[1]}
-              </p>
-              <button onClick={() => copy("delta-addr", DELTA.fullAddress)} className="btn btn--sm" style={{ marginTop: 14 }}>
-                {copied === "delta-addr" ? "✓ Copied!" : "📋 Copy Address"}
-              </button>
+            {/* info column */}
+            <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
+              <div className="card" style={{ background: "var(--white)", padding: 24 }}>
+                <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📍 Delta, BC (Metro Vancouver)</h3>
+                <p style={{ fontWeight: 600, fontSize: "1.05rem" }}>
+                  {DELTA.addressLines[0]}
+                  <br />
+                  {DELTA.addressLines[1]}
+                </p>
+                <button type="button" onClick={() => copy("delta-addr", DELTA.fullAddress)} className="btn btn--sm" style={{ marginTop: 14 }}>
+                  <span className="label-swap" key={copied === "delta-addr" ? "copied" : "idle"}>
+                    {copied === "delta-addr" ? "✓ Copied!" : "📋 Copy Address"}
+                  </span>
+                </button>
+              </div>
+
+              <div className="card" style={{ background: "var(--white)", padding: 24 }}>
+                <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>📞 Contact</h3>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => copy("delta-phone", DELTA.phoneTel)}
+                    className="flex center between contact-row"
+                    style={{ background: "var(--cream)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700, flexWrap: "wrap", gap: 6 }}
+                  >
+                    <span>📱 {DELTA.phoneDisplay}</span>
+                    <span className="mono label-swap" key={copied === "delta-phone" ? "copied" : "idle"} style={{ fontSize: "0.7rem" }}>
+                      {copied === "delta-phone" ? "✓ COPIED" : "TAP TO COPY"}
+                    </span>
+                  </button>
+                  <a
+                    href={DELTA.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex center between contact-row"
+                    style={{ background: "var(--ink)", color: "var(--yellow)", border: "var(--border)", borderRadius: 10, padding: "12px 14px", fontWeight: 700 }}
+                  >
+                    <span>📸 {DELTA.instagramHandle}</span>
+                    <span style={{ opacity: 0.8 }}>↗</span>
+                  </a>
+                </div>
+              </div>
+
+              <div className="card" style={{ background: "var(--white)", padding: 24 }}>
+                <h3 className="display" style={{ fontSize: "1.4rem", marginBottom: 14 }}>🕑 Hours</h3>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {DELTA.hours.map((h) => (
+                    <div
+                      key={h.label}
+                      className="flex center between"
+                      style={{ borderBottom: "2px dotted rgba(22,20,13,.2)", paddingBottom: 7, fontWeight: 600 }}
+                    >
+                      <span>{h.label}</span>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: "0.86rem" }}>{formatHours(h)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-              <StaticMap
-                center={{ lat: DELTA.lat, lng: DELTA.lng }}
-                markers={[{ lat: DELTA.lat, lng: DELTA.lng, color: "#111", title: DELTA.fullAddress }]}
-                zoom={14}
-                heightPx={260}
-              />
-              <div style={{ padding: 16, borderTop: "var(--border)", background: "var(--white)" }}>
-                <a href={DELTA.directionsUrl} target="_blank" rel="noopener noreferrer" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>
+
+            <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
+              <div className="card" style={{ overflow: "hidden", padding: 0 }}>
+                <StaticMap
+                  center={{ lat: DELTA.lat, lng: DELTA.lng }}
+                  markers={[{ lat: DELTA.lat, lng: DELTA.lng, color: "#111", title: DELTA.fullAddress }]}
+                  zoom={14}
+                  heightPx={320}
+                />
+                <div style={{ padding: 16, borderTop: "var(--border)", background: "var(--white)" }}>
+                  <a href={DELTA.directionsUrl} target="_blank" rel="noopener noreferrer" className="btn btn--ink btn--block">🧭 Get Directions ↗</a>
+                </div>
+              </div>
+
+              <div className="card card--ink surface-ink" style={{ color: "var(--cream)", padding: 26 }}>
+                <h3 className="display" style={{ fontSize: "1.5rem", color: "var(--yellow)", marginBottom: 8 }}>Planning Something Big?</h3>
+                <p style={{ fontWeight: 500, opacity: 0.88, marginBottom: 18 }}>
+                  Live puchka & chaat catering across Metro Vancouver and the Lower Mainland — birthdays, offices, weddings & watch parties.
+                </p>
+                <Btn page="catering" variant="green" size="lg" block>Request a Catering Quote →</Btn>
               </div>
             </div>
           </div>
