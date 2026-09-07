@@ -16,7 +16,7 @@ import { buildMetadata } from "@/lib/seo";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
-import { LOCATIONS } from "@/lib/links";
+import { FUSION_FALLBACK_IMAGE, LOCATIONS } from "@/lib/links";
 
 export const metadata: Metadata = buildMetadata({
   title: "Puchkaman · Canada's First Fusion Puchka Spot · Scarborough & Delta",
@@ -91,10 +91,13 @@ export default async function HomePage() {
   // Each storefront has its own number, so the "call us" CTA has to follow the
   // active franchise; Scarborough stays the fallback like the labels above.
   const activeStore = LOCATIONS.find((l) => l.city === cityLabel) ?? LOCATIONS[0];
-  // Each storefront runs its own Instagram, so lead with the one the visitor is
-  // actually browsing — both accounts still render, just in that order.
-  const storesByRelevance = [activeStore, ...LOCATIONS.filter((l) => l.city !== activeStore.city)];
-  const reels = storesByRelevance.flatMap((store) => INSTAGRAM_REELS.filter((r) => r.city === store.city));
+  // Each storefront runs its own Instagram, and the feed shows only the active
+  // one's posts — a Delta visitor has no use for Scarborough's reels. The
+  // fallback keeps the section from rendering empty if a franchise's city ever
+  // stops matching a LOCATIONS entry; the other accounts stay reachable from
+  // the locations cards and the footer.
+  const ownReels = INSTAGRAM_REELS.filter((r) => r.city === activeStore.city);
+  const reels = ownReels.length > 0 ? ownReels : INSTAGRAM_REELS;
   const faqs: Faq[] = faqRows.map((f) => ({ q: f.question, a: f.answer }));
 
   // Curated "featured" products first; if none are flagged, fall back to real
@@ -145,7 +148,7 @@ export default async function HomePage() {
   const fusionUrl =
     (fusionPhotos.find((p) => (p.image as FileDetail | null)?.url !== heroUrl)?.image as FileDetail | null)?.url ??
     (fusionPhotos[0]?.image as FileDetail | null)?.url ??
-    null;
+    FUSION_FALLBACK_IMAGE;
   const galleryUrls = photoUrls.slice(0, 6);
 
   return (
@@ -272,19 +275,15 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="hero-grid" style={{ display: "grid", gap: 40, alignItems: "center" }}>
             <div style={{ position: "relative" }}>
-              {fusionUrl ? (
-                <div className="rotate-l" style={{ position: "relative", width: "100%", aspectRatio: "4 / 3.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)", overflow: "hidden" }}>
-                  <Image
-                    src={fusionUrl}
-                    alt="Fusion puchka close-up"
-                    fill
-                    sizes="(min-width: 880px) 45vw, 90vw"
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              ) : (
-                <Ph label="Fusion puchka close-up — cheese pull" ratio="4 / 3.2" mod="rotate-l" style={{ boxShadow: "10px 10px 0 var(--ink)" }} />
-              )}
+              <div className="rotate-l" style={{ position: "relative", width: "100%", aspectRatio: "4 / 3.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "10px 10px 0 var(--ink)", overflow: "hidden" }}>
+                <Image
+                  src={fusionUrl}
+                  alt="Fusion puchka close-up"
+                  fill
+                  sizes="(min-width: 880px) 45vw, 90vw"
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
               <span className="sticker rotate-r" style={{ top: -14, right: -10, background: "var(--yellow)", color: "var(--ink-deep)" }}>NEVER TRIED IT?</span>
             </div>
             <div>
@@ -453,30 +452,21 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="flex center between wrap-gap" style={{ marginBottom: 28 }}>
             <div>
-              <span className="tape kicker">{storesByRelevance.map((s) => s.instagramHandle).join("  ·  ")}</span>
+              <span className="tape kicker">{activeStore.instagramHandle}</span>
               <h2 className="display" style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", marginTop: 12 }}>Straight From The &apos;Gram</h2>
             </div>
-            {/* One button per storefront: the two shops post to separate
-                accounts, so a single "Follow Us" would strand half the audience. */}
-            <div className="flex wrap-gap" style={{ gap: 10 }}>
-              {storesByRelevance.map((store) => (
-                <Btn key={store.city} href={store.instagramUrl} variant="green" size="lg">
-                  {store.city} ↗
-                </Btn>
-              ))}
-            </div>
+            <Btn href={activeStore.instagramUrl} variant="green" size="lg">Follow Us ↗</Btn>
           </div>
           <div className="grid ig-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
             {reels.map((reel, i) => {
               const thumbnail = reel.thumbnail ?? galleryUrls[i];
-              const store = LOCATIONS.find((l) => l.city === reel.city) ?? activeStore;
               return (
                 <a
                   key={reel.url}
                   href={reel.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`Watch ${store.instagramHandle} reel on Instagram (opens in a new tab)`}
+                  aria-label={`Watch ${activeStore.instagramHandle} reel on Instagram (opens in a new tab)`}
                   style={{ position: "relative", display: "block" }}
                 >
                   {thumbnail ? (
@@ -505,24 +495,6 @@ export default async function HomePage() {
                     <Ph label="Reel" ratio="4 / 5" className="card--lift" />
                   )}
                   <span style={{ position: "absolute", top: 8, right: 8, fontSize: 18 }}>▶</span>
-                  {/* The grid mixes both accounts, so each tile says whose it is. */}
-                  <span
-                    className="mono"
-                    style={{
-                      position: "absolute",
-                      bottom: 8,
-                      left: 8,
-                      fontSize: "0.62rem",
-                      fontWeight: 800,
-                      letterSpacing: "0.04em",
-                      padding: "3px 7px",
-                      borderRadius: 999,
-                      background: "var(--ink)",
-                      color: "var(--yellow)",
-                    }}
-                  >
-                    {reel.city.toUpperCase()}
-                  </span>
                 </a>
               );
             })}

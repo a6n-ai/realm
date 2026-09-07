@@ -52,6 +52,14 @@ export type StoreLocation = {
 const DELTA_ADDRESS = "9253 120 St, Delta, BC V4C 6R8";
 
 /**
+ * Still frame from the hero clip (public/hero/loaded-puchka.mp4), used as the
+ * last-resort art for the "what is a fusion puchka" blocks on / and /fusion.
+ * A real catalog photo still wins wherever one exists — this only replaces the
+ * striped Ph placeholder that showed when no fusion product had an image.
+ */
+export const FUSION_FALLBACK_IMAGE = "/fusion/fusion-puchka.jpg";
+
+/**
  * Catering service areas — one per storefront that runs catering.
  *
  * The public catering form requires one of these. Both regions currently
@@ -120,8 +128,10 @@ export const LOCATIONS: StoreLocation[] = [
     region: "Metro Vancouver",
     addressLines: ["9253 120 St", "Delta, BC V4C 6R8"],
     fullAddress: DELTA_ADDRESS,
-    lat: 49.1545,
-    lng: -122.8904,
+    // From the store's own Google Maps place pin (the !3d/!4d pair in its
+    // maps URL). The previous values were ~1.9km south of the real shop.
+    lat: 49.171388,
+    lng: -122.8907962,
     directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(DELTA_ADDRESS)}`,
     phoneDisplay: "(778) 794-0222",
     phoneTel: "+17787940222",

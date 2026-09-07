@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import type { FileDetail } from "@foundry/storage/model";
-import { Btn, Ph, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
+import { Btn, PageBanner, Pill, SectionHead } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { AssemblyGuide } from "@/components/brutal/assembly-guide";
 import { ProductImage } from "@/components/products/product-image";
 import { productsService } from "@/lib/services/products.service";
 import { getActiveLocation } from "@/lib/services/organizations.service";
 import { TAG_STYLE } from "@/lib/menu-categories";
+import { FUSION_FALLBACK_IMAGE } from "@/lib/links";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 // Tried ISR (`revalidate = 60`) for a caching win, but the CI Docker build has
@@ -63,7 +64,8 @@ export default async function FusionPage() {
         };
       })
     : FUSION_ITEMS.map(([name, desc, price, badge]) => ({ key: name, name, desc, price, badge, badgeViral: badge.includes("Viral"), image: null }));
-  const videoUrl = (fusionProducts.find((p) => p.image)?.image as FileDetail | null)?.url ?? null;
+  const videoUrl =
+    (fusionProducts.find((p) => p.image)?.image as FileDetail | null)?.url ?? FUSION_FALLBACK_IMAGE;
 
   return (
     <div>
@@ -97,20 +99,16 @@ export default async function FusionPage() {
               </div>
             </div>
             <div style={{ position: "relative" }}>
-              {videoUrl ? (
-                <div className="rotate-r" style={{ position: "relative", width: "100%", aspectRatio: "4 / 4.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)", overflow: "hidden" }}>
-                  <Image
-                    src={videoUrl}
-                    alt="Fusion puchka"
-                    fill
-                    sizes="(min-width: 880px) 45vw, 90vw"
-                    priority
-                    style={{ objectFit: "cover" }}
-                  />
-                </div>
-              ) : (
-                <Ph label="VIDEO — fusion puchka being assembled" ratio="4 / 4.2" mod="rotate-r" style={{ boxShadow: "var(--sh-lg)" }} />
-              )}
+              <div className="rotate-r" style={{ position: "relative", width: "100%", aspectRatio: "4 / 4.2", border: "var(--border)", borderRadius: "var(--r)", boxShadow: "var(--sh-lg)", overflow: "hidden" }}>
+                <Image
+                  src={videoUrl}
+                  alt="Fusion puchka"
+                  fill
+                  sizes="(min-width: 880px) 45vw, 90vw"
+                  priority
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
               <span className="sticker rotate-l" style={{ top: -14, left: -12, background: "var(--ink-bg)", color: "var(--yellow)" }}>
                 ▶ WATCH THE REEL
               </span>

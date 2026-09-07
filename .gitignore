@@ -88,4 +88,5 @@ dump.rdb
 !apps/puchkaman/public/instagram/*.jpg
 !apps/puchkaman/public/about/*.jpg
 !apps/puchkaman/public/hero/*.jpg
+!apps/puchkaman/public/fusion/*.jpg
 !apps/puchkaman/public/catering/*.png
