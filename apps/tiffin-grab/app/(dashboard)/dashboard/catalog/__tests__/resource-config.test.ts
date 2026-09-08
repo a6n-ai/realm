@@ -59,7 +59,7 @@ describe("addons resource exists", () => {
   it("is registered and keyed", () => {
     expect(RESOURCES.addons).toBeDefined();
     expect(RESOURCES.addons.keyed).toBe(true);
-    expect(() => RESOURCES.addons.schema.parse({ key: "extra-roti", name: "Extra Roti", pricePerWeek: "12.50" })).not.toThrow();
+    expect(() => RESOURCES.addons.schema.parse({ key: "extra-roti", name: "Extra Roti", category: "uncategorized", pricePerWeek: "12.50" })).not.toThrow();
   });
 });
 
