@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
 import { enabledMethods, findMethod } from "@foundry/payments";
+import { emailSchema } from "@foundry/commons";
 import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -11,6 +12,7 @@ import { priceSubscription, type PricingResult, type PricingSelections } from "@
 import { couponsService } from "@/lib/services/coupons.service";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
+import { findExistingByContact } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -158,4 +160,20 @@ export async function validatePostal(postalCode: string): Promise<{ served: bool
   if (!zone) return { served: false };
   const full = snapshot.zones.find((z) => z.name === zone.name)!;
   return { served: true, zone: { publicId: full.publicId, name: full.name, slotWindow: full.slotWindow } };
+}
+
+// Identity-gate lookup for the /subscribe entry step (see
+// docs/superpowers/specs/2026-09-08-subscribe-identity-gate-design.md).
+// Response shape is the security boundary: `{ status }` only — never a
+// name, plan, or date. Do not widen this return type without re-reading
+// that spec's Security section.
+export async function checkExistingAccount(email: string): Promise<{ status: "new" | "matched" }> {
+  const parsed = emailSchema.safeParse(email?.trim());
+  // Malformed input fails open to "new" rather than surfacing a validation
+  // error — this is a soft pre-check, not a form field with its own
+  // error UX (the gate's own client-side schema catches format issues
+  // before this ever runs).
+  if (!parsed.success) return { status: "new" };
+  const match = await findExistingByContact("", parsed.data);
+  return { status: match ? "matched" : "new" };
 }
