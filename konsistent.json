@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/konsistent/konsistent.schema.json",
+  "version": "v1",
+  "conventions": [
+    {
+      "name": "db-schema-barrel-purity",
+      "description": "apps/*/db/schema/index.ts re-exports its sibling schema files and nothing else — no local declarations, no non-schema imports. Evidence: 42/42 sibling schema files re-exported via `export * from` across both apps (tiffin-grab 23/23, puchkaman 19/19).",
+      "severity": "error",
+      "paths": "apps/*/db/schema/index.ts",
+      "must": {
+        "areBarrelFiles": true
+      }
+    },
+    {
+      "name": "component-file-exports-matching-pascal-case",
+      "description": "A component file components/**/{fileName}.tsx exports a symbol named PascalCase(fileName) — kebab-case filename, PascalCase component export. Evidence: manually verified across sampled files in tiffin-grab (identity-gate.tsx -> IdentityGate, status-banner.tsx -> StatusBanner, org-switcher.tsx -> OrgSwitcher, plan-hero.tsx -> PlanHero); consistent with the 228/228 kebab-case-filename finding from the broader evidence sweep. Files under __tests__ excluded (test files, not components).",
+      "severity": "error",
+      "paths": "apps/*/components/**/{fileName}.tsx",
+      "excludeFiles": ["**/__tests__/**"],
+      "must": {
+        "export": ["${fileName.toPascalCase()}"]
+      }
+    }
+  ]
+}
