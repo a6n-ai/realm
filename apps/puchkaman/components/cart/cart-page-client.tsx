@@ -3,7 +3,7 @@
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
-import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
+import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable-notice";
 import { OrderSummary } from "@/components/order/order-summary";
 import { money } from "@/lib/cart/types";
 import { useCartQuote } from "@/lib/cart/use-cart-quote";

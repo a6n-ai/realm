@@ -11,7 +11,7 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/list-search-filters";
-import { MealCard } from "@/components/marketing/cards";
+import { MealCard } from "@/components/marketing/meal-card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";

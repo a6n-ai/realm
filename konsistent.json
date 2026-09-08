@@ -13,10 +13,19 @@
     },
     {
       "name": "component-file-exports-matching-pascal-case",
-      "description": "A component file components/**/{fileName}.tsx exports a symbol named PascalCase(fileName) — kebab-case filename, PascalCase component export. Evidence: manually verified across sampled files in tiffin-grab (identity-gate.tsx -> IdentityGate, status-banner.tsx -> StatusBanner, org-switcher.tsx -> OrgSwitcher, plan-hero.tsx -> PlanHero); consistent with the 228/228 kebab-case-filename finding from the broader evidence sweep. Files under __tests__ excluded (test files, not components).",
+      "description": "A component file components/**/{fileName}.tsx exports a symbol named PascalCase(fileName) — kebab-case filename, PascalCase component export. Evidence: manually verified across sampled files in tiffin-grab (identity-gate.tsx -> IdentityGate, status-banner.tsx -> StatusBanner, org-switcher.tsx -> OrgSwitcher, plan-hero.tsx -> PlanHero); consistent with the 228/228 kebab-case-filename finding from the broader evidence sweep. Files under __tests__ excluded (test files, not components). The 7 additional excludeFiles are multi-export 'collection' files (3-11 exports each: icon sets, chart groups, site chrome, shared utility grab-bags) — a genuinely different semantic cohort from 'one file = one component', confirmed by inspecting each file's actual export list before excluding.",
       "severity": "error",
       "paths": "apps/*/components/**/{fileName}.tsx",
-      "excludeFiles": ["**/__tests__/**"],
+      "excludeFiles": [
+        "**/__tests__/**",
+        "apps/tiffin-grab/components/analytics/charts.tsx",
+        "apps/tiffin-grab/components/analytics/skeletons.tsx",
+        "apps/tiffin-grab/components/illustrations/delivery-status.tsx",
+        "apps/tiffin-grab/components/illustrations/dish-categories.tsx",
+        "apps/puchkaman/components/brutal/chrome.tsx",
+        "apps/puchkaman/components/brutal/icons.tsx",
+        "apps/puchkaman/components/brutal/shared.tsx"
+      ],
       "must": {
         "export": ["${fileName.toPascalCase()}"]
       }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Btn, PageBanner } from "@/components/brutal/shared";
 import { Reveal } from "@/components/brutal/reveal";
 import { CheckoutClient } from "@/components/order/checkout-client";
-import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable";
+import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable-notice";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { getAllDeliveryTypes, getStoreLocation } from "@/lib/delivery/zones.service";
 import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";

@@ -5,7 +5,7 @@ import { Button } from "@foundry/ui/button";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Section } from "@/components/marketing/section";
-import { MealCard } from "@/components/marketing/cards";
+import { MealCard } from "@/components/marketing/meal-card";
 
 export const metadata: Metadata = { title: "Menu — Tiffin Grab", description: "Browse meal sizes by tier, with calories and macros, available across the GTA." };
 
