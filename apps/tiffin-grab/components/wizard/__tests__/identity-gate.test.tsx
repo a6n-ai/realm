@@ -45,4 +45,26 @@ describe("IdentityGate", () => {
     await user.click(screen.getByRole("button", { name: /continue/i }));
     await waitFor(() => expect(screen.getByText("wizard here")).toBeInTheDocument());
   });
+
+  it("shows a soft sign-in prompt on a match, without blocking", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /continue as guest/i })).toBeInTheDocument();
+    expect(screen.queryByText("wizard here")).not.toBeInTheDocument();
+  });
+
+  it("reveals children when guest continues past a match", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /continue as guest/i }));
+    await user.click(screen.getByRole("button", { name: /continue as guest/i }));
+    expect(screen.getByText("wizard here")).toBeInTheDocument();
+  });
 });
