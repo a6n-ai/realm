@@ -9,8 +9,16 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   checkExistingAccount: (...args: unknown[]) => checkExistingAccount(...args),
 }));
 
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
+}));
+
+const sendVerificationOtp = vi.fn();
+const signInEmailOtp = vi.fn();
+vi.mock("@/lib/auth/client", () => ({
+  authClient: { emailOtp: { sendVerificationOtp: (...args: unknown[]) => sendVerificationOtp(...args) } },
+  signIn: { emailOtp: (...args: unknown[]) => signInEmailOtp(...args) },
 }));
 
 import { IdentityGate } from "../identity-gate";
@@ -18,6 +26,9 @@ import { IdentityGate } from "../identity-gate";
 afterEach(() => {
   cleanup();
   checkExistingAccount.mockReset();
+  sendVerificationOtp.mockReset();
+  signInEmailOtp.mockReset();
+  push.mockReset();
 });
 
 describe("IdentityGate", () => {
@@ -66,5 +77,46 @@ describe("IdentityGate", () => {
     await waitFor(() => screen.getByRole("button", { name: /continue as guest/i }));
     await user.click(screen.getByRole("button", { name: /continue as guest/i }));
     expect(screen.getByText("wizard here")).toBeInTheDocument();
+  });
+
+  it("sends an OTP and redirects to /me/renew on successful sign-in", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockResolvedValue(undefined);
+    signInEmailOtp.mockResolvedValue({ error: null });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(sendVerificationOtp).toHaveBeenCalledWith({ email: "existing@person.com", type: "sign-in" });
+    await waitFor(() => expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument());
+
+    await user.type(screen.getByLabelText(/verification code/i), "123456");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/me/renew"));
+  });
+
+  it("shows an error and stays on the code step when the OTP is wrong", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockResolvedValue(undefined);
+    signInEmailOtp.mockResolvedValue({ error: { message: "invalid" } });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => screen.getByLabelText(/verification code/i));
+
+    await user.type(screen.getByLabelText(/verification code/i), "000000");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(screen.getByText(/invalid or expired code/i)).toBeInTheDocument());
+    expect(push).not.toHaveBeenCalled();
   });
 });
