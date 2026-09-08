@@ -1,5 +1,3 @@
-"use client";
-
 import { Lottie } from "@/components/motion";
 import { Card } from "@/components/ds";
 import type { WaitlistedSubscription } from "@/lib/services/customer-deliveries.service";

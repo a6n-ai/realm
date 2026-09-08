@@ -1,5 +1,3 @@
-"use client";
-
 import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard, StatGrid } from "@/components/ds";
 

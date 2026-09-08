@@ -202,8 +202,12 @@ export function OrderForm({
       .then((r) => { if (!cancelled) setPreview(r); })
       .catch(() => { if (!cancelled) setPreview(null); });
     return () => { cancelled = true; };
+    // email/addressLine/city/postalCode intentionally excluded — they don't affect
+    // pricing and are per-keystroke, so including them would refire preview on every
+    // character typed. contact.fullName/phone are included since buildInput reads
+    // them (stale otherwise if a future field starts depending on them for price).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo, paymentMethodId]);
+  }, [planKey, mealSizeId, frequencyKey, persons, mealSlots, includeSaturday, includeSunday, durationWeeks, startDate, discount, repInfo, paymentMethodId, contact.fullName, contact.phone]);
 
   useEffect(() => {
     if (discount > ceiling) setDiscount(ceiling);

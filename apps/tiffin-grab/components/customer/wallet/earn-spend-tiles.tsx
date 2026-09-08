@@ -1,5 +1,3 @@
-"use client";
-
 import { Card } from "@/components/ds";
 import { AnimatedNumber } from "@/components/motion";
 

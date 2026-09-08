@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@foundry/ui/cn";
 
 // Reuses the app's existing ok(green)/warn(orange) status-semantic tokens — the same pair
