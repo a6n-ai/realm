@@ -33,7 +33,7 @@ import { couponsService } from "./coupons.service";
 import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
-import { provisionCustomerByPhone } from "./customers.service";
+import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
 import { walletService, lockAndQuoteCoinRedemption, commitCoinRedemption, reverseCoinAward } from "./wallet.service";
@@ -270,12 +270,24 @@ export async function createOrder(
     // Both columns are uniquely indexed (users_email_unique, users_phone_unique)
     // and both values are normalised above — email lowercased by emailSchema,
     // phone to E.164 — so this cannot match on formatting variance alone.
+    //
+    // Every path that resolves an existing account (session owner, or a
+    // phone/email match below) is scoped to role="user" — a staff/admin
+    // account must never become an order's owner, whether by a signed-in
+    // staff session or a guest checkout that happens to share their phone/
+    // email. STAFF_ACCOUNT_MESSAGE is what a real person sees when that
+    // happens; provisionCustomerByPhone throws the same message for the
+    // guest-checkout collision case.
+    if (ownerId) {
+      const [ownerRow] = await tx.select({ role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1);
+      if (ownerRow && ownerRow.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+    }
     let userId = ownerId;
     if (!userId) {
       const [existing] = await tx
         .select({ id: users.id })
         .from(users)
-        .where(or(eq(users.phone, phone), eq(users.email, email)))
+        .where(and(or(eq(users.phone, phone), eq(users.email, email)), eq(users.role, "user")))
         // Phone first: when a number and an address somehow point at different
         // accounts, the phone is the channel this flow has always keyed on, and
         // deterministic ordering keeps the choice reproducible rather than

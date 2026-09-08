@@ -11,6 +11,12 @@ import { ledgerService } from "./ledger.service";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+// Shown whenever checkout resolves an existing account whose role isn't
+// "user" — a staff/admin account must never become an order's owner, whether
+// via a signed-in staff session (checked in orders.service.ts) or a guest
+// checkout that happens to share their phone/email (checked here).
+export const STAFF_ACCOUNT_MESSAGE = "This phone or email belongs to a staff account — please sign in to the Tiffin Grab dashboard instead.";
+
 // Find-or-provision a customer (role "user") by phone. Returns internal users.id.
 // Lifted verbatim from createOrder so both paths share one provisioning rule.
 export async function provisionCustomerByPhone(
@@ -26,11 +32,17 @@ export async function provisionCustomerByPhone(
   if (!parsedEmail.success) throw new ValidationError("An email address is required");
   const email = parsedEmail.data;
 
-  const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, contact.phone)).limit(1);
-  if (existing) return existing.id;
+  const [existing] = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.phone, contact.phone)).limit(1);
+  if (existing) {
+    if (existing.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+    return existing.id;
+  }
 
-  const [clash] = await tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (clash) throw new ValidationError("That email is already in use");
+  const [clash] = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, email)).limit(1);
+  if (clash) {
+    if (clash.role !== "user") throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
+    throw new ValidationError("That email is already in use");
+  }
   // No credential row: a provisioned customer has NO password until they choose
   // one (checkout mails them a verify link → /set-password; otherwise the email
   // OTP reset works). Never issue a password on their behalf.
