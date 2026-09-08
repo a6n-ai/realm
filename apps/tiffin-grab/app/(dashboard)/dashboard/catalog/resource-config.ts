@@ -149,6 +149,7 @@ const addonsSchema = z.object({
   // category, which is what dish categories attach to gate visibility.
   category: z.string().trim().min(1, "Pick a category"),
   pricePerWeek: reqNum(z.coerce.number().nonnegative()),
+  maxQty: reqNum(z.coerce.number().int().positive().default(5)),
   active,
 });
 
@@ -298,6 +299,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "category", label: "Category", type: "select", optionsSource: "addon-categories" },
       { key: "pricePerWeek", label: "Price / week", type: "number", unit: "$" },
+      { key: "maxQty", label: "Max qty per order", type: "number" },
     ],
   },
 };

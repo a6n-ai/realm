@@ -107,6 +107,7 @@ export const orderAddons = pgTable("order_addons", {
   addonKey: text("addon_key").notNull(),
   addonName: text("addon_name").notNull(),
   pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
+  qty: integer("qty").notNull().default(1),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   // Client-scoping — see orders.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),

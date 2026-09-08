@@ -25,17 +25,21 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   }
 
   // Eligible add-ons are the union of whatever's attached to this meal size's own
-  // component categories — never trust the client's addonKeys list as-is, re-derive
-  // eligibility from the snapshot and reject anything outside it.
-  const eligibleAddons = new Map<string, { key: string; name: string; pricePerWeek: number }>();
+  // component categories — never trust the client's addonSelections as-is,
+  // re-derive eligibility (and the maxQty ceiling) from the snapshot and reject
+  // anything outside it.
+  const eligibleAddons = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }>();
   for (const item of mealSize.items) {
     for (const addon of snapshot.addonsByCategory?.[item.category] ?? []) eligibleAddons.set(addon.key, addon);
   }
-  const addonKeys = selections.addonKeys ?? [];
-  const addons = addonKeys.map((key) => {
+  const addonSelections = selections.addonSelections ?? [];
+  const addons = addonSelections.map(({ key, qty }) => {
     const addon = eligibleAddons.get(key);
     if (!addon) throw new ValidationError(`Add-on not available: ${key}`);
-    return addon;
+    if (!Number.isInteger(qty) || qty < 1 || qty > addon.maxQty) {
+      throw new ValidationError(`Invalid quantity for ${addon.name} (1–${addon.maxQty})`);
+    }
+    return { key: addon.key, name: addon.name, pricePerWeek: addon.pricePerWeek, qty };
   });
 
   return {

@@ -140,6 +140,9 @@ export const addons = pgTable("addons", {
   // ordered, via dishCategoryAddonCategories.
   category: text("category").notNull(),
   pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
+  // Admin-set ceiling on how many of this add-on one order may carry (e.g. 5x
+  // Extra Roti). Enforced server-side in buildPricingCatalog, not just the wizard.
+  maxQty: integer("max_qty").notNull().default(5),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),

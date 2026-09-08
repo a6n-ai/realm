@@ -43,7 +43,7 @@ export interface CatalogSnapshot {
   // An add-on only shows for a meal size when its key appears here under one of
   // that meal size's item categories — see buildPricingCatalog. Optional for the
   // same back-compat reason as categoryLabels.
-  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number }[]>;
+  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
 }
 
 // Client-facing snapshot: no internal bigint id crosses the wire. Client
@@ -59,7 +59,7 @@ export interface ClientCatalogSnapshot {
   durations: { publicId: string; weeks: number; discountPct: number }[];
   zones: { publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
   categoryLabels?: Record<string, string>;
-  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number }[]>;
+  addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {

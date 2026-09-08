@@ -114,18 +114,18 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * add-on eligibility from the one cached snapshot instead of a per-request
    * query. Mirrors addonsForCategories but grouped, not scoped to one meal size.
    */
-  async addonsByDishCategory(): Promise<Map<string, { key: string; name: string; pricePerWeek: number }[]>> {
+  async addonsByDishCategory(): Promise<Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>> {
     const rows = await db
-      .selectDistinct({ categoryKey: dishCategories.key, addonKey: addons.key, addonName: addons.name, pricePerWeek: addons.pricePerWeek })
+      .selectDistinct({ categoryKey: dishCategories.key, addonKey: addons.key, addonName: addons.name, pricePerWeek: addons.pricePerWeek, maxQty: addons.maxQty })
       .from(dishCategoryAddonCategories)
       .innerJoin(dishCategories, eq(dishCategories.id, dishCategoryAddonCategories.dishCategoryId))
       .innerJoin(addonCategories, eq(addonCategories.id, dishCategoryAddonCategories.addonCategoryId))
       .innerJoin(addons, eq(addons.category, addonCategories.key))
       .where(and(eq(addons.active, true), eq(addonCategories.active, true)));
-    const out = new Map<string, { key: string; name: string; pricePerWeek: number }[]>();
+    const out = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>();
     for (const r of rows) {
       const bucket = out.get(r.categoryKey) ?? [];
-      bucket.push({ key: r.addonKey, name: r.addonName, pricePerWeek: Number(r.pricePerWeek) });
+      bucket.push({ key: r.addonKey, name: r.addonName, pricePerWeek: Number(r.pricePerWeek), maxQty: r.maxQty });
       out.set(r.categoryKey, bucket);
     }
     return out;

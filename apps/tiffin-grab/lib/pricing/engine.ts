@@ -32,9 +32,10 @@ export function priceSubscription(
   // subscription itself, independent of frequency/persons.
   let addonSubtotal = 0;
   for (const addon of catalog.addons) {
-    const amount = round2(addon.pricePerWeek * selections.durationWeeks);
+    const amount = round2(addon.pricePerWeek * addon.qty * selections.durationWeeks);
     addonSubtotal += amount;
-    lineItems.push({ label: `${addon.name} (add-on, ${selections.durationWeeks} wk)`, amount });
+    const qtyLabel = addon.qty > 1 ? ` ×${addon.qty}` : "";
+    lineItems.push({ label: `${addon.name}${qtyLabel} (add-on, ${selections.durationWeeks} wk)`, amount });
   }
   addonSubtotal = round2(addonSubtotal);
 

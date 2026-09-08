@@ -1,3 +1,4 @@
+import { MinusIcon, PlusIcon } from "lucide-react";
 import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
 import { Card } from "@foundry/ui/card";
@@ -27,16 +28,18 @@ export function StepBundle({
   // the same add-on category.
   const eligibleAddons = (() => {
     if (!selectedMeal) return [];
-    const byKey = new Map<string, { key: string; name: string; pricePerWeek: number }>();
+    const byKey = new Map<string, { key: string; name: string; pricePerWeek: number; maxQty: number }>();
     for (const item of selectedMeal.items) {
       for (const addon of catalog.addonsByCategory?.[item.category] ?? []) byKey.set(addon.key, addon);
     }
     return [...byKey.values()];
   })();
 
-  const addonKeys = selections.addonKeys ?? [];
-  const toggleAddon = (key: string) => {
-    set({ addonKeys: addonKeys.includes(key) ? addonKeys.filter((k) => k !== key) : [...addonKeys, key] });
+  const addonSelections = selections.addonSelections ?? [];
+  const qtyFor = (key: string) => addonSelections.find((s) => s.key === key)?.qty ?? 0;
+  const setQty = (key: string, qty: number) => {
+    const rest = addonSelections.filter((s) => s.key !== key);
+    set({ addonSelections: qty > 0 ? [...rest, { key, qty }] : rest });
   };
 
   return (
@@ -90,21 +93,50 @@ export function StepBundle({
       {eligibleAddons.length > 0 && (
         <section>
           <h3 className="text-primary mb-3 text-xs font-semibold tracking-[2.5px] uppercase">Add-ons</h3>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="space-y-2">
             {eligibleAddons.map((addon) => {
-              const checked = addonKeys.includes(addon.key);
+              const qty = qtyFor(addon.key);
+              const active = qty > 0;
               return (
-                <button
+                <div
                   key={addon.key}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  onClick={() => toggleAddon(addon.key)}
-                  className={`border-foreground hover-lift flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-4 py-2 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.97] ${checked ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  className={`border-foreground flex min-h-11 items-center justify-between gap-3 rounded-xl border-[1.5px] px-4 py-2 transition-colors ${active ? "bg-primary/10" : ""}`}
                 >
-                  <span>{addon.name}</span>
-                  <span className="nums text-xs opacity-80">+${addon.pricePerWeek.toFixed(2)}/wk</span>
-                </button>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{addon.name}</span>
+                    <span className="nums text-muted-foreground text-xs">${addon.pricePerWeek.toFixed(2)}/wk each</span>
+                  </div>
+                  {active ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={`Remove one ${addon.name}`}
+                        onClick={() => setQty(addon.key, qty - 1)}
+                        className="border-foreground hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] transition-transform active:scale-[0.92]"
+                      >
+                        <MinusIcon className="size-3.5" />
+                      </button>
+                      <span className="nums w-6 text-center text-sm font-semibold" aria-live="polite">{qty}</span>
+                      <button
+                        type="button"
+                        aria-label={`Add one more ${addon.name}`}
+                        disabled={qty >= addon.maxQty}
+                        onClick={() => setQty(addon.key, qty + 1)}
+                        className="border-foreground hover-lift flex size-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] transition-transform active:scale-[0.92] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <PlusIcon className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setQty(addon.key, 1)}
+                      className="border-foreground hover-lift flex min-h-9 cursor-pointer items-center gap-1 rounded-full border-[1.5px] px-3 py-1.5 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.96] hover:bg-accent"
+                    >
+                      <PlusIcon className="size-3.5" /> Add
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -477,8 +477,8 @@ export async function createOrder(
 
     // Structured counterpart to the addon lines already inside pricingSnapshot —
     // see orderAddons' comment in db/schema/orders.ts. pricingCatalog.addons is
-    // already the buildPricingCatalog-validated (eligible, priced) resolution of
-    // input.selections.addonKeys, so no re-validation needed here.
+    // already the buildPricingCatalog-validated (eligible, priced, qty-clamped)
+    // resolution of input.selections.addonSelections, so no re-validation needed here.
     if (pricingCatalog.addons.length) {
       await tx.insert(orderAddons).values(
         pricingCatalog.addons.map((addon) => ({
@@ -486,7 +486,8 @@ export async function createOrder(
           addonKey: addon.key,
           addonName: addon.name,
           pricePerWeek: addon.pricePerWeek.toFixed(2),
-          amount: (Math.round((addon.pricePerWeek * input.selections.durationWeeks + Number.EPSILON) * 100) / 100).toFixed(2),
+          qty: addon.qty,
+          amount: (Math.round((addon.pricePerWeek * addon.qty * input.selections.durationWeeks + Number.EPSILON) * 100) / 100).toFixed(2),
           organizationId,
         })),
       );

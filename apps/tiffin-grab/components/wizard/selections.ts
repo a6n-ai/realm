@@ -50,7 +50,7 @@ export const initialSelections: WizardSelections = {
   includeSunday: false,
   durationWeeks: 1,
   startDate: "",
-  addonKeys: [],
+  addonSelections: [],
 };
 
 /** Prefill the renew stepper from the customer's most recent order. Start date stays empty. */
@@ -88,6 +88,6 @@ export function selectionsFromPriorOrder(
     durationWeeks: prior.durationWeeks > 0 ? prior.durationWeeks : 1,
     startDate: "",
     // Not carried over, same reasoning as frequencyKey/persons above — re-picked fresh.
-    addonKeys: [],
+    addonSelections: [],
   };
 }
