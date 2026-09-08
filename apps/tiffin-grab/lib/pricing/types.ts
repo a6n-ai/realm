@@ -10,12 +10,19 @@ export interface PricingSelections {
   includeSunday: boolean;
   durationWeeks: number;
   startDate: string; // ISO YYYY-MM-DD; not used by pricing, carried for order creation
+  // Add-on keys picked in the wizard. Optional — omitted/empty means no add-ons,
+  // so existing callers built before add-ons existed keep working unchanged.
+  addonKeys?: string[];
 }
 
 export interface PricingCatalog {
   mealSize: { id: string; basePrice: number };
   frequency: { key: string; daysPerWeek: number };
   tiers: PricingTier[];
+  // Resolved rate for each of selections.addonKeys, priced per delivery week —
+  // buildPricingCatalog rejects any key not attached to the chosen meal size's
+  // categories, so by the time this reaches the engine every entry is billable.
+  addons: { key: string; name: string; pricePerWeek: number }[];
 }
 
 export interface PricingLine {

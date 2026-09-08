@@ -20,6 +20,24 @@ export function StepBundle({
   currentPlan?: CurrentPlanSummary | null;
 }) {
   const meals = catalog.mealSizes.filter((m) => m.planKey === selections.planKey && !m.trial);
+  const selectedMeal = meals.find((m) => m.publicId === selections.mealSizeId);
+
+  // Only categories an admin explicitly attached add-ons to show up — see
+  // dishCategoryAddonCategories. Deduped: two component categories can share
+  // the same add-on category.
+  const eligibleAddons = (() => {
+    if (!selectedMeal) return [];
+    const byKey = new Map<string, { key: string; name: string; pricePerWeek: number }>();
+    for (const item of selectedMeal.items) {
+      for (const addon of catalog.addonsByCategory?.[item.category] ?? []) byKey.set(addon.key, addon);
+    }
+    return [...byKey.values()];
+  })();
+
+  const addonKeys = selections.addonKeys ?? [];
+  const toggleAddon = (key: string) => {
+    set({ addonKeys: addonKeys.includes(key) ? addonKeys.filter((k) => k !== key) : [...addonKeys, key] });
+  };
 
   return (
     <div className="space-y-4">
@@ -68,6 +86,30 @@ export function StepBundle({
           </section>
         );
       })}
+
+      {eligibleAddons.length > 0 && (
+        <section>
+          <h3 className="text-primary mb-3 text-xs font-semibold tracking-[2.5px] uppercase">Add-ons</h3>
+          <div className="flex flex-wrap gap-2.5">
+            {eligibleAddons.map((addon) => {
+              const checked = addonKeys.includes(addon.key);
+              return (
+                <button
+                  key={addon.key}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={checked}
+                  onClick={() => toggleAddon(addon.key)}
+                  className={`border-foreground hover-lift flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-4 py-2 text-sm font-medium transition-[transform,box-shadow,background-color] active:scale-[0.97] ${checked ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                >
+                  <span>{addon.name}</span>
+                  <span className="nums text-xs opacity-80">+${addon.pricePerWeek.toFixed(2)}/wk</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

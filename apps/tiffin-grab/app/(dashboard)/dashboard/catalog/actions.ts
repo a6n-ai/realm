@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guards";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import {
+  addonCategoryService,
   addonService,
   deliveryFrequencyService,
   deliveryZoneService,
@@ -26,6 +27,7 @@ const SERVICES = {
   "duration-packages": durationPackageService,
   "delivery-zones": deliveryZoneService,
   "pricing-tiers": pricingTierService,
+  "addon-categories": addonCategoryService,
   addons: addonService,
 } as const;
 

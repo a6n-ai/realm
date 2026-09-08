@@ -30,7 +30,7 @@ function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | 
 }
 
 async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
-  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows] = await Promise.all([
+  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
@@ -41,6 +41,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     dishCategoriesService.forPlanType("tiffin"),
     dishCategoriesService.forPlanType("healthy"),
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),
+    dishCategoriesService.addonsByDishCategory(),
   ]);
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
   const tuByCategory = new Map(categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]));
@@ -78,5 +79,6 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     zones: zoneRows.map((z) => ({ id: z.id, publicId: z.publicId, name: z.name, postalPrefixes: z.postalPrefixes, slotWindow: z.slotWindow, active: z.active })),
     tiers: tierRows.map((t) => ({ minQty: t.minQty, maxQty: t.maxQty, upliftPct: Number(t.upliftPct) })),
     categoryLabels,
+    addonsByCategory: Object.fromEntries(addonsByCategory),
   };
 }

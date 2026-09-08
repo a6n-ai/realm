@@ -7,7 +7,7 @@ export interface FieldDef {
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "weekdays" | "categories" | "plans";
+  optionsSource?: "weekdays" | "categories" | "plans" | "addon-categories";
   optionLabels?: Record<string, string>;
   unit?: string;
   optional?: boolean;
@@ -137,8 +137,17 @@ const pricingTiersSchema = z.object({
   active,
 });
 
+const addonCategoriesSchema = z.object({
+  key, name,
+  sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
+  active,
+});
+
 const addonsSchema = z.object({
   key, name,
+  // Soft ref to addon_categories.key — every add-on belongs to exactly one
+  // category, which is what dish categories attach to gate visibility.
+  category: z.string().trim().min(1, "Pick a category"),
   pricePerWeek: reqNum(z.coerce.number().nonnegative()),
   active,
 });
@@ -170,6 +179,9 @@ const dishCategoriesSchema = z.object({
   key,
   label: name,
   planIds: z.array(z.string()).min(1, "Pick at least one plan"),
+  // Which add-on categories this dish category offers — empty means no
+  // add-ons show for it. Opt-in, unlike planIds.
+  addonCategoryIds: z.array(z.string()).default([]),
   selectable: z.boolean().default(false),
   sortOrder: reqNum(z.coerce.number().int().nonnegative().default(0)),
   // How this category converts into the shared tiffin unit (TU) — see db/schema/menu.ts.
@@ -194,6 +206,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "label", label: "Label", type: "text" },
       { key: "planIds", label: "Plans", type: "multiselect", optionsSource: "plans" },
+      { key: "addonCategoryIds", label: "Add-on categories", type: "multiselect", optionsSource: "addon-categories", tableHidden: true },
       { key: "selectable", label: "Customer-selectable", type: "boolean" },
       { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
       // Editable in the dialog, kept off the table: with Plans/Customer-selectable/Sort
@@ -270,11 +283,20 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "upliftPct", label: "Uplift %", type: "number", unit: "%" },
     ],
   },
+  "addon-categories": {
+    key: "addon-categories", label: "Add-on categories", singular: "add-on category", keyed: true, schema: addonCategoriesSchema,
+    fields: [
+      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
+      { key: "name", label: "Name", type: "text" },
+      { key: "sortOrder", label: "Sort order", type: "number", tableHidden: true },
+    ],
+  },
   addons: {
     key: "addons", label: "Add-ons", singular: "add-on", keyed: true, schema: addonsSchema,
     fields: [
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
+      { key: "category", label: "Category", type: "select", optionsSource: "addon-categories" },
       { key: "pricePerWeek", label: "Price / week", type: "number", unit: "$" },
     ],
   },

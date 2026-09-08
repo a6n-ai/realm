@@ -4,7 +4,7 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishesService } from "@/lib/services/dishes.service";
@@ -24,6 +24,7 @@ const TABLES: Record<string, PgTable> = {
   "duration-packages": durationPackages,
   "delivery-zones": deliveryZones,
   "pricing-tiers": pricingTiers,
+  "addon-categories": addonCategories,
   addons,
 };
 
@@ -120,6 +121,15 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       // service resolves back to plans.id on write.
       const planRows = await db.select({ publicId: plans.publicId, name: plans.name }).from(plans).where(eq(plans.active, true));
       dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
+    } else if (f.optionsSource === "addon-categories") {
+      // addons.category (soft ref) uses the key; dish-categories.addonCategoryIds
+      // (join membership) uses the publicId — same split as dishes.category vs
+      // dishes.planIds above.
+      const addonCatRows = await db
+        .select({ publicId: addonCategories.publicId, key: addonCategories.key, name: addonCategories.name })
+        .from(addonCategories)
+        .where(eq(addonCategories.active, true));
+      dynamicOptions[f.key] = addonCatRows.map((a) => ({ value: resource === "addons" ? a.key : a.publicId, label: a.name }));
     }
   }
 
@@ -244,6 +254,10 @@ export async function CatalogData({ resource, searchParams }: { resource: string
         ? await dishesService.plansByDish()
         : await dishCategoriesService.plansByCategory();
     for (const dto of rows) dto.planIds = byRow.get(dto.publicId) ?? [];
+  }
+  if (resource === "dish-categories") {
+    const addonCatByRow = await dishCategoriesService.addonCategoriesByCategory();
+    for (const dto of rows) dto.addonCategoryIds = addonCatByRow.get(dto.publicId) ?? [];
   }
 
   return (

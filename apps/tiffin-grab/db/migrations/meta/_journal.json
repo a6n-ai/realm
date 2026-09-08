@@ -71,6 +71,20 @@
       "when": 1788506202609,
       "tag": "0009_add_public_faqs",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788879232675,
+      "tag": "0010_cynical_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788879912804,
+      "tag": "0011_fearless_butterfly",
+      "breakpoints": true
     }
   ]
 }

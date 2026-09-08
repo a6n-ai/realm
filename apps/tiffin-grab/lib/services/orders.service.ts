@@ -14,6 +14,7 @@ import {
   member,
   mealSizes,
   orderActivities,
+  orderAddons,
   orders,
   organization,
   payments,
@@ -473,6 +474,23 @@ export async function createOrder(
         organizationId,
       })
       .returning();
+
+    // Structured counterpart to the addon lines already inside pricingSnapshot —
+    // see orderAddons' comment in db/schema/orders.ts. pricingCatalog.addons is
+    // already the buildPricingCatalog-validated (eligible, priced) resolution of
+    // input.selections.addonKeys, so no re-validation needed here.
+    if (pricingCatalog.addons.length) {
+      await tx.insert(orderAddons).values(
+        pricingCatalog.addons.map((addon) => ({
+          orderId: order.id,
+          addonKey: addon.key,
+          addonName: addon.name,
+          pricePerWeek: addon.pricePerWeek.toFixed(2),
+          amount: (Math.round((addon.pricePerWeek * input.selections.durationWeeks + Number.EPSILON) * 100) / 100).toFixed(2),
+          organizationId,
+        })),
+      );
+    }
 
     // Start immediately: in-zone orders materialize deliveries now, even when
     // payment is still awaiting. UI tells the customer delivery begins once

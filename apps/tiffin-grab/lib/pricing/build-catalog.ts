@@ -24,9 +24,24 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     throw new ValidationError("Invalid duration");
   }
 
+  // Eligible add-ons are the union of whatever's attached to this meal size's own
+  // component categories — never trust the client's addonKeys list as-is, re-derive
+  // eligibility from the snapshot and reject anything outside it.
+  const eligibleAddons = new Map<string, { key: string; name: string; pricePerWeek: number }>();
+  for (const item of mealSize.items) {
+    for (const addon of snapshot.addonsByCategory?.[item.category] ?? []) eligibleAddons.set(addon.key, addon);
+  }
+  const addonKeys = selections.addonKeys ?? [];
+  const addons = addonKeys.map((key) => {
+    const addon = eligibleAddons.get(key);
+    if (!addon) throw new ValidationError(`Add-on not available: ${key}`);
+    return addon;
+  });
+
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
     tiers: snapshot.tiers,
+    addons,
   };
 }

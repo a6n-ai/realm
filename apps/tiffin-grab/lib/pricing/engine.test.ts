@@ -13,6 +13,7 @@ const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day"): PricingCat
   mealSize: { id: "m1", basePrice },
   frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5 } : { key: "mwf", daysPerWeek: 3 },
   tiers: TIERS,
+  addons: [],
 });
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({

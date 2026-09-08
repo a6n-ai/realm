@@ -17,7 +17,7 @@ async function reset() {
 describe("catalog soft-delete", () => {
   beforeEach(async () => {
     await reset();
-    const [a] = await db.insert(addons).values({ key: "sat-test", name: "Sat", pricePerWeek: "15.00" }).returning();
+    const [a] = await db.insert(addons).values({ key: "sat-test", name: "Sat", category: "uncategorized", pricePerWeek: "15.00" }).returning();
     id = a.id;
     publicId = a.publicId;
   });

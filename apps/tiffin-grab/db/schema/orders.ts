@@ -94,6 +94,26 @@ export const payments = pgTable("payments", {
   index("payments_organization_idx").on(t.organizationId),
 ]);
 
+// One row per add-on picked on an order, priced at order time — the structured
+// counterpart to the "Extra Roti (add-on, 4 wk)" line already folded into
+// orders.pricingSnapshot.lineItems. That snapshot is the immutable billing
+// receipt; this table is what lets ops query "which orders picked add-on X"
+// or total an add-on's uptake without parsing line-item label strings.
+export const orderAddons = pgTable("order_addons", {
+  ...baseColumns("oad"),
+  orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id, { onDelete: "cascade" }),
+  // Denormalized key/name/rate, not a live FK to addons — an order must keep
+  // showing what was actually sold even if the addon is later renamed/retired.
+  addonKey: text("addon_key").notNull(),
+  addonName: text("addon_name").notNull(),
+  pricePerWeek: numeric("price_per_week", { precision: 10, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  // Client-scoping — see orders.organizationId for the pattern.
+  organizationId: text("organization_id").references(() => organization.id),
+}, (t) => [
+  index("order_addons_order_idx").on(t.orderId),
+]);
+
 export const orderActivities = pgTable("order_activities", {
   ...baseColumns("oac"),
   orderId: bigint("order_id", { mode: "bigint" }).notNull().references(() => orders.id, { onDelete: "cascade" }),

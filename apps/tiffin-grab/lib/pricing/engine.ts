@@ -22,11 +22,23 @@ export function priceSubscription(
 
   const tier = findTier(catalog.tiers, tiffinCount);
   const perTiffinPrice = round2(catalog.mealSize.basePrice * (1 + tier.upliftPct / 100));
-  const subtotal = round2(perTiffinPrice * tiffinCount);
+  const tiffinSubtotal = round2(perTiffinPrice * tiffinCount);
 
   const lineItems: PricingLine[] = [
-    { label: `Tiffins (${tiffinCount} × $${perTiffinPrice.toFixed(2)})`, amount: subtotal },
+    { label: `Tiffins (${tiffinCount} × $${perTiffinPrice.toFixed(2)})`, amount: tiffinSubtotal },
   ];
+
+  // Add-ons bill per delivery week, not per tiffin — same cadence as the
+  // subscription itself, independent of frequency/persons.
+  let addonSubtotal = 0;
+  for (const addon of catalog.addons) {
+    const amount = round2(addon.pricePerWeek * selections.durationWeeks);
+    addonSubtotal += amount;
+    lineItems.push({ label: `${addon.name} (add-on, ${selections.durationWeeks} wk)`, amount });
+  }
+  addonSubtotal = round2(addonSubtotal);
+
+  const subtotal = round2(tiffinSubtotal + addonSubtotal);
 
   // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; base floored at 0.
   const taxableBase = Math.max(0, round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0)));
