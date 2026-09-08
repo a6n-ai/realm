@@ -109,7 +109,29 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   if (!def || !table) notFound();
 
   const needsCategories = def.fields.some((f) => f.optionsSource === "categories");
-  const categoryRows = needsCategories ? await dishCategoriesService.enabledCategories() : [];
+  // "plans" is needed either for a dynamicOptions field or for meal-sizes'
+  // categoriesByPlan — fetched once and shared between both, instead of once
+  // per consumer.
+  const needsPlans = def.fields.some((f) => f.optionsSource === "plans") || resource === "meal-sizes";
+  const needsAddonCategories = def.fields.some((f) => f.optionsSource === "addon-categories");
+  // meal-sizes also needs every plan (active or not) to resolve a row's planId
+  // FK to a publicId below — fetch the superset once and derive the
+  // active-only dropdown options from it, rather than two separate queries.
+  const [categoryRows, allPlanRows, addonCatRows] = await Promise.all([
+    needsCategories ? dishCategoriesService.enabledCategories() : Promise.resolve([]),
+    // Dropdown value is the plan publicId — the same identifier the meal-size
+    // service resolves back to plans.id on write.
+    needsPlans
+      ? db.select({ id: plans.id, publicId: plans.publicId, name: plans.name, active: plans.active }).from(plans)
+      : Promise.resolve([]),
+    // addons.category (soft ref) uses the key; dish-categories.addonCategoryIds
+    // (join membership) uses the publicId — same split as dishes.category vs
+    // dishes.planIds above.
+    needsAddonCategories
+      ? db.select({ publicId: addonCategories.publicId, key: addonCategories.key, name: addonCategories.name }).from(addonCategories).where(eq(addonCategories.active, true))
+      : Promise.resolve([]),
+  ]);
+  const planRows = allPlanRows.filter((p) => p.active);
   const dynamicOptions: Record<string, { value: string; label: string }[]> = {};
   for (const f of def.fields) {
     if (f.optionsSource === "categories") {
@@ -117,18 +139,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     } else if (f.optionsSource === "weekdays") {
       dynamicOptions[f.key] = WEEKDAY_OPTIONS.map((d) => ({ value: d, label: WEEKDAY_LABELS[d] }));
     } else if (f.optionsSource === "plans") {
-      // Dropdown value is the plan publicId — the same identifier the meal-size
-      // service resolves back to plans.id on write.
-      const planRows = await db.select({ publicId: plans.publicId, name: plans.name }).from(plans).where(eq(plans.active, true));
       dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
     } else if (f.optionsSource === "addon-categories") {
-      // addons.category (soft ref) uses the key; dish-categories.addonCategoryIds
-      // (join membership) uses the publicId — same split as dishes.category vs
-      // dishes.planIds above.
-      const addonCatRows = await db
-        .select({ publicId: addonCategories.publicId, key: addonCategories.key, name: addonCategories.name })
-        .from(addonCategories)
-        .where(eq(addonCategories.active, true));
       dynamicOptions[f.key] = addonCatRows.map((a) => ({ value: resource === "addons" ? a.key : a.publicId, label: a.name }));
     }
   }
@@ -139,7 +151,6 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   // rather than fetched per change, so switching the plan dropdown is instant.
   let categoriesByPlan: Record<string, { value: string; label: string }[]> | undefined;
   if (resource === "meal-sizes") {
-    const planRows = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.active, true));
     const entries = await Promise.all(
       planRows.map(async (p) => [
         p.publicId,
@@ -190,18 +201,16 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   };
 
   const where = conditionToSql(condition, resolver);
-  const [{ count: total }] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(table)
-    .where(where);
-
-  const raw = (await db
-    .select()
-    .from(table)
-    .where(where)
-    .orderBy(orderBy)
-    .limit(page.size)
-    .offset(page.page * page.size)) as Record<string, unknown>[];
+  const [[{ count: total }], raw] = await Promise.all([
+    db.select({ count: sql<number>`cast(count(*) as int)` }).from(table).where(where),
+    db
+      .select()
+      .from(table)
+      .where(where)
+      .orderBy(orderBy)
+      .limit(page.size)
+      .offset(page.page * page.size) as Promise<Record<string, unknown>[]>,
+  ]);
   const rows = raw.map((r) => {
     const dto: Record<string, unknown> & { publicId: string } = {
       publicId: r.publicId as string,
@@ -218,9 +227,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   // composition lives in a second table. Resolve planId → publicId (so the plan
   // dropdown preselects) and attach each row's items ordered by sortOrder.
   if (resource === "meal-sizes") {
-    const planPublicById = new Map(
-      (await db.select({ id: plans.id, publicId: plans.publicId }).from(plans)).map((p) => [p.id, p.publicId]),
-    );
+    const planPublicById = new Map(allPlanRows.map((p) => [p.id, p.publicId]));
     const mealSizeIds = raw.map((r) => r.id as bigint);
     const itemRows = mealSizeIds.length
       ? await db.select().from(mealSizeItems).where(inArray(mealSizeItems.mealSizeId, mealSizeIds)).orderBy(asc(mealSizeItems.sortOrder))

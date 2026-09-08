@@ -581,18 +581,14 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   async getAdminDetail(publicId: string) {
     const order = await this.ordersRepo.findByPublicId(publicId);
     if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
-    const items = await this.ordersRepo.findItemsByOrderId(order.id);
-    const pays = await this.ordersRepo.findPaymentsByOrderId(order.id);
-    let assignedEmployee: EmployeeRow | null = null;
-    if (order.assignedEmployeeId) {
-      const [row] = await db
-        .select()
-        .from(employees)
-        .where(eq(employees.id, order.assignedEmployeeId))
-        .limit(1);
-      assignedEmployee = row ?? null;
-    }
-    return { order, items, payments: pays, assignedEmployee };
+    const [items, pays, employeeRows] = await Promise.all([
+      this.ordersRepo.findItemsByOrderId(order.id),
+      this.ordersRepo.findPaymentsByOrderId(order.id),
+      order.assignedEmployeeId
+        ? db.select().from(employees).where(eq(employees.id, order.assignedEmployeeId)).limit(1)
+        : Promise.resolve([]),
+    ]);
+    return { order, items, payments: pays, assignedEmployee: employeeRows[0] ?? null };
   }
 
   /**

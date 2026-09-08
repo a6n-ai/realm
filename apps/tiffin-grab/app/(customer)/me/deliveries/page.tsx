@@ -84,17 +84,20 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
     [selected.publicId]: calendarDays,
   };
 
-  const categoryRows = await dishCategoriesService.forPlanType(selected.planType);
+  // Independent of each other and of the first Promise.all's results (both only
+  // need `selected`, already resolved) — fetched together instead of sequentially.
+  const [categoryRows, mealSizeCategoryRows] = await Promise.all([
+    dishCategoriesService.forPlanType(selected.planType),
+    // Eligibility is global now (category_swap_pairs) — restricted here to categories
+    // this meal size actually offers, so the picker can't propose a pair it doesn't serve.
+    db.select({ category: mealSizeItems.category }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, selected.mealSizeId)),
+  ]);
   const categoryLabels: Record<string, string> = {};
   for (const r of categoryRows) categoryLabels[r.key] = r.label;
   const categoryPortions = categoryPortionsForMealSize(catalog.mealSizes, selected.mealSizeId);
 
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 
-  // Eligibility is global now (category_swap_pairs) — restricted here to categories
-  // this meal size actually offers, so the picker can't propose a pair it doesn't serve.
-  const mealSizeCategoryRows = await db.select({ category: mealSizeItems.category }).from(mealSizeItems)
-    .where(eq(mealSizeItems.mealSizeId, selected.mealSizeId));
   const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
   const swapPairs = await dishCategoriesService.swapPairsForCategories(mealSizeCategories);
 

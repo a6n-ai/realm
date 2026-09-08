@@ -68,6 +68,9 @@ export const orders = pgTable("orders", {
   // Reassignment: staff "my queue" views filter by current_owner.
   index("orders_current_owner_idx").on(t.currentOwner),
   index("orders_organization_idx").on(t.organizationId),
+  // Admin Orders list: default sort createdAt desc, status-pill filter. Mirrors
+  // puchkaman's orders_status_created_idx for the same query shape.
+  index("orders_status_created_idx").on(t.status, t.createdAt),
 ]);
 
 // A customer-submitted proof image for a manual payment claim (same shape as ticket
