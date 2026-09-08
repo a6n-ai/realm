@@ -3,6 +3,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Wizard } from "@/components/wizard/wizard";
+import { IdentityGate } from "@/components/wizard/identity-gate";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/auth/landing";
@@ -39,7 +40,9 @@ export default async function SubscribePage() {
         <SubscribeCouponsPreview coupons={coupons} />
       </div>
       <div className="mt-4">
-        <Wizard catalog={toClientCatalog(catalog)} closeHref="/" />
+        <IdentityGate>
+          <Wizard catalog={toClientCatalog(catalog)} closeHref="/" />
+        </IdentityGate>
       </div>
     </main>
   );
