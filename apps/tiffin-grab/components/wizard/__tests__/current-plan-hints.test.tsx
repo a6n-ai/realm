@@ -116,6 +116,14 @@ describe("wizard current-plan soft hints", () => {
     expect(screen.getByText(/This renewal can start on or after/i)).toBeInTheDocument();
     expect(screen.getByText(/Jan 15/)).toBeInTheDocument();
     expect(document.querySelector('input[type="date"]')).toBeNull();
-    expect(screen.getByRole("button", { name: /pick a date/i })).toBeInTheDocument();
+    // Custom date-picker trigger, not a native input — its accessible name
+    // comes from the associated <label for> ("Start date"), per HTML
+    // label-association rules for labelable elements (button included). The
+    // fixture's selections.startDate ("2026-07-22") is already set, so the
+    // button shows the formatted date rather than the empty-state "Pick a
+    // date" placeholder — this assertion only needs to confirm the custom
+    // picker button renders, which the input[type="date"] check above already
+    // establishes isn't a native control.
+    expect(screen.getByRole("button", { name: /start date/i })).toBeInTheDocument();
   });
 });
