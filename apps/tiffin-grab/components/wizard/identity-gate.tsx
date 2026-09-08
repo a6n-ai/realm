@@ -33,6 +33,7 @@ export function IdentityGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GateState>("email");
   const [email, setEmail] = useState("");
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const emailForm = useForm<z.infer<typeof emailStepSchema>>({
     resolver: zodResolver(emailStepSchema),
@@ -56,18 +57,30 @@ export function IdentityGate({ children }: { children: ReactNode }) {
 
   async function sendCode() {
     setOtpError(null);
-    await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
-    setState("otp");
+    setSending(true);
+    try {
+      await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+      setState("otp");
+    } catch {
+      setOtpError("Couldn't send the code. Try again, or continue as guest.");
+    } finally {
+      setSending(false);
+    }
   }
 
   async function verifyCode(values: z.infer<typeof otpCodeSchema>) {
     setOtpError(null);
-    const result = await signIn.emailOtp({ email, otp: values.code });
-    if (result?.error) {
-      setOtpError("Invalid or expired code.");
-      return;
+    try {
+      const result = await signIn.emailOtp({ email, otp: values.code });
+      if (result?.error) {
+        setOtpError("Invalid or expired code.");
+        return;
+      }
+      router.push("/me/renew");
+      router.refresh();
+    } catch {
+      setOtpError("Couldn't sign you in. Try again, or continue as guest.");
     }
-    router.push("/me/renew");
   }
 
   if (state === "revealed") return <>{children}</>;
@@ -112,10 +125,11 @@ export function IdentityGate({ children }: { children: ReactNode }) {
                 This email is linked to an existing account — sign in to continue with your saved plan.
               </p>
             </div>
+            {otpError ? <p className="text-destructive text-sm">{otpError}</p> : null}
             <Button type="button" className="w-full" onClick={() => setState("revealed")}>
               Continue as guest
             </Button>
-            <Button type="button" variant="outline" className="w-full" onClick={sendCode}>
+            <Button type="button" variant="outline" className="w-full" onClick={sendCode} disabled={sending}>
               Sign in
             </Button>
           </div>

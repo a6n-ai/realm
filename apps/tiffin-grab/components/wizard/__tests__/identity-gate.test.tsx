@@ -10,8 +10,9 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
 }));
 
 const push = vi.fn();
+const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, refresh }),
 }));
 
 const sendVerificationOtp = vi.fn();
@@ -29,6 +30,7 @@ afterEach(() => {
   sendVerificationOtp.mockReset();
   signInEmailOtp.mockReset();
   push.mockReset();
+  refresh.mockReset();
 });
 
 describe("IdentityGate", () => {
@@ -117,6 +119,84 @@ describe("IdentityGate", () => {
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => expect(screen.getByText(/invalid or expired code/i)).toBeInTheDocument());
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("calls router.refresh after a successful sign-in", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockResolvedValue(undefined);
+    signInEmailOtp.mockResolvedValue({ error: null });
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => screen.getByLabelText(/verification code/i));
+
+    await user.type(screen.getByLabelText(/verification code/i), "123456");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("shows an error on the matched step when sending the OTP rejects, without moving to the code step", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't send the code/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText(/verification code/i)).not.toBeInTheDocument();
+  });
+
+  it("disables the sign-in button while the OTP send is in flight", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    let resolveSend!: () => void;
+    sendVerificationOtp.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveSend = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /^sign in$/i })).toBeDisabled());
+
+    resolveSend();
+    await waitFor(() => expect(screen.getByLabelText(/verification code/i)).toBeInTheDocument());
+  });
+
+  it("shows an error on the code step when signing in rejects, instead of throwing unhandled", async () => {
+    checkExistingAccount.mockResolvedValue({ status: "matched" });
+    sendVerificationOtp.mockResolvedValue(undefined);
+    signInEmailOtp.mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    render(<IdentityGate><div>wizard here</div></IdentityGate>);
+
+    await user.type(screen.getByLabelText(/email/i), "existing@person.com");
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => screen.getByRole("button", { name: /^sign in$/i }));
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await waitFor(() => screen.getByLabelText(/verification code/i));
+
+    await user.type(screen.getByLabelText(/verification code/i), "123456");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => expect(screen.getByText(/couldn't sign you in/i)).toBeInTheDocument());
     expect(push).not.toHaveBeenCalled();
   });
 });
