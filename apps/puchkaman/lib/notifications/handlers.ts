@@ -1,4 +1,4 @@
-import { buildHandlers, type ChannelProvider } from "@relay/engine";
+import { buildCampaignConfig, buildHandlers, type ChannelProvider } from "@relay/engine";
 import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
@@ -20,26 +20,6 @@ function emailChannelProvider(): ChannelProvider {
   };
 }
 
-/**
- * Campaign config, or undefined when the footer inputs are missing.
- *
- * Returning undefined makes the handler SKIP campaign rows rather than send a
- * commercial message with no unsubscribe link and no postal address — which is
- * the failure CASL actually penalises. A missing env var stops marketing and
- * leaves transactional mail untouched.
- */
-function campaignConfig() {
-  const secret = process.env.UNSUBSCRIBE_SECRET;
-  const postalAddress = process.env.CAMPAIGN_POSTAL_ADDRESS;
-  const baseUrl = process.env.CAMPAIGN_BASE_URL ?? process.env.SITE_URL;
-  if (!secret || !postalAddress || !baseUrl) return undefined;
-  return {
-    tables: notificationTables,
-    unsubscribe: { baseUrl, secret },
-    sender: { name: process.env.CAMPAIGN_SENDER_NAME ?? "Puchkaman", postalAddress },
-  };
-}
-
 export function buildAppHandlers() {
   return buildHandlers({
     db,
@@ -51,6 +31,6 @@ export function buildAppHandlers() {
       whatsapp: getWhatsAppProvider(),
     },
     broadcast: (input) => broadcastNotification({ userId: input.userId }),
-    campaigns: campaignConfig(),
+    campaigns: buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" }),
   });
 }

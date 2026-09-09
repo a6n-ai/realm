@@ -1,4 +1,9 @@
-import { buildHandlers, type BroadcastInput, type ChannelProvider } from "@relay/engine";
+import {
+  buildCampaignConfig,
+  buildHandlers,
+  type BroadcastInput,
+  type ChannelProvider,
+} from "@relay/engine";
 import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
@@ -35,5 +40,6 @@ export function buildAppHandlers() {
     users: usersRef,
     providers: { email: emailChannelProvider() },
     broadcast: appBroadcast,
+    campaigns: buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" }),
   });
 }
