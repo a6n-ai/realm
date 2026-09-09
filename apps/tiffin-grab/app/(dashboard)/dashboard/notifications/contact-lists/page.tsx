@@ -12,6 +12,7 @@ import {
   ContactListUpload,
   formatConsentDate,
 } from "@relay/engine/ui";
+import { ContactListMembersDialog } from "./members-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,7 @@ export default async function ContactListsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="tabular-nums text-sm text-muted-foreground">{l.memberCount}</span>
                   {l.segmentDef && <ContactListResyncButton publicId={l.publicId} />}
+                  <ContactListMembersDialog listPublicId={l.publicId} listName={l.name} />
                 </div>
               </li>
             ))}
