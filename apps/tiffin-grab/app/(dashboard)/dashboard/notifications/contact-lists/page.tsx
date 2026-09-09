@@ -8,10 +8,12 @@ import { contactList } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   ContactListFromSegment,
+  ContactListManualAdd,
   ContactListResyncButton,
   ContactListUpload,
   formatConsentDate,
 } from "@relay/engine/ui";
+import { ContactListMembersDialog } from "./members-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -65,11 +67,20 @@ export default async function ContactListsPage() {
             </ResponsiveDialog>
             <ResponsiveDialog
               title="Import a list"
-              description="CSV. Duplicates and invalid rows are reported, not silently dropped."
+              description="CSV. Preview and pick which contacts to keep before anything is saved."
               trigger={<Button>Import CSV</Button>}
             >
               <div className="p-4">
                 <ContactListUpload />
+              </div>
+            </ResponsiveDialog>
+            <ResponsiveDialog
+              title="Add contacts by hand"
+              description="For a handful of people — no spreadsheet needed."
+              trigger={<Button variant="outline">Add manually</Button>}
+            >
+              <div className="p-4">
+                <ContactListManualAdd />
               </div>
             </ResponsiveDialog>
           </div>
@@ -92,6 +103,7 @@ export default async function ContactListsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="tabular-nums text-sm text-muted-foreground">{l.memberCount}</span>
                   {l.segmentDef && <ContactListResyncButton publicId={l.publicId} />}
+                  <ContactListMembersDialog listPublicId={l.publicId} listName={l.name} />
                 </div>
               </li>
             ))}
