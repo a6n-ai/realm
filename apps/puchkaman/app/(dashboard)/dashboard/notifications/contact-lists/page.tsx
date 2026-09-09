@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
 import {
   ContactListFromSegment,
+  ContactListManualAdd,
   ContactListResyncButton,
   ContactListUpload,
   formatConsentDate,
@@ -63,11 +64,20 @@ export default async function ContactListsPage() {
             </ResponsiveDialog>
             <ResponsiveDialog
               title="Import a list"
-              description="CSV. Duplicates and invalid rows are reported, not silently dropped."
+              description="CSV. Preview and pick which contacts to keep before anything is saved."
               trigger={<Button>Import CSV</Button>}
             >
               <div className="p-4">
                 <ContactListUpload />
+              </div>
+            </ResponsiveDialog>
+            <ResponsiveDialog
+              title="Add contacts by hand"
+              description="For a handful of people — no spreadsheet needed."
+              trigger={<Button variant="outline">Add manually</Button>}
+            >
+              <div className="p-4">
+                <ContactListManualAdd />
               </div>
             </ResponsiveDialog>
           </div>
