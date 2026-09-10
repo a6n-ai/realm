@@ -88,7 +88,6 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
     path: "/dashboard/notifications/analytics",
     heading: /Analytics/i,
   },
-  { id: "notif-emails", path: "/dashboard/notifications/emails", heading: /Email/i },
   { id: "catalog-dishes", path: "/dashboard/catalog/dishes", heading: /Dish/i },
   { id: "catalog-plans", path: "/dashboard/catalog/plans", heading: /Plan/i },
   { id: "catalog-meal-sizes", path: "/dashboard/catalog/meal-sizes", heading: /Meal size/i },

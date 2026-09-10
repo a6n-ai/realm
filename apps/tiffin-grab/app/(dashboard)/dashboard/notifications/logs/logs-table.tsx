@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import { BellIcon } from "lucide-react";
-import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
+import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
+import { Badge } from "@foundry/ui/badge";
 import { eventLabel } from "@relay/engine/ui";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
@@ -59,6 +61,7 @@ export function LogsTable({
 }) {
   const tz = useTimezone();
   const fmt = (ms: number) => formatEpoch(ms, { mode: "datetime", timeZone: tz });
+  const [selected, setSelected] = useState<Row | null>(null);
   return (
     <div className="space-y-4">
       <DataTable
@@ -66,6 +69,7 @@ export function LogsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
+        onRowClick={(r) => setSelected(r)}
         search={{
           placeholder: "Search notifications…",
           shortPlaceholder: "Search…",
@@ -96,6 +100,49 @@ export function LogsTable({
         )}
       />
       <ListPagination page={page} size={size} total={total} />
+
+      <ResponsiveDialog
+        open={selected != null}
+        onOpenChange={(o) => !o && setSelected(null)}
+        title={selected ? eventLabel(selected.event) : ""}
+        description={selected?.publicId}
+      >
+        {selected && (
+          <div className="space-y-4 p-4 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Status">
+                <span className={STATUS_STYLE[selected.status] ?? "text-muted-foreground"}>
+                  {selected.status}
+                </span>
+                {selected.attempts > 1 && (
+                  <span className="ml-1 text-xs text-muted-foreground">×{selected.attempts}</span>
+                )}
+              </Field>
+              <Field label="Channel">
+                <Badge variant="outline">{selected.channel}</Badge>
+              </Field>
+              <Field label="Recipient">{selected.email ?? "—"}</Field>
+              <Field label="Queued at">{fmt(selected.createdAt)}</Field>
+              <Field label="Provider message ID">{selected.providerMessageId ?? "—"}</Field>
+              <Field label="Attempts">{selected.attempts}</Field>
+            </div>
+            {selected.lastError && (
+              <Field label="Last error">
+                <p className="whitespace-pre-wrap text-destructive">{selected.lastError}</p>
+              </Field>
+            )}
+          </div>
+        )}
+      </ResponsiveDialog>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="font-medium">{children}</div>
     </div>
   );
 }
