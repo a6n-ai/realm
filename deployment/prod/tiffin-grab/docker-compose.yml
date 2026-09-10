@@ -65,6 +65,18 @@ services:
     # `docker compose --profile worker up -d worker` once a broker is wired.
     profiles: ["worker"]
 
+  # Outbox drainer. Deliberately has NO `profiles:` key — unlike `worker` above
+  # this is a long-lived service that must come up with the stack, not a
+  # broker-gated one-shot tool. Polls rather than using LISTEN/NOTIFY: pgbouncer
+  # runs in transaction pooling mode, where a LISTEN binds to a backend that
+  # gets handed to the next client, silently dropping notifications.
+  drainer:
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
+    env_file: .env.production
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
+
   # One-shot migration runner. Reuses the tools image (has drizzle-kit + source).
   # Never starts on `up` (tools profile); invoked by deploy.sh before up.
   migrate:
