@@ -18,6 +18,16 @@ async function resolveUserId(publicId: string): Promise<bigint | null> {
 
 export type MemberOrganization = { id: string; name: string; clientCode: string };
 
+/** The one brand-level org (parentOrganizationId null) — seeded once per app. */
+export async function getBrandOrganizationAddress(): Promise<string | null> {
+  const [row] = await db
+    .select({ address: organization.address })
+    .from(organization)
+    .where(isNull(organization.parentOrganizationId))
+    .limit(1);
+  return row?.address ?? null;
+}
+
 // Every org a staff session can act as, for the header switcher. A member row
 // on a franchise grants that franchise only; a member row on a brand (no
 // parentOrganizationId) grants every franchise under it too — a brand admin
