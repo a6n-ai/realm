@@ -70,10 +70,32 @@ services:
   # broker-gated one-shot tool. Polls rather than using LISTEN/NOTIFY: pgbouncer
   # runs in transaction pooling mode, where a LISTEN binds to a backend that
   # gets handed to the next client, silently dropping notifications.
+  # Each drainer process holds its own token-bucket rate limiter (see
+  # lib/notifications/drain.ts) — running more than one means their caps ADD,
+  # not share. NOTIFY_SEND_RATE is pinned explicitly on every drainer service
+  # below (this one and drainer-fast, both apps) so the combined ceiling
+  # across all four processes stays under SES's 14/s account MaxSendRate —
+  # never rely on the code default here.
   drainer:
     image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
     logging: *awslogs
     env_file: .env.production
+    environment:
+      NOTIFY_SEND_RATE: "6"
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
+
+  # Same worker, short poll interval — for transactional mail (OTP, account
+  # verification) where a customer is watching their inbox, not the 15s bulk
+  # drainer's idle latency. Safe to run alongside `drainer`: claim() uses
+  # FOR UPDATE SKIP LOCKED, so the two never grab the same outbox row.
+  drainer-fast:
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/tiffin-grab-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
+    env_file: .env.production
+    environment:
+      NOTIFY_DRAIN_INTERVAL_MS: "1000"
+      NOTIFY_SEND_RATE: "2"
     restart: unless-stopped
     command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
 
