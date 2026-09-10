@@ -7,11 +7,11 @@ import {
   sendDeleteVerification,
   sendOtpEmail,
   sendPasswordChanged,
-  sendWelcomeVerify,
 } from "@foundry/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
 import { getEmailProvider } from "@/lib/email/provider";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 
 const log = createLogger("auth-security");
 const APP_NAME = "Tiffin Grab";
@@ -25,9 +25,31 @@ export function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<
   return sendOtpEmail(ctx(), email, otp, type);
 }
 
-/** Link-based email verification (signup + on-demand resend). */
-export function sendVerification(user: { email?: string | null }, url: string): Promise<void> {
-  return user.email ? sendWelcomeVerify(ctx(), user.email, url) : Promise.resolve();
+/**
+ * Link-based email verification (signup + on-demand resend). Migrated off the
+ * direct-send path (2026-09) onto the notification pipeline — enqueue() writes
+ * a durable outbox row before anything is sent, and the fast drainer picks it
+ * up within ~1s, so this stays effectively as instant as the direct call was.
+ * Explicit recipientEmail (not recipientId → DB lookup): better-auth may be
+ * reverifying an address not yet the user's committed `users.email`.
+ */
+export async function sendVerification(user: { email?: string | null }, url: string): Promise<void> {
+  if (!user.email) return;
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "email_verification_link",
+      recipientEmail: user.email!,
+      title: `Verify your ${APP_NAME} email`,
+      body: "",
+      data: { url },
+      channels: ["email"],
+      kind: "transactional",
+      // Scoped by url (a fresh token each call, including a resend) so this
+      // only dedupes an accidental double-invoke of the same token — a
+      // genuine resend gets a new token and so always queues its own row.
+      dedupeKey: `email_verification_link:${user.email!.toLowerCase()}:${url}`,
+    }),
+  );
 }
 
 /** Confirm-link for account deletion (OAuth / no-password paths). */
