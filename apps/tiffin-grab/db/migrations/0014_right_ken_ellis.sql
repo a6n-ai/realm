@@ -1,0 +1,1 @@
+ALTER TABLE "campaign_content" ADD COLUMN "attachments" jsonb DEFAULT '[]'::jsonb NOT NULL;
