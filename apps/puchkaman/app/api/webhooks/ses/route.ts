@@ -1,8 +1,10 @@
 import MessageValidator from "sns-validator";
+import { recordCampaignEvent } from "@relay/engine";
 import { handler, problem } from "@foundry/routes";
 import { createLogger } from "@foundry/commons/logger";
+import { db } from "@/db/client";
+import { notificationTables } from "@/lib/notifications/tables";
 import { suppressEmailRecipient } from "@/lib/notifications/suppression";
-import { recordCampaignEvent } from "@/lib/notifications/campaign-stats";
 
 // sns-validator uses node crypto + fetches the signing cert over https.
 export const runtime = "nodejs";
@@ -61,7 +63,7 @@ export async function processSesEvent(messageJson: string): Promise<void> {
     Complaint: "complained",
   };
   const counter = type ? counted[type] : undefined;
-  if (messageId && counter) await recordCampaignEvent(messageId, counter);
+  if (messageId && counter) await recordCampaignEvent({ db, tables: notificationTables }, messageId, counter);
 }
 
 /**

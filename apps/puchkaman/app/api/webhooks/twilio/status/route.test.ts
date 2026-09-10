@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const recordEvent = vi.fn();
 const suppress = vi.fn();
-vi.mock("@/lib/notifications/campaign-stats", () => ({
-  recordCampaignEvent: (id: string, t: string) => recordEvent(id, t),
+vi.mock("@relay/engine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@relay/engine")>()),
+  recordCampaignEvent: (deps: unknown, id: string, t: string) => recordEvent(id, t),
 }));
 vi.mock("@/lib/notifications/suppression", () => ({
   suppressPhone: (p: string, r: string) => suppress(p, r),
