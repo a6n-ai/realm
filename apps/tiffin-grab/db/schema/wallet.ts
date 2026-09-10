@@ -20,6 +20,11 @@ export const appEvent = pgEnum("app_event", [
   "inquiry_created", "inquiry_follow_up", "inquiry_converted",
   "ticket_created", "ticket_reply", "ticket_resolved",
   "signup", "manual_adjustment",
+  // Auth/security transactional email — migrated off @foundry/auth's direct-send
+  // path (2026-09) onto the notification pipeline so every email lands in one
+  // place (Logs) instead of splitting between email_log and notification_outbox.
+  "email_verification_link", "email_otp_password_reset", "email_otp_verification",
+  "account_deletion_confirm", "password_changed", "new_login_alert",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({
