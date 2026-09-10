@@ -1,4 +1,5 @@
 import { desc } from "drizzle-orm";
+import Link from "next/link";
 import { ListIcon, UsersIcon } from "lucide-react";
 import { ResponsiveDialog, SectionCard, StatCard } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
@@ -13,7 +14,6 @@ import {
   ContactListUpload,
   formatConsentDate,
 } from "@relay/engine/ui";
-import { ContactListMembersDialog } from "./members-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +103,9 @@ export default async function ContactListsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="tabular-nums text-sm text-muted-foreground">{l.memberCount}</span>
                   {l.segmentDef && <ContactListResyncButton publicId={l.publicId} />}
-                  <ContactListMembersDialog listPublicId={l.publicId} listName={l.name} />
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link href={`/dashboard/notifications/contact-lists/${l.publicId}`}>Open</Link>
+                  </Button>
                 </div>
               </li>
             ))}

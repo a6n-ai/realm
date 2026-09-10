@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { countAudience, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard, StatGrid } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { campaign, campaignContent } from "@/db/schema";
+import { campaign, campaignContent, contactList } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
-import { CampaignSendButton } from "@relay/engine/ui";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { CampaignDuplicateButton, CampaignRetriggerButton, CampaignSendButton } from "@relay/engine/ui";
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
@@ -41,10 +42,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   if (!row) notFound();
 
   const sendable = row.status === "draft" || row.status === "scheduled";
+  const retriggerable = row.status === "sent" || row.status === "paused" || row.status === "cancelled";
   // Only resolve a count when it can still be acted on — for a sent campaign
   // the stored counts are the record, and re-resolving would show today's
   // audience rather than the one that was actually mailed.
-  const [content, count] = await Promise.all([
+  const [content, count, lists, { timezone }] = await Promise.all([
     db
       .select({ channel: campaignContent.channel, locale: campaignContent.locale, subject: campaignContent.subject })
       .from(campaignContent)
@@ -55,6 +57,17 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           row.audience as AudienceDef,
         )
       : Promise.resolve(0),
+    db
+      .select({
+        publicId: contactList.publicId,
+        name: contactList.name,
+        consentSource: contactList.consentSource,
+        consentAt: contactList.consentAt,
+        memberCount: contactList.memberCount,
+      })
+      .from(contactList)
+      .orderBy(desc(contactList.createdAt)),
+    getAppSettings(),
   ]);
 
   const counts = (row.counts ?? {}) as Record<string, number>;
@@ -71,7 +84,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             <span className="ml-2">{(row.channels as string[]).join(", ")}</span>
           </p>
         </div>
-        {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
+        <div className="flex gap-2">
+          <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timezone} />
+          {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
+          {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
+        </div>
       </div>
 
       {sendable ? (
