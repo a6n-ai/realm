@@ -42,7 +42,7 @@ describe("sms/whatsapp while Twilio is unconfigured", () => {
     });
     ids.push(id);
 
-    await pkgDrain({ db, tables: notificationTables, handlers: buildAppHandlers() });
+    await pkgDrain({ db, tables: notificationTables, handlers: await buildAppHandlers() });
 
     const [row] = await db
       .select({
