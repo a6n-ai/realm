@@ -267,6 +267,13 @@
       "when": 1789033675681,
       "tag": "0037_kind_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789066128456,
+      "tag": "0038_chief_quasar",
+      "breakpoints": true
     }
   ]
 }
