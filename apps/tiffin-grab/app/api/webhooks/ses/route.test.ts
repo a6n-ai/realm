@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { suppress } = vi.hoisted(() => ({ suppress: vi.fn() }));
+const { suppress, recordEvent } = vi.hoisted(() => ({ suppress: vi.fn(), recordEvent: vi.fn() }));
 vi.mock("@/lib/notifications/suppression", () => ({ suppressEmailRecipient: suppress }));
+vi.mock("@relay/engine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@relay/engine")>()),
+  recordCampaignEvent: (deps: unknown, id: string, type: string) => recordEvent(id, type),
+}));
 
 import { processSesEvent } from "./route";
 
@@ -40,8 +44,19 @@ describe("processSesEvent", () => {
     expect(suppress).toHaveBeenCalledExactlyOnceWith("z@z.com", "SES complaint");
   });
 
-  it("ignores delivery/other events", async () => {
+  it("ignores delivery/other events with no message id", async () => {
     await processSesEvent(msg({ eventType: "Delivery", delivery: {} }));
     expect(suppress).not.toHaveBeenCalled();
+    expect(recordEvent).not.toHaveBeenCalled();
+  });
+
+  it("records a delivered campaign stat when a message id is present", async () => {
+    await processSesEvent(msg({ eventType: "Delivery", mail: { messageId: "pid-1" }, delivery: {} }));
+    expect(recordEvent).toHaveBeenCalledExactlyOnceWith("pid-1", "delivered");
+  });
+
+  it("records an opened campaign stat", async () => {
+    await processSesEvent(msg({ eventType: "Open", mail: { messageId: "pid-2" }, open: {} }));
+    expect(recordEvent).toHaveBeenCalledExactlyOnceWith("pid-2", "opened");
   });
 });

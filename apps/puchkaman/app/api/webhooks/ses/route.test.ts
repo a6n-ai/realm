@@ -6,8 +6,9 @@ vi.mock("@/lib/notifications/suppression", () => ({
 }));
 
 const recordEvent = vi.fn();
-vi.mock("@/lib/notifications/campaign-stats", () => ({
-  recordCampaignEvent: (id: string, type: string) => recordEvent(id, type),
+vi.mock("@relay/engine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@relay/engine")>()),
+  recordCampaignEvent: (deps: unknown, id: string, type: string) => recordEvent(id, type),
 }));
 
 const { processSesEvent } = await import("./route");

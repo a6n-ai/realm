@@ -1,7 +1,8 @@
-import { toE164 } from "@relay/engine";
+import { recordCampaignEvent, toE164 } from "@relay/engine";
 import { createLogger } from "@foundry/commons/logger";
 import { handler, problem } from "@foundry/routes";
-import { recordCampaignEvent } from "@/lib/notifications/campaign-stats";
+import { db } from "@/db/client";
+import { notificationTables } from "@/lib/notifications/tables";
 import { suppressPhone } from "@/lib/notifications/suppression";
 import { verifyTwilioSignature } from "@/lib/notifications/twilio-signature";
 
@@ -32,7 +33,7 @@ export async function processStatus(p: Record<string, string | undefined>): Prom
   const status = p.MessageStatus ?? "";
   if (!sid || !COUNTED[status]) return;
 
-  await recordCampaignEvent(sid, COUNTED[status]);
+  await recordCampaignEvent({ db, tables: notificationTables }, sid, COUNTED[status]);
 
   if (p.ErrorCode && PERMANENT.has(p.ErrorCode)) {
     // Twilio prefixes WhatsApp destinations; the suppression key is the bare number.
