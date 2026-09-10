@@ -1,7 +1,8 @@
-import { createRateLimiter, drainPending as drain } from "@relay/engine";
+import { createRateLimiter, drainPending as drain, dueCampaigns, materializeCampaign } from "@relay/engine";
 import { db } from "@/db/client";
-import { notificationTables } from "./tables";
+import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";
+import { resolveSegment } from "@/lib/campaigns/segment";
 
 // SES MaxSendRate is 14/s on this account; stay under it so a burst cannot
 // trigger throttling, which damages sender reputation.
@@ -18,4 +19,18 @@ export function drainPending(limit = 25, maxBatches = 20): Promise<number> {
     limit,
     maxBatches,
   );
+}
+
+/** Expand any scheduled campaign whose time has come. Returns rows queued. */
+export async function materializeDue(): Promise<number> {
+  const due = await dueCampaigns(db, notificationTables);
+  let queued = 0;
+  for (const publicId of due) {
+    const r = await materializeCampaign(
+      { db, tables: notificationTables, users: usersRef, resolveSegment },
+      publicId,
+    );
+    queued += r.queued;
+  }
+  return queued;
 }

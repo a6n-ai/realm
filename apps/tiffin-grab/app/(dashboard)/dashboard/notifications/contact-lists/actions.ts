@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { ValidationError, NotFoundError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { getContactListMember, listContactListMembers, type ContactListMemberRow } from "@relay/engine";
+import { getContactListMember } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
@@ -13,13 +13,6 @@ import { createCustomer, findExistingByContact, sendAccountSetupEmail } from "@/
 
 const log = createLogger("contact-list-actions");
 const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
-
-export async function getContactListMembers(listPublicId: string): Promise<ContactListMemberRow[]> {
-  await requireAdmin();
-  const rows = await listContactListMembers(deps, listPublicId);
-  if (!rows) throw new NotFoundError("List not found");
-  return rows;
-}
 
 /**
  * Turn one contact-list row into a customer account. A CSV import only
