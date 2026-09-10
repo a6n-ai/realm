@@ -6,6 +6,7 @@ import {
 } from "@relay/engine";
 import { getEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
+import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
 import { publishPush } from "./rabbit";
@@ -34,13 +35,18 @@ export const appBroadcast = async (input: BroadcastInput): Promise<void> => {
   if (!(await publishPush(input))) await broadcast(input);
 };
 
-export function buildAppHandlers() {
+export async function buildAppHandlers() {
+  // The CASL-required postal address is admin-editable (Organization > brand
+  // client's address field) rather than an env var — env vars need a redeploy
+  // to change; an admin fixing a wrong mailing address should not.
+  const postalAddress = await getBrandOrganizationAddress();
+  const env = postalAddress ? { ...process.env, CAMPAIGN_POSTAL_ADDRESS: postalAddress } : process.env;
   return buildHandlers({
     db,
     tables: notificationTables,
     users: usersRef,
     providers: { email: emailChannelProvider() },
     broadcast: appBroadcast,
-    campaigns: buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" }),
+    campaigns: buildCampaignConfig(notificationTables, env, { senderName: "TiffinGrab" }),
   });
 }
