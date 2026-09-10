@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { countAudience, type AudienceDef } from "@relay/engine";
-import { BackButton, SectionCard, StatGrid } from "@foundry/design-system";
+import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
@@ -9,18 +9,16 @@ import { campaign, campaignContent, contactList } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { CampaignDuplicateButton, CampaignRetriggerButton, CampaignSendButton } from "@relay/engine/ui";
+import {
+  CampaignAnalytics,
+  CampaignContentSection,
+  CampaignDuplicateButton,
+  CampaignRetriggerButton,
+  CampaignSendButton,
+} from "@relay/engine/ui";
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
-
-const STAT_KEYS = [
-  { key: "queued", label: "Queued" },
-  { key: "delivered", label: "Delivered" },
-  { key: "opened", label: "Opened" },
-  { key: "clicked", label: "Clicked" },
-  { key: "bounced", label: "Bounced" },
-] as const;
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -48,7 +46,16 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   // audience rather than the one that was actually mailed.
   const [content, count, lists, { timezone }] = await Promise.all([
     db
-      .select({ channel: campaignContent.channel, locale: campaignContent.locale, subject: campaignContent.subject })
+      .select({
+        channel: campaignContent.channel,
+        locale: campaignContent.locale,
+        subject: campaignContent.subject,
+        body: campaignContent.body,
+        html: campaignContent.html,
+        text: campaignContent.text,
+        providerTemplateId: campaignContent.providerTemplateId,
+        attachments: campaignContent.attachments,
+      })
       .from(campaignContent)
       .where(eq(campaignContent.campaignId, row.id)),
     sendable
@@ -100,30 +107,12 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </SectionCard>
       ) : (
         <SectionCard title="Results" subtitle="Counts recorded at send time and from SES feedback.">
-          <StatGrid
-            cols={5}
-            items={STAT_KEYS.map((s) => ({ label: s.label, value: counts[s.key] ?? 0 }))}
-          />
+          <CampaignAnalytics counts={counts} />
         </SectionCard>
       )}
 
       <SectionCard title="Content" subtitle="One row per channel and locale.">
-        {content.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No content yet — a campaign with no content for a channel does not send on it.
-          </p>
-        ) : (
-          <ul className="space-y-1.5 text-sm">
-            {content.map((c) => (
-              <li key={`${c.channel}-${c.locale}`} className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {c.channel} · {c.locale}
-                </span>
-                <span className="font-medium">{c.subject}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <CampaignContentSection campaignPublicId={row.publicId} content={content} editable={sendable} />
       </SectionCard>
     </div>
   );
