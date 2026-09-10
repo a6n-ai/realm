@@ -26,7 +26,7 @@ const COLUMNS: readonly Column<CampaignSortColumn | "channels" | "progress" | "a
   { key: "status", label: "Status", sortable: true },
   { key: "progress", label: "Delivery", align: "right", width: "w-40" },
   { key: "createdAt", label: "Created", sortable: true, align: "right" },
-  { key: "actions", label: "Actions", align: "right", width: "w-40" },
+  { key: "actions", label: "Actions", align: "right", width: "w-20" },
 ];
 
 const STATUS_TONE: Record<string, "secondary" | "outline"> = {
@@ -101,9 +101,9 @@ export function CampaignsTable({
             </TableCell>
             <TableCell>
               <RowActions>
-                <CampaignDuplicateButton campaignPublicId={r.publicId} lists={lists} timeZone={timeZone} />
+                <CampaignDuplicateButton campaignPublicId={r.publicId} lists={lists} timeZone={timeZone} compact />
                 {RETRIGGERABLE.has(r.status) && (
-                  <CampaignRetriggerButton campaignPublicId={r.publicId} lists={lists} />
+                  <CampaignRetriggerButton campaignPublicId={r.publicId} lists={lists} compact />
                 )}
               </RowActions>
             </TableCell>
