@@ -106,7 +106,7 @@ describe("enqueue + drain", () => {
         channels: ["in_app"],
       }),
     );
-    await drainPending({ db, tables: notificationTables, handlers: buildAppHandlers() });
+    await drainPending({ db, tables: notificationTables, handlers: await buildAppHandlers() });
     const [row] = await db
       .select({
         status: notificationOutbox.status,

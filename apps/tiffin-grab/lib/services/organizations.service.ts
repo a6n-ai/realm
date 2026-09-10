@@ -28,6 +28,16 @@ export async function getMemberOrganizations(session: { user: { id: string } } |
     .where(eq(member.userId, userId));
 }
 
+/** The one brand-level org (parentOrganizationId null) — seeded once per app. */
+export async function getBrandOrganizationAddress(): Promise<string | null> {
+  const [row] = await db
+    .select({ address: organization.address })
+    .from(organization)
+    .where(sql`${organization.parentOrganizationId} is null`)
+    .limit(1);
+  return row?.address ?? null;
+}
+
 export type OrganizationListRow = {
   id: string;
   name: string;

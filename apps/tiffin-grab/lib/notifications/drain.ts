@@ -8,12 +8,12 @@ import { resolveSegment } from "@/lib/campaigns/segment";
 // trigger throttling, which damages sender reputation.
 const SEND_RATE = Number(process.env.NOTIFY_SEND_RATE ?? 10);
 
-export function drainPending(limit = 25, maxBatches = 20): Promise<number> {
+export async function drainPending(limit = 25, maxBatches = 20): Promise<number> {
   return drain(
     {
       db,
       tables: notificationTables,
-      handlers: buildAppHandlers(),
+      handlers: await buildAppHandlers(),
       rateLimiter: createRateLimiter(SEND_RATE),
     },
     limit,
