@@ -1,53 +1,54 @@
-import { desc } from "drizzle-orm";
-import Link from "next/link";
+import { Suspense } from "react";
+import { asc, count, desc, sql } from "drizzle-orm";
 import { ListIcon, UsersIcon } from "lucide-react";
-import { ResponsiveDialog, SectionCard, StatCard } from "@foundry/design-system";
+import { columnResolver, conditionToSql } from "@foundry/database";
+import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
+import { parseSort, type SortState } from "@/lib/list/sort";
 import {
   ContactListFromSegment,
   ContactListManualAdd,
-  ContactListResyncButton,
   ContactListUpload,
-  formatConsentDate,
 } from "@relay/engine/ui";
+import { ContactListsTable, ContactListsTableSkeleton, type ContactListRow } from "./contact-lists-table";
 
-const CONSENT_LABEL: Record<string, string> = {
-  purchase: "Purchase (expires after 24 months)",
-  express_optin: "Express opt-in",
-  event_signup: "Event signup",
-  import_other: "Other",
-};
+export const dynamic = "force-dynamic";
 
-export default async function ContactListsPage() {
-  await requireAdmin();
-  const [lists, [appRow]] = await Promise.all([
-    db
-      .select({
-        publicId: contactList.publicId,
-        name: contactList.name,
-        consentSource: contactList.consentSource,
-        consentAt: contactList.consentAt,
-        consentNote: contactList.consentNote,
-        memberCount: contactList.memberCount,
-        segmentDef: contactList.segmentDef,
-      })
-      .from(contactList)
-      .orderBy(desc(contactList.createdAt)),
-    db.select({ timezone: app.timezone }).from(app).limit(1),
-  ]);
-  const timeZone = appRow?.timezone ?? "America/Toronto";
+const SORT_COL = {
+  name: contactList.name,
+  memberCount: contactList.memberCount,
+  createdAt: contactList.createdAt,
+} as const;
 
-  const totalContacts = lists.reduce((sum, l) => sum + l.memberCount, 0);
+type ContactListSortColumn = keyof typeof SORT_COL;
 
+const SPEC: FacetDef[] = [
+  { kind: "search", fields: ["name"] },
+  {
+    kind: "pills",
+    field: "consentSource",
+    label: "Consent",
+    options: [
+      { value: "purchase", label: "Purchase" },
+      { value: "express_optin", label: "Express opt-in" },
+      { value: "event_signup", label: "Event signup" },
+      { value: "import_other", label: "Other" },
+    ],
+  },
+  { kind: "dateRange", field: "createdAt", label: "Created" },
+];
+
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+export default function ContactListsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <StatCard label="Lists" value={lists.length} icon={ListIcon} />
-        <StatCard label="Total contacts" value={totalContacts} icon={UsersIcon} />
-      </div>
+      <Suspense fallback={<StatsSkeleton />}>
+        <StatsData />
+      </Suspense>
 
       <SectionCard
         title="Contact lists"
@@ -84,32 +85,92 @@ export default async function ContactListsPage() {
           </div>
         }
       >
-        {lists.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No lists yet.</p>
-        ) : (
-          <ul className="divide-y">
-            {lists.map((l) => (
-              <li key={l.publicId} className="flex items-start justify-between gap-4 py-3 first:pt-0">
-                <div className="min-w-0">
-                  <p className="font-medium">{l.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {CONSENT_LABEL[l.consentSource] ?? l.consentSource} ·{" "}
-                    {formatConsentDate(Number(l.consentAt), timeZone)}
-                    {l.consentNote ? ` · ${l.consentNote}` : ""}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="tabular-nums text-sm text-muted-foreground">{l.memberCount}</span>
-                  {l.segmentDef && <ContactListResyncButton publicId={l.publicId} />}
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link href={`/dashboard/notifications/contact-lists/${l.publicId}`}>Open</Link>
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <Suspense fallback={<ContactListsTableSkeleton />}>
+          <ContactListsData searchParams={searchParams} />
+        </Suspense>
       </SectionCard>
     </div>
   );
 }
+
+async function StatsData() {
+  await requireAdmin();
+  const [[{ n: listCount }], [{ total }]] = await Promise.all([
+    db.select({ n: count() }).from(contactList),
+    db.select({ total: sql<number>`cast(coalesce(sum(${contactList.memberCount}), 0) as int)` }).from(contactList),
+  ]);
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <StatCard label="Lists" value={listCount} icon={ListIcon} />
+      <StatCard label="Total contacts" value={total} icon={UsersIcon} />
+    </div>
+  );
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <StatCard label="Lists" value={0} icon={ListIcon} />
+      <StatCard label="Total contacts" value={0} icon={UsersIcon} />
+    </div>
+  );
+}
+
+async function ContactListsData({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const sp = await searchParams;
+
+  const sort: SortState<ContactListSortColumn> = parseSort(sp, ["name", "memberCount", "createdAt"], {
+    column: "createdAt",
+    dir: "desc",
+  });
+  const { condition, page } = parseFilterState(SPEC, sp);
+  const where = conditionToSql(
+    condition,
+    columnResolver({
+      name: contactList.name,
+      consentSource: contactList.consentSource,
+      createdAt: contactList.createdAt,
+    }),
+  );
+
+  const col = SORT_COL[sort.column];
+  const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
+
+  const [rows, [totalRow], [appRow]] = await Promise.all([
+    db
+      .select({
+        publicId: contactList.publicId,
+        name: contactList.name,
+        consentSource: contactList.consentSource,
+        consentAt: contactList.consentAt,
+        consentNote: contactList.consentNote,
+        memberCount: contactList.memberCount,
+        segmentDef: contactList.segmentDef,
+        createdAt: contactList.createdAt,
+      })
+      .from(contactList)
+      .where(where)
+      .orderBy(orderBy)
+      .limit(page.size)
+      .offset(page.page * page.size),
+    db.select({ n: count() }).from(contactList).where(where),
+    db.select({ timezone: app.timezone }).from(app).limit(1),
+  ]);
+
+  const tableRows: ContactListRow[] = rows.map((r) => ({ ...r, isSegment: r.segmentDef != null }));
+
+  return (
+    <ContactListsTable
+      spec={SPEC}
+      rows={tableRows}
+      sort={sort}
+      total={Number(totalRow?.n ?? 0)}
+      page={page.page}
+      size={page.size}
+      timeZone={appRow?.timezone ?? "America/Toronto"}
+    />
+  );
+}
+
+export type { ContactListSortColumn };
