@@ -6,7 +6,7 @@ import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-sy
 import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { campaign } from "@/db/schema";
+import { app, campaign, contactList } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "./campaigns-table";
 
@@ -17,6 +17,11 @@ const SORT_COL = {
 } as const;
 
 type CampaignSortColumn = keyof typeof SORT_COL;
+
+// Queued/delivered counts change from a background drainer and an async SES
+// webhook — a cached render would show a stale snapshot from whenever the
+// page was last built.
+export const dynamic = "force-dynamic";
 
 const SPEC: FacetDef[] = [
   { kind: "search", fields: ["name"] },
@@ -73,7 +78,7 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
   const col = SORT_COL[sort.column];
   const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
 
-  const [rows, [totalRow]] = await Promise.all([
+  const [rows, [totalRow], lists, [appRow]] = await Promise.all([
     db
       .select({
         publicId: campaign.publicId,
@@ -91,6 +96,17 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
       .limit(page.size)
       .offset(page.page * page.size),
     db.select({ n: count() }).from(campaign).where(where),
+    db
+      .select({
+        publicId: contactList.publicId,
+        name: contactList.name,
+        consentSource: contactList.consentSource,
+        consentAt: contactList.consentAt,
+        memberCount: contactList.memberCount,
+      })
+      .from(contactList)
+      .orderBy(desc(contactList.createdAt)),
+    db.select({ timezone: app.timezone }).from(app).limit(1),
   ]);
 
   return (
@@ -101,6 +117,8 @@ async function CampaignsData({ searchParams }: { searchParams: SearchParams }) {
       total={Number(totalRow?.n ?? 0)}
       page={page.page}
       size={page.size}
+      lists={lists}
+      timeZone={appRow?.timezone ?? "America/Toronto"}
     />
   );
 }

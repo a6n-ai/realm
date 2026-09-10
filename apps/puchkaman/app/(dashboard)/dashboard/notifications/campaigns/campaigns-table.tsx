@@ -1,16 +1,10 @@
 "use client";
 
-import { MegaphoneIcon, PencilIcon } from "lucide-react";
-import {
-  DataTable,
-  ListPagination,
-  RowActionButton,
-  RowActions,
-  type Column,
-  type FacetDef,
-} from "@foundry/design-system";
+import { MegaphoneIcon } from "lucide-react";
+import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
+import { CampaignDuplicateButton, CampaignRetriggerButton, type ContactListOption } from "@relay/engine/ui";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CampaignSortColumn } from "./page";
@@ -30,15 +24,35 @@ const COLUMNS: readonly Column<CampaignSortColumn | "channels" | "progress" | "a
   { key: "name", label: "Name", sortable: true },
   { key: "channels", label: "Channels" },
   { key: "status", label: "Status", sortable: true },
-  { key: "progress", label: "Queued / delivered", align: "right" },
+  { key: "progress", label: "Delivery", align: "right", width: "w-40" },
   { key: "createdAt", label: "Created", sortable: true, align: "right" },
-  { key: "actions", label: "Actions", align: "right", width: "w-16" },
+  { key: "actions", label: "Actions", align: "right", width: "w-40" },
 ];
 
 const STATUS_TONE: Record<string, "secondary" | "outline"> = {
   sent: "secondary",
   sending: "secondary",
 };
+
+const RETRIGGERABLE = new Set(["sent", "paused", "cancelled"]);
+
+function DeliveryProgress({ counts }: { counts: Record<string, number> }) {
+  const queued = counts?.queued ?? 0;
+  const delivered = counts?.delivered ?? 0;
+  const bounced = counts?.bounced ?? 0;
+  const pct = queued > 0 ? Math.min(100, Math.round((delivered / queued) * 100)) : 0;
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {delivered} / {queued}
+        {bounced > 0 && <span className="text-destructive"> · {bounced} bounced</span>}
+      </span>
+      <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export function CampaignsTable({
   spec,
@@ -47,6 +61,8 @@ export function CampaignsTable({
   total,
   page,
   size,
+  lists,
+  timeZone,
 }: {
   spec: FacetDef[];
   rows: CampaignRow[];
@@ -54,6 +70,8 @@ export function CampaignsTable({
   total: number;
   page: number;
   size: number;
+  lists: ContactListOption[];
+  timeZone: string;
 }) {
   return (
     <div className="space-y-4">
@@ -62,6 +80,7 @@ export function CampaignsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
+        idHref={(r) => `/dashboard/notifications/campaigns/${r.publicId}`}
         search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", keys: ["name"] }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={MegaphoneIcon}
@@ -74,19 +93,18 @@ export function CampaignsTable({
             <TableCell>
               <Badge variant={STATUS_TONE[r.status] ?? "outline"}>{r.status}</Badge>
             </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
-              {r.counts?.queued ?? 0} / {r.counts?.delivered ?? 0}
+            <TableCell className="text-right">
+              <DeliveryProgress counts={r.counts} />
             </TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
               {new Date(r.createdAt).toLocaleDateString()}
             </TableCell>
             <TableCell>
               <RowActions>
-                <RowActionButton
-                  icon={PencilIcon}
-                  label="Open campaign"
-                  href={`/dashboard/notifications/campaigns/${r.publicId}`}
-                />
+                <CampaignDuplicateButton campaignPublicId={r.publicId} lists={lists} timeZone={timeZone} />
+                {RETRIGGERABLE.has(r.status) && (
+                  <CampaignRetriggerButton campaignPublicId={r.publicId} lists={lists} />
+                )}
               </RowActions>
             </TableCell>
           </>
