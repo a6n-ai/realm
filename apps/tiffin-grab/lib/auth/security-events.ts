@@ -1,28 +1,34 @@
 import { and, eq } from "drizzle-orm";
-import { createLogger } from "@foundry/commons/logger";
-import {
-  type OtpType,
-  type SecurityEmailContext,
-  sendNewLogin,
-  sendDeleteVerification,
-  sendOtpEmail,
-  sendPasswordChanged,
-} from "@foundry/auth";
+import { type OtpType } from "@foundry/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
-import { getEmailProvider } from "@/lib/email/provider";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 
-const log = createLogger("auth-security");
 const APP_NAME = "Tiffin Grab";
 
-function ctx(): SecurityEmailContext {
-  return { provider: getEmailProvider(), appName: APP_NAME, log };
-}
-
-/** emailOTP plugin callback: deliver a reset/verify/sign-in code via SES. */
-export function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<void> {
-  return sendOtpEmail(ctx(), email, otp, type);
+/**
+ * emailOTP plugin callback: deliver a reset/verify/sign-in code. Migrated
+ * (2026-09) off @foundry/auth's direct-send path onto the notification
+ * pipeline — see sendVerification below for why. "sign-in" and "change-email"
+ * share the generic verification-code copy with "email-verification", same
+ * as the original direct-send routing.
+ */
+export async function sendAuthOtp(email: string, otp: string, type: OtpType): Promise<void> {
+  const event = type === "forget-password" ? "email_otp_password_reset" : "email_otp_verification";
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event,
+      recipientEmail: email,
+      title: `Your ${APP_NAME} verification code`,
+      body: "",
+      data: { otp },
+      channels: ["email"],
+      kind: "transactional",
+      // Scoped by the code itself (fresh per request) — only guards an
+      // accidental double-invoke of the same code, never blocks a new one.
+      dedupeKey: `${event}:${email.toLowerCase()}:${otp}`,
+    }),
+  );
 }
 
 /**
@@ -53,13 +59,36 @@ export async function sendVerification(user: { email?: string | null }, url: str
 }
 
 /** Confirm-link for account deletion (OAuth / no-password paths). */
-export function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
-  return user.email ? sendDeleteVerification(ctx(), user.email, url) : Promise.resolve();
+export async function sendDeleteVerify(user: { email?: string | null }, url: string): Promise<void> {
+  if (!user.email) return;
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "account_deletion_confirm",
+      recipientEmail: user.email!,
+      title: `Confirm deleting your ${APP_NAME} account`,
+      body: "",
+      data: { url },
+      channels: ["email"],
+      kind: "transactional",
+      dedupeKey: `account_deletion_confirm:${user.email!.toLowerCase()}:${url}`,
+    }),
+  );
 }
 
 /** Security alert after a password reset or change. */
-export function notifyPasswordChanged(email: string | null | undefined): Promise<void> {
-  return email ? sendPasswordChanged(ctx(), email) : Promise.resolve();
+export async function notifyPasswordChanged(email: string | null | undefined): Promise<void> {
+  if (!email) return;
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "password_changed",
+      recipientEmail: email,
+      title: `Your ${APP_NAME} password was changed`,
+      body: "",
+      data: {},
+      channels: ["email"],
+      kind: "transactional",
+    }),
+  );
 }
 
 /**
@@ -84,9 +113,15 @@ export async function notifyNewLoginIfNewDevice(params: {
     .limit(2);
   if (priorSameIp.length > 1) return; // returning device
 
-  await sendNewLogin(ctx(), email, {
-    ip,
-    userAgent: params.userAgent,
-    when: new Date().toISOString(),
-  });
+  await db.transaction((tx) =>
+    enqueueNotification(tx, {
+      event: "new_login_alert",
+      recipientEmail: email,
+      title: `New sign-in to your ${APP_NAME} account`,
+      body: "",
+      data: { when: new Date().toISOString(), ip, userAgent: params.userAgent ?? "" },
+      channels: ["email"],
+      kind: "transactional",
+    }),
+  );
 }
