@@ -80,6 +80,7 @@ export function CampaignsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
+        idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/notifications/campaigns/${r.publicId}`}
         search={{ placeholder: "Search campaigns…", shortPlaceholder: "Search…", keys: ["name"] }}
         filters={<ReuiFacetFilters spec={spec} />}
@@ -116,5 +117,5 @@ export function CampaignsTable({
 }
 
 export function CampaignsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

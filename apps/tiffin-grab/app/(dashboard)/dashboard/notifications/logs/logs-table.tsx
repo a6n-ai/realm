@@ -69,6 +69,7 @@ export function LogsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
+        idAccessor={(r) => r.publicId}
         onRowClick={(r) => setSelected(r)}
         search={{
           placeholder: "Search notifications…",
@@ -149,5 +150,5 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 // Loading twin is now owned by DataTable — same COLUMNS, zero drift.
 export function LogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

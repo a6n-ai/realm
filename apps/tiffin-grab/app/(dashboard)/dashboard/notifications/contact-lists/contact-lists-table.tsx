@@ -58,6 +58,7 @@ export function ContactListsTable({
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
+        idAccessor={(r) => r.publicId}
         idHref={(r) => `/dashboard/notifications/contact-lists/${r.publicId}`}
         search={{ placeholder: "Search lists…", shortPlaceholder: "Search…", keys: ["name"] }}
         filters={<ReuiFacetFilters spec={spec} />}
@@ -85,5 +86,5 @@ export function ContactListsTable({
 }
 
 export function ContactListsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { BackButton, SectionCard, StatCard } from "@foundry/design-system";
-import { UsersIcon } from "lucide-react";
+import { UsersIcon, UserPlusIcon } from "lucide-react";
 import { listContactListMembers } from "@relay/engine";
 import { ContactListAddMember, ContactListMemberRow, formatConsentDate } from "@relay/engine/ui";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -67,9 +67,14 @@ export default async function ContactListPage({ params }: { params: Promise<{ id
 
       <SectionCard title="Contacts" subtitle="Convert a contact into a full customer account.">
         {members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No contacts yet.</p>
+          <div className="grid place-items-center gap-3 rounded-lg border py-12 text-center">
+            <span className="grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">
+              <UserPlusIcon className="size-6" />
+            </span>
+            <p className="max-w-sm text-muted-foreground">No contacts yet.</p>
+          </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y overflow-hidden rounded-lg border">
             {members.map((m) => (
               <ContactListMemberRow
                 key={m.publicId}
