@@ -1,3 +1,5 @@
+"use client";
+
 import { MailIcon } from "lucide-react";
 import { DataTable, type Column } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
