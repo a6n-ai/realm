@@ -25,6 +25,9 @@ export const appEvent = pgEnum("app_event", [
   // place (Logs) instead of splitting between email_log and notification_outbox.
   "email_verification_link", "email_otp_password_reset", "email_otp_verification",
   "account_deletion_confirm", "password_changed", "new_login_alert",
+  // Google review request — migrated off direct SES send (2026-09) so it lands
+  // in the outbox/Logs like everything else instead of only email_log.
+  "review_nudge",
 ]);
 
 export const { walletLedger, eventPayout, coinRate } = makeWalletTables({

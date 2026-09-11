@@ -59,8 +59,17 @@ export const EVENT_ENTITY: Partial<Record<AppEvent, EntityVars>> = {
     entity: "inquiry",
     fields: [
       { name: "name", label: "Customer name" },
-      { name: "guests", label: "Guests" },
+      { name: "phone", label: "Phone" },
+      { name: "email", label: "Email" },
       { name: "date", label: "Event date" },
+      { name: "region", label: "Service area" },
+      { name: "location", label: "Location" },
+      { name: "guests", label: "Guests" },
+      { name: "type", label: "Event type" },
+      { name: "allergies", label: "Food allergies" },
+      { name: "message", label: "Message" },
+      { name: "rowsHtml", label: "Details table (HTML)" },
+      { name: "rowsText", label: "Details (plain text)" },
     ],
   },
   contact_message: {

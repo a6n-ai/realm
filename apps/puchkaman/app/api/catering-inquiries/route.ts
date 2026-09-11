@@ -1,6 +1,7 @@
 import { handler, json, problem } from "@foundry/routes";
 import { createLogger } from "@foundry/commons/logger";
-import { getEmailProvider } from "@/lib/email/provider";
+import { db } from "@/db/client";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { cateringInquirySchema } from "@/lib/catering/schema";
 import { createCateringInquiry } from "@/lib/services/catering.service";
 import { cateringRegionTag } from "@/lib/links";
@@ -44,19 +45,38 @@ export const POST = handler(async (request: Request): Promise<Response> => {
   ];
 
   try {
-    await getEmailProvider().send({
-      to: { email: NOTIFY_TO },
-      replyTo: { email: inquiry.email, name: inquiry.name },
-      subject: `[${cateringRegionTag(inquiry.region)}] Catering quote — ${inquiry.name} (${inquiry.guests} guests, ${inquiry.type})`,
-      html: `<h2>New catering quote request</h2><table>${rows
-        .map(([k, v]) => `<tr><td><strong>${escapeHtml(k)}</strong></td><td>${escapeHtml(v)}</td></tr>`)
-        .join("")}</table>`,
-      text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
-    });
+    // Routed through the notification outbox (2026-09) so this lands in Logs
+    // like every other email, and admins can edit the copy from Templates.
+    // No replyTo support in the outbox pipeline — the inquirer's email is in
+    // the details table below, so staff can reply manually.
+    await db.transaction((tx) =>
+      enqueueNotification(tx, {
+        event: "catering_inquiry",
+        recipientEmail: NOTIFY_TO,
+        title: `Catering quote — ${inquiry.name}`,
+        body: "",
+        channels: ["email"],
+        kind: "transactional",
+        data: {
+          name: inquiry.name,
+          phone: inquiry.phone,
+          email: inquiry.email,
+          date: inquiry.date,
+          region: cateringRegionTag(inquiry.region),
+          location: inquiry.location,
+          guests: inquiry.guests,
+          type: inquiry.type,
+          allergies: inquiry.allergies ?? "",
+          message: inquiry.message ?? "",
+          rowsHtml: `<table>${rows.map(([k, v]) => `<tr><td><strong>${escapeHtml(k)}</strong></td><td>${escapeHtml(v)}</td></tr>`).join("")}</table>`,
+          rowsText: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
+        },
+      }),
+    );
   } catch (e) {
     // Don't fail the request over a delivery hiccup — the customer's WhatsApp
     // link (sent client-side regardless) is the redundant channel.
-    log.error({ err: e instanceof Error ? e.message : e }, "failed to send catering inquiry email");
+    log.error({ err: e instanceof Error ? e.message : e }, "failed to enqueue catering inquiry email");
     return problem(502, "Could not send notification email");
   }
 

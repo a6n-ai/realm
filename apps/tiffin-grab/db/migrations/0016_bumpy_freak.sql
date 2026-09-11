@@ -1,0 +1,1 @@
+ALTER TYPE "public"."app_event" ADD VALUE 'review_nudge';
