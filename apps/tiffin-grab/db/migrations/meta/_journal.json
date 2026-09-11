@@ -113,6 +113,13 @@
       "when": 1789066110269,
       "tag": "0015_mean_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789152095748,
+      "tag": "0016_bumpy_freak",
+      "breakpoints": true
     }
   ]
 }

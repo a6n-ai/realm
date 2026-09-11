@@ -15,6 +15,7 @@ const EVENT_CHANNELS: Partial<Record<Event, Channel[]>> = {
   wallet_credited: ["in_app"],
   ticket_reply: ["email", "in_app"],
   inquiry_follow_up: ["in_app"],
+  review_nudge: ["email"],
 };
 
 export type { EnqueueInput };

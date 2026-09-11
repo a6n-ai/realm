@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
-import { getEmailProvider } from "@/lib/email/provider";
+import { reviewNudgeEmailProvider } from "@/lib/notifications/review-nudge-provider";
 
 // Scheduler-agnostic protected route, same fail-closed contract as optimoroute-sync.
 export const dynamic = "force-dynamic";
@@ -66,7 +66,7 @@ async function handle(request: Request): Promise<Response> {
       businessName: "Tiffin Grab",
       configStore: integrationsConfigStore,
       nudgeStore: reviewNudgeStore,
-      emailProvider: getEmailProvider(),
+      emailProvider: reviewNudgeEmailProvider(),
       unsubscribeSecret,
       baseUrl,
     });

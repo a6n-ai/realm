@@ -1,6 +1,6 @@
 import { dispatchReviewNudge as dispatch } from "@foundry/google-reviews";
 import { createLogger } from "@foundry/commons/logger";
-import { getEmailProvider } from "@/lib/email/provider";
+import { reviewNudgeEmailProvider } from "@/lib/notifications/review-nudge-provider";
 import { integrationsConfigStore } from "@/lib/services/integrations.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 
@@ -27,7 +27,7 @@ export function dispatchReviewNudge(input: { email: string; name?: string }): Pr
     businessName: "Puchkaman",
     configStore: integrationsConfigStore,
     nudgeStore: reviewNudgeStore,
-    emailProvider: getEmailProvider(),
+    emailProvider: reviewNudgeEmailProvider(),
     unsubscribeSecret: secret,
     baseUrl,
   });
