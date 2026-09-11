@@ -24,7 +24,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   // row exists.
   const frequency =
     snapshot.frequencies.find((f) => f.key === selections.frequencyKey) ??
-    (selections.customWeekdays?.length ? { key: selections.frequencyKey, daysPerWeek: selections.customWeekdays.length } : undefined);
+    (selections.customWeekdays?.length ? { key: selections.frequencyKey, daysPerWeek: selections.customWeekdays.length, courierDiscountPct: 0 } : undefined);
   if (!frequency) throw new ValidationError("Invalid frequency");
 
   if (!snapshot.durations.some((d) => d.weeks === selections.durationWeeks)) {
@@ -51,7 +51,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
 
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
-    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
+    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek, courierDiscountPct: frequency.courierDiscountPct },
     tiers: snapshot.tiers,
     addons,
   };

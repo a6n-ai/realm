@@ -9,9 +9,9 @@ const TIERS: PricingTier[] = [
   { minQty: 20, maxQty: null, upliftPct: 0 },
 ];
 
-const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day"): PricingCatalog => ({
+const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", courierDiscountPct = 0): PricingCatalog => ({
   mealSize: { id: "m1", basePrice },
-  frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5 } : { key: "mwf", daysPerWeek: 3 },
+  frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5, courierDiscountPct } : { key: "mwf", daysPerWeek: 3, courierDiscountPct },
   tiers: TIERS,
   addons: [],
 });
@@ -61,6 +61,19 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(r.tiffinCount).toBe(28);
     expect(r.perTiffinPrice).toBe(10);
     expect(r.total).toBe(280);
+  });
+
+  it("applies the cadence's courierDiscountPct as an adjustment line", () => {
+    // 5 tiffins × $12 (20% uplift) = $60 subtotal, 10% cadence discount = $6 off.
+    const r = priceSubscription(sel(), catalog(10, "5_day", 10));
+    expect(r.subtotal).toBe(60);
+    expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 6 }]);
+    expect(r.total).toBe(54);
+  });
+
+  it("adds no adjustment when the cadence has no discount", () => {
+    const r = priceSubscription(sel(), catalog(10, "5_day", 0));
+    expect(r.adjustments).toEqual([]);
   });
 
   it("is slot-agnostic — extra slots do not change the count", () => {

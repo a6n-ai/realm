@@ -110,6 +110,10 @@ const deliveryFrequenciesSchema = z.object({
   key, name,
   daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7)),
   courierDiscountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
+  // Null for the two legacy hardcoded shapes (5_day/mwf) — orderDeliveryDays()
+  // keeps its own fallback for those. Every other row needs this set so the
+  // catalog is the single source of truth for which days it actually means.
+  weekdays: z.array(z.enum(WEEKDAY_OPTIONS as [string, ...string[]])).nullable().optional(),
   active,
 });
 
@@ -256,6 +260,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "name", label: "Name", type: "text" },
       { key: "daysPerWeek", label: "Days / week", type: "number" },
       { key: "courierDiscountPct", label: "Courier discount", type: "number", unit: "%" },
+      { key: "weekdays", label: "Delivery days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS, optional: true },
     ],
   },
   "duration-packages": {
@@ -304,12 +309,21 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
 };
 
-// Index-grid cards: dish-categories has no standalone card — its editor is
-// folded into the "Dishes & Categories" tabbed page at /dashboard/catalog/dishes.
+// Index-grid cards: some resources have no standalone card — their editors
+// are folded into a tabbed sibling page. dish-categories -> "Dishes &
+// Categories" (/dashboard/catalog/dishes); addon-categories -> "Add-ons &
+// Categories" (/dashboard/catalog/addons); duration-packages/delivery-zones ->
+// "Delivery settings" (/dashboard/catalog/delivery-frequencies).
+const FOLDED_INTO_TAB = new Set(["dish-categories", "addon-categories", "duration-packages", "delivery-zones"]);
+const GROUP_LABELS: Record<string, string> = {
+  dishes: "Dishes & Categories",
+  addons: "Add-ons & Categories",
+  "delivery-frequencies": "Delivery settings",
+};
 export function catalogIndexEntries(): ResourceDef[] {
   return Object.values(RESOURCES)
-    .filter((r) => r.key !== "dish-categories")
-    .map((r) => (r.key === "dishes" ? { ...r, label: "Dishes & Categories" } : r));
+    .filter((r) => !FOLDED_INTO_TAB.has(r.key))
+    .map((r) => (GROUP_LABELS[r.key] ? { ...r, label: GROUP_LABELS[r.key] } : r));
 }
 
 const ARRAY_TYPES = new Set<FieldType>(["csv", "multiselect"]);

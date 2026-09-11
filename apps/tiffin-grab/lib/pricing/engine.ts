@@ -41,8 +41,18 @@ export function priceSubscription(
 
   const subtotal = round2(tiffinSubtotal + addonSubtotal);
 
+  // A cadence's courierDiscountPct (delivery_frequencies) rewards a schedule
+  // that matches the courier's actual route — it's a property of the chosen
+  // frequency, not a caller-supplied adjustment like a coupon, so it's
+  // computed here rather than expected from every priceSubscription caller.
+  const cadenceDiscount: PricingLine[] =
+    catalog.frequency.courierDiscountPct > 0
+      ? [{ label: `Delivery schedule discount (${catalog.frequency.courierDiscountPct}%)`, amount: round2(tiffinSubtotal * (catalog.frequency.courierDiscountPct / 100)) }]
+      : [];
+  const allAdjustments = [...adjustments, ...cadenceDiscount];
+
   // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; base floored at 0.
-  const taxableBase = Math.max(0, round2(subtotal - adjustments.reduce((s, a) => s + a.amount, 0)));
+  const taxableBase = Math.max(0, round2(subtotal - allAdjustments.reduce((s, a) => s + a.amount, 0)));
 
   // Per-method taxes apply to the discounted base; taxTotal is summed from per-line rounding so
   // it always matches the printed receipt. No taxes ⇒ taxTotal 0 ⇒ total == taxableBase. This
@@ -56,5 +66,5 @@ export function priceSubscription(
   const taxTotal = round2(taxLines.reduce((s, l) => s + l.amount, 0));
   const total = round2(taxableBase + taxTotal);
 
-  return { lineItems, adjustments, taxLines, taxTotal, tiffinCount, perTiffinPrice, tier, subtotal, total };
+  return { lineItems, adjustments: allAdjustments, taxLines, taxTotal, tiffinCount, perTiffinPrice, tier, subtotal, total };
 }
