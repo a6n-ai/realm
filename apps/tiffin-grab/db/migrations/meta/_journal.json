@@ -120,6 +120,13 @@
       "when": 1789152095748,
       "tag": "0016_bumpy_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789152693446,
+      "tag": "0017_delivery_frequencies_weekdays",
+      "breakpoints": true
     }
   ]
 }

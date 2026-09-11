@@ -21,7 +21,8 @@ import { createOrder } from "../lib/services/orders.service";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
 import { getAppSettings } from "../lib/services/app-settings.service";
 import { subscriptionDeliveryDates, type DayOfWeek } from "../lib/menu/delivery-dates";
-import { orderDeliveryDays } from "../lib/menu/delivery-days";
+import { customFrequencyKey, orderDeliveryDays } from "../lib/menu/delivery-days";
+import { ensureCustomFrequencyRow } from "../lib/services/delivery-frequencies.service";
 import { normalisePhone } from "../lib/services/optimoroute/push";
 
 const MIGRATION_TAG = "Migrated from WordPress export";
@@ -63,7 +64,12 @@ export type MigrationRecord = {
   postalCode: string;
   planKey: "veg" | "non-veg";
   productText: string;
-  frequencyKey: "5_day" | "mwf";
+  frequencyKey: string;
+  // Set only for a pattern that isn't the two built-in shapes ("5_day"/"mwf") —
+  // orderDeliveryDays() reads this directly, and applyOne() upserts a matching
+  // delivery_frequencies row (keyed the same way) before createOrder runs, so
+  // the two hardcoded keys never need a catalog row of their own.
+  weekdays: DayOfWeek[] | null;
   includeSaturday: boolean;
   includeSunday: boolean;
   persons: number;
@@ -71,14 +77,46 @@ export type MigrationRecord = {
   sourceStartDate: string;
 };
 
-function parsePreferredDays(raw: string): { frequencyKey: "5_day" | "mwf"; includeSaturday: boolean; includeSunday: boolean } {
+const WEEKDAY_NAMES: { name: string; day: DayOfWeek }[] = [
+  { name: "monday", day: "mon" },
+  { name: "tuesday", day: "tue" },
+  { name: "wednesday", day: "wed" },
+  { name: "thursday", day: "thu" },
+  { name: "friday", day: "fri" },
+];
+const WEEK_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function sameDaySet(a: DayOfWeek[], b: DayOfWeek[]): boolean {
+  return a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
+}
+
+// Parses an arbitrary weekday list out of free text (any subset of
+// Mon..Fri, any order/phrasing) instead of only recognizing the two
+// hardcoded "Monday - Wednesday - Friday" / everything-else phrases. Explicit
+// weekend mentions stay a separate add-on flag, matching the existing
+// includeSaturday/includeSunday semantics untouched by this change.
+function parsePreferredDays(raw: string): { frequencyKey: string; weekdays: DayOfWeek[] | null; includeSaturday: boolean; includeSunday: boolean } {
   const text = (raw ?? "").trim();
-  const frequencyKey = text === "Monday - Wednesday - Friday" ? "mwf" : "5_day";
-  return {
-    frequencyKey,
-    includeSaturday: /saturday/i.test(text),
-    includeSunday: /sunday/i.test(text),
-  };
+  const includeSaturday = /saturday/i.test(text);
+  const includeSunday = /sunday/i.test(text);
+  const core = WEEKDAY_NAMES.filter((t) => new RegExp(`\\b${t.name}\\b`, "i").test(text)).map((t) => t.day);
+
+  if (core.length === 0) {
+    // No parseable weekday text (blank, or genuinely unrecognized) — same
+    // default this always had. The 6 orders with a literally empty
+    // "Preferred Days" column are recovered upstream from
+    // tiffin_count_history's own delivery_days sub-array before mapRow ever
+    // sees them, not guessed here.
+    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
+  }
+  if (sameDaySet(core, ["mon", "tue", "wed", "thu", "fri"])) {
+    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
+  }
+  if (sameDaySet(core, ["mon", "wed", "fri"])) {
+    return { frequencyKey: "mwf", weekdays: null, includeSaturday, includeSunday };
+  }
+  const sorted = [...core].sort((a, b) => WEEK_ORDER.indexOf(a) - WEEK_ORDER.indexOf(b));
+  return { frequencyKey: customFrequencyKey(sorted), weekdays: sorted, includeSaturday, includeSunday };
 }
 
 function planKeyFor(row: ExportRow): "veg" | "non-veg" {
@@ -105,7 +143,7 @@ function hasVegConflict(row: ExportRow): boolean {
 }
 
 export function mapRow(row: ExportRow): MigrationRecord {
-  const { frequencyKey, includeSaturday, includeSunday } = parsePreferredDays(row["Preferred Days"]);
+  const { frequencyKey, weekdays, includeSaturday, includeSunday } = parsePreferredDays(row["Preferred Days"]);
   return {
     fullName: (row.Customer ?? "").trim(),
     // Excel export prefixes phone-like columns with a stray leading "'" to
@@ -119,6 +157,7 @@ export function mapRow(row: ExportRow): MigrationRecord {
     planKey: planKeyFor(row),
     productText: (row.Products ?? "").trim(),
     frequencyKey,
+    weekdays,
     includeSaturday,
     includeSunday,
     persons: Number(row.Quantity) || 1,
@@ -329,6 +368,7 @@ export async function planMigration(): Promise<{ results: PlanResult[]; totalRaw
       const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
       const deliveryDays = orderDeliveryDays({
         frequencyKey: record.frequencyKey,
+        weekdays: record.weekdays,
         includeSaturday: record.includeSaturday,
         includeSunday: record.includeSunday,
       });
@@ -418,6 +458,8 @@ async function applyOne(record: MigrationRecord, mealSize: CatalogMealSize): Pro
     return { ok: false, reason: "already migrated (idempotent skip)" };
   }
 
+  if (record.weekdays) await ensureCustomFrequencyRow(record.weekdays);
+
   const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
   const { publicId } = await createOrder({
     planKey: record.planKey,
@@ -448,6 +490,7 @@ async function applyOne(record: MigrationRecord, mealSize: CatalogMealSize): Pro
   const { timezone, cutoffHour } = await getAppSettings();
   const deliveryDays = orderDeliveryDays({
     frequencyKey: record.frequencyKey,
+    weekdays: record.weekdays,
     includeSaturday: record.includeSaturday,
     includeSunday: record.includeSunday,
   });

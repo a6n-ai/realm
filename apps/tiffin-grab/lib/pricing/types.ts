@@ -1,9 +1,18 @@
 import type { ComputedTaxLine } from "@foundry/payments";
+import type { DayOfWeek } from "../menu/delivery-days";
 import type { PricingTier } from "./tiers";
 
 export interface PricingSelections {
   mealSizeId: string;
-  frequencyKey: "5_day" | "mwf";
+  // Matched against delivery_frequencies.key — not a closed enum: any active
+  // catalog row (including generated custom-weekday-pattern rows) is valid.
+  frequencyKey: string;
+  // Set only when frequencyKey doesn't match an existing catalog row yet (a
+  // customer-picked day combination that isn't one of the admin's reference
+  // patterns) — createOrder upserts a matching delivery_frequencies row keyed
+  // the same way customFrequencyKey() derives it, then resolves normally.
+  // Omitted/undefined for every existing catalog frequencyKey.
+  customWeekdays?: DayOfWeek[];
   persons: number;
   mealSlots: string[];
   includeSaturday: boolean;

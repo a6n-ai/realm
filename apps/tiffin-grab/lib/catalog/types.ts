@@ -29,7 +29,7 @@ export interface MealSizeView {
 export interface CatalogSnapshot {
   plans: { id: bigint; publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: MealSizeView[];
-  frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];
+  frequencies: { id: bigint; publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
   durations: { id: bigint; publicId: string; weeks: number; discountPct: number }[];
   zones: { id: bigint; publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
   tiers: PricingTier[];
@@ -55,7 +55,7 @@ export type ClientMealSizeView = Omit<MealSizeView, "id" | "planId">;
 export interface ClientCatalogSnapshot {
   plans: { publicId: string; key: string; name: string; description: string | null; planType: "tiffin" | "healthy"; offeredSlots: string[]; allowedStartDays: string[] }[];
   mealSizes: ClientMealSizeView[];
-  frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number }[];
+  frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
   durations: { publicId: string; weeks: number; discountPct: number }[];
   zones: { publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
   categoryLabels?: Record<string, string>;

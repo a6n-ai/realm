@@ -90,3 +90,8 @@ dump.rdb
 !apps/puchkaman/public/hero/*.jpg
 !apps/puchkaman/public/fusion/*.jpg
 !apps/puchkaman/public/catering/*.png
+
+# Legacy-migration scratch data: real customer PII (names/phones/addresses).
+# Never commit — regenerate locally from the legacy DB when needed.
+apps/tiffin-grab/db/legacy-export/
+apps/tiffin-grab/db/migrations-manual/

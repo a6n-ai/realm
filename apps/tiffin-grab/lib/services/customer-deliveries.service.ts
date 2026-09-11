@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte } from "drizzle-or
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishCategories, dishes, mealSizes, menuItems, orderActivities, orders, plans } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
-import { orderDeliveryDays } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import {
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,
@@ -237,6 +237,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
       includeSaturday: orders.includeSaturday,
       includeSunday: orders.includeSunday,
       frequencyKey: deliveryFrequencies.key,
+      weekdays: deliveryFrequencies.weekdays,
     })
     .from(orders)
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
@@ -279,6 +280,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
   );
   const deliveryWeekdays = orderDeliveryDays({
     frequencyKey: order.frequencyKey,
+    weekdays: order.weekdays as DayOfWeek[] | null,
     includeSaturday: order.includeSaturday,
     includeSunday: order.includeSunday,
   });

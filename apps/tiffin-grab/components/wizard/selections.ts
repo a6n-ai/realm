@@ -15,23 +15,16 @@ export type WizardOrigin = "subscribe" | "renew";
 const PLAN_KEYS = ["veg", "non-veg", "healthy"] as const;
 
 /**
- * What the subscribe wizard currently sells: one person, weekdays only, no
- * weekend delivery. Weekend tiffins are cooked and sent out with Friday's
- * delivery, so there is no Saturday or Sunday drop to book.
+ * The subscribe wizard still sells one person per order and no separate
+ * weekend delivery (weekend tiffins ship with Friday's delivery — see
+ * `orderDeliveryDays`/`materializeDeliveries`). That part is unchanged.
  *
- * These are UI-and-intake constraints only. `persons`, `includeSaturday` and
- * `includeSunday` stay in the model and the pricing engine because existing
- * orders were placed under the old options and must keep pricing, scheduling
- * and rendering exactly as sold. Widening the offer again means changing this
- * block, not resurrecting removed fields.
+ * Delivery frequency itself is no longer locked to 5-day: every active
+ * `delivery_frequencies` catalog row (including admin-configured alternate
+ * cadences) is selectable. `catalog.frequencies` already comes pre-filtered
+ * to active rows, so nothing here needs to re-check availability.
  */
-export const ONLY_FREQUENCY_KEY = "5_day";
 export const FIXED_PERSONS = 1;
-
-/** A frequency the wizard shows but will not let a customer choose yet. */
-export function isFrequencyDisabled(key: string): boolean {
-  return key !== ONLY_FREQUENCY_KEY;
-}
 
 function asPlanKey(key: string | null | undefined): WizardSelections["planKey"] {
   return PLAN_KEYS.find((k) => k === key) ?? null;
@@ -80,7 +73,7 @@ export function selectionsFromPriorOrder(
     // Not carried over from the prior order: the controls for these are gone, so
     // restoring 2 persons or a Saturday would silently change the quote with
     // nothing on screen to explain it, and no way for the customer to undo it.
-    frequencyKey: ONLY_FREQUENCY_KEY,
+    frequencyKey: "5_day",
     persons: FIXED_PERSONS,
     mealSlots: plan?.offeredSlots ?? [],
     includeSaturday: false,

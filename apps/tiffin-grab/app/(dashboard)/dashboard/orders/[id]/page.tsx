@@ -7,6 +7,7 @@ import { findMethod } from "@foundry/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { db } from "@/db/client";
@@ -20,6 +21,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
+import { ChangePlanControl } from "./change-plan-control";
 import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
 import { SubscriptionPanel, SubscriptionPanelSkeleton } from "@/components/dashboard/subscription-panel";
 
@@ -92,6 +94,12 @@ async function OrderDetail({
   const checkoutMethodLabel = checkoutMethodId
     ? findMethod(paymentCfg, checkoutMethodId)?.label ?? checkoutMethodId
     : null;
+  const catalogSnapshot = await loadCatalogSnapshot(order.organizationId);
+  const mealSizeOptions = catalogSnapshot.mealSizes.map((m) => ({
+    publicId: m.publicId,
+    name: m.name,
+    planKey: m.planKey,
+  }));
 
   return (
     <>
@@ -102,6 +110,7 @@ async function OrderDetail({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ActivateCancelControls orderId={order.publicId} status={order.status} />
+            <ChangePlanControl orderId={order.publicId} status={order.status} mealSizeOptions={mealSizeOptions} />
           </div>
         }
       />

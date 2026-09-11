@@ -9,7 +9,7 @@ const snapshot: CatalogSnapshot = {
   mealSizes: [
     { id: BigInt(1), publicId: "msz_1", key: "k", name: "K", description: null, planId: BigInt(1), planKey: "veg", tier: "budget", components: [], items: [], kcalMin: 1, kcalMax: 2, proteinG: null, carbsG: null, fatG: null, basePrice: 10, discountType: "none", discountValue: 0, trial: false },
   ],
-  frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0 }],
+  frequencies: [{ id: BigInt(2), publicId: "frq_1", key: "5_day", name: "5", daysPerWeek: 5, courierDiscountPct: 0, weekdays: null }],
   durations: [{ id: BigInt(3), publicId: "dur_1", weeks: 1, discountPct: 0 }],
   zones: [],
   tiers: [{ minQty: 1, maxQty: 11, upliftPct: 20 }, { minQty: 12, maxQty: 19, upliftPct: 10 }, { minQty: 20, maxQty: null, upliftPct: 0 }],

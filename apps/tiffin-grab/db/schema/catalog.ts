@@ -154,6 +154,13 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   name: text("name").notNull(),
   daysPerWeek: integer("days_per_week").notNull(),
   courierDiscountPct: integer("courier_discount_pct").notNull().default(0),
+  // Explicit weekday set for a frequency that isn't the two hardcoded shapes
+  // (5-day Mon–Fri, MWF) — e.g. a legacy customer on "Tuesday - Thursday" only.
+  // Null for "5_day"/"mwf": lib/menu/delivery-days.ts keeps its hardcoded
+  // fallback for those two so existing behavior is unchanged; this column is
+  // read only when frequencyKey isn't one of them (or, going forward, for any
+  // row that sets it explicitly). Values are DayOfWeek strings ("mon".."sun").
+  weekdays: text("weekdays").array(),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),

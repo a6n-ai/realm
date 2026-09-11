@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryZones, orderActivities, orders } from "@/db/schema";
 import { getAppSettings } from "./app-settings.service";
-import { orderDeliveryDays } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { matchZone } from "@/lib/catalog/postal";
 
@@ -60,12 +60,13 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
     .where(eq(deliveries.orderId, order.id)).limit(1);
   if (existing) return 0;
 
-  const [freq] = await tx.select({ key: deliveryFrequencies.key, daysPerWeek: deliveryFrequencies.daysPerWeek })
+  const [freq] = await tx.select({ key: deliveryFrequencies.key, daysPerWeek: deliveryFrequencies.daysPerWeek, weekdays: deliveryFrequencies.weekdays })
     .from(deliveryFrequencies).where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
   if (!freq) throw new ValidationError("Delivery frequency not found");
 
   const deliveryDays = orderDeliveryDays({
     frequencyKey: freq.key,
+    weekdays: freq.weekdays as DayOfWeek[] | null,
     includeSaturday: order.includeSaturday,
     includeSunday: order.includeSunday,
   });
@@ -480,10 +481,11 @@ export async function scheduleFromPool(
       .from(deliveries).where(eq(deliveries.orderId, orderId));
     if (max && dateIso <= max) throw new ValidationError("Date must be after your last delivery");
 
-    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+    const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
     const deliveryDays = new Set(orderDeliveryDays({
       frequencyKey: freq!.key,
+      weekdays: freq!.weekdays as DayOfWeek[] | null,
       includeSaturday: order.includeSaturday,
       includeSunday: order.includeSunday,
     }));
@@ -570,10 +572,11 @@ export async function rescheduleDelivery(
       throw new ValidationError("This subscription can no longer be rescheduled");
     }
 
-    const [freq] = await tx.select({ key: deliveryFrequencies.key }).from(deliveryFrequencies)
+    const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
     const deliveryDays = new Set(orderDeliveryDays({
       frequencyKey: freq!.key,
+      weekdays: freq!.weekdays as DayOfWeek[] | null,
       includeSaturday: order.includeSaturday,
       includeSunday: order.includeSunday,
     }));

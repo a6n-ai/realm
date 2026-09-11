@@ -30,6 +30,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
+import { ensureCustomFrequencyRow } from "./delivery-frequencies.service";
 import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
@@ -187,7 +188,7 @@ export async function createOrder(
   opts: CreateOrderOptions = {},
 ): Promise<{ deploymentId: string; publicId: string }> {
   const { actorId = null, ownerUserId = null, orgId = null } = opts;
-  const snapshot = await loadCatalogSnapshot(orgId);
+  let snapshot = await loadCatalogSnapshot(orgId);
 
   const plan = snapshot.plans.find((p) => p.key === input.planKey);
   if (!plan) throw new ValidationError("Invalid plan");
@@ -203,7 +204,17 @@ export async function createOrder(
   const mealSlots = Object.keys(categoryCounts);
   if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
   validateStartDate(input.selections.startDate, plan.allowedStartDays, new Date());
-  const frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey)!
+  let frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
+  if (!frequency) {
+    // Not one of the two built-in shapes or an existing admin cadence — must be
+    // a customer-picked custom weekday set. Upsert its catalog row, then reload
+    // (buildPricingCatalog/orderDeliveryDays both read off the full snapshot).
+    if (!input.selections.customWeekdays?.length) throw new ValidationError("Invalid delivery frequency");
+    await ensureCustomFrequencyRow(input.selections.customWeekdays);
+    snapshot = await loadCatalogSnapshot(orgId);
+    frequency = snapshot.frequencies.find((f) => f.key === input.selections.frequencyKey);
+    if (!frequency) throw new ValidationError("Invalid delivery frequency");
+  }
   const pricingCatalog = buildPricingCatalog(snapshot, input.selections);
   // Base price (no discounts). Coupons are re-resolved server-side inside the tx
   // — where the owner/actor ids exist — then folded into the final total.
@@ -1315,12 +1326,108 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const owner = await resolveAssignableOwner(ownerId);
     await this.update(publicId, { currentOwner: owner.id });
   }
+
+  // Admin correction tool: move an order onto a different meal size/plan after
+  // creation, recomputing price from scratch (never carrying over the stale
+  // snapshot — same rule createOrder follows). Built for the legacy-order
+  // migration (docs/realm/legacy-order-migration-plan.md), where orders land on
+  // a closest-match meal size at import time and staff need a way to correct
+  // one onto the customer's real plan without another migration pass.
+  //
+  // Out of scope on purpose: coupons/coins are not re-resolved (adjustments: []
+  // below) — a plan change is a catalog correction, not a new checkout, so any
+  // discount the customer originally had is dropped rather than guessed at.
+  // Existing orderAddons rows are left untouched; they may no longer be
+  // eligible for the new meal size's categories, which is a known limitation
+  // an admin reviewing the change should check.
+  async changeMealSize(publicId: string, mealSizePublicId: string): Promise<void> {
+    const order = await this.read(publicId);
+    if (order.status === "cancelled" || order.status === "completed") {
+      throw new ValidationError(`Cannot change plan on an order that is ${order.status}`);
+    }
+    const actorId = await this.currentUserId();
+    const snapshot = await loadCatalogSnapshot(order.organizationId);
+    const mealSize = snapshot.mealSizes.find((m) => m.publicId === mealSizePublicId);
+    if (!mealSize) throw new ValidationError("Invalid meal size");
+    const plan = snapshot.plans.find((p) => p.id === mealSize.planId);
+    if (!plan) throw new ValidationError("Invalid meal size: owning plan not found or inactive");
+
+    // Same derivation createOrder uses: categoryCounts/mealSlots come from the
+    // meal size's own server-loaded items, never trusted from caller input.
+    const categoryCounts = mealSize.items.reduce<Record<string, number>>((acc, i) => {
+      acc[i.category] = (acc[i.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    const mealSlots = Object.keys(categoryCounts);
+    if (mealSlots.length === 0) throw new ValidationError("At least one category is required");
+
+    const [freqRow] = await db
+      .select({ key: deliveryFrequencies.key })
+      .from(deliveryFrequencies)
+      .where(eq(deliveryFrequencies.id, order.frequencyId))
+      .limit(1);
+    if (!freqRow) throw new NotFoundError("Delivery frequency not found for this order");
+
+    const priorMethodId = (order.pricingSnapshot as OrderPricingSnapshot | null)?.paymentMethodId ?? "simulated";
+    let methodTaxes: { name: string; ratePct: number }[] = [];
+    if (priorMethodId !== "simulated") {
+      const paymentCfg = await getPaymentConfig();
+      const method = findMethod(paymentCfg, priorMethodId);
+      if (method?.enabled) methodTaxes = method.taxes;
+    }
+
+    const selections: PricingSelections = {
+      mealSizeId: mealSize.publicId,
+      frequencyKey: freqRow.key,
+      persons: order.persons,
+      mealSlots,
+      includeSaturday: order.includeSaturday,
+      includeSunday: order.includeSunday,
+      durationWeeks: order.durationWeeks,
+      startDate: order.startDate,
+    };
+    const pricingCatalog = buildPricingCatalog(snapshot, selections);
+    const pricing = priceSubscription(selections, pricingCatalog, [], methodTaxes);
+    const newSnapshot: OrderPricingSnapshot = {
+      ...pricing,
+      paymentMethodId: priorMethodId,
+      planType: plan.planType,
+    };
+
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(orders)
+        .set({
+          planId: mealSize.planId,
+          mealSizeId: mealSize.id,
+          categoryCounts,
+          mealSlots,
+          tiffinCount: pricing.tiffinCount,
+          perTiffinPrice: pricing.perTiffinPrice.toFixed(2),
+          pricingSnapshot: newSnapshot,
+          total: pricing.total.toFixed(2),
+          updatedBy: actorId,
+        })
+        .where(eq(orders.publicId, publicId))
+        .returning();
+      if (!row) throw new NotFoundError(`Order not found: ${publicId}`);
+      await tx.insert(orderActivities).values({
+        orderId: row.id,
+        type: "note",
+        note: `Plan changed to ${mealSize.name} — price recomputed to $${pricing.total.toFixed(2)}`,
+        createdBy: actorId,
+        organizationId: row.organizationId,
+      });
+    });
+  }
 }
 
 export const ordersService = new OrdersService(new UpdatableRepository(db, orders, orders.publicId, orders.id));
 
 export const activateOrder = (publicId: string): Promise<void> => ordersService.activate(publicId);
 export const cancelOrder = (publicId: string): Promise<void> => ordersService.cancel(publicId);
+export const changeMealSize = (publicId: string, mealSizePublicId: string): Promise<void> =>
+  ordersService.changeMealSize(publicId, mealSizePublicId);
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>
   ordersService.pause(publicId, window);
 export const resumeOrder = (publicId: string, actorId?: bigint, fromDate?: string): Promise<void> =>

@@ -17,12 +17,13 @@ async function reset() {
   await db.delete(users).where(ne(users.isSystem, true));
 }
 
-async function makeOrder(status: "pending" | "active" | "waitlisted") {
+async function makeOrder(status: "pending" | "active" | "waitlisted", mealSizeId?: string) {
   const snap = await loadCatalogSnapshot();
+  const mealSize = mealSizeId ? snap.mealSizes.find((m) => m.publicId === mealSizeId)! : snap.mealSizes[0];
   const { publicId } = await svc.createOrder({
-    planKey: snap.plans[0].key,
+    planKey: mealSize.planKey,
     selections: {
-      mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],
+      mealSizeId: mealSize.publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch"],
       includeSaturday: false, includeSunday: false, durationWeeks: 1,
       startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
     },
@@ -117,5 +118,37 @@ describe("order lifecycle (integration)", () => {
     const acts = await svc.listOrderActivities(o.id);
     expect(acts[0].type).toBe("cancelled");
     expect(acts[0].toStatus).toBe("cancelled");
+  });
+
+  // Admin correction tool for the legacy migration (docs/realm/legacy-order-migration-plan.md):
+  // orders land on a closest-match meal size at import time, and staff need a way to move one
+  // onto the customer's real plan afterward without another migration pass.
+  it("changeMealSize swaps plan/mealSize, recomputes price server-side, and logs the change", async () => {
+    const snap = await loadCatalogSnapshot();
+    const from = snap.mealSizes.find((m) => m.key === "sabzi_only_veg")!;
+    const to = snap.mealSizes.find((m) => m.key === "new_plan_veg")!;
+    const id = await makeOrder("active", from.publicId);
+    const [before] = await db.select().from(orders).where(eq(orders.publicId, id));
+
+    await svc.changeMealSize(id, to.publicId);
+
+    const [after] = await db.select().from(orders).where(eq(orders.publicId, id));
+    expect(after.mealSizeId).toBe(to.id);
+    expect(after.planId).toBe(to.planId);
+    // Price must come from the NEW meal size's own base price, not carried over —
+    // this is the same "never trust a stale snapshot" rule createOrder follows.
+    expect(Number(after.perTiffinPrice)).not.toBe(Number(before.perTiffinPrice));
+    expect(Number(after.perTiffinPrice)).toBeGreaterThan(0);
+
+    const acts = await svc.listOrderActivities(after.id);
+    expect(acts.some((a) => a.type === "note" && a.note?.includes(to.name))).toBe(true);
+  });
+
+  it("changeMealSize rejects a cancelled order", async () => {
+    const snap = await loadCatalogSnapshot();
+    const to = snap.mealSizes.find((m) => m.key === "new_plan_veg")!;
+    const id = await makeOrder("active");
+    await svc.cancelOrder(id);
+    await expect(svc.changeMealSize(id, to.publicId)).rejects.toBeInstanceOf(ValidationError);
   });
 });

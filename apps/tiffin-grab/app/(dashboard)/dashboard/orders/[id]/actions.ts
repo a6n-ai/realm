@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   activateOrder,
   cancelOrder,
+  changeMealSize,
   rejectPayment,
   verifyPayment,
 } from "@/lib/services/orders.service";
@@ -28,6 +29,12 @@ export async function activate(orderId: string) {
 export async function cancel(orderId: string) {
   await requireStaff();
   await cancelOrder(orderId);
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+export async function changePlan(orderId: string, mealSizePublicId: string) {
+  await requireStaff();
+  await changeMealSize(orderId, mealSizePublicId);
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
