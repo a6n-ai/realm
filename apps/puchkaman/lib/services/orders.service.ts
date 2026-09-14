@@ -1109,6 +1109,22 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
+      // orderTypeId (above) is the documented lever for Register's native
+      // alert, but it's best-effort and unmapped merchants still get a
+      // silent order — this is the actual fix: push Clover's own App
+      // Notifications API so staff get *something* regardless. Never blocks
+      // or fails checkout on the alert failing; the order is already real.
+      client
+        .sendAppNotification({
+          event: "order.created",
+          data: `New web order · ${money(total)} · ${parsed.contact.name}${fulfillment === "pickup" ? " (pickup)" : " (delivery)"}`,
+        })
+        .catch((err) => {
+          log.warn(
+            { orderPublicId: order.publicId, error: err instanceof Error ? err.message : String(err) },
+            "Clover app notification failed",
+          );
+        });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Clover order create failed";
       // The local tx already committed (and, if coins were spent, debited them)
