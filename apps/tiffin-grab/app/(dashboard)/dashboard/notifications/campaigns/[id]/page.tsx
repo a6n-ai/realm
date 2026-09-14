@@ -11,10 +11,12 @@ import { resolveSegment } from "@/lib/campaigns/segment";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import {
   CampaignAnalytics,
+  CampaignAudienceEditor,
   CampaignContentSection,
   CampaignDuplicateButton,
   CampaignRetriggerButton,
   CampaignSendButton,
+  type AudienceValue,
 } from "@relay/engine/ui";
 
 // Resolves a live audience count on every view.
@@ -100,10 +102,14 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
       {sendable ? (
         <SectionCard title="Audience" subtitle="Recomputed now — suppressions and unsubscribes already removed.">
-          <p className="text-sm">
-            <span className="text-2xl font-semibold tabular-nums">{count}</span>{" "}
-            <span className="text-muted-foreground">recipients</span>
-          </p>
+          <CampaignAudienceEditor
+            campaignPublicId={row.publicId}
+            audience={row.audience as AudienceValue}
+            count={count}
+            lists={lists}
+            requiresVerifiedPhone={(row.channels as string[]).some((c) => c === "sms" || c === "whatsapp")}
+            timeZone={timezone}
+          />
         </SectionCard>
       ) : (
         <SectionCard title="Results" subtitle="Counts recorded at send time and from SES feedback.">
