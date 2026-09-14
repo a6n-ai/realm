@@ -1,13 +1,15 @@
 import { Suspense } from "react";
-import { MapPinnedIcon } from "lucide-react";
+import { TruckIcon, ChevronDownIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Badge } from "@foundry/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { previewPush } from "@/lib/services/optimoroute/push";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/drivers";
-import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
+import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { LabelDatePicker } from "../labels/label-date-picker";
 import { DispatchView } from "./dispatch-view";
 import { PlannedOrders } from "./routes-view";
@@ -18,22 +20,22 @@ type SearchParams = Promise<{ date?: string }>;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function RoutesPage({ searchParams }: { searchParams: SearchParams }) {
+export default function DispatchPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <PageShell>
       <PageHeader
-        icon={MapPinnedIcon}
-        title="Routes"
-        subtitle="What a push to OptimoRoute would change for one delivery day."
+        icon={TruckIcon}
+        title="Dispatch"
+        subtitle="Today's routes and driver assignments."
       />
-      <Suspense fallback={<RoutesData.Skeleton />}>
-        <RoutesData searchParams={searchParams} />
+      <Suspense fallback={<DispatchData.Skeleton />}>
+        <DispatchData searchParams={searchParams} />
       </Suspense>
     </PageShell>
   );
 }
 
-async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
+async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const { date: dateParam } = await searchParams;
   const [{ timezone }, status] = await Promise.all([getAppSettings(), getOptimoRouteStatus()]);
@@ -60,9 +62,7 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
   } catch (e) {
     return (
       <>
-        <SectionCard title="Day">
-          <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
-        </SectionCard>
+        <DayHeader date={date} today={today} />
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -76,9 +76,7 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
   } catch (e) {
     return (
       <>
-        <SectionCard title="Day">
-          <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
-        </SectionCard>
+        <DayHeader date={date} today={today} />
         <SectionCard title="Dispatch data unavailable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -86,24 +84,27 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
+  const scheduledCount = preview.create.length + preview.update.length;
+
   return (
     <>
-      <SectionCard title="Day">
-        <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
+      <DayHeader date={date} today={today} />
+
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary">{preview.create.length} to create</Badge>
+        <Badge variant="secondary">{preview.update.length} to update</Badge>
+        <Badge variant="outline">{preview.remove.length} stale</Badge>
+        <Badge variant="outline">{scheduledCount} stop{scheduledCount === 1 ? "" : "s"}</Badge>
+      </div>
+
+      {/* Primary content: this is the task a dispatcher opens the page to do. */}
+      <SectionCard title="Dispatch">
+        <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
       </SectionCard>
 
-      <StatGrid
-        cols={4}
-        items={[
-          { label: "To create", value: preview.create.length },
-          { label: "To update", value: preview.update.length },
-          { label: "Stale", value: preview.remove.length, hint: "no longer scheduled" },
-          { label: "Stops", value: preview.create.length + preview.update.length },
-        ]}
-      />
-
+      {/* Secondary: sending/pulling is a less frequent action than reassigning a stop. */}
       <SectionCard title="Send to OptimoRoute">
-        <PushControl date={date} stops={preview.create.length + preview.update.length} />
+        <PushControl date={date} stops={scheduledCount} />
       </SectionCard>
 
       {preview.remove.length > 0 ? (
@@ -112,44 +113,64 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
             Still on a route but no longer scheduled here — paused, skipped, or cancelled
             since the last push. Until removed, a driver arrives at the door.
           </p>
-          <RemoveControl
-            date={date}
-            stale={preview.remove}
-            scheduledCount={preview.create.length + preview.update.length}
-          />
+          <RemoveControl date={date} stale={preview.remove} scheduledCount={scheduledCount} />
         </SectionCard>
       ) : null}
 
-      <SectionCard title={`New stops (${preview.create.length})`}>
-        <PlannedOrders rows={preview.create} />
-      </SectionCard>
-
-      <SectionCard title={`Already on the route (${preview.update.length})`}>
-        <PlannedOrders rows={preview.update} />
-      </SectionCard>
-
-      <SectionCard title="Dispatch">
-        <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
-      </SectionCard>
+      {/*
+        Reference detail, not the primary task — collapsed by default.
+        SectionCard's `title` is string-only (see @foundry/design-system/src/section-card.tsx),
+        so the clickable header is built here directly instead of through SectionCard, matching
+        its header/title classes so the collapsed card still reads as one of the page's cards.
+      */}
+      <Collapsible className="group/collapsible">
+        <Card className="p-5">
+          <CollapsibleTrigger className="mb-3 flex w-full items-center justify-between gap-3 text-left md:mb-4">
+            <h2 className="text-base font-semibold tracking-tight text-balance md:text-lg">
+              Stop details
+            </h2>
+            <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium">New stops ({preview.create.length})</p>
+              <PlannedOrders rows={preview.create} />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Already on the route ({preview.update.length})</p>
+              <PlannedOrders rows={preview.update} />
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </>
   );
 }
 
-RoutesData.Skeleton = function RoutesDataSkeleton() {
+function DayHeader({ date, today }: { date: string; today: string }) {
+  return (
+    <SectionCard title="Day">
+      <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
+    </SectionCard>
+  );
+}
+
+DispatchData.Skeleton = function DispatchDataSkeleton() {
   return (
     <>
       <SectionCard title="Day">
         <Skeleton className="h-9 w-64" />
       </SectionCard>
-      <SkeletonStatCards count={4} />
-      <SectionCard title="New stops">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
-      <SectionCard title="Already on the route">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
+      <div className="flex gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-6 w-24 rounded-full" />
+        ))}
+      </div>
       <SectionCard title="Dispatch">
         <Skeleton className="h-40 w-full" />
+      </SectionCard>
+      <SectionCard title="Send to OptimoRoute">
+        <Skeleton className="h-16 w-full" />
       </SectionCard>
     </>
   );
