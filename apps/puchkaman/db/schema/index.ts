@@ -13,7 +13,6 @@ export * from "./carts";
 export { reviewNudges } from "@foundry/google-reviews/db";
 export * from "./events";
 export * from "./notifications";
-export * from "./email-log";
 export * from "./wallet";
 export * from "./organizations";
 export * from "./catering";

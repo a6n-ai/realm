@@ -90,30 +90,44 @@ function sameDaySet(a: DayOfWeek[], b: DayOfWeek[]): boolean {
   return a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
 }
 
-// Parses an arbitrary weekday list out of free text (any subset of
-// Mon..Fri, any order/phrasing) instead of only recognizing the two
-// hardcoded "Monday - Wednesday - Friday" / everything-else phrases. Explicit
-// weekend mentions stay a separate add-on flag, matching the existing
-// includeSaturday/includeSunday semantics untouched by this change.
+// The legacy plugin encodes exactly two named PLANS as fixed literal phrases,
+// not day-by-day checkboxes: "Monday - Wednesday - Friday" (the alternate/MWF
+// plan) and "Monday - Friday" (the standard full-week plan — a range label,
+// NOT two individually-picked days despite matching the same dash-joined
+// format). Verified against real tiffin_count_history delivery logs this
+// session: an order with the literal text "Monday - Friday" has
+// boxes_delivered firing continuously Mon..Fri, not just on Monday and
+// Friday. Confirmed on prod: this exact phrase covers 180 of 263 in-scope
+// orders — matching it as two literal days would have silently migrated the
+// overwhelming majority of customers onto a bogus 2x/week schedule.
+// Everything else (a genuinely different dash-joined day list) is treated as
+// an actual custom pick.
+const PHRASE_5_DAY = "monday - friday";
+const PHRASE_MWF = "monday - wednesday - friday";
+
+function stripWeekendSuffix(text: string): string {
+  return text.replace(/\s*-\s*(saturday|sunday)\b/gi, "").trim();
+}
+
 function parsePreferredDays(raw: string): { frequencyKey: string; weekdays: DayOfWeek[] | null; includeSaturday: boolean; includeSunday: boolean } {
   const text = (raw ?? "").trim();
   const includeSaturday = /saturday/i.test(text);
   const includeSunday = /sunday/i.test(text);
-  const core = WEEKDAY_NAMES.filter((t) => new RegExp(`\\b${t.name}\\b`, "i").test(text)).map((t) => t.day);
+  const corePhrase = stripWeekendSuffix(text).toLowerCase();
 
-  if (core.length === 0) {
-    // No parseable weekday text (blank, or genuinely unrecognized) — same
-    // default this always had. The 6 orders with a literally empty
+  if (text === "" || corePhrase === PHRASE_5_DAY) {
+    // Blank (genuinely unrecognized — the 6 orders with a literally empty
     // "Preferred Days" column are recovered upstream from
-    // tiffin_count_history's own delivery_days sub-array before mapRow ever
-    // sees them, not guessed here.
+    // tiffin_count_history's delivery_days sub-array before mapRow ever sees
+    // them, not guessed here) or the standard full-week phrase.
     return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
   }
-  if (sameDaySet(core, ["mon", "tue", "wed", "thu", "fri"])) {
-    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
-  }
-  if (sameDaySet(core, ["mon", "wed", "fri"])) {
+  if (corePhrase === PHRASE_MWF) {
     return { frequencyKey: "mwf", weekdays: null, includeSaturday, includeSunday };
+  }
+  const core = WEEKDAY_NAMES.filter((t) => new RegExp(`\\b${t.name}\\b`, "i").test(text)).map((t) => t.day);
+  if (core.length === 0 || sameDaySet(core, ["mon", "tue", "wed", "thu", "fri"])) {
+    return { frequencyKey: "5_day", weekdays: null, includeSaturday, includeSunday };
   }
   const sorted = [...core].sort((a, b) => WEEK_ORDER.indexOf(a) - WEEK_ORDER.indexOf(b));
   return { frequencyKey: customFrequencyKey(sorted), weekdays: sorted, includeSaturday, includeSunday };

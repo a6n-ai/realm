@@ -33,6 +33,24 @@ describe("parsePreferredDays (via mapRow)", () => {
     expect(r.weekdays).toBeNull();
   });
 
+  it("treats the literal 'Monday - Friday' plan-label phrase as 5-day, not a 2-day custom pick", () => {
+    // Verified against real legacy delivery history: boxes_delivered fires
+    // Mon..Fri continuously for orders carrying this exact text. It is the
+    // plugin's fixed label for the standard plan, matching 180/263 prod rows.
+    const r = mapRow(row("Monday - Friday"));
+    expect(r.frequencyKey).toBe("5_day");
+    expect(r.weekdays).toBeNull();
+  });
+
+  it("keeps the 5-day phrase label under a weekend suffix", () => {
+    const withSat = mapRow(row("Monday - Friday - Saturday"));
+    expect(withSat.frequencyKey).toBe("5_day");
+    expect(withSat.includeSaturday).toBe(true);
+    const withSun = mapRow(row("Monday - Friday - Sunday"));
+    expect(withSun.frequencyKey).toBe("5_day");
+    expect(withSun.includeSunday).toBe(true);
+  });
+
   it("defaults to 5-day for blank text", () => {
     const r = mapRow(row(""));
     expect(r.frequencyKey).toBe("5_day");

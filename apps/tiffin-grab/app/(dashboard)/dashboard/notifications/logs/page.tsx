@@ -1,14 +1,19 @@
 import { Suspense } from "react";
-import { asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { notificationOutbox, users, emailLog, messageSuppression } from "@/db/schema";
+import { notificationOutbox, users, messageSuppression } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { formatEpoch } from "@/lib/format/datetime";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef, SectionCard } from "@/components/ds";
-import { eventLabel } from "@relay/engine/ui";
+import {
+  eventLabel,
+  SuppressedAddressesTable,
+  SuppressedAddressesTableSkeleton,
+  type SuppressionRow,
+} from "@relay/engine/ui";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
-import { RawEmailLogTable, RawEmailLogTableSkeleton, type EmailRow } from "./raw-email-log-table";
 
 const SORT_COL = {
   time: notificationOutbox.createdAt,
@@ -83,8 +88,6 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-type ActivityRow = { at: number; recipient: string | null; subject: string; status: string; error: string | null };
-
 export default function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
@@ -95,11 +98,11 @@ export default function NotificationLogsPage({ searchParams }: { searchParams: S
       </SectionCard>
 
       <SectionCard
-        title="Raw email log"
-        subtitle="SES-level sends and suppressed addresses — auth/security mail and anything else outside the event pipeline."
+        title="Suppressed addresses"
+        subtitle="Bounced, complained or unsubscribed addresses — no send is attempted against these until cleared."
       >
-        <Suspense fallback={<RawEmailLogSkeleton />}>
-          <RawEmailLogData />
+        <Suspense fallback={<SuppressedAddressesTableSkeleton />}>
+          <SuppressedAddressesData />
         </Suspense>
       </SectionCard>
     </div>
@@ -171,24 +174,21 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-async function RawEmailLogData() {
+async function SuppressedAddressesData() {
   const { timezone } = await getAppSettings();
-  const base = sql`(
-    select el.created_at as at, el.recipient, el.subject, el.status::text as status, el.error
-    from ${emailLog} el
-    union all
-    select ms.created_at as at, ms.address as recipient,
-           ms.reason as subject, 'suppressed' as status, null as error
-    from ${messageSuppression} ms
-    where ms.channel = 'email'
-  ) t`;
-  const items = await db.execute(sql`select at, recipient, subject, status, error from ${base} order by at desc limit 50`);
-  const rows: EmailRow[] = (items as unknown as ActivityRow[]).map((r) => ({ ...r, at: Number(r.at) }));
-  return <RawEmailLogTable rows={rows} timeZone={timezone} />;
-}
-
-function RawEmailLogSkeleton() {
-  return <RawEmailLogTableSkeleton />;
+  const items = await db
+    .select({
+      at: messageSuppression.createdAt,
+      address: messageSuppression.address,
+      scope: messageSuppression.scope,
+      reason: messageSuppression.reason,
+    })
+    .from(messageSuppression)
+    .where(eq(messageSuppression.channel, "email"))
+    .orderBy(desc(messageSuppression.createdAt))
+    .limit(50);
+  const rows: SuppressionRow[] = items.map((r) => ({ ...r, at: Number(r.at) }));
+  return <SuppressedAddressesTable rows={rows} formatTime={(at) => formatEpoch(at, { mode: "datetime", timeZone: timezone })} />;
 }
 
 export type { LogSortColumn };
