@@ -6,7 +6,11 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 
-/** Send a pre-rendered template (html/text from the client editor) to the acting admin's email. */
+/**
+ * Send a pre-rendered template (html/text from the client editor) to the acting
+ * admin's email. Also used by campaigns' "Send test" (EmailTemplateBuilder),
+ * not just event templates, hence the event/campaign-agnostic body shape.
+ */
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
   const { subject, html, text, to } = await req.json();
