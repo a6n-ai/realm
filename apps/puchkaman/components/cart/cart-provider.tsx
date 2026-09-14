@@ -32,6 +32,8 @@ type CartContextValue = {
   badgePulse: boolean;
   /** False until Clover is client-ready for public pickup checkout. */
   orderingEnabled: boolean;
+  /** Admin-set cart floor from app settings; 0 means no minimum. */
+  minOrderValue: number;
   openDrawer: () => void;
   closeDrawer: () => void;
   addItem: (input: CartAddInput) => void;
@@ -94,9 +96,11 @@ function readStoredCart(): CartItem[] {
 export function CartProvider({
   children,
   orderingEnabled = true,
+  minOrderValue = 0,
 }: {
   children: ReactNode;
   orderingEnabled?: boolean;
+  minOrderValue?: number;
 }) {
   // Storage is read once during the lazy initialiser rather than in an effect.
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
@@ -235,6 +239,7 @@ export function CartProvider({
       drawerOpen,
       badgePulse: pulse > 0,
       orderingEnabled,
+      minOrderValue,
       openDrawer,
       closeDrawer,
       addItem,
@@ -250,6 +255,7 @@ export function CartProvider({
       drawerOpen,
       pulse,
       orderingEnabled,
+      minOrderValue,
       openDrawer,
       closeDrawer,
       addItem,

@@ -36,10 +36,21 @@ type Contact = {
   phone: string;
   email: string;
   addressLine: string;
+  addressUnit?: string;
   city: string;
   postalCode: string;
+  deliveryInstructions?: string;
 };
-const emptyContact: Contact = { fullName: "", phone: "", email: "", addressLine: "", city: "", postalCode: "" };
+const emptyContact: Contact = {
+  fullName: "",
+  phone: "",
+  email: "",
+  addressLine: "",
+  addressUnit: "",
+  city: "",
+  postalCode: "",
+  deliveryInstructions: "",
+};
 
 export function Checkout({
   defaultCountry,
@@ -247,7 +258,7 @@ export function Checkout({
                 <AddressFields
                   preset="delivery"
                   idPrefix="checkout"
-                  fields={["addressLine", "city", "postalCode"]}
+                  fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
                   values={contact}
                   onChange={set}
                   resolveUrl="/api/address/resolve"

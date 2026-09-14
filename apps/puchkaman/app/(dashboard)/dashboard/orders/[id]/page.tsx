@@ -82,10 +82,17 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                 <dt className="text-muted-foreground">Delivery address</dt>
                 <dd className="text-right">
                   {order.deliveryAddress}
+                  {order.deliveryUnit ? `, Unit ${order.deliveryUnit}` : ""}
                   {order.deliveryDistanceKm != null ? (
                     <span className="text-muted-foreground"> ({Number(order.deliveryDistanceKm)}km)</span>
                   ) : null}
                 </dd>
+              </div>
+            ) : null}
+            {order.deliveryInstructions ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Delivery instructions</dt>
+                <dd className="text-right">{order.deliveryInstructions}</dd>
               </div>
             ) : null}
             {order.scheduledFor ? (

@@ -60,7 +60,7 @@ import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
+import { getMinOrderValue, integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
@@ -688,10 +688,23 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
     const { lines, subtotal, byPublic } = await priceCart(parsed.items, orgId);
 
+    // Admin-set cart floor, checked against the raw subtotal (before any
+    // discount) — the same figure the cart/checkout UI shows the shortfall
+    // against, so the button that's enabled client-side never 400s here.
+    const minOrderValue = await getMinOrderValue();
+    if (minOrderValue > 0 && subtotal < minOrderValue) {
+      throw new ValidationError(
+        `Add ${money(minOrderValue - subtotal)} more to reach the ${money(minOrderValue)} order minimum.`,
+      );
+    }
+
     // Delivery is resolved server-side from a fresh geocode — the client only ever
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
     let fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled" = "pickup";
     let deliveryAddress: string | null = null;
+    const deliveryUnit = parsed.fulfillment.type === "delivery" ? (parsed.fulfillment.unit?.trim() || null) : null;
+    const deliveryInstructions =
+      parsed.fulfillment.type === "delivery" ? (parsed.fulfillment.instructions?.trim() || null) : null;
     let deliveryDistanceKm: number | null = null;
     let deliveryTypeId: bigint | null = null;
     let deliveryZoneId: bigint | null = null;
@@ -949,6 +962,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           customerPhone: parsed.contact.phone ?? null,
           note: parsed.contact.note ?? null,
           deliveryAddress,
+          deliveryUnit,
+          deliveryInstructions,
           deliveryLat: resolvedDelivery?.lat != null ? resolvedDelivery.lat.toFixed(6) : null,
           deliveryLng: resolvedDelivery?.lng != null ? resolvedDelivery.lng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
@@ -1060,12 +1075,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
 
     // Kitchen-visible note — delivery orders have no Clover order-type config, so this
-    // is how staff on Register see it's not a walk-in pickup.
+    // is how staff on Register see it's not a walk-in pickup. Unit/instructions ride
+    // along here too: Clover's Atomic Order API has no structured address field at
+    // all, so free text in `note` is the only place this reaches Register.
+    const deliveryAddressLine = deliveryUnit ? `${deliveryAddress}, Unit ${deliveryUnit}` : deliveryAddress;
     const note =
       fulfillment === "delivery_instant"
-        ? `Web delivery (instant) · ${parsed.contact.name} · ${deliveryAddress}`
+        ? `Web delivery (instant) · ${parsed.contact.name} · ${deliveryAddressLine}${deliveryInstructions ? ` · Note: ${deliveryInstructions}` : ""}`
         : fulfillment === "delivery_scheduled"
-          ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddress}`
+          ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddressLine}${deliveryInstructions ? ` · Note: ${deliveryInstructions}` : ""}`
           : `Web pickup · ${parsed.contact.name}`;
 
     // The order type is what makes Register announce a website order the way it
@@ -1091,6 +1109,22 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       });
       cloverOrderId = atomic.id;
       await this.ordersRepo.updateByPublicId(order.publicId, { cloverOrderId });
+      // orderTypeId (above) is the documented lever for Register's native
+      // alert, but it's best-effort and unmapped merchants still get a
+      // silent order — this is the actual fix: push Clover's own App
+      // Notifications API so staff get *something* regardless. Never blocks
+      // or fails checkout on the alert failing; the order is already real.
+      client
+        .sendAppNotification({
+          event: "order.created",
+          data: `New web order · ${money(total)} · ${parsed.contact.name}${fulfillment === "pickup" ? " (pickup)" : " (delivery)"}`,
+        })
+        .catch((err) => {
+          log.warn(
+            { orderPublicId: order.publicId, error: err instanceof Error ? err.message : String(err) },
+            "Clover app notification failed",
+          );
+        });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Clover order create failed";
       // The local tx already committed (and, if coins were spent, debited them)

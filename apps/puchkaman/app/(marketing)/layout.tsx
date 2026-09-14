@@ -4,6 +4,7 @@ import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
+import { getMinOrderValue } from "@/lib/services/integrations.service";
 
 // Ordering is gated on the persisted Clover connection, so this layout reads the
 // DB — and the CI Docker build has no Postgres, so prerendering any page under it
@@ -13,10 +14,13 @@ import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 export const dynamic = "force-dynamic";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
-  const orderingEnabled = await isPublicOrderingEnabled();
+  const [orderingEnabled, minOrderValue] = await Promise.all([
+    isPublicOrderingEnabled(),
+    getMinOrderValue(),
+  ]);
 
   return (
-    <CartProvider orderingEnabled={orderingEnabled}>
+    <CartProvider orderingEnabled={orderingEnabled} minOrderValue={minOrderValue}>
       <AnimReady />
       <Nav />
       <main id="main">{children}</main>

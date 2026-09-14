@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { BackButton, SectionCard, StatCard } from "@foundry/design-system";
 import { UsersIcon } from "lucide-react";
 import { listContactListMembers } from "@relay/engine";
-import { ContactListAddMember, ContactListMemberRow, formatConsentDate } from "@relay/engine/ui";
+import { ContactListAddMember, ContactListDeleteButton, ContactListMemberRow, formatConsentDate } from "@relay/engine/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, contactList } from "@/db/schema";
@@ -49,13 +49,16 @@ export default async function ContactListPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <BackButton href="/dashboard/notifications/contact-lists" label="All lists" />
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-balance">{list.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {CONSENT_LABEL[list.consentSource] ?? list.consentSource} ·{" "}
-          {formatConsentDate(Number(list.consentAt), timeZone)}
-          {list.consentNote ? ` · ${list.consentNote}` : ""}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-balance">{list.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {CONSENT_LABEL[list.consentSource] ?? list.consentSource} ·{" "}
+            {formatConsentDate(Number(list.consentAt), timeZone)}
+            {list.consentNote ? ` · ${list.consentNote}` : ""}
+          </p>
+        </div>
+        <ContactListDeleteButton publicId={id} name={list.name} onDeleted="back" />
       </div>
 
       <StatCard label="Contacts" value={list.memberCount} icon={UsersIcon} />

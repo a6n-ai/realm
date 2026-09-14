@@ -49,6 +49,13 @@ export const orders = pgTable("orders", {
   zoneId: bigint("zone_id", { mode: "bigint" }).references(() => deliveryZones.id),
   fullName: text("full_name").notNull(),
   addressLine: text("address_line").notNull(),
+  // Google's formatted address/autocomplete has no reliable subpremise/unit
+  // field — always a distinct, customer-typed field, never parsed out of
+  // addressLine. deliveryInstructions is one free-text note (gate code,
+  // leave at door, etc.), matching puchkaman and Amazon's pattern of a
+  // single instructions field rather than a separate buzzer-code field.
+  addressUnit: text("address_unit"),
+  deliveryInstructions: text("delivery_instructions"),
   city: text("city").notNull(),
   postalCode: text("postal_code").notNull(),
   // Geocoded coordinates for the map display, resolved via @foundry/places'

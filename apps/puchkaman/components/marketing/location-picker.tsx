@@ -6,6 +6,16 @@ import { detectFranchiseByIp, listLocationsAction } from "@/lib/tenant/detect-lo
 // Thin per-app wrapper: the popup/picker UI and cookie logic live in
 // @foundry/design-system (shared with tiffin-grab, the other multi-franchise
 // app); this just supplies puchkaman's own server actions.
+//
+// promptEveryVisit: puchkaman wants the location prompt on every landing,
+// not just the first one — tiffin-grab keeps the default (ask once, trust
+// the cookie after).
 export function LocationPicker() {
-  return <SharedLocationPicker fetchLocations={listLocationsAction} detectSuggestion={detectFranchiseByIp} />;
+  return (
+    <SharedLocationPicker
+      fetchLocations={listLocationsAction}
+      detectSuggestion={detectFranchiseByIp}
+      promptEveryVisit
+    />
+  );
 }

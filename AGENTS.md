@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Realm — agent guide
 
-Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). Orientation:
+Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman, Xplorers). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). Orientation:
 [`PROJECT.md`](PROJECT.md) (product + roles + roadmap) and
 [`docs/realm/`](docs/realm/) (structure, add-a-client, add-a-package, dev/build).
 
@@ -25,9 +25,19 @@ Realm is a **multi-client Turborepo of apps** (TiffinGrab, Puchkaman). Shared pa
   `ui`; `crm-core` composes `ui` + `design-system`. Lower layers never import up.
 - **`crm-core` never imports an app.** `<CrmShell>` is slot-based — nav, breadcrumbs,
   actions, footer, `getSession`, role groupings are injected as props, never baked in.
-- Packages ship **raw `.ts`/`.tsx`** (no build step). Client-consumed packages must be
-  in `apps/<client>/next.config.ts` `transpilePackages`. Server-only packages
-  (`commons-files`, `commons-notify`, `auth`) are NOT transpiled.
+- Packages ship **raw `.ts`/`.tsx`** (no build step). Every `@foundry/*` the app
+  executes must be in `apps/<client>/next.config.ts` `transpilePackages` **and** a
+  direct `dependency` (nested tarballs are not enough — Turbopack `Unknown module
+  type`). That includes `@foundry/auth` / `@foundry/auth-ui` when the app imports
+  them. See Foundry skill `next-foundry-app`.
+
+## Skills
+
+Committed skills live in `.claude/skills/` (allowlisted in `.gitignore`).
+`.claude/` otherwise stays local.
+
+- `scaffold-client` — new `apps/<client>` from the Xplorers lean shape (not Puchkaman commerce).
+- Package wiring lives in the sibling Foundry repo: `next-foundry-app` and `foundry-auth`.
 
 ## Verify contract
 
@@ -96,3 +106,7 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
   `requireAdmin`), so it lands on `/no-access` until that audit happens.
   The `users.role` column defaults to `user` (migration `0017`) — deliberately
   fail-closed, since `user` is the role with no console permissions.
+- Xplorers (`apps/xplorers`, port 3002) is a foundation-only client: public
+  marketing (xplorers.life copy), Better Auth (`user` families at `/me` via OTP
+  or password; `admin`/`member` staff at `/dashboard` via password), and the CRM
+  shell with user invites. No Clover, cart, or orders until a later phase.

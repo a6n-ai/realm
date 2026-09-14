@@ -4,6 +4,7 @@ import { useCallback, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { MinOrderBanner } from "@/components/cart/min-order-banner";
 import { AddressAutocomplete } from "@/components/order/address-autocomplete";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import { DeliveryTypePicker, type CheckoutDeliveryType } from "@/components/order/delivery-type-picker";
@@ -104,7 +105,8 @@ export function CheckoutClient({
   /** The acting franchise's pickup point — see getStoreLocation. Drives the map marker and every pickup-address string below. */
   storeLocation: { lat: number; lng: number; address: string };
 }) {
-  const { items, subtotal, count, clear, hydrated, addItem } = useCart();
+  const { items, subtotal, count, clear, hydrated, addItem, minOrderValue } = useCart();
+  const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
   // The only way to reach a guest who abandons: their address is typed here but
   // the order does not exist until submit. Sent with the cart so the recovery
   // job has somewhere to write it.
@@ -127,6 +129,8 @@ export function CheckoutClient({
   const [note, setNote] = useState("");
   const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
   const [address, setAddress] = useState("");
+  const [unit, setUnit] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [placeId, setPlaceId] = useState<string | undefined>(undefined);
   const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
   const [addressChecking, setAddressChecking] = useState(false);
@@ -203,6 +207,20 @@ export function CheckoutClient({
     ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
     : undefined;
 
+  // Removing/reducing an item can drop the bag below the selected type's
+  // minSubtotal without a page reload — the picker greys it out live, but
+  // nothing else did, so the stale key stayed "selected" (still passed the
+  // fieldErrors.deliveryType check, still submitted, and would only fail once
+  // the server re-checked it). Cleared right here during render (React's
+  // sanctioned "adjust state when a prop/derived value changes" pattern,
+  // https://react.dev/learn/you-might-not-need-an-effect) rather than in an
+  // effect — it terminates in one extra render (selectedType becomes
+  // undefined next pass) instead of the effect flicker + lint violation.
+  if (selectedType && subtotal < selectedType.minSubtotal) {
+    setDeliveryTypeKey(null);
+    setScheduledFor("");
+  }
+
   // Smallest gap to a delivery minimum the customer hasn't hit yet — the
   // upsell nudge targets this one, not just whichever type is disabled first.
   const nearestShortfall = addressCheck?.resolved
@@ -277,6 +295,10 @@ export function CheckoutClient({
       setError("Add at least one item from the menu");
       return;
     }
+    if (belowMinimum) {
+      setError(`Add ${money(minOrderValue - subtotal)} more to reach the ${money(minOrderValue)} order minimum.`);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/checkout", {
@@ -308,6 +330,8 @@ export function CheckoutClient({
                   deliveryTypeKey,
                   address: address.trim(),
                   ...(placeId ? { placeId } : {}),
+                  ...(unit.trim() ? { unit: unit.trim() } : {}),
+                  ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
                   ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
                 }
               : { type: "pickup" },
@@ -441,6 +465,7 @@ export function CheckoutClient({
       ) : (
         <>
           <CartLines items={items} compact />
+          <MinOrderBanner subtotal={subtotal} minOrderValue={minOrderValue} />
           <OrderSummary
             subtotal={session?.subtotal ?? quote?.subtotal ?? subtotal}
             tax={session?.tax ?? quote?.tax}
@@ -547,6 +572,7 @@ export function CheckoutClient({
             </div>
 
             {fulfillment === "delivery" ? (
+              <>
               <div className={`field checkout-field ${fieldErrors.address ? "field--err" : ""}`}>
                 <label htmlFor={`${formId}-address`}>Delivery address *</label>
                 <AddressAutocomplete
@@ -624,6 +650,36 @@ export function CheckoutClient({
                   </div>
                 ) : null}
               </div>
+
+              {/* Always visible, never collapsed behind a "+ add apartment" link —
+                  Google's formatted address has no reliable unit/suite field, so
+                  a hidden control is a missed-unit delivery waiting to happen. */}
+              <div className="checkout-fields" style={{ marginTop: 10 }}>
+                <div className="field checkout-field">
+                  <label htmlFor={`${formId}-unit`}>Apt / unit / suite</label>
+                  <input
+                    id={`${formId}-unit`}
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="input"
+                    autoComplete="address-line2"
+                    placeholder="Apt 4B"
+                    maxLength={60}
+                  />
+                </div>
+                <div className="field checkout-field">
+                  <label htmlFor={`${formId}-instructions`}>Delivery instructions (optional)</label>
+                  <input
+                    id={`${formId}-instructions`}
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    className="input"
+                    placeholder="Gate code, leave at door, call on arrival…"
+                    maxLength={500}
+                  />
+                </div>
+              </div>
+              </>
             ) : null}
 
             {fulfillment === "delivery" && addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
@@ -771,13 +827,17 @@ export function CheckoutClient({
               size="lg"
               block
               type="submit"
-              disabled={busy || items.length === 0}
+              disabled={busy || items.length === 0 || belowMinimum}
               className="checkout-submit"
             >
               {/* Keyed so the swap replays: the blur reads as one label becoming
                   another rather than two strings crossing. */}
-              <span className="label-swap" key={busy ? "busy" : "idle"}>
-                {busy ? "Pricing your order…" : `Continue to payment · ${money(runningTotal)}`}
+              <span className="label-swap" key={busy ? "busy" : belowMinimum ? "short" : "idle"}>
+                {busy
+                  ? "Pricing your order…"
+                  : belowMinimum
+                    ? `Add ${money(minOrderValue - subtotal)} more to check out`
+                    : `Continue to payment · ${money(runningTotal)}`}
               </span>
             </Btn>
             <p className="checkout-hint checkout-hint--center">

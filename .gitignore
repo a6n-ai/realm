@@ -52,7 +52,9 @@ next-env.d.ts
 graphify-out/
 
 # AI tooling / agent context (keep local, never commit)
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .cursor/
 .agents/
 .superpowers/

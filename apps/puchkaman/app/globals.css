@@ -754,7 +754,11 @@ section { position: relative; }
 .location-picker-fab {
   border: var(--bd) solid var(--yellow) !important;
   border-radius: var(--r-sm) !important;
-  background: var(--ink) !important;
+  /* --ink-bg, not --ink: this must stay dark-as-background in dark mode too.
+     --ink itself flips to cream there (see DARK MODE block above), which was
+     rendering yellow text on a near-white pill — unreadable, not just low
+     contrast. */
+  background: var(--ink-bg) !important;
   color: var(--yellow) !important;
   box-shadow: var(--sh-green) !important;
   padding: 12px 18px !important;
@@ -765,10 +769,19 @@ section { position: relative; }
   transition: transform .08s ease, box-shadow .08s ease;
 }
 @media (hover: hover) and (pointer: fine) {
-  .location-picker-fab:hover { background: var(--ink) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
+  .location-picker-fab:hover { background: var(--ink-bg) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
 }
 .location-picker-fab:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--green) !important; }
 .location-picker-fab svg { color: var(--yellow) !important; }
+/* The FAB is fixed at the same bottom-right corner the mobile cart sticky bar
+   (.cart-stickybar, /cart) occupies — without this it sits on top of the
+   checkout button, half-hidden and unclickable. :has() targets only the
+   pages where that bar is actually in the DOM. */
+@media (max-width: 899px) {
+  body:has(.cart-stickybar) .location-picker-fab {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
 
 .location-picker-dialog {
   border: var(--bd) solid var(--ink) !important;
@@ -1907,6 +1920,36 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 }
 @media (hover: hover) and (pointer: fine) {
   .checkout-upsell__chip:hover { background: var(--yellow); transform: translateY(-1px); }
+}
+
+/* Order-minimum progress — bold and load-bearing: the checkout button is
+   disabled while this shows, so it has to read at a glance, not as a footnote. */
+.min-order-banner {
+  border: var(--border);
+  border-radius: 12px;
+  background: var(--yellow);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--sh-sm);
+}
+.min-order-banner__label {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+.min-order-banner__track {
+  height: 8px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  overflow: hidden;
+}
+.min-order-banner__fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.25s ease;
 }
 
 .checkout-offers { display: grid; gap: 14px; }

@@ -110,8 +110,14 @@ export interface CreateOrderInput {
     phone: string;
     email: string;
     addressLine: string;
+    // Always a distinct, customer-typed field — Google's formatted address has
+    // no reliable subpremise/unit field, so this is never parsed out of
+    // addressLine. deliveryInstructions is one free-text note (gate code,
+    // leave at door, etc.), same pattern as puchkaman/Amazon.
+    addressUnit?: string | null;
     city: string;
     postalCode: string;
+    deliveryInstructions?: string | null;
     // Resolved via @foundry/places' resolveAndPersist() at the action layer, not here —
     // this service only stores whatever it's given, null when omitted.
     lat?: number | null;
@@ -488,8 +494,10 @@ export async function createOrder(
         zoneId: zoneRow?.id ?? null,
         fullName: input.contact.fullName,
         addressLine: input.contact.addressLine,
+        addressUnit: input.contact.addressUnit?.trim() || null,
         city: input.contact.city,
         postalCode: input.contact.postalCode,
+        deliveryInstructions: input.contact.deliveryInstructions?.trim() || null,
         latitude: input.contact.lat ?? null,
         longitude: input.contact.lng ?? null,
         currentOwner: input.currentOwner ?? null,
