@@ -1,16 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Role, type RoleValue } from "@foundry/commons";
 import { UsersIcon } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { DataTable, type Column } from "@/components/ds";
+import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
+import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import { UserRow, UserRowCard } from "./user-row";
 import type { UserStatusValue } from "./actions";
-
-const ALL = "all";
-const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
+import type { RoleValue } from "@foundry/commons";
 
 export type UserListRow = {
   id: string;
@@ -35,65 +31,47 @@ const COLUMNS: readonly Column<"name" | "email" | "role" | "status" | "actions">
 ];
 
 export function UsersList({
+  spec,
   rows,
+  total,
+  page,
+  size,
   sort,
 }: {
+  spec: FacetDef[];
   rows: UserListRow[];
+  total: number;
+  page: number;
+  size: number;
   sort: SortState<"name" | "email" | "role" | "status">;
 }) {
-  const [roleFilter, setRoleFilter] = useState<string>(ALL);
-  const [statusFilter, setStatusFilter] = useState<string>(ALL);
-
-  // Client-side: the org's staff/user list is small enough that fetching once
-  // and filtering in the browser beats round-tripping to the server per filter.
-  const filteredRows = useMemo(
-    () =>
-      rows.filter(
-        (r) => (roleFilter === ALL || r.role === roleFilter) && (statusFilter === ALL || r.status === statusFilter),
-      ),
-    [rows, roleFilter, statusFilter],
-  );
-
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={filteredRows}
-      rowKey={(r) => r.id}
-      sort={sort}
-      idAccessor={(r) => r.id}
-      search={{ placeholder: "Search users…", shortPlaceholder: "Search…", keys: ["name", "email", "phone", "role"] }}
-      filters={
-        <>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-32"><SelectValue placeholder="Role" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All roles</SelectItem>
-              {Object.values(Role).map((r) => (
-                <SelectItem key={r} value={r}>{r}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All statuses</SelectItem>
-              {USER_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </>
-      }
-      emptyIcon={UsersIcon}
-      emptyMessage="No users yet."
-      emptySearchMessage="No users match your search."
-      renderRow={(r) => <UserRow {...r} />}
-      mobileCard={(r) => <UserRowCard {...r} />}
-    />
+    <div className="space-y-4">
+      <DataTable
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.id}
+        sort={sort}
+        idAccessor={(r) => r.id}
+        search={{ placeholder: "Search users…", shortPlaceholder: "Search…", debounceMs: 250 }}
+        filters={<ReuiFacetFilters spec={spec} />}
+        emptyIcon={UsersIcon}
+        emptyMessage="No users yet."
+        emptySearchMessage="No users match your filters."
+        renderRow={(r) => <UserRow {...r} />}
+        mobileCard={(r) => <UserRowCard {...r} />}
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
-// Loading twin is now owned by DataTable — same COLUMNS, zero drift.
+// FilterBar twin + table twin — mirrors live search + ReuiFacetFilters chrome.
 export function UsersListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return (
+    <div className="space-y-4">
+      <SkeletonFilterBar dropdown />
+      <DataTable.Skeleton columns={COLUMNS} hasId />
+    </div>
+  );
 }
