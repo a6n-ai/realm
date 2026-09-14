@@ -78,8 +78,12 @@ export function OrderSummaryPanel({
         <DetailRow label="Address">
           {order.fullName}
           <br />
-          {order.addressLine}, {order.city} {order.postalCode}
+          {order.addressLine}
+          {order.addressUnit ? `, Unit ${order.addressUnit}` : ""}, {order.city} {order.postalCode}
         </DetailRow>
+        {order.deliveryInstructions ? (
+          <DetailRow label="Delivery instructions">{order.deliveryInstructions}</DetailRow>
+        ) : null}
         <DetailRow label="Order ID">
           <span className="font-mono text-xs">{order.publicId}</span>
         </DetailRow>
