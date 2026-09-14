@@ -1,18 +1,46 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { TruckIcon } from "lucide-react";
-import { TableCell } from "@foundry/ui/table";
+import { cn } from "@foundry/ui/cn";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { DataTable, type Column } from "@/components/ds";
+import { PlanBox } from "@/components/customer/plan-box";
 import { reassignDriverAction } from "./actions";
 import type { DispatchRow, KnownDriver } from "@/lib/services/optimoroute/drivers";
 
-const COLUMNS: readonly Column<"customer" | "driver" | "stop">[] = [
-  { key: "customer", label: "Customer" },
-  { key: "driver", label: "Driver" },
-  { key: "stop", label: "Stop #", align: "right" },
-];
+const UNASSIGNED = "__unassigned__";
+
+// Same numbered-circle language as the deliveries calendar's emerald delivered
+// ring — here it marks a stop's position on the route instead of a delivered date.
+const STOP_CIRCLE = "ring-2 ring-emerald-500 ring-offset-1 ring-offset-background";
+
+type DriverGroup = {
+  key: string;
+  driverName: string | null;
+  rows: DispatchRow[];
+};
+
+function groupByDriver(rows: DispatchRow[]): DriverGroup[] {
+  const groups = new Map<string, DriverGroup>();
+  for (const row of rows) {
+    const key = row.routeDriverSerial ?? UNASSIGNED;
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, driverName: row.routeDriverName, rows: [] };
+      groups.set(key, group);
+    }
+    group.rows.push(row);
+  }
+  for (const group of groups.values()) {
+    group.rows.sort((a, b) => (a.routeStopNumber ?? Infinity) - (b.routeStopNumber ?? Infinity));
+  }
+  // Unassigned last; assigned groups alphabetical by driver name/serial.
+  return [...groups.values()].sort((a, b) => {
+    if (a.key === UNASSIGNED) return 1;
+    if (b.key === UNASSIGNED) return -1;
+    return (a.driverName ?? a.key).localeCompare(b.driverName ?? b.key);
+  });
+}
 
 export function DispatchView({
   date,
@@ -25,6 +53,7 @@ export function DispatchView({
 }) {
   const [pending, startTransition] = useTransition();
   const [errorFor, setErrorFor] = useState<string | null>(null);
+  const groups = useMemo(() => groupByDriver(rows), [rows]);
 
   function reassign(orderNo: string, driverSerial: string) {
     setErrorFor(null);
@@ -34,50 +63,67 @@ export function DispatchView({
     });
   }
 
+  if (rows.length === 0) {
+    return (
+      <div className="grid place-items-center gap-3 rounded-lg border py-12 text-center">
+        <span className="bg-muted text-muted-foreground grid size-12 place-items-center rounded-xl">
+          <TruckIcon className="size-6" />
+        </span>
+        <p className="text-muted-foreground max-w-sm px-6">No routes pulled for this date yet.</p>
+      </div>
+    );
+  }
+
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.orderNo}
-      serial={false}
-      emptyIcon={TruckIcon}
-      emptyMessage="No routes pulled for this date yet."
-      renderRow={(r) => (
-        <>
-          <TableCell className="font-medium">{r.customerName}</TableCell>
-          <TableCell>
-            <Select
-              disabled={pending}
-              defaultValue={r.routeDriverSerial ?? undefined}
-              onValueChange={(v) => reassign(r.orderNo, v)}
-            >
-              <SelectTrigger className="h-8 w-40">
-                <SelectValue placeholder={r.routeDriverName ?? "Unassigned"} />
-              </SelectTrigger>
-              <SelectContent>
-                {drivers.map((d) => (
-                  <SelectItem key={d.driverSerial} value={d.driverSerial}>
-                    {d.driverName ?? d.driverSerial}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errorFor === r.orderNo ? (
-              <p className="text-destructive mt-1 text-xs">Could not reassign — try again.</p>
-            ) : null}
-          </TableCell>
-          <TableCell className="text-right tabular-nums">{r.routeStopNumber ?? "—"}</TableCell>
-        </>
-      )}
-      mobileCard={(r) => (
-        <div className="space-y-1">
-          <p className="text-sm font-medium">{r.customerName}</p>
-          <p className="text-muted-foreground text-xs">
-            {r.routeDriverName ?? "Unassigned"}
-            {r.routeStopNumber != null ? ` · stop ${r.routeStopNumber}` : ""}
-          </p>
-        </div>
-      )}
-    />
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <PlanBox key={group.key}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate font-medium">
+              {group.key === UNASSIGNED ? "Unassigned" : group.driverName ?? group.key}
+            </p>
+            <span className="bg-background/70 text-foreground rounded-full px-2.5 py-1 text-xs font-medium">
+              {group.rows.length} stop{group.rows.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="mt-3 divide-y">
+            {group.rows.map((r) => (
+              <div key={r.orderNo} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span
+                  className={cn(
+                    "bg-muted text-muted-foreground grid size-7 shrink-0 place-items-center rounded-full text-xs font-medium tabular-nums",
+                    r.routeStopNumber != null && STOP_CIRCLE,
+                  )}
+                >
+                  {r.routeStopNumber ?? "—"}
+                </span>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">{r.customerName}</p>
+                <div className="shrink-0">
+                  <Select
+                    disabled={pending}
+                    defaultValue={r.routeDriverSerial ?? undefined}
+                    onValueChange={(v) => reassign(r.orderNo, v)}
+                  >
+                    <SelectTrigger className="h-8 w-40">
+                      <SelectValue placeholder={r.routeDriverName ?? "Unassigned"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.map((d) => (
+                        <SelectItem key={d.driverSerial} value={d.driverSerial}>
+                          {d.driverName ?? d.driverSerial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errorFor === r.orderNo ? (
+                    <p className="text-destructive mt-1 text-xs">Could not reassign — try again.</p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </PlanBox>
+      ))}
+    </div>
   );
 }
