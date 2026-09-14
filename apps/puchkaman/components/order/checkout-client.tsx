@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
@@ -204,6 +204,19 @@ export function CheckoutClient({
   const selectedType = addressCheck?.resolved
     ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
     : undefined;
+
+  // Removing/reducing an item can drop the bag below the selected type's
+  // minSubtotal without a page reload — the picker greys it out live, but
+  // nothing else did, so the stale key stayed "selected" (still passed the
+  // fieldErrors.deliveryType check, still submitted, and would only fail once
+  // the server re-checked it). Deselecting here is the one place both the
+  // picker and the submit button read from, so both go stale-free together.
+  useEffect(() => {
+    if (selectedType && subtotal < selectedType.minSubtotal) {
+      setDeliveryTypeKey(null);
+      setScheduledFor("");
+    }
+  }, [selectedType, subtotal]);
 
   // Smallest gap to a delivery minimum the customer hasn't hit yet — the
   // upsell nudge targets this one, not just whichever type is disabled first.
