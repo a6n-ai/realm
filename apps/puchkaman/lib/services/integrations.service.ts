@@ -142,6 +142,21 @@ export const integrationsConfigStore: IntegrationsConfigStore = {
   set: setIntegrationsConfig,
 };
 
+/** Cart subtotal a checkout must clear, or 0 when no minimum is set. */
+export async function getMinOrderValue(): Promise<number> {
+  const [row] = await db.select({ v: app.minOrderValue }).from(app).limit(1);
+  return Number(row?.v ?? 0);
+}
+
+export async function setMinOrderValue(value: number): Promise<void> {
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) {
+    await appService.update(row.publicId, { minOrderValue: value ? value.toFixed(2) : null });
+  } else {
+    await appService.create({ ...DEFAULTS, minOrderValue: value ? value.toFixed(2) : null });
+  }
+}
+
 // Which franchise's Clover connection is in effect right now (see
 // resolveActingOrg) — used to stamp organizationId on rows a Clover sync
 // creates, so a product pulled via Toronto's connection is attributed to

@@ -3,14 +3,16 @@
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { MinOrderBanner } from "@/components/cart/min-order-banner";
 import { OrderingUnavailableNotice } from "@/components/order/ordering-unavailable-notice";
 import { OrderSummary } from "@/components/order/order-summary";
 import { money } from "@/lib/cart/types";
 import { useCartQuote } from "@/lib/cart/use-cart-quote";
 
 export function CartPageClient() {
-  const { items, count, subtotal, hydrated, clear, orderingEnabled } = useCart();
+  const { items, count, subtotal, hydrated, clear, orderingEnabled, minOrderValue } = useCart();
   const quote = useCartQuote(items);
+  const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
 
   if (!hydrated) {
     return <div className="card card--cream checkout-skeleton" aria-busy="true" />;
@@ -49,6 +51,7 @@ export function CartPageClient() {
       </section>
 
       <aside className="card cart-summary">
+        <MinOrderBanner subtotal={subtotal} minOrderValue={minOrderValue} />
         <OrderSummary
           subtotal={quote?.subtotal ?? subtotal}
           tax={quote?.tax}
@@ -56,8 +59,15 @@ export function CartPageClient() {
           taxLines={quote?.taxLines}
           stage={quote ? "quoted" : "estimate"}
         />
-        <Btn page="checkout" variant="green" size="lg" block className="checkout-submit">
-          Checkout →
+        <Btn
+          page="checkout"
+          variant="green"
+          size="lg"
+          block
+          disabled={belowMinimum}
+          className="checkout-submit"
+        >
+          {belowMinimum ? `Add ${money(minOrderValue - subtotal)} more` : "Checkout →"}
         </Btn>
         <Btn page="eats" variant="cream" block>
           Add more
@@ -71,8 +81,8 @@ export function CartPageClient() {
           <span>{quote ? "Total with tax" : "Est. total"}</span>
           <strong>{money(quote?.total ?? subtotal)}</strong>
         </div>
-        <Btn page="checkout" variant="green" size="lg">
-          Checkout →
+        <Btn page="checkout" variant="green" size="lg" disabled={belowMinimum}>
+          {belowMinimum ? `Add ${money(minOrderValue - subtotal)} more` : "Checkout →"}
         </Btn>
       </div>
     </div>

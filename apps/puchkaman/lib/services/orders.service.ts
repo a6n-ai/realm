@@ -60,7 +60,7 @@ import { resolveSettlement } from "@/lib/orders/settlement";
 import { computeTax, type TaxableLine, type TaxRateRow } from "@/lib/orders/tax";
 import type { SortState } from "@/lib/list/sort";
 import { isCloverInventoryConnected } from "@/lib/products/availability";
-import { integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
+import { getMinOrderValue, integrationsConfigStore, resolveActingOrgId } from "@/lib/services/integrations.service";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { markCartConverted } from "./carts.service";
 import { employeesRepository, type EmployeeRow } from "./employees.repository";
@@ -687,6 +687,16 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const environment = client.environment();
 
     const { lines, subtotal, byPublic } = await priceCart(parsed.items, orgId);
+
+    // Admin-set cart floor, checked against the raw subtotal (before any
+    // discount) — the same figure the cart/checkout UI shows the shortfall
+    // against, so the button that's enabled client-side never 400s here.
+    const minOrderValue = await getMinOrderValue();
+    if (minOrderValue > 0 && subtotal < minOrderValue) {
+      throw new ValidationError(
+        `Add ${money(minOrderValue - subtotal)} more to reach the ${money(minOrderValue)} order minimum.`,
+      );
+    }
 
     // Delivery is resolved server-side from a fresh geocode — the client only ever
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
