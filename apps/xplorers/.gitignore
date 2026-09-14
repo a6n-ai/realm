@@ -1,0 +1,11 @@
+
+# local Next.js output
+.next/
+out/
+
+# local env (never commit secrets)
+.env
+.env*.local
+
+# local drizzle / files
+.files-storage/

@@ -4,7 +4,7 @@
   "conventions": [
     {
       "name": "db-schema-barrel-purity",
-      "description": "apps/*/db/schema/index.ts re-exports its sibling schema files and nothing else — no local declarations, no non-schema imports. Evidence: 42/42 sibling schema files re-exported via `export * from` across both apps (tiffin-grab 23/23, puchkaman 19/19).",
+      "description": "apps/*/db/schema/index.ts re-exports its sibling schema files and nothing else — no local declarations, no non-schema imports. Evidence: sibling schema files re-exported via `export * from` across apps (tiffin-grab, puchkaman, xplorers).",
       "severity": "error",
       "paths": "apps/*/db/schema/index.ts",
       "must": {
