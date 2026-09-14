@@ -21,7 +21,7 @@ export async function pushDayAction(date: string): Promise<PushResult> {
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pushDay(date, await currentUserId());
-  revalidatePath("/dashboard/routes");
+  revalidatePath("/dashboard/dispatch");
   return result;
 }
 
@@ -36,7 +36,7 @@ export async function removeStopsAction(date: string, orderNos: string[]): Promi
   if (orderNos.length === 0) throw new ValidationError("Select at least one stop to remove");
 
   const result = await removeStops(date, orderNos, await currentUserId());
-  revalidatePath("/dashboard/routes");
+  revalidatePath("/dashboard/dispatch");
   return result;
 }
 
@@ -49,7 +49,7 @@ export async function pullRoutesAction(date: string): Promise<PullResult> {
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pullRoutes(date);
-  revalidatePath("/dashboard/routes");
+  revalidatePath("/dashboard/dispatch");
   // Labels print in driver-then-stop order, so they change the moment routes land.
   revalidatePath("/dashboard/labels");
   return result;
@@ -65,7 +65,7 @@ export async function pullCompletionsAction(date: string): Promise<PullCompletio
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
 
   const result = await pullCompletions(date, await currentUserId());
-  revalidatePath("/dashboard/routes");
+  revalidatePath("/dashboard/dispatch");
   return result;
 }
 
@@ -100,7 +100,7 @@ export async function reassignDriverAction(
     } catch (e) {
       console.error("pullRoutes after reassignDriver failed", e);
     }
-    revalidatePath("/dashboard/routes");
+    revalidatePath("/dashboard/dispatch");
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
