@@ -21,7 +21,7 @@ export default async function CustomerHomePage() {
           message="We're setting up classes, workshops, and family bookings. Your account is ready."
           action={
             <Button asChild>
-              <Link href="/programs">See programs</Link>
+              <Link href="/whats-on">See what&apos;s on</Link>
             </Button>
           }
         />
