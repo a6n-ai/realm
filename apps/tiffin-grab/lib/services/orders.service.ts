@@ -31,7 +31,7 @@ import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type Pr
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { couponsService } from "./coupons.service";
 import { ensureCustomFrequencyRow } from "./delivery-frequencies.service";
-import { cancelDeliveries, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
 import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
@@ -1187,6 +1187,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // skipDelivery in deliveries.service.ts for the same shape).
   async cancel(publicId: string): Promise<void> {
     const actorId = await this.currentUserId();
+    let cancelledRows: Awaited<ReturnType<typeof cancelDeliveries>> = [];
     await db.transaction(async (tx) => {
       const [idRow] = await tx.select({ id: orders.id }).from(orders)
         .where(eq(orders.publicId, publicId)).limit(1);
@@ -1199,7 +1200,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
       const [row] = await tx.update(orders).set({ status: "cancelled", updatedBy: actorId })
         .where(eq(orders.id, order.id)).returning();
-      await cancelDeliveries(tx, row.id);
+      cancelledRows = await cancelDeliveries(tx, row.id);
       await tx.insert(orderActivities).values({
         orderId: row.id,
         type: "cancelled",
@@ -1208,6 +1209,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         createdBy: actorId,
       });
     });
+    // External API call, deliberately outside the tx — see walletService.award above for the
+    // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.
+    await deleteFromOptimoRouteBestEffort(cancelledRows);
   }
 
   // Delegates the actual row-marking to pauseRange (which validates the window and does its own

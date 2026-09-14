@@ -232,6 +232,36 @@ export async function assignDriver(
   );
 }
 
+/**
+ * Manual, single-delivery re-push — the fix for "a scheduled push went wrong or the data was
+ * stale, redo just this one" without waiting on the day's full pushDay run. Same MERGE payload
+ * pushDay would send for this stop.
+ */
+export async function pushOneDelivery(orderNo: string, date: string, actorId: bigint | null = null): Promise<void> {
+  const orders = await buildPlannedOrders(date);
+  const target = orders.find((o) => o.orderNo === orderNo);
+  if (!target) {
+    throw new Error(`No planned delivery ${orderNo} for ${date} — nothing to push`);
+  }
+  await createOrder(target.payload);
+  await recordPushActivities(date, [{ orderNo, customerName: target.customerName, ok: true, message: "Sent" }], actorId);
+}
+
+/**
+ * Manual, single-delivery removal from OptimoRoute — unlike removeStops, this does not require
+ * the stop to already be detected as stale by previewPush. A dispatcher fixing a bad push by
+ * hand needs to delete a specific stop regardless of what today's diff says.
+ */
+export async function removeOneDelivery(orderNo: string, date: string, actorId: bigint | null = null): Promise<void> {
+  await deleteOrder(orderNo);
+  await recordPushActivities(
+    date,
+    [{ orderNo, customerName: orderNo, ok: true, message: "Removed" }],
+    actorId,
+    () => "Removed from OptimoRoute (manual)",
+  );
+}
+
 export type RemoveResult = {
   date: string;
   removed: number;

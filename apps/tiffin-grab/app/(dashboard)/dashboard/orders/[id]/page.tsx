@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackageIcon } from "lucide-react";
-import { NotFoundError } from "@foundry/commons";
+import { NotFoundError, zonedDateIso } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { listDeliveries } from "@/lib/services/deliveries.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
@@ -23,6 +24,7 @@ import { OrderSummaryPanel } from "./order-summary-panel";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { ChangePlanControl } from "./change-plan-control";
 import { OrderActivityLog, OrderActivityLogSkeleton } from "./order-activity-log";
+import { OptimoRoutePanel } from "./optimoroute-panel";
 import { SubscriptionPanel, SubscriptionPanelSkeleton } from "@/components/dashboard/subscription-panel";
 
 // The full record for ONE order: what it is, what it costs, whether it is paid, and the
@@ -71,7 +73,7 @@ async function OrderDetail({
     throw e;
   }
 
-  const [activities, settings, planRow, customer, paymentCfg] = await Promise.all([
+  const [activities, settings, planRow, customer, paymentCfg, deliveryRows] = await Promise.all([
     listOrderActivities(order.id),
     settingsP,
     db.select({ planType: plans.planType }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
@@ -84,7 +86,19 @@ async function OrderDetail({
           .then((r) => r[0] ?? null)
       : Promise.resolve(null),
     getPaymentConfig(),
+    listDeliveries(order.id),
   ]);
+
+  const settingsToday = zonedDateIso(Date.now(), settings.timezone);
+  const optimoRows = deliveryRows
+    .filter((r) => r.deliveryDate >= settingsToday && r.status !== "cancelled")
+    .map((r) => ({
+      publicId: r.publicId,
+      deliveryDate: r.deliveryDate,
+      status: r.status,
+      routeDriverName: r.routeDriverName,
+      routeSyncedAt: r.routeSyncedAt,
+    }));
 
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   const categoryCounts = (order.categoryCounts as Record<string, number> | null) ?? {};
@@ -143,6 +157,10 @@ async function OrderDetail({
           <SectionCard title="Activity">
             <OrderActivityLog activities={activities} />
           </SectionCard>
+
+          <SectionCard title="OptimoRoute">
+            <OptimoRoutePanel orderId={order.publicId} rows={optimoRows} />
+          </SectionCard>
         </div>
       </div>
 
@@ -182,6 +200,14 @@ OrderDetail.Skeleton = function OrderDetailSkeleton() {
 
           <SectionCard title="Activity">
             <OrderActivityLogSkeleton />
+          </SectionCard>
+
+          <SectionCard title="OptimoRoute">
+            <div className="space-y-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
           </SectionCard>
         </div>
       </div>
