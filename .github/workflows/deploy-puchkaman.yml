@@ -82,6 +82,23 @@ jobs:
     if: ${{ vars.ENABLE_SSH_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+
+      # Split from the migrate+up step below: on an undersized box, a stalled
+      # image pull used to burn the whole 20m budget and leave migrate/up with
+      # no time at all. A retry here resumes from cached layers instead of
+      # re-pulling from zero.
+      - name: SSH → pull images on Box B
+        uses: ./.github/actions/ssh-pull-images
+        with:
+          host: ${{ secrets.EC2_HOST_PUCHKAMAN }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          image_tag: ${{ github.sha }}
+          deploy_path: ${{ vars.DEPLOY_PATH }}
+          app_dir: deployment/prod/puchkaman
+          pull_tools_profile: "true"
+
       - name: SSH → deploy puchkaman on Box B
         uses: appleboy/ssh-action@v1
         env:
@@ -90,20 +107,18 @@ jobs:
           host: ${{ secrets.EC2_HOST_PUCHKAMAN }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 15m
           envs: IMAGE_TAG
           script: |
             set -euo pipefail
             REPO="${{ vars.DEPLOY_PATH }}"; REPO="${REPO:-$HOME/realm}"
-            git -C "$REPO" pull --ff-only
             cd "$REPO/deployment/prod/puchkaman"
-            docker network inspect edge >/dev/null 2>&1 || docker network create edge
             # Caddy reads its config only at startup, and `up -d` does not
             # recreate the container when only the Caddyfile changed. conf/ is
             # mounted as a directory (see proxy/docker-compose.yml), so the file
             # resolves fresh and an explicit reload applies edits with no restart
             # and no dropped connections. An invalid config fails the deploy here
             # rather than leaving the old one serving.
-            (cd proxy && docker compose pull && docker compose up -d --wait)
+            (cd proxy && docker compose up -d --wait)
             (cd proxy && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile)
             ./deploy.sh

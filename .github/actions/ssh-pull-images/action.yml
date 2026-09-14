@@ -1,0 +1,52 @@
+name: ssh-pull-images
+description: >
+  SSH in and pull proxy + app compose images. Split out from the deploy step
+  so a stalled pull on an undersized box doesn't also burn the migrate/up
+  time budget — a retry resumes from cached layers instead of from zero.
+inputs:
+  host:
+    required: true
+  username:
+    required: true
+  key:
+    required: true
+  image_tag:
+    required: true
+  deploy_path:
+    description: Repo checkout path on the box (default ~/realm)
+    required: false
+    default: ""
+  app_dir:
+    description: Path (relative to the repo root) containing proxy/ and the app compose files
+    required: true
+  pull_tools_profile:
+    description: Also run `docker compose --profile tools pull` in app_dir
+    required: false
+    default: "false"
+  command_timeout:
+    required: false
+    default: 15m
+runs:
+  using: composite
+  steps:
+    - uses: appleboy/ssh-action@v1
+      env:
+        IMAGE_TAG: ${{ inputs.image_tag }}
+      with:
+        host: ${{ inputs.host }}
+        username: ${{ inputs.username }}
+        key: ${{ inputs.key }}
+        command_timeout: ${{ inputs.command_timeout }}
+        envs: IMAGE_TAG
+        script: |
+          set -euo pipefail
+          export COMPOSE_PARALLEL_LIMIT=1
+          REPO="${{ inputs.deploy_path }}"; REPO="${REPO:-$HOME/realm}"
+          git -C "$REPO" pull --ff-only
+          cd "$REPO/${{ inputs.app_dir }}"
+          docker network inspect edge >/dev/null 2>&1 || docker network create edge
+          (cd proxy && docker compose pull)
+          docker compose pull
+          if [ "${{ inputs.pull_tools_profile }}" = "true" ]; then
+            docker compose --profile tools pull
+          fi
