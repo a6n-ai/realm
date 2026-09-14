@@ -1,10 +1,15 @@
 import { Suspense } from "react";
 import { asc, count, desc, eq } from "drizzle-orm";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { parseFilterState, type FacetDef } from "@foundry/design-system";
-import { eventLabel } from "@relay/engine/ui";
+import { parseFilterState, SectionCard, type FacetDef } from "@foundry/design-system";
+import {
+  eventLabel,
+  SuppressedAddressesTable,
+  SuppressedAddressesTableSkeleton,
+  type SuppressionRow,
+} from "@relay/engine/ui";
 import { db } from "@/db/client";
-import { appEvent, notificationOutbox, users } from "@/db/schema";
+import { appEvent, notificationOutbox, users, messageSuppression } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
@@ -50,9 +55,22 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <Suspense fallback={<LogsTableSkeleton />}>
-      <LogsData searchParams={searchParams} />
-    </Suspense>
+    <div className="space-y-6">
+      <SectionCard title="Notification log" subtitle="Every event-driven send, newest first.">
+        <Suspense fallback={<LogsTableSkeleton />}>
+          <LogsData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+
+      <SectionCard
+        title="Suppressed addresses"
+        subtitle="Bounced, complained or unsubscribed addresses — no send is attempted against these until cleared."
+      >
+        <Suspense fallback={<SuppressedAddressesTableSkeleton />}>
+          <SuppressedAddressesData />
+        </Suspense>
+      </SectionCard>
+    </div>
   );
 }
 
@@ -120,6 +138,22 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
       size={page.size}
     />
   );
+}
+
+async function SuppressedAddressesData() {
+  const items = await db
+    .select({
+      at: messageSuppression.createdAt,
+      address: messageSuppression.address,
+      scope: messageSuppression.scope,
+      reason: messageSuppression.reason,
+    })
+    .from(messageSuppression)
+    .where(eq(messageSuppression.channel, "email"))
+    .orderBy(desc(messageSuppression.createdAt))
+    .limit(50);
+  const rows: SuppressionRow[] = items.map((r) => ({ ...r, at: Number(r.at) }));
+  return <SuppressedAddressesTable rows={rows} />;
 }
 
 export type { LogSortColumn };
