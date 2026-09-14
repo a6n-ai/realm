@@ -3,7 +3,7 @@
 import { ListIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
 import { TableCell } from "@foundry/ui/table";
-import { ContactListResyncButton, formatConsentDate } from "@relay/engine/ui";
+import { ContactListDeleteButton, ContactListResyncButton, formatConsentDate } from "@relay/engine/ui";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { ContactListSortColumn } from "./page";
@@ -75,7 +75,12 @@ export function ContactListsTable({
             <TableCell className="text-right tabular-nums text-muted-foreground">
               {new Date(r.createdAt).toLocaleDateString()}
             </TableCell>
-            <TableCell>{r.isSegment && <RowActions><ContactListResyncButton publicId={r.publicId} /></RowActions>}</TableCell>
+            <TableCell>
+              <RowActions>
+                {r.isSegment && <ContactListResyncButton publicId={r.publicId} />}
+                <ContactListDeleteButton publicId={r.publicId} name={r.name} compact />
+              </RowActions>
+            </TableCell>
           </>
         )}
       />
