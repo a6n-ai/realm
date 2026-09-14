@@ -751,28 +751,84 @@ section { position: relative; }
    Button/Input primitives whose own utility classes (rounded-lg, bg-background,
    shadow-lg, …) sit at the same specificity and would otherwise win purely on
    source order. */
+/* Redesign brief: the previous FAB (12px/18px pad, 0.85rem text, thin single
+   shadow) was too small and too quiet to register against a busy yellow page
+   — a visibility bug, not just a contrast bug. This pass keeps the product's
+   neobrutalist identity (thick ink border, hard offset shadow, no blur/glass
+   — that's the deliberate brand language documented at the top of this file,
+   and Apple-style translucency would fight it, not improve it) but pushes
+   size, weight and motion so the control can't be missed: a bigger target, a
+   heavier two-tone shadow, a real icon badge, a one-time entrance + attention
+   pulse on first paint, and spring-like press feedback (scale, not just
+   translate) per platform touch-feedback conventions. */
 .location-picker-fab {
+  --lp-ring: 0 0 0 0 color-mix(in oklab, var(--yellow) 55%, transparent);
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
   border: var(--bd) solid var(--yellow) !important;
-  border-radius: var(--r-sm) !important;
+  border-radius: 999px !important;
   /* --ink-bg, not --ink: this must stay dark-as-background in dark mode too.
      --ink itself flips to cream there (see DARK MODE block above), which was
      rendering yellow text on a near-white pill — unreadable, not just low
      contrast. */
   background: var(--ink-bg) !important;
   color: var(--yellow) !important;
-  box-shadow: var(--sh-green) !important;
-  padding: 12px 18px !important;
+  box-shadow: var(--sh-green), 0 10px 24px -8px rgba(0, 0, 0, 0.45) !important;
+  padding: 14px 20px 14px 16px !important;
+  min-height: 52px;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   text-transform: uppercase;
   letter-spacing: -0.01em;
-  transition: transform .08s ease, box-shadow .08s ease;
+  transition: transform .12s cubic-bezier(.34,1.56,.64,1), box-shadow .12s ease;
+  animation: lp-fab-enter .5s cubic-bezier(.34,1.56,.64,1) both,
+             lp-fab-attention 1.6s ease-out .5s 3;
+}
+.location-picker-fab:focus-visible {
+  outline: 3px solid var(--green) !important;
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .location-picker-fab:hover { background: var(--ink-bg) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
+  .location-picker-fab:hover {
+    background: var(--ink-bg) !important;
+    transform: translate(-2px, -2px);
+    box-shadow: 9px 9px 0 var(--green), 0 14px 28px -8px rgba(0, 0, 0, 0.5) !important;
+  }
 }
-.location-picker-fab:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--green) !important; }
-.location-picker-fab svg { color: var(--yellow) !important; }
+.location-picker-fab:active {
+  transform: translate(1px, 1px) scale(0.96);
+  box-shadow: 2px 2px 0 var(--green) !important;
+  transition-duration: 80ms;
+}
+/* Pin sits in its own yellow badge, not bare — a lone thin glyph was the
+   weakest part of the old control at a glance. */
+.location-picker-fab svg {
+  /* --ink-deep, not --ink-bg: this is dark TEXT/glyph on a yellow badge, the
+     same semantic lock the file already uses for ink-on-yellow everywhere
+     else — --ink-bg is for ink-AS-a-background, the wrong lock here. */
+  color: var(--ink-deep) !important;
+  background: var(--yellow);
+  border-radius: 999px;
+  padding: 4px;
+  width: 26px !important;
+  height: 26px !important;
+  flex-shrink: 0;
+}
+@keyframes lp-fab-enter {
+  from { transform: translateY(16px) scale(0.85); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+/* Three soft pulses on first paint only (iteration-count: 3) — enough to
+   catch the eye once, never a permanently distracting loop. */
+@keyframes lp-fab-attention {
+  0%   { box-shadow: var(--sh-green), var(--lp-ring); }
+  50%  { box-shadow: var(--sh-green), 0 0 0 10px color-mix(in oklab, var(--yellow) 0%, transparent); }
+  100% { box-shadow: var(--sh-green), var(--lp-ring); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .location-picker-fab { animation: none; }
+}
 /* The FAB is fixed at the same bottom-right corner the mobile cart sticky bar
    (.cart-stickybar, /cart) occupies — without this it sits on top of the
    checkout button, half-hidden and unclickable. :has() targets only the
