@@ -25,8 +25,10 @@ export const POST = handler(async (req: Request): Promise<Response> => {
     return problem(422, "Invalid recipient email");
   }
 
-  // Goes through the app provider (not a bare SesEmailProvider) so the test send
-  // lands in email_log like every other send.
+  // Goes through the app provider (not a bare SesEmailProvider) — same SES
+  // config/from-address as every other send. Also used by campaigns' "Send
+  // test" (EmailTemplateBuilder), not just event templates, hence the
+  // event/campaign-agnostic {subject, html, text, to} body.
   await getEmailProvider().send({
     to: { email: recipient },
     subject: `[TEST] ${subject}`,
