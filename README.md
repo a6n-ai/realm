@@ -1,6 +1,6 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm holds **apps** (TiffinGrab, Puchkaman). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
+A multi-client CRM + subscription **platform**. Realm holds **apps** (TiffinGrab, Puchkaman, Xplorers). Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
 
 ## Quick start
 

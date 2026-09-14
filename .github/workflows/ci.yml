@@ -56,6 +56,6 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman
+      - run: pnpm turbo typecheck --filter=tiffin-grab --filter=puchkaman --filter=xplorers
       # App vitest talks to Postgres. Add a services: postgres job later; do not
       # fail this gate on an empty/no-DB vitest run.

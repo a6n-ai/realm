@@ -1,8 +1,8 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Puchkaman). `@foundry/*` (including `@foundry/ai` for Monarch) comes from [a6n-ai/foundry](https://github.com/a6n-ai/foundry). `@relay/*` comes from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
+A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Puchkaman, Xplorers). `@foundry/*` (including `@foundry/ai` for Monarch) comes from [a6n-ai/foundry](https://github.com/a6n-ai/foundry). `@relay/*` comes from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
 
-**TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA).
+**TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA). **Puchkaman** is fusion street food. **Xplorers** is the Science Explorers Club ([xplorers.life](https://xplorers.life/)).
 
 See [`docs/realm/`](docs/realm/) for the repo structure, package taxonomy,
 add-a-client / add-a-package guides, and the dev/build workflow.
@@ -113,7 +113,8 @@ immutable vs updatable base DTOs in `@foundry/database`.
 realm/
 ├─ apps/
 │  ├─ tiffin-grab/             # first client app (Next.js 16)
-│  └─ puchkaman/
+│  ├─ puchkaman/
+│  └─ xplorers/                # Science Explorers Club (xplorers.life)
 ├─ docs/realm/                 # platform docs (structure, add-a-*, workflow)
 ├─ turbo.json
 ├─ pnpm-workspace.yaml         # apps/*; @foundry/* and @relay/* from git
