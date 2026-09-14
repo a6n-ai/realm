@@ -91,7 +91,15 @@ export async function reassignDriverAction(
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
 
   try {
-    await assignDriver(orderNo, date, driverSerial);
+    await assignDriver(orderNo, date, driverSerial, await currentUserId());
+    try {
+      // Best-effort: the assignment already succeeded on OptimoRoute, so a pull
+      // failure here just means the dashboard shows stale driver fields until
+      // the next pull — not a reason to report the reassignment as failed.
+      await pullRoutes(date);
+    } catch (e) {
+      console.error("pullRoutes after reassignDriver failed", e);
+    }
     revalidatePath("/dashboard/routes");
     return { ok: true };
   } catch (e) {

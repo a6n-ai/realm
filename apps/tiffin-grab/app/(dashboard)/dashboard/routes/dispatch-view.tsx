@@ -53,13 +53,20 @@ export function DispatchView({
 }) {
   const [pending, startTransition] = useTransition();
   const [errorFor, setErrorFor] = useState<string | null>(null);
+  const [driverBySerial, setDriverBySerial] = useState<Record<string, string | undefined>>(() =>
+    Object.fromEntries(rows.map((r) => [r.orderNo, r.routeDriverSerial ?? undefined])),
+  );
   const groups = useMemo(() => groupByDriver(rows), [rows]);
 
-  function reassign(orderNo: string, driverSerial: string) {
+  function reassign(orderNo: string, driverSerial: string, revertTo: string | undefined) {
     setErrorFor(null);
+    setDriverBySerial((prev) => ({ ...prev, [orderNo]: driverSerial }));
     startTransition(async () => {
       const result = await reassignDriverAction(orderNo, date, driverSerial);
-      if (!result.ok) setErrorFor(orderNo);
+      if (!result.ok) {
+        setErrorFor(orderNo);
+        setDriverBySerial((prev) => ({ ...prev, [orderNo]: revertTo }));
+      }
     });
   }
 
@@ -109,8 +116,8 @@ export function DispatchView({
                 <div className="shrink-0 pl-10 sm:pl-0">
                   <Select
                     disabled={pending}
-                    defaultValue={r.routeDriverSerial ?? undefined}
-                    onValueChange={(v) => reassign(r.orderNo, v)}
+                    value={driverBySerial[r.orderNo]}
+                    onValueChange={(v) => reassign(r.orderNo, v, r.routeDriverSerial ?? undefined)}
                   >
                     <SelectTrigger className="h-8 w-full sm:w-40">
                       <SelectValue placeholder={r.routeDriverName ?? "Unassigned"} />

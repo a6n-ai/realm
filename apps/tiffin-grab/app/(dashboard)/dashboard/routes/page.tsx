@@ -55,13 +55,8 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
   }
 
   let preview;
-  let dispatchRows, drivers;
   try {
-    [preview, dispatchRows, drivers] = await Promise.all([
-      previewPush(date),
-      buildDispatchRows(date),
-      listKnownDrivers(),
-    ]);
+    preview = await previewPush(date);
   } catch (e) {
     return (
       <>
@@ -69,6 +64,22 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
           <LabelDatePicker date={date} today={today} basePath="/dashboard/routes" />
         </SectionCard>
         <SectionCard title="OptimoRoute unreachable">
+          <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
+        </SectionCard>
+      </>
+    );
+  }
+
+  let dispatchRows, drivers;
+  try {
+    [dispatchRows, drivers] = await Promise.all([buildDispatchRows(date), listKnownDrivers()]);
+  } catch (e) {
+    return (
+      <>
+        <SectionCard title="Day">
+          <LabelDatePicker date={date} today={today} basePath="/dashboard/routes" />
+        </SectionCard>
+        <SectionCard title="Dispatch data unavailable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
       </>

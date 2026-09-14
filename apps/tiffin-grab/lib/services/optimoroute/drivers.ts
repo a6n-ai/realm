@@ -1,4 +1,4 @@
-import { desc, isNotNull } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
@@ -23,7 +23,7 @@ export async function listKnownDrivers(): Promise<KnownDriver[]> {
     })
     .from(deliveries)
     .where(isNotNull(deliveries.routeDriverSerial))
-    .orderBy(desc(deliveries.routeSyncedAt));
+    .orderBy(sql`${deliveries.routeSyncedAt} DESC NULLS LAST`);
 
   const bySerial = new Map<string, KnownDriver>();
   for (const r of rows) {

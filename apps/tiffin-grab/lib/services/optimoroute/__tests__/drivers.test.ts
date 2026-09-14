@@ -126,6 +126,31 @@ describe("listKnownDrivers", () => {
     expect(result).toEqual([{ driverSerial: "005", driverName: "Driver Five (renamed)" }]);
   });
 
+  it("a real routeSyncedAt beats a null one, not the reverse (Postgres NULLS FIRST default)", async () => {
+    const orderId = (
+      await db.select({ orderId: deliveries.orderId }).from(deliveries).where(eq(deliveries.publicId, deliveryPublicId))
+    )[0].orderId;
+
+    const nextDate = new Date(new Date(`${DATE}T00:00:00Z`).getTime() + 7 * 86400000).toISOString().slice(0, 10);
+    const [second] = await db
+      .insert(deliveries)
+      .values({ orderId, deliveryDate: nextDate, status: "scheduled", cutoffAt: Date.now() + 1e9 })
+      .returning();
+
+    // Null routeSyncedAt (never synced this row's name) vs. a real, older-looking timestamp.
+    await db
+      .update(deliveries)
+      .set({ routeDriverSerial: "005", routeDriverName: "Stale Unsynced Name", routeSyncedAt: null })
+      .where(eq(deliveries.publicId, deliveryPublicId));
+    await db
+      .update(deliveries)
+      .set({ routeDriverSerial: "005", routeDriverName: "Driver 5", routeSyncedAt: 1000 })
+      .where(eq(deliveries.id, second.id));
+
+    const result = await listKnownDrivers();
+    expect(result).toEqual([{ driverSerial: "005", driverName: "Driver 5" }]);
+  });
+
   describe("assignDriver", () => {
     it("merges selectedDriver into the delivery's planned payload and pushes it", async () => {
       await assignDriver(deliveryPublicId, DATE, "005");
@@ -139,6 +164,23 @@ describe("listKnownDrivers", () => {
 
     it("throws when the orderNo has no planned delivery for that date", async () => {
       await expect(assignDriver("does-not-exist", DATE, "005")).rejects.toThrow();
+    });
+
+    it("logs an activity for the reassignment, same as pushDay/removeStops", async () => {
+      const orderId = (
+        await db.select({ orderId: deliveries.orderId }).from(deliveries).where(eq(deliveries.publicId, deliveryPublicId))
+      )[0].orderId;
+
+      await assignDriver(deliveryPublicId, DATE, "005", 42n);
+
+      const rows = await db
+        .select()
+        .from(orderActivities)
+        .where(eq(orderActivities.orderId, orderId));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].type).toBe("route_pushed");
+      expect(rows[0].note).toContain("005");
+      expect(rows[0].createdBy).toBe(42n);
     });
   });
 });

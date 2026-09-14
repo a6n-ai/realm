@@ -212,13 +212,24 @@ export async function pushDay(date: string, actorId: bigint | null = null): Prom
  * payload pushDay would send for this stop — only selectedDriver is added —
  * so nothing else about the stop (address, notes, duration) is disturbed.
  */
-export async function assignDriver(orderNo: string, date: string, driverSerial: string): Promise<void> {
+export async function assignDriver(
+  orderNo: string,
+  date: string,
+  driverSerial: string,
+  actorId: bigint | null = null,
+): Promise<void> {
   const orders = await buildPlannedOrders(date);
   const target = orders.find((o) => o.orderNo === orderNo);
   if (!target) {
     throw new Error(`No planned delivery ${orderNo} for ${date} — cannot assign a driver`);
   }
   await createOrder({ ...target.payload, selectedDriver: { driverSerial } });
+  await recordPushActivities(
+    date,
+    [{ orderNo, customerName: target.customerName, ok: true, message: "Reassigned" }],
+    actorId,
+    () => `Reassigned to driver ${driverSerial}`,
+  );
 }
 
 export type RemoveResult = {
