@@ -31,6 +31,10 @@ mv .env.production.tmp .env.production
 set -a; . ./.env.production; set +a
 
 export IMAGE_TAG="${IMAGE_TAG:-latest}"
+# ponytail: box runs t2.micro (1GB RAM) during the vCPU-quota outage; parallel
+# layer pulls spike memory enough to stall the pull. Serialize until back on
+# t3.micro+.
+export COMPOSE_PARALLEL_LIMIT=1
 
 git -C ../../.. pull --ff-only           # refresh compose/config only — source is in the image
 
