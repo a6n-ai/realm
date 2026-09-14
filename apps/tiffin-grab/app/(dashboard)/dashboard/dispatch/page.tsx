@@ -102,13 +102,17 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
       </SectionCard>
 
-      {/* Secondary: sending/pulling is a less frequent action than reassigning a stop. */}
-      <SectionCard title="Send to OptimoRoute">
+      {/*
+        Secondary: sending/pulling is a less frequent action than reassigning a stop.
+        variant="flat" (same demotion the account sub-sections use) keeps Dispatch above
+        as the page's one "glow" card instead of every SectionCard competing equally.
+      */}
+      <SectionCard title="Send to OptimoRoute" variant="flat">
         <PushControl date={date} stops={scheduledCount} />
       </SectionCard>
 
       {preview.remove.length > 0 ? (
-        <SectionCard title="On OptimoRoute but not scheduled">
+        <SectionCard title="On OptimoRoute but not scheduled" variant="flat">
           <p className="text-muted-foreground mb-3 text-sm">
             Still on a route but no longer scheduled here — paused, skipped, or cancelled
             since the last push. Until removed, a driver arrives at the door.
@@ -124,8 +128,9 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         its header/title classes so the collapsed card still reads as one of the page's cards.
       */}
       <Collapsible className="group/collapsible">
-        <Card className="p-5">
-          <CollapsibleTrigger className="mb-3 flex w-full items-center justify-between gap-3 text-left md:mb-4">
+        <Card variant="flat" className="p-5">
+          {/* hover:bg-muted matches the app's other full-width clickable rows (menu-grid, account nav) so the disclosure reads as interactive, not just a static heading */}
+          <CollapsibleTrigger className="-mx-2 -my-1 mb-2 flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1 text-left transition-colors hover:bg-muted md:mb-3">
             <h2 className="text-base font-semibold tracking-tight text-balance md:text-lg">
               Stop details
             </h2>
@@ -149,7 +154,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
 function DayHeader({ date, today }: { date: string; today: string }) {
   return (
-    <SectionCard title="Day">
+    <SectionCard title="Day" variant="flat">
       <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
     </SectionCard>
   );
@@ -158,7 +163,7 @@ function DayHeader({ date, today }: { date: string; today: string }) {
 DispatchData.Skeleton = function DispatchDataSkeleton() {
   return (
     <>
-      <SectionCard title="Day">
+      <SectionCard title="Day" variant="flat">
         <Skeleton className="h-9 w-64" />
       </SectionCard>
       <div className="flex gap-2">
@@ -169,7 +174,7 @@ DispatchData.Skeleton = function DispatchDataSkeleton() {
       <SectionCard title="Dispatch">
         <Skeleton className="h-40 w-full" />
       </SectionCard>
-      <SectionCard title="Send to OptimoRoute">
+      <SectionCard title="Send to OptimoRoute" variant="flat">
         <Skeleton className="h-16 w-full" />
       </SectionCard>
     </>
