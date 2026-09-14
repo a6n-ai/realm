@@ -1,6 +1,8 @@
 import { desc, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
+import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
+import { effectiveAddress } from "@/lib/services/deliveries.service";
 
 // OptimoRoute exposes no driver-roster endpoint — the only place a driver's
 // serial/name pair exists is on a route it has already planned, which
@@ -30,6 +32,26 @@ export async function listKnownDrivers(): Promise<KnownDriver[]> {
   }
 
   return [...bySerial.values()].sort((a, b) => a.driverSerial.localeCompare(b.driverSerial));
+}
+
+export type DispatchRow = {
+  orderNo: string;
+  customerName: string;
+  routeDriverSerial: string | null;
+  routeDriverName: string | null;
+  routeStopNumber: number | null;
+};
+
+/** Same scheduled-deliveries read buildPlannedOrders uses, plus the driver fields the push preview doesn't need. */
+export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
+  const rows = await loadDayDeliveries(date);
+  return rows.map((row) => ({
+    orderNo: row.delivery.publicId,
+    customerName: effectiveAddress(row.delivery, row.order).fullName,
+    routeDriverSerial: row.delivery.routeDriverSerial,
+    routeDriverName: row.delivery.routeDriverName,
+    routeStopNumber: row.delivery.routeStopNumber,
+  }));
 }
 
 export { assignDriver } from "./push";
