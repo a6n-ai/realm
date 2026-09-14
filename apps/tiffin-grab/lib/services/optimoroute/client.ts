@@ -53,6 +53,11 @@ export type OptimoOrderPayload = {
   customField3?: string;
   customField4?: string;
   customField5?: string;
+  /**
+   * Forces this order onto a specific driver's route. Omitted, OptimoRoute's own
+   * optimizer chooses — set only when a dispatcher has explicitly overridden it.
+   */
+  selectedDriver?: { driverSerial?: string; driverExternalId?: string };
 };
 
 export type OptimoOrderDetail = {
