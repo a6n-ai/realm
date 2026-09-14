@@ -7,6 +7,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { pushDay, removeStops, type PushResult, type RemoveResult } from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
+import { assignDriver, listKnownDrivers, type KnownDriver } from "@/lib/services/optimoroute/drivers";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -66,4 +67,42 @@ export async function pullCompletionsAction(date: string): Promise<PullCompletio
   const result = await pullCompletions(date, await currentUserId());
   revalidatePath("/dashboard/routes");
   return result;
+}
+
+/**
+ * Lists drivers seen on past OptimoRoute routes, for the reassignment picklist.
+ */
+export async function listDriversAction(): Promise<KnownDriver[]> {
+  await requireStaff();
+  return listKnownDrivers();
+}
+
+/**
+ * Reassigns a stop to a different driver. assignDriver throws if the order has
+ * no planned delivery for that date, so the failure surfaces to the caller
+ * instead of the dashboard's usual thrown-error handling.
+ */
+export async function reassignDriverAction(
+  orderNo: string,
+  date: string,
+  driverSerial: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+
+  try {
+    await assignDriver(orderNo, date, driverSerial, await currentUserId());
+    try {
+      // Best-effort: the assignment already succeeded on OptimoRoute, so a pull
+      // failure here just means the dashboard shows stale driver fields until
+      // the next pull — not a reason to report the reassignment as failed.
+      await pullRoutes(date);
+    } catch (e) {
+      console.error("pullRoutes after reassignDriver failed", e);
+    }
+    revalidatePath("/dashboard/routes");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+  }
 }

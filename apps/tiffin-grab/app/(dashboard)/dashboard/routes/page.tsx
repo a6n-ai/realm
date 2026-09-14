@@ -6,8 +6,10 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { previewPush } from "@/lib/services/optimoroute/push";
+import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "../labels/label-date-picker";
+import { DispatchView } from "./dispatch-view";
 import { PlannedOrders } from "./routes-view";
 import { PushControl } from "./push-control";
 import { RemoveControl } from "./remove-control";
@@ -68,6 +70,22 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
+  let dispatchRows, drivers;
+  try {
+    [dispatchRows, drivers] = await Promise.all([buildDispatchRows(date), listKnownDrivers()]);
+  } catch (e) {
+    return (
+      <>
+        <SectionCard title="Day">
+          <LabelDatePicker date={date} today={today} basePath="/dashboard/routes" />
+        </SectionCard>
+        <SectionCard title="Dispatch data unavailable">
+          <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
+        </SectionCard>
+      </>
+    );
+  }
+
   return (
     <>
       <SectionCard title="Day">
@@ -109,6 +127,10 @@ async function RoutesData({ searchParams }: { searchParams: SearchParams }) {
       <SectionCard title={`Already on the route (${preview.update.length})`}>
         <PlannedOrders rows={preview.update} />
       </SectionCard>
+
+      <SectionCard title="Dispatch">
+        <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
+      </SectionCard>
     </>
   );
 }
@@ -124,6 +146,9 @@ RoutesData.Skeleton = function RoutesDataSkeleton() {
         <Skeleton className="h-40 w-full" />
       </SectionCard>
       <SectionCard title="Already on the route">
+        <Skeleton className="h-40 w-full" />
+      </SectionCard>
+      <SectionCard title="Dispatch">
         <Skeleton className="h-40 w-full" />
       </SectionCard>
     </>

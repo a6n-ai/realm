@@ -2,6 +2,7 @@ import type { PluginRegistry } from "@foundry/crm/server";
 import { cloverPlugin } from "@foundry/clover/server";
 import { paymentsPlugin } from "@foundry/payments/server";
 import { googleReviewsPlugin } from "@foundry/google-reviews/server";
+import { optimoRoutePlugin } from "./services/optimoroute/plugin.server";
 import {
   getIntegrationsConfig,
   setIntegrationsConfig,
@@ -16,4 +17,5 @@ export const PLUGINS: PluginRegistry = [
   }),
   cloverPlugin(integrationsConfigStore),
   googleReviewsPlugin(integrationsConfigStore),
+  optimoRoutePlugin(),
 ];

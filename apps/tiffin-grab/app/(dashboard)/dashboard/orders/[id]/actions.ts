@@ -16,6 +16,7 @@ import { assertCanManageOrder, type Subscription } from "@/lib/services/customer
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadOrderDeliveriesBundle } from "@/lib/services/order-deliveries-bundle.service";
+import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import { db } from "@/db/client";
 import { orders, plans, mealSizes } from "@/db/schema";
 import { monthFetchRange, parseMonthParam } from "@/app/(customer)/me/deliveries/calendar-constants";
@@ -51,6 +52,21 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
   await rejectPayment(paymentPublicId, note, await currentUserId());
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath("/me/wallet");
+}
+
+/** Manual "redo the push" for one delivery — the fix when a scheduled push went wrong. */
+export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
+  await requireStaff();
+  await pushOneDelivery(deliveryPublicId, date, await currentUserId());
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+/** Manual removal — deletes this one delivery's stop from OptimoRoute regardless of whether
+ *  the day-level stale check has caught up to it yet. */
+export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
+  await requireStaff();
+  await removeOneDelivery(deliveryPublicId, date, await currentUserId());
+  revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
 export async function fetchOrderDeliveriesMonth(orderPublicId: string, monthKey: string) {

@@ -1,4 +1,5 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
+import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -7,6 +8,9 @@ import { getAppSettings } from "./app-settings.service";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
 import { matchZone } from "@/lib/catalog/postal";
+import { deleteOrder } from "@/lib/services/optimoroute/client";
+
+const log = createLogger("deliveries.service");
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
@@ -306,6 +310,7 @@ export async function skipDelivery(
   opts: { bypassCutoffLock?: boolean } = {},
 ): Promise<void> {
   let orderId: bigint;
+  let syncedRow: OptimoSyncedRow | null = null;
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
@@ -324,7 +329,9 @@ export async function skipDelivery(
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "skipped", createdBy: actorId,
     });
+    syncedRow = { publicId: row.publicId, routeSyncedAt: row.routeSyncedAt };
   });
+  await deleteFromOptimoRouteBestEffort([syncedRow!]);
   await reconcilePoolFromMisses(orderId!);
 }
 
@@ -393,16 +400,39 @@ export async function reconcilePoolFromMisses(orderId: bigint): Promise<number> 
   });
 }
 
+/** A cancelled/skipped row that had already been synced to OptimoRoute — the caller's cue to
+ *  also delete it there. `routeSyncedAt` null means OptimoRoute never had this stop. */
+export type OptimoSyncedRow = { publicId: string; routeSyncedAt: number | null };
+
+/**
+ * Best-effort OptimoRoute cleanup for a row that just left the schedule. Never throws: a stop
+ * OptimoRoute already dropped, or an API hiccup, must not block the DB change that already
+ * committed — this only stops printing a label for a delivery nobody is making anymore.
+ */
+export async function deleteFromOptimoRouteBestEffort(rows: OptimoSyncedRow[]): Promise<void> {
+  for (const row of rows) {
+    if (row.routeSyncedAt == null) continue;
+    try {
+      await deleteOrder(row.publicId);
+    } catch (e) {
+      log.error({ err: e, publicId: row.publicId }, "optimoroute delete-on-cancel failed");
+    }
+  }
+}
+
 /**
  * Marks every scheduled/paused row (originals and make-ups alike) cancelled. Terminal: cancel()
  * never reactivates, so there is no corresponding "uncancel". Caller owns the transaction/lock —
  * this runs inside orders.service.ts cancel()'s own advisory-locked tx.
+ *
+ * Returns the cancelled rows' publicId/routeSyncedAt (not just a count) so the caller can clean
+ * them up on OptimoRoute after the transaction commits — an external API call has no place
+ * inside a DB transaction.
  */
-export async function cancelDeliveries(tx: Tx, orderId: bigint): Promise<number> {
-  const rows = await tx.update(deliveries).set({ status: "cancelled" })
+export async function cancelDeliveries(tx: Tx, orderId: bigint): Promise<OptimoSyncedRow[]> {
+  return tx.update(deliveries).set({ status: "cancelled" })
     .where(and(eq(deliveries.orderId, orderId), inArray(deliveries.status, ["scheduled", "paused"])))
-    .returning({ id: deliveries.id });
-  return rows.length;
+    .returning({ publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt });
 }
 
 /**
