@@ -1,0 +1,1 @@
+ALTER TABLE "app" DROP COLUMN "min_order_value";

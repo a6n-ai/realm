@@ -15,8 +15,4 @@ export const app = pgTable("app", {
   // to the DEFAULT_STORE_LAT/LNG constants.
   storeLat: numeric("store_lat", { precision: 9, scale: 6 }),
   storeLng: numeric("store_lng", { precision: 9, scale: 6 }),
-  // Cart subtotal (pre-tax, pre-discount) a checkout must clear. Null/0 = no
-  // minimum enforced. Read by orders.service.ts's createCheckout and shown to
-  // customers as a progress banner in the cart/checkout UI.
-  minOrderValue: numeric("min_order_value", { precision: 10, scale: 2 }),
 });

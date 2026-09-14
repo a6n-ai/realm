@@ -32,13 +32,6 @@ export default async function SettingsPage() {
 
   const sections: SettingsSection[] = [
     {
-      key: "general",
-      label: "General",
-      description: "Minimum order value and other storewide ordering rules.",
-      icon: SettingsIcon,
-      href: "/dashboard/settings/general",
-    },
-    {
       key: "integrations",
       label: "Integrations",
       description: "Install and remove plugins (Clover and more).",

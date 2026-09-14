@@ -11,6 +11,8 @@ import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { app, organization } from "@/db/schema";
 import { getSession } from "../auth/session";
+import { getAllDeliveryTypes } from "../delivery/zones.service";
+import { PICKUP_TYPE_KEY } from "../delivery/type-pricing";
 import { resolveRequestOrg } from "../tenant/resolve-request-org";
 import { SessionUpdatableService } from "./session-service";
 
@@ -142,19 +144,17 @@ export const integrationsConfigStore: IntegrationsConfigStore = {
   set: setIntegrationsConfig,
 };
 
-/** Cart subtotal a checkout must clear, or 0 when no minimum is set. */
+/**
+ * Cart subtotal a checkout must clear, or 0 when no minimum is set. Reuses
+ * pickup's `min_subtotal` (Settings > Delivery zones) rather than a second
+ * storewide setting — pickup needs no address, so it's the one delivery type
+ * always available to gate the cart page/drawer/banner before a fulfillment
+ * choice exists.
+ */
 export async function getMinOrderValue(): Promise<number> {
-  const [row] = await db.select({ v: app.minOrderValue }).from(app).limit(1);
-  return Number(row?.v ?? 0);
-}
-
-export async function setMinOrderValue(value: number): Promise<void> {
-  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
-  if (row) {
-    await appService.update(row.publicId, { minOrderValue: value ? value.toFixed(2) : null });
-  } else {
-    await appService.create({ ...DEFAULTS, minOrderValue: value ? value.toFixed(2) : null });
-  }
+  const types = await getAllDeliveryTypes();
+  const pickup = types.find((t) => t.key === PICKUP_TYPE_KEY && t.active);
+  return Number(pickup?.minSubtotal ?? 0);
 }
 
 // Which franchise's Clover connection is in effect right now (see
