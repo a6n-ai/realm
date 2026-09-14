@@ -5,12 +5,14 @@ import { useEffect, useRef } from "react";
 import { Btn } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { MinOrderBanner } from "@/components/cart/min-order-banner";
 import { useModalFocus } from "@/lib/a11y/use-modal-focus";
 import { useDragDismiss } from "@/lib/motion/use-drag-dismiss";
 import { money } from "@/lib/cart/types";
 
 export function CartDrawer() {
-  const { items, count, subtotal, drawerOpen, closeDrawer } = useCart();
+  const { items, count, subtotal, drawerOpen, closeDrawer, minOrderValue } = useCart();
+  const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
   const panel = useRef<HTMLElement | null>(null);
   // Swipe right to close — the direction it entered from, so the gesture and
   // the animation tell the same story. The panel only scrolls vertically, so an
@@ -77,6 +79,7 @@ export function CartDrawer() {
         </div>
 
         <div className="cart-drawer__foot">
+          <MinOrderBanner subtotal={subtotal} minOrderValue={minOrderValue} />
           <div className="flex center between" style={{ marginBottom: 8 }}>
             <span style={{ fontWeight: 700 }}>Est. subtotal</span>
             <strong style={{ fontSize: "1.2rem" }}>{money(subtotal)}</strong>
@@ -90,10 +93,10 @@ export function CartDrawer() {
               variant="green"
               size="lg"
               block
-              disabled={count === 0}
+              disabled={count === 0 || belowMinimum}
               onClick={closeDrawer}
             >
-              Checkout →
+              {belowMinimum ? `Add ${money(minOrderValue - subtotal)} more` : "Checkout →"}
             </Btn>
             <Btn page="cart" variant="cream" block onClick={closeDrawer}>
               Full cart

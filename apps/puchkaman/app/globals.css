@@ -1909,6 +1909,36 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
   .checkout-upsell__chip:hover { background: var(--yellow); transform: translateY(-1px); }
 }
 
+/* Order-minimum progress — bold and load-bearing: the checkout button is
+   disabled while this shows, so it has to read at a glance, not as a footnote. */
+.min-order-banner {
+  border: var(--border);
+  border-radius: 12px;
+  background: var(--yellow);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--sh-sm);
+}
+.min-order-banner__label {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+.min-order-banner__track {
+  height: 8px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--cream);
+  overflow: hidden;
+}
+.min-order-banner__fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
 .checkout-offers { display: grid; gap: 14px; }
 .checkout-offers__group { border: none; padding: 0; margin: 0; display: grid; gap: 4px; }
 .checkout-offers__group legend {

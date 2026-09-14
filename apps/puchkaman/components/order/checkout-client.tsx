@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
+import { MinOrderBanner } from "@/components/cart/min-order-banner";
 import { AddressAutocomplete } from "@/components/order/address-autocomplete";
 import { CloverCardForm } from "@/components/order/clover-card-form";
 import { DeliveryTypePicker, type CheckoutDeliveryType } from "@/components/order/delivery-type-picker";
@@ -104,7 +105,8 @@ export function CheckoutClient({
   /** The acting franchise's pickup point — see getStoreLocation. Drives the map marker and every pickup-address string below. */
   storeLocation: { lat: number; lng: number; address: string };
 }) {
-  const { items, subtotal, count, clear, hydrated, addItem } = useCart();
+  const { items, subtotal, count, clear, hydrated, addItem, minOrderValue } = useCart();
+  const belowMinimum = minOrderValue > 0 && subtotal < minOrderValue;
   // The only way to reach a guest who abandons: their address is typed here but
   // the order does not exist until submit. Sent with the cart so the recovery
   // job has somewhere to write it.
@@ -203,6 +205,19 @@ export function CheckoutClient({
     ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
     : undefined;
 
+  // Removing/reducing an item can drop the bag below the selected type's
+  // minSubtotal without a page reload — the picker greys it out live, but
+  // nothing else did, so the stale key stayed "selected" (still passed the
+  // fieldErrors.deliveryType check, still submitted, and would only fail once
+  // the server re-checked it). Deselecting here is the one place both the
+  // picker and the submit button read from, so both go stale-free together.
+  useEffect(() => {
+    if (selectedType && subtotal < selectedType.minSubtotal) {
+      setDeliveryTypeKey(null);
+      setScheduledFor("");
+    }
+  }, [selectedType, subtotal]);
+
   // Smallest gap to a delivery minimum the customer hasn't hit yet — the
   // upsell nudge targets this one, not just whichever type is disabled first.
   const nearestShortfall = addressCheck?.resolved
@@ -275,6 +290,10 @@ export function CheckoutClient({
     }
     if (items.length === 0) {
       setError("Add at least one item from the menu");
+      return;
+    }
+    if (belowMinimum) {
+      setError(`Add ${money(minOrderValue - subtotal)} more to reach the ${money(minOrderValue)} order minimum.`);
       return;
     }
     setBusy(true);
@@ -441,6 +460,7 @@ export function CheckoutClient({
       ) : (
         <>
           <CartLines items={items} compact />
+          <MinOrderBanner subtotal={subtotal} minOrderValue={minOrderValue} />
           <OrderSummary
             subtotal={session?.subtotal ?? quote?.subtotal ?? subtotal}
             tax={session?.tax ?? quote?.tax}
@@ -771,13 +791,17 @@ export function CheckoutClient({
               size="lg"
               block
               type="submit"
-              disabled={busy || items.length === 0}
+              disabled={busy || items.length === 0 || belowMinimum}
               className="checkout-submit"
             >
               {/* Keyed so the swap replays: the blur reads as one label becoming
                   another rather than two strings crossing. */}
-              <span className="label-swap" key={busy ? "busy" : "idle"}>
-                {busy ? "Pricing your order…" : `Continue to payment · ${money(runningTotal)}`}
+              <span className="label-swap" key={busy ? "busy" : belowMinimum ? "short" : "idle"}>
+                {busy
+                  ? "Pricing your order…"
+                  : belowMinimum
+                    ? `Add ${money(minOrderValue - subtotal)} more to check out`
+                    : `Continue to payment · ${money(runningTotal)}`}
               </span>
             </Btn>
             <p className="checkout-hint checkout-hint--center">
