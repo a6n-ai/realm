@@ -754,7 +754,11 @@ section { position: relative; }
 .location-picker-fab {
   border: var(--bd) solid var(--yellow) !important;
   border-radius: var(--r-sm) !important;
-  background: var(--ink) !important;
+  /* --ink-bg, not --ink: this must stay dark-as-background in dark mode too.
+     --ink itself flips to cream there (see DARK MODE block above), which was
+     rendering yellow text on a near-white pill — unreadable, not just low
+     contrast. */
+  background: var(--ink-bg) !important;
   color: var(--yellow) !important;
   box-shadow: var(--sh-green) !important;
   padding: 12px 18px !important;
@@ -765,10 +769,19 @@ section { position: relative; }
   transition: transform .08s ease, box-shadow .08s ease;
 }
 @media (hover: hover) and (pointer: fine) {
-  .location-picker-fab:hover { background: var(--ink) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
+  .location-picker-fab:hover { background: var(--ink-bg) !important; transform: translate(-2px, -2px); box-shadow: 9px 9px 0 var(--green) !important; }
 }
 .location-picker-fab:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--green) !important; }
 .location-picker-fab svg { color: var(--yellow) !important; }
+/* The FAB is fixed at the same bottom-right corner the mobile cart sticky bar
+   (.cart-stickybar, /cart) occupies — without this it sits on top of the
+   checkout button, half-hidden and unclickable. :has() targets only the
+   pages where that bar is actually in the DOM. */
+@media (max-width: 899px) {
+  body:has(.cart-stickybar) .location-picker-fab {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
 
 .location-picker-dialog {
   border: var(--bd) solid var(--ink) !important;
