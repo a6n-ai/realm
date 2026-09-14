@@ -207,6 +207,20 @@ export async function pushDay(date: string, actorId: bigint | null = null): Prom
   };
 }
 
+/**
+ * Forces one delivery onto a specific driver's route. Reuses the same MERGE
+ * payload pushDay would send for this stop — only selectedDriver is added —
+ * so nothing else about the stop (address, notes, duration) is disturbed.
+ */
+export async function assignDriver(orderNo: string, date: string, driverSerial: string): Promise<void> {
+  const orders = await buildPlannedOrders(date);
+  const target = orders.find((o) => o.orderNo === orderNo);
+  if (!target) {
+    throw new Error(`No planned delivery ${orderNo} for ${date} — cannot assign a driver`);
+  }
+  await createOrder({ ...target.payload, selectedDriver: { driverSerial } });
+}
+
 export type RemoveResult = {
   date: string;
   removed: number;
