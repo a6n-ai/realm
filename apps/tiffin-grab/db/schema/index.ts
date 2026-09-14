@@ -16,7 +16,6 @@ export * from "./app";
 export * from "./audit";
 export * from "./wallet";
 export * from "./notifications";
-export * from "./email-log";
 export * from "./files";
 export * from "./subscription-pauses";
 export * from "./organizations";
