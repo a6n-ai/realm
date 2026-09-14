@@ -1,4 +1,4 @@
-import { isNotNull } from "drizzle-orm";
+import { desc, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 
@@ -10,19 +10,26 @@ import { deliveries } from "@/db/schema";
 export type KnownDriver = { driverSerial: string; driverName: string | null };
 
 export async function listKnownDrivers(): Promise<KnownDriver[]> {
+  // Not selectDistinct on the pair: a renamed/corrected driver name would
+  // then surface as two rows for the same serial, colliding as React keys
+  // in the picklist. Sort newest-synced first and keep one row per serial
+  // so a rename wins over the stale name instead of both surviving.
   const rows = await db
-    .selectDistinct({
+    .select({
       driverSerial: deliveries.routeDriverSerial,
       driverName: deliveries.routeDriverName,
     })
     .from(deliveries)
-    .where(isNotNull(deliveries.routeDriverSerial));
+    .where(isNotNull(deliveries.routeDriverSerial))
+    .orderBy(desc(deliveries.routeSyncedAt));
 
-  // routeDriverSerial is NOT NULL by the where clause, but the column type is
-  // nullable — narrow it so callers don't have to.
-  return rows
-    .filter((r): r is KnownDriver => r.driverSerial != null)
-    .sort((a, b) => a.driverSerial.localeCompare(b.driverSerial));
+  const bySerial = new Map<string, KnownDriver>();
+  for (const r of rows) {
+    if (r.driverSerial == null) continue;
+    if (!bySerial.has(r.driverSerial)) bySerial.set(r.driverSerial, { driverSerial: r.driverSerial, driverName: r.driverName });
+  }
+
+  return [...bySerial.values()].sort((a, b) => a.driverSerial.localeCompare(b.driverSerial));
 }
 
 export { assignDriver } from "./push";

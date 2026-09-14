@@ -102,6 +102,30 @@ describe("listKnownDrivers", () => {
     expect(result).toEqual([{ driverSerial: "005", driverName: "Driver 5" }]);
   });
 
+  it("dedupes a renamed driver serial, keeping the most recently synced name", async () => {
+    const orderId = (
+      await db.select({ orderId: deliveries.orderId }).from(deliveries).where(eq(deliveries.publicId, deliveryPublicId))
+    )[0].orderId;
+
+    const nextDate = new Date(new Date(`${DATE}T00:00:00Z`).getTime() + 7 * 86400000).toISOString().slice(0, 10);
+    const [second] = await db
+      .insert(deliveries)
+      .values({ orderId, deliveryDate: nextDate, status: "scheduled", cutoffAt: Date.now() + 1e9 })
+      .returning();
+
+    await db
+      .update(deliveries)
+      .set({ routeDriverSerial: "005", routeDriverName: "Driver 5", routeSyncedAt: 1000 })
+      .where(eq(deliveries.publicId, deliveryPublicId));
+    await db
+      .update(deliveries)
+      .set({ routeDriverSerial: "005", routeDriverName: "Driver Five (renamed)", routeSyncedAt: 2000 })
+      .where(eq(deliveries.id, second.id));
+
+    const result = await listKnownDrivers();
+    expect(result).toEqual([{ driverSerial: "005", driverName: "Driver Five (renamed)" }]);
+  });
+
   describe("assignDriver", () => {
     it("merges selectedDriver into the delivery's planned payload and pushes it", async () => {
       await assignDriver(deliveryPublicId, DATE, "005");
