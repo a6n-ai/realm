@@ -702,6 +702,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // supplies the typed address, never the tier or discount (see checkout-schema.ts).
     let fulfillment: "pickup" | "delivery_instant" | "delivery_scheduled" = "pickup";
     let deliveryAddress: string | null = null;
+    const deliveryUnit = parsed.fulfillment.type === "delivery" ? (parsed.fulfillment.unit?.trim() || null) : null;
+    const deliveryInstructions =
+      parsed.fulfillment.type === "delivery" ? (parsed.fulfillment.instructions?.trim() || null) : null;
     let deliveryDistanceKm: number | null = null;
     let deliveryTypeId: bigint | null = null;
     let deliveryZoneId: bigint | null = null;
@@ -959,6 +962,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
           customerPhone: parsed.contact.phone ?? null,
           note: parsed.contact.note ?? null,
           deliveryAddress,
+          deliveryUnit,
+          deliveryInstructions,
           deliveryLat: resolvedDelivery?.lat != null ? resolvedDelivery.lat.toFixed(6) : null,
           deliveryLng: resolvedDelivery?.lng != null ? resolvedDelivery.lng.toFixed(6) : null,
           deliveryDistanceKm: deliveryDistanceKm != null ? deliveryDistanceKm.toFixed(2) : null,
@@ -1070,12 +1075,15 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
 
     // Kitchen-visible note — delivery orders have no Clover order-type config, so this
-    // is how staff on Register see it's not a walk-in pickup.
+    // is how staff on Register see it's not a walk-in pickup. Unit/instructions ride
+    // along here too: Clover's Atomic Order API has no structured address field at
+    // all, so free text in `note` is the only place this reaches Register.
+    const deliveryAddressLine = deliveryUnit ? `${deliveryAddress}, Unit ${deliveryUnit}` : deliveryAddress;
     const note =
       fulfillment === "delivery_instant"
-        ? `Web delivery (instant) · ${parsed.contact.name} · ${deliveryAddress}`
+        ? `Web delivery (instant) · ${parsed.contact.name} · ${deliveryAddressLine}${deliveryInstructions ? ` · Note: ${deliveryInstructions}` : ""}`
         : fulfillment === "delivery_scheduled"
-          ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddress}`
+          ? `Web delivery (scheduled ${new Date(scheduledForMs!).toLocaleString("en-CA", { timeZone: "America/Toronto" })}) · ${parsed.contact.name} · ${deliveryAddressLine}${deliveryInstructions ? ` · Note: ${deliveryInstructions}` : ""}`
           : `Web pickup · ${parsed.contact.name}`;
 
     // The order type is what makes Register announce a website order the way it

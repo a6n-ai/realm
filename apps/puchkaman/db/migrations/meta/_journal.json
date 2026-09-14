@@ -302,6 +302,13 @@
       "when": 1789403214430,
       "tag": "0042_natural_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789404843802,
+      "tag": "0043_tricky_bloodaxe",
+      "breakpoints": true
     }
   ]
 }

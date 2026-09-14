@@ -40,6 +40,10 @@ const fulfillmentSchema = z
         address: z.string().trim().min(5).max(300),
         /** Places id — preferred resolution path in resolveAddress(). */
         placeId: z.string().trim().min(1).optional(),
+        /** Google's formatted address rarely carries a unit/suite reliably —
+         *  always a distinct, customer-typed field, never parsed out of `address`. */
+        unit: z.string().trim().max(60).optional().nullable(),
+        instructions: z.string().trim().max(500).optional().nullable(),
         /** Required once the server determines the type requires scheduling. */
         scheduledFor: z.string().datetime().optional(),
       })

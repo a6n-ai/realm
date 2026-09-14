@@ -97,6 +97,13 @@ export const orders = pgTable(
     note: text("note"),
     /** Delivery-only fields — null for pickup orders. */
     deliveryAddress: text("delivery_address"),
+    // Google's formatted address/autocomplete does not reliably carry an
+    // apartment/suite number (no consistent `subpremise` population) — these
+    // are customer-typed, always-visible fields on the checkout form, never
+    // parsed out of deliveryAddress. Also folded into the Clover order `note`
+    // (Clover's Atomic Order API has no structured address field at all).
+    deliveryUnit: text("delivery_unit"),
+    deliveryInstructions: text("delivery_instructions"),
     // Lat/lng are now captured — but ONLY via @foundry/places' AWS-only
     // resolveAndPersist() (see Task 1), never via googlePlaceProvider. That's
     // the storage-licensed (~8x) geocoder tier this column used to be blocked

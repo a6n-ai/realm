@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { Btn, Pill } from "@/components/brutal/shared";
 import { CartLines } from "@/components/cart/cart-lines";
 import { useCart } from "@/components/cart/cart-provider";
@@ -129,6 +129,8 @@ export function CheckoutClient({
   const [note, setNote] = useState("");
   const [fulfillment, setFulfillment] = useState<Fulfillment>(initialFulfillment);
   const [address, setAddress] = useState("");
+  const [unit, setUnit] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [placeId, setPlaceId] = useState<string | undefined>(undefined);
   const [addressCheck, setAddressCheck] = useState<AddressCheck | null>(null);
   const [addressChecking, setAddressChecking] = useState(false);
@@ -209,14 +211,15 @@ export function CheckoutClient({
   // minSubtotal without a page reload — the picker greys it out live, but
   // nothing else did, so the stale key stayed "selected" (still passed the
   // fieldErrors.deliveryType check, still submitted, and would only fail once
-  // the server re-checked it). Deselecting here is the one place both the
-  // picker and the submit button read from, so both go stale-free together.
-  useEffect(() => {
-    if (selectedType && subtotal < selectedType.minSubtotal) {
-      setDeliveryTypeKey(null);
-      setScheduledFor("");
-    }
-  }, [selectedType, subtotal]);
+  // the server re-checked it). Cleared right here during render (React's
+  // sanctioned "adjust state when a prop/derived value changes" pattern,
+  // https://react.dev/learn/you-might-not-need-an-effect) rather than in an
+  // effect — it terminates in one extra render (selectedType becomes
+  // undefined next pass) instead of the effect flicker + lint violation.
+  if (selectedType && subtotal < selectedType.minSubtotal) {
+    setDeliveryTypeKey(null);
+    setScheduledFor("");
+  }
 
   // Smallest gap to a delivery minimum the customer hasn't hit yet — the
   // upsell nudge targets this one, not just whichever type is disabled first.
@@ -327,6 +330,8 @@ export function CheckoutClient({
                   deliveryTypeKey,
                   address: address.trim(),
                   ...(placeId ? { placeId } : {}),
+                  ...(unit.trim() ? { unit: unit.trim() } : {}),
+                  ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
                   ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
                 }
               : { type: "pickup" },
@@ -567,6 +572,7 @@ export function CheckoutClient({
             </div>
 
             {fulfillment === "delivery" ? (
+              <>
               <div className={`field checkout-field ${fieldErrors.address ? "field--err" : ""}`}>
                 <label htmlFor={`${formId}-address`}>Delivery address *</label>
                 <AddressAutocomplete
@@ -644,6 +650,36 @@ export function CheckoutClient({
                   </div>
                 ) : null}
               </div>
+
+              {/* Always visible, never collapsed behind a "+ add apartment" link —
+                  Google's formatted address has no reliable unit/suite field, so
+                  a hidden control is a missed-unit delivery waiting to happen. */}
+              <div className="checkout-fields" style={{ marginTop: 10 }}>
+                <div className="field checkout-field">
+                  <label htmlFor={`${formId}-unit`}>Apt / unit / suite</label>
+                  <input
+                    id={`${formId}-unit`}
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="input"
+                    autoComplete="address-line2"
+                    placeholder="Apt 4B"
+                    maxLength={60}
+                  />
+                </div>
+                <div className="field checkout-field">
+                  <label htmlFor={`${formId}-instructions`}>Delivery instructions (optional)</label>
+                  <input
+                    id={`${formId}-instructions`}
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    className="input"
+                    placeholder="Gate code, leave at door, call on arrival…"
+                    maxLength={500}
+                  />
+                </div>
+              </div>
+              </>
             ) : null}
 
             {fulfillment === "delivery" && addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
