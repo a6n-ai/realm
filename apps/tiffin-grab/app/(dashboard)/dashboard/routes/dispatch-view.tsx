@@ -78,33 +78,41 @@ export function DispatchView({
     <div className="space-y-4">
       {groups.map((group) => (
         <PlanBox key={group.key}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 truncate font-medium">
+          {/* items-start + flex-wrap, same as PlanHeadingRow, so a long driver name wraps instead of overlapping the chip */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <p className="min-w-0 font-medium break-words">
               {group.key === UNASSIGNED ? "Unassigned" : group.driverName ?? group.key}
             </p>
-            <span className="bg-background/70 text-foreground rounded-full px-2.5 py-1 text-xs font-medium">
+            <span className="bg-background/70 text-foreground shrink-0 rounded-full px-2.5 py-1 text-xs font-medium">
               {group.rows.length} stop{group.rows.length === 1 ? "" : "s"}
             </span>
           </div>
           <div className="mt-3 divide-y">
             {group.rows.map((r) => (
-              <div key={r.orderNo} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <span
-                  className={cn(
-                    "bg-muted text-muted-foreground grid size-7 shrink-0 place-items-center rounded-full text-xs font-medium tabular-nums",
-                    r.routeStopNumber != null && STOP_CIRCLE,
-                  )}
-                >
-                  {r.routeStopNumber ?? "—"}
-                </span>
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">{r.customerName}</p>
-                <div className="shrink-0">
+              // Stacks below sm (640px) instead of squeezing customer name + Select into one row —
+              // the compact layout DataTable's mobileCard used to provide.
+              <div
+                key={r.orderNo}
+                className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={cn(
+                      "bg-muted text-muted-foreground grid size-7 shrink-0 place-items-center rounded-full text-xs font-medium tabular-nums",
+                      r.routeStopNumber != null && STOP_CIRCLE,
+                    )}
+                  >
+                    {r.routeStopNumber ?? "—"}
+                  </span>
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium">{r.customerName}</p>
+                </div>
+                <div className="shrink-0 pl-10 sm:pl-0">
                   <Select
                     disabled={pending}
                     defaultValue={r.routeDriverSerial ?? undefined}
                     onValueChange={(v) => reassign(r.orderNo, v)}
                   >
-                    <SelectTrigger className="h-8 w-40">
+                    <SelectTrigger className="h-8 w-full sm:w-40">
                       <SelectValue placeholder={r.routeDriverName ?? "Unassigned"} />
                     </SelectTrigger>
                     <SelectContent>
