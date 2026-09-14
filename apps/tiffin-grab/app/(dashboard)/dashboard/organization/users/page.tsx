@@ -20,10 +20,7 @@ const SPEC: FacetDef[] = [
     kind: "multi",
     field: "role",
     label: "Role",
-    options: [
-      ...INVITABLE_ROLES.map((r) => ({ value: r as string, label: r === "admin" ? "Admin" : "Member" })),
-      { value: "user", label: "Customer" },
-    ],
+    options: [...INVITABLE_ROLES.map((r) => ({ value: r as string, label: r })), { value: "user", label: "user" }],
   },
   {
     kind: "pills",
@@ -41,9 +38,7 @@ export default function UsersPage({ searchParams }: { searchParams: SearchParams
     <SectionCard
       title="All users"
       action={
-        <InviteUserButton
-          roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r === "admin" ? "Admin" : "Member" }))}
-        />
+        <InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />
       }
     >
       <Suspense fallback={<UsersListSkeleton />}>

@@ -29,9 +29,9 @@ export const SPEC: FacetDef[] = [
     field: "role",
     label: "Role",
     options: [
-      { value: "admin", label: "Admin" },
-      { value: "member", label: "Member" },
-      { value: "user", label: "Customer" },
+      { value: "admin", label: "admin" },
+      { value: "member", label: "member" },
+      { value: "user", label: "user" },
     ],
   },
   {
@@ -60,9 +60,7 @@ export default function UsersSettingsPage({ searchParams }: { searchParams: Sear
       <OrganizationHeader
         actions={
           <>
-            <InviteUserButton
-              roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r === "admin" ? "Admin" : "Member" }))}
-            />
+            <InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />
             <Suspense fallback={null}>
               <SyncCloverUsersSlot />
             </Suspense>
@@ -95,7 +93,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
 
   // sp.role absent → the role facet was never touched, so apply the staff
   // default ourselves. The moment a customer picks anything in that facet
-  // (including "Customer"), sp.role is set and this default steps aside.
+  // (including "user"), sp.role is set and this default steps aside.
   const effectiveCondition = sp.role
     ? condition
     : condition
