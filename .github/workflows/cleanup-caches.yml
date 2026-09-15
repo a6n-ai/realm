@@ -1,0 +1,34 @@
+# Deletes CodeQL overlay-database caches (one-time use, never hit as a cache
+# read — see fix a6124501 for why) and any cache untouched for 14+ days.
+# Runs weekly; also triggerable by hand.
+name: cleanup-caches
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete CodeQL overlay caches and caches untouched 14+ days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d '14 days ago' +%s 2>/dev/null || date -u -v-14d +%s)
+          gh api "repos/$REPO/actions/caches" --paginate --jq '.actions_caches[]' \
+            | jq -s --argjson cutoff "$cutoff" '
+                .[] | select(
+                  (.key | startswith("codeql-overlay"))
+                  or ((.last_accessed_at | fromdateiso8601) < $cutoff)
+                ) | .id' \
+            | while read -r id; do
+                echo "deleting cache $id"
+                gh api -X DELETE "repos/$REPO/actions/caches/$id" || true
+              done
