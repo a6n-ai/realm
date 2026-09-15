@@ -43,6 +43,11 @@ services:
     environment:
       # Redis is a compose service, not localhost — override the seam default.
       REDIS_URL: redis://redis:6379
+      # Box A can run as small as a 1GB t2.micro — an unbounded Next.js heap
+      # has no ceiling there, so cap it (see puchkaman's a6124501 for why:
+      # the OOM killer otherwise picks containers essentially at random).
+      NODE_OPTIONS: "--max-old-space-size=384"
+    mem_limit: 450m
     expose:
       - "3000" # internal only; the shared Caddy is the sole public ingress
     networks:
@@ -82,6 +87,8 @@ services:
     env_file: .env.production
     environment:
       NOTIFY_SEND_RATE: "6"
+      NODE_OPTIONS: "--max-old-space-size=128"
+    mem_limit: 150m
     restart: unless-stopped
     command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
 
@@ -96,6 +103,8 @@ services:
     environment:
       NOTIFY_DRAIN_INTERVAL_MS: "1000"
       NOTIFY_SEND_RATE: "2"
+      NODE_OPTIONS: "--max-old-space-size=128"
+    mem_limit: 150m
     restart: unless-stopped
     command: ["pnpm", "--filter", "tiffin-grab", "exec", "tsx", "workers/notify-drainer.ts"]
 
