@@ -16,6 +16,7 @@ export const ADMIN_SIDEBAR_ROUTES: AdminRoute[] = [
   { id: "overview", path: "/dashboard", heading: "Overview" },
   { id: "inquiries", path: "/dashboard/inquiries", heading: "Inquiries" },
   { id: "orders", path: "/dashboard/orders", heading: "Orders" },
+  { id: "dispatch", path: "/dashboard/dispatch", heading: "Dispatch" },
   { id: "customers", path: "/dashboard/customers", heading: "Customers" },
   { id: "tickets", path: "/dashboard/tickets", heading: "Tickets" },
   { id: "catalog", path: "/dashboard/catalog", heading: "Catalog" },
@@ -62,6 +63,11 @@ export const ADMIN_SETTINGS_ROUTES: AdminRoute[] = [
     id: "settings-payments",
     path: "/dashboard/settings/payments",
     heading: /Payment|e-Transfer|Stripe|No payment/i,
+  },
+  {
+    id: "settings-optimoroute",
+    path: "/dashboard/settings/optimoroute",
+    heading: /OptimoRoute/i,
   },
 ];
 
