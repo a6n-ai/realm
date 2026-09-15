@@ -13,6 +13,7 @@ import { resolveSegment } from "@/lib/campaigns/segment";
 import {
   CampaignAnalytics,
   CampaignAudienceEditor,
+  CampaignCompleteButton,
   CampaignContentSection,
   CampaignDeleteButton,
   CampaignDuplicateButton,
@@ -82,7 +83,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const timeZone = appRow?.timezone ?? "America/Toronto";
 
   const sendable = row.status === "draft" || row.status === "scheduled";
-  const retriggerable = row.status === "sent" || row.status === "paused" || row.status === "cancelled";
+  const retriggerable =
+    row.status === "sent" || row.status === "completed" || row.status === "paused" || row.status === "cancelled";
   // Only resolve a count when it can still be acted on — for a sent campaign
   // the stored counts are the record, and re-resolving would show today's
   // audience rather than the one that was actually mailed.
@@ -125,6 +127,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           )}
           <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timeZone} />
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
+          {row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
           {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
         </div>

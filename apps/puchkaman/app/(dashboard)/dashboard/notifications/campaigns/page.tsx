@@ -34,6 +34,7 @@ const SPEC: FacetDef[] = [
       { value: "scheduled", label: "Scheduled" },
       { value: "sending", label: "Sending" },
       { value: "sent", label: "Sent" },
+      { value: "completed", label: "Completed" },
       { value: "paused", label: "Paused" },
       { value: "cancelled", label: "Cancelled" },
     ],

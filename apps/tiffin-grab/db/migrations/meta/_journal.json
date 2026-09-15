@@ -148,6 +148,13 @@
       "when": 1789509147696,
       "tag": "0020_add-campaign-id-to-suppression",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789510696686,
+      "tag": "0021_add-completed-campaign-status",
+      "breakpoints": true
     }
   ]
 }
