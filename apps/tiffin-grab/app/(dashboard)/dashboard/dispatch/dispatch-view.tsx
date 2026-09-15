@@ -52,7 +52,7 @@ export function DispatchView({
   const params = useSearchParams();
   const { page, size } = dispatchPagination(params);
   const [pending, startTransition] = useTransition();
-  const [errorFor, setErrorFor] = useState<string | null>(null);
+  const [errorFor, setErrorFor] = useState<{ orderNo: string; message: string } | null>(null);
   const [driverBySerial, setDriverBySerial] = useState<Record<string, string | undefined>>(() =>
     Object.fromEntries(rows.map((r) => [r.orderNo, r.routeDriverSerial ?? undefined])),
   );
@@ -65,7 +65,7 @@ export function DispatchView({
     startTransition(async () => {
       const result = await reassignDriverAction(orderNo, date, driverSerial);
       if (!result.ok) {
-        setErrorFor(orderNo);
+        setErrorFor({ orderNo, message: result.message });
         setDriverBySerial((prev) => ({ ...prev, [orderNo]: revertTo }));
       }
     });
@@ -75,7 +75,7 @@ export function DispatchView({
     setErrorFor(null);
     startTransition(async () => {
       const result = await pushDeliveryAction(orderNo, date);
-      if (!result.ok) setErrorFor(orderNo);
+      if (!result.ok) setErrorFor({ orderNo, message: result.message });
     });
   }
 
@@ -83,7 +83,7 @@ export function DispatchView({
     setErrorFor(null);
     startTransition(async () => {
       const result = await removeDeliveryAction(orderNo, date);
-      if (!result.ok) setErrorFor(orderNo);
+      if (!result.ok) setErrorFor({ orderNo, message: result.message });
     });
   }
 
@@ -132,8 +132,8 @@ export function DispatchView({
                 Remove
               </Button>
             </div>
-            {errorFor === r.orderNo ? (
-              <p className="text-destructive mt-1 text-right text-xs">Action failed — try again.</p>
+            {errorFor?.orderNo === r.orderNo ? (
+              <p className="text-destructive mt-1 text-right text-xs">{errorFor.message}</p>
             ) : null}
           </TableCell>
         </>
@@ -176,7 +176,7 @@ export function DispatchView({
               Remove
             </Button>
           </div>
-          {errorFor === r.orderNo ? <p className="text-destructive text-xs">Action failed — try again.</p> : null}
+          {errorFor?.orderNo === r.orderNo ? <p className="text-destructive text-xs">{errorFor.message}</p> : null}
         </div>
       )}
     />

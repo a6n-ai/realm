@@ -120,6 +120,14 @@ export async function pushDeliveryAction(orderNo: string, date: string): Promise
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
   try {
     await pushOneDelivery(orderNo, date, await currentUserId());
+    try {
+      // Best-effort: the push already succeeded on OptimoRoute, so a pull
+      // failure here just means the dashboard shows stale route fields until
+      // the next pull — not a reason to report the push as failed.
+      await pullRoutes(date);
+    } catch (e) {
+      console.error("pullRoutes after pushDelivery failed", e);
+    }
     revalidatePath("/dashboard/dispatch");
     return { ok: true };
   } catch (e) {
@@ -133,6 +141,14 @@ export async function removeDeliveryAction(orderNo: string, date: string): Promi
   if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
   try {
     await removeOneDelivery(orderNo, date, await currentUserId());
+    try {
+      // Best-effort: the removal already succeeded on OptimoRoute, so a pull
+      // failure here just means the dashboard shows stale route fields until
+      // the next pull — not a reason to report the removal as failed.
+      await pullRoutes(date);
+    } catch (e) {
+      console.error("pullRoutes after removeDelivery failed", e);
+    }
     revalidatePath("/dashboard/dispatch");
     return { ok: true };
   } catch (e) {

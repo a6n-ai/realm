@@ -11,7 +11,7 @@ export function DriverRoster({ drivers }: { drivers: KnownDriver[] }) {
       {drivers.map((d) => (
         <li
           key={d.driverSerial}
-          className="bg-background/70 text-foreground rounded-full px-2.5 py-1 text-xs font-medium"
+          className="bg-muted text-foreground rounded-full px-2.5 py-1 text-xs font-medium"
         >
           {d.driverName ?? d.driverSerial}
         </li>
