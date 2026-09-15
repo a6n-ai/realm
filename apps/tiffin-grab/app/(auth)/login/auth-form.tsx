@@ -79,6 +79,19 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
   );
 }
 
+// Better Auth verifies the password *before* throwing any of these (see
+// node_modules/better-auth/dist/api/routes/sign-in.mjs — EMAIL_NOT_VERIFIED
+// and our own session-create FORBIDDEN hook both fire only after a correct
+// password), so surfacing them isn't pre-auth account enumeration. Matched by
+// exact text (not error.code, which isn't set on our own custom APIError
+// throws) so nothing else — including a future, more revealing server
+// message — passes through un-vetted.
+const SAFE_POST_AUTH_ERRORS = new Set([
+  "Email not verified",
+  "Verify your email address first — check your inbox for the link.",
+  "This account is not active. Contact support.",
+]);
+
 const passwordSchema = z.object({
   // emailSchema (not z.email) lowercases + trims so a differently-cased login
   // matches the checkout-provisioned account — otherwise a new account is created
@@ -103,7 +116,8 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
       const { identifier, password } = values;
       const result = await signIn.email({ email: identifier, password });
       if (result?.error) {
-        setError(result.error.message || "Invalid credentials");
+        const msg = result.error.message;
+        setError(msg && SAFE_POST_AUTH_ERRORS.has(msg) ? msg : "Invalid credentials");
         return;
       }
     } catch {
