@@ -12,6 +12,7 @@ import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
 import { LabelDatePicker } from "../labels/label-date-picker";
 import { DispatchView } from "./dispatch-view";
+import { DriverRoster } from "./driver-roster";
 import { PlannedOrders } from "./routes-view";
 import { PushControl } from "./push-control";
 import { RemoveControl } from "./remove-control";
@@ -102,6 +103,10 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
       </SectionCard>
 
+      <SectionCard title="Drivers">
+        <DriverRoster drivers={drivers} />
+      </SectionCard>
+
       {/*
         Secondary: sending/pulling is a less frequent action than reassigning a stop.
         variant="flat" (same demotion the account sub-sections use) keeps Dispatch above
@@ -173,6 +178,13 @@ DispatchData.Skeleton = function DispatchDataSkeleton() {
       </div>
       <SectionCard title="Dispatch">
         <Skeleton className="h-40 w-full" />
+      </SectionCard>
+      <SectionCard title="Drivers">
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-6 w-20 rounded-full" />
+          ))}
+        </div>
       </SectionCard>
       <SectionCard title="Send to OptimoRoute" variant="flat">
         <Skeleton className="h-16 w-full" />
