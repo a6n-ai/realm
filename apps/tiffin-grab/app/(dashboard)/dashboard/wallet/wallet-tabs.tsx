@@ -1,3 +1,5 @@
+"use client";
+
 import { BanknoteIcon, CoinsIcon, ScrollTextIcon } from "lucide-react";
 import { RoutedTabNav } from "@foundry/design-system";
 

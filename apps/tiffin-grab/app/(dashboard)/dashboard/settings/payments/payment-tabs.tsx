@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { CreditCardIcon, PlusIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
