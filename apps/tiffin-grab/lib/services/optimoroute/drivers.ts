@@ -40,6 +40,7 @@ export type DispatchRow = {
   routeDriverSerial: string | null;
   routeDriverName: string | null;
   routeStopNumber: number | null;
+  routeSyncedAt: number | null;
 };
 
 /** Same scheduled-deliveries read buildPlannedOrders uses, plus the driver fields the push preview doesn't need. */
@@ -51,6 +52,7 @@ export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
     routeDriverSerial: row.delivery.routeDriverSerial,
     routeDriverName: row.delivery.routeDriverName,
     routeStopNumber: row.delivery.routeStopNumber,
+    routeSyncedAt: row.delivery.routeSyncedAt,
   }));
 }
 
