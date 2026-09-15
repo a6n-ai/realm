@@ -9,8 +9,10 @@ import {
   removeStops,
   pushOneDelivery,
   removeOneDelivery,
+  getDeliveryActivities,
   type PushResult,
   type RemoveResult,
+  type DeliveryActivity,
 } from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
@@ -133,6 +135,12 @@ export async function pushDeliveryAction(orderNo: string, date: string): Promise
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
   }
+}
+
+/** Read-only push/pull activity log for one delivery — the Dispatch row-click history drawer. */
+export async function getDeliveryActivitiesAction(orderNo: string): Promise<DeliveryActivity[]> {
+  await requireStaff();
+  return getDeliveryActivities(orderNo);
 }
 
 /** Manual per-row removal from the Dispatch table — force-removes regardless of the day-level stale check. */

@@ -23,11 +23,13 @@ import {
   pushDeliveryAction,
   removeDeliveryAction,
   reassignDriverAction,
+  getDeliveryActivitiesAction,
 } from "./actions";
 import type {
   DispatchRow,
   KnownDriver,
 } from "@/lib/services/optimoroute/drivers";
+import type { DeliveryActivity } from "@/lib/services/optimoroute/push";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -89,8 +91,18 @@ export function DispatchView({
   // Removing a stop takes a driver off that customer's door — a single misclick shouldn't
   // do that, same reasoning RemoveControl's dialog uses for the bulk day-level removal.
   const [confirmRemove, setConfirmRemove] = useState<DispatchRow | null>(null);
+  const [historyFor, setHistoryFor] = useState<DispatchRow | null>(null);
+  const [history, setHistory] = useState<DeliveryActivity[] | null>(null);
 
   const sorted = useMemo(() => sortRows(rows), [rows]);
+
+  function openHistory(row: DispatchRow) {
+    setHistoryFor(row);
+    setHistory(null);
+    startTransition(async () => {
+      setHistory(await getDeliveryActivitiesAction(row.orderNo));
+    });
+  }
 
   function reassign(
     orderNo: string,
@@ -136,10 +148,11 @@ export function DispatchView({
         search={{ placeholder: "Search customer or driver…", keys: ["customerName", "routeDriverName"] }}
         emptyIcon={TruckIcon}
         emptyMessage="No deliveries scheduled for this date."
+        onRowClick={openHistory}
         renderRow={(r) => (
           <>
             <TableCell className="font-medium">{r.customerName}</TableCell>
-            <TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
               <Select
                 disabled={pending}
                 value={driverBySerial[r.orderNo]}
@@ -164,7 +177,7 @@ export function DispatchView({
             <TableCell className="text-right tabular-nums">
               {r.routeStopNumber ?? "—"}
             </TableCell>
-            <TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-end gap-2">
                 <Button
                   size="sm"
@@ -272,6 +285,28 @@ export function DispatchView({
         }
       >
         {null}
+      </ResponsiveDialog>
+      <ResponsiveDialog
+        open={historyFor != null}
+        onOpenChange={(open) => !open && setHistoryFor(null)}
+        title={historyFor ? `${historyFor.customerName} — history` : "History"}
+        description={`Push/pull activity for ${date}`}
+      >
+        {history == null ? (
+          <p className="text-muted-foreground text-sm">Loading…</p>
+        ) : history.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No activity recorded for this delivery.</p>
+        ) : (
+          <ul className="max-h-72 space-y-2 overflow-y-auto text-sm">
+            {history.map((h) => (
+              <li key={h.id} className="border-b pb-2 last:border-0">
+                <p className="font-medium">{h.type}</p>
+                {h.note ? <p className="text-muted-foreground text-xs">{h.note}</p> : null}
+                <p className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </ResponsiveDialog>
     </>
   );

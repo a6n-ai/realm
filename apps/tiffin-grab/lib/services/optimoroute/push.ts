@@ -1,4 +1,4 @@
-import { and, eq, inArray, ilike } from "drizzle-orm";
+import { and, desc, eq, inArray, ilike } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
@@ -420,4 +420,30 @@ async function recordPushActivities(
   if (rows.length === 0) return;
 
   await db.insert(orderActivities).values(rows);
+}
+
+export type DeliveryActivity = { id: string; type: string; note: string | null; createdAt: number };
+
+/** Read-only push/pull/reassign history for one delivery, newest first — the drawer's data source. */
+export async function getDeliveryActivities(orderNo: string): Promise<DeliveryActivity[]> {
+  const [delivery] = await db
+    .select({ id: deliveries.id })
+    .from(deliveries)
+    .where(eq(deliveries.publicId, orderNo))
+    .limit(1);
+  if (!delivery) return [];
+
+  const rows = await db
+    .select({
+      id: orderActivities.publicId,
+      type: orderActivities.type,
+      note: orderActivities.note,
+      createdAt: orderActivities.createdAt,
+    })
+    .from(orderActivities)
+    .where(eq(orderActivities.deliveryId, delivery.id))
+    .orderBy(desc(orderActivities.createdAt));
+
+  // createdAt is baseColumns' bigint("created_at", { mode: "number" }) — already a JS number, no Date conversion needed.
+  return rows;
 }
