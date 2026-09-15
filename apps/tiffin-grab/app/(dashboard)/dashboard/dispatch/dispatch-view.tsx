@@ -133,6 +133,7 @@ export function DispatchView({
         rowKey={(r) => r.orderNo}
         serial={false}
         pagination={{ page, size }}
+        search={{ placeholder: "Search customer or driver…", keys: ["customerName", "routeDriverName"] }}
         emptyIcon={TruckIcon}
         emptyMessage="No deliveries scheduled for this date."
         renderRow={(r) => (
