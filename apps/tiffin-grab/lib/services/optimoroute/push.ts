@@ -121,7 +121,10 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
  */
 function extractNameFromOrderNo(orderNo: string): string | null {
   const name = orderNo.replace(/^\s*\d+\s*/, "").trim();
-  return name.length >= 3 ? name : null;
+  if (name.length < 3) return null;
+  // ilike treats % and _ as wildcards — an OptimoRoute stop from the shared account is not
+  // fully trusted input, and an unescaped one could turn this into a broad pattern match.
+  return name.replace(/[%_\\]/g, (c) => `\\${c}`);
 }
 
 /**
