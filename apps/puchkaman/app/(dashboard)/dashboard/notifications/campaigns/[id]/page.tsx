@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
+import { Button } from "@foundry/ui/button";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
@@ -116,6 +118,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
         <div className="flex gap-2">
+          {!sendable && (
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/notifications/logs?campaignId=${row.id}`}>View logs</Link>
+            </Button>
+          )}
           <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timeZone} />
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}

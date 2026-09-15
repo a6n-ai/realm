@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { columnResolver, conditionToSql } from "@foundry/database";
 import { parseFilterState, SectionCard, type FacetDef } from "@foundry/design-system";
 import {
@@ -53,10 +53,14 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
   return (
     <div className="space-y-6">
-      <SectionCard title="Notification log" subtitle="Every event-driven send, newest first.">
+      <SectionCard
+        title="Notification log"
+        subtitle={sp.campaignId ? "Filtered to one campaign's sends." : "Every event-driven send, newest first."}
+      >
         <Suspense fallback={<LogsTableSkeleton />}>
           <LogsData searchParams={searchParams} />
         </Suspense>
@@ -85,7 +89,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
 
   const { condition, page } = parseFilterState(SPEC, sp);
 
-  const where = conditionToSql(
+  const facetWhere = conditionToSql(
     condition,
     columnResolver({
       status: notificationOutbox.status,
@@ -97,6 +101,12 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
       providerMessageId: notificationOutbox.providerMessageId,
     }),
   );
+  // Deep-link from a campaign's detail page ("View logs") — not a facet pill,
+  // just a plain id filter carried in the URL.
+  const campaignId = sp.campaignId && /^\d+$/.test(sp.campaignId) ? BigInt(sp.campaignId) : undefined;
+  const where = campaignId
+    ? and(facetWhere, eq(notificationOutbox.campaignId, campaignId))
+    : facetWhere;
 
   const col = SORT_COL[sort.column];
   const orderBy = sort.dir === "asc" ? asc(col) : desc(col);
