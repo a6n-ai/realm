@@ -18,7 +18,16 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
+import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
 import { verifyPinAction } from "./actions";
+
+// Login is the shared gateway into both the customer and staff shells, so it
+// stays on the same iOS-sized control convention (IOS_BUTTON/IOS_PRESS, 50px
+// targets, 14px corners) the rest of the customer app already uses — see
+// components/customer/ios-button.ts. Staff surfaces keep bare shadcn defaults;
+// this screen is the one place both audiences share, so it follows the
+// customer app's own design system rather than either extreme.
+const IOS_INPUT = "!h-[50px] !rounded-[14px] !px-4 !text-[17px] tracking-[-0.011em]";
 
 // Single auth screen. Password by default; when a locked session with a PIN
 // exists (`canUsePin`), it defaults to PIN entry and offers an in-place toggle
@@ -33,9 +42,12 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-hidden rounded-[20px] p-0 shadow-[0_1px_2px_rgba(0,0,0,0.06),0_12px_28px_-8px_rgba(0,0,0,0.18)] border-t-white/60 dark:border-t-white/10">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <div className="p-6 md:p-8">
+          {/* key remounts on mode change so the swap cross-fades instead of an
+              instant DOM replace — mirrors the spatial-consistency treatment
+              CodeOtp's own step swap already uses in EmailOtpPanel. */}
+          <div key={mode} className="animate-in fade-in flex flex-col justify-center p-6 duration-200 motion-reduce:animate-none md:p-8">
             {mode === "pin" ? (
               <PinPanel onUsePassword={() => setMode("password")} />
             ) : mode === "email-otp" ? (
@@ -49,7 +61,10 @@ export function AuthForm({ canUsePin }: { canUsePin: boolean }) {
             )}
           </div>
           <div className="bg-muted text-muted-foreground relative hidden flex-col items-center justify-center gap-2 p-8 md:flex">
-            <span className="text-foreground text-2xl font-bold">Tiffin Grab</span>
+            <div className="bg-primary text-primary-foreground mb-1 flex size-12 items-center justify-center rounded-2xl text-xl font-bold">
+              T
+            </div>
+            <span className="text-foreground text-2xl font-bold tracking-[-0.02em]">Tiffin Grab</span>
             <p className="text-balance text-center text-sm">
               Fresh tiffin meals, delivered on your schedule.
             </p>
@@ -88,7 +103,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
       const { identifier, password } = values;
       const result = await signIn.email({ email: identifier, password });
       if (result?.error) {
-        setError("Invalid credentials");
+        setError(result.error.message || "Invalid credentials");
         return;
       }
     } catch {
@@ -106,11 +121,11 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center text-center">
-            <h1 className="text-2xl font-bold">Welcome back</h1>
+            <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
             <p className="text-muted-foreground text-balance">Sign in to your Tiffin Grab account</p>
           </div>
           {canUsePin && (
-            <Button type="button" variant="outline" className="gap-2" onClick={onUsePin}>
+            <Button type="button" variant="outline" className={`gap-2 ${IOS_BUTTON}`} onClick={onUsePin}>
               <LockIcon className="size-4" />
               Unlock with your PIN instead
             </Button>
@@ -122,7 +137,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" autoComplete="email" placeholder="you@example.com" {...field} />
+                  <Input type="email" autoComplete="email" placeholder="you@example.com" className={IOS_INPUT} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -144,7 +159,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
                     <Input
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
-                      className="pr-10"
+                      className={`${IOS_INPUT} pr-12`}
                       {...field}
                     />
                     <button
@@ -152,7 +167,7 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
                       onClick={() => setShowPassword((v) => !v)}
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       aria-pressed={showPassword}
-                      className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+                      className={`text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-12 items-center justify-center ${IOS_PRESS}`}
                     >
                       {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                     </button>
@@ -162,11 +177,11 @@ function PasswordPanel({ canUsePin, onUsePin, onUseEmailOtp }: { canUsePin: bool
               </FormItem>
             )}
           />
-          {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
+          <Button type="submit" className={IOS_BUTTON} disabled={form.formState.isSubmitting}>
             Sign in
           </Button>
-          <Button type="button" variant="ghost" className="w-full" onClick={onUseEmailOtp}>
+          <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={onUseEmailOtp}>
             Email me a sign-in code instead
           </Button>
           <div className="text-center text-sm">
@@ -218,7 +233,7 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-center text-center">
-        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">Welcome back</h1>
         <p className="text-muted-foreground text-balance">
           {step === "email" ? "Sign in with a code sent to your email" : `Enter the code we emailed to ${email}`}
         </p>
@@ -232,12 +247,12 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
             <FormField control={emailForm.control} name="email" render={({ field }) => (
               <FormItem>
                 <FormLabel>Email</FormLabel>
-                <FormControl><Input type="email" autoComplete="email" placeholder="you@example.com" {...field} /></FormControl>
+                <FormControl><Input type="email" autoComplete="email" placeholder="you@example.com" className={IOS_INPUT} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
-            <Button type="submit" className="w-full" disabled={emailForm.formState.isSubmitting}>Email me a code</Button>
+            {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
+            <Button type="submit" className={IOS_BUTTON} disabled={emailForm.formState.isSubmitting}>Email me a code</Button>
           </form>
         </Form>
       ) : (
@@ -261,13 +276,13 @@ function EmailOtpPanel({ onUsePassword }: { onUsePassword: () => void }) {
                 </FormItem>
               )}
             />
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
-            <Button type="submit" className="w-full" disabled={codeForm.formState.isSubmitting}>Sign in</Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep("email"); setError(null); }}>Use a different email</Button>
+            {error ? <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p> : null}
+            <Button type="submit" className={IOS_BUTTON} disabled={codeForm.formState.isSubmitting}>Sign in</Button>
+            <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={() => { setStep("email"); setError(null); }}>Use a different email</Button>
           </form>
         </Form>
       )}
-      <Button type="button" variant="ghost" className="w-full" onClick={onUsePassword}>Sign in with a password instead</Button>
+      <Button type="button" variant="ghost" className={IOS_BUTTON} onClick={onUsePassword}>Sign in with a password instead</Button>
       <div className="text-center text-sm">
         Don&apos;t have an account? <Link href="/signup" className="underline underline-offset-4">Sign up</Link>
       </div>
@@ -311,11 +326,11 @@ function PinPanel({ onUsePassword }: { onUsePassword: () => void }) {
       </div>
       <form onSubmit={(e) => { e.preventDefault(); verify(pin); }} className="flex w-full flex-col items-center gap-3">
         <PinOtp value={pin} onChange={setPin} onComplete={verify} autoFocus disabled={pending} aria-label="PIN" />
-        {error && <p className="text-destructive text-sm">{error}</p>}
-        <Button type="submit" disabled={pending || pin.length !== 4} className="w-full">
+        {error && <p className="text-destructive animate-in fade-in text-sm text-center duration-150">{error}</p>}
+        <Button type="submit" disabled={pending || pin.length !== 4} className={IOS_BUTTON}>
           Unlock
         </Button>
-        <button type="button" className="text-muted-foreground text-sm underline" onClick={onUsePassword}>
+        <button type="button" className={`text-muted-foreground text-sm underline ${IOS_PRESS}`} onClick={onUsePassword}>
           Sign in with password instead
         </button>
       </form>
