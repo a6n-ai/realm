@@ -23,6 +23,13 @@ services:
     restart: unless-stopped
     logging: *awslogs
     env_file: .env.production
+    environment:
+      # Box B is a 1GB box: an unbounded Next.js heap can grow until the OOM
+      # killer picks a container at random (it picked pgbouncer's DNS lookups
+      # before this existed). Capping node's heap turns that into predictable
+      # GC pressure in this container specifically, not a random kill.
+      NODE_OPTIONS: "--max-old-space-size=384"
+    mem_limit: 450m
     expose:
       - "3000" # internal only; the Box B Caddy is the sole public ingress
     networks:
@@ -62,6 +69,8 @@ services:
     env_file: .env.production
     environment:
       NOTIFY_SEND_RATE: "3"
+      NODE_OPTIONS: "--max-old-space-size=128"
+    mem_limit: 150m
     restart: unless-stopped
     command: ["pnpm", "--filter", "puchkaman", "exec", "tsx", "workers/notify-drainer.ts"]
 
@@ -76,6 +85,8 @@ services:
     environment:
       NOTIFY_DRAIN_INTERVAL_MS: "1000"
       NOTIFY_SEND_RATE: "2"
+      NODE_OPTIONS: "--max-old-space-size=128"
+    mem_limit: 150m
     restart: unless-stopped
     command: ["pnpm", "--filter", "puchkaman", "exec", "tsx", "workers/notify-drainer.ts"]
 
