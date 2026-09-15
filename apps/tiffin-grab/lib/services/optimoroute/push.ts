@@ -1,6 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, ilike } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, orderActivities } from "@/db/schema";
+import { deliveries, orderActivities, orders, users } from "@/db/schema";
 import { loadDayDeliveries } from "@/lib/services/daily-labels.service";
 import { effectiveAddress } from "@/lib/services/deliveries.service";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
@@ -40,7 +40,14 @@ export type PushPreview = {
    * created by something else entirely. The OptimoRoute account is shared with another
    * business, so most entries here are usually not ours to touch.
    */
-  remove: { orderNo: string; driver: string | null; address: string | null; ours: boolean }[];
+  remove: {
+    orderNo: string;
+    driver: string | null;
+    address: string | null;
+    ours: boolean;
+    /** Foreign-looking stop whose name matches a real customer — display-only, changes nothing about removal. */
+    hint: { name: string; publicId: string; hasActiveOrder: boolean } | null;
+  }[];
   /** Present on both sides — the count that should be the bulk of a normal day. */
   unchangedCount: number;
 };
@@ -107,6 +114,42 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
   });
 }
 
+/**
+ * The legacy Google Apps Script numbered stops by customer name (e.g. "43 Yatharth
+ * Aggarwal"), so an old stop that predates our `dlv_xxx` publicId scheme still carries a
+ * real name inside its orderNo. Strips the leading sequence number to recover it.
+ */
+function extractNameFromOrderNo(orderNo: string): string | null {
+  const name = orderNo.replace(/^\s*\d+\s*/, "").trim();
+  return name.length >= 3 ? name : null;
+}
+
+/**
+ * Display-only lookup for a "not ours" stop: does its orderNo's name match a real
+ * customer? Never changes what gets pushed or removed — purely a hint for staff.
+ */
+async function findPossibleMatch(
+  orderNo: string,
+): Promise<{ name: string; publicId: string; hasActiveOrder: boolean } | null> {
+  const name = extractNameFromOrderNo(orderNo);
+  if (!name) return null;
+
+  const rows = await db
+    .select({ publicId: users.publicId, name: users.name, orderStatus: orders.status })
+    .from(users)
+    .leftJoin(orders, eq(orders.userId, users.id))
+    .where(and(eq(users.role, "user"), ilike(users.name, name)))
+    .limit(10);
+  const matched = rows.find((r) => r.name);
+  if (!matched) return null;
+
+  return {
+    name: matched.name!,
+    publicId: matched.publicId,
+    hasActiveOrder: rows.some((r) => r.orderStatus === "active"),
+  };
+}
+
 /** What a push would do, without doing any of it. */
 export async function previewPush(date: string): Promise<PushPreview> {
   const [orders, routes] = await Promise.all([buildPlannedOrders(date), getRoutes(date)]);
@@ -138,11 +181,17 @@ export async function previewPush(date: string): Promise<PushPreview> {
           .where(inArray(deliveries.publicId, orphanNos));
   const knownIds = new Set(known.map((k) => k.publicId));
 
-  const remove = orphanNos.map((orderNo) => ({
-    orderNo,
-    ...theirs.get(orderNo)!,
-    ours: knownIds.has(orderNo),
-  }));
+  const remove = await Promise.all(
+    orphanNos.map(async (orderNo) => {
+      const ours = knownIds.has(orderNo);
+      return {
+        orderNo,
+        ...theirs.get(orderNo)!,
+        ours,
+        hint: ours ? null : await findPossibleMatch(orderNo),
+      };
+    }),
+  );
 
   return {
     date,

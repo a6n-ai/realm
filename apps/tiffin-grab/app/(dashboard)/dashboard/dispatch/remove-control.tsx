@@ -87,12 +87,20 @@ export function RemoveControl({
               </span>
             </label>
             {!s.ours ? (
-              // The OptimoRoute account is shared with another business, and the old
-              // spreadsheet numbered stops by customer name — so most foreign stops are
-              // not ours to delete.
-              <Badge variant="outline" className="shrink-0 text-[10px]">
-                not ours
-              </Badge>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                {/* The OptimoRoute account is shared with another business, and the old
+                    spreadsheet numbered stops by customer name — so most foreign stops are
+                    not ours to delete. */}
+                <Badge variant="outline" className="text-[10px]">
+                  not ours
+                </Badge>
+                {s.hint ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Possible match: {s.hint.name}
+                    {s.hint.hasActiveOrder ? " · Active order" : ""}
+                  </Badge>
+                ) : null}
+              </div>
             ) : null}
           </li>
         ))}
