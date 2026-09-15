@@ -10,7 +10,7 @@ import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { previewPush } from "@/lib/services/optimoroute/push";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard, Card } from "@/components/ds";
-import { LabelDatePicker } from "../labels/label-date-picker";
+import { DayHeader } from "./day-header";
 import { DispatchView } from "./dispatch-view";
 import { DriverRoster } from "./driver-roster";
 import { PlannedOrders } from "./routes-view";
@@ -158,14 +158,6 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         </Card>
       </Collapsible>
     </>
-  );
-}
-
-function DayHeader({ date, today }: { date: string; today: string }) {
-  return (
-    <SectionCard title="Day" variant="flat">
-      <LabelDatePicker date={date} today={today} basePath="/dashboard/dispatch" />
-    </SectionCard>
   );
 }
 
