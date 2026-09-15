@@ -103,7 +103,11 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
       </SectionCard>
 
-      <SectionCard title="Drivers">
+      {/*
+        Reference list, not a second worktable — variant="flat" demotes it below
+        Dispatch's "glow" so the two cards don't read as interchangeable twins.
+      */}
+      <SectionCard title="Drivers" variant="flat">
         <DriverRoster drivers={drivers} />
       </SectionCard>
 
@@ -179,7 +183,7 @@ DispatchData.Skeleton = function DispatchDataSkeleton() {
       <SectionCard title="Dispatch">
         <Skeleton className="h-40 w-full" />
       </SectionCard>
-      <SectionCard title="Drivers">
+      <SectionCard title="Drivers" variant="flat">
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-6 w-20 rounded-full" />
