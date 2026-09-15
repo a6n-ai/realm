@@ -97,6 +97,7 @@ jobs:
           image_tag: ${{ github.sha }}
           deploy_path: ${{ vars.DEPLOY_PATH }}
           app_dir: deployment/prod
+          app_subdir: tiffin-grab
           pull_tools_profile: "false"
 
       - name: SSH → deploy tiffin-grab on Box A

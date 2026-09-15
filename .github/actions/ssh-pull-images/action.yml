@@ -17,8 +17,12 @@ inputs:
     required: false
     default: ""
   app_dir:
-    description: Path (relative to the repo root) containing proxy/ and the app compose files
+    description: Path (relative to the repo root) containing proxy/
     required: true
+  app_subdir:
+    description: Path relative to app_dir containing the app's own compose file, if not app_dir itself (e.g. tiffin-grab, where proxy/ is a level above the app's compose file)
+    required: false
+    default: ""
   pull_tools_profile:
     description: Also run `docker compose --profile tools pull` in app_dir
     required: false
@@ -46,6 +50,8 @@ runs:
           cd "$REPO/${{ inputs.app_dir }}"
           docker network inspect edge >/dev/null 2>&1 || docker network create edge
           (cd proxy && docker compose pull)
+          APP_SUBDIR="${{ inputs.app_subdir }}"
+          if [ -n "$APP_SUBDIR" ]; then cd "$APP_SUBDIR"; fi
           docker compose pull
           if [ "${{ inputs.pull_tools_profile }}" = "true" ]; then
             docker compose --profile tools pull
