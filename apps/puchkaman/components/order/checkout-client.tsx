@@ -86,6 +86,7 @@ export function CheckoutClient({
   offers = [],
   upsellItems = [],
   pickupDiscountPct = 0,
+  allDeliveryTypes = [],
   canRedeemCoins = false,
   coinBalance = 0,
   storeLocation,
@@ -98,6 +99,9 @@ export function CheckoutClient({
   upsellItems?: UpsellItem[];
   /** discount_pct on the pickup delivery_types row, so the choice can name it. */
   pickupDiscountPct?: number;
+  /** Every active delivery type, unfiltered by distance — shown before an
+   *  address is checked so the picker is never a blank wait. See page.tsx. */
+  allDeliveryTypes?: CheckoutDeliveryType[];
   /** False for guests and staff sessions — see getCheckoutWalletBalance. */
   canRedeemCoins?: boolean;
   /** Wallet balance read server-side; walletService never reaches the client. */
@@ -136,6 +140,24 @@ export function CheckoutClient({
   const [addressChecking, setAddressChecking] = useState(false);
   const [deliveryTypeKey, setDeliveryTypeKey] = useState<string | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
+  // Switching franchise via the location picker (LocationPicker → router.refresh())
+  // re-fetches storeLocation server-side but never touches this component's own
+  // state — a typed/checked address stayed on screen after the switch, still
+  // showing eligibility and distance resolved against the OLD store's origin
+  // and zones. storeLocation.address changing is the one signal available here
+  // that a switch happened; cleared during render (not an effect) so there's
+  // no frame where the stale address is still shown as valid.
+  const [lastStoreAddress, setLastStoreAddress] = useState(storeLocation.address);
+  if (lastStoreAddress !== storeLocation.address) {
+    setLastStoreAddress(storeLocation.address);
+    if (address || addressCheck || deliveryTypeKey) {
+      setAddress("");
+      setPlaceId(undefined);
+      setAddressCheck(null);
+      setDeliveryTypeKey(null);
+      setScheduledFor("");
+    }
+  }
   // datetime-local wants local wall-clock, and toISOString() is UTC — subtract
   // the offset first or the picker bounds land hours off for anyone not on UTC.
   const [scheduleBounds] = useState(() => {
@@ -202,6 +224,11 @@ export function CheckoutClient({
       setAddressChecking(false);
     }
   }
+
+  // Distance-verified list once an address has been checked; the unfiltered
+  // catalogue baseline before that, so the picker is never empty while the
+  // customer decides whether delivery is even worth typing an address for.
+  const deliveryTypesToShow = addressCheck?.resolved === true ? addressCheck.types : allDeliveryTypes;
 
   const selectedType = addressCheck?.resolved
     ? addressCheck.types.find((t) => t.key === deliveryTypeKey)
@@ -654,7 +681,7 @@ export function CheckoutClient({
               {/* Always visible, never collapsed behind a "+ add apartment" link —
                   Google's formatted address has no reliable unit/suite field, so
                   a hidden control is a missed-unit delivery waiting to happen. */}
-              <div className="checkout-fields" style={{ marginTop: 10 }}>
+              <div className="checkout-fields checkout-fields--label-align" style={{ marginTop: 10 }}>
                 <div className="field checkout-field">
                   <label htmlFor={`${formId}-unit`}>Apt / unit / suite</label>
                   <input
@@ -682,16 +709,23 @@ export function CheckoutClient({
               </>
             ) : null}
 
-            {fulfillment === "delivery" && addressCheck?.resolved === true && addressCheck.types.length > 0 ? (
+            {fulfillment === "delivery" && deliveryTypesToShow.length > 0 ? (
               <div className="field checkout-field">
                 <label id={`${formId}-deliveryType-label`}>Delivery type *</label>
+                {addressCheck?.resolved !== true ? (
+                  <p className="checkout-hint" style={{ marginBottom: 6 }}>
+                    Here&apos;s what&apos;s on offer — check your address above to see which you
+                    qualify for.
+                  </p>
+                ) : null}
                 <DeliveryTypePicker
-                  types={addressCheck.types}
+                  types={deliveryTypesToShow}
                   subtotal={subtotal}
                   value={deliveryTypeKey}
+                  previewOnly={addressCheck?.resolved !== true}
                   onChange={(key) => {
                     setDeliveryTypeKey(key);
-                    if (!addressCheck.types.find((t) => t.key === key)?.requiresSchedule) {
+                    if (!deliveryTypesToShow.find((t) => t.key === key)?.requiresSchedule) {
                       setScheduledFor("");
                     }
                   }}

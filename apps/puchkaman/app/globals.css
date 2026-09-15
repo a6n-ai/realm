@@ -1844,6 +1844,15 @@ body:not(:has(.crm-app)) :where(button, a, input, select, textarea, [tabindex]):
 @media (min-width: 620px) {
   .checkout-fields { grid-template-columns: 1fr 1fr; }
 }
+/* Apt/Unit's one-line label vs Delivery Instructions' two-line ("(optional)"
+   wraps) label otherwise start the two inputs at different heights — reserve
+   a fixed two-line slot and bottom-align so both boxes sit flush regardless
+   of which label wraps. */
+.checkout-fields--label-align .field label {
+  min-height: 2lh;
+  display: flex;
+  align-items: flex-end;
+}
 .checkout-field .input,
 .checkout-field .select,
 .checkout-field .textarea { min-height: 48px; }

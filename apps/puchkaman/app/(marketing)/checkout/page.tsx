@@ -38,11 +38,29 @@ export default async function CheckoutPage({
   // quote lands rather than leaving the saving to appear out of nowhere.
   const pickupDiscountPct =
     deliveryTypes.find((t) => t.key === PICKUP_TYPE_KEY && t.active)?.discountPct ?? 0;
+  // Every active delivery option, unfiltered by distance — shown the moment
+  // "Delivery" is picked, before the address is even typed, so the customer
+  // can see what's on offer and what unlocks it instead of the picker being
+  // a blank space until they've checked an address. Distance eligibility
+  // (which of these an address actually qualifies for) only exists after
+  // check-address resolves; until then every type here is enabled purely on
+  // the cart-minimum rule the picker already applies.
+  const allDeliveryTypes = deliveryTypes
+    .filter((t) => t.key !== PICKUP_TYPE_KEY && t.active)
+    .map((t) => ({
+      key: t.key,
+      label: t.label,
+      minSubtotal: t.minSubtotal,
+      discountPct: t.discountPct,
+      requiresSchedule: t.requiresSchedule,
+    }));
   // Cheapest one-tap add-ons (no modifier picker needed) — surfaced when a
   // delivery minimum is just out of reach, so the shortfall message doubles
   // as an upsell instead of a dead end.
   const upsellItems: UpsellItem[] = catalog
-    .filter((p) => p.modifierGroups.length === 0)
+    // price > 0: a free/$0 item is the "cheapest" by sort order but adds
+    // nothing toward a delivery minimum — offering it as the fix is a dead end.
+    .filter((p) => p.modifierGroups.length === 0 && p.price > 0)
     .sort((a, b) => a.price - b.price)
     .slice(0, 3)
     .map((p) => ({ publicId: p.publicId, name: p.name, price: p.price, category: p.category }));
@@ -84,6 +102,7 @@ export default async function CheckoutPage({
                 offers={offers}
                 upsellItems={upsellItems}
                 pickupDiscountPct={pickupDiscountPct}
+                allDeliveryTypes={allDeliveryTypes}
                 canRedeemCoins={wallet.canRedeem}
                 coinBalance={wallet.balance}
                 storeLocation={storeLocation}

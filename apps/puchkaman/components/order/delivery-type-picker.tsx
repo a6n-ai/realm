@@ -22,11 +22,16 @@ export function DeliveryTypePicker({
   subtotal,
   value,
   onChange,
+  previewOnly = false,
 }: {
   types: CheckoutDeliveryType[];
   subtotal: number;
   value: string | null;
   onChange: (key: string) => void;
+  /** True before an address has been checked — distance eligibility isn't
+   *  known yet, so every card renders informational-only (not selectable)
+   *  instead of implying a choice that a distance check could later revoke. */
+  previewOnly?: boolean;
 }) {
   // Only worth saying "no discount" when another option on this list does
   // carry one — otherwise it reads as bad news about the only choice there is.
@@ -36,9 +41,10 @@ export function DeliveryTypePicker({
     <div className="checkout-fulfillment" role="radiogroup" aria-label="Delivery type">
       {types.map((type) => {
         const shortfall = type.minSubtotal - subtotal;
-        const disabled = shortfall > 0;
+        const shortOnCart = shortfall > 0;
+        const disabled = previewOnly || shortOnCart;
         const discountAmount = (subtotal * type.discountPct) / 100;
-        const hint = disabled
+        const hint = shortOnCart
           ? `Add ${money(shortfall)} more to qualify`
           : [
               type.discountPct > 0
@@ -60,7 +66,7 @@ export function DeliveryTypePicker({
             className={`checkout-choice ${value === type.key ? "is-active" : ""}`}
             disabled={disabled}
             aria-disabled={disabled}
-            style={disabled ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            style={disabled ? { opacity: 0.55, cursor: previewOnly ? "default" : "not-allowed" } : undefined}
             onClick={() => {
               if (!disabled) onChange(type.key);
             }}
