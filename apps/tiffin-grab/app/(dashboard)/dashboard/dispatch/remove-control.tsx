@@ -81,7 +81,9 @@ export function RemoveControl({
             <label htmlFor={`rm-${s.orderNo}`} className="min-w-0 flex-1 cursor-pointer">
               <span className="block font-mono text-xs">{s.orderNo}</span>
               <span className="text-muted-foreground block text-xs">
-                {s.driver ?? "unassigned"} · {s.address ?? "no address"}
+                {/* A foreign stop's address is another business's customer's home —
+                    never render it here, whether or not this stop turns out to be ours. */}
+                {s.ours ? `${s.driver ?? "unassigned"} · ${s.address ?? "no address"}` : (s.driver ?? "unassigned")}
               </span>
             </label>
             {!s.ours ? (
