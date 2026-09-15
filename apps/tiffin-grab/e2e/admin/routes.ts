@@ -72,27 +72,30 @@ export const ADMIN_SETTINGS_ROUTES: AdminRoute[] = [
 ];
 
 export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
-  { id: "wallet-ledger", path: "/dashboard/wallet/ledger", heading: /Ledger|Wallet/i },
-  { id: "wallet-payouts", path: "/dashboard/wallet/payouts", heading: /Payout/i },
-  { id: "wallet-coin-rate", path: "/dashboard/wallet/coin-rate", heading: /Coin|Rate/i },
-  { id: "discount-logs", path: "/dashboard/discounts/logs", heading: /Log|Discount/i },
-  { id: "discount-coupons", path: "/dashboard/discounts/coupons", heading: /Coupon/i },
-  { id: "discount-kinds", path: "/dashboard/discounts/kinds", heading: /Kind/i },
+  // wallet/discounts/notifications/account sub-tabs all render under one shared
+  // layout.tsx PageHeader (a single h1 for the whole section) — the tab-specific
+  // content is proven by expectHealthyPage's fatal-copy check, not by a per-tab h1.
+  { id: "wallet-ledger", path: "/dashboard/wallet/ledger", heading: /Wallet/i },
+  { id: "wallet-payouts", path: "/dashboard/wallet/payouts", heading: /Wallet/i },
+  { id: "wallet-coin-rate", path: "/dashboard/wallet/coin-rate", heading: /Wallet/i },
+  { id: "discount-logs", path: "/dashboard/discounts/logs", heading: /Discounts/i },
+  { id: "discount-coupons", path: "/dashboard/discounts/coupons", heading: /Discounts/i },
+  { id: "discount-kinds", path: "/dashboard/discounts/kinds", heading: /Discounts/i },
   {
     id: "discount-rep-allowance",
     path: "/dashboard/discounts/rep-allowance",
-    heading: /Allowance|Rep/i,
+    heading: /Discounts/i,
   },
   {
     id: "notif-templates",
     path: "/dashboard/notifications/templates",
-    heading: /Template/i,
+    heading: /Notifications/i,
   },
-  { id: "notif-logs", path: "/dashboard/notifications/logs", heading: /Log/i },
+  { id: "notif-logs", path: "/dashboard/notifications/logs", heading: /Notifications/i },
   {
     id: "notif-analytics",
     path: "/dashboard/notifications/analytics",
-    heading: /Analytics/i,
+    heading: /Notifications/i,
   },
   { id: "catalog-dishes", path: "/dashboard/catalog/dishes", heading: /Dish/i },
   { id: "catalog-plans", path: "/dashboard/catalog/plans", heading: /Plan/i },
@@ -103,9 +106,12 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
     heading: /Categor/i,
   },
   {
+    // Its own static page (not the dynamic [resource] route the other catalog
+    // entries use) grouping frequencies/duration-packages/delivery-zones under
+    // one "Delivery settings" title.
     id: "catalog-delivery-frequencies",
     path: "/dashboard/catalog/delivery-frequencies",
-    heading: /Frequenc/i,
+    heading: /Delivery settings/i,
   },
   {
     id: "catalog-duration-packages",
@@ -123,8 +129,9 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
     heading: /Pricing|Tier/i,
   },
   { id: "catalog-addons", path: "/dashboard/catalog/addons", heading: /Add-?on/i },
-  { id: "account-profile", path: "/dashboard/account/profile", heading: /Profile/i },
-  { id: "account-security", path: "/dashboard/account/security", heading: /Security|Password|PIN/i },
+  // Shared layout.tsx PageHeader across all /account/* sub-pages, same as wallet/discounts/notifications above.
+  { id: "account-profile", path: "/dashboard/account/profile", heading: /Account/i },
+  { id: "account-security", path: "/dashboard/account/security", heading: /Account/i },
 ];
 
 export const ALL_ADMIN_ROUTES: AdminRoute[] = [
