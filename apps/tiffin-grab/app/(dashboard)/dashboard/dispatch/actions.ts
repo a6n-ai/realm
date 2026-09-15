@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
-import { pushDay, removeStops, type PushResult, type RemoveResult } from "@/lib/services/optimoroute/push";
+import {
+  pushDay,
+  removeStops,
+  pushOneDelivery,
+  removeOneDelivery,
+  type PushResult,
+  type RemoveResult,
+} from "@/lib/services/optimoroute/push";
 import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
 import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 import { assignDriver, listKnownDrivers, type KnownDriver } from "@/lib/services/optimoroute/drivers";
@@ -100,6 +107,32 @@ export async function reassignDriverAction(
     } catch (e) {
       console.error("pullRoutes after reassignDriver failed", e);
     }
+    revalidatePath("/dashboard/dispatch");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+  }
+}
+
+/** Manual "redo the push" for one delivery, from the Dispatch table's own row actions. */
+export async function pushDeliveryAction(orderNo: string, date: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  try {
+    await pushOneDelivery(orderNo, date, await currentUserId());
+    revalidatePath("/dashboard/dispatch");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Unknown error" };
+  }
+}
+
+/** Manual per-row removal from the Dispatch table — force-removes regardless of the day-level stale check. */
+export async function removeDeliveryAction(orderNo: string, date: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireStaff();
+  if (!ISO_DATE.test(date)) throw new ValidationError("A YYYY-MM-DD date is required");
+  try {
+    await removeOneDelivery(orderNo, date, await currentUserId());
     revalidatePath("/dashboard/dispatch");
     return { ok: true };
   } catch (e) {
