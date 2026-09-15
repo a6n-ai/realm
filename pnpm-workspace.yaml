@@ -35,6 +35,7 @@ overrides:
   "undici": "^7.29.0"
   "hono": "^4.12.34"
   "@hono/node-server": "^1.19.15"
+  "zod": "^4.6.5"
 
 patchedDependencies:
   "@react-email/editor@1.5.10": "patches/@react-email__editor@1.5.10.patch"

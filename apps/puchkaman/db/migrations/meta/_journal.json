@@ -309,6 +309,13 @@
       "when": 1789404843802,
       "tag": "0043_tricky_bloodaxe",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1789509155522,
+      "tag": "0044_add-campaign-id-to-suppression",
+      "breakpoints": true
     }
   ]
 }

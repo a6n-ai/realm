@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { asc, count, desc, sql } from "drizzle-orm";
 import { ListIcon, UsersIcon } from "lucide-react";
 import { columnResolver, conditionToSql } from "@foundry/database";
@@ -9,11 +10,7 @@ import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
-import {
-  ContactListFromSegment,
-  ContactListManualAdd,
-  ContactListUpload,
-} from "@relay/engine/ui";
+import { ContactListFromSegment, ContactListManualAdd } from "@relay/engine/ui";
 import { ContactListsTable, ContactListsTableSkeleton, type ContactListRow } from "./contact-lists-table";
 
 export const dynamic = "force-dynamic";
@@ -65,15 +62,9 @@ export default function ContactListsPage({ searchParams }: { searchParams: Searc
                 <ContactListFromSegment requiresVerifiedPhone />
               </div>
             </ResponsiveDialog>
-            <ResponsiveDialog
-              title="Import a list"
-              description="CSV. Preview and pick which contacts to keep before anything is saved."
-              trigger={<Button>Import CSV</Button>}
-            >
-              <div className="p-4">
-                <ContactListUpload />
-              </div>
-            </ResponsiveDialog>
+            <Button asChild>
+              <Link href="/dashboard/notifications/contact-lists/import">Import CSV</Link>
+            </Button>
             <ResponsiveDialog
               title="Add contacts by hand"
               description="For a handful of people — no spreadsheet needed."

@@ -1,0 +1,1 @@
+ALTER TABLE "message_suppression" ADD COLUMN "campaign_id" bigint;

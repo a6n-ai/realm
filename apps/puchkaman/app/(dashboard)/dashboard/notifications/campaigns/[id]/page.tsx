@@ -1,20 +1,22 @@
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
-import { countAudience, type AudienceDef } from "@relay/engine";
+import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
-import { app, campaign, campaignContent, contactList } from "@/db/schema";
+import { app, campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import {
   CampaignAnalytics,
   CampaignAudienceEditor,
   CampaignContentSection,
+  CampaignDeleteButton,
   CampaignDuplicateButton,
   CampaignRetriggerButton,
   CampaignSendButton,
+  formatConsentDate,
   type AudienceValue,
 } from "@relay/engine/ui";
 
@@ -40,7 +42,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     .where(eq(campaign.publicId, id));
   if (!row) notFound();
 
-  const [content, lists, [appRow]] = await Promise.all([
+  const [content, lists, [appRow], unsubscribes] = await Promise.all([
     db
       .select({
         channel: campaignContent.channel,
@@ -65,6 +67,15 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       .from(contactList)
       .orderBy(desc(contactList.createdAt)),
     db.select({ timezone: app.timezone }).from(app).limit(1),
+    db
+      .select({
+        address: messageSuppression.address,
+        channel: messageSuppression.channel,
+        createdAt: messageSuppression.createdAt,
+      })
+      .from(messageSuppression)
+      .where(eq(messageSuppression.campaignId, row.id))
+      .orderBy(desc(messageSuppression.createdAt)),
   ]);
   const timeZone = appRow?.timezone ?? "America/Toronto";
 
@@ -82,6 +93,16 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
   const counts = (row.counts ?? {}) as Record<string, number>;
 
+  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
+  const footer = campaignConfig
+    ? {
+        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
+        sender: campaignConfig.sender.name,
+        address: campaignConfig.sender.postalAddress,
+      }
+    : undefined;
+  const previewContent = footer ? withPreviewFooter(content, footer) : content;
+
   return (
     <div className="space-y-6">
       <BackButton href="/dashboard/notifications/campaigns" label="All campaigns" />
@@ -96,6 +117,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="flex gap-2">
           <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timeZone} />
+          {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}
           {sendable && <CampaignSendButton campaignPublicId={row.publicId} count={count} />}
         </div>
@@ -119,8 +141,30 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )}
 
       <SectionCard title="Content" subtitle="One row per channel and locale.">
-        <CampaignContentSection campaignPublicId={row.publicId} content={content} editable={sendable} />
+        <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
       </SectionCard>
+
+      {!sendable && (
+        <SectionCard
+          title="Unsubscribed"
+          subtitle={
+            unsubscribes.length > 0
+              ? "Opted out of marketing from this campaign's send."
+              : "No one has unsubscribed from this campaign."
+          }
+        >
+          {unsubscribes.length > 0 && (
+            <div className="divide-y">
+              {unsubscribes.map((u) => (
+                <div key={u.address} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="font-mono">{u.address}</span>
+                  <span className="text-muted-foreground">{formatConsentDate(u.createdAt, timeZone)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      )}
     </div>
   );
 }
