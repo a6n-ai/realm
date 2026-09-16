@@ -99,7 +99,7 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const selectedDeliveries = rawDeliveries.filter((d) => d.orderPublicId === selected.publicId);
 
   const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
-  const swapPairs = await dishCategoriesService.swapPairsForCategories(mealSizeCategories);
+  const swapPairs = await dishCategoriesService.swapPairsForMealSize(selected.mealSizeId);
 
   // One batched query for every delivery's applied swaps, not one per delivery inside
   // the Promise.all below — same batch-then-filter shape resolveDeliveryMealsForWeek uses.

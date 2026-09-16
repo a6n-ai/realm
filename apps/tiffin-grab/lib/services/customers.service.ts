@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { account, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
+import { account, deliveries, inquiries, leadSources, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { SortState } from "@/lib/list/sort";
 import { auth } from "@/lib/auth";
 import { ledgerService } from "./ledger.service";
@@ -298,6 +298,37 @@ export async function getCustomerDashboard(userPublicId: string): Promise<Custom
     activeCount: orderRows.filter((o) => o.status === "active").length,
     totalSpent,
   };
+}
+
+/**
+ * Scheduled deliveries from `fromIso` on that ship somewhere other than the order's own
+ * address — a customer's "send tomorrow's tiffin to the office" override. Staff check
+ * this first when a customer calls about a drop, so it belongs on the 360 page and not
+ * only inside one order's calendar.
+ */
+export async function upcomingAddressChanges(userId: bigint, fromIso: string) {
+  return db
+    .select({
+      deliveryPublicId: deliveries.publicId,
+      deliveryDate: deliveries.deliveryDate,
+      orderPublicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      fullName: deliveries.fullName,
+      addressLine: deliveries.addressLine,
+      city: deliveries.city,
+      postalCode: deliveries.postalCode,
+      orderAddress: sql<string>`concat_ws(', ', ${orders.addressLine}, ${orders.city}, ${orders.postalCode})`,
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(and(
+      eq(orders.userId, userId),
+      eq(deliveries.status, "scheduled"),
+      isNotNull(deliveries.addressLine),
+      gte(deliveries.deliveryDate, fromIso),
+    ))
+    .orderBy(asc(deliveries.deliveryDate))
+    .limit(50);
 }
 
 export async function getCustomer360(userPublicId: string) {

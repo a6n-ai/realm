@@ -403,6 +403,9 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
 -- to the tiffin AND healthy plans below instead of being duplicated per type.
 ON CONFLICT (key) DO NOTHING;
 
+-- One non-veg curry per tiffin, however swaps stack (dish_categories.max_picks_per_tiffin).
+UPDATE dish_categories SET max_picks_per_tiffin = 1 WHERE key = 'curry' AND max_picks_per_tiffin IS NULL;
+
 -- ============ CATEGORY -> PLANS ============
 -- Which plans each slot belongs to. Tiffin slots go to both tiffin plans (a
 -- non-veg thali still has sabzi/daal/roti); healthy slots to the healthy plan.

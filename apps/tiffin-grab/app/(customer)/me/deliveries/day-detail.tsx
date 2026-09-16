@@ -45,6 +45,7 @@ import { DAY_STATUS_BAR_CLASS, calendarDayStatus, calendarLegendLabel, type DayS
 import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
+import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import type { CustomerDelivery, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardMeal } from "./meal-chips";
 import {
@@ -759,7 +760,10 @@ export function DayDetail({
           cell={cell}
           orderPublicId={orderPublicId}
           categoryLabels={categoryLabels}
-          categoryCounts={categoryCounts}
+          // Fold this day's swaps in (daal -> sabzi = 2 sabzi pickers, no daal picker) — the
+          // same counts resolveDeliveryMeal and setSelection use. Base counts empty = unknown,
+          // so folding would only produce bare deltas; leave those to the picker's fallback.
+          categoryCounts={delivery && Object.keys(categoryCounts).length > 0 ? applySwapsToCounts(categoryCounts, delivery.appliedSwaps) : categoryCounts}
           onChanged={onChanged}
         />
       ) : null}

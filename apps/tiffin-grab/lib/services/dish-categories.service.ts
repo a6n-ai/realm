@@ -2,7 +2,8 @@ import { UpdatableRepository } from "@foundry/database";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { addonCategories, addons, categoryPlans, categorySwapPairs, dishCategories, dishCategoryAddonCategories, plans } from "@/db/schema";
+import { addonCategories, addons, categoryPlans, categorySwapPairs, dishCategories, dishCategoryAddonCategories, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { swapPairFits, type SwapCategory } from "@/lib/menu/swap-rules";
 import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
 import { SessionUpdatableService } from "./session-service";
 
@@ -234,17 +235,41 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   }
 
   /**
-   * Globally-eligible (fromKey, toKey) pairs restricted to a given category set —
-   * e.g. one meal size's own composition, so a picker never offers a pair the
-   * meal size doesn't actually serve on either side.
+   * Swap-side facts for every enabled category on a meal size's plan: its per-pick TU
+   * on this meal size (null when the composition has no row for it), unit and cap.
+   * Plan membership is the gate — Curry is attached only to the non-veg plan, so a
+   * veg subscriber can never swap into it.
    */
-  async swapPairsForCategories(categories: string[]): Promise<{ fromCategory: string; toCategory: string }[]> {
-    if (categories.length < 2) return [];
-    const set = new Set(categories);
-    const all = await this.listSwapPairs();
-    return all
-      .filter((p) => set.has(p.fromKey) && set.has(p.toKey))
-      .map((p) => ({ fromCategory: p.fromKey, toCategory: p.toKey }));
+  async swapCategoriesForMealSize(mealSizeId: bigint): Promise<Map<string, SwapCategory>> {
+    const [size] = await db.select({ planId: mealSizes.planId }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
+    if (!size) return new Map();
+    const [cats, items] = await Promise.all([
+      db
+        .select({ key: dishCategories.key, unitType: dishCategories.tuUnitType, unitLabel: dishCategories.tuUnitLabel, maxPicksPerTiffin: dishCategories.maxPicksPerTiffin })
+        .from(dishCategories)
+        .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
+        .where(and(eq(categoryPlans.planId, size.planId), eq(dishCategories.enabled, true))),
+      db
+        .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount })
+        .from(mealSizeItems)
+        .where(eq(mealSizeItems.mealSizeId, mealSizeId))
+        .orderBy(asc(mealSizeItems.sortOrder)),
+    ]);
+    const pickTu = new Map<string, number>();
+    for (const i of items) if (!pickTu.has(i.category)) pickTu.set(i.category, Number(i.tuAmount));
+    return new Map(cats.map((c) => [c.key, {
+      key: c.key, pickTu: pickTu.get(c.key) ?? null, unitType: c.unitType, unitLabel: c.unitLabel, maxPicksPerTiffin: c.maxPicksPerTiffin,
+    }]));
+  }
+
+  /** Pairs the swap drawer may offer for one meal size — the same gate applyDeliverySwap enforces. */
+  async swapPairsForMealSize(mealSizeId: bigint): Promise<{ fromCategory: string; toCategory: string }[]> {
+    const [cats, all] = await Promise.all([this.swapCategoriesForMealSize(mealSizeId), this.listSwapPairs()]);
+    return all.flatMap((p) => {
+      const from = cats.get(p.fromKey);
+      const to = cats.get(p.toKey);
+      return from && to && swapPairFits(from, to) ? [{ fromCategory: p.fromKey, toCategory: p.toKey }] : [];
+    });
   }
 
   async removeSwapPair(publicId: string): Promise<void> {

@@ -1,14 +1,15 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { UsersIcon, PackageIcon, ActivityIcon, WalletIcon, CoinsIcon, CreditCardIcon, MapPinIcon } from "lucide-react";
-import { NotFoundError, formatMoney, formatPhone } from "@foundry/commons";
+import Link from "next/link";
+import { NotFoundError, formatMoney, formatPhone, zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
-import { getCustomer360 } from "@/lib/services/customers.service";
+import { getCustomer360, upcomingAddressChanges } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { DataTable, PageShell, PageHeader, SectionCard, StatGrid, SkeletonStatCards } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { formatEpoch } from "@/lib/format/datetime";
+import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { ResendInviteButton } from "./resend-invite-button";
 import { CustomerOrdersTable, CUSTOMER_ORDERS_COLUMNS } from "./customer-orders-table";
 import { CustomerInquiriesTable, CUSTOMER_INQUIRIES_COLUMNS } from "./customer-inquiries-table";
@@ -17,6 +18,7 @@ import { CustomerTimeline, CUSTOMER_TIMELINE_COLUMNS } from "./customer-timeline
 // Section titles — single source of truth so the skeleton twin below can never drift.
 const SECTIONS = {
   orders: "Orders",
+  addressChanges: "Upcoming delivery address changes",
   inquiries: "Inquiries",
   payment: "Payment",
   account: "Account",
@@ -50,6 +52,7 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
     throw e;
   }
   const [{ timezone }, coinBalance] = await Promise.all([settingsP, walletService.balance(data.profile.id)]);
+  const addressChanges = await upcomingAddressChanges(data.profile.id, zonedDateIso(Date.now(), timezone));
 
   const activeOrders = data.orders.filter((o) => o.status === "active").length;
   const lifetimeSpend = data.orders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -84,6 +87,33 @@ async function Customer360Data({ params }: { params: Promise<{ id: string }> }) 
           status, start, total, created) need the room a half-width card starves it of. */}
       <SectionCard title={SECTIONS.orders}>
         <CustomerOrdersTable orders={data.orders} />
+      </SectionCard>
+
+      {/* Per-day overrides the customer set from their deliveries calendar. The Account
+          card's address is only the default — this is where a given tiffin actually goes. */}
+      <SectionCard title={SECTIONS.addressChanges}>
+        {addressChanges.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No upcoming changes — every scheduled tiffin goes to its order address.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {addressChanges.map((c) => (
+              <li key={c.deliveryPublicId} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <p className="font-medium">{formatDateOnly(c.deliveryDate, { mode: "short" })}</p>
+                  <Link href={`/dashboard/orders/${c.orderPublicId}`} className="text-muted-foreground text-xs underline-offset-2 hover:underline">
+                    {c.deploymentId}
+                  </Link>
+                </div>
+                <div className="min-w-0 sm:text-right">
+                  <p className="font-medium">{[c.addressLine, c.city, c.postalCode].filter(Boolean).join(", ")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {c.fullName ? `For ${c.fullName} · ` : ""}instead of {c.orderAddress}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </SectionCard>
 
       <SectionCard title={SECTIONS.inquiries}>
@@ -154,6 +184,9 @@ Customer360Data.Skeleton = function Customer360DataSkeleton() {
 
       <SectionCard title={SECTIONS.orders}>
         <DataTable.Skeleton columns={CUSTOMER_ORDERS_COLUMNS} idLabel="Deployment" hasId />
+      </SectionCard>
+      <SectionCard title={SECTIONS.addressChanges}>
+        <Skeleton className="h-10 w-full" />
       </SectionCard>
       <SectionCard title={SECTIONS.inquiries}>
         <DataTable.Skeleton columns={CUSTOMER_INQUIRIES_COLUMNS} />

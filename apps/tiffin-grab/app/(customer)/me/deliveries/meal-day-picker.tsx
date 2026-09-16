@@ -56,13 +56,15 @@ export function MealDayPicker({
   }
 
   function qtyFor(category: string): number {
-    const fromCounts = categoryCounts[category] ?? 0;
-    if (fromCounts > 0) return fromCounts;
+    // A key present in categoryCounts is authoritative, zero included: counts arrive with this
+    // day's swaps folded in, so a day that traded its only daal away has daal: 0 — no picker.
+    if (category in categoryCounts) return Math.max(0, categoryCounts[category]);
     return Math.max(1, selectedByCategory.get(category)?.length ?? 1);
   }
 
   function pickIndexFor(category: string): number {
-    return activePick[category] ?? 1;
+    // Clamped: removing a swap can shrink a category below the tab the customer had open.
+    return Math.max(1, Math.min(activePick[category] ?? 1, qtyFor(category)));
   }
 
   function pick(category: string, dishId: string) {
@@ -114,6 +116,7 @@ export function MealDayPicker({
     <div className="space-y-4">
       {[...byCategory.entries()].map(([category, options]) => {
         const qty = qtyFor(category);
+        if (qty === 0) return null;
         const pickIndex = pickIndexFor(category);
         const selectedList = selectedByCategory.get(category) ?? [];
         const selected = selectedList[pickIndex - 1];

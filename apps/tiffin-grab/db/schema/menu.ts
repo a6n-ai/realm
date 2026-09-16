@@ -33,6 +33,12 @@ export const dishCategories = pgTable(
     tuUnitType: tuUnitType("tu_unit_type").notNull().default("weight"),
     tuUnitSize: numeric("tu_unit_size", { precision: 6, scale: 2 }).notNull().default("8"),
     tuUnitLabel: text("tu_unit_label").notNull().default("oz"),
+    // Hard ceiling on how many picks of this category one tiffin may hold once swaps
+    // stack more in — e.g. Curry = 1, so a non-veg subscriber can trade their curry for
+    // sabzi/daal but never end up with two non-veg curries. Null = uncapped. Unlike
+    // meal_size_items.maxTuAmount this still holds when the meal size has no row for
+    // the category, which is exactly the state a swap-in creates.
+    maxPicksPerTiffin: integer("max_picks_per_tiffin"),
     // Client-scoping — null = shared across the whole app, set = one org's own
     // category. See orders.organizationId for the pattern.
     organizationId: text("organization_id").references(() => organization.id),
