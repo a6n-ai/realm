@@ -155,6 +155,13 @@
       "when": 1789510696686,
       "tag": "0021_add-completed-campaign-status",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789547421720,
+      "tag": "0022_dish_category_max_picks",
+      "breakpoints": true
     }
   ]
 }
