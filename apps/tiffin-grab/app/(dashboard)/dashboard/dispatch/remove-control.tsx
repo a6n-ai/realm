@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { ArchiveIcon, TrashIcon, TriangleAlertIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, ResponsiveDialog, type Column } from "@/components/ds";
+import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
 import { removeStopsAction } from "./actions";
 import type { PushPreview } from "@/lib/services/optimoroute/push";
 
@@ -16,6 +17,13 @@ const COLUMNS: readonly Column<"select" | "stop" | "status">[] = [
   { key: "stop", label: "Order / driver" },
   { key: "status", label: "" },
 ];
+
+function stalePagination(sp: URLSearchParams) {
+  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
+  const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
+  const size = (PAGE_SIZES as readonly number[]).includes(rawSize) ? rawSize : DEFAULT_SIZE;
+  return { page, size };
+}
 
 /**
  * Removal is opt-in per stop. There is no "remove all stale" button: the set is small,
@@ -32,6 +40,8 @@ export function RemoveControl({
   scheduledCount: number;
 }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const { page, size } = stalePagination(params);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -78,6 +88,8 @@ export function RemoveControl({
         rows={stale}
         rowKey={(s) => s.orderNo}
         serial={false}
+        pagination={{ page, size }}
+        search={{ placeholder: "Search order or driver…", keys: ["orderNo", "driver"] }}
         emptyIcon={ArchiveIcon}
         emptyMessage="Nothing stale for this date."
         renderRow={(s) => (
@@ -113,10 +125,19 @@ export function RemoveControl({
                     not ours
                   </Badge>
                   {s.hint ? (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Possible match: {s.hint.name}
-                      {s.hint.hasActiveOrder ? " · Active order" : ""}
-                    </Badge>
+                    <Link
+                      href={`/dashboard/customers/${s.hint.publicId}`}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="cursor-pointer text-[10px] hover:underline"
+                      >
+                        Possible match: {s.hint.name}
+                        {s.hint.hasActiveOrder ? " · Active order" : ""}
+                      </Badge>
+                    </Link>
                   ) : null}
                 </div>
               ) : null}
