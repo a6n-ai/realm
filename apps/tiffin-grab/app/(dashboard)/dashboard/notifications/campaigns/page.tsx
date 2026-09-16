@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { asc, count, desc } from "drizzle-orm";
 import { columnResolver, conditionToSql } from "@foundry/database";
-import { SectionCard, parseFilterState, type FacetDef } from "@foundry/design-system";
+import { SectionCard, StatCard, parseFilterState, type FacetDef } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
+import { getSesSendQuota } from "@relay/email";
+import { GaugeIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { campaign, contactList } from "@/db/schema";
@@ -30,6 +32,7 @@ const SPEC: FacetDef[] = [
       { value: "scheduled", label: "Scheduled" },
       { value: "sending", label: "Sending" },
       { value: "sent", label: "Sent" },
+      { value: "completed", label: "Completed" },
       { value: "paused", label: "Paused" },
       { value: "cancelled", label: "Cancelled" },
     ],
@@ -46,19 +49,47 @@ export const dynamic = "force-dynamic";
 
 export default function CampaignsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <SectionCard
-      title="Campaigns"
-      subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
-      action={
-        <Button asChild size="sm">
-          <Link href="/dashboard/notifications/campaigns/new">New campaign</Link>
-        </Button>
-      }
-    >
-      <Suspense fallback={<CampaignsTableSkeleton />}>
-        <CampaignsData searchParams={searchParams} />
+    <div className="space-y-6">
+      <Suspense fallback={null}>
+        <SesQuotaCard />
       </Suspense>
-    </SectionCard>
+      <SectionCard
+        title="Campaigns"
+        subtitle="Marketing sends. Every message carries an unsubscribe link and the sender's postal address."
+        action={
+          <Button asChild size="sm">
+            <Link href="/dashboard/notifications/campaigns/new">New campaign</Link>
+          </Button>
+        }
+      >
+        <Suspense fallback={<CampaignsTableSkeleton />}>
+          <CampaignsData searchParams={searchParams} />
+        </Suspense>
+      </SectionCard>
+    </div>
+  );
+}
+
+// SES account limits, not a per-campaign figure — shown once above the list so
+// an admin can see headroom before a large send. Best-effort: a missing
+// ses:GetAccount permission or unset AWS_REGION renders nothing rather than
+// breaking the page.
+async function SesQuotaCard() {
+  const quota = await getSesSendQuota({ region: process.env.AWS_REGION }).catch(() => null);
+  if (!quota) return null;
+  const remaining = Math.max(0, quota.max24HourSend - quota.sentLast24Hours);
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <StatCard
+        label="SES sent (24h)"
+        value={`${quota.sentLast24Hours} / ${quota.max24HourSend}`}
+        icon={GaugeIcon}
+        hint={quota.productionAccessEnabled ? undefined : "Sandbox — verified recipients only"}
+        tone={remaining === 0 ? "bad" : undefined}
+      />
+      <StatCard label="Remaining today" value={remaining} icon={GaugeIcon} tone={remaining === 0 ? "bad" : "ok"} />
+      <StatCard label="Max send rate" value={`${quota.maxSendRate}/s`} icon={GaugeIcon} />
+    </div>
   );
 }
 

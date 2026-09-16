@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_status" ADD VALUE 'completed' BEFORE 'paused';

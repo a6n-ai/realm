@@ -13,10 +13,13 @@ import { notificationTables } from "@/lib/notifications/tables";
 export async function applyUnsubscribe(url: URL): Promise<void> {
   const secret = process.env.UNSUBSCRIBE_SECRET;
   if (!secret) return;
+  const campaignIdParam = url.searchParams.get("campaignId");
+  const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
   await handleUnsubscribe(db, notificationTables, {
     address: url.searchParams.get("address"),
     token: url.searchParams.get("token"),
     secret,
+    campaignId,
   });
 }
 

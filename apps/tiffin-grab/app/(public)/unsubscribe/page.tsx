@@ -4,13 +4,14 @@ import { applyUnsubscribe } from "@/app/api/unsubscribe/route";
 // Reads the request URL and writes, so it can never be prerendered or cached.
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ address?: string; token?: string }>;
+type SearchParams = Promise<{ address?: string; token?: string; campaignId?: string }>;
 
 export default async function UnsubscribePage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const url = new URL("https://placeholder.invalid/unsubscribe");
   if (sp.address) url.searchParams.set("address", sp.address);
   if (sp.token) url.searchParams.set("token", sp.token);
+  if (sp.campaignId) url.searchParams.set("campaignId", sp.campaignId);
 
   // Same handler as the API route. It is a no-op on a bad or missing token, and
   // the page below says the same thing either way — so this page cannot be used
