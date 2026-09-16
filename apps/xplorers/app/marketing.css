@@ -86,7 +86,7 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl a:hover:not(.xpl-btn):not(.xpl-txt) {
-    color: var(--blueprint);
+    color: var(--blush);
   }
 
   .xpl footer a:hover {
@@ -158,8 +158,8 @@ body:has(.xpl):not(:has(.crm-app)) {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: var(--blueprint);
-    color: #fff;
+    background: var(--blush);
+    color: var(--ink);
     font-weight: 700;
     padding: 16px 24px;
     border-radius: 4px;
@@ -176,7 +176,7 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn:hover {
-    background: var(--blush);
+    background: var(--tape);
     color: var(--ink);
   }
 
@@ -203,8 +203,8 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-inverse:hover {
-    background: var(--blueprint);
-    color: #fff;
+    background: var(--tape);
+    color: var(--ink);
   }
 
   .xpl-btn-outline {
@@ -214,9 +214,9 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-outline:hover {
-    background: var(--blush);
+    background: var(--tape);
     color: var(--ink);
-    border-color: var(--blush);
+    border-color: var(--tape);
   }
 
   .xpl-txt {
@@ -230,7 +230,8 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-txt:hover {
-    color: var(--blueprint);
+    color: var(--blush);
+    border-bottom-color: var(--blush);
   }
 
   .xpl-card {
