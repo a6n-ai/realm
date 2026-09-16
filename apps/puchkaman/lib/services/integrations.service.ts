@@ -14,6 +14,7 @@ import { getSession } from "../auth/session";
 import { getAllDeliveryTypes } from "../delivery/zones.service";
 import { PICKUP_TYPE_KEY } from "../delivery/type-pricing";
 import { resolveRequestOrg } from "../tenant/resolve-request-org";
+import { franchiseCookieApplies } from "../tenant/franchise-cookie-scope";
 import { SessionUpdatableService } from "./session-service";
 
 const DEFAULTS = { timezone: "America/Toronto", currency: "CAD" } as const;
@@ -43,11 +44,15 @@ const appService = new AppService(appRepository);
  * franchise's site they were actually ordering from. Only then does it fall
  * to the brand.
  *
- * The cookie fallback is gated on `!session` specifically, not just
- * `!activeOrgId` — a logged-in staff member who simply hasn't picked a
- * franchise via the switcher yet (activeOrganizationId null, meaning "use
- * the brand default") must NEVER inherit whatever `franchise` cookie happens
- * to sit on their browser from browsing the public site. That cookie is a
+ * The cookie fallback is gated on the session's role (franchiseCookieApplies),
+ * not just `!activeOrgId`. Guests and signed-in customers both shop a
+ * franchise, so both follow it — gating on `!session` alone left a signed-in
+ * customer's checkout and delivery API calls pricing against the brand
+ * default instead of the store they picked. A logged-in staff member who
+ * simply hasn't picked a franchise via the switcher yet (activeOrganizationId
+ * null, meaning "use the brand default") must NEVER inherit whatever
+ * `franchise` cookie happens to sit on their browser from browsing the
+ * public site. That cookie is a
  * customer-facing concept; picking it up here silently resolved a brand
  * admin's whole dashboard (Settings -> Integrations, catalog listings) to
  * whichever franchise they'd last visited publicly, instead of the brand.
@@ -56,7 +61,7 @@ async function resolveActingOrg() {
   const session = await getSession();
   let activeOrgId = session?.session?.activeOrganizationId ?? (await resolveRequestOrg());
 
-  if (!session && !activeOrgId) {
+  if (!activeOrgId && franchiseCookieApplies(session)) {
     // Same "no request scope" edge case resolveRequestOrg() guards against
     // (a script/cron/test calling this with no active Next.js request) —
     // cookies() throws synchronously there, not a rejected promise, so this
