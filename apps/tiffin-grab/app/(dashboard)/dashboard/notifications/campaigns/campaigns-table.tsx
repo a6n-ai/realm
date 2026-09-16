@@ -4,7 +4,7 @@ import { MegaphoneIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActions, type Column, type FacetDef } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import { CampaignDuplicateButton, CampaignRetriggerButton, type ContactListOption } from "@relay/engine/ui";
+import { CampaignDeleteButton, CampaignDuplicateButton, CampaignRetriggerButton, type ContactListOption } from "@relay/engine/ui";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CampaignSortColumn } from "./page";
@@ -34,7 +34,8 @@ const STATUS_TONE: Record<string, "secondary" | "outline"> = {
   sending: "secondary",
 };
 
-const RETRIGGERABLE = new Set(["sent", "paused", "cancelled"]);
+const RETRIGGERABLE = new Set(["sent", "completed", "paused", "cancelled"]);
+const DELETABLE = new Set(["draft", "scheduled"]);
 
 function DeliveryProgress({ counts }: { counts: Record<string, number> }) {
   const queued = counts?.queued ?? 0;
@@ -106,6 +107,7 @@ export function CampaignsTable({
                 {RETRIGGERABLE.has(r.status) && (
                   <CampaignRetriggerButton campaignPublicId={r.publicId} lists={lists} compact />
                 )}
+                {DELETABLE.has(r.status) && <CampaignDeleteButton campaignPublicId={r.publicId} name={r.name} compact />}
               </RowActions>
             </TableCell>
           </>
