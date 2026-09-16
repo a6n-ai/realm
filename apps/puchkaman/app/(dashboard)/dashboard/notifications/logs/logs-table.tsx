@@ -11,7 +11,8 @@ import { TableCell } from "@foundry/ui/table";
 import { eventLabel } from "@relay/engine/ui";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@/lib/list/sort";
-import type { LogSortColumn } from "./page";
+
+export type LogSortColumn = "time" | "event" | "channel" | "recipient" | "status";
 
 type Row = {
   publicId: string;

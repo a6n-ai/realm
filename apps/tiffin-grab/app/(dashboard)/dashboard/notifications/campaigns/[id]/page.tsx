@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
@@ -10,6 +11,7 @@ import { campaign, campaignContent, contactList, messageSuppression } from "@/db
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import {
   CampaignAnalytics,
   CampaignAudienceEditor,
@@ -17,17 +19,25 @@ import {
   CampaignContentSection,
   CampaignDeleteButton,
   CampaignDuplicateButton,
-  CampaignLogsPanel,
   CampaignRetriggerButton,
   CampaignSendButton,
   formatConsentDate,
   type AudienceValue,
 } from "@relay/engine/ui";
+import { LogsTable, LogsTableSkeleton } from "../../logs/logs-table";
 
 // Resolves a live audience count on every view.
 export const dynamic = "force-dynamic";
 
-export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<Record<string, string | undefined>>;
+
+export default async function CampaignPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: SearchParams;
+}) {
   await requireAdmin();
   const { id } = await params;
 
@@ -177,16 +187,20 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             </SectionCard>
           </TabsContent>
           <TabsContent value="logs" className="pt-4">
-            <SectionCard title="Logs" subtitle="Recent sends for this campaign.">
-              <CampaignLogsPanel
-                campaignPublicId={row.publicId}
-                campaignId={String(row.id)}
-                timeZone={timezone}
-              />
+            <SectionCard title="Logs" subtitle="Sends for this campaign.">
+              <Suspense fallback={<LogsTableSkeleton />}>
+                <CampaignLogsData campaignId={row.id} searchParams={searchParams} />
+              </Suspense>
             </SectionCard>
           </TabsContent>
         </Tabs>
       )}
     </div>
   );
+}
+
+async function CampaignLogsData({ campaignId, searchParams }: { campaignId: bigint; searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const { rows, sort, total, page, size } = await loadNotificationLogs(sp, { campaignId });
+  return <LogsTable spec={LOGS_SPEC} rows={rows} sort={sort} total={total} page={page} size={size} />;
 }
