@@ -26,6 +26,24 @@ function isoDaysBefore(dateIso: string, n: number): string {
 }
 
 /**
+ * Rejects a customer-picked target date (reschedule / schedule-from-pool) that falls on a
+ * weekend, even for an order with includeSaturday/includeSunday. materializeDeliveries never
+ * gives Saturday/Sunday their own row — a weekend add-on bundles onto that week's Friday
+ * (see its own docstring) — so a picker that let a customer land a delivery ON a literal
+ * Saturday/Sunday date would create the one kind of row the rest of the system (OptimoRoute
+ * push, labels, driver dispatch) assumes can never exist. Checked before the general
+ * deliveryDays membership test so a weekend pick gets this specific explanation rather than
+ * the generic "That day isn't on your plan".
+ */
+function assertNotWeekendTarget(dateIso: string): void {
+  if (WEEKEND.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
+    throw new ValidationError(
+      "We don't deliver on weekends — a Saturday or Sunday tiffin ships with the same week's Friday delivery instead. Pick a weekday.",
+    );
+  }
+}
+
+/**
  * Carries one delivery's applied swaps onto its replacement. Used by reschedule,
  * where the SAME day moves: a per-day override the customer made must survive
  * the move rather than snapping back to the subscription default.
@@ -519,6 +537,7 @@ export async function scheduleFromPool(
       includeSaturday: order.includeSaturday,
       includeSunday: order.includeSunday,
     }));
+    assertNotWeekendTarget(dateIso);
     if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(dateIso)))) {
       throw new ValidationError("That day isn't on your plan");
     }
@@ -610,6 +629,7 @@ export async function rescheduleDelivery(
       includeSaturday: order.includeSaturday,
       includeSunday: order.includeSunday,
     }));
+    assertNotWeekendTarget(newDateIso);
     if (!deliveryDays.has(weekdayKey(parseIsoDateUtc(newDateIso)))) {
       throw new ValidationError("That day isn't on your plan");
     }

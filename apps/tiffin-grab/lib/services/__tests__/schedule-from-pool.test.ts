@@ -77,12 +77,16 @@ describe("scheduleFromPool (integration)", () => {
     await expect(scheduleFromPool(o.publicId, "2030-01-18", 1n)).rejects.toThrow("Date must be after your last delivery");
   });
 
-  it("rejects a weekday not in the plan", async () => {
+  it("rejects a weekend target with the Friday-bundling explanation, before the generic plan check", async () => {
     const o = await makeOrder();
     await seedWeeks(o);
     await setPool(o, 1);
-    // 2030-01-19 is a Saturday, after the last delivery but not a 5-day plan weekday.
-    await expect(scheduleFromPool(o.publicId, "2030-01-19", 1n)).rejects.toThrow("That day isn't on your plan");
+    // 2030-01-19 is a Saturday, after the last delivery but not a 5-day plan weekday — the
+    // weekend-specific message (assertNotWeekendTarget) takes priority over the generic one,
+    // since it explains WHY rather than just that the day is invalid.
+    await expect(scheduleFromPool(o.publicId, "2030-01-19", 1n)).rejects.toThrow(
+      "We don't deliver on weekends — a Saturday or Sunday tiffin ships with the same week's Friday delivery instead. Pick a weekday.",
+    );
   });
 
   it("schedules a row after the last delivery, links a pooled miss, and decrements the pool by persons", async () => {

@@ -106,6 +106,13 @@ function isRescheduleTargetOccupied(delivery: DeliveryCardData | undefined): boo
   return delivery.status === "scheduled";
 }
 
+// There is no physical Saturday/Sunday delivery — a weekend add-on always ships bundled onto
+// that week's Friday row (materializeDeliveries), so a reschedule/schedule-from-pool target
+// picker must never offer one as a literal destination date. Mirrors the server-side
+// assertNotWeekendTarget guard (lib/services/deliveries.service.ts) — this is the UX half
+// (grey the days out before the customer picks one), that's the authoritative half.
+const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
+
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   deliveryPublicId: string;
   address: Address;
@@ -279,7 +286,11 @@ function RescheduleDialog({
           onChange={setDate}
           today={today}
           minDate={today}
+          allowedDays={WEEKDAYS_ONLY}
         />
+        <p className="text-muted-foreground text-xs">
+          We don’t deliver on weekends — a Saturday or Sunday tiffin ships with that week’s Friday delivery instead.
+        </p>
         {error && <p className="text-bad text-xs">{error}</p>}
       </div>
     </ResponsiveDialog>
