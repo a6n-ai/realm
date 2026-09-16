@@ -33,7 +33,7 @@ import {
 import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { DialogFooterRow, IOS_BUTTON } from "@/components/customer/ios-button";
 import { Input } from "@foundry/ui/input";
 import { AddressDisplay } from "@foundry/ui/address-display";
 import { AddressFields } from "@foundry/ui/address-fields";
@@ -164,10 +164,10 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
       }
       title="Change delivery address"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4 sm:px-0 sm:pb-0">
@@ -259,10 +259,10 @@ function RescheduleDialog({
       }
       title="Reschedule delivery"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4">
@@ -348,12 +348,12 @@ function ScheduleHoldDayAction({
       }
       title="Reschedule a hold day"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
             {pending ? "Saving…" : "Confirm"}
           </Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4">

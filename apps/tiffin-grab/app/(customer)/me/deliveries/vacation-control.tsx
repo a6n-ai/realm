@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PalmtreeIcon, PlayIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { DialogFooterRow, IOS_BUTTON } from "@/components/customer/ios-button";
 import { ResponsiveDialog } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
@@ -166,14 +166,14 @@ export function VacationControl({
       Continue
     </Button>
   ) : (
-    <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+    <DialogFooterRow>
       <Button type="button" variant="secondary" className={IOS_BUTTON} disabled={pausePending} onClick={() => setStep("form")}>
         Go back
       </Button>
       <Button className={IOS_BUTTON} disabled={pausePending} onClick={submitVacation}>
         <PalmtreeIcon data-icon="inline-start" /> Confirm vacation
       </Button>
-    </div>
+    </DialogFooterRow>
   );
 
   return (

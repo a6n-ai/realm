@@ -2,13 +2,13 @@
 // components can import the shared order/labels without crossing the RSC value
 // boundary.
 //
-// Menu IA (food-app style): this week's dishes → full dish gallery → slim plan CTA.
-// Plans/meal-sizes live on Subscribe — listing them here duplicated big cards.
+// Menu IA (food-app style): this week's dishes → slim plan CTA. The full dish
+// gallery ("All dishes") was dropped — plans/meal-sizes live on Subscribe, and
+// this week's menu is already the answer to "what's cooking".
 
-export type MenuSectionKey = "menu" | "dishes" | "plansCta";
+export type MenuSectionKey = "menu" | "plansCta";
 
 export const MENU_SECTIONS: readonly { key: MenuSectionKey; title: string }[] = [
   { key: "menu", title: "This week's menu" },
-  { key: "dishes", title: "All dishes" },
   { key: "plansCta", title: "Plans" },
 ];

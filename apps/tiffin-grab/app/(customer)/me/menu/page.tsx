@@ -5,12 +5,10 @@ import { parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { myActiveSubscriptions } from "@/lib/services/customer-deliveries.service";
 import { menuService } from "@/lib/services/menu.service";
-import { dishesService } from "@/lib/services/dishes.service";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageShell, PageHeader } from "@/components/ds";
 import { ThisWeekMenuSection, ThisWeekMenuSectionSkeleton } from "@/components/customer/home/this-week-menu-section";
-import { DishesSection, DishesSectionSkeleton } from "@/components/customer/home/dishes-section";
 import { PlansCtaSection, PlansCtaSectionSkeleton } from "@/components/customer/home/plans-cta-section";
 import { MENU_SECTIONS } from "./menu-sections";
 
@@ -30,10 +28,6 @@ export default async function MenuPage() {
         section.key === "menu" ? (
           <Suspense key={section.key} fallback={<ThisWeekMenuSectionSkeleton />}>
             <MenuSectionData userId={userId} />
-          </Suspense>
-        ) : section.key === "dishes" ? (
-          <Suspense key={section.key} fallback={<DishesSectionSkeleton />}>
-            <DishesSectionData userId={userId} />
           </Suspense>
         ) : (
           <Suspense key={section.key} fallback={<PlansCtaSectionSkeleton />}>
@@ -59,32 +53,4 @@ async function MenuSectionData({ userId }: { userId: bigint }) {
   // server/client hydration mismatch on the highlighted "today" column).
   const todayKey = weekdayKey(parseIsoDateUtc(zonedDateIso(now, timezone)));
   return <ThisWeekMenuSection week={week} todayKey={todayKey} />;
-}
-
-async function DishesSectionData({ userId }: { userId: bigint }) {
-  const [dishes, subs] = await Promise.all([
-    dishesService.listActive(),
-    myActiveSubscriptions(userId),
-  ]);
-  const planType = (subs[0]?.planType as "tiffin" | "healthy" | undefined) ?? "tiffin";
-  const { timezone } = await getAppSettings();
-  // eslint-disable-next-line react-hooks/purity -- server component: reading the request clock is the point
-  const thisMonday = thisWeekStartIso(Date.now(), timezone);
-  const week = await menuService.getPublishedWeek(thisMonday);
-
-  const daysByDish: Record<string, string[]> = {};
-  if (week) {
-    const DAY_LABEL: Record<string, string> = {
-      mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
-    };
-    for (const item of week.items) {
-      if (!item.dishPublicId) continue;
-      const label = DAY_LABEL[item.dayOfWeek] ?? item.dayOfWeek;
-      const list = daysByDish[item.dishPublicId] ?? [];
-      if (!list.includes(label)) list.push(label);
-      daysByDish[item.dishPublicId] = list;
-    }
-  }
-
-  return <DishesSection dishes={dishes} daysByDish={daysByDish} dense />;
 }
