@@ -129,7 +129,7 @@ export default async function CampaignPage({
           </p>
         </div>
         <div className="flex gap-2">
-          <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timezone} />
+          <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
           {retriggerable && <CampaignRetriggerButton campaignPublicId={row.publicId} lists={lists} />}

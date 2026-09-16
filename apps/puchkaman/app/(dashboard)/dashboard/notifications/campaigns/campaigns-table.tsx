@@ -101,7 +101,7 @@ export function CampaignsTable({
             </TableCell>
             <TableCell>
               <RowActions>
-                <CampaignDuplicateButton campaignPublicId={r.publicId} lists={lists} timeZone={timeZone} compact />
+                <CampaignDuplicateButton campaignPublicId={r.publicId} campaignName={r.name} lists={lists} timeZone={timeZone} compact />
                 {RETRIGGERABLE.has(r.status) && (
                   <CampaignRetriggerButton campaignPublicId={r.publicId} lists={lists} compact />
                 )}
