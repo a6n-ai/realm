@@ -146,3 +146,15 @@ body:has(.crm-app) .card-glow:hover {
     0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent),
     0 8px 30px -12px color-mix(in oklch, var(--foreground) 25%, transparent);
 }
+
+/* Default is blueprint + white. hover:bg-primary/80 darkens that to near-black.
+   Swap to blush + ink so hover uses the pink, not a blacker blue. */
+body:has(.crm-app) [data-slot="button"][data-variant="default"]:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+html.dark body:has(.crm-app) [data-slot="button"][data-variant="default"]:hover {
+  background: oklch(0.353 0.093 259.2);
+  color: oklch(1 0 0);
+}

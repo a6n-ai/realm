@@ -171,12 +171,13 @@ body:has(.xpl):not(:has(.crm-app)) {
     cursor: pointer;
     transition:
       background var(--dur) var(--ease),
+      color var(--dur) var(--ease),
       transform var(--dur-fast) var(--ease);
   }
 
   .xpl-btn:hover {
-    background: var(--clay-hover);
-    color: #fff;
+    background: var(--blush);
+    color: var(--ink);
   }
 
   .xpl-btn:active {
@@ -202,8 +203,8 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-inverse:hover {
-    background: var(--tape);
-    color: var(--ink);
+    background: var(--blueprint);
+    color: #fff;
   }
 
   .xpl-btn-outline {
@@ -213,8 +214,9 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-outline:hover {
-    background: transparent;
+    background: var(--blush);
     color: var(--ink);
+    border-color: var(--blush);
   }
 
   .xpl-txt {
