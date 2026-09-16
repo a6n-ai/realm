@@ -6,6 +6,7 @@ import { SITE_NAME, SITE_PITCH, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import { buildMetadata } from "@/lib/seo";
 import { InlineScript } from "@/components/inline-script";
 import "./globals.css";
+import "./crm.css";
 
 export const metadata: Metadata = {
   ...buildMetadata({

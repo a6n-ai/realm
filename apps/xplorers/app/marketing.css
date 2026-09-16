@@ -158,8 +158,9 @@ body:has(.xpl):not(:has(.crm-app)) {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: var(--clay);
-    color: var(--bone);
+    background: var(--blueprint);
+    color: #fff;
+    font-weight: 700;
     padding: 16px 24px;
     border-radius: 4px;
     font-family: var(--font-mono);
@@ -175,7 +176,7 @@ body:has(.xpl):not(:has(.crm-app)) {
 
   .xpl-btn:hover {
     background: var(--clay-hover);
-    color: var(--bone);
+    color: #fff;
   }
 
   .xpl-btn:active {
@@ -197,6 +198,7 @@ body:has(.xpl):not(:has(.crm-app)) {
   .xpl-btn-inverse {
     background: var(--blush);
     color: var(--ink);
+    font-weight: 700;
   }
 
   .xpl-btn-inverse:hover {
