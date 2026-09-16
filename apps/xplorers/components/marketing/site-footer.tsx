@@ -109,7 +109,7 @@ export function SiteFooter() {
 
 export function BookBar() {
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-40 flex h-[72px] items-center gap-3 border-t border-[var(--rule)] bg-[color-mix(in_srgb,var(--bone)_94%,transparent)] px-5 backdrop-blur-[8px] lg:hidden">
+    <div className="xpl-bookbar fixed right-0 bottom-0 left-0 z-40 flex min-h-[72px] items-center gap-3 border-t border-[var(--rule)] bg-[color-mix(in_srgb,var(--bone)_94%,transparent)] px-5 lg:hidden">
       <span className="xpl-mono flex-1 text-[10px] leading-[1.5] tracking-[0.12em]">
         Next session
         <br />

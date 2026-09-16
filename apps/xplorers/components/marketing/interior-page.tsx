@@ -15,7 +15,7 @@ export function InteriorPage({
 }) {
   return (
     <article>
-      <header className="xpl-grid border-b border-[var(--rule)] bg-[var(--blush)] px-5 py-14 lg:px-20 lg:py-24">
+      <header className="xpl-blush-band border-b border-[var(--rule)] px-5 py-14 lg:px-20 lg:py-24">
         <p className="xpl-mono text-[11px] lg:text-xs">{kicker}</p>
         <h1 className="xpl-disp mt-5 max-w-[16ch] text-[52px] leading-[0.9] tracking-[-0.04em] lg:text-[112px]">
           {title}

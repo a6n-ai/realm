@@ -1,8 +1,9 @@
+import { PHOTOS } from "@/lib/marketing/photos";
 import { PhotoFrame, TapeLabel, XplButton } from "@/components/marketing/xpl-ui";
 
 export function HomeTeams() {
   return (
-    <section className="grid items-center gap-6 bg-[var(--blush)] px-5 py-14 text-[var(--ink)] lg:grid-cols-[5fr_7fr] lg:gap-12 lg:px-20 lg:py-[112px]">
+    <section className="xpl-blush-band grid items-center gap-6 px-5 py-14 text-[var(--ink)] lg:grid-cols-[5fr_7fr] lg:gap-12 lg:px-20 lg:py-[112px]">
       <div className="flex flex-col gap-6 lg:order-2 lg:relative">
         <span className="xpl-mono text-[11px] leading-[1.7] text-[var(--blueprint)] lg:hidden">
           08 / School programmes run under Science Wing
@@ -10,7 +11,9 @@ export function HomeTeams() {
         <div className="relative">
           <PhotoFrame
             label={"[ Photo — a team of twelve building\none structure, evening · 3:2\n· no children in frame ]"}
-            ariaLabel="Placeholder: adults building a large structure together in the evening, no children"
+            ariaLabel="Hands-on making: experiments, tools, and dyed cloth"
+            src={PHOTOS.making}
+            sizes="(min-width: 1024px) 50vw, 100vw"
             className="aspect-[3/2] border border-[var(--rule)] bg-white"
           />
           <TapeLabel className="top-[-12px] right-6 hidden rotate-[1.5deg] bg-white text-[var(--ink)] ring-1 ring-[var(--blueprint)] lg:block">

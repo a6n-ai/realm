@@ -32,7 +32,7 @@ async function main() {
              v.id,
              (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
              (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-             'America/Toronto',
+             'Asia/Singapore',
              'CAD'
       FROM (SELECT next_id() AS id) v
       WHERE NOT EXISTS (SELECT 1 FROM app)

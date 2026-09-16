@@ -17,6 +17,12 @@ RUN npm install -g pnpm@$(node -p "require('./package.json').packageManager.spli
 # --- build: fetch (cached on lockfile) → offline install → next build ---
 FROM base AS build
 ARG APP=tiffin-grab
+# NEXT_PUBLIC_* is inlined at `next build`. Empty for tiffin-grab/puchkaman
+# (they fall back to BETTER_AUTH_URL at runtime / origin). Xplorers bakes
+# https://xplorers.a6n.ai so OG/canonicals and the auth client hit the Singapore
+# host, not the xplorers.life default in lib/brand.ts.
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_BETTER_AUTH_URL
 # A docker build has no TTY, so anything pnpm wants to confirm interactively is
 # an outright failure rather than a prompt. Saying "this is CI" up front makes it
 # take the non-interactive branch instead of aborting.
@@ -41,6 +47,8 @@ RUN --mount=type=cache,id=next-cache-${APP},target=/app/apps/${APP}/.next/cache 
     REDIS_URL="redis://127.0.0.1:6379" \
     BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime" \
     BETTER_AUTH_URL="http://localhost:3000" \
+    NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL}" \
+    NEXT_PUBLIC_BETTER_AUTH_URL="${NEXT_PUBLIC_BETTER_AUTH_URL}" \
     pnpm --filter "${APP}" build
 
 # --- runner: standalone output only, no node_modules install ---

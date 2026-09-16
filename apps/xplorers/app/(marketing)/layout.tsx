@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Caveat, Familjen_Grotesk, Figtree, Space_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { BookBar, SiteFooter } from "@/components/marketing/site-footer";
+import { MarketingMotion } from "@/components/marketing/marketing-motion";
 import "@/app/marketing.css";
 
 const display = Familjen_Grotesk({
@@ -31,8 +32,13 @@ const hand = Caveat({
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <div className={`xpl ${display.variable} ${body.variable} ${mono.variable} ${hand.variable}`}>
+      <a href="#main" className="xpl-skip">
+        Skip to content
+      </a>
       <SiteHeader />
-      <main>{children}</main>
+      <main id="main">
+        <MarketingMotion>{children}</MarketingMotion>
+      </main>
       <SiteFooter />
       <BookBar />
     </div>

@@ -5,21 +5,32 @@ import { XplButton } from "@/components/marketing/xpl-ui";
 
 export function CommunityJoin() {
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
+  const [sent, setSent] = useState(false);
+
+  if (sent) {
+    return (
+      <p className="m-0 text-base leading-[1.5] text-pretty lg:text-xl" role="status" aria-live="polite">
+        You&apos;re on the list. We&apos;ll write when the next session opens.
+      </p>
+    );
+  }
 
   return (
     <form
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
+        setSent(true);
       }}
     >
       <div className="flex gap-2 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase lg:text-[11px]">
         <button
           type="button"
           onClick={() => setChannel("whatsapp")}
-          className={`rounded border-[1.5px] px-3 py-2 ${
+          aria-pressed={channel === "whatsapp"}
+          className={`min-h-11 rounded border-[1.5px] px-3 py-2 ${
             channel === "whatsapp"
-              ? "border-[var(--blush)] bg-[var(--blush)] text-[var(--ink)]"
+              ? "border-[var(--tape)] bg-[var(--tape)] text-[var(--ink)]"
               : "border-white/50 text-white"
           }`}
         >
@@ -28,9 +39,10 @@ export function CommunityJoin() {
         <button
           type="button"
           onClick={() => setChannel("email")}
-          className={`rounded border-[1.5px] px-3 py-2 ${
+          aria-pressed={channel === "email"}
+          className={`min-h-11 rounded border-[1.5px] px-3 py-2 ${
             channel === "email"
-              ? "border-[var(--blush)] bg-[var(--blush)] text-[var(--ink)]"
+              ? "border-[var(--tape)] bg-[var(--tape)] text-[var(--ink)]"
               : "border-white/50 text-white"
           }`}
         >
@@ -39,9 +51,9 @@ export function CommunityJoin() {
       </div>
       <div className="flex flex-col gap-2 lg:flex-row lg:gap-2">
         {channel === "whatsapp" ? (
-          <input type="tel" aria-label="Mobile number" placeholder="+65 mobile number" className="xpl-input flex-1" />
+          <input type="tel" required aria-label="Mobile number" placeholder="+65 mobile number" className="xpl-input flex-1" />
         ) : (
-          <input type="email" aria-label="Email" placeholder="you@example.com" className="xpl-input flex-1" />
+          <input type="email" required aria-label="Email" placeholder="you@example.com" className="xpl-input flex-1" />
         )}
         <XplButton type="submit" variant="inverse" className="hidden h-[52px] px-[22px] lg:inline-flex">
           Join

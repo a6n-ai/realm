@@ -1,4 +1,5 @@
 import { BENCHES } from "@/lib/marketing/content";
+import { PHOTOS } from "@/lib/marketing/photos";
 import { PhotoFrame, TapeLabel, XplButton } from "@/components/marketing/xpl-ui";
 
 export function HomeBench() {
@@ -8,38 +9,40 @@ export function HomeBench() {
       <div className="relative">
         <PhotoFrame
           label={"[ Bench cam — live overhead frame\nCrafting Club in progress · adult hands,\nsawdust, a drink, a half-cut box joint · 16:10 ]"}
-          ariaLabel="Placeholder: live overhead bench camera frame, Crafting Club in progress, adults' hands, sawdust, a drink"
-          grid="dark"
-          className="hidden aspect-[16/10] border border-white/30 text-white/80 lg:flex"
+          ariaLabel="Test tubes on a studio bench during a making session"
+          src={PHOTOS.tubes}
+          sizes="(min-width: 1024px) 60vw, 100vw"
+          className="hidden aspect-[16/10] border border-white/30 lg:block"
         />
         <PhotoFrame
           label={"[ Bench cam — live frame\nCrafting Club · adult hands,\nsawdust, a drink · 4:5 ]"}
-          ariaLabel="Placeholder: live overhead bench camera frame, Crafting Club in progress"
-          grid="dark"
-          className="aspect-[4/5] border border-white/30 text-[10px] tracking-[0.12em] text-white/80 lg:hidden"
+          ariaLabel="Test tubes on a studio bench during a making session"
+          src={PHOTOS.tubes}
+          sizes="100vw"
+          className="aspect-[4/5] border border-white/30 lg:hidden"
         />
         <div className="absolute top-3 left-3 flex items-center gap-2.5 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] uppercase lg:top-4 lg:left-4 lg:gap-4 lg:text-[11px] lg:tracking-[0.14em]">
           <span className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-[var(--blush)]" />
+            <span className="xpl-live size-2 rounded-full" />
             <span className="lg:hidden">Bench 02 · Wed 19:42</span>
             <span className="hidden lg:inline">Bench 02</span>
           </span>
           <span className="hidden lg:inline">Wed 19:42 SGT</span>
-          <span className="hidden lg:inline">Crafting Club</span>
+          <span className="hidden lg:inline">Colour change</span>
         </div>
         <TapeLabel className="top-3 right-3 rotate-[1.5deg] lg:top-4 lg:right-4">
           <span className="lg:hidden">2 spots tonight</span>
           <span className="hidden lg:inline">2 spots left tonight</span>
         </TapeLabel>
         <div className="xpl-hand absolute bottom-12 left-4 -rotate-3 text-[22px] text-white lg:top-[38%] lg:bottom-auto lg:left-[26%] lg:flex lg:flex-col lg:items-start lg:text-[26px]">
-          third attempt at this joint
+          watch A go cloudy
           <svg width="60" height="44" viewBox="0 0 60 44" aria-hidden="true" className="ml-6 hidden lg:block">
             <path d="M4 3 C 14 10, 30 22, 52 40" stroke="#FFFFFF" strokeWidth="1.5" fill="none" strokeLinecap="round" />
             <path d="M40 38 L53 41 L50 28" stroke="#FFFFFF" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <div className="xpl-hand absolute right-[14%] bottom-[24%] hidden flex-col items-end text-[26px] text-white lg:flex">
-          that&apos;s Mei&apos;s tea, not glue
+          the empty one is the control
           <svg width="50" height="40" viewBox="0 0 50 40" aria-hidden="true" className="mr-[30px]">
             <path d="M46 3 C 36 10, 22 20, 6 36" stroke="#FFFFFF" strokeWidth="1.5" fill="none" strokeLinecap="round" />
             <path d="M6 24 L5 37 L18 35" stroke="#FFFFFF" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />

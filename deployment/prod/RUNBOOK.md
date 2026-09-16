@@ -2,13 +2,17 @@
 
 Each client app runs on its OWN EC2 box + OWN RDS:
 - **tiffin-grab** — Box A, https://app.tiffingrab.ca (web + worker + redis + pgbouncer + RDS).
-  Deploy config here under `tiffin-grab/` + shared `proxy/`.
+  Deploy config here under `tiffin-grab/` + shared `proxy/`. **us-east-1**.
 - **puchkaman** — Box B, https://puchkaman.ca (web + pgbouncer + RDS + S3 admin).
-  Deploy config + its own RUNBOOK + Caddy under `puchkaman/`.
+  Deploy config + its own RUNBOOK + Caddy under `puchkaman/`. **us-east-1**.
+- **xplorers** — Box C, https://xplorers.a6n.ai (web + pgbouncer + RDS).
+  Deploy config + RUNBOOK + Caddy under `xplorers/`. **ap-southeast-1** (Singapore).
+  Do not mix this box into Box A/B's `edge` network.
 
-CI is **push-only**: pushing to `main` builds `tiffin-grab-web` + `tiffin-grab-tools`
-**and** `puchkaman-web` + `puchkaman-tools` and pushes them to GHCR. The deploy job is gated behind repo
-variable `ENABLE_SSH_DEPLOY` (unset = off), so **you pull + run on the box yourself**.
+CI is **push-only**: pushing to `main` builds `tiffin-grab-web` + `tiffin-grab-tools`,
+`puchkaman-web` + `puchkaman-tools`, **and** `xplorers-web` + `xplorers-tools` and
+pushes them to GHCR. The deploy job is gated behind repo variable `ENABLE_SSH_DEPLOY`
+(unset = off), so **you pull + run on the box yourself**.
 
 ## Folder layout (`deployment/prod/`)
 
@@ -445,8 +449,9 @@ RDS is private, and each app's RDS admits 5432 **only from its own security
 group** — so the tunnel has to exit on that app's own box. Use SSM, not SSH:
 
 ```bash
-./deployment/prod/db-tunnel.sh tiffin-grab   # localhost:5433
-./deployment/prod/db-tunnel.sh puchkaman     # localhost:5434
+./deployment/prod/db-tunnel.sh tiffin-grab   # localhost:5433  (us-east-1)
+./deployment/prod/db-tunnel.sh puchkaman     # localhost:5434  (us-east-1)
+./deployment/prod/db-tunnel.sh xplorers      # localhost:5435  (ap-southeast-1)
 ```
 
 Then point the IDE data source at `localhost:<port>` with **no tunnel

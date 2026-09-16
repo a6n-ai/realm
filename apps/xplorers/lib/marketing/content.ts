@@ -72,7 +72,8 @@ export const ROUTES = [
     tone: "paper",
     photo: "[ Line drawing — cardboard\nmachine, spark ink · 1:1 ]",
     photoMobile: "[ Line\ndrawing ]",
-    aria: "Placeholder: line illustration of a cardboard machine in blue ink",
+    aria: "Kids mixing colourful flasks at an outdoor science bench",
+    src: "/studio/kids-sunday-social.jpg",
   },
   {
     href: "/families",
@@ -82,7 +83,8 @@ export const ROUTES = [
     tone: "blush",
     photo: "[ Photo — adult hands sanding\nwood, close crop · 1:1 ]",
     photoMobile: "[ Hands\nsanding ]",
-    aria: "Placeholder: photo of adult hands sanding a small wooden object",
+    aria: "A making session: flame, microscope, and tie-dye in progress",
+    src: "/studio/making.jpg",
   },
   {
     href: "/schools",
@@ -92,6 +94,7 @@ export const ROUTES = [
     tone: "blueprint",
     photo: "[ Photo — thirty students,\nlong benches, tools out · 1:1 ]",
     photoMobile: "[ School\ngroup ]",
-    aria: "Placeholder: photo of a school group at long worktables",
+    aria: "A school group sitting with an instructor during a session",
+    src: "/studio/schools-anderson.jpg",
   },
 ] as const;

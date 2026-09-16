@@ -629,6 +629,9 @@ importers:
       '@foundry/ui':
         specifier: github:a6n-ai/foundry#path:packages/ui
         version: https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/ui(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@gsap/react':
+        specifier: ^2.1.2
+        version: 2.1.2(gsap@3.15.0)(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.79.0(react@19.2.4))
@@ -650,6 +653,9 @@ importers:
       geist:
         specifier: ^1.7.2
         version: 1.7.2(next@16.3.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      gsap:
+        specifier: ^3.15.0
+        version: 3.15.0
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2043,6 +2049,12 @@ packages:
     version: 0.0.0
     peerDependencies:
       drizzle-orm: ^0.45.2
+
+  '@gsap/react@2.1.2':
+    resolution: {integrity: sha512-JqliybO1837UcgH2hVOM4VO+38APk3ECNrsuSM4MuXp+rbf+/2IG2K1YJiqfTcXQHH7XlA0m3ykniFYstfq0Iw==}
+    peerDependencies:
+      gsap: ^3.12.5
+      react: '>=17'
 
   '@hono/node-server@1.19.17':
     resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
@@ -6536,6 +6548,9 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  gsap@3.15.0:
+    resolution: {integrity: sha512-dMW4CWBTUK1AEEDeZc1g4xpPGIrSf9fJF960qbTZmN/QwZIWY5wgliS6JWl9/25fpTGJrMRtSjGtOmPnfjZB+A==}
+
   happy-dom@20.10.6:
     resolution: {integrity: sha512-6QD0ilzDDt93tX44y8tbmZdAcdTRYDhUP+Asgi6pC8Pp5IA3cvaZGyoVN/EGtlq9ziT65iPuBBn3ASLr6hCgVw==}
     engines: {node: '>=20.0.0'}
@@ -10921,6 +10936,11 @@ snapshots:
       '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/20d9ec999a5760743c3cdd4ff554d0993c078044#path:packages/commons
       '@foundry/database': https://codeload.github.com/a6n-ai/foundry/tar.gz/572f2437a45e0e58a30126e3964b8397d2f3bcba#path:packages/database(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9))
       drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.9.9)(pg@8.11.6)(supports-color@7.2.0))(kysely@0.29.2)(mysql2@3.9.9)(pg@8.11.6)(postgres@3.4.9)
+
+  '@gsap/react@2.1.2(gsap@3.15.0)(react@19.2.4)':
+    dependencies:
+      gsap: 3.15.0
+      react: 19.2.4
 
   '@hono/node-server@1.19.17(hono@4.13.5)':
     dependencies:
@@ -15828,6 +15848,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  gsap@3.15.0: {}
 
   happy-dom@20.10.6:
     dependencies:

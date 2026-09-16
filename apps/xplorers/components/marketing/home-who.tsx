@@ -25,28 +25,31 @@ export function HomeWho() {
             <PhotoFrame
               label={route.photo}
               ariaLabel={route.aria}
-              grid={route.tone === "paper" ? "spark" : route.tone === "blueprint" ? "dark" : "ink"}
-              className={`hidden lg:flex lg:flex-1 lg:border-b ${
+              src={route.src}
+              grid={route.tone === "paper" ? "spark" : route.tone === "blueprint" ? "dark" : "blush"}
+              sizes="(min-width: 1024px) 28vw, 40vw"
+              className={`hidden lg:block lg:min-h-0 lg:flex-1 lg:border-b ${
                 route.tone === "blueprint"
-                  ? "border-white/20 text-white/85"
+                  ? "border-white/20"
                   : route.tone === "paper"
-                    ? "text-[var(--blueprint)]"
+                    ? ""
                     : "border-black/15"
               }`}
             />
-            <div
-              className={`flex w-[120px] shrink-0 items-center justify-center border-r p-2 text-center lg:hidden ${
+            <PhotoFrame
+              label={route.photoMobile}
+              ariaLabel={route.aria}
+              src={route.src}
+              grid={route.tone === "paper" ? "spark" : route.tone === "blueprint" ? "dark" : "blush"}
+              sizes="120px"
+              className={`w-[120px] shrink-0 self-stretch border-r lg:hidden ${
                 route.tone === "paper"
-                  ? "xpl-grid-spark border-[var(--rule)] text-[var(--blueprint)]"
+                  ? "border-[var(--rule)]"
                   : route.tone === "blueprint"
-                    ? "xpl-grid-dark border-white/20"
-                    : "xpl-grid border-black/15"
+                    ? "border-white/20"
+                    : "border-black/15"
               }`}
-            >
-              <span className="font-[family-name:var(--font-mono)] text-[9px] leading-[1.7] tracking-[0.12em] uppercase whitespace-pre-line">
-                {route.photoMobile}
-              </span>
-            </div>
+            />
             <div className="flex flex-col justify-center gap-1.5 p-5 lg:gap-3 lg:p-7">
               <h3
                 className={`xpl-disp text-2xl leading-none tracking-[-0.02em] lg:text-[32px] ${

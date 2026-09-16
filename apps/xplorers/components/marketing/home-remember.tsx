@@ -1,23 +1,27 @@
+import { PHOTOS } from "@/lib/marketing/photos";
 import { PhotoFrame, XplButton } from "@/components/marketing/xpl-ui";
 
 const DAYS = [
   {
     title: "Birthdays",
     spec: "From $48/child · min 15\nor $58/child · min 12",
-    aria: "Placeholder: a birthday party in progress at the bench",
+    aria: "Colourful cloth from a making session",
     photo: "[ Photo — birthday in\nprogress · 3:2 ]",
+    src: PHOTOS.textiles,
   },
   {
     title: "Private sessions",
     spec: "Your objective, your pace\nfrom $160",
-    aria: "Placeholder: a private workshop, one family, one long project",
+    aria: "A private bench session with test tubes in progress",
     photo: "[ Photo — private workshop\n· 3:2 ]",
+    src: PHOTOS.tubes,
   },
   {
     title: "Community events",
     spec: "Markets, family days,\nlibrary programmes",
-    aria: "Placeholder: a community market stall run by Xplorers",
+    aria: "Kids and families at an outdoor community science bench",
     photo: "[ Photo — community event,\noutdoors · 3:2 ]",
+    src: PHOTOS.kids,
   },
 ];
 
@@ -34,7 +38,13 @@ export function HomeRemember() {
       <div className="hidden grid-cols-3 gap-6 lg:grid">
         {DAYS.map((d) => (
           <div key={d.title} className="flex flex-col gap-4">
-            <PhotoFrame label={d.photo} ariaLabel={d.aria} className="aspect-[3/2] border border-[var(--rule)] bg-white" />
+            <PhotoFrame
+              label={d.photo}
+              ariaLabel={d.aria}
+              src={d.src}
+              sizes="28vw"
+              className="aspect-[3/2] border border-[var(--rule)] bg-white"
+            />
             <h3 className="xpl-disp text-[26px] tracking-[-0.02em]">{d.title}</h3>
             <span className="xpl-mono text-[11px] leading-[1.8] tracking-[0.1em] whitespace-pre-line">{d.spec}</span>
           </div>
@@ -46,7 +56,13 @@ export function HomeRemember() {
             key={d.title}
             className={`flex items-center gap-3.5 ${i < DAYS.length - 1 ? "border-b border-[var(--rule)] pb-4" : ""}`}
           >
-            <PhotoFrame label="" ariaLabel={d.aria} className="aspect-square w-24 shrink-0 border border-[var(--rule)] bg-white p-0" />
+            <PhotoFrame
+              label=""
+              ariaLabel={d.aria}
+              src={d.src}
+              sizes="96px"
+              className="aspect-square w-24 shrink-0 border border-[var(--rule)] bg-white"
+            />
             <div className="flex flex-col gap-1">
               <h3 className="xpl-disp text-[22px] tracking-[-0.02em]">{d.title}</h3>
               <span className="xpl-mono text-[10px] leading-[1.7] tracking-[0.08em] whitespace-pre-line">{d.spec}</span>

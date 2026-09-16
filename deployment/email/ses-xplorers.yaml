@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  SES sending identity for xplorers.a6n.ai in ap-southeast-1 (must match the
+  box region — SES identities are regional). EasyDKIM + custom MAIL FROM
+  (mail.xplorers.a6n.ai). DNS is written into the existing a6n.ai Route 53
+  zone. Bounce/complaint SNS is omitted until https://xplorers.a6n.ai/api/webhooks/ses
+  is live (SNS auto-confirm needs that route).
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: xplorers.a6n.ai
+  MailFromSubdomain:
+    Type: String
+    Default: mail
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Default: Z05881901LHJHX7AHKCFJ
+  ConfigurationSetName:
+    Type: String
+    Default: xplorers-prod
+  ClientTag:
+    Type: String
+    Default: xplorers
+    Description: Cost-allocation tag `client`. Same value as the prod stack.
+
+Resources:
+  Identity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref DomainName
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        BehaviorOnMxFailure: REJECT_MESSAGE
+        MailFromDomain: !Sub "${MailFromSubdomain}.${DomainName}"
+      ConfigurationSetAttributes:
+        ConfigurationSetName: !Ref ConfigurationSet
+      Tags:
+        - Key: Name
+          Value: xplorers-ses-identity
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  ConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Ref ConfigurationSetName
+      Tags:
+        - Key: Name
+          Value: xplorers-prod
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  Dkim1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue1]
+  Dkim2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue2]
+  Dkim3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt Identity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: "1800"
+      ResourceRecords: [!GetAtt Identity.DkimDNSTokenValue3]
+
+  MailFromMx:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "${MailFromSubdomain}.${DomainName}"
+      Type: MX
+      TTL: "1800"
+      ResourceRecords:
+        - !Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"
+  MailFromSpf:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "${MailFromSubdomain}.${DomainName}"
+      Type: TXT
+      TTL: "1800"
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
+Outputs:
+  IdentityArn:
+    Description: SES identity ARN — scope the instance-role ses:SendEmail policy to this.
+    Value: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${DomainName}"
+  ConfigurationSetName:
+    Value: !Ref ConfigurationSet
+  MailFromDomain:
+    Value: !Sub "${MailFromSubdomain}.${DomainName}"

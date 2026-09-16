@@ -1,3 +1,4 @@
+import { PHOTOS } from "@/lib/marketing/photos";
 import { PhotoFrame, XplButton } from "@/components/marketing/xpl-ui";
 
 export function HomeComeAs() {
@@ -16,8 +17,10 @@ export function HomeComeAs() {
         <div className="grid grid-cols-2 grid-rows-[120px_120px] gap-2.5 lg:hidden">
           <PhotoFrame
             label={"[ Grandparent\n+ child ]"}
-            ariaLabel="Placeholder: a senior and a child at one bench"
-            className="row-span-2 -rotate-[1.5deg] border border-[var(--rule)] bg-white p-2.5 text-[10px]"
+            ariaLabel="Kids and adults together at an outdoor science bench"
+            src={PHOTOS.kids}
+            sizes="50vw"
+            className="row-span-2 -rotate-[1.5deg] border border-[var(--rule)] bg-white"
           />
           <PhotoFrame
             label={"[ Wheelchair\nat worktable ]"}
@@ -26,9 +29,10 @@ export function HomeComeAs() {
           />
           <PhotoFrame
             label={"[ Two adults,\nconversation ]"}
-            ariaLabel="Placeholder: two adults talking over a finished piece"
-            grid="none"
-            className="-rotate-[0.8deg] border border-[var(--rule)] bg-[var(--blush)] p-2.5 text-[10px]"
+            ariaLabel="A making session in progress"
+            src={PHOTOS.making}
+            sizes="50vw"
+            className="-rotate-[0.8deg] border border-[var(--rule)] bg-[var(--blush)]"
           />
         </div>
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase lg:gap-3 lg:text-xs lg:tracking-[0.14em]">
@@ -52,7 +56,9 @@ export function HomeComeAs() {
       <div className="relative hidden auto-rows-[110px] grid-cols-6 gap-3 lg:grid">
         <PhotoFrame
           label={"[ Photo — grandparent and\nchild, one bench · 4:5 ]"}
-          ariaLabel="Placeholder: a senior and a child at one bench"
+          ariaLabel="Kids and adults together at an outdoor science bench"
+          src={PHOTOS.kids}
+          sizes="(min-width: 1024px) 30vw, 100vw"
           className="col-span-3 row-span-3 -rotate-[1.5deg] border border-[var(--rule)] bg-white shadow-[2px_2px_0_rgba(18,26,36,.08)]"
         />
         <PhotoFrame
@@ -62,19 +68,24 @@ export function HomeComeAs() {
         />
         <PhotoFrame
           label={"[ Photo — two adults,\nconversation · 1:1 ]"}
-          ariaLabel="Placeholder: two adults talking over a finished piece"
+          ariaLabel="A making session in progress"
+          src={PHOTOS.making}
+          sizes="20vw"
           className="col-span-2 row-span-2 -rotate-[0.8deg] border border-[var(--rule)] bg-white shadow-[2px_2px_0_rgba(18,26,36,.08)]"
         />
         <PhotoFrame
           label={"[ Photo — the quiet corner · 3:2 ]"}
-          ariaLabel="Placeholder: a quiet corner with cushions and a half-finished model"
+          ariaLabel="Seedlings growing in a tray by the window"
+          src={PHOTOS.seedlings}
+          sizes="30vw"
           className="col-span-3 row-span-2 -mt-2 rotate-[1.2deg] border border-[var(--rule)] bg-white shadow-[2px_2px_0_rgba(18,26,36,.08)]"
         />
         <PhotoFrame
           label={"[ Hands\n+ tools ]"}
-          ariaLabel="Placeholder: close crop of hands and tools"
-          grid="none"
-          className="col-span-1 row-span-2 rotate-[2deg] border border-[var(--rule)] bg-[var(--blush)] p-3 text-[10px] shadow-[2px_2px_0_rgba(18,26,36,.08)]"
+          ariaLabel="Test tubes on a studio bench"
+          src={PHOTOS.tubes}
+          sizes="12vw"
+          className="col-span-1 row-span-2 rotate-[2deg] border border-[var(--rule)] bg-[var(--blush)] shadow-[2px_2px_0_rgba(18,26,36,.08)]"
         />
         <p className="xpl-hand absolute -bottom-[34px] left-6 -rotate-2">nobody is posing in these</p>
       </div>

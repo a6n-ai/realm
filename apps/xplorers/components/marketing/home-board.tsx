@@ -10,7 +10,7 @@ const TONE: Record<(typeof BOARD)[number]["tone"], string> = {
 
 export function HomeBoard() {
   return (
-    <section className="xpl-grid flex flex-col gap-5 border-t border-[var(--rule)] bg-[var(--blush)] px-5 py-14 lg:grid lg:grid-cols-[4fr_8fr] lg:items-start lg:gap-16 lg:px-20 lg:pt-24 lg:pb-32">
+    <section className="xpl-blush-band flex flex-col gap-5 border-t border-[var(--rule)] px-5 py-14 lg:grid lg:grid-cols-[4fr_8fr] lg:items-start lg:gap-16 lg:px-20 lg:pt-24 lg:pb-32">
       <div className="flex flex-col gap-5 lg:sticky lg:top-24 lg:gap-7">
         <span className="xpl-mono text-[11px] lg:text-xs">03 / This week at the studio</span>
         <h2 className="xpl-disp text-4xl leading-[0.95] lg:text-[64px]">Happening now.</h2>

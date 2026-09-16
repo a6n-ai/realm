@@ -7,11 +7,12 @@
   --spark: #1b3a6b;
   --clay: #1b3a6b;
   --clay-hover: #142c52;
-  --blush: #f3cfc2;
-  --tape: #f3cfc2;
+  --blush: #f4a07c;
+  --tape: #ffb496;
   --graphite: #4e5663;
   --rule: #d9dee7;
   --grid-line: rgba(27, 58, 107, 0.12);
+  --grid-line-blush: rgba(168, 48, 28, 0.14);
   --grid-line-dark: rgba(255, 255, 255, 0.08);
   --grid-line-spark: rgba(46, 91, 255, 0.12);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -50,13 +51,41 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 }
 
+@keyframes xpl-drift {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -5px;
+  }
+}
+
+@keyframes xpl-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tape) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
 @layer components {
   .xpl a {
     color: inherit;
     text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
   }
 
-  .xpl a:hover {
+  .xpl button {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .xpl a:hover:not(.xpl-btn):not(.xpl-txt) {
     color: var(--blueprint);
   }
 
@@ -76,6 +105,7 @@ body:has(.xpl):not(:has(.crm-app)) {
     letter-spacing: -0.03em;
     line-height: 0.95;
     margin: 0;
+    text-wrap: balance;
   }
 
   .xpl-mono {
@@ -84,6 +114,7 @@ body:has(.xpl):not(:has(.crm-app)) {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--graphite);
+    font-variant-numeric: tabular-nums;
   }
 
   .xpl-hand {
@@ -115,6 +146,13 @@ body:has(.xpl):not(:has(.crm-app)) {
     background-size: 24px 24px;
   }
 
+  .xpl-grid-blush {
+    background-image:
+      linear-gradient(var(--grid-line-blush) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line-blush) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
   .xpl-btn {
     display: inline-flex;
     align-items: center;
@@ -132,12 +170,16 @@ body:has(.xpl):not(:has(.crm-app)) {
     cursor: pointer;
     transition:
       background var(--dur) var(--ease),
-      transform var(--dur) var(--ease);
+      transform var(--dur-fast) var(--ease);
   }
 
   .xpl-btn:hover {
     background: var(--clay-hover);
     color: var(--bone);
+  }
+
+  .xpl-btn:active {
+    transform: scale(0.96);
   }
 
   .xpl-btn .arr,
@@ -158,7 +200,7 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-inverse:hover {
-    background: var(--blush);
+    background: var(--tape);
     color: var(--ink);
   }
 
@@ -236,6 +278,25 @@ body:has(.xpl):not(:has(.crm-app)) {
     color: var(--graphite);
     line-height: 1.7;
     padding: 8px;
+    animation: xpl-drift 4.8s var(--ease) infinite alternate;
+  }
+
+  .xpl-obj:nth-of-type(2) {
+    animation-delay: 0.4s;
+  }
+
+  .xpl-obj:nth-of-type(3) {
+    animation-delay: 0.9s;
+  }
+
+  .xpl-obj:nth-of-type(4) {
+    animation-delay: 0.2s;
+  }
+
+  .xpl-photo {
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
   }
 
   .xpl-ph {
@@ -265,7 +326,12 @@ body:has(.xpl):not(:has(.crm-app)) {
     gap: 32px;
     border-bottom: 1px solid var(--rule);
     background: color-mix(in srgb, var(--bone) 92%, transparent);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+
+  .xpl-nav a[data-active="true"] {
+    color: var(--blueprint);
+    box-shadow: inset 0 -2px 0 var(--blueprint);
   }
 
   .xpl-input {
@@ -303,12 +369,79 @@ body:has(.xpl):not(:has(.crm-app)) {
     border-radius: 4px;
   }
 
-  .xpl-hero {
+  .xpl-hero,
+  .xpl-blush-band {
     background-color: var(--blush);
     background-image:
-      linear-gradient(rgba(27, 58, 107, 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(27, 58, 107, 0.1) 1px, transparent 1px);
+      linear-gradient(var(--grid-line-blush) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line-blush) 1px, transparent 1px);
     background-size: 24px 24px;
+  }
+
+  .xpl-live {
+    position: relative;
+    background: var(--tape);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tape) 70%, transparent);
+    animation: xpl-pulse 1.8s var(--ease) infinite;
+  }
+
+  .xpl-bookbar {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+
+  .xpl-skip {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 80;
+    transform: translateY(-200%);
+    background: var(--blueprint);
+    color: var(--bone);
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .xpl-skip:focus {
+    transform: none;
+    color: var(--bone);
+  }
+
+  .xpl-burger {
+    position: relative;
+    width: 44px;
+    height: 44px;
+  }
+
+  .xpl-burger span {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 1.5px;
+    margin-left: -11px;
+    background: var(--ink);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .xpl-burger span:first-child {
+    transform: translateY(-4px);
+  }
+
+  .xpl-burger span:last-child {
+    transform: translateY(4px);
+  }
+
+  .xpl-burger[aria-expanded="true"] span:first-child {
+    transform: rotate(45deg);
+  }
+
+  .xpl-burger[aria-expanded="true"] span:last-child {
+    transform: rotate(-45deg);
   }
 
   @media (min-width: 1024px) {
@@ -337,7 +470,13 @@ body:has(.xpl):not(:has(.crm-app)) {
       transform: none;
     }
 
-    .xpl-oops {
+    .xpl-btn:active {
+      transform: none;
+    }
+
+    .xpl-oops,
+    .xpl-obj,
+    .xpl-live {
       animation: none;
     }
   }
