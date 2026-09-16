@@ -21,7 +21,7 @@ export default async function CompletionsPage({ searchParams }: { searchParams: 
   return (
     <PageShell>
       <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-      <DayHeader date={date} today={today} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch/completions" />
       <DispatchTabs date={date} />
       <CompletionsView date={date} />
     </PageShell>

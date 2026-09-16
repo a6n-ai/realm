@@ -62,7 +62,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   } catch (e) {
     return (
       <>
-        <DayHeader date={date} today={today} />
+        <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -76,7 +76,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   } catch (e) {
     return (
       <>
-        <DayHeader date={date} today={today} />
+        <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
         <SectionCard title="Dispatch data unavailable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -88,7 +88,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
-      <DayHeader date={date} today={today} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
 
       <DispatchTabs date={date} />
 

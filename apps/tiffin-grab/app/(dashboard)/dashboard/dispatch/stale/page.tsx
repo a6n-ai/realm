@@ -26,7 +26,7 @@ export default async function StalePage({ searchParams }: { searchParams: Search
     return (
       <PageShell>
         <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-        <DayHeader date={date} today={today} />
+        <DayHeader date={date} today={today} basePath="/dashboard/dispatch/stale" />
         <DispatchTabs date={date} />
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
@@ -38,7 +38,7 @@ export default async function StalePage({ searchParams }: { searchParams: Search
   return (
     <PageShell>
       <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-      <DayHeader date={date} today={today} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch/stale" />
       <DispatchTabs date={date} />
       {preview.remove.length > 0 ? (
         <SectionCard title="On OptimoRoute but not scheduled">

@@ -26,7 +26,7 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
     return (
       <PageShell>
         <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-        <DayHeader date={date} today={today} />
+        <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" />
         <DispatchTabs date={date} />
         <SectionCard title="Dispatch data unavailable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
@@ -38,7 +38,7 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
   return (
     <PageShell>
       <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-      <DayHeader date={date} today={today} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" />
       <DispatchTabs date={date} />
       <DriverRoster drivers={drivers} rows={dispatchRows} />
     </PageShell>
