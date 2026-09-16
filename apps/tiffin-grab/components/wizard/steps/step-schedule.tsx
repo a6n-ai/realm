@@ -1,37 +1,53 @@
+import { useState } from "react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "../selections";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { clubbedQuantities, customFrequencyKey, orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 
-const WEEKDAY_ORDER: DayOfWeek[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const WEEKDAY_LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+// Deliveries run Mon-Fri only. Weekend tiffins still exist as *quantity* clubbed
+// onto a weekday (see clubbedQuantities); what's removed is the ability to pick
+// Sat/Sun as a delivery DAY. orderDeliveryDays was already called with
+// includeSaturday/includeSunday false, so the weekend was never in the derived
+// plan — the picker just used to offer it anyway.
+const WEEKDAY_ORDER = ["mon", "tue", "wed", "thu", "fri"] as const satisfies readonly DayOfWeek[];
+/** The days a customer may pick — a strict subset of DayOfWeek, so the label map
+ * is exhaustive over exactly these and adding a day here is a compile error
+ * until it is labelled. */
+type SelectableDay = (typeof WEEKDAY_ORDER)[number];
+const WEEKDAY_LABEL: Record<SelectableDay, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri" };
+const MAX_DELIVERY_DAYS = WEEKDAY_ORDER.length;
+
+/** Drop any weekend day a catalog row or stored selection still carries. */
+function weekdaysOnly(days: DayOfWeek[]): SelectableDay[] {
+  return days.filter((d): d is SelectableDay => (WEEKDAY_ORDER as readonly DayOfWeek[]).includes(d));
+}
 
 function sameDaySet(a: DayOfWeek[], b: DayOfWeek[]): boolean {
   return a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
 }
 
-function sorted(days: DayOfWeek[]): DayOfWeek[] {
+function sorted(days: SelectableDay[]): SelectableDay[] {
   return [...days].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b));
 }
 
 /** The weekday set implied by the current selections — an explicit custom
  * pick, or whatever the matched (or hardcoded 5_day/mwf) catalog row implies. */
-function currentWeekdays(catalog: ClientCatalogSnapshot, selections: WizardSelections): DayOfWeek[] {
-  if (selections.customWeekdays?.length) return sorted(selections.customWeekdays);
+function currentWeekdays(catalog: ClientCatalogSnapshot, selections: WizardSelections): SelectableDay[] {
+  if (selections.customWeekdays?.length) return sorted(weekdaysOnly(selections.customWeekdays));
   const row = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
-  return sorted(orderDeliveryDays({
+  return sorted(weekdaysOnly(orderDeliveryDays({
     frequencyKey: selections.frequencyKey,
     weekdays: (row?.weekdays as DayOfWeek[] | null) ?? null,
     includeSaturday: false,
     includeSunday: false,
-  }));
+  })));
 }
 
 /** An active catalog row whose weekday set exactly matches — this is the only
  * thing that earns a discount; a same-count-but-different-days custom pick
  * never does. */
-function matchingRow(catalog: ClientCatalogSnapshot, weekdays: DayOfWeek[]) {
+function matchingRow(catalog: ClientCatalogSnapshot, weekdays: SelectableDay[]) {
   return catalog.frequencies.find((f) => {
     const rowDays = (f.weekdays as DayOfWeek[] | null) ?? (f.key === "mwf" ? ["mon", "wed", "fri"] : f.key === "5_day" ? ["mon", "tue", "wed", "thu", "fri"] : null);
     return rowDays && sameDaySet(rowDays as DayOfWeek[], weekdays);
@@ -49,16 +65,28 @@ export function StepSchedule({
   set: (patch: Partial<WizardSelections>) => void;
   currentPlan?: CurrentPlanSummary | null;
 }) {
-  const tiffinCounts = [...new Set(catalog.frequencies.map((f) => f.daysPerWeek))].sort((a, b) => a - b);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Only counts that can actually be delivered Mon-Fri. A catalog row for 6 or 7
+  // days a week can no longer be honoured as distinct delivery DAYS.
+  const tiffinCounts = [...new Set(catalog.frequencies.map((f) => f.daysPerWeek))]
+    .filter((n) => n >= 1 && n <= MAX_DELIVERY_DAYS)
+    .sort((a, b) => a - b);
   const weekdays = currentWeekdays(catalog, selections);
   const tiffinCount = weekdays.length;
   const match = matchingRow(catalog, weekdays);
   const quantities = clubbedQuantities(weekdays);
 
   const pickCount = (count: number) => {
-    // Default to the first admin pattern at this count so switching counts
-    // lands on a real (possibly discounted) cadence, not an arbitrary pick.
-    const defaultRow = catalog.frequencies.find((f) => f.daysPerWeek === count);
+    setNotice(null);
+    // Default to the first admin pattern at this count so switching counts lands
+    // on a real (possibly discounted) cadence — but only if that pattern is
+    // deliverable Mon-Fri. A row that includes Sat/Sun is skipped, otherwise the
+    // picker would show fewer active days than the tiffin count it just set.
+    const defaultRow = catalog.frequencies.find((f) => {
+      if (f.daysPerWeek !== count) return false;
+      const rowDays = (f.weekdays as DayOfWeek[] | null) ?? null;
+      return !rowDays || weekdaysOnly(rowDays).length === rowDays.length;
+    });
     if (defaultRow) {
       set({ frequencyKey: defaultRow.key, customWeekdays: undefined });
     } else {
@@ -67,20 +95,28 @@ export function StepSchedule({
     }
   };
 
-  const toggleDay = (day: DayOfWeek) => {
-    let next: DayOfWeek[];
+  const toggleDay = (day: SelectableDay) => {
+    let next: SelectableDay[];
     if (weekdays.includes(day)) {
       // Never let the picker collapse to zero days — a customer must always
       // have at least one delivery day to remove-toggle down to.
-      if (weekdays.length <= 1) return;
+      if (weekdays.length <= 1) {
+        setNotice("You need at least one delivery day.");
+        return;
+      }
       next = weekdays.filter((d) => d !== day);
     } else if (weekdays.length < tiffinCount) {
       next = sorted([...weekdays, day]);
     } else {
-      // At the cap: drop the oldest pick (start of the sorted week) to make
-      // room, rather than blocking the tap — keeps the flow moving.
-      next = sorted([...weekdays.slice(1), day]);
+      // At the cap: refuse the tap and say why. Delivery days must equal
+      // tiffins/week, so adding a day means raising the tiffin count first —
+      // silently dropping an earlier pick would change the plan behind them.
+      setNotice(
+        `${tiffinCount} ${tiffinCount === 1 ? "tiffin" : "tiffins"}/week means ${tiffinCount} delivery ${tiffinCount === 1 ? "day" : "days"}. Increase tiffins per week to add another, or unselect a day first.`,
+      );
+      return;
     }
+    setNotice(null);
     const row = matchingRow(catalog, next);
     if (row) set({ frequencyKey: row.key, customWeekdays: undefined });
     else set({ frequencyKey: customFrequencyKey(next), customWeekdays: next });
@@ -122,19 +158,29 @@ export function StepSchedule({
         <div className="mt-3 flex flex-wrap gap-2">
           {WEEKDAY_ORDER.map((day) => {
             const active = weekdays.includes(day);
+            // At the cap an unselected day can't be added. Kept focusable and
+            // tappable (not `disabled`) so the tap still explains why.
+            const atCap = !active && weekdays.length >= tiffinCount;
             return (
               <button
                 key={day}
                 type="button"
                 onClick={() => toggleDay(day)}
                 aria-pressed={active}
-                className={`border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : ""}`}
+                aria-disabled={atCap}
+                className={`border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : atCap ? "opacity-40" : ""}`}
               >
                 {WEEKDAY_LABEL[day]}
               </button>
             );
           })}
         </div>
+
+        {notice ? (
+          <p role="status" className="text-destructive mt-2 text-sm text-pretty">
+            {notice}
+          </p>
+        ) : null}
 
         <div className="mt-3 min-h-[44px] rounded-2xl border-[1.5px] border-foreground/10 bg-muted/30 px-4 py-3 text-sm transition-colors">
           {match && match.courierDiscountPct > 0 ? (
@@ -148,7 +194,7 @@ export function StepSchedule({
           )}
         </div>
 
-        {tiffinCount < 7 ? (
+        {tiffinCount < MAX_DELIVERY_DAYS ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {WEEKDAY_ORDER.map((day) => (
               <div

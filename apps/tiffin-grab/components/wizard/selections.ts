@@ -1,5 +1,6 @@
 import type { PricingSelections } from "@/lib/pricing";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
+import { customFrequencyKey, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
   planKey: "veg" | "non-veg" | "healthy" | null;
@@ -26,6 +27,15 @@ const PLAN_KEYS = ["veg", "non-veg", "healthy"] as const;
  */
 export const FIXED_PERSONS = 1;
 
+/**
+ * A new subscription starts at one tiffin — and therefore one delivery day — a
+ * week. StepSchedule upgrades this to the matching catalog row (which may carry
+ * a courier discount) as soon as it has the catalog; the custom key is only the
+ * catalogue-free starting point, since initialSelections is a static value.
+ */
+export const DEFAULT_WEEKDAYS: DayOfWeek[] = ["mon"];
+export const DEFAULT_FREQUENCY_KEY = customFrequencyKey(DEFAULT_WEEKDAYS);
+
 function asPlanKey(key: string | null | undefined): WizardSelections["planKey"] {
   return PLAN_KEYS.find((k) => k === key) ?? null;
 }
@@ -33,7 +43,8 @@ function asPlanKey(key: string | null | undefined): WizardSelections["planKey"] 
 export const initialSelections: WizardSelections = {
   planKey: null,
   mealSizeId: "",
-  frequencyKey: "5_day",
+  frequencyKey: DEFAULT_FREQUENCY_KEY,
+  customWeekdays: DEFAULT_WEEKDAYS,
   persons: 1,
   // Dish selection now happens per-delivery after subscribing; mealSlots is
   // populated from the chosen plan's categories (see StepBaseline) purely to
@@ -73,7 +84,8 @@ export function selectionsFromPriorOrder(
     // Not carried over from the prior order: the controls for these are gone, so
     // restoring 2 persons or a Saturday would silently change the quote with
     // nothing on screen to explain it, and no way for the customer to undo it.
-    frequencyKey: "5_day",
+    frequencyKey: DEFAULT_FREQUENCY_KEY,
+    customWeekdays: DEFAULT_WEEKDAYS,
     persons: FIXED_PERSONS,
     mealSlots: plan?.offeredSlots ?? [],
     includeSaturday: false,

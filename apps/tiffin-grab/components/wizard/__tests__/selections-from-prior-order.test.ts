@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { initialSelections, selectionsFromPriorOrder } from "../selections";
+import { initialSelections, selectionsFromPriorOrder, DEFAULT_FREQUENCY_KEY } from "../selections";
 
 const catalog: ClientCatalogSnapshot = {
   plans: [
@@ -78,7 +78,10 @@ describe("selectionsFromPriorOrder", () => {
     expect(next.persons).toBe(1);
     expect(next.includeSaturday).toBe(false);
     expect(next.includeSunday).toBe(false);
-    expect(next.frequencyKey).toBe("5_day");
+    // Frequency resets to the wizard default, which is now one delivery day a
+    // week (was 5_day). Renewal re-picks the schedule fresh either way.
+    expect(next.frequencyKey).toBe(DEFAULT_FREQUENCY_KEY);
+    expect(next.customWeekdays).toEqual(["mon"]);
   });
 
   it("drops a retired meal size instead of carrying a stale id", () => {
