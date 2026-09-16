@@ -4,7 +4,6 @@ import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
 import { notificationOutbox, users, messageSuppression } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { formatEpoch } from "@/lib/format/datetime";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef, SectionCard } from "@/components/ds";
 import {
@@ -204,7 +203,7 @@ async function SuppressedAddressesData() {
     .orderBy(desc(messageSuppression.createdAt))
     .limit(50);
   const rows: SuppressionRow[] = items.map((r) => ({ ...r, at: Number(r.at) }));
-  return <SuppressedAddressesTable rows={rows} formatTime={(at) => formatEpoch(at, { mode: "datetime", timeZone: timezone })} />;
+  return <SuppressedAddressesTable rows={rows} timeZone={timezone} />;
 }
 
 export type { LogSortColumn };

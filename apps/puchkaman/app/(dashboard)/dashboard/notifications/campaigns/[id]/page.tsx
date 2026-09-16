@@ -182,7 +182,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
               <CampaignLogsPanel
                 campaignPublicId={row.publicId}
                 campaignId={String(row.id)}
-                formatTime={(ms) => formatConsentDate(ms, timeZone)}
+                timeZone={timeZone}
               />
             </SectionCard>
           </TabsContent>

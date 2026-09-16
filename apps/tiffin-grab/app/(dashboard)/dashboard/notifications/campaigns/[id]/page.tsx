@@ -10,7 +10,6 @@ import { campaign, campaignContent, contactList, messageSuppression } from "@/db
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { resolveSegment } from "@/lib/campaigns/segment";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { formatEpoch } from "@/lib/format/datetime";
 import {
   CampaignAnalytics,
   CampaignAudienceEditor,
@@ -182,7 +181,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
               <CampaignLogsPanel
                 campaignPublicId={row.publicId}
                 campaignId={String(row.id)}
-                formatTime={(ms) => formatEpoch(ms, { mode: "datetime", timeZone: timezone })}
+                timeZone={timezone}
               />
             </SectionCard>
           </TabsContent>
