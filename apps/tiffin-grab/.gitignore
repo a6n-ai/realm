@@ -4,3 +4,4 @@
 
 # skeleton-audit capture output (dev-only harness, not in CI)
 skeleton-audit/out/
+apps/tiffin-grab/db/prod-reset-catalog-and-orders.sql
