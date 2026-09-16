@@ -74,10 +74,13 @@ body:has(.xpl):not(:has(.crm-app)) {
 
 @layer components {
   .xpl a {
-    color: inherit;
     text-decoration: none;
     cursor: pointer;
     touch-action: manipulation;
+  }
+
+  .xpl a:not(.xpl-btn) {
+    color: inherit;
   }
 
   .xpl button {
@@ -85,7 +88,7 @@ body:has(.xpl):not(:has(.crm-app)) {
     touch-action: manipulation;
   }
 
-  .xpl a:hover:not(.xpl-btn):not(.xpl-txt) {
+  .xpl a:hover:not(.xpl-btn):not(.xpl-txt):not(.xpl-card) {
     color: var(--blush);
   }
 
@@ -94,8 +97,8 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl :focus-visible {
-    outline: 2px solid var(--spark);
-    outline-offset: 2px;
+    outline: 2px solid var(--blueprint);
+    outline-offset: 3px;
   }
 
   .xpl-disp {
@@ -158,8 +161,9 @@ body:has(.xpl):not(:has(.crm-app)) {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: var(--blush);
-    color: var(--ink);
+    min-height: 44px;
+    background: var(--blueprint);
+    color: #fff;
     font-weight: 700;
     padding: 16px 24px;
     border-radius: 4px;
@@ -172,16 +176,28 @@ body:has(.xpl):not(:has(.crm-app)) {
     transition:
       background var(--dur) var(--ease),
       color var(--dur) var(--ease),
-      transform var(--dur-fast) var(--ease);
+      border-color var(--dur) var(--ease),
+      transform 100ms ease-out;
   }
 
   .xpl-btn:hover {
-    background: var(--tape);
+    background: var(--blush);
     color: var(--ink);
   }
 
+  .xpl-hero .xpl-btn:not(.xpl-btn-inverse):not(.xpl-btn-outline):hover,
+  .xpl-blush-band .xpl-btn:not(.xpl-btn-inverse):not(.xpl-btn-outline):hover {
+    background: #fff;
+    color: var(--ink);
+  }
+
+  .xpl-btn:focus-visible {
+    outline: 2px solid var(--tape);
+    outline-offset: 3px;
+  }
+
   .xpl-btn:active {
-    transform: scale(0.96);
+    transform: scale(0.97);
   }
 
   .xpl-btn .arr,
@@ -203,8 +219,12 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-inverse:hover {
-    background: var(--tape);
+    background: #fff;
     color: var(--ink);
+  }
+
+  .xpl-btn-inverse:focus-visible {
+    outline-color: #fff;
   }
 
   .xpl-btn-outline {
@@ -214,9 +234,9 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-btn-outline:hover {
-    background: var(--tape);
-    color: var(--ink);
-    border-color: var(--tape);
+    background: var(--blueprint);
+    color: #fff;
+    border-color: var(--blueprint);
   }
 
   .xpl-txt {
@@ -230,8 +250,14 @@ body:has(.xpl):not(:has(.crm-app)) {
   }
 
   .xpl-txt:hover {
-    color: var(--blush);
-    border-bottom-color: var(--blush);
+    color: var(--blueprint);
+    border-bottom-color: var(--blueprint);
+  }
+
+  .xpl-hero .xpl-txt:hover,
+  .xpl-blush-band .xpl-txt:hover {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
   }
 
   .xpl-card {
