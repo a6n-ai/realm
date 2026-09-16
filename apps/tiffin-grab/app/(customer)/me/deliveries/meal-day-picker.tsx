@@ -71,20 +71,20 @@ export function MealDayPicker({
     const dayOfWeek = weekdayKey(new Date(`${cell.date}T00:00:00Z`));
     const pickIndex = pickIndexFor(category);
     startTransition(async () => {
-      try {
-        await pickMyDish({
-          orderId: orderPublicId,
-          menuWeekId,
-          dayOfWeek,
-          slot: category,
-          personIndex: 1,
-          pickIndex,
-          dishId,
-        });
-        onChanged();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save that pick");
+      const result = await pickMyDish({
+        orderId: orderPublicId,
+        menuWeekId,
+        dayOfWeek,
+        slot: category,
+        personIndex: 1,
+        pickIndex,
+        dishId,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
     });
   }
 
@@ -93,22 +93,21 @@ export function MealDayPicker({
     const key = `${category}:${pickIndex}:${dishId}`;
     setApplyingKey(key);
     startTransition(async () => {
-      try {
-        const res = await applyMyDishToWeek({
-          orderId: orderPublicId,
-          menuWeekId,
-          slot: category,
-          personIndex: 1,
-          pickIndex,
-          dishId,
-        });
+      const res = await applyMyDishToWeek({
+        orderId: orderPublicId,
+        menuWeekId,
+        slot: category,
+        personIndex: 1,
+        pickIndex,
+        dishId,
+      });
+      if ("error" in res) {
+        toast.error(res.error);
+      } else {
         onChanged();
         toast.success(`Applied to ${res.applied} day${res.applied === 1 ? "" : "s"}`);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't apply to the week");
-      } finally {
-        setApplyingKey(null);
       }
+      setApplyingKey(null);
     });
   }
 

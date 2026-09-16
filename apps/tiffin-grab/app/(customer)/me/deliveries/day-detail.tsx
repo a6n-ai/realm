@@ -46,6 +46,7 @@ import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import type { ActionResult } from "../action-result";
 import type { CustomerDelivery, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardMeal } from "./meal-chips";
 import {
@@ -137,14 +138,14 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
       return;
     }
     start(async () => {
-      try {
-        await setMyDeliveryAddress(deliveryPublicId, parsed.data);
-        setOpen(false);
-        onSaved();
-        toast.success("Address updated");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to update address");
+      const result = await setMyDeliveryAddress(deliveryPublicId, parsed.data);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      setOpen(false);
+      onSaved();
+      toast.success("Address updated");
     });
   }
 
@@ -225,15 +226,15 @@ function RescheduleDialog({
     if (!date) return;
     setError(null);
     start(async () => {
-      try {
-        await rescheduleMyDelivery(deliveryPublicId, date);
-        setOpen(false);
-        reset();
-        onSaved();
-        toast.success("Delivery rescheduled");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not reschedule");
+      const result = await rescheduleMyDelivery(deliveryPublicId, date);
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
+      setOpen(false);
+      reset();
+      onSaved();
+      toast.success("Delivery rescheduled");
     });
   }
 
@@ -310,14 +311,14 @@ function ScheduleHoldDayAction({
 
   function run(publicId: string) {
     start(async () => {
-      try {
-        await rescheduleMyDelivery(publicId, dateIso);
-        setOpen(false);
-        onChanged();
-        toast.success("Hold day rescheduled");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not reschedule that day");
+      const result = await rescheduleMyDelivery(publicId, dateIso);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      setOpen(false);
+      onChanged();
+      toast.success("Hold day rescheduled");
     });
   }
 
@@ -406,13 +407,13 @@ function SchedulePoolDayAction({
       pending={pending}
       onClick={() => {
         start(async () => {
-          try {
-            await scheduleMyPooledTiffin(orderPublicId, dateIso);
-            onChanged();
-            toast.success("Skipped tiffin scheduled");
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Could not schedule that day");
+          const result = await scheduleMyPooledTiffin(orderPublicId, dateIso);
+          if ("error" in result) {
+            toast.error(result.error);
+            return;
           }
+          onChanged();
+          toast.success("Skipped tiffin scheduled");
         });
       }}
     />
@@ -451,23 +452,24 @@ function SwapSection({
   const validPicks = Number.isInteger(picksNum) && picksNum > 0;
   const applied = delivery.appliedSwaps.length;
 
-  function run(fn: () => Promise<void>, successMsg: string) {
+  function run(fn: () => Promise<ActionResult>, successMsg: string) {
     startTransition(async () => {
-      try {
-        await fn();
-        onChanged();
-        toast.success(successMsg);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Swap failed");
+      const result = await fn();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
+      toast.success(successMsg);
     });
   }
 
   function apply() {
     if (!to || !validPicks) return;
     run(async () => {
-      await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
-      setOpen(false);
+      const result = await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
+      if (!("error" in result)) setOpen(false);
+      return result;
     }, "Swap applied");
   }
 
@@ -573,15 +575,15 @@ function DeliveryDayActions({
 }) {
   const [pending, startTransition] = useTransition();
 
-  function run(fn: () => Promise<void>, successMsg: string) {
+  function run(fn: () => Promise<ActionResult>, successMsg: string) {
     startTransition(async () => {
-      try {
-        await fn();
-        onChanged();
-        toast.success(successMsg);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Action failed");
+      const result = await fn();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
+      toast.success(successMsg);
     });
   }
 

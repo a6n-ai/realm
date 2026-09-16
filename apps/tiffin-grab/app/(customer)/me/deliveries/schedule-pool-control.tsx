@@ -42,14 +42,14 @@ export function SchedulePoolControl({
     if (!date) return;
     setError(null);
     startTransition(async () => {
-      try {
-        await scheduleMyPooledTiffin(orderPublicId, date);
-        router.refresh();
-        reset();
-        setOpen(false);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not schedule that day");
+      const result = await scheduleMyPooledTiffin(orderPublicId, date);
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
+      router.refresh();
+      reset();
+      setOpen(false);
     });
   }
 

@@ -10,8 +10,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("../meals/actions", () => ({
-  pickMyDish: vi.fn().mockResolvedValue(undefined),
-  applyMyDishToWeek: vi.fn().mockResolvedValue({ applied: 1 }),
+  pickMyDish: vi.fn().mockResolvedValue({ ok: true }),
+  applyMyDishToWeek: vi.fn().mockResolvedValue({ applied: 1, skipped: [] }),
 }));
 
 import { MealDayPicker } from "../meal-day-picker";

@@ -118,29 +118,29 @@ export function VacationControl({
       return;
     }
     startPauseTransition(async () => {
-      try {
-        await pauseMySubscription(sub.publicId, request);
-        router.refresh();
-        resetForm();
-        setOpen(false);
-      } catch (e) {
-        setPauseError(e instanceof Error ? e.message : "Failed to start vacation");
+      const result = await pauseMySubscription(sub.publicId, request);
+      if ("error" in result) {
+        setPauseError(result.error);
         setStep("confirm");
+        return;
       }
+      router.refresh();
+      resetForm();
+      setOpen(false);
     });
   }
 
   function submitResume() {
     setResumeError(null);
     startResumeTransition(async () => {
-      try {
-        await resumeMySubscription(sub.publicId, resumeFromDate || undefined);
-        router.refresh();
-        setResumeFromDate("");
-        setOpen(false);
-      } catch (e) {
-        setResumeError(e instanceof Error ? e.message : "Failed to resume deliveries");
+      const result = await resumeMySubscription(sub.publicId, resumeFromDate || undefined);
+      if ("error" in result) {
+        setResumeError(result.error);
+        return;
       }
+      router.refresh();
+      setResumeFromDate("");
+      setOpen(false);
     });
   }
 
