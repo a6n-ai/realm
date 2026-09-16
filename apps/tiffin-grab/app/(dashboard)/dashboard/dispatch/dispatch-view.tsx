@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { TruckIcon } from "lucide-react";
+import { TruckIcon, HistoryIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
 import {
   Select,
@@ -63,6 +63,11 @@ const COLUMNS: readonly Column<"customer" | "driver" | "stop" | "actions">[] = [
   { key: "driver", label: "Driver" },
   { key: "stop", label: "Stop #", align: "right" },
   { key: "actions", label: "" },
+];
+
+const HISTORY_COLUMNS: readonly Column<"type" | "when">[] = [
+  { key: "type", label: "Activity" },
+  { key: "when", label: "When" },
 ];
 
 export function DispatchView({
@@ -294,18 +299,28 @@ export function DispatchView({
       >
         {history == null ? (
           <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : history.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No activity recorded for this delivery.</p>
         ) : (
-          <ul className="max-h-72 space-y-2 overflow-y-auto text-sm">
-            {history.map((h) => (
-              <li key={h.id} className="border-b pb-2 last:border-0">
-                <p className="font-medium">{h.type}</p>
-                {h.note ? <p className="text-muted-foreground text-xs">{h.note}</p> : null}
-                <p className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            columns={HISTORY_COLUMNS}
+            rows={history}
+            rowKey={(h) => h.id}
+            serial={false}
+            emptyIcon={HistoryIcon}
+            emptyMessage="No activity recorded for this delivery."
+            renderRow={(h) => (
+              <>
+                <TableCell>
+                  <span className="font-medium">{h.type}</span>
+                  {h.note ? (
+                    <span className="text-muted-foreground block text-xs">{h.note}</span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                  {new Date(h.createdAt).toLocaleString()}
+                </TableCell>
+              </>
+            )}
+          />
         )}
       </ResponsiveDialog>
     </>
