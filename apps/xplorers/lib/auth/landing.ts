@@ -12,10 +12,21 @@ function homeFor(role: string | null | undefined): string {
   return CUSTOMER_HOME;
 }
 
+function pathOnly(candidate: string): string {
+  const query = candidate.indexOf("?");
+  return query === -1 ? candidate : candidate.slice(0, query);
+}
+
+function familyCanFinishBooking(path: string): boolean {
+  return path === "/whats-on" || path.startsWith("/whats-on/");
+}
+
 export function landingPathFor(role: string | null | undefined, callbackUrl?: string | null): string {
   const home = homeFor(role);
   if (!callbackUrl || !isSameSitePath(callbackUrl)) return home;
 
-  const reachable = callbackUrl === home || callbackUrl.startsWith(`${home}/`);
+  const path = pathOnly(callbackUrl);
+  const reachable =
+    path === home || path.startsWith(`${home}/`) || (home === CUSTOMER_HOME && familyCanFinishBooking(path));
   return reachable ? callbackUrl : home;
 }

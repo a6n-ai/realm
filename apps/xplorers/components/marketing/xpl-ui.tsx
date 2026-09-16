@@ -10,12 +10,14 @@ export function XplButton({
   variant = "primary",
   className,
   type = "button",
+  disabled = false,
 }: {
   href?: string;
   children: React.ReactNode;
   variant?: Variant;
   className?: string;
   type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   const styles =
     variant === "inverse"
@@ -26,7 +28,7 @@ export function XplButton({
           ? "xpl-btn xpl-btn-outline"
           : "xpl-btn";
 
-  if (href) {
+  if (href && !disabled) {
     const classNames = cn(styles, className);
     if (href.startsWith("mailto:") || href.startsWith("http")) {
       return (
@@ -43,7 +45,7 @@ export function XplButton({
   }
 
   return (
-    <button type={type} className={cn(styles, className)}>
+    <button type={type} className={cn(styles, className)} disabled={disabled}>
       {children} <span className="arr" aria-hidden="true">→</span>
     </button>
   );

@@ -30,11 +30,14 @@ describe("landingPathFor", () => {
   it("honours a same-site callback the role may actually reach", () => {
     expect(landingPathFor("admin", "/dashboard/account")).toBe("/dashboard/account");
     expect(landingPathFor("user", "/me/account")).toBe("/me/account");
+    expect(landingPathFor("user", "/whats-on")).toBe("/whats-on");
+    expect(landingPathFor("user", "/whats-on?book=stn_abc")).toBe("/whats-on?book=stn_abc");
   });
 
   it("refuses a callback the role cannot reach, rather than looping", () => {
     expect(landingPathFor("user", "/dashboard")).toBe("/me");
     expect(landingPathFor("admin", "/me/account")).toBe("/dashboard");
+    expect(landingPathFor("admin", "/whats-on")).toBe("/dashboard");
     expect(landingPathFor("member", "/me")).toBe("/dashboard");
   });
 

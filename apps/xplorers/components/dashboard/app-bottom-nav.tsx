@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, MenuIcon, UsersIcon } from "lucide-react";
+import { CalendarDaysIcon, LayoutDashboardIcon, MenuIcon, UsersIcon } from "lucide-react";
 import { BottomNav, type BottomNavItem } from "@foundry/design-system";
 import { MoreDrawer } from "./more-drawer";
 
@@ -10,6 +10,7 @@ export function AppBottomNav({ granted }: { granted?: string[] }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const canUsers = granted?.includes("user:list");
+  const canSessions = granted?.includes("studioSession:read");
 
   const items: BottomNavItem[] = [
     {
@@ -18,6 +19,16 @@ export function AppBottomNav({ granted }: { granted?: string[] }) {
       active: pathname === "/dashboard",
       href: "/dashboard",
     },
+    ...(canSessions
+      ? [
+          {
+            title: "Sessions",
+            icon: CalendarDaysIcon,
+            active: pathname.startsWith("/dashboard/sessions"),
+            href: "/dashboard/sessions",
+          },
+        ]
+      : []),
     ...(canUsers
       ? [
           {

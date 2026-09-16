@@ -7,46 +7,6 @@ export const NAV = [
   { href: "/the-place", label: "The Place" },
 ] as const;
 
-export const BOARD = [
-  {
-    time: "9:30 AM",
-    title: "Science Wing",
-    spec: "School group · Booked · 30 students",
-    spots: "Private",
-    tone: "muted",
-  },
-  {
-    time: "2:00 PM",
-    title: "Think Like a Scientist",
-    spec: "Age 5–12 · 90 min · Drop-off · $68",
-    spots: "4 spots left",
-    tone: "action",
-  },
-  {
-    time: "4:00 PM",
-    title: "Cardboard Creations",
-    spec: "Age 6+ · 90 min · Machines that move",
-    spots: "Full — join waitlist",
-    tone: "muted",
-  },
-  {
-    time: "5:00 PM",
-    title: "Kids Club",
-    spec: "Age 6+ · Freestyle build · $35/hr",
-    spots: "Drop in",
-    tone: "ink",
-  },
-  {
-    time: "7:00 PM",
-    title: "Crafting Club",
-    spec: "Adults · Mini woodwork · Drink included · $58",
-    spots: "2 spots left",
-    tone: "action",
-  },
-] as const;
-
-export type BoardTone = (typeof BOARD)[number]["tone"];
-
 export const METHOD_CHAIN = [
   { word: "Curious", oops: false },
   { word: "Try", oops: false },

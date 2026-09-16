@@ -7,6 +7,11 @@ describe("member reaches its intended surfaces", () => {
     expect(roleCan(Role.MEMBER, { settings: ["read"] })).toBe(true);
   });
 
+  it("member may read studio sessions but not create them", () => {
+    expect(roleCan(Role.MEMBER, { studioSession: ["read"] } as never)).toBe(true);
+    expect(roleCan(Role.MEMBER, { studioSession: ["create"] } as never)).toBe(false);
+  });
+
   it.each([
     ["staff invites", { staff: ["invite"] }],
     ["user listing", { user: ["list"] }],

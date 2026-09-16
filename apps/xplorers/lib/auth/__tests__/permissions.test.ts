@@ -30,4 +30,15 @@ describe("xplorers permission map", () => {
     expect(roles.member.authorize({ user: ["create"] }).success).toBe(false);
     expect(roles.member.authorize({ user: ["list"] }).success).toBe(false);
   });
+
+  it("lets admin manage studio sessions", () => {
+    expect(roles.admin.authorize({ studioSession: ["create", "read", "update", "delete"] }).success).toBe(true);
+    expect(roles.admin.authorize({ booking: ["read"] }).success).toBe(true);
+  });
+
+  it("lets member read sessions, not write them", () => {
+    expect(roles.member.authorize({ studioSession: ["read"] }).success).toBe(true);
+    expect(roles.member.authorize({ studioSession: ["create"] }).success).toBe(false);
+    expect(roles.member.authorize({ studioSession: ["update"] }).success).toBe(false);
+  });
 });

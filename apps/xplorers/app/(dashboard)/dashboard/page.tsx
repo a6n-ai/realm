@@ -24,11 +24,16 @@ export default async function DashboardHomePage() {
           ) : null
         }
       />
-      <SectionCard title="What's next">
+      <SectionCard title="Sessions">
         <p className="text-muted-foreground text-sm">
-          Auth, public pages, and this console are in place. Classes, bookings, and the rest of the Science Explorers
-          Club product land in later passes.
+          Publish bookable sessions for the public calendar. Families book from What’s on; remaining seats are computed
+          on the server.
         </p>
+        {session?.user && roleCan(session.user.role, { studioSession: ["read"] } as never) ? (
+          <Button asChild size="sm" className="mt-4">
+            <Link href="/dashboard/sessions">Open sessions</Link>
+          </Button>
+        ) : null}
       </SectionCard>
     </PageShell>
   );
