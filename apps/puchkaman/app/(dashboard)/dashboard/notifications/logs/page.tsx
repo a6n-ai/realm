@@ -48,7 +48,11 @@ const SPEC: FacetDef[] = [
   { kind: "select", field: "event", label: "Event", options: EVENT_OPTIONS },
   { kind: "dateRange", field: "createdAt", label: "Time" },
   // Recipient + error/provider id. Enum columns use the facets above.
-  { kind: "search", fields: ["email", "lastError", "providerMessageId"] },
+  // "email" is the linked user's address; "recipientEmail" is the literal
+  // address on the outbox row — a campaign/imported-contact send has no user
+  // row at all, so only the latter is set. Both are searched so this box
+  // finds a recipient regardless of which kind of send it was.
+  { kind: "search", fields: ["email", "recipientEmail", "lastError", "providerMessageId"] },
 ];
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -97,6 +101,7 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
       event: notificationOutbox.event,
       createdAt: notificationOutbox.createdAt,
       email: users.email,
+      recipientEmail: notificationOutbox.recipientEmail,
       lastError: notificationOutbox.lastError,
       providerMessageId: notificationOutbox.providerMessageId,
     }),

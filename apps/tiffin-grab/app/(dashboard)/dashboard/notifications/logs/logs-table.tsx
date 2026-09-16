@@ -23,6 +23,7 @@ type Row = {
   lastError: string | null;
   createdAt: number;
   email: string | null;
+  recipientEmail: string | null;
 };
 
 // Single source of truth for the table's columns. DataTable renders the header
@@ -87,7 +88,7 @@ export function LogsTable({
             </TableCell>
             <TableCell>{eventLabel(r.event)}</TableCell>
             <TableCell className="text-muted-foreground">{r.channel}</TableCell>
-            <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
+            <TableCell className="text-muted-foreground">{r.email ?? r.recipientEmail ?? "—"}</TableCell>
             <TableCell>
               <span className={STATUS_STYLE[r.status] ?? "text-muted-foreground"}>{r.status}</span>
               {r.attempts > 1 && (
@@ -122,7 +123,7 @@ export function LogsTable({
               <Field label="Channel">
                 <Badge variant="outline">{selected.channel}</Badge>
               </Field>
-              <Field label="Recipient">{selected.email ?? "—"}</Field>
+              <Field label="Recipient">{selected.email ?? selected.recipientEmail ?? "—"}</Field>
               <Field label="Queued at">{fmt(selected.createdAt)}</Field>
               <Field label="Provider message ID">{selected.providerMessageId ?? "—"}</Field>
               <Field label="Attempts">{selected.attempts}</Field>

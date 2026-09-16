@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { buildCampaignConfig, buildUnsubscribeUrl, countAudience, withPreviewFooter, type AudienceDef } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
-import { Button } from "@foundry/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { app, campaign, campaignContent, contactList, messageSuppression } from "@/db/schema";
@@ -17,6 +16,7 @@ import {
   CampaignContentSection,
   CampaignDeleteButton,
   CampaignDuplicateButton,
+  CampaignLogsPanel,
   CampaignRetriggerButton,
   CampaignSendButton,
   formatConsentDate,
@@ -120,11 +120,6 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
         <div className="flex gap-2">
-          {!sendable && (
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/notifications/logs?campaignId=${row.id}`}>View logs</Link>
-            </Button>
-          )}
           <CampaignDuplicateButton campaignPublicId={row.publicId} lists={lists} timeZone={timeZone} />
           {sendable && <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />}
           {row.status === "sent" && <CampaignCompleteButton campaignPublicId={row.publicId} />}
@@ -134,46 +129,64 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       </div>
 
       {sendable ? (
-        <SectionCard title="Audience" subtitle="Recomputed now — suppressions and unsubscribes already removed.">
-          <CampaignAudienceEditor
-            campaignPublicId={row.publicId}
-            audience={row.audience as AudienceValue}
-            count={count}
-            lists={lists}
-            requiresVerifiedPhone={(row.channels as string[]).some((c) => c === "sms" || c === "whatsapp")}
-            timeZone={timeZone}
-          />
-        </SectionCard>
+        <>
+          <SectionCard title="Audience" subtitle="Recomputed now — suppressions and unsubscribes already removed.">
+            <CampaignAudienceEditor
+              campaignPublicId={row.publicId}
+              audience={row.audience as AudienceValue}
+              count={count}
+              lists={lists}
+              requiresVerifiedPhone={(row.channels as string[]).some((c) => c === "sms" || c === "whatsapp")}
+              timeZone={timeZone}
+            />
+          </SectionCard>
+          <SectionCard title="Content" subtitle="One row per channel and locale.">
+            <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+          </SectionCard>
+        </>
       ) : (
-        <SectionCard title="Results" subtitle="Counts recorded at send time and from SES feedback.">
-          <CampaignAnalytics counts={counts} />
-        </SectionCard>
-      )}
-
-      <SectionCard title="Content" subtitle="One row per channel and locale.">
-        <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
-      </SectionCard>
-
-      {!sendable && (
-        <SectionCard
-          title="Unsubscribed"
-          subtitle={
-            unsubscribes.length > 0
-              ? "Opted out of marketing from this campaign's send."
-              : "No one has unsubscribed from this campaign."
-          }
-        >
-          {unsubscribes.length > 0 && (
-            <div className="divide-y">
-              {unsubscribes.map((u) => (
-                <div key={u.address} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <span className="font-mono">{u.address}</span>
-                  <span className="text-muted-foreground">{formatConsentDate(u.createdAt, timeZone)}</span>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-6 pt-4">
+            <SectionCard title="Results" subtitle="Counts recorded at send time and from SES feedback.">
+              <CampaignAnalytics counts={counts} />
+            </SectionCard>
+            <SectionCard title="Content" subtitle="One row per channel and locale.">
+              <CampaignContentSection campaignPublicId={row.publicId} content={previewContent} editable={sendable} footer={footer} />
+            </SectionCard>
+            <SectionCard
+              title="Unsubscribed"
+              subtitle={
+                unsubscribes.length > 0
+                  ? "Opted out of marketing from this campaign's send."
+                  : "No one has unsubscribed from this campaign."
+              }
+            >
+              {unsubscribes.length > 0 && (
+                <div className="divide-y">
+                  {unsubscribes.map((u) => (
+                    <div key={u.address} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <span className="font-mono">{u.address}</span>
+                      <span className="text-muted-foreground">{formatConsentDate(u.createdAt, timeZone)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
+              )}
+            </SectionCard>
+          </TabsContent>
+          <TabsContent value="logs" className="pt-4">
+            <SectionCard title="Logs" subtitle="Recent sends for this campaign.">
+              <CampaignLogsPanel
+                campaignPublicId={row.publicId}
+                campaignId={String(row.id)}
+                formatTime={(ms) => formatConsentDate(ms, timeZone)}
+              />
+            </SectionCard>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
