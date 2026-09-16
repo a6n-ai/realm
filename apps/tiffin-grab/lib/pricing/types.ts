@@ -65,6 +65,9 @@ export type PendingRedemption = {
 // Immutable receipt written onto orders.pricing_snapshot at create time.
 export type OrderPricingSnapshot = PricingResult & {
   paymentMethodId: string;
+  /** Province whose rates produced taxLines, so a receipt can be audited later.
+   *  null when the delivery address yielded no province (then taxLines is []). */
+  taxProvince?: string | null;
   planType?: string;
   // Present only when payment is awaiting verification — cleared after redeem-on-verify.
   pendingRedemptions?: PendingRedemption[];

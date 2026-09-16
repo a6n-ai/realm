@@ -7,6 +7,7 @@ import { canClaim, canVerify, enabledMethods, findMethod } from "@foundry/paymen
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
+import { resolveProvince, resolveTaxLines } from "@/lib/tax/canada";
 import {
   coupons,
   deliveries,
@@ -265,6 +266,16 @@ export async function createOrder(
     paymentMethodId = method.id;
     methodTaxes = method.taxes;
   }
+
+  // Canadian sales tax is destination-based: the DELIVERY address decides the
+  // rate, not the payment method. Province lines win when the address resolves;
+  // a method's own configured taxes remain the fallback so an install that
+  // predates province tax keeps billing exactly as before instead of silently
+  // dropping to zero. Never both — that would double-tax.
+  const taxProvince = resolveProvince({ postalCode: input.contact.postalCode });
+  const provinceTaxes = resolveTaxLines({ postalCode: input.contact.postalCode });
+  const taxes = provinceTaxes.length > 0 ? provinceTaxes : methodTaxes;
+
   const deferSettlement = paymentMethodId !== "simulated";
 
   const txResult = await db.transaction(async (tx) => {
@@ -443,13 +454,14 @@ export async function createOrder(
       }
     }
 
-    const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, methodTaxes);
+    const pricing = priceSubscription(input.selections, pricingCatalog, adjustments, taxes);
 
     // Snapshot is the immutable receipt. For deferred settlement, pending
     // redemptions ride along until staff verify — then redeem + clear.
     const snapshot: OrderPricingSnapshot = {
       ...pricing,
       paymentMethodId,
+      taxProvince,
       planType: plan.planType,
       ...(deferSettlement && redemptions.length
         ? {
@@ -1387,6 +1399,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const method = findMethod(paymentCfg, priorMethodId);
       if (method?.enabled) methodTaxes = method.taxes;
     }
+    // Same destination rule as createOrder — off this order's own delivery address.
+    const provinceTaxes = resolveTaxLines({ postalCode: order.postalCode });
+    const taxes = provinceTaxes.length > 0 ? provinceTaxes : methodTaxes;
 
     const selections: PricingSelections = {
       mealSizeId: mealSize.publicId,
@@ -1399,7 +1414,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       startDate: order.startDate,
     };
     const pricingCatalog = buildPricingCatalog(snapshot, selections);
-    const pricing = priceSubscription(selections, pricingCatalog, [], methodTaxes);
+    const pricing = priceSubscription(selections, pricingCatalog, [], taxes);
     const newSnapshot: OrderPricingSnapshot = {
       ...pricing,
       paymentMethodId: priorMethodId,
