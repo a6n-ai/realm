@@ -60,8 +60,9 @@ export type PullCompletionsResult = {
    *  too early to call it a miss. Re-pull after cutoff. */
   pendingCount: number;
   /** No OptimoRoute stop found for this delivery at all — a push/sync gap, not a delivery
-   *  outcome. Left untouched (falls back to the time-based default), reported for follow-up. */
-  unmatchedCount: number;
+   *  outcome. Left untouched (falls back to the time-based default), listed by name so
+   *  staff know which customers to check rather than just a bare count. */
+  unmatched: { deliveryPublicId: string; customerName: string }[];
 };
 
 export async function pullCompletions(
@@ -94,7 +95,7 @@ export async function pullCompletions(
   const outcomes: CompletionOutcome[] = [];
   const ambiguous: CompletionAmbiguous[] = [];
   let pendingCount = 0;
-  let unmatchedCount = 0;
+  const unmatched: { deliveryPublicId: string; customerName: string }[] = [];
 
   for (const row of rows) {
     const phone = normalisePhone(row.customerPhone);
@@ -107,7 +108,7 @@ export async function pullCompletions(
         ambiguous.push({ phone, deliveryPublicId: row.delivery.publicId, candidateCount: candidates.length });
         continue;
       } else {
-        unmatchedCount += 1;
+        unmatched.push({ deliveryPublicId: row.delivery.publicId, customerName: row.order.fullName });
         continue;
       }
     }
@@ -186,5 +187,5 @@ export async function pullCompletions(
     });
   }
 
-  return { date, outcomes, ambiguous, pendingCount, unmatchedCount };
+  return { date, outcomes, ambiguous, pendingCount, unmatched };
 }

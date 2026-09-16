@@ -67,8 +67,8 @@ export function CompletionsView({ date }: { date: string }) {
             {completions.pendingCount > 0 ? (
               <Badge variant="outline">{completions.pendingCount} too early to tell</Badge>
             ) : null}
-            {completions.unmatchedCount > 0 ? (
-              <Badge variant="outline">{completions.unmatchedCount} not found on OptimoRoute</Badge>
+            {completions.unmatched.length > 0 ? (
+              <Badge variant="outline">{completions.unmatched.length} not found on OptimoRoute</Badge>
             ) : null}
             {completions.ambiguous.length > 0 ? (
               <Badge variant="outline">{completions.ambiguous.length} phone match(es) need review</Badge>
@@ -107,6 +107,17 @@ export function CompletionsView({ date }: { date: string }) {
                     {" "}
                     — {a.candidateCount} OptimoRoute stops share this phone for this date, resolve manually
                   </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {completions.unmatched.length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {completions.unmatched.map((u) => (
+                <li key={u.deliveryPublicId}>
+                  <span className="font-medium">{u.customerName}</span>
+                  <span className="text-muted-foreground"> — no OptimoRoute stop found for this date</span>
                 </li>
               ))}
             </ul>

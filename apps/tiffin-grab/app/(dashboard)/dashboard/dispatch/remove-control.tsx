@@ -83,6 +83,24 @@ export function RemoveControl({
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="destructive"
+          disabled={pending || selected.size === 0}
+          onClick={() => setOpen(true)}
+        >
+          <TrashIcon data-icon="inline-start" /> Remove {selected.size || ""} selected
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() => setSelected(new Set(stale.filter((s) => s.ours).map((s) => s.orderNo)))}
+        >
+          Select ours ({stale.filter((s) => s.ours).length})
+        </Button>
+      </div>
+
       <DataTable
         columns={COLUMNS}
         rows={stale}
@@ -145,24 +163,6 @@ export function RemoveControl({
           </>
         )}
       />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="destructive"
-          disabled={pending || selected.size === 0}
-          onClick={() => setOpen(true)}
-        >
-          <TrashIcon data-icon="inline-start" /> Remove {selected.size || ""} selected
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={pending}
-          onClick={() => setSelected(new Set(stale.filter((s) => s.ours).map((s) => s.orderNo)))}
-        >
-          Select ours ({stale.filter((s) => s.ours).length})
-        </Button>
-      </div>
 
       <ResponsiveDialog
         open={open}
