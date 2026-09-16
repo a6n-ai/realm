@@ -1,11 +1,8 @@
 import { cn } from "@foundry/ui/cn";
 
-export const CATEGORY_LABEL: Record<string, string> = {
-  order: "Order",
-  billing: "Billing",
-  catering: "Catering",
-  general: "General",
-};
+// Labels come from the shared taxonomy so admin never drifts from the customer
+// picker; categoryLabel() also covers retired values still on historical rows.
+export { categoryLabel } from "@/lib/support/ticket-taxonomy";
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Open",

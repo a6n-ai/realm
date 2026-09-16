@@ -18,7 +18,8 @@ import { Badge } from "@foundry/ui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { cn } from "@foundry/ui/cn";
-import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "../ticket-badges";
+import { TicketStatusBadge, PriorityBadge, categoryLabel } from "../ticket-badges";
+import { subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, TicketControlsSkeleton } from "./ticket-controls";
 import { PresenceDot } from "@/components/ds";
 
@@ -103,8 +104,11 @@ async function DetailsData({ params }: { params: Promise<{ id: string }> }) {
         <TicketStatusBadge status={ticket.status} />
         <PriorityBadge priority={ticket.priority} />
         <Badge variant="secondary" className="capitalize">
-          {CATEGORY_LABEL[ticket.category] ?? ticket.category}
+          {categoryLabel(ticket.category)}
         </Badge>
+        {subcategoryLabel(ticket.category, ticket.subcategory) ? (
+          <Badge variant="outline">{subcategoryLabel(ticket.category, ticket.subcategory)}</Badge>
+        ) : null}
       </div>
       <TicketControls
         ticketId={ticket.publicId}

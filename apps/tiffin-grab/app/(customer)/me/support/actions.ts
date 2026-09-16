@@ -9,19 +9,26 @@ import { orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
 import { ticketsService, type TicketCategory } from "@/lib/services/tickets.service";
 import { uploadAttachments } from "@/lib/services/ticket-attachments";
-
-const CATEGORIES = new Set<TicketCategory>(["order", "billing", "catering", "general"]);
+import { isTicketCategory, isValidPair } from "@/lib/support/ticket-taxonomy";
 
 export async function createTicket(form: FormData): Promise<void> {
   const subject = String(form.get("subject") ?? "").trim();
   const body = String(form.get("body") ?? "").trim();
-  const categoryRaw = String(form.get("category") ?? "general");
+  const categoryRaw = String(form.get("category") ?? "").trim();
+  const subcategoryRaw = String(form.get("subcategory") ?? "").trim();
   const orderPublicId = String(form.get("orderPublicId") ?? "").trim() || undefined;
 
-  if (!CATEGORIES.has(categoryRaw as TicketCategory)) {
+  // Validate the PAIR, not each half. A stale or hand-crafted client could post a
+  // sub-category from a different category ("packaging" + "refund") — each is a
+  // real value, but the combination would poison the two-level analytics.
+  if (!isTicketCategory(categoryRaw)) {
     throw new ValidationError("Invalid category");
   }
+  if (!isValidPair(categoryRaw, subcategoryRaw)) {
+    throw new ValidationError("Invalid sub-category for the chosen category");
+  }
   const category = categoryRaw as TicketCategory;
+  const subcategory = subcategoryRaw;
 
   // Resolve the linked order scoped to the current customer so a ticket can
   // never be pinned to someone else's order. ticketsService.create itself sets
@@ -44,6 +51,7 @@ export async function createTicket(form: FormData): Promise<void> {
   const ticket = await ticketsService.create({
     subject,
     category,
+    subcategory,
     body,
     ...(orderId != null ? { orderId } : {}),
   });

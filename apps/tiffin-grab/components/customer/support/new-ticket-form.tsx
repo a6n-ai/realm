@@ -18,23 +18,29 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import { makeImageThumbnail } from "@/components/ds";
 import { createTicket } from "@/app/(customer)/me/support/actions";
+import {
+  CATEGORY_LABEL,
+  SUBCATEGORIES,
+  type TicketCategoryValue,
+} from "@/lib/support/ticket-taxonomy";
 
-export type TicketCategoryValue = "order" | "billing" | "catering" | "general";
-
-const CATEGORY_LABEL: Record<TicketCategoryValue, string> = {
-  order: "A plan or delivery",
-  billing: "Billing or payment",
-  catering: "Catering",
-  general: "Something else",
-};
+export type { TicketCategoryValue };
 
 const FIELDS = [
   { key: "subject", label: "Subject", control: "h-11" },
-  { key: "category", label: "What's this about?", control: "h-11" },
+  { key: "category", label: "Category", control: "h-11" },
+  { key: "subcategory", label: "Sub-category", control: "h-11" },
   { key: "order", label: "Related plan / order", control: "h-11" },
   { key: "body", label: "Message", control: "h-28" },
   { key: "photos", label: "Photos", control: "h-20" },
 ] as const;
+
+// Addressed by key, not index — the list doubles as the skeleton's row spec, so
+// inserting a field must not silently re-point another field's label.
+const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.label])) as Record<
+  (typeof FIELDS)[number]["key"],
+  string
+>;
 
 const NO_ORDER = "__none__";
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -49,15 +55,17 @@ export function NewTicketForm({
   defaultOrderId,
   defaultCategory,
 }: {
-  categories: TicketCategoryValue[];
+  categories: readonly TicketCategoryValue[];
   orders: OrderOption[];
   defaultOrderId?: string;
-  defaultCategory: TicketCategoryValue;
+  defaultCategory?: TicketCategoryValue;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState<TicketCategoryValue>(defaultCategory);
+  // "" = nothing picked yet; the sub-category field stays hidden until a category exists.
+  const [category, setCategory] = useState<TicketCategoryValue | "">(defaultCategory ?? "");
+  const [subcategory, setSubcategory] = useState("");
   const [orderId, setOrderId] = useState(defaultOrderId ?? NO_ORDER);
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -87,10 +95,20 @@ export function NewTicketForm({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  // Changing the category invalidates whatever sub-category was picked under the
+  // previous one, so clear it rather than carry a mismatched pair to the server.
+  function pickCategory(next: TicketCategoryValue) {
+    setCategory(next);
+    setSubcategory("");
+    setError(null);
+  }
+
   function submit() {
     const trimmedSubject = subject.trim();
     const trimmedBody = body.trim();
     if (!trimmedSubject) return setError("Please add a short subject.");
+    if (!category) return setError("Please choose a category.");
+    if (!subcategory) return setError("Please choose a sub-category.");
     if (!trimmedBody) return setError("Please describe what's going on.");
     setError(null);
     start(async () => {
@@ -98,6 +116,7 @@ export function NewTicketForm({
         const form = new FormData();
         form.set("subject", trimmedSubject);
         form.set("category", category);
+        form.set("subcategory", subcategory);
         form.set("body", trimmedBody);
         if (orderId !== NO_ORDER) form.set("orderPublicId", orderId);
         for (const f of files) {
@@ -117,7 +136,7 @@ export function NewTicketForm({
   return (
     <div className="grid w-full max-w-xl gap-5">
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-subject">{FIELDS[0].label}</Label>
+        <Label htmlFor="ticket-subject">{LABEL.subject}</Label>
         <Input
           id="ticket-subject"
           autoFocus
@@ -129,10 +148,10 @@ export function NewTicketForm({
       </div>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-category">{FIELDS[1].label}</Label>
-        <Select value={category} onValueChange={(v) => setCategory(v as TicketCategoryValue)}>
+        <Label htmlFor="ticket-category">{LABEL.category}</Label>
+        <Select value={category || undefined} onValueChange={(v) => pickCategory(v as TicketCategoryValue)}>
           <SelectTrigger id="ticket-category" className="min-h-11 w-full">
-            <SelectValue />
+            <SelectValue placeholder="Choose a category" />
           </SelectTrigger>
           <SelectContent>
             {categories.map((c) => (
@@ -144,10 +163,31 @@ export function NewTicketForm({
         </Select>
       </div>
 
+      {category ? (
+        <div className="grid gap-1.5">
+          <Label htmlFor="ticket-subcategory">{LABEL.subcategory}</Label>
+          {/* Keyed on category: Radix keeps internal state while mounted, so clearing
+              the value on a category switch would blank the trigger instead of
+              restoring the placeholder. Remounting gives a clean list + placeholder. */}
+          <Select key={category} value={subcategory || undefined} onValueChange={setSubcategory}>
+            <SelectTrigger id="ticket-subcategory" className="min-h-11 w-full">
+              <SelectValue placeholder="Choose a sub-category" />
+            </SelectTrigger>
+            <SelectContent>
+              {SUBCATEGORIES[category].map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+
       {orders.length > 0 ? (
         <div className="grid gap-1.5">
           <Label htmlFor="ticket-order">
-            {FIELDS[2].label} <span className="text-muted-foreground font-normal">optional</span>
+            {LABEL.order} <span className="text-muted-foreground font-normal">optional</span>
           </Label>
           <Select value={orderId} onValueChange={setOrderId}>
             <SelectTrigger id="ticket-order" className="min-h-11 w-full">
@@ -166,7 +206,7 @@ export function NewTicketForm({
       ) : null}
 
       <div className="grid gap-1.5">
-        <Label htmlFor="ticket-body">{FIELDS[3].label}</Label>
+        <Label htmlFor="ticket-body">{LABEL.body}</Label>
         <Textarea
           id="ticket-body"
           rows={5}
@@ -254,7 +294,9 @@ export function NewTicketForm({
 export function NewTicketFormSkeleton() {
   return (
     <div className="grid max-w-xl gap-5">
-      {FIELDS.map((f) => (
+      {/* Sub-category is hidden until a category is picked, so the loading state
+          mirrors the form's initial shape rather than its fully-filled one. */}
+      {FIELDS.filter((f) => f.key !== "subcategory").map((f) => (
         <div key={f.key} className="grid gap-1.5">
           <Skeleton className="h-4 w-24" />
           <Skeleton className={cn("w-full", f.control)} />
