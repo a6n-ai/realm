@@ -72,18 +72,22 @@ FROM (VALUES ('lss_web_direct', 'website', 'direct', 'Direct'),
 WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);
 
 -- ============ PLANS ============
+-- 'restricted' drives the generic swap-direction guard in dish-categories.service.ts
+-- (a restricted plan's customers must never receive a category it can't reach) —
+-- only the veg plan is restricted today, non-veg and healthy are not.
 INSERT INTO plans (public_id, created_at, updated_at, key, name, description, plan_type,
-                   allowed_start_days)
+                   allowed_start_days, restricted)
 VALUES ('pln_veg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 'veg',
         'Pure Vegetarian Plan', 'Seasonal vegetables, paneer, daal, rotis, raitas.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri']),
+        ARRAY ['mon','tue','wed','thu','fri'], TRUE),
        ('pln_halal_nonveg', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'non-veg', 'Non-Veg Plan', 'Poultry, mutton, egg masalas, daals, chapatis.', 'tiffin',
-        ARRAY ['mon','tue','wed','thu','fri']),
+        ARRAY ['mon','tue','wed','thu','fri'], FALSE),
        ('pln_healthy', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'healthy', 'Healthy Plan', 'Breakfast, lunch, and dinner — pick the slots you want.', 'healthy',
-        ARRAY ['mon','tue','wed','thu','fri'])
+        ARRAY ['mon','tue','wed','thu','fri'], FALSE)
 ON CONFLICT (key) DO NOTHING;
+UPDATE plans SET restricted = TRUE WHERE key = 'veg' AND NOT restricted;
 
 -- ============ MEAL SIZES ============ (17 real tiffingrab.ca sizes; components='[]' placeholder
 -- derived below from meal_size_items. kcal per tier: budget 450-650, medium 650-900, premium 900-1300.
@@ -137,7 +141,6 @@ SELECT 'msi_' || SUBSTR(MD5(v.meal_size_key || v.name || v.sort_order::TEXT), 1,
        CASE v.name
          WHEN 'Sabzi' THEN 'sabzi'
          WHEN 'Daal' THEN 'daal'
-         WHEN 'Curry' THEN 'curry'
          WHEN 'Rice' THEN 'rice'
          WHEN 'Roti' THEN 'roti'
          WHEN 'Salad' THEN 'salad'
@@ -158,7 +161,7 @@ FROM (VALUES
   ('veg_4_regular', 'Roti', 0.25, NULL, 3),
   ('veg_4_regular', 'Roti', 0.25, NULL, 4),
   ('sabzi_only_nonveg', 'Sabzi', 1, NULL, 0),
-  ('sabzi_only_nonveg', 'Curry', 1, NULL, 1),
+  ('sabzi_only_nonveg', 'Sabzi', 1, NULL, 1),
   ('sabzi_only_nonveg', 'Daal', 1, NULL, 2),
   ('veg_5_regular', 'Sabzi', 1, NULL, 0),
   ('veg_5_regular', 'Daal', 1, NULL, 1),
@@ -166,7 +169,7 @@ FROM (VALUES
   ('veg_5_regular', 'Roti', 0.25, NULL, 3),
   ('veg_5_regular', 'Roti', 0.25, NULL, 4),
   ('veg_5_regular', 'Roti', 0.25, NULL, 5),
-  ('nonveg_4_regular', 'Curry', 1, NULL, 0),
+  ('nonveg_4_regular', 'Sabzi', 1, NULL, 0),
   ('nonveg_4_regular', 'Daal', 1, NULL, 1),
   ('nonveg_4_regular', 'Rice', 1, NULL, 2),
   ('nonveg_4_regular', 'Roti', 0.25, NULL, 3),
@@ -188,13 +191,13 @@ FROM (VALUES
   ('veg_4_large', 'Roti', 0.25, NULL, 4),
   ('veg_4_large', 'Roti', 0.25, NULL, 5),
   ('veg_4_large', 'Roti', 0.25, NULL, 6),
-  ('nonveg_5_regular', 'Curry', 1, NULL, 0),
+  ('nonveg_5_regular', 'Sabzi', 1, NULL, 0),
   ('nonveg_5_regular', 'Daal', 1, NULL, 1),
   ('nonveg_5_regular', 'Rice', 1, NULL, 2),
   ('nonveg_5_regular', 'Roti', 0.25, NULL, 3),
   ('nonveg_5_regular', 'Roti', 0.25, NULL, 4),
   ('nonveg_5_regular', 'Roti', 0.25, NULL, 5),
-  ('new_plan_nonveg', 'Curry', 1, NULL, 0),
+  ('new_plan_nonveg', 'Sabzi', 1, NULL, 0),
   ('new_plan_nonveg', 'Daal', 1, NULL, 1),
   ('new_plan_nonveg', 'Roti', 0.25, NULL, 2),
   ('new_plan_nonveg', 'Roti', 0.25, NULL, 3),
@@ -204,7 +207,7 @@ FROM (VALUES
   ('new_plan_nonveg', 'Roti', 0.25, NULL, 7),
   ('new_plan_nonveg', 'Roti', 0.25, NULL, 8),
   ('new_plan_nonveg', 'Roti', 0.25, NULL, 9),
-  ('nonveg_4_large', 'Curry', 1.5, NULL, 0),
+  ('nonveg_4_large', 'Sabzi', 1.5, NULL, 0),
   ('nonveg_4_large', 'Daal', 1.5, NULL, 1),
   ('nonveg_4_large', 'Rice', 1, NULL, 2),
   ('nonveg_4_large', 'Roti', 0.25, NULL, 3),
@@ -233,7 +236,7 @@ FROM (VALUES
   ('maharaja_veg', 'Roti', 0.25, NULL, 10),
   ('maharaja_veg', 'Roti', 0.25, NULL, 11),
   ('maharaja_veg', 'Roti', 0.25, NULL, 12),
-  ('nonveg_5_large', 'Curry', 1.5, NULL, 0),
+  ('nonveg_5_large', 'Sabzi', 1.5, NULL, 0),
   ('nonveg_5_large', 'Daal', 1.5, NULL, 1),
   ('nonveg_5_large', 'Rice', 1, NULL, 2),
   ('nonveg_5_large', 'Roti', 0.25, NULL, 3),
@@ -248,7 +251,7 @@ FROM (VALUES
   ('trial_veg', 'Roti', 0.25, NULL, 3),
   ('trial_veg', 'Roti', 0.25, NULL, 4),
   ('trial_veg', 'Roti', 0.25, NULL, 5),
-  ('maharaja_nonveg', 'Curry', 1, 1, 0),
+  ('maharaja_nonveg', 'Sabzi', 1, 1, 0),
   ('maharaja_nonveg', 'Daal', 1, 3, 1),
   ('maharaja_nonveg', 'Salad', 1, 2, 2),
   ('maharaja_nonveg', 'Raita', 1, 2, 3),
@@ -261,7 +264,7 @@ FROM (VALUES
   ('maharaja_nonveg', 'Roti', 0.25, NULL, 10),
   ('maharaja_nonveg', 'Roti', 0.25, NULL, 11),
   ('maharaja_nonveg', 'Roti', 0.25, NULL, 12),
-  ('trial_nonveg', 'Curry', 1, NULL, 0),
+  ('trial_nonveg', 'Sabzi', 1, NULL, 0),
   ('trial_nonveg', 'Rice', 1, NULL, 1),
   ('trial_nonveg', 'Roti', 0.25, NULL, 2),
   ('trial_nonveg', 'Roti', 0.25, NULL, 3),
@@ -385,8 +388,10 @@ VALUES ('slt_tiffin_sabzi', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT
         'salad', 'Salad', TRUE, FALSE, 5, 'weight', 8, 'oz'),
        ('slt_tiffin_daal', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
         'daal', 'Daal', TRUE, FALSE, 6, 'weight', 8, 'oz'),
-       ('slt_tiffin_curry', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
-        'curry', 'Curry', TRUE, TRUE, 7, 'weight', 8, 'oz'),
+       -- 'curry' is gone: it was a second slot for the same gravy dish Sabzi already
+       -- covers (a non-veg thali's "Curry" item and a veg thali's "Sabzi" item are the
+       -- same slot, split only by dish.dietType) — two categories for one dish concept
+       -- was the confusion the plan pricing image doesn't have, so it's merged into 'sabzi'.
        -- No meal_size_items reference 'extra' any more (the TU redesign dropped the
        -- veg-curry Extra slot from every meal size), but Egg Bhurji/Masala Papad below
        -- still carry it as their dishes.category soft-ref — keep the row so that FK isn't
@@ -419,7 +424,6 @@ FROM (VALUES
   ('roti','veg'),('roti','non-veg'),
   ('raita','veg'),('raita','non-veg'),
   ('daal','veg'),('daal','non-veg'),
-  ('curry','veg'),('curry','non-veg'),
   ('extra','veg'),('extra','non-veg'),
   ('salad','veg'),('salad','non-veg'),('salad','healthy'),
   ('protein','healthy'),('grain','healthy'),('veg','healthy')
@@ -433,7 +437,8 @@ WHERE NOT EXISTS (
 -- ============ CATEGORY SWAP PAIRS ============ (global eligibility, not scoped to a meal
 -- size — see db/schema/menu.ts. Trade is always flat 1 TU-for-1 TU now, computed at apply
 -- time from each category's own tuAmount, so this only records WHICH pairs may ever swap:
--- daal<->curry (the maharaja curry pool), salad->raita, roti<->rice.
+-- daal<->sabzi (the maharaja gravy pool, formerly daal<->curry before 'curry' merged into
+-- 'sabzi'), salad->raita, roti<->rice.
 --
 -- salad->raita is deliberately ONE-DIRECTIONAL, not the salad<->raita pair it used to be:
 -- the base composition is Salad, so raita->salad has no salad to reach it from and would
@@ -448,10 +453,23 @@ SELECT 'csp_' || SUBSTR(MD5(v.from_key || v.to_key), 1, 10),
        (SELECT id FROM dish_categories WHERE key = v.from_key),
        (SELECT id FROM dish_categories WHERE key = v.to_key)
 FROM (VALUES
-  ('daal', 'curry'), ('curry', 'daal'),
+  ('daal', 'sabzi'), ('sabzi', 'daal'),
   ('salad', 'raita'),
   ('roti', 'rice'), ('rice', 'roti')
 ) AS v(from_key, to_key);
+
+-- ============ CURRY -> SABZI MERGE ============ (repoints any already-seeded rows from a
+-- prior run before the category itself is retired below — a plain re-seed of the categories
+-- above only inserts 'sabzi' going forward, it can't fix rows an earlier seed already wrote
+-- against 'curry'.)
+UPDATE dishes SET category = 'sabzi' WHERE category = 'curry';
+UPDATE meal_size_items SET category = 'sabzi' WHERE category = 'curry';
+UPDATE category_swap_pairs SET from_category_id = (SELECT id FROM dish_categories WHERE key = 'sabzi')
+  WHERE from_category_id = (SELECT id FROM dish_categories WHERE key = 'curry');
+UPDATE category_swap_pairs SET to_category_id = (SELECT id FROM dish_categories WHERE key = 'sabzi')
+  WHERE to_category_id = (SELECT id FROM dish_categories WHERE key = 'curry');
+DELETE FROM category_plans WHERE category_id = (SELECT id FROM dish_categories WHERE key = 'curry');
+DELETE FROM dish_categories WHERE key = 'curry';
 
 -- ============ MENU: DISHES ============ (no unique key -> guard with NOT EXISTS on name)
 INSERT INTO dishes (public_id, created_at, updated_at, name, description, category)

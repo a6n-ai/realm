@@ -214,6 +214,48 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     }));
   }
 
+  /**
+   * Diet-direction guard: reads plans.restricted, never a hardcoded plan key
+   * like "veg"/"non-veg" — generic over whatever restricted plans exist (veg,
+   * halal, jain, allergen-free …), zero code change to add another one. A
+   * category is "unreachable by restriction" when NONE of the plans it's
+   * attached to are restricted (e.g. a category only ever offered on the
+   * non-veg plan). A pair may swap INTO such a category only when it also
+   * swaps FROM one, so a restricted-plan order (whose meal size never carries
+   * that category in the first place) can never be offered a pair that reads
+   * as "receive what this plan excludes" — the meal size scoping already
+   * blocks the swap itself, this just keeps the admin's eligibility table
+   * from asserting a pair that could never mean what it says. The reverse
+   * (unrestricted -> restricted-reachable) is always fine.
+   */
+  private async isUnreachableByRestriction(categoryId: bigint): Promise<boolean> {
+    const rows = await db
+      .select({ restricted: plans.restricted })
+      .from(categoryPlans)
+      .innerJoin(plans, eq(plans.id, categoryPlans.planId))
+      .where(eq(categoryPlans.categoryId, categoryId));
+    return rows.length > 0 && rows.every((r) => !r.restricted);
+  }
+
+  /**
+   * Same check as isUnreachableByRestriction, but for every enabled category at
+   * once, by key — what the "Add pair" popup uses to warn before the admin even
+   * submits, instead of only finding out from the server-side rejection.
+   */
+  async unreachableByRestrictionByKey(): Promise<Record<string, boolean>> {
+    const rows = await db
+      .select({ key: dishCategories.key, restricted: plans.restricted })
+      .from(dishCategories)
+      .leftJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
+      .leftJoin(plans, eq(plans.id, categoryPlans.planId))
+      .where(eq(dishCategories.enabled, true));
+    const byKey = new Map<string, boolean[]>();
+    for (const r of rows) byKey.set(r.key, [...(byKey.get(r.key) ?? []), Boolean(r.restricted)]);
+    const out: Record<string, boolean> = {};
+    for (const [key, flags] of byKey) out[key] = flags.length > 0 && flags.every((f) => !f);
+    return out;
+  }
+
   async addSwapPair(fromKey: string, toKey: string) {
     if (fromKey === toKey) throw new ValidationError("A swap pair must be between two different categories");
     const rows = await db.select({ key: dishCategories.key, id: dishCategories.id }).from(dishCategories).where(inArray(dishCategories.key, [fromKey, toKey]));
@@ -222,6 +264,13 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     const toId = byKey.get(toKey);
     if (!fromId) throw new ValidationError(`Category "${fromKey}" not found`);
     if (!toId) throw new ValidationError(`Category "${toKey}" not found`);
+    const [toUnreachable, fromUnreachable] = await Promise.all([
+      this.isUnreachableByRestriction(toId),
+      this.isUnreachableByRestriction(fromId),
+    ]);
+    if (toUnreachable && !fromUnreachable) {
+      throw new ValidationError(`"${toKey}" isn't offered on any restricted plan — a restricted-plan category can't swap into it`);
+    }
     try {
       const [created] = await db.insert(categorySwapPairs).values({ fromCategoryId: fromId, toCategoryId: toId }).returning();
       return created;

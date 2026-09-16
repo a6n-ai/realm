@@ -36,6 +36,12 @@ export const plans = pgTable("plans", {
   // or adding a new one needs no code change.
   tagLabel: text("tag_label"),
   tagColor: text("tag_color"),
+  // A restricted plan's customers must never receive a category this plan can't
+  // reach (e.g. the veg plan) — the swap-direction guard in
+  // dish-categories.service.ts reads this instead of matching plan.key strings
+  // like "veg"/"non-veg", so it stays correct for any future restricted plan
+  // (halal, jain, allergen-free …) with zero code changes.
+  restricted: boolean("restricted").notNull().default(false),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.
   organizationId: text("organization_id").references(() => organization.id),

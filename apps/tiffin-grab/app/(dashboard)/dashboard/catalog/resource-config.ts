@@ -66,6 +66,9 @@ const plansSchema = z.object({
   tagLabel: z.string().trim().max(24).optional().nullable(),
   tagColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").optional().nullable(),
   allowedStartDays: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).default([]),
+  // Drives the swap-direction guard in dish-categories.service.ts: a restricted
+  // plan's customers must never receive a category unreachable from this plan.
+  restricted: z.boolean().default(false),
   active,
 });
 
@@ -232,6 +235,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tagLabel", label: "Tag", type: "text", optional: true },
       { key: "tagColor", label: "Tag colour", type: "color", optional: true },
       { key: "allowedStartDays", label: "Allowed start days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
+      { key: "restricted", label: "Restricted (can't receive swapped-in categories it doesn't offer)", type: "boolean" },
     ],
   },
   "meal-sizes": {

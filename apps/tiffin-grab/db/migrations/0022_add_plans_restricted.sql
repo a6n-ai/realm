@@ -1,0 +1,1 @@
+ALTER TABLE "plans" ADD COLUMN "restricted" boolean DEFAULT false NOT NULL;

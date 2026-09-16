@@ -16,9 +16,10 @@ export default function CategorySwapsPage() {
 async function CategorySwapsData() {
   await requireAdmin();
 
-  const [pairs, categories] = await Promise.all([
+  const [pairs, categories, unreachableByKey] = await Promise.all([
     dishCategoriesService.listSwapPairs(),
     dishCategoriesService.enabledCategories(),
+    dishCategoriesService.unreachableByRestrictionByKey(),
   ]);
 
   const categoryOptions = categories.map((c) => ({ key: c.key, label: c.label }));
@@ -37,7 +38,7 @@ async function CategorySwapsData() {
         title="Category swaps"
         subtitle="Which categories customers may ever swap between, for any meal size that offers both. A swap is always 1 TU for 1 TU — the customer picks how many, per delivery day."
       />
-      <SwapPairGrid categoryOptions={categoryOptions} pairs={rows} />
+      <SwapPairGrid categoryOptions={categoryOptions} pairs={rows} unreachableByKey={unreachableByKey} />
     </PageShell>
   );
 }
