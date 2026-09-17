@@ -18,6 +18,8 @@ type SelectableDay = (typeof WEEKDAY_ORDER)[number];
 const WEEKDAY_LABEL: Record<SelectableDay, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri" };
 const MAX_DELIVERY_DAYS = WEEKDAY_ORDER.length;
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 /** Drop any weekend day a catalog row or stored selection still carries. */
 function weekdaysOnly(days: DayOfWeek[]): SelectableDay[] {
   return days.filter((d): d is SelectableDay => (WEEKDAY_ORDER as readonly DayOfWeek[]).includes(d));
@@ -65,19 +67,31 @@ export function StepSchedule({
   set: (patch: Partial<WizardSelections>) => void;
   currentPlan?: CurrentPlanSummary | null;
 }) {
-  const [notice, setNotice] = useState<string | null>(null);
-  // Only counts that can actually be delivered Mon-Fri. A catalog row for 6 or 7
-  // days a week can no longer be honoured as distinct delivery DAYS.
-  const tiffinCounts = [...new Set(catalog.frequencies.map((f) => f.daysPerWeek))]
-    .filter((n) => n >= 1 && n <= MAX_DELIVERY_DAYS)
-    .sort((a, b) => a - b);
+  const [notice, setNotice] = useState<{ text: string; tone: "info" | "error" } | null>(null);
+  // The order days were picked, so a tap at the cap replaces the day chosen
+  // longest ago. Held locally because the wizard only stores the SET of days.
+  const [pickOrder, setPickOrder] = useState<SelectableDay[]>([]);
+  // Every count deliverable Mon-Fri is offered, not just the ones an admin has a
+  // catalog row for: a count without a row is priced as a custom pattern, and
+  // deriving this list from the catalog alone would hide counts (and could leave
+  // the current selection — the 1-day default — with nothing highlighted).
+  // Counts above 5 are impossible now that a delivery is one day.
+  const tiffinCounts = Array.from({ length: MAX_DELIVERY_DAYS }, (_, i) => i + 1);
   const weekdays = currentWeekdays(catalog, selections);
   const tiffinCount = weekdays.length;
+  // Reconciled each render rather than synced in an effect: the selection can
+  // change from outside this component (tiffin count, restored session), and a
+  // stale queue would swap out a day that is no longer selected.
+  const queue = [
+    ...pickOrder.filter((d) => weekdays.includes(d)),
+    ...weekdays.filter((d) => !pickOrder.includes(d)),
+  ];
   const match = matchingRow(catalog, weekdays);
   const quantities = clubbedQuantities(weekdays);
 
   const pickCount = (count: number) => {
     setNotice(null);
+    setPickOrder([]);
     // Default to the first admin pattern at this count so switching counts lands
     // on a real (possibly discounted) cadence — but only if that pattern is
     // deliverable Mon-Fri. A row that includes Sat/Sun is skipped, otherwise the
@@ -95,31 +109,43 @@ export function StepSchedule({
     }
   };
 
+  const commit = (next: SelectableDay[], order: SelectableDay[]) => {
+    setPickOrder(order);
+    const row = matchingRow(catalog, next);
+    if (row) set({ frequencyKey: row.key, customWeekdays: undefined });
+    else set({ frequencyKey: customFrequencyKey(next), customWeekdays: next });
+  };
+
   const toggleDay = (day: SelectableDay) => {
-    let next: SelectableDay[];
     if (weekdays.includes(day)) {
       // Never let the picker collapse to zero days — a customer must always
       // have at least one delivery day to remove-toggle down to.
       if (weekdays.length <= 1) {
-        setNotice("You need at least one delivery day.");
+        setNotice({ text: "You need at least one delivery day.", tone: "error" });
         return;
       }
-      next = weekdays.filter((d) => d !== day);
-    } else if (weekdays.length < tiffinCount) {
-      next = sorted([...weekdays, day]);
-    } else {
-      // At the cap: refuse the tap and say why. Delivery days must equal
-      // tiffins/week, so adding a day means raising the tiffin count first —
-      // silently dropping an earlier pick would change the plan behind them.
-      setNotice(
-        `${tiffinCount} ${tiffinCount === 1 ? "tiffin" : "tiffins"}/week means ${tiffinCount} delivery ${tiffinCount === 1 ? "day" : "days"}. Increase tiffins per week to add another, or unselect a day first.`,
-      );
+      setNotice(null);
+      commit(weekdays.filter((d) => d !== day), queue.filter((d) => d !== day));
       return;
     }
-    setNotice(null);
-    const row = matchingRow(catalog, next);
-    if (row) set({ frequencyKey: row.key, customWeekdays: undefined });
-    else set({ frequencyKey: customFrequencyKey(next), customWeekdays: next });
+
+    if (weekdays.length < tiffinCount) {
+      setNotice(null);
+      commit(sorted([...weekdays, day]), [...queue, day]);
+      return;
+    }
+
+    // At the cap, tapping a new day MOVES the delivery rather than refusing:
+    // the day count must equal tiffins/week, and the customer is re-arranging
+    // days the wizard picked for them. The day chosen longest ago gives way,
+    // and the swap is announced so nothing changes silently.
+    const oldest = queue[0];
+    if (!oldest) return;
+    setNotice({
+      text: `Moved ${WEEKDAY_LABEL[oldest]} to ${WEEKDAY_LABEL[day]} — ${plural(tiffinCount, "tiffin", "tiffins")} a week means ${plural(tiffinCount, "delivery day", "delivery days")}.`,
+      tone: "info",
+    });
+    commit(sorted([...weekdays.filter((d) => d !== oldest), day]), [...queue.filter((d) => d !== oldest), day]);
   };
 
   return (
@@ -158,17 +184,13 @@ export function StepSchedule({
         <div className="mt-3 flex flex-wrap gap-2">
           {WEEKDAY_ORDER.map((day) => {
             const active = weekdays.includes(day);
-            // At the cap an unselected day can't be added. Kept focusable and
-            // tappable (not `disabled`) so the tap still explains why.
-            const atCap = !active && weekdays.length >= tiffinCount;
             return (
               <button
                 key={day}
                 type="button"
                 onClick={() => toggleDay(day)}
                 aria-pressed={active}
-                aria-disabled={atCap}
-                className={`border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : atCap ? "opacity-40" : ""}`}
+                className={`border-foreground flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-[1.5px] px-4 text-sm font-semibold transition-transform active:scale-[0.97] ${active ? "bg-primary text-primary-foreground" : ""}`}
               >
                 {WEEKDAY_LABEL[day]}
               </button>
@@ -177,8 +199,8 @@ export function StepSchedule({
         </div>
 
         {notice ? (
-          <p role="status" className="text-destructive mt-2 text-sm text-pretty">
-            {notice}
+          <p role="status" className={`mt-2 text-sm text-pretty ${notice.tone === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+            {notice.text}
           </p>
         ) : null}
 

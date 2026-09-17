@@ -79,20 +79,36 @@ describe("delivery days must equal tiffins per week", () => {
     }
   });
 
-  it("refuses a 5th day at 4 tiffins/week and explains why", () => {
+  it("moves the delivery instead of refusing when already at the cap", () => {
     const set = vi.fn();
     render(<StepSchedule catalog={catalog} selections={selectionsFor(["mon", "tue", "wed", "thu"])} set={set} />);
     fireEvent.click(dayButton("Fri"));
-    // The old behaviour silently dropped Monday to make room; it must not.
-    expect(set).not.toHaveBeenCalled();
-    expect(screen.getByRole("status").textContent).toMatch(/4 tiffins\/week means 4 delivery days/);
+
+    // Still 4 days: Friday joins and the day picked longest ago gives way, so a
+    // customer can re-arrange the days the wizard chose for them.
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ customWeekdays: ["tue", "wed", "thu", "fri"] }));
+    expect(screen.getByRole("status").textContent).toMatch(/Moved Mon to Fri/);
   });
 
-  it("marks an unaddable day as aria-disabled while at the cap", () => {
+  it("keeps every weekday tappable at the cap, since a tap now moves a delivery", () => {
     render(<StepSchedule catalog={catalog} selections={selectionsFor(["mon", "tue", "wed", "thu"])} set={vi.fn()} />);
-    expect(dayButton("Fri").getAttribute("aria-disabled")).toBe("true");
-    expect(dayButton("Mon").getAttribute("aria-disabled")).toBe("false");
+    expect(dayButton("Fri").getAttribute("aria-disabled")).toBeNull();
+    expect((dayButton("Fri") as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it("drops the day chosen longest ago, not one just picked", () => {
+    const set = vi.fn();
+    const { rerender } = render(<StepSchedule catalog={catalog} selections={selectionsFor(["mon", "tue"])} set={set} />);
+    fireEvent.click(dayButton("Wed"));
+    expect(set).toHaveBeenLastCalledWith(expect.objectContaining({ customWeekdays: ["tue", "wed"] }));
+
+    // Feed the new selection back in, as the wizard does.
+    rerender(<StepSchedule catalog={catalog} selections={selectionsFor(["tue", "wed"])} set={set} />);
+    fireEvent.click(dayButton("Thu"));
+    // Tue was picked before Wed, so Tue goes — Wed, chosen a moment ago, stays.
+    expect(set).toHaveBeenLastCalledWith(expect.objectContaining({ customWeekdays: ["wed", "thu"] }));
+  });
+
 
   it("allows swapping a day by unselecting first", () => {
     const set = vi.fn();
