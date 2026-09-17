@@ -7,7 +7,7 @@ import { CheckCircle2Icon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { Card, DataTable, type Column } from "@/components/ds";
 import { pullCompletionsAction } from "./actions";
 import type { PullCompletionsResult } from "@/lib/services/optimoroute/completions";
 
@@ -98,29 +98,35 @@ export function CompletionsView({ date }: { date: string }) {
             )}
           />
 
-          {completions.ambiguous.length > 0 ? (
-            <ul className="space-y-1 text-xs">
-              {completions.ambiguous.map((a) => (
-                <li key={a.deliveryPublicId}>
-                  <span className="font-medium">{a.deliveryPublicId}</span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    — {a.candidateCount} OptimoRoute stops share this phone for this date, resolve manually
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {completions.unmatched.length > 0 ? (
+            <Card variant="flat" className="space-y-2 p-4">
+              <p className="text-sm font-medium">Not found on OptimoRoute</p>
+              <ul className="space-y-1 text-xs">
+                {completions.unmatched.map((u) => (
+                  <li key={u.deliveryPublicId}>
+                    <span className="font-medium">{u.customerName}</span>
+                    <span className="text-muted-foreground"> — no OptimoRoute stop found for this date</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           ) : null}
 
-          {completions.unmatched.length > 0 ? (
-            <ul className="space-y-1 text-xs">
-              {completions.unmatched.map((u) => (
-                <li key={u.deliveryPublicId}>
-                  <span className="font-medium">{u.customerName}</span>
-                  <span className="text-muted-foreground"> — no OptimoRoute stop found for this date</span>
-                </li>
-              ))}
-            </ul>
+          {completions.ambiguous.length > 0 ? (
+            <Card variant="flat" className="space-y-2 p-4">
+              <p className="text-sm font-medium">Needs manual review</p>
+              <ul className="space-y-1 text-xs">
+                {completions.ambiguous.map((a) => (
+                  <li key={a.deliveryPublicId}>
+                    <span className="font-medium">{a.deliveryPublicId}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      — {a.candidateCount} OptimoRoute stops share this phone for this date, resolve manually
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           ) : null}
         </div>
       ) : null}

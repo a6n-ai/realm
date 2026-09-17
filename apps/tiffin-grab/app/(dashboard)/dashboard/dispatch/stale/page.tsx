@@ -6,6 +6,7 @@ import { previewPush } from "@/lib/services/optimoroute/push";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "../day-header";
 import { DispatchTabs } from "../dispatch-tabs";
+import { PushControl } from "../push-control";
 import { RemoveControl } from "../remove-control";
 
 type SearchParams = Promise<{ date?: string }>;
@@ -40,6 +41,9 @@ export default async function StalePage({ searchParams }: { searchParams: Search
       <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
       <DayHeader date={date} today={today} basePath="/dashboard/dispatch/stale" />
       <DispatchTabs date={date} />
+      <SectionCard title="Send to OptimoRoute" variant="flat">
+        <PushControl date={date} stops={preview.create.length + preview.update.length} />
+      </SectionCard>
       {preview.remove.length > 0 ? (
         <SectionCard title="On OptimoRoute but not scheduled">
           <p className="text-muted-foreground mb-3 text-sm">

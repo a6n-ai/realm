@@ -16,10 +16,14 @@ export function DriverRoster({ drivers, rows }: { drivers: KnownDriver[]; rows: 
     stopCountBySerial.set(r.routeDriverSerial, (stopCountBySerial.get(r.routeDriverSerial) ?? 0) + 1);
   }
 
+  // Guard against pre-null-fix legacy rows: a driverSerial stored as "" (rather than
+  // null) before pull.ts started normalising it would collide as a duplicate React key.
+  const safeDrivers = drivers.filter((d) => d.driverSerial);
+
   return (
     <DataTable
       columns={COLUMNS}
-      rows={drivers}
+      rows={safeDrivers}
       rowKey={(d) => d.driverSerial}
       serial={false}
       search={{ placeholder: "Search driver…", keys: ["driverName", "driverSerial"] }}
