@@ -129,7 +129,14 @@ export function CompletionsView({ date }: { date: string }) {
             </Card>
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        <Card variant="flat" className="flex flex-col items-center gap-2 p-8 text-center">
+          <CheckCircle2Icon className="text-muted-foreground size-8" />
+          <p className="text-muted-foreground text-sm">
+            Pull completions to see today&apos;s proof-of-delivery status.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

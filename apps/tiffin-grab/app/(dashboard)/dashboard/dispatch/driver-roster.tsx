@@ -1,3 +1,5 @@
+"use client";
+
 import { UsersIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@/components/ds";

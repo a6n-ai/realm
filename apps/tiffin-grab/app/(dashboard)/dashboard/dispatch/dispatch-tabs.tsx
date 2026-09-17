@@ -24,7 +24,7 @@ export function DispatchTabs({ date }: { date: string }) {
 
   return (
     <Tabs value={active}>
-      <TabsList variant="line" aria-label="Dispatch sections" className="h-auto flex-wrap">
+      <TabsList variant="line" aria-label="Dispatch sections" className="h-auto flex-wrap overflow-x-visible">
         {TABS.map((t) => (
           <TabsTrigger key={t.href} value={t.href} asChild>
             <Link href={`${t.href}?date=${date}`} prefetch={false}>
