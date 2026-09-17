@@ -1,9 +1,3 @@
-ALTER TYPE "public"."ticket_category" ADD VALUE 'food_meal';--> statement-breakpoint
-ALTER TYPE "public"."ticket_category" ADD VALUE 'delivery';--> statement-breakpoint
-ALTER TYPE "public"."ticket_category" ADD VALUE 'plan_subscription';--> statement-breakpoint
-ALTER TYPE "public"."ticket_category" ADD VALUE 'packaging';--> statement-breakpoint
-ALTER TYPE "public"."ticket_category" ADD VALUE 'account_website';--> statement-breakpoint
-ALTER TYPE "public"."ticket_category" ADD VALUE 'feedback';--> statement-breakpoint
 CREATE TABLE "category_swap_pair_plans" (
 	"id" bigint PRIMARY KEY DEFAULT next_id() NOT NULL,
 	"public_id" text NOT NULL,
@@ -17,9 +11,6 @@ CREATE TABLE "category_swap_pair_plans" (
 	CONSTRAINT "category_swap_pair_plans_public_id_unique" UNIQUE("public_id")
 );
 --> statement-breakpoint
-ALTER TABLE "tickets" ADD COLUMN "subcategory" text;--> statement-breakpoint
-ALTER TABLE "app" ADD COLUMN "max_coin_pct_of_subtotal" integer;--> statement-breakpoint
-ALTER TABLE "app" ADD COLUMN "province_taxes" jsonb;--> statement-breakpoint
 ALTER TABLE "category_swap_pair_plans" ADD CONSTRAINT "category_swap_pair_plans_swap_pair_id_category_swap_pairs_id_fk" FOREIGN KEY ("swap_pair_id") REFERENCES "public"."category_swap_pairs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "category_swap_pair_plans" ADD CONSTRAINT "category_swap_pair_plans_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "category_swap_pair_plans_unique" ON "category_swap_pair_plans" USING btree ("swap_pair_id","plan_id");
