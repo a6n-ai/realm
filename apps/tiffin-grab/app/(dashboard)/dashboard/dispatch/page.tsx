@@ -99,18 +99,15 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
         <Badge variant="outline">{scheduledCount} stop{scheduledCount === 1 ? "" : "s"}</Badge>
       </div>
 
+      {/* Actions above the table, matching the Stale/Completions tabs — a dispatcher
+          shouldn't have to scroll past the whole table to find Send/Pull. */}
+      <SectionCard title="Send to OptimoRoute" variant="flat">
+        <PushControl date={date} stops={scheduledCount} />
+      </SectionCard>
+
       {/* Primary content: this is the task a dispatcher opens the page to do. */}
       <SectionCard title="Dispatch">
         <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
-      </SectionCard>
-
-      {/*
-        Secondary: sending/pulling is a less frequent action than reassigning a stop.
-        variant="flat" (same demotion the account sub-sections use) keeps Dispatch above
-        as the page's one "glow" card instead of every SectionCard competing equally.
-      */}
-      <SectionCard title="Send to OptimoRoute" variant="flat">
-        <PushControl date={date} stops={scheduledCount} />
       </SectionCard>
 
       {/*
@@ -155,11 +152,11 @@ DispatchData.Skeleton = function DispatchDataSkeleton() {
           <Skeleton key={i} className="h-6 w-24 rounded-full" />
         ))}
       </div>
-      <SectionCard title="Dispatch">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
       <SectionCard title="Send to OptimoRoute" variant="flat">
         <Skeleton className="h-16 w-full" />
+      </SectionCard>
+      <SectionCard title="Dispatch">
+        <Skeleton className="h-40 w-full" />
       </SectionCard>
     </>
   );
