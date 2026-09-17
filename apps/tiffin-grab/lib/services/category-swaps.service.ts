@@ -32,9 +32,6 @@ export async function applyDeliverySwap(
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
 
   await db.transaction(async (tx) => {
-    const allowed = await dishCategoriesService.isSwapPairAllowed(fromCategory, toCategory);
-    if (!allowed) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory}`);
-
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
@@ -44,6 +41,11 @@ export async function applyDeliverySwap(
 
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order) throw new ValidationError("Order not found");
+
+    const planId = await dishCategoriesService.planIdForMealSize(order.mealSizeId);
+    if (!planId) throw new ValidationError("Order not found");
+    const allowed = await dishCategoriesService.isSwapPairAllowed(fromCategory, toCategory, planId);
+    if (!allowed) throw new ValidationError(`${fromCategory} can't be swapped for ${toCategory} on this plan`);
 
     const cats = await dishCategoriesService.swapCategoriesForMealSize(order.mealSizeId);
     const from = cats.get(fromCategory);

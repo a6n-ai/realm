@@ -121,7 +121,7 @@ describe("seed QA plans", () => {
     const catId = new Map(catRows.map((c) => [c.key, c.id]));
     await db.delete(categoryPlans).where(and(eq(categoryPlans.categoryId, catId.get("curry")!), eq(categoryPlans.planId, planId.veg)));
     for (const [from, to] of SWAP_PAIRS) {
-      if (!(await dishCategoriesService.isSwapPairAllowed(from, to))) await dishCategoriesService.addSwapPair(from, to);
+      if (!(await dishCategoriesService.swapPairExists(from, to))) await dishCategoriesService.addSwapPair(from, to);
     }
 
     // ---- dishes

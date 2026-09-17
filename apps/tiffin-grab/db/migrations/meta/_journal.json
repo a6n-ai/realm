@@ -176,6 +176,13 @@
       "when": 1789547423720,
       "tag": "0024_coin_cap_and_province_taxes",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789667452889,
+      "tag": "0025_category_swap_pair_plans",
+      "breakpoints": true
     }
   ]
 }

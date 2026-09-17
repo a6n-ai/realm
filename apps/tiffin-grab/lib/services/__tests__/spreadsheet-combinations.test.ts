@@ -39,7 +39,7 @@ afterEach(async () => {
 // pairs globally (daal<->curry, salad->raita, roti<->rice) — only track (for
 // cleanup) a pair this call actually created.
 async function allowPair(from: string, to: string) {
-  const existing = await dishCategoriesService.isSwapPairAllowed(from, to);
+  const existing = await dishCategoriesService.swapPairExists(from, to);
   if (existing) return;
   const pair = await dishCategoriesService.addSwapPair(from, to);
   createdPairIds.push(pair.publicId);

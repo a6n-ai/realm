@@ -3,60 +3,131 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SectionCard } from "@/components/ds";
+import { ArrowLeftRightIcon, ArrowRightIcon, GlobeIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { SectionCard, DataTable, ResponsiveDialog, type Column } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
+import { Badge } from "@foundry/ui/badge";
+import { TableCell } from "@foundry/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { addSwapPair, removeSwapPair } from "./actions";
+import { addSwapPair, removeSwapPair, setSwapPairPlans } from "./actions";
 
 export type CategoryOption = { key: string; label: string };
+export type PlanOption = { publicId: string; name: string; tagColor: string | null };
 export type SwapPairRow = {
   id: string; // pair publicId
   fromCategory: string;
   fromLabel: string;
   toCategory: string;
   toLabel: string;
+  /** Plan publicIds this pair is restricted to. Empty = every plan with both categories. */
+  plans: string[];
 };
 
-// Global — a pair is either ever-swappable or it isn't, for every meal size that
-// has both categories. The per-meal-size ratio used to live here too, but a swap
-// is a flat 1 TU-for-1 TU trade now, so there's nothing meal-size-specific left
-// to configure — how many picks to give up is chosen by the customer at apply
-// time (see app/(customer)/me/deliveries/day-detail.tsx).
+type Cols = "pair" | "scope" | "actions";
+const COLUMNS: readonly Column<Cols>[] = [
+  { key: "pair", label: "Swap" },
+  { key: "scope", label: "Plans" },
+  { key: "actions", label: "", align: "right" },
+];
+
+function PlanDot({ color }: { color: string | null }) {
+  return (
+    <span
+      className="inline-block size-2 shrink-0 rounded-full"
+      style={{ backgroundColor: color ?? "var(--muted-foreground)" }}
+      aria-hidden
+    />
+  );
+}
+
 export function SwapPairGrid({
   categoryOptions,
+  planOptions,
   pairs,
 }: {
   categoryOptions: CategoryOption[];
+  planOptions: PlanOption[];
   pairs: SwapPairRow[];
 }) {
   const [adding, setAdding] = React.useState(false);
+  const [editingScope, setEditingScope] = React.useState<SwapPairRow | null>(null);
+  const planByPublicId = new Map(planOptions.map((p) => [p.publicId, p]));
 
   return (
     <SectionCard
       title="Swap-eligible category pairs"
-      subtitle={pairs.length === 0 ? "No pairs configured yet." : undefined}
+      subtitle="A swap is a flat 1 TU for 1 TU trade — the customer picks how many, per delivery day."
       action={
-        <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
-          {adding ? "Cancel" : "+ Add pair"}
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <PlusIcon data-icon="inline-start" /> Add pair
         </Button>
       }
     >
-      <div className="grid gap-3">
-        {pairs.map((pair) => (
-          <SwapPairRowView key={pair.id} pair={pair} />
-        ))}
-        {pairs.length === 0 && !adding && (
-          <p className="text-muted-foreground text-sm">No swap pairs configured yet.</p>
+      <DataTable
+        columns={COLUMNS}
+        rows={pairs}
+        rowKey={(p) => p.id}
+        serial={false}
+        emptyIcon={ArrowLeftRightIcon}
+        emptyMessage="No swap pairs configured yet."
+        renderRow={(pair) => (
+          <>
+            <TableCell>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                {pair.fromLabel}
+                <ArrowRightIcon className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
+                {pair.toLabel}
+              </span>
+            </TableCell>
+            <TableCell>
+              {pair.plans.length === 0 ? (
+                <Badge variant="outline" className="gap-1.5 text-xs font-normal">
+                  <GlobeIcon className="size-3" aria-hidden /> All plans
+                </Badge>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {pair.plans.map((publicId) => {
+                    const plan = planByPublicId.get(publicId);
+                    return (
+                      <Badge key={publicId} variant="secondary" className="gap-1.5 text-xs font-normal">
+                        <PlanDot color={plan?.tagColor ?? null} /> {plan?.name ?? publicId}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="flex justify-end gap-1">
+                <Button size="icon-sm" variant="ghost" onClick={() => setEditingScope(pair)} aria-label="Edit plan scope">
+                  <PencilIcon className="size-4" />
+                </Button>
+                <RemoveButton pair={pair} />
+              </div>
+            </TableCell>
+          </>
         )}
-        {adding && (
-          <AddSwapPairForm categoryOptions={categoryOptions} onDone={() => setAdding(false)} />
-        )}
-      </div>
+      />
+
+      <AddSwapPairDialog
+        open={adding}
+        onOpenChange={setAdding}
+        categoryOptions={categoryOptions}
+        planOptions={planOptions}
+      />
+
+      {editingScope ? (
+        <PlanScopeDialog
+          pair={editingScope}
+          planOptions={planOptions}
+          onOpenChange={(open) => !open && setEditingScope(null)}
+        />
+      ) : null}
     </SectionCard>
   );
 }
 
-function SwapPairRowView({ pair }: { pair: SwapPairRow }) {
+function RemoveButton({ pair }: { pair: SwapPairRow }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
 
@@ -73,28 +144,78 @@ function SwapPairRowView({ pair }: { pair: SwapPairRow }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-      <span className="text-sm font-medium">
-        {pair.fromLabel} <span className="text-muted-foreground">→</span> {pair.toLabel}
-      </span>
-      <Button onClick={remove} disabled={pending} size="sm" variant="ghost">
-        Remove
-      </Button>
+    <Button onClick={remove} disabled={pending} size="icon-sm" variant="ghost" aria-label="Remove swap pair">
+      <Trash2Icon className="size-4" />
+    </Button>
+  );
+}
+
+function PlanChecklist({
+  planOptions,
+  selected,
+  onToggle,
+}: {
+  planOptions: PlanOption[];
+  selected: Set<string>;
+  onToggle: (publicId: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-muted-foreground text-xs">
+        Leave every plan unchecked to allow this swap on any plan that has both categories.
+      </p>
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {planOptions.map((plan) => (
+          <label
+            key={plan.publicId}
+            className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm"
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(plan.publicId)}
+              onChange={() => onToggle(plan.publicId)}
+              className="size-4 accent-primary"
+            />
+            <PlanDot color={plan.tagColor} />
+            {plan.name}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
 
-function AddSwapPairForm({
+function AddSwapPairDialog({
+  open,
+  onOpenChange,
   categoryOptions,
-  onDone,
+  planOptions,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   categoryOptions: CategoryOption[];
-  onDone: () => void;
+  planOptions: PlanOption[];
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [fromCategory, setFromCategory] = React.useState("");
   const [toCategory, setToCategory] = React.useState("");
+  const [planIds, setPlanIds] = React.useState<Set<string>>(new Set());
+
+  const close = () => {
+    onOpenChange(false);
+    setFromCategory("");
+    setToCategory("");
+    setPlanIds(new Set());
+  };
+
+  const togglePlan = (publicId: string) =>
+    setPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(publicId)) next.delete(publicId);
+      else next.add(publicId);
+      return next;
+    });
 
   const save = () => {
     if (!fromCategory || !toCategory) {
@@ -107,10 +228,10 @@ function AddSwapPairForm({
     }
     start(async () => {
       try {
-        await addSwapPair({ fromCategory, toCategory });
+        await addSwapPair({ fromCategory, toCategory, planIds: [...planIds] });
         toast.success("Swap pair added");
         router.refresh();
-        onDone();
+        close();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to add");
       }
@@ -118,29 +239,102 @@ function AddSwapPairForm({
   };
 
   return (
-    <div className="rounded-lg border border-dashed p-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <Select value={fromCategory} onValueChange={setFromCategory}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
-          <SelectContent>
-            {categoryOptions.map((c) => (
-              <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground pb-2">→</span>
-        <Select value={toCategory} onValueChange={setToCategory}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
-          <SelectContent>
-            {categoryOptions.map((c) => (
-              <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={save} disabled={pending} size="sm">
-          Add
-        </Button>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(next) : close())}
+      title="Add swap pair"
+      description="Customers will be able to trade picks between these two categories."
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={close} disabled={pending}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={pending}>
+            {pending ? "Adding…" : "Add pair"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={fromCategory} onValueChange={setFromCategory}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((c) => (
+                <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ArrowRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
+          <Select value={toCategory} onValueChange={setToCategory}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
+            <SelectContent>
+              {categoryOptions.map((c) => (
+                <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <PlanChecklist planOptions={planOptions} selected={planIds} onToggle={togglePlan} />
       </div>
-    </div>
+    </ResponsiveDialog>
+  );
+}
+
+function PlanScopeDialog({
+  pair,
+  planOptions,
+  onOpenChange,
+}: {
+  pair: SwapPairRow;
+  planOptions: PlanOption[];
+  onOpenChange: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [pending, start] = React.useTransition();
+  const [planIds, setPlanIds] = React.useState<Set<string>>(new Set(pair.plans));
+
+  const togglePlan = (publicId: string) =>
+    setPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(publicId)) next.delete(publicId);
+      else next.add(publicId);
+      return next;
+    });
+
+  const save = () => {
+    start(async () => {
+      try {
+        await setSwapPairPlans({ id: pair.id, planIds: [...planIds] });
+        toast.success("Plan scope updated");
+        router.refresh();
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to update");
+      }
+    });
+  };
+
+  return (
+    <ResponsiveDialog
+      open
+      onOpenChange={onOpenChange}
+      title={`${pair.fromLabel} → ${pair.toLabel}`}
+      description="Choose which plans this swap is eligible on."
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button onClick={save} disabled={pending}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="px-4 py-3">
+        <PlanChecklist planOptions={planOptions} selected={planIds} onToggle={togglePlan} />
+      </div>
+    </ResponsiveDialog>
   );
 }

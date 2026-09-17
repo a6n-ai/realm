@@ -68,6 +68,27 @@ export const categorySwapPairs = pgTable(
   (t) => [uniqueIndex("category_swap_pairs_pair_unique").on(t.fromCategoryId, t.toCategoryId)],
 );
 
+/**
+ * Which plans a swap pair is restricted to. Mirrors categoryPlans: no rows for a
+ * pair = eligible on every plan that has both categories (unrestricted, the
+ * pre-existing behavior); one or more rows = eligible only on those plans — e.g.
+ * an admin ticking only the veg plan so Curry -> Sabzi is offered there but not
+ * on the non-veg plan, even though non-veg has both categories too.
+ */
+export const categorySwapPairPlans = pgTable(
+  "category_swap_pair_plans",
+  {
+    ...updatableColumns("csw"),
+    swapPairId: bigint("swap_pair_id", { mode: "bigint" })
+      .notNull()
+      .references(() => categorySwapPairs.id, { onDelete: "cascade" }),
+    planId: bigint("plan_id", { mode: "bigint" })
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+  },
+  (t) => [uniqueIndex("category_swap_pair_plans_unique").on(t.swapPairId, t.planId)],
+);
+
 /** Which plans a menu slot belongs to. Mirrors dishPlans. */
 export const categoryPlans = pgTable(
   "category_plans",

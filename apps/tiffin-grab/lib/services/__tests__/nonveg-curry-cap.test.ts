@@ -24,7 +24,7 @@ beforeAll(async () => {
   priorCap = curry?.cap ?? null;
   await db.update(dishCategories).set({ maxPicksPerTiffin: 1 }).where(eq(dishCategories.key, "curry"));
   for (const [from, to] of [["daal", "curry"], ["curry", "daal"], ["curry", "sabzi"], ["sabzi", "curry"]]) {
-    if (!(await dishCategoriesService.isSwapPairAllowed(from, to))) {
+    if (!(await dishCategoriesService.swapPairExists(from, to))) {
       createdPairIds.push((await dishCategoriesService.addSwapPair(from, to)).publicId);
     }
   }

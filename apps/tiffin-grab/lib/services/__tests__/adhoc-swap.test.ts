@@ -74,7 +74,7 @@ async function mealSizeWithTwoCategories() {
 // whose two categories are one of those. Only track (for cleanup) a pair this
 // call actually created — never delete one that was already seeded.
 async function allowPair(from: string, to: string) {
-  const existing = await dishCategoriesService.isSwapPairAllowed(from, to);
+  const existing = await dishCategoriesService.swapPairExists(from, to);
   if (existing) return;
   const pair = await dishCategoriesService.addSwapPair(from, to);
   createdPairIds.push(pair.publicId);
