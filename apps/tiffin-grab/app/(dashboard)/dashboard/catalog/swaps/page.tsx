@@ -1,5 +1,8 @@
 import { Suspense } from "react";
 import { ArrowLeftRightIcon } from "lucide-react";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { PageHeader, PageShell } from "@/components/ds";
@@ -16,19 +19,22 @@ export default function CategorySwapsPage() {
 async function CategorySwapsData() {
   await requireAdmin();
 
-  const [pairs, categories, unreachableByKey] = await Promise.all([
+  const [pairs, categories, planRows, unreachableByKey] = await Promise.all([
     dishCategoriesService.listSwapPairs(),
     dishCategoriesService.enabledCategories(),
+    db.select({ publicId: plans.publicId, name: plans.name, tagColor: plans.tagColor }).from(plans).where(eq(plans.active, true)),
     dishCategoriesService.unreachableByRestrictionByKey(),
   ]);
 
   const categoryOptions = categories.map((c) => ({ key: c.key, label: c.label }));
+  const planOptions = planRows.map((p) => ({ publicId: p.publicId, name: p.name, tagColor: p.tagColor }));
   const rows: SwapPairRow[] = pairs.map((p) => ({
     id: p.id,
     fromCategory: p.fromKey,
     fromLabel: p.fromLabel,
     toCategory: p.toKey,
     toLabel: p.toLabel,
+    plans: p.plans.map((pl) => pl.publicId),
   }));
 
   return (
@@ -36,9 +42,9 @@ async function CategorySwapsData() {
       <PageHeader
         icon={ArrowLeftRightIcon}
         title="Category swaps"
-        subtitle="Which categories customers may ever swap between, for any meal size that offers both. A swap is always 1 TU for 1 TU — the customer picks how many, per delivery day."
+        subtitle="Which categories customers may swap between, and on which plans. A swap is always 1 TU for 1 TU — the customer picks how many, per delivery day."
       />
-      <SwapPairGrid categoryOptions={categoryOptions} pairs={rows} unreachableByKey={unreachableByKey} />
+      <SwapPairGrid categoryOptions={categoryOptions} planOptions={planOptions} pairs={rows} unreachableByKey={unreachableByKey} />
     </PageShell>
   );
 }

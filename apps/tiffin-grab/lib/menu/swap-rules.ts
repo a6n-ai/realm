@@ -1,0 +1,63 @@
+// Pure rules for a per-delivery category swap, shared by the apply path
+// (category-swaps.service.ts) and the picker's pair list (dish-categories.service.ts)
+// so the drawer never offers a swap the server then refuses.
+//
+// A swap target does not have to be in the meal size's composition: a non-veg 4-item
+// thali is Curry + Daal, and trading its curry for a sabzi is the whole point. A pick
+// of the missing side is priced as the present side's portion (8oz curry -> 8oz sabzi),
+// which is only meaningful when both are measured in the same unit — so roti -> rice
+// on a meal size without rice is never offered.
+
+export type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
+
+// Folds every applied swap for a delivery onto a base counts map, in the order the
+// rows are given. Never clamps below 0 here — that's a service-layer invariant
+// enforced at apply-time (applyDeliverySwap), not re-validated on every read. Lives in
+// this db-free module so the client day picker folds swaps exactly like the server.
+export function applySwapsToCounts(counts: Record<string, number>, swaps: SwapRow[]): Record<string, number> {
+  if (swaps.length === 0) return counts;
+  const next = { ...counts };
+  for (const s of swaps) {
+    next[s.fromCategory] = (next[s.fromCategory] ?? 0) - s.qtyFrom;
+    next[s.toCategory] = (next[s.toCategory] ?? 0) + s.qtyTo;
+  }
+  return next;
+}
+
+export type SwapCategory = {
+  key: string;
+  // Per-pick TU from this meal size's composition; null when the meal size has no row for it.
+  pickTu: number | null;
+  unitType: "weight" | "count";
+  unitLabel: string;
+  maxPicksPerTiffin: number | null;
+};
+
+export function swapPairFits(from: SwapCategory, to: SwapCategory): boolean {
+  if (from.pickTu != null && to.pickTu != null) return true;
+  if (from.pickTu == null && to.pickTu == null) return false;
+  return from.unitType === to.unitType && from.unitLabel === to.unitLabel;
+}
+
+export function swapQuantities(
+  from: SwapCategory,
+  to: SwapCategory,
+  fromPicks: number,
+): { ok: true; qtyTo: number } | { ok: false; reason: string } {
+  if (!swapPairFits(from, to)) return { ok: false, reason: `${from.key} can't be swapped for ${to.key} on this meal size` };
+  const fromTu = from.pickTu ?? to.pickTu!;
+  const toTu = to.pickTu ?? from.pickTu!;
+  const ratio = (fromPicks * fromTu) / toTu;
+  // Epsilon, not `%`: TU amounts are decimals (0.25 roti) and float modulo lies.
+  if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
+    return { ok: false, reason: `Giving up ${fromPicks} ${from.key} doesn't divide evenly into ${to.key} portions` };
+  }
+  return { ok: true, qtyTo: Math.round(ratio) };
+}
+
+/** Reason the effective counts break `to`'s per-tiffin cap, or null when within it. */
+export function capViolation(effectiveCounts: Record<string, number>, to: SwapCategory): string | null {
+  if (to.maxPicksPerTiffin == null) return null;
+  const picks = effectiveCounts[to.key] ?? 0;
+  return picks > to.maxPicksPerTiffin ? `At most ${to.maxPicksPerTiffin} ${to.key} per tiffin` : null;
+}

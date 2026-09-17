@@ -1,0 +1,127 @@
+# Deploy xplorers (Box C, ap-southeast-1) on push to main. Self-contained: builds
+# xplorers-web (runner) + xplorers-tools (build) → GHCR, then the box pulls +
+# migrates + restarts. Triggered only when xplorers or shared code changes.
+# tiffin-grab and puchkaman have their own workflows targeting us-east-1 boxes.
+#
+# Required repo secrets: EC2_HOST_XPLORERS (Box C Elastic IP), EC2_USER, EC2_SSH_KEY.
+# Optional repo variable: DEPLOY_PATH (default ~/realm), ENABLE_SSH_DEPLOY.
+name: deploy-xplorers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/xplorers/**"
+      - "foundry/**"
+      - "relay/**"
+      - "deployment/prod/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/deploy-xplorers.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-xplorers
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+        id: buildx
+        continue-on-error: true
+      - uses: docker/setup-buildx-action@v4
+        if: steps.buildx.outcome == 'failure'
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # web first: the runner target also builds the shared `build` stage, warming
+      # the cache the tools image reuses. APP=xplorers on both web and tools.
+      - name: Build + push xplorers-web (runner)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: runner
+          build-args: |
+            APP=xplorers
+            NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
+            NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/xplorers-web:${{ github.sha }}
+            ghcr.io/a6n-ai/xplorers-web:latest
+          cache-from: type=gha,scope=xplorers
+          cache-to: type=gha,mode=max,scope=xplorers
+
+      - name: Build + push xplorers-tools (build)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deployment/prod/Dockerfile
+          target: build
+          build-args: |
+            APP=xplorers
+            NEXT_PUBLIC_SITE_URL=https://xplorers.a6n.ai
+            NEXT_PUBLIC_BETTER_AUTH_URL=https://xplorers.a6n.ai
+          push: true
+          tags: |
+            ghcr.io/a6n-ai/xplorers-tools:${{ github.sha }}
+            ghcr.io/a6n-ai/xplorers-tools:latest
+          cache-from: type=gha,scope=xplorers
+          cache-to: type=gha,mode=max,scope=xplorers
+
+  deploy:
+    needs: build
+    if: ${{ vars.ENABLE_SSH_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Split from the migrate+up step below: on an undersized box, a stalled
+      # image pull used to burn the whole 20m budget and leave migrate/up with
+      # no time at all. A retry here resumes from cached layers instead of
+      # re-pulling from zero.
+      - name: SSH → pull images on Box C
+        uses: ./.github/actions/ssh-pull-images
+        with:
+          host: ${{ secrets.EC2_HOST_XPLORERS }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          image_tag: ${{ github.sha }}
+          deploy_path: ${{ vars.DEPLOY_PATH }}
+          app_dir: deployment/prod/xplorers
+          pull_tools_profile: "true"
+
+      - name: SSH → deploy xplorers on Box C
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST_XPLORERS }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 15m
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+            REPO="${{ vars.DEPLOY_PATH }}"; REPO="${REPO:-$HOME/realm}"
+            cd "$REPO/deployment/prod/xplorers"
+            # Caddy reads its config only at startup, and `up -d` does not
+            # recreate the container when only the Caddyfile changed. conf/ is
+            # mounted as a directory (see proxy/docker-compose.yml), so the file
+            # resolves fresh and an explicit reload applies edits with no restart
+            # and no dropped connections. An invalid config fails the deploy here
+            # rather than leaving the old one serving.
+            (cd proxy && docker compose up -d --wait)
+            (cd proxy && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile)
+            ./deploy.sh

@@ -4,6 +4,8 @@ import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
 import { getSession } from "@/lib/auth/session";
+import { currentUserId } from "@/lib/services/session-service";
+import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -11,7 +13,10 @@ import { matchZone } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 
-export type ConfirmInput = CreateOrderInput;
+export type ConfirmInput = CreateOrderInput & {
+  /** Set by checkout when the customer came from /me/renew. */
+  renewal?: boolean;
+};
 
 // A served checkout returns the created order; an out-of-zone one creates no
 // order and takes no payment — it's captured as a waitlist inquiry instead.
@@ -40,7 +45,40 @@ async function maybeSendAccountSetup(email: string | undefined | null): Promise<
   }
 }
 
-export async function confirmSubscription(input: ConfirmInput): Promise<ConfirmResult> {
+/**
+ * A renewal keeps the customer's email and delivery address on file — they change
+ * those from Account, not mid-checkout. The read-only inputs in checkout are only
+ * the visible half: the renewal flag and the submitted contact both arrive from
+ * the client, so the on-file values are re-applied here.
+ *
+ * Dropping `renewal: true` from a request gains nothing: that is simply the
+ * ordinary logged-in subscribe path, which has always accepted a typed address.
+ * Name, phone and delivery instructions stay editable, per the spec.
+ */
+async function lockRenewalContact(input: ConfirmInput): Promise<CreateOrderInput["contact"]> {
+  if (!input.renewal) return input.contact;
+  const userId = await currentUserId();
+  if (userId == null) throw new ValidationError("Sign in to renew your plan.");
+  const onFile = await getContactOnFile(userId);
+  if (!onFile?.email || !onFile.addressLine || !onFile.postalCode) {
+    throw new ValidationError("We couldn't find your saved address. Update it from Account, then renew.");
+  }
+  return {
+    ...input.contact,
+    email: onFile.email,
+    addressLine: onFile.addressLine,
+    addressUnit: onFile.addressUnit,
+    city: onFile.city,
+    postalCode: onFile.postalCode,
+  };
+}
+
+export async function confirmSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
+  // Resolve the locked contact FIRST: serviceability, geocoding and tax below
+  // must all run against the address the order will actually be placed with.
+  const { renewal: _renewal, ...rest } = rawInput;
+  const input: CreateOrderInput = { ...rest, contact: await lockRenewalContact(rawInput) };
+
   // Serviceability is the source of truth here, not on the client: the checkout
   // UI disables "Continue to payment" for a known out-of-zone postal, but that
   // check is optional (a skipped/edited postal leaves it null). Enforce it server

@@ -9,6 +9,7 @@ import { pauseOrder, resumeOrder } from "@/lib/services/orders.service";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
+import { runAction, type ActionResult } from "../action-result";
 
 // Every action gates with assertCanManage* (owner OR staff) before mutating, then stamps the
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
@@ -29,88 +30,108 @@ async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<strin
   return row?.publicId ?? null;
 }
 
-export async function skipMyDelivery(deliveryPublicId: string) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await skipDelivery(deliveryPublicId, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function skipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await skipDelivery(deliveryPublicId, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
-export async function unskipMyDelivery(deliveryPublicId: string) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await unskipDelivery(deliveryPublicId, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function unskipMyDelivery(deliveryPublicId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await unskipDelivery(deliveryPublicId, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
 export async function setMyDeliveryAddress(
   deliveryPublicId: string,
   input: { fullName: string; addressLine: string; city: string; postalCode: string },
-) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await setDeliveryAddress(deliveryPublicId, input, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await setDeliveryAddress(deliveryPublicId, input, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
-export async function clearMyDeliveryAddress(deliveryPublicId: string) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await clearDeliveryAddress(deliveryPublicId, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await clearDeliveryAddress(deliveryPublicId, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
 export async function pauseMySubscription(
   orderPublicId: string,
   window: { from: string; until: string; indefinite?: boolean },
-) {
-  await assertCanManageOrder(orderPublicId);
-  await pauseOrder(orderPublicId, window);
-  await revalidateDeliverySurfaces(orderPublicId);
+): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await pauseOrder(orderPublicId, window);
+    await revalidateDeliverySurfaces(orderPublicId);
+  });
 }
 
 // `fromDate` (ISO) resumes a vacation partway: earlier paused days move to the remain pool.
-export async function resumeMySubscription(orderPublicId: string, fromDate?: string) {
-  await assertCanManageOrder(orderPublicId);
-  await resumeOrder(orderPublicId, (await currentUserId()) ?? undefined, fromDate);
-  await revalidateDeliverySurfaces(orderPublicId);
+export async function resumeMySubscription(orderPublicId: string, fromDate?: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await resumeOrder(orderPublicId, (await currentUserId()) ?? undefined, fromDate);
+    await revalidateDeliverySurfaces(orderPublicId);
+  });
 }
 
 // Turns one pooled tiffin into a real delivery on `dateIso` (must be after the last delivery and
 // a plan weekday — enforced server-side in scheduleFromPool).
-export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: string) {
-  await assertCanManageOrder(orderPublicId);
-  await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
-  await revalidateDeliverySurfaces(orderPublicId);
+export async function scheduleMyPooledTiffin(orderPublicId: string, dateIso: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await scheduleFromPool(orderPublicId, dateIso, await currentUserId());
+    await revalidateDeliverySurfaces(orderPublicId);
+  });
 }
 
 // Swap eligibility is global now (category_swap_pairs) — there's no per-meal-size
 // rule catalog to pick a rule id from, so the client sends the category pair and
 // how many picks of fromCategory to give up directly.
-export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
-export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwapPublicId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }
 
-export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string) {
-  await assertCanManageDelivery(deliveryPublicId);
-  await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
-  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-  if (orderId) await revalidateDeliverySurfaces(orderId);
-  else revalidatePath("/me/deliveries");
+export async function rescheduleMyDelivery(deliveryPublicId: string, newDateIso: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageDelivery(deliveryPublicId);
+    await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId());
+    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+    if (orderId) await revalidateDeliverySurfaces(orderId);
+    else revalidatePath("/me/deliveries");
+  });
 }

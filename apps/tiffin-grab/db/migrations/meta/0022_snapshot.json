@@ -1,5 +1,5 @@
 {
-  "id": "20b4f68c-084a-4a9f-bb98-dd0ecc25375a",
+  "id": "d812404e-7d26-40f3-b1ae-96b49c6e3df5",
   "prevId": "fb680238-7712-4050-8c5a-9457cdc35540",
   "version": "7",
   "dialect": "postgresql",
@@ -2253,13 +2253,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "restricted": {
-          "name": "restricted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "active": {
           "name": "active",
@@ -6183,6 +6176,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'oz'"
+        },
+        "max_picks_per_tiffin": {
+          "name": "max_picks_per_tiffin",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "organization_id": {
           "name": "organization_id",

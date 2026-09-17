@@ -56,33 +56,35 @@ export function MealDayPicker({
   }
 
   function qtyFor(category: string): number {
-    const fromCounts = categoryCounts[category] ?? 0;
-    if (fromCounts > 0) return fromCounts;
+    // A key present in categoryCounts is authoritative, zero included: counts arrive with this
+    // day's swaps folded in, so a day that traded its only daal away has daal: 0 — no picker.
+    if (category in categoryCounts) return Math.max(0, categoryCounts[category]);
     return Math.max(1, selectedByCategory.get(category)?.length ?? 1);
   }
 
   function pickIndexFor(category: string): number {
-    return activePick[category] ?? 1;
+    // Clamped: removing a swap can shrink a category below the tab the customer had open.
+    return Math.max(1, Math.min(activePick[category] ?? 1, qtyFor(category)));
   }
 
   function pick(category: string, dishId: string) {
     const dayOfWeek = weekdayKey(new Date(`${cell.date}T00:00:00Z`));
     const pickIndex = pickIndexFor(category);
     startTransition(async () => {
-      try {
-        await pickMyDish({
-          orderId: orderPublicId,
-          menuWeekId,
-          dayOfWeek,
-          slot: category,
-          personIndex: 1,
-          pickIndex,
-          dishId,
-        });
-        onChanged();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save that pick");
+      const result = await pickMyDish({
+        orderId: orderPublicId,
+        menuWeekId,
+        dayOfWeek,
+        slot: category,
+        personIndex: 1,
+        pickIndex,
+        dishId,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
     });
   }
 
@@ -91,22 +93,21 @@ export function MealDayPicker({
     const key = `${category}:${pickIndex}:${dishId}`;
     setApplyingKey(key);
     startTransition(async () => {
-      try {
-        const res = await applyMyDishToWeek({
-          orderId: orderPublicId,
-          menuWeekId,
-          slot: category,
-          personIndex: 1,
-          pickIndex,
-          dishId,
-        });
+      const res = await applyMyDishToWeek({
+        orderId: orderPublicId,
+        menuWeekId,
+        slot: category,
+        personIndex: 1,
+        pickIndex,
+        dishId,
+      });
+      if ("error" in res) {
+        toast.error(res.error);
+      } else {
         onChanged();
         toast.success(`Applied to ${res.applied} day${res.applied === 1 ? "" : "s"}`);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't apply to the week");
-      } finally {
-        setApplyingKey(null);
       }
+      setApplyingKey(null);
     });
   }
 
@@ -114,6 +115,7 @@ export function MealDayPicker({
     <div className="space-y-4">
       {[...byCategory.entries()].map(([category, options]) => {
         const qty = qtyFor(category);
+        if (qty === 0) return null;
         const pickIndex = pickIndexFor(category);
         const selectedList = selectedByCategory.get(category) ?? [];
         const selected = selectedList[pickIndex - 1];

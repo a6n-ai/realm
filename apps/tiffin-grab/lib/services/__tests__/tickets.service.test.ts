@@ -40,7 +40,7 @@ describe("ticketsService", () => {
     const customer = await seedUser("Cust Create", "user");
     actAs(customer, "user");
 
-    const ticket = await ticketsService.create({ subject: "Where is my order?", category: "order", body: "It never arrived." });
+    const ticket = await ticketsService.create({ subject: "Where is my order?", category: "order", subcategory: "order_missing", body: "It never arrived." });
     expect(ticket.status).toBe("open");
     expect(ticket.raisedBy).toBe(customer.id);
 
@@ -55,7 +55,7 @@ describe("ticketsService", () => {
     const staff = await seedUser("Staff Locked", "admin");
 
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Billing", category: "billing", body: "Charged twice." });
+    const ticket = await ticketsService.create({ subject: "Billing", category: "billing", subcategory: "payment_failed", body: "Charged twice." });
 
     actAs(staff, "admin");
     await ticketsService.changeStatus(ticket.publicId, "resolved");
@@ -72,7 +72,7 @@ describe("ticketsService", () => {
     const staff = await seedUser("Staff Closed", "member");
 
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Closed", category: "general", body: "Done?" });
+    const ticket = await ticketsService.create({ subject: "Closed", category: "general", subcategory: "something_else", body: "Done?" });
 
     actAs(staff, "member");
     await ticketsService.changeStatus(ticket.publicId, "closed");
@@ -84,7 +84,7 @@ describe("ticketsService", () => {
     const staff = await seedUser("Staff Resume", "admin");
 
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Resume", category: "order", body: "Where?" });
+    const ticket = await ticketsService.create({ subject: "Resume", category: "order", subcategory: "order_missing", body: "Where?" });
 
     actAs(staff, "admin");
     await ticketsService.changeStatus(ticket.publicId, "resolved");
@@ -103,7 +103,7 @@ describe("ticketsService", () => {
   it("allows an image-only reply (empty body with an attachment)", async () => {
     const customer = await seedUser("Cust Img", "user");
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Photo", category: "order", body: "See photo." });
+    const ticket = await ticketsService.create({ subject: "Photo", category: "order", subcategory: "order_missing", body: "See photo." });
     await ticketsService.reply(ticket.publicId, "", [
       { path: "tickets/x/orig-a.png", thumbUrl: "https://x/thumb-a.png", name: "a.png" },
     ]);
@@ -118,7 +118,7 @@ describe("ticketsService", () => {
     actAs(customer, "user");
     const ticket = await ticketsService.create({
       subject: "With screenshot",
-      category: "order",
+      category: "order", subcategory: "order_missing",
       body: "See attached.",
     });
     const att = [{ path: "tickets/y/orig-b.png", thumbUrl: "https://x/thumb-b.png", name: "b.png" }];
@@ -133,7 +133,7 @@ describe("ticketsService", () => {
     const staff = await seedUser("Staff Resolve", "member");
 
     actAs(customer, "user");
-    const ticket = await ticketsService.create({ subject: "Catering quote", category: "catering", body: "Need a quote." });
+    const ticket = await ticketsService.create({ subject: "Catering quote", category: "catering", subcategory: "", body: "Need a quote." });
 
     actAs(staff, "member");
     await ticketsService.changeStatus(ticket.publicId, "resolved");
@@ -153,7 +153,7 @@ describe("ticketsService", () => {
     const intruder = await seedUser("Cust Intruder", "user");
 
     actAs(owner, "user");
-    const ticket = await ticketsService.create({ subject: "Private", category: "general", body: "Confidential." });
+    const ticket = await ticketsService.create({ subject: "Private", category: "general", subcategory: "something_else", body: "Confidential." });
 
     actAs(intruder, "user");
     await expect(ticketsService.listMessages(ticket.publicId)).rejects.toThrow(ForbiddenError);

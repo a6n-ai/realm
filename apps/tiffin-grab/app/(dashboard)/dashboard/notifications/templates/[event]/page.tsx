@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
+import { notificationTables } from "@/lib/notifications/tables";
 import { TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
 import { eventLabel } from "@relay/engine/ui";
 import { BackButton } from "@foundry/design-system";
@@ -64,5 +66,21 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       enabled: t.enabled,
     }));
 
-  return <TemplateEditor event={event} variables={availableVariables(event as AppEvent)} initial={initial} />;
+  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "TiffinGrab" });
+  const footer = campaignConfig
+    ? {
+        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
+        sender: campaignConfig.sender.name,
+        address: campaignConfig.sender.postalAddress,
+      }
+    : undefined;
+
+  return (
+    <TemplateEditor
+      event={event}
+      variables={availableVariables(event as AppEvent)}
+      initial={initial}
+      footer={footer}
+    />
+  );
 }

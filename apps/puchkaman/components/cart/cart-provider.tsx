@@ -22,6 +22,12 @@ import {
   type CartItem,
   type CartModifier,
 } from "@/lib/cart/types";
+import {
+  CART_FRANCHISE_STORAGE_KEY,
+  parseStoredCartFranchise,
+  reconcileCartFranchise,
+  type CartFranchise,
+} from "@/lib/cart/franchise";
 
 type CartContextValue = {
   items: CartItem[];
@@ -44,6 +50,10 @@ type CartContextValue = {
   decrementQty: (lineKey: string) => void;
   removeItem: (lineKey: string) => void;
   clear: () => void;
+  /** Set when the cart was filled at a different store than the one being browsed now. */
+  franchiseConflict: { from: CartFranchise; to: CartFranchise } | null;
+  /** Resolve a conflict by emptying the cart and continuing at the current store. */
+  emptyCartForCurrentStore: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -93,14 +103,27 @@ function readStoredCart(): CartItem[] {
   }
 }
 
+/** Read which store the saved cart belongs to. Untagged (pre-rollout) carts read as null. */
+function readStoredCartFranchise(): CartFranchise | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parseStoredCartFranchise(localStorage.getItem(CART_FRANCHISE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
 export function CartProvider({
   children,
   orderingEnabled = true,
   minOrderValue = 0,
+  activeFranchise = null,
 }: {
   children: ReactNode;
   orderingEnabled?: boolean;
   minOrderValue?: number;
+  /** The store the server resolved for this request — what checkout will price against. */
+  activeFranchise?: CartFranchise | null;
 }) {
   // Storage is read once during the lazy initialiser rather than in an effect.
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
@@ -120,6 +143,32 @@ export function CartProvider({
     () => false,
   );
   const visibleItems = hydrated ? items : NO_ITEMS;
+
+  // The store this cart was filled at, stamped when the first line goes in, and
+  // compared against the store the server is pricing against now. That comes
+  // from the layout rather than a client cookie read, so the two can never
+  // disagree about which store "now" is.
+  const [cartFranchise, setCartFranchise] = useState<CartFranchise | null>(readStoredCartFranchise);
+  const activeCode = activeFranchise?.clientCode ?? null;
+  const activeLabel = activeFranchise?.label ?? null;
+  const franchiseConflict = useMemo(() => {
+    if (!hydrated || !activeCode) return null;
+    const result = reconcileCartFranchise({
+      stored: cartFranchise,
+      active: { clientCode: activeCode, label: activeLabel },
+      itemCount: items.length,
+    });
+    return result.kind === "conflict" ? { from: result.from, to: result.to } : null;
+  }, [hydrated, cartFranchise, activeCode, activeLabel, items.length]);
+
+  useEffect(() => {
+    if (!hydrated || !cartFranchise) return;
+    try {
+      localStorage.setItem(CART_FRANCHISE_STORAGE_KEY, JSON.stringify(cartFranchise));
+    } catch {
+      /* quota / private mode */
+    }
+  }, [cartFranchise, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -161,6 +210,11 @@ export function CartProvider({
     (input: CartAddInput) => {
       if (!orderingEnabled) return;
       const addQty = clampQty(input.quantity ?? 1) || 1;
+      // First line in (or the first add since carts began recording a store):
+      // the cart now belongs to the store being browsed.
+      if (activeCode && (items.length === 0 || !cartFranchise)) {
+        setCartFranchise({ clientCode: activeCode, label: activeLabel });
+      }
       setItems((prev) => {
         const modifiers = (input.modifiers ?? []).slice(0, CART_MAX_MODIFIERS);
         // Merge only into a line with the identical modifier set — same burger with
@@ -194,7 +248,7 @@ export function CartProvider({
       setPulse((n) => n + 1);
       setDrawerOpen(true);
     },
-    [orderingEnabled],
+    [orderingEnabled, activeCode, activeLabel, items.length, cartFranchise],
   );
 
   // Keyed by line, not product: a product can now occupy several lines.
@@ -230,6 +284,11 @@ export function CartProvider({
 
   const clear = useCallback(() => setItems([]), []);
 
+  const emptyCartForCurrentStore = useCallback(() => {
+    setItems([]);
+    if (activeCode) setCartFranchise({ clientCode: activeCode, label: activeLabel });
+  }, [activeCode, activeLabel]);
+
   const value = useMemo<CartContextValue>(
     () => ({
       items: visibleItems,
@@ -248,6 +307,8 @@ export function CartProvider({
       decrementQty,
       removeItem,
       clear,
+      franchiseConflict,
+      emptyCartForCurrentStore,
     }),
     [
       visibleItems,
@@ -264,6 +325,8 @@ export function CartProvider({
       decrementQty,
       removeItem,
       clear,
+      franchiseConflict,
+      emptyCartForCurrentStore,
     ],
   );
 

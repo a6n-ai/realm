@@ -15,7 +15,7 @@ import type { SortState } from "@/lib/list/sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { assignOwner } from "./actions";
-import { TicketStatusBadge, PriorityBadge, CATEGORY_LABEL } from "./ticket-badges";
+import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
 
 const STATUS_PILLS = [
   { key: "all", label: "All" },
@@ -152,7 +152,7 @@ export function TicketsList({
             </Link>
           </TableCell>
           <TableCell>{r.customerName ?? "—"}</TableCell>
-          <TableCell>{CATEGORY_LABEL[r.category] ?? r.category}</TableCell>
+          <TableCell>{categoryLabel(r.category)}</TableCell>
           <TableCell>
             <span className="inline-flex items-center gap-2">
               <TicketStatusBadge status={r.status} />

@@ -1,0 +1,456 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Xplorers prod in ap-southeast-1 (Singapore): VPC + dedicated RDS + EC2 + EIP
+  + IAM instance role + security group + Route 53 A record for xplorers.a6n.ai.
+  Every billable resource is tagged client/app/env/project so Cost Explorer can
+  invoice this client. Activate those tag keys in Billing → Cost allocation tags.
+  tiffin-grab and puchkaman stay in us-east-1 — do not reuse that VPC.
+
+# Naming mirrors the other clients (realm-<app>-prod-*): RDS realm-xplorers-prod-db,
+# SG realm-xplorers-prod-sg (box + RDS share it, 5432 self-ref), IAM instance
+# profile realm-xplorers-prod-role, box Name=realm-xplorers-prod.
+
+Parameters:
+  DbMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: RDS master password (also stored in SSM by the operator, not here).
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+  DbEngineVersion:
+    Type: String
+    Default: "18.6"
+    Description: Latest PostgreSQL in ap-southeast-1 (do not pin an older minor like 17.4).
+  InstanceType:
+    Type: String
+    Default: t3.small
+    Description: Box C size. Match the other clients' t3.small unless vCPU quota forces t3.micro.
+  AllowSshCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR permitted to SSH to the box (tighten to your IP). SSM is the intended access path.
+  DomainName:
+    Type: String
+    Default: xplorers.a6n.ai
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Default: Z05881901LHJHX7AHKCFJ
+    Description: a6n.ai hosted zone (global). Record is created from this regional stack.
+  ClientTag:
+    Type: String
+    Default: xplorers
+    Description: Cost-allocation tag `client`. Cost Explorer groups spend by this value.
+
+# Repeat these four on every taggable resource. Route 53 RecordSet cannot be tagged.
+# Also pass the same set as stack tags on `cloudformation deploy --tags` so AWS
+# propagates them onto anything CFN supports that we missed (including some EBS).
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-vpc
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-igw
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-public-a
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-public-b
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-public-rt
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetAAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: realm-xplorers-prod-sg
+      GroupDescription: Xplorers prod - box (web/SSH) + RDS (5432 from this SG only).
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: !Ref AllowSshCidr }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-sg
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  DbIngressSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Xplorers prod - two AZs required even for Single-AZ RDS.
+      SubnetIds: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-db-subnets
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: realm-xplorers-prod-db
+      Engine: postgres
+      EngineVersion: !Ref DbEngineVersion
+      DBName: xplorers
+      MasterUsername: xplorers
+      MasterUserPassword: !Ref DbMasterPassword
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: "20"
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref AppSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-db
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /xplorers/prod
+      RetentionInDays: 30
+      Tags:
+        - Key: Name
+          Value: /xplorers/prod
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  BoxRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: realm-xplorers-prod-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: xplorers-prod-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SsmRead
+                Effect: Allow
+                Action: [ssm:GetParametersByPath, ssm:GetParameters, ssm:GetParameter]
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xplorers/prod"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/xplorers/prod/*"
+              - Sid: SsmDecrypt
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/xplorers/prod:*"
+              - Sid: SesSend
+                Effect: Allow
+                Action: [ses:SendEmail, ses:SendRawEmail]
+                Resource:
+                  - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/xplorers.a6n.ai"
+                  - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/xplorers-prod"
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-role
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  BoxInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: realm-xplorers-prod-role
+      Roles: [!Ref BoxRole]
+
+  BoxLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: realm-xplorers-prod
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags:
+            - Key: Name
+              Value: realm-xplorers-prod
+            - Key: client
+              Value: !Ref ClientTag
+            - Key: app
+              Value: xplorers
+            - Key: env
+              Value: prod
+            - Key: project
+              Value: realm
+      LaunchTemplateData:
+        ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Name: !Ref BoxInstanceProfile
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 30
+              VolumeType: gp3
+              Encrypted: true
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: realm-xplorers-prod
+              - Key: client
+                Value: !Ref ClientTag
+              - Key: app
+                Value: xplorers
+              - Key: env
+                Value: prod
+              - Key: project
+                Value: realm
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: realm-xplorers-prod-root
+              - Key: client
+                Value: !Ref ClientTag
+              - Key: app
+                Value: xplorers
+              - Key: env
+                Value: prod
+              - Key: project
+                Value: realm
+          - ResourceType: network-interface
+            Tags:
+              - Key: Name
+                Value: realm-xplorers-prod-eni
+              - Key: client
+                Value: !Ref ClientTag
+              - Key: app
+                Value: xplorers
+              - Key: env
+                Value: prod
+              - Key: project
+                Value: realm
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -euxo pipefail
+            dnf install -y docker git jq
+            systemctl enable --now docker
+            usermod -aG docker ec2-user
+            install -d -m 700 -o ec2-user -g ec2-user /home/ec2-user/.ssh
+            echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMQGvz7xoDQyIUAmaX9hrsi3SQsqF1n5Dw0A+xmhUd7Z' >> /home/ec2-user/.ssh/authorized_keys
+            chown ec2-user:ec2-user /home/ec2-user/.ssh/authorized_keys
+            chmod 600 /home/ec2-user/.ssh/authorized_keys
+            mkdir -p /usr/libexec/docker/cli-plugins
+            curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+              -o /usr/libexec/docker/cli-plugins/docker-compose
+            chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+  Box:
+    Type: AWS::EC2::Instance
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref BoxLaunchTemplate
+        Version: !GetAtt BoxLaunchTemplate.LatestVersionNumber
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref AppSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: realm-xplorers-prod-eip
+        - Key: client
+          Value: !Ref ClientTag
+        - Key: app
+          Value: xplorers
+        - Key: env
+          Value: prod
+        - Key: project
+          Value: realm
+  ElasticIpAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ElasticIp.AllocationId
+      InstanceId: !Ref Box
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      TTL: "300"
+      ResourceRecords:
+        - !Ref ElasticIp
+
+Outputs:
+  DbEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  PublicIp:
+    Description: Elastic IP — xplorers.a6n.ai A record target.
+    Value: !Ref ElasticIp
+  InstanceId:
+    Value: !Ref Box
+  SecurityGroupId:
+    Description: Shared box + RDS security group (realm-xplorers-prod-sg).
+    Value: !Ref AppSecurityGroup
+  InstanceProfileName:
+    Value: !Ref BoxInstanceProfile
+  VpcId:
+    Value: !Ref Vpc

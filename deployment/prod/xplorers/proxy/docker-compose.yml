@@ -1,0 +1,29 @@
+# Box C public ingress (ap-southeast-1). One Caddy fronts xplorers only
+# (auto-TLS via Let's Encrypt), reaching xplorers-web over the external `edge`
+# network by name. Create the network once on the box:  docker network create edge
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env.production # provides $ACME_EMAIL to the Caddyfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount the DIRECTORY, never the file. A single-file bind mount binds that
+      # file's inode, and `git pull` replaces the file rather than editing it in
+      # place — so a long-lived container would read the original inode forever
+      # and `caddy reload` would keep re-reading a stale copy.
+      - ./conf:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    external: true

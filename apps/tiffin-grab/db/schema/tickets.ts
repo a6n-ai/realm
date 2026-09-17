@@ -7,7 +7,15 @@ import { organization } from "./organizations";
 export const ticketStatus = pgEnum("ticket_status", [
   "open", "in_progress", "waiting_on_customer", "resolved", "closed",
 ]);
-export const ticketCategory = pgEnum("ticket_category", ["order", "billing", "catering", "general"]);
+// "catering" is retired from the customer picker but kept in the type — historical
+// rows still carry it, and Postgres cannot drop an enum value without rewriting
+// every dependent column. "order" / "billing" / "general" are deliberately reused
+// by the two-level taxonomy (lib/support/ticket-taxonomy.ts) so analytics stay
+// continuous rather than splitting into near-duplicate buckets.
+export const ticketCategory = pgEnum("ticket_category", [
+  "order", "billing", "catering", "general",
+  "food_meal", "delivery", "plan_subscription", "packaging", "account_website", "feedback",
+]);
 export const ticketPriority = pgEnum("ticket_priority", ["low", "normal", "high", "urgent"]);
 export const ticketMessageAuthor = pgEnum("ticket_message_author", ["customer", "staff", "system"]);
 
@@ -16,6 +24,10 @@ export const tickets = pgTable("tickets", {
   raisedBy: bigint("raised_by", { mode: "bigint" }).notNull().references(() => users.id),
   subject: text("subject").notNull(),
   category: ticketCategory("category").notNull(),
+  // Second taxonomy level, validated against SUBCATEGORIES for the chosen category.
+  // Free text rather than an enum so taxonomy tweaks don't need a migration.
+  // Nullable: tickets created before the two-level picker have no sub-category.
+  subcategory: text("subcategory"),
   status: ticketStatus("status").notNull().default("open"),
   priority: ticketPriority("priority").notNull().default("normal"),
   currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),

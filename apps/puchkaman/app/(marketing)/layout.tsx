@@ -1,10 +1,12 @@
 import { AnimReady } from "@/components/brutal/anim-ready";
 import { Footer, Nav } from "@/components/brutal/chrome";
 import { CartDrawer } from "@/components/cart/cart-drawer";
+import { CartFranchiseGuard } from "@/components/cart/cart-franchise-guard";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { LocationPicker } from "@/components/marketing/location-picker";
 import { isPublicOrderingEnabled } from "@/lib/clover/public-ordering";
 import { getMinOrderValue } from "@/lib/services/integrations.service";
+import { getActiveLocation } from "@/lib/services/organizations.service";
 
 // Ordering is gated on the persisted Clover connection, so this layout reads the
 // DB — and the CI Docker build has no Postgres, so prerendering any page under it
@@ -14,18 +16,23 @@ import { getMinOrderValue } from "@/lib/services/integrations.service";
 export const dynamic = "force-dynamic";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
-  const [orderingEnabled, minOrderValue] = await Promise.all([
+  const [orderingEnabled, minOrderValue, location] = await Promise.all([
     isPublicOrderingEnabled(),
     getMinOrderValue(),
+    getActiveLocation(),
   ]);
+  // The store the server resolved — the same one checkout prices against. A null
+  // city is the brand default, i.e. the customer has not chosen a location yet.
+  const activeFranchise = location ? { clientCode: location.clientCode, label: location.city } : null;
 
   return (
-    <CartProvider orderingEnabled={orderingEnabled} minOrderValue={minOrderValue}>
+    <CartProvider orderingEnabled={orderingEnabled} minOrderValue={minOrderValue} activeFranchise={activeFranchise}>
       <AnimReady />
       <Nav />
       <main id="main">{children}</main>
       <Footer />
       {orderingEnabled ? <CartDrawer /> : null}
+      {orderingEnabled ? <CartFranchiseGuard /> : null}
       <LocationPicker />
     </CartProvider>
   );

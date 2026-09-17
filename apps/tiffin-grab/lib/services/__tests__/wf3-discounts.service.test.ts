@@ -13,7 +13,9 @@ const { mintRepCoupons } = await import("../mint-rep-coupons");
 const { setDiscountPolicy } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
-type PricingSnapshot = { subtotal: number; total: number };
+// taxTotal: sales tax is charged on the post-discount base (destination province),
+// so an order's total is subtotal - discounts + tax.
+type PricingSnapshot = { subtotal: number; total: number; taxTotal: number };
 
 async function reset() {
   await db.delete(ledgerEntries);
@@ -112,7 +114,7 @@ describe("WF3 — public coupon application via createOrder", () => {
     const order = await orderByDeployment(deploymentId);
     const snap = order.pricingSnapshot as PricingSnapshot;
 
-    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 10, 2);
+    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 10 + snap.taxTotal, 2);
 
     const reds = await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id));
     expect(reds).toHaveLength(1);
@@ -183,7 +185,7 @@ describe("WF3 — rep coupon validation + hard gate", () => {
     const order = await orderByDeployment(deploymentId);
     const snap = order.pricingSnapshot as PricingSnapshot;
     // requested 100, but amount ceiling 15 (lower than 50% of subtotal) → 15 applied.
-    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 15, 2);
+    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 15 + snap.taxTotal, 2);
 
     const reds = await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id));
     expect(reds).toHaveLength(1);
@@ -221,7 +223,7 @@ describe("WF3 — stacking", () => {
     const order = await orderByDeployment(deploymentId);
     const snap = order.pricingSnapshot as PricingSnapshot;
     // rep $10 (under both ceilings) + public $5 = $15 off.
-    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 15, 2);
+    expect(Number(order.total)).toBeCloseTo(snap.subtotal - 15 + snap.taxTotal, 2);
 
     const reds = await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id));
     expect(reds).toHaveLength(2);

@@ -74,7 +74,7 @@ async function mealSizeWithTwoCategories() {
 // whose two categories are one of those. Only track (for cleanup) a pair this
 // call actually created — never delete one that was already seeded.
 async function allowPair(from: string, to: string) {
-  const existing = await dishCategoriesService.isSwapPairAllowed(from, to);
+  const existing = await dishCategoriesService.swapPairExists(from, to);
   if (existing) return;
   const pair = await dishCategoriesService.addSwapPair(from, to);
   createdPairIds.push(pair.publicId);
@@ -126,16 +126,18 @@ describe("applyDeliverySwap", () => {
     }
   });
 
-  it("rejects a category not on the meal size", async () => {
+  // A category merely missing from the meal size is swappable when it shares a unit
+  // (non-veg 4-item: curry -> sabzi) — see swap-rules.test.ts. Plan membership is the hard gate.
+  it("rejects a category not attached to the order's plan", async () => {
     const size = await mealSizeWithTwoCategories();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
     const from = size.items[0].category;
-    // A real, globally-enabled category the meal size just doesn't happen to have.
+    // A real, enabled category that belongs only to other plans (e.g. healthy's protein).
+    const onPlan = new Set((await dishCategoriesService.forPlan(size.planId)).map((c) => c.key));
     const enabled = await dishCategoriesService.enabledCategories();
-    const onSize = new Set(size.items.map((i) => i.category));
-    const off = enabled.find((c) => !onSize.has(c.key));
-    if (!off) throw new Error("Every enabled category is on this meal size — need a different fixture");
+    const off = enabled.find((c) => !onPlan.has(c.key));
+    if (!off) throw new Error("Every enabled category is on this plan — need a different fixture");
     await allowPair(from, off.key);
 
     const { publicId } = await createOrder(orderInput(size.publicId, planKey));
@@ -143,7 +145,7 @@ describe("applyDeliverySwap", () => {
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
 
     await expect(applyDeliverySwap(delivery.publicId, from, off.key, 1, null))
-      .rejects.toThrow(/must be part of this meal size/i);
+      .rejects.toThrow(/must be part of this plan/i);
   });
 
   it("rejects swapping a category with itself", async () => {

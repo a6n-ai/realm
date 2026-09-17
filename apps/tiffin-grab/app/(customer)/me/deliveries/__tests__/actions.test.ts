@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
-import { NotFoundError, ValidationError, nextWeekday } from "@foundry/commons";
+import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
@@ -73,7 +73,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
   });
   afterAll(reset);
 
-  it("rejects skipping another user's delivery with NotFoundError, no state change", async () => {
+  it("rejects skipping another user's delivery with a NotFoundError message, no state change", async () => {
     const aOrder = await makeOrder(PHONE_A, "User A");
     const bOrder = await makeOrder(PHONE_B, "User B");
     const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
@@ -81,7 +81,11 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(skipMyDelivery(bDelivery.publicId)).rejects.toBeInstanceOf(NotFoundError);
+    // Returned, not thrown: a thrown error across a Server Action boundary gets
+    // redacted to a message-less "Minified React error #441" in production
+    // builds (see app/(customer)/me/action-result.ts) — expected rejections must
+    // come back as { error } so the customer actually sees why.
+    await expect(skipMyDelivery(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.status).toBe("scheduled"); // untouched — guard ran before the mutation
   });
@@ -106,7 +110,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(unskipMyDelivery(bDelivery.publicId)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(unskipMyDelivery(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("rejects re-addressing another user's delivery", async () => {
@@ -117,7 +121,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(setMyDeliveryAddress(bDelivery.publicId, ADDR)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(setMyDeliveryAddress(bDelivery.publicId, ADDR)).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.fullName).not.toBe(ADDR.fullName);
   });
@@ -130,7 +134,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(clearMyDeliveryAddress(bDelivery.publicId)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(clearMyDeliveryAddress(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("rejects pausing another user's subscription, no state change", async () => {
@@ -142,7 +146,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     actAs(userA.publicId);
     await expect(
       pauseMySubscription(bOrder.publicId, { from: FROM, until: UNTIL }),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    ).resolves.toEqual({ error: expect.any(String) });
     const [row] = await db.select().from(orders).where(eq(orders.id, bOrder.id));
     expect(row.status).toBe("active");
   });
@@ -154,7 +158,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
       .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
 
     actAs(userA.publicId);
-    await expect(resumeMySubscription(bOrder.publicId)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(resumeMySubscription(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 
   it("surfaces the cutoff gate on a past delivery", async () => {
@@ -165,6 +169,6 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, aPastDelivery.id));
 
     actAs(userA.publicId);
-    await expect(skipMyDelivery(aPastDelivery.publicId)).rejects.toBeInstanceOf(ValidationError);
+    await expect(skipMyDelivery(aPastDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
   });
 });

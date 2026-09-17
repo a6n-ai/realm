@@ -5,13 +5,8 @@ import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { BackLink } from "@/components/back-link";
-import {
-  NewTicketForm,
-  type TicketCategoryValue,
-  NewTicketFormSkeleton,
-} from "@/components/customer/support/new-ticket-form";
-
-const CATEGORIES: TicketCategoryValue[] = ["order", "billing", "catering", "general"];
+import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
+import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 
 type SearchParams = Promise<{ orderId?: string }>;
 
@@ -48,14 +43,15 @@ async function TicketFormData({ searchParams }: { searchParams: SearchParams }) 
   }));
 
   // A valid ?orderId= preselects the plan/order and defaults the category to "order".
+  // Sub-category is never defaulted — the customer picks it for their own case.
   const preselected = orderId && orderOptions.some((o) => o.value === orderId) ? orderId : undefined;
 
   return (
     <NewTicketForm
-      categories={CATEGORIES}
+      categories={TICKET_CATEGORIES}
       orders={orderOptions}
       defaultOrderId={preselected}
-      defaultCategory={preselected ? "order" : "general"}
+      {...(preselected ? { defaultCategory: "order" as const } : {})}
     />
   );
 }

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Open a local port onto one app's prod Postgres, via Systems Manager.
 #
-#   ./deployment/prod/db-tunnel.sh tiffin-grab     # localhost:5433
-#   ./deployment/prod/db-tunnel.sh puchkaman       # localhost:5434
+#   ./deployment/prod/db-tunnel.sh tiffin-grab     # localhost:5433  (us-east-1)
+#   ./deployment/prod/db-tunnel.sh puchkaman       # localhost:5434  (us-east-1)
+#   ./deployment/prod/db-tunnel.sh xplorers        # localhost:5435  (ap-southeast-1)
 #
 # No SSH, no .pem, no bastion hop: SSM port-forwards from the app's OWN box, so
 # each RDS keeps its security group as-is (5432 reachable only from members of
@@ -25,20 +26,21 @@ set -euo pipefail
 app=${1:-}
 if [[ -z $app ]]; then
   echo "usage: $(basename "$0") <app> [local-port]" >&2
-  echo "  apps: tiffin-grab (5433), puchkaman (5434)" >&2
+  echo "  apps: tiffin-grab (5433), puchkaman (5434), xplorers (5435)" >&2
   exit 64
 fi
 
 # One line per app. A new app gets its own port here — never reuse one, or two
 # apps' data sources become indistinguishable at localhost.
 case $app in
-  tiffin-grab) default_port=5433 ;;
-  puchkaman)   default_port=5434 ;;
+  tiffin-grab) default_port=5433; region=us-east-1 ;;
+  puchkaman)   default_port=5434; region=us-east-1 ;;
+  xplorers)    default_port=5435; region=ap-southeast-1 ;;
   *) echo "unknown app: $app" >&2; exit 64 ;;
 esac
 port=${2:-$default_port}
 
-instance=$(aws ec2 describe-instances \
+instance=$(aws ec2 describe-instances --region "$region" \
   --filters "Name=tag:Name,Values=realm-${app}-prod" "Name=instance-state-name,Values=running" \
   --query 'Reservations[0].Instances[0].InstanceId' --output text)
 
@@ -50,13 +52,13 @@ fi
 # Resolved rather than hardcoded: the endpoint changes on a restore or a
 # blue/green swap, and a stale hostname here would fail as a timeout, not as a
 # clear error.
-db_host=$(aws rds describe-db-instances \
+db_host=$(aws rds describe-db-instances --region "$region" \
   --db-instance-identifier "realm-${app}-prod-db" \
   --query 'DBInstances[0].Endpoint.Address' --output text)
 
 # A box with no SSM registration produces "TargetNotConnected", which reads like
 # the instance is down. Say what is actually missing.
-if ! aws ssm describe-instance-information \
+if ! aws ssm describe-instance-information --region "$region" \
   --filters "Key=InstanceIds,Values=${instance}" \
   --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null | grep -q Online; then
   echo "warning: ${instance} is not registered with SSM." >&2
@@ -64,8 +66,8 @@ if ! aws ssm describe-instance-information \
   echo "  then give the agent a couple of minutes to register." >&2
 fi
 
-echo "${app}: ${db_host}:5432 -> localhost:${port}  (ctrl-c to close)"
-exec aws ssm start-session \
+echo "${app}: ${db_host}:5432 -> localhost:${port}  (${region}, ctrl-c to close)"
+exec aws ssm start-session --region "$region" \
   --target "$instance" \
   --document-name AWS-StartPortForwardingSessionToRemoteHost \
   --parameters "host=${db_host},portNumber=5432,localPortNumber=${port}"

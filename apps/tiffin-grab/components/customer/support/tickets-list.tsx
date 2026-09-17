@@ -8,6 +8,7 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard, ListRow, EmptyState } from "@/components/ds";
+import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
   open: "Open",
@@ -23,13 +24,6 @@ const STATUS_VARIANT: Record<TicketStatus, "default" | "secondary" | "outline"> 
   waiting_on_customer: "default",
   resolved: "secondary",
   closed: "outline",
-};
-
-const CATEGORY_LABEL: Record<string, string> = {
-  order: "Order",
-  billing: "Billing",
-  catering: "Catering",
-  general: "General",
 };
 
 export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[]; timezone: string }) {
@@ -60,7 +54,7 @@ export function TicketsList({ tickets, timezone }: { tickets: CustomerTicketRow[
                 key={t.publicId}
                 href={`/me/support/${t.publicId}`}
                 title={t.subject}
-                meta={`${CATEGORY_LABEL[t.category] ?? t.category} · ${formatEpoch(t.createdAt, { timeZone: timezone, mode: "date", locale: "en-CA" })}`}
+                meta={`${categoryLabel(t.category)} · ${formatEpoch(t.createdAt, { timeZone: timezone, mode: "date", locale: "en-CA" })}`}
                 trailing={<Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>}
               />
             );

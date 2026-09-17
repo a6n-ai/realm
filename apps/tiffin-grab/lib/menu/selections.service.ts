@@ -3,9 +3,10 @@
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
 import { ValidationError } from "@foundry/commons";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
+import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { mealPickNote } from "@/lib/menu/meal-pick-note";
@@ -96,7 +97,14 @@ export const selectionsService = {
     const cat = cats.find((c) => c.key === slot);
     if (!cat) throw new ValidationError("Unknown category");
     if (!cat.selectable) throw new ValidationError("This item is fixed and can't be changed");
-    const max = order.categoryCounts?.[slot] ?? 0;
+    // Swaps on this day change how many picks a category has (daal -> sabzi = 2 sabzi); the
+    // picker renders those folded counts, so validate against the same thing.
+    const swaps = await db
+      .select({ fromCategory: deliveryCategorySwaps.fromCategory, toCategory: deliveryCategorySwaps.toCategory, qtyFrom: deliveryCategorySwaps.qtyFrom, qtyTo: deliveryCategorySwaps.qtyTo })
+      .from(deliveryCategorySwaps)
+      .where(eq(deliveryCategorySwaps.deliveryId, deliveryRow.id))
+      .orderBy(asc(deliveryCategorySwaps.id));
+    const max = applySwapsToCounts(order.categoryCounts ?? {}, swaps)[slot] ?? 0;
     if (pickIndex < 1 || pickIndex > max) throw new ValidationError("Invalid pick");
 
     // Read the outgoing dish BEFORE the upsert overwrites it. Without this the log could

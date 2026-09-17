@@ -1,14 +1,29 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { TrashIcon, TriangleAlertIcon } from "lucide-react";
+import { ArchiveIcon, TrashIcon, TriangleAlertIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
-import { ResponsiveDialog } from "@/components/ds";
+import { TableCell } from "@foundry/ui/table";
+import { DataTable, DEFAULT_SIZE, PAGE_SIZES, ResponsiveDialog, type Column } from "@/components/ds";
 import { removeStopsAction } from "./actions";
 import type { PushPreview } from "@/lib/services/optimoroute/push";
+
+const COLUMNS: readonly Column<"select" | "stop" | "status">[] = [
+  { key: "select", label: "" },
+  { key: "stop", label: "Order / driver" },
+  { key: "status", label: "" },
+];
+
+function stalePagination(sp: URLSearchParams) {
+  const page = Math.max(0, Number.parseInt(sp.get("page") ?? "0", 10) || 0);
+  const rawSize = Number.parseInt(sp.get("size") ?? String(DEFAULT_SIZE), 10);
+  const size = (PAGE_SIZES as readonly number[]).includes(rawSize) ? rawSize : DEFAULT_SIZE;
+  return { page, size };
+}
 
 /**
  * Removal is opt-in per stop. There is no "remove all stale" button: the set is small,
@@ -25,6 +40,8 @@ export function RemoveControl({
   scheduledCount: number;
 }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const { page, size } = stalePagination(params);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -66,46 +83,6 @@ export function RemoveControl({
 
   return (
     <div className="space-y-3">
-      <ul className="divide-y rounded-lg border">
-        {stale.map((s) => (
-          <li key={s.orderNo} className="flex items-start gap-3 p-3">
-            {/* Native checkbox: @foundry/ui has no Checkbox, and this needs nothing more. */}
-            <input
-              type="checkbox"
-              id={`rm-${s.orderNo}`}
-              checked={selected.has(s.orderNo)}
-              onChange={() => toggle(s.orderNo)}
-              disabled={pending}
-              className="mt-0.5 size-4 shrink-0 accent-destructive"
-            />
-            <label htmlFor={`rm-${s.orderNo}`} className="min-w-0 flex-1 cursor-pointer">
-              <span className="block font-mono text-xs">{s.orderNo}</span>
-              <span className="text-muted-foreground block text-xs">
-                {/* A foreign stop's address is another business's customer's home —
-                    never render it here, whether or not this stop turns out to be ours. */}
-                {s.ours ? `${s.driver ?? "unassigned"} · ${s.address ?? "no address"}` : (s.driver ?? "unassigned")}
-              </span>
-            </label>
-            {!s.ours ? (
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                {/* The OptimoRoute account is shared with another business, and the old
-                    spreadsheet numbered stops by customer name — so most foreign stops are
-                    not ours to delete. */}
-                <Badge variant="outline" className="text-[10px]">
-                  not ours
-                </Badge>
-                {s.hint ? (
-                  <Badge variant="secondary" className="text-[10px]">
-                    Possible match: {s.hint.name}
-                    {s.hint.hasActiveOrder ? " · Active order" : ""}
-                  </Badge>
-                ) : null}
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="destructive"
@@ -124,6 +101,69 @@ export function RemoveControl({
         </Button>
       </div>
 
+      <DataTable
+        columns={COLUMNS}
+        rows={stale}
+        rowKey={(s) => s.orderNo}
+        serial={false}
+        pagination={{ page, size }}
+        search={{ placeholder: "Search order or driver…", keys: ["orderNo", "driver"] }}
+        emptyIcon={ArchiveIcon}
+        emptyMessage="Nothing stale for this date."
+        renderRow={(s) => (
+          <>
+            <TableCell>
+              {/* Native checkbox: @foundry/ui has no Checkbox, and this needs nothing more. */}
+              <input
+                type="checkbox"
+                id={`rm-${s.orderNo}`}
+                checked={selected.has(s.orderNo)}
+                onChange={() => toggle(s.orderNo)}
+                disabled={pending}
+                className="size-4 accent-destructive"
+              />
+            </TableCell>
+            <TableCell>
+              <label htmlFor={`rm-${s.orderNo}`} className="block cursor-pointer">
+                <span className="block font-mono text-xs">{s.orderNo}</span>
+                <span className="text-muted-foreground block text-xs">
+                  {/* A foreign stop's address is another business's customer's home —
+                      never render it here, whether or not this stop turns out to be ours. */}
+                  {s.ours ? `${s.driver ?? "unassigned"} · ${s.address ?? "no address"}` : (s.driver ?? "unassigned")}
+                </span>
+              </label>
+            </TableCell>
+            <TableCell>
+              {!s.ours ? (
+                <div className="flex flex-col items-end gap-1">
+                  {/* The OptimoRoute account is shared with another business, and the old
+                      spreadsheet numbered stops by customer name — so most foreign stops are
+                      not ours to delete. */}
+                  <Badge variant="outline" className="text-[10px]">
+                    not ours
+                  </Badge>
+                  {s.hint ? (
+                    <Link
+                      href={`/dashboard/customers/${s.hint.publicId}`}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="cursor-pointer text-[10px] hover:underline"
+                      >
+                        Possible match: {s.hint.name}
+                        {s.hint.hasActiveOrder ? " · Active order" : ""}
+                      </Badge>
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
+            </TableCell>
+          </>
+        )}
+      />
+
       <ResponsiveDialog
         open={open}
         onOpenChange={setOpen}
@@ -140,7 +180,7 @@ export function RemoveControl({
           </div>
         }
       >
-        <div className="space-y-3">
+        <div className="space-y-3 px-4 py-3">
           {emptyingTheDay ? (
             <p className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
               <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />

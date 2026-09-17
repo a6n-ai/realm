@@ -44,12 +44,12 @@ export async function loadOrderDeliveriesBundle(
   // Same batch-load shape as MyDeliveriesData (app/(customer)/me/deliveries/page.tsx) —
   // this bundle backs both the customer-facing calendar reuse points and the admin
   // order-detail view, so both must see (and staff must be able to act on) the same
-  // swap state. Eligibility is global now (category_swap_pairs), restricted here to
-  // categories this meal size actually offers.
+  // swap state. Eligibility is global (category_swap_pairs), gated per meal size by
+  // swapPairsForMealSize — the same check applyDeliverySwap runs.
   const mealSizeCategoryRows = await db.select({ category: mealSizeItems.category }).from(mealSizeItems)
     .where(eq(mealSizeItems.mealSizeId, selected.mealSizeId));
   const mealSizeCategories = [...new Set(mealSizeCategoryRows.map((r) => r.category))];
-  const swapPairs = await dishCategoriesService.swapPairsForCategories(mealSizeCategories);
+  const swapPairs = await dishCategoriesService.swapPairsForMealSize(selected.mealSizeId);
 
   const allAppliedSwaps = selectedDeliveries.length === 0 ? [] : await db
     .select({

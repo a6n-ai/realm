@@ -27,4 +27,11 @@ export const app = pgTable("app", {
   integrationsConfig: jsonb("integrations_config").$type<IntegrationsConfig>(),
   // Ceiling on how many coins a single wallet can hold from new awards. NULL = unlimited.
   maxWalletBalance: integer("max_wallet_balance"),
+  // Ceiling on how much of an order's PRE-TAX SUBTOTAL a customer may settle
+  // with coins, as a whole percent. NULL = unlimited (pre-existing behaviour,
+  // where coins were capped only by the order's remaining balance).
+  maxCoinPctOfSubtotal: integer("max_coin_pct_of_subtotal"),
+  // Per-province sales tax overrides, shaped { ON: [{name, ratePct}], ... }.
+  // NULL/absent province falls back to DEFAULT_PROVINCE_TAXES in lib/tax/canada.
+  provinceTaxes: jsonb("province_taxes").$type<Record<string, { name: string; ratePct: number }[]>>(),
 });

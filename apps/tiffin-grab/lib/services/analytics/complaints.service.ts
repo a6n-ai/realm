@@ -1,6 +1,7 @@
 import { inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
+import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 
 const intCount = sql<number>`cast(count(*) as int)`;
 const OPEN_STATUSES = ["open", "in_progress", "waiting_on_customer"] as const;
@@ -46,16 +47,27 @@ export async function getTicketStatusMix() {
   return rows.map((r) => ({ status: STATUS_LABELS[r.status] ?? r.status, n: r.n }));
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  order: "Order",
-  billing: "Billing",
-  catering: "Catering",
-  general: "General",
-};
-
 export async function getTicketsByCategory() {
   const rows = await db.select({ category: tickets.category, n: intCount }).from(tickets).groupBy(tickets.category);
-  return rows.map((r) => ({ category: CATEGORY_LABELS[r.category] ?? r.category, n: r.n }));
+  return rows.map((r) => ({ category: categoryLabel(r.category), n: r.n }));
+}
+
+/**
+ * Second-level breakdown. Grouped by the (category, subcategory) PAIR — sub-category
+ * values are only unique within their category, so grouping by subcategory alone
+ * would merge unrelated buckets. Tickets predating the two-level picker have a null
+ * subcategory and are reported as "Unspecified" under their category.
+ */
+export async function getTicketsBySubcategory() {
+  const rows = await db
+    .select({ category: tickets.category, subcategory: tickets.subcategory, n: intCount })
+    .from(tickets)
+    .groupBy(tickets.category, tickets.subcategory);
+  return rows.map((r) => ({
+    category: categoryLabel(r.category),
+    subcategory: subcategoryLabel(r.category, r.subcategory) ?? "Unspecified",
+    n: r.n,
+  }));
 }
 
 const PRIORITY_LABELS: Record<string, string> = {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  CalendarDaysIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
@@ -48,6 +49,7 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
 
   const overview: NavItem[] = [{ title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon }];
   const admin: NavItem[] = [
+    { title: "Sessions", href: "/dashboard/sessions", icon: CalendarDaysIcon, permission: "studioSession:read" },
     { title: "Users", href: "/dashboard/settings/users", icon: UsersIcon, permission: "user:list" },
     { title: "Account", href: "/dashboard/account", icon: SettingsIcon },
   ].filter(allow);

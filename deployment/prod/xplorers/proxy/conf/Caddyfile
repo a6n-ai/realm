@@ -1,0 +1,14 @@
+{
+	email {$ACME_EMAIL}
+}
+
+xplorers.a6n.ai {
+	encode zstd gzip
+
+	# X-Real-IP is OVERWRITTEN (not appended) with the real socket peer, so a
+	# client cannot choose it. better-auth trusts only this header for rate
+	# limiting. Do not drop this without changing lib/auth/index.ts too.
+	reverse_proxy xplorers-web:3000 {
+		header_up X-Real-IP {remote_host}
+	}
+}

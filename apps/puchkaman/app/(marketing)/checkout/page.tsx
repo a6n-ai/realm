@@ -8,6 +8,7 @@ import { getAllDeliveryTypes, getStoreLocation } from "@/lib/delivery/zones.serv
 import { PICKUP_TYPE_KEY } from "@/lib/delivery/type-pricing";
 import { inventoryCatalogService } from "@/lib/services/inventory.service";
 import { ordersService } from "@/lib/services/orders.service";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildMetadata } from "@/lib/seo";
 import type { PublicOffer } from "@/components/order/discount-picker";
 import type { UpsellItem } from "@/components/order/checkout-client";
@@ -29,7 +30,9 @@ export default async function CheckoutPage({
     isPublicOrderingEnabled(),
     searchParams,
     inventoryCatalogService.discounts.listPublicOffers(),
-    ordersService.listOrderableCatalog(),
+    // Scoped like /eats: unscoped, the upsell chips could offer the other store's
+    // item, which checkout then rejects as "Product not available".
+    resolveRequestOrg().then((orgId) => ordersService.listOrderableCatalog(orgId)),
     getAllDeliveryTypes(),
     ordersService.getCheckoutWalletBalance(),
     getStoreLocation(),

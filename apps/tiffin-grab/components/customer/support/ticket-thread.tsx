@@ -9,6 +9,7 @@ import {
   PresenceDot,
   type ChatMessage,
 } from "@/components/ds";
+import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { TicketStatus } from "@/lib/services/tickets.service";
 import { replyTicket } from "@/app/(customer)/me/support/actions";
@@ -29,17 +30,11 @@ const STATUS_VARIANT: Record<TicketStatus, "default" | "secondary" | "outline"> 
   closed: "outline",
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  order: "Order",
-  billing: "Billing",
-  catering: "Catering",
-  general: "General",
-};
-
 type ThreadTicket = {
   publicId: string;
   status: string;
   category: string;
+  subcategory?: string | null;
   createdAt: number;
   subject?: string;
 };
@@ -80,11 +75,14 @@ export function TicketThread({
     };
   });
 
+  const sub = subcategoryLabel(ticket.category, ticket.subcategory ?? null);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-        <Badge variant="outline">{CATEGORY_LABEL[ticket.category] ?? ticket.category}</Badge>
+        <Badge variant="outline">{categoryLabel(ticket.category)}</Badge>
+        {sub ? <Badge variant="outline">{sub}</Badge> : null}
         <span className="text-muted-foreground text-xs">
           Opened {formatEpoch(ticket.createdAt, { timeZone: timezone, mode: "datetime", locale: "en-CA" })}
         </span>

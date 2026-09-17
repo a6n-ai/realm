@@ -27,6 +27,8 @@ export type QueueSortColumn =
 export type CreateTicketInput = {
   subject: string;
   category: TicketCategory;
+  /** Second taxonomy level; validated against the category by the caller. */
+  subcategory: string;
   body: string;
   orderId?: bigint;
   /** Optional images on the opening customer message (uploaded after ticket id exists). */
@@ -106,6 +108,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       raisedBy: actor.id,
       subject,
       category: input.category,
+      subcategory: input.subcategory,
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);

@@ -15,5 +15,9 @@ export default defineConfig({
   test: {
     ...base.test,
     exclude: (base.test?.exclude ?? []).filter((glob) => glob !== "db/seed-qa-*.test.ts"),
+    // The suite's globalSetup truncates wallet tables and its teardown re-runs db/seed.sql,
+    // which wipes meal_size_items and category_swap_pairs — it would silently undo whatever
+    // a seed script just wrote (seed-qa-plans rewrites exactly those tables).
+    globalSetup: [],
   },
 });

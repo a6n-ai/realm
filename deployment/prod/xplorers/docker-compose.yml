@@ -1,0 +1,51 @@
+# Xplorers prod stack on its OWN box in ap-southeast-1: web + pgbouncer +
+# one-shot migrate, fronted by the Box C Caddy in ../proxy which reaches it as
+# xplorers-web:3000 over `edge`. No redis, no worker, no outbox drainer —
+# auth OTP sends SES inline.
+#
+# Two images from deployment/prod/Dockerfile (--build-arg APP=xplorers):
+#   xplorers-web   = runner target (Next standalone) → web
+#   xplorers-tools = build  target (source + drizzle-kit) → migrate
+# Pin via IMAGE_TAG (CI sets it to the commit SHA); defaults to :latest.
+include:
+  - pgbouncer/docker-compose.yml
+
+x-awslogs: &awslogs
+  driver: awslogs
+  options:
+    awslogs-region: ${AWS_REGION:-ap-southeast-1}
+    awslogs-group: /xplorers/prod
+    awslogs-create-group: "true"
+
+services:
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/a6n-ai/xplorers-web}:${IMAGE_TAG:-latest}
+    container_name: xplorers-web # stable hostname the Box C Caddy targets
+    restart: unless-stopped
+    logging: *awslogs
+    env_file: .env.production
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=384"
+    mem_limit: 450m
+    expose:
+      - "3000" # internal only; the Box C Caddy is the sole public ingress
+    networks:
+      - default
+      - edge
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+
+  migrate:
+    image: ${TOOLS_IMAGE:-ghcr.io/a6n-ai/xplorers-tools}:${IMAGE_TAG:-latest}
+    logging: *awslogs
+    env_file: .env.production
+    environment:
+      DATABASE_URL: ${DIRECT_DATABASE_URL}
+    command: ["pnpm", "--filter", "xplorers", "exec", "drizzle-kit", "migrate"]
+    profiles:
+      - tools
+
+networks:
+  edge:
+    external: true

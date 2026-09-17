@@ -92,6 +92,7 @@ dump.rdb
 !apps/puchkaman/public/hero/*.jpg
 !apps/puchkaman/public/fusion/*.jpg
 !apps/puchkaman/public/catering/*.png
+!apps/xplorers/public/studio/*.jpg
 
 # Legacy-migration scratch data: real customer PII (names/phones/addresses).
 # Never commit — regenerate locally from the legacy DB when needed.

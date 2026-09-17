@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { buildCampaignConfig, buildUnsubscribeUrl } from "@relay/engine";
 import { BackButton, SectionCard } from "@foundry/design-system";
 import { eventLabel, TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -7,6 +8,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { appEvent } from "@/db/schema";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
+import { notificationTables } from "@/lib/notifications/tables";
 
 const HIDDEN_EVENTS = new Set(["signup"]);
 
@@ -70,5 +72,16 @@ async function TemplateData({ params }: { params: Promise<{ event: string }> }) 
       enabled: t.enabled,
     }));
 
-  return <TemplateEditor event={event} variables={availableVariables(event)} initial={initial} />;
+  const campaignConfig = buildCampaignConfig(notificationTables, process.env, { senderName: "Puchkaman" });
+  const footer = campaignConfig
+    ? {
+        url: buildUnsubscribeUrl(campaignConfig.unsubscribe.baseUrl, campaignConfig.unsubscribe.secret, "preview@example.com"),
+        sender: campaignConfig.sender.name,
+        address: campaignConfig.sender.postalAddress,
+      }
+    : undefined;
+
+  return (
+    <TemplateEditor event={event} variables={availableVariables(event)} initial={initial} footer={footer} />
+  );
 }

@@ -11,6 +11,10 @@ import { ActionCard, DELIVERY_SHEET_DIRECTION } from "./action-card";
 import { VacationDateField } from "./vacation-date-field";
 import { scheduleMyPooledTiffin } from "./actions";
 
+// No physical Saturday/Sunday delivery exists — a weekend add-on always bundles onto that
+// week's Friday row. Mirrors the server-side assertNotWeekendTarget guard.
+const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
+
 /**
  * Lets a customer place a pooled tiffin on a real date. Only days strictly after the last delivery
  * that fall on a plan weekday are selectable; the server re-validates both. Schedules one tiffin
@@ -42,14 +46,14 @@ export function SchedulePoolControl({
     if (!date) return;
     setError(null);
     startTransition(async () => {
-      try {
-        await scheduleMyPooledTiffin(orderPublicId, date);
-        router.refresh();
-        reset();
-        setOpen(false);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not schedule that day");
+      const result = await scheduleMyPooledTiffin(orderPublicId, date);
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
+      router.refresh();
+      reset();
+      setOpen(false);
     });
   }
 
@@ -91,7 +95,11 @@ export function SchedulePoolControl({
           onChange={setDate}
           today={today}
           minDate={last ?? today}
+          allowedDays={WEEKDAYS_ONLY}
         />
+        <p className="text-muted-foreground text-xs">
+          We don’t deliver on weekends — a Saturday or Sunday tiffin ships with that week’s Friday delivery instead.
+        </p>
         {date && (
           <p className="text-muted-foreground text-sm">
             A new delivery will be added on {formatDateOnly(date, { mode: "long" })}

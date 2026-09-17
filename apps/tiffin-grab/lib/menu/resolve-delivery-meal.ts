@@ -7,6 +7,7 @@ import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelectio
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishIdsForPlan } from "@/lib/menu/selections.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
+import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
@@ -26,20 +27,8 @@ function dateInWeek(weekStartIso: string, dayOfWeek: DayOfWeek): string {
   return d.toISOString().slice(0, 10);
 }
 
-export type SwapRow = { fromCategory: string; toCategory: string; qtyFrom: number; qtyTo: number };
-
-// Folds every applied swap for a delivery onto a base counts map, in the order the
-// rows are given. Never clamps below 0 here — that's a service-layer invariant
-// enforced at apply-time (applyDeliverySwap), not re-validated on every read.
-export function applySwapsToCounts(counts: Record<string, number>, swaps: SwapRow[]): Record<string, number> {
-  if (swaps.length === 0) return counts;
-  const next = { ...counts };
-  for (const s of swaps) {
-    next[s.fromCategory] = (next[s.fromCategory] ?? 0) - s.qtyFrom;
-    next[s.toCategory] = (next[s.toCategory] ?? 0) + s.qtyTo;
-  }
-  return next;
-}
+// Re-exported: existing server callers import the fold from here.
+export { applySwapsToCounts, type SwapRow };
 
 // Can `next` still be applied on top of `applied`? Folds every swap already in
 // play before checking the from-category balance, so several swaps can stack on

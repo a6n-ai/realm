@@ -1,5 +1,6 @@
 import { SITE_PITCH } from "@/lib/brand";
-import { TapeLabel, XplButton } from "@/components/marketing/xpl-ui";
+import { PHOTOS } from "@/lib/marketing/photos";
+import { Cutout, TapeLabel, XplButton } from "@/components/marketing/xpl-ui";
 
 export function HomeHero() {
   return (
@@ -13,50 +14,26 @@ export function HomeHero() {
         <span className="xpl-hero-explore">Explore.</span>
         <span className="text-[var(--blueprint)]">Connect.</span>
       </h1>
-      <div
-        className="xpl-obj pointer-events-none right-4 top-16 h-16 w-24 -rotate-8 lg:top-[86px] lg:left-[640px] lg:right-auto lg:h-[110px] lg:w-[170px]"
-        role="img"
-        aria-label="Placeholder: a pair of scissors, cut-out photo"
-      >
-        <span className="lg:hidden">[ scissors ]</span>
-        <span className="hidden lg:inline">
-          [ Cut-out —
-          <br />
-          scissors ]
-        </span>
-      </div>
-      <div
-        className="xpl-obj pointer-events-none top-44 left-3.5 h-[84px] w-14 rotate-4 lg:top-[300px] lg:left-24 lg:h-[170px] lg:w-[120px]"
-        role="img"
-        aria-label="Placeholder: a beaker with blue liquid, cut-out photo"
-      >
-        <span className="lg:hidden">[ beaker ]</span>
-        <span className="hidden lg:inline">
-          [ Cut-out —
-          <br />
-          beaker ]
-        </span>
-      </div>
-      <div
-        className="xpl-obj pointer-events-none top-[268px] right-10 size-14 -rotate-3 rounded-full bg-[var(--blush)] lg:top-[520px] lg:left-[820px] lg:right-auto lg:size-[90px]"
-        role="img"
-        aria-label="Placeholder: a half-eaten biscuit, cut-out photo"
-      >
-        <span className="text-[8px] tracking-[0.08em] lg:hidden">[ biscuit ]</span>
-        <span className="hidden text-[9px] tracking-[0.1em] lg:inline">
-          [ Half a
-          <br />
-          biscuit ]
-        </span>
-      </div>
-      <div
-        className="xpl-obj pointer-events-none hidden rotate-6 lg:top-[290px] lg:left-[1130px] lg:flex lg:h-[140px] lg:w-[210px]"
-        role="img"
-        aria-label="Placeholder: a wooden keychain and sandpaper, cut-out photo"
-      >
-        [ Cut-out — keychain
-        <br />+ sandpaper ]
-      </div>
+      <Cutout
+        src={PHOTOS.kids}
+        alt="Kids mixing flasks at an outdoor science bench"
+        className="pointer-events-none right-4 top-16 h-16 w-24 -rotate-8 lg:top-[86px] lg:left-[640px] lg:right-auto lg:h-[110px] lg:w-[170px]"
+      />
+      <Cutout
+        src={PHOTOS.tubes}
+        alt="Test tubes of blue liquid on a studio bench"
+        className="pointer-events-none top-44 left-3.5 h-[84px] w-14 rotate-4 lg:top-[300px] lg:left-24 lg:h-[170px] lg:w-[120px]"
+      />
+      <Cutout
+        src={PHOTOS.seedlings}
+        alt="Seedlings growing in a tray"
+        className="pointer-events-none top-[268px] right-10 size-14 -rotate-3 rounded-full lg:top-[520px] lg:left-[820px] lg:right-auto lg:size-[90px]"
+      />
+      <Cutout
+        src={PHOTOS.textiles}
+        alt="Tie-dyed cloth from a making session"
+        className="pointer-events-none hidden rotate-6 lg:top-[290px] lg:left-[1130px] lg:block lg:h-[140px] lg:w-[210px]"
+      />
       <p className="xpl-hand pointer-events-none absolute top-[300px] right-[104px] -rotate-3 whitespace-nowrap text-xl lg:top-[500px] lg:right-auto lg:left-[930px] lg:flex lg:flex-col lg:items-start lg:text-[26px] lg:-rotate-2">
         <span className="lg:hidden">someone left this here →</span>
         <span className="hidden lg:inline">someone left this here</span>

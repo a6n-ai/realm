@@ -20,16 +20,23 @@ export function Invoice({ result }: { result: PricingResult | null }) {
             <span>{d.label}</span><span className="nums">−${d.amount.toFixed(2)}</span>
           </li>
         ))}
-        {(result.taxLines ?? []).map((t) => (
-          <li key={t.name} className="flex justify-between gap-2 text-muted-foreground">
-            <span>{t.name} ({t.ratePct}%)</span><span className="nums">${t.amount.toFixed(2)}</span>
-          </li>
-        ))}
       </ul>
       <Separator className="border-foreground my-3 border-dashed" />
+      {/* Receipt order: subtotal, then tax on the discounted base, then total.
+          Tax used to print above the subtotal, which read as if it were part of
+          the line items rather than applied to them. */}
       <div className="flex justify-between gap-2 text-muted-foreground">
         <span>{result.tiffinCount} tiffins × ${result.perTiffinPrice.toFixed(2)}</span><span className="nums">${result.subtotal.toFixed(2)}</span>
       </div>
+      {(result.taxLines ?? []).length > 0 ? (
+        <div className="mt-1 space-y-1">
+          {result.taxLines.map((t) => (
+            <div key={t.name} className="flex justify-between gap-2 text-muted-foreground">
+              <span>{t.name} ({t.ratePct}%)</span><span className="nums">${t.amount.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {result.tier.upliftPct > 0 && (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
           Order 20+ tiffins for the best per-tiffin rate (currently +{result.tier.upliftPct}%).

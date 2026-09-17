@@ -878,6 +878,8 @@ section { position: relative; }
 }
 
 .location-picker-btn {
+  /* The shared Button is h-8 (32px); 44px is the minimum comfortable tap target. */
+  min-height: 44px;
   border: var(--bd) solid var(--ink) !important;
   border-radius: var(--r-sm) !important;
   background: var(--green) !important;

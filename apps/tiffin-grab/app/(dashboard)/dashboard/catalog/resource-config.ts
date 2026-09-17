@@ -196,6 +196,8 @@ const dishCategoriesSchema = z.object({
   tuUnitType: z.enum(["weight", "count"]).default("weight"),
   tuUnitSize: reqNum(z.coerce.number().positive().default(8).transform((n) => n.toFixed(2))),
   tuUnitLabel: z.string().trim().min(1, "Unit label is required").default("oz"),
+  // Blank = uncapped. Curry = 1 is what keeps a non-veg tiffin to one non-veg curry.
+  maxPicksPerTiffin: optNum(z.coerce.number().int().positive()),
 });
 
 export const RESOURCES: Record<string, ResourceDef> = {
@@ -223,6 +225,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tuUnitType", label: "TU unit type", type: "select", options: ["weight", "count"], optionLabels: ENUM_LABELS, tableHidden: true },
       { key: "tuUnitSize", label: "Natural units per TU", type: "number", tableHidden: true },
       { key: "tuUnitLabel", label: "Unit label", type: "text", tableHidden: true },
+      { key: "maxPicksPerTiffin", label: "Max picks per tiffin", type: "number", optional: true, tableHidden: true },
     ],
   },
   plans: {

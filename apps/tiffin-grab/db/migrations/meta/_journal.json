@@ -159,8 +159,36 @@
     {
       "idx": 22,
       "version": "7",
+      "when": 1789547421720,
+      "tag": "0022_dish_category_max_picks",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789547422720,
+      "tag": "0023_ticket_subcategory_taxonomy",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789547423720,
+      "tag": "0024_coin_cap_and_province_taxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789667452889,
+      "tag": "0025_category_swap_pair_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
       "when": 1789550138035,
-      "tag": "0022_add_plans_restricted",
+      "tag": "0026_add_plans_restricted",
       "breakpoints": true
     }
   ]

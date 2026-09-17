@@ -33,7 +33,7 @@ import {
 import { deliveryAddressSchema, weekdayKey, type DeliveryAddressValues } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { DialogFooterRow, IOS_BUTTON } from "@/components/customer/ios-button";
 import { Input } from "@foundry/ui/input";
 import { AddressDisplay } from "@foundry/ui/address-display";
 import { AddressFields } from "@foundry/ui/address-fields";
@@ -45,6 +45,8 @@ import { DAY_STATUS_BAR_CLASS, calendarDayStatus, calendarLegendLabel, type DayS
 import { menuNotPublishedCopy, menuNotReleasedCopy } from "./day-summary-message";
 import { mealChips } from "./meal-chips";
 import { MealDayPicker } from "./meal-day-picker";
+import { applySwapsToCounts } from "@/lib/menu/swap-rules";
+import type { ActionResult } from "../action-result";
 import type { CustomerDelivery, TiffinCounts } from "@/lib/services/customer-deliveries.service";
 import type { DeliveryCardMeal } from "./meal-chips";
 import {
@@ -104,6 +106,13 @@ function isRescheduleTargetOccupied(delivery: DeliveryCardData | undefined): boo
   return delivery.status === "scheduled";
 }
 
+// There is no physical Saturday/Sunday delivery — a weekend add-on always ships bundled onto
+// that week's Friday row (materializeDeliveries), so a reschedule/schedule-from-pool target
+// picker must never offer one as a literal destination date. Mirrors the server-side
+// assertNotWeekendTarget guard (lib/services/deliveries.service.ts) — this is the UX half
+// (grey the days out before the customer picks one), that's the authoritative half.
+const WEEKDAYS_ONLY = ["mon", "tue", "wed", "thu", "fri"] as const;
+
 function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
   deliveryPublicId: string;
   address: Address;
@@ -136,14 +145,14 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
       return;
     }
     start(async () => {
-      try {
-        await setMyDeliveryAddress(deliveryPublicId, parsed.data);
-        setOpen(false);
-        onSaved();
-        toast.success("Address updated");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to update address");
+      const result = await setMyDeliveryAddress(deliveryPublicId, parsed.data);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      setOpen(false);
+      onSaved();
+      toast.success("Address updated");
     });
   }
 
@@ -163,10 +172,10 @@ function ChangeAddressDialog({ deliveryPublicId, address, onSaved }: {
       }
       title="Change delivery address"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={pending} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4 sm:px-0 sm:pb-0">
@@ -224,15 +233,15 @@ function RescheduleDialog({
     if (!date) return;
     setError(null);
     start(async () => {
-      try {
-        await rescheduleMyDelivery(deliveryPublicId, date);
-        setOpen(false);
-        reset();
-        onSaved();
-        toast.success("Delivery rescheduled");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not reschedule");
+      const result = await rescheduleMyDelivery(deliveryPublicId, date);
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
+      setOpen(false);
+      reset();
+      onSaved();
+      toast.success("Delivery rescheduled");
     });
   }
 
@@ -258,10 +267,10 @@ function RescheduleDialog({
       }
       title="Reschedule delivery"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={!date || pending} onClick={submit}>{pending ? "Saving…" : "Confirm"}</Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4">
@@ -277,7 +286,11 @@ function RescheduleDialog({
           onChange={setDate}
           today={today}
           minDate={today}
+          allowedDays={WEEKDAYS_ONLY}
         />
+        <p className="text-muted-foreground text-xs">
+          We don’t deliver on weekends — a Saturday or Sunday tiffin ships with that week’s Friday delivery instead.
+        </p>
         {error && <p className="text-bad text-xs">{error}</p>}
       </div>
     </ResponsiveDialog>
@@ -309,14 +322,14 @@ function ScheduleHoldDayAction({
 
   function run(publicId: string) {
     start(async () => {
-      try {
-        await rescheduleMyDelivery(publicId, dateIso);
-        setOpen(false);
-        onChanged();
-        toast.success("Hold day rescheduled");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not reschedule that day");
+      const result = await rescheduleMyDelivery(publicId, dateIso);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      setOpen(false);
+      onChanged();
+      toast.success("Hold day rescheduled");
     });
   }
 
@@ -347,12 +360,12 @@ function ScheduleHoldDayAction({
       }
       title="Reschedule a hold day"
       footer={
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+        <DialogFooterRow>
           <Button variant="secondary" className={IOS_BUTTON} disabled={pending} onClick={() => setOpen(false)}>Cancel</Button>
           <Button className={IOS_BUTTON} disabled={!holdPublicId || pending} onClick={() => run(holdPublicId)}>
             {pending ? "Saving…" : "Confirm"}
           </Button>
-        </div>
+        </DialogFooterRow>
       }
     >
       <div className="space-y-4 px-4 pb-4">
@@ -405,13 +418,13 @@ function SchedulePoolDayAction({
       pending={pending}
       onClick={() => {
         start(async () => {
-          try {
-            await scheduleMyPooledTiffin(orderPublicId, dateIso);
-            onChanged();
-            toast.success("Skipped tiffin scheduled");
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Could not schedule that day");
+          const result = await scheduleMyPooledTiffin(orderPublicId, dateIso);
+          if ("error" in result) {
+            toast.error(result.error);
+            return;
           }
+          onChanged();
+          toast.success("Skipped tiffin scheduled");
         });
       }}
     />
@@ -450,23 +463,24 @@ function SwapSection({
   const validPicks = Number.isInteger(picksNum) && picksNum > 0;
   const applied = delivery.appliedSwaps.length;
 
-  function run(fn: () => Promise<void>, successMsg: string) {
+  function run(fn: () => Promise<ActionResult>, successMsg: string) {
     startTransition(async () => {
-      try {
-        await fn();
-        onChanged();
-        toast.success(successMsg);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Swap failed");
+      const result = await fn();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
+      toast.success(successMsg);
     });
   }
 
   function apply() {
     if (!to || !validPicks) return;
     run(async () => {
-      await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
-      setOpen(false);
+      const result = await applyMyDeliverySwap(delivery.publicId, from, to, picksNum);
+      if (!("error" in result)) setOpen(false);
+      return result;
     }, "Swap applied");
   }
 
@@ -572,15 +586,15 @@ function DeliveryDayActions({
 }) {
   const [pending, startTransition] = useTransition();
 
-  function run(fn: () => Promise<void>, successMsg: string) {
+  function run(fn: () => Promise<ActionResult>, successMsg: string) {
     startTransition(async () => {
-      try {
-        await fn();
-        onChanged();
-        toast.success(successMsg);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Action failed");
+      const result = await fn();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      onChanged();
+      toast.success(successMsg);
     });
   }
 
@@ -759,7 +773,10 @@ export function DayDetail({
           cell={cell}
           orderPublicId={orderPublicId}
           categoryLabels={categoryLabels}
-          categoryCounts={categoryCounts}
+          // Fold this day's swaps in (daal -> sabzi = 2 sabzi pickers, no daal picker) — the
+          // same counts resolveDeliveryMeal and setSelection use. Base counts empty = unknown,
+          // so folding would only produce bare deltas; leave those to the picker's fallback.
+          categoryCounts={delivery && Object.keys(categoryCounts).length > 0 ? applySwapsToCounts(categoryCounts, delivery.appliedSwaps) : categoryCounts}
           onChanged={onChanged}
         />
       ) : null}

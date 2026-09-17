@@ -218,14 +218,33 @@
    Poppins used on marketing/public pages. `@theme inline` bakes --font-poppins
    directly into the compiled font-sans utility, so this overrides via plain
    inheritance instead of trying to override --font-sans. */
-.crm-app {
+.crm-app,
+body:has(.crm-app) {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Plain inheritance above doesn't reach an element with its OWN explicit
+   font-sans/font-heading utility (a Dialog/Drawer title, most visibly) —
+   Tailwind bakes that utility to a literal Poppins value at build time, and a
+   directly-applied declaration always wins over an inherited one. Nor does it
+   reach a Radix Dialog/Drawer/Popover/Tooltip portal at all: Portal appends to
+   document.body, landing as a *sibling* of this div, not a descendant.
+   `body:has(.crm-app)` (same trick puchkaman's crm.css already uses for its
+   color tokens) reaches both: it re-declares the font on <body> itself
+   whenever a `.crm-app` shell is mounted anywhere inside it, and a portaled
+   node — appended as a child of body — is a genuine descendant of body either
+   way. The nested selector's specificity (0-2-0) also beats the bare
+   one-class utility (0-1-0), so no !important is needed. */
+body:has(.crm-app) .font-sans,
+body:has(.crm-app) .font-heading {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* StatCard/StatBar hero numbers — Geist Pixel's circle-dot digit shapes.
    StatCard is also used on public marketing pages, which stay on Poppins,
    so this rule is scoped to .crm-app rather than global. */
-.crm-app .font-pixel-circle {
+.crm-app .font-pixel-circle,
+body:has(.crm-app) .font-pixel-circle {
   font-family: var(--font-geist-pixel-circle), var(--font-geist-mono), monospace;
 }
 

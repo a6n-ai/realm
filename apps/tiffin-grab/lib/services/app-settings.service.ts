@@ -1,5 +1,5 @@
 import { UpdatableRepository } from "@foundry/database";
-import { cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
+import { ValidationError, cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
 import {
   parseIntegrationsConfig,
   type IntegrationsConfig,
@@ -237,4 +237,51 @@ export async function setMaxWalletBalance(cap: number | null): Promise<void> {
   const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
   if (row) await appSettingsEntity.update(row.publicId, { maxWalletBalance: cap });
   else await appSettingsEntity.create({ ...DEFAULTS, maxWalletBalance: cap });
+}
+
+/**
+ * Ceiling on the share of an order's PRE-TAX SUBTOTAL that coins may cover.
+ * NULL = unlimited, which is the behaviour every install had before this
+ * existed: coins were bounded only by the order's remaining balance.
+ * Read on the checkout path, so cached like the rest.
+ */
+export async function getMaxCoinPctOfSubtotal(): Promise<number | null> {
+  return settingsCache.getOrSet("maxCoinPctOfSubtotal", async () => {
+    const [row] = await db.select({ v: app.maxCoinPctOfSubtotal }).from(app).limit(1);
+    return row?.v ?? null;
+  });
+}
+
+export async function setMaxCoinPctOfSubtotal(pct: number | null): Promise<void> {
+  if (pct != null && (!Number.isInteger(pct) || pct < 0 || pct > 100)) {
+    throw new ValidationError("Coin limit must be a whole percent between 0 and 100");
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { maxCoinPctOfSubtotal: pct });
+  else await appSettingsEntity.create({ ...DEFAULTS, maxCoinPctOfSubtotal: pct });
+}
+
+/** Admin overrides for provincial sales tax rates; provinces absent here fall
+ *  back to DEFAULT_PROVINCE_TAXES. */
+export async function getProvinceTaxes(): Promise<Record<string, { name: string; ratePct: number }[]>> {
+  return settingsCache.getOrSet("provinceTaxes", async () => {
+    const [row] = await db.select({ v: app.provinceTaxes }).from(app).limit(1);
+    return row?.v ?? {};
+  });
+}
+
+export async function setProvinceTaxes(
+  taxes: Record<string, { name: string; ratePct: number }[]>,
+): Promise<void> {
+  for (const [province, lines] of Object.entries(taxes)) {
+    for (const l of lines) {
+      if (!l.name?.trim()) throw new ValidationError(`Tax line for ${province} needs a name`);
+      if (!(l.ratePct >= 0 && l.ratePct <= 100)) {
+        throw new ValidationError(`Tax rate for ${province} must be between 0 and 100`);
+      }
+    }
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { provinceTaxes: taxes });
+  else await appSettingsEntity.create({ ...DEFAULTS, provinceTaxes: taxes });
 }
