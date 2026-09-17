@@ -10,7 +10,9 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
-import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { coinCapMessage, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/services/wallet.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { getSession } from "@/lib/auth/session";
@@ -53,6 +55,10 @@ export interface RepriceResult {
   // couponError — the UI surfaces this instead of silently dropping the request
   // (which createOrder would otherwise reject, failing the whole order).
   coinsError?: string;
+  // How many coins this order can take and, when that is less than the balance,
+  // why — the admin percentage limit or the order already being fully covered.
+  // null for a signed-out checkout (no wallet).
+  coinCap: { maxCoins: number; maxPct: number | null; message: string | null } | null;
 }
 
 export async function listCheckoutPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
@@ -72,6 +78,10 @@ export async function reprice(
   planKey?: string,
   paymentMethodId?: string | null,
   coins?: number,
+  // Delivery postal code, once the customer has entered one. Without it the
+  // preview can't know the province, so it shows no province tax yet — the
+  // receipt on the payment step always has it, since that step needs an address.
+  postalCode?: string,
 ): Promise<RepriceResult> {
   // Must match the snapshot the wizard page rendered from (same orgId), or a
   // franchise-scoped meal size/coupon the client priced against could resolve
@@ -90,7 +100,10 @@ export async function reprice(
   }));
   const methodId = paymentMethodId?.trim() || "simulated";
   const method = methodId !== "simulated" ? findMethod(paymentCfg, methodId) : undefined;
-  const taxes = method?.enabled ? method.taxes : [];
+  const { taxes } = await resolveCheckoutTaxes({
+    postalCode: postalCode?.trim() || null,
+    methodTaxes: method?.enabled ? method.taxes : [],
+  });
 
   // Resolve the plan's plan_type enum server-side from the catalog snapshot — the
   // client passes a plan KEY, not the plan_type. The optimizer checks
@@ -126,20 +139,29 @@ export async function reprice(
   const lines = [...best.lines];
   let coinBalance: number | null = null;
   let coinsError: string | undefined;
+  let coinCap: RepriceResult["coinCap"] = null;
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
+    const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
+    const remaining = Math.max(0, Math.round((base.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+    const { currency } = await getAppSettings();
+    const [rate, maxPct] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal()]);
+    // Same cap createOrder enforces (admin % of the pre-tax subtotal, bounded by
+    // what is left after coupons), so the limit shown is the limit applied.
+    const quote = quoteCoinCap({ subtotal: base.subtotal, remaining, balance: coinBalance, rate, maxPct });
+    coinCap = { maxCoins: quote.maxCoins, maxPct, message: coinCapMessage(quote, { balance: coinBalance, maxPct }) };
+
     if (coins && coins > 0) {
       if (coins > coinBalance) {
         coinsError = "You don't have that many coins.";
-      } else {
-        const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
-        const remaining = Math.max(0, Math.round((base.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
-        if (remaining > 0) {
-          const { currency } = await getAppSettings();
-          const rate = await walletService.activeRate(currency);
-          const { coinsSpent, currencyValue } = capRedemption(coins, rate, remaining);
-          if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
-        }
+      } else if (coins > quote.maxCoins && quote.limitedBy === "admin_pct") {
+        // Over the admin limit: refuse with the reason rather than quietly apply
+        // fewer. More coins than the order needs still clamps, as it always has.
+        coinsError = `Coins can cover up to ${maxPct}% of your subtotal — you can use up to ${quote.maxCoins} coins on this order.`;
+      } else if (remaining > 0) {
+        const pctCap = maxPct == null ? Infinity : Math.round((base.subtotal * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+        const { coinsSpent, currencyValue } = capRedemption(coins, rate, Math.min(remaining, pctCap));
+        if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
       }
     }
   }
@@ -151,7 +173,7 @@ export async function reprice(
     amount: r.amount,
     auto: r.coupon.autoApply,
   }));
-  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods, coinBalance, coinsError };
+  return { pricing, appliedCoupons, couponError: best.manualError, paymentMethods, coinBalance, coinsError, coinCap };
 }
 
 export async function validatePostal(postalCode: string): Promise<{ served: boolean; zone?: { publicId: string; name: string; slotWindow: string } }> {

@@ -11,6 +11,7 @@ import {
   validatePostal,
   type AppliedCoupon,
   type CheckoutPaymentMethod,
+  type RepriceResult,
 } from "@/app/(public)/subscribe/actions";
 import { confirmSubscription } from "@/app/(public)/checkout/actions";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
@@ -75,6 +76,7 @@ export function Checkout({
   const [coinsInput, setCoinsInput] = useState("");
   const [appliedCoins, setAppliedCoins] = useState(0);
   const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  const [coinCap, setCoinCap] = useState<RepriceResult["coinCap"]>(null);
   const [coinsState, setCoinsState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
   const [waitlisted, setWaitlisted] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
@@ -89,11 +91,14 @@ export function Checkout({
     methodId: string | null,
     coins?: number,
   ) => {
-    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins);
+    // Postal code drives province sales tax, so the receipt must be re-priced
+    // with it — otherwise the preview total would omit tax the order charges.
+    const r = await reprice(s, code, s.planKey ?? undefined, methodId, coins, contact.postalCode || undefined);
     setResult(r.pricing);
     setApplied(r.appliedCoupons);
     setPaymentMethods(r.paymentMethods);
     setCoinBalance(r.coinBalance);
+    setCoinCap(r.coinCap);
     // Auto-pick the first enabled method when none chosen yet.
     if (!methodId && r.paymentMethods.length > 0) {
       setPaymentMethodId(r.paymentMethods[0]!.id);
@@ -197,6 +202,7 @@ export function Checkout({
         selections,
         planKey: selections.planKey!,
         contact,
+        renewal: lockContact,
         couponCode: appliedCode ?? undefined,
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
@@ -218,6 +224,12 @@ export function Checkout({
   };
 
   if (!selections) return null;
+
+  // A logged-in renewal keeps the email and address on file; they're changed from
+  // Account, not here. The server re-applies the on-file values regardless
+  // (confirmSubscription), so this is the visible half, not the guarantee.
+  // A first-time subscription (no prefill) is unaffected.
+  const lockContact = origin === "renew" && prefill != null;
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;
@@ -252,13 +264,38 @@ export function Checkout({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" autoComplete="email" className="h-13 rounded-2xl border-[1.5px] border-foreground px-4" value={contact.email} onChange={(e) => set({ email: e.target.value })} />
-                  {contact.email.trim() && !emailValid && <p className="text-xs text-destructive">Enter a valid email</p>}
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className={`h-13 rounded-2xl border-[1.5px] border-foreground px-4 ${lockContact ? "bg-muted/50 text-muted-foreground" : ""}`}
+                    value={contact.email}
+                    readOnly={lockContact}
+                    aria-describedby={lockContact ? "email-locked-hint" : undefined}
+                    onChange={(e) => set({ email: e.target.value })}
+                  />
+                  {lockContact ? (
+                    <p id="email-locked-hint" className="text-xs text-muted-foreground text-pretty">
+                      Renewals use your account email. <Link href="/dashboard/account/contact" className="underline">Change it in Account</Link>.
+                    </p>
+                  ) : contact.email.trim() && !emailValid ? (
+                    <p className="text-xs text-destructive">Enter a valid email</p>
+                  ) : null}
                 </div>
+                {lockContact ? (
+                  <p className="-mb-2 text-xs text-muted-foreground text-pretty">
+                    Renewals deliver to your saved address. <Link href="/dashboard/account/address" className="underline">Change it in Account</Link>.
+                  </p>
+                ) : null}
                 <AddressFields
                   preset="delivery"
                   idPrefix="checkout"
-                  fields={["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
+                  // On a renewal the address lines are locked; delivery instructions are a
+                  // per-order note and stay editable in their own field below.
+                  fields={lockContact
+                    ? ["addressLine", "addressUnit", "city", "postalCode"]
+                    : ["addressLine", "addressUnit", "city", "postalCode", "deliveryInstructions"]}
+                  disabled={lockContact}
                   values={contact}
                   onChange={set}
                   resolveUrl="/api/address/resolve"
@@ -287,8 +324,21 @@ export function Checkout({
                     </>
                   }
                 />
+                {lockContact ? (
+                  <AddressFields
+                    preset="delivery"
+                    idPrefix="checkout-notes"
+                    fields={["deliveryInstructions"]}
+                    values={contact}
+                    onChange={set}
+                  />
+                ) : null}
               </div>
-              <Button size="lg" className="hover-lift h-14 w-full rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => setStep(2)}>Continue to payment</Button>
+              <Button size="lg" className="hover-lift h-14 w-full rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:w-auto" disabled={!contact.fullName || !phoneValid || !emailValid || !contact.postalCode || (zone != null && !zone.served)} onClick={() => {
+                setStep(2);
+                // The address is final now — re-price so tax reflects its province.
+                void refreshPrice(selections, appliedCode ?? undefined, paymentMethodId, appliedCoins || undefined).catch(() => undefined);
+              }}>Continue to payment</Button>
             </section>
           </Card>
         )}
@@ -418,6 +468,12 @@ export function Checkout({
               <Label htmlFor="coins" className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Coins className="size-3.5" /> Use coins ({coinBalance} available)
               </Label>
+              {coinCap && coinBalance > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground text-pretty">
+                  {coinCap.maxCoins > 0 ? `Up to ${coinCap.maxCoins} coins can be used on this order.` : "Coins can't be used on this order."}
+                  {coinCap.message ? <> {coinCap.message}</> : null}
+                </p>
+              ) : null}
               <div className="mt-1.5 flex gap-2">
                 <Input
                   id="coins"

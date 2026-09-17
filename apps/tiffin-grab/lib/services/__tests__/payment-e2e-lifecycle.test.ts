@@ -203,9 +203,13 @@ describe("payment methods E2E lifecycle", () => {
       total: number;
     };
     expect(snap.paymentMethodId).toBe("etransfer");
-    expect(snap.taxLines.map((l) => l.name).sort()).toEqual(["GST", "PST"]);
+    // Sales tax follows the DELIVERY PROVINCE, not the payment method: this
+    // fixture's Ontario address is charged HST even though the method carries
+    // its own GST/PST lines. Method taxes apply only when no province resolves
+    // (see "falls back to the payment method's taxes" in coin-redemption-checkout).
+    expect(snap.taxLines.map((l) => l.name)).toEqual(["HST"]);
     expect(snap.taxTotal).toBeGreaterThan(0);
-    // taxable = subtotal - 10; tax = 12% of taxable; total = taxable + tax
+    // taxable = subtotal - 10; tax applies to that; total = taxable + tax
     const taxable = Math.max(0, Math.round((snap.subtotal - 10) * 100) / 100);
     expect(snap.total).toBeCloseTo(taxable + snap.taxTotal, 2);
     expect(snap.pendingRedemptions).toHaveLength(1);

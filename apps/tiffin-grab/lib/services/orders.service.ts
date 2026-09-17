@@ -7,7 +7,7 @@ import { canClaim, canVerify, enabledMethods, findMethod } from "@foundry/paymen
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { resolveProvince, resolveTaxLines } from "@/lib/tax/canada";
+import { resolveCheckoutTaxes } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
   deliveries,
@@ -38,9 +38,16 @@ import { reservedEndDatesExclusive } from "./order-window";
 import { provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "./customers.service";
 import { assertPauseAllowed } from "./pause-limits.service";
 import { validateStartDate } from "./start-date";
-import { walletService, lockAndQuoteCoinRedemption, commitCoinRedemption, reverseCoinAward } from "./wallet.service";
+import {
+  walletService,
+  lockAndQuoteCoinRedemption,
+  commitCoinRedemption,
+  reserveCoinRedemption,
+  settleCoinReservation,
+  reverseCoinAward,
+} from "./wallet.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
-import { getAppSettings, getPaymentConfig } from "./app-settings.service";
+import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "./app-settings.service";
 
 const log = createLogger("orders.service");
 
@@ -268,13 +275,12 @@ export async function createOrder(
   }
 
   // Canadian sales tax is destination-based: the DELIVERY address decides the
-  // rate, not the payment method. Province lines win when the address resolves;
-  // a method's own configured taxes remain the fallback so an install that
-  // predates province tax keeps billing exactly as before instead of silently
-  // dropping to zero. Never both — that would double-tax.
-  const taxProvince = resolveProvince({ postalCode: input.contact.postalCode });
-  const provinceTaxes = resolveTaxLines({ postalCode: input.contact.postalCode });
-  const taxes = provinceTaxes.length > 0 ? provinceTaxes : methodTaxes;
+  // rate. Resolved through the same helper the checkout preview uses, so the
+  // total shown is the total charged.
+  const { taxes, province: taxProvince } = await resolveCheckoutTaxes({
+    postalCode: input.contact.postalCode,
+    methodTaxes,
+  });
 
   const deferSettlement = paymentMethodId !== "simulated";
 
@@ -445,8 +451,16 @@ export async function createOrder(
       const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
       if (remaining > 0) {
         const rate = await walletService.activeRate(currency);
+        // Admin limit on the share of the PRE-TAX subtotal coins may cover
+        // (NULL = unlimited). Bounded by `remaining` too, so coins can never
+        // take the order below zero. capRedemption clamps rather than rejects:
+        // asking for more coins than the cap allows spends only what the cap buys.
+        const maxPct = await getMaxCoinPctOfSubtotal();
+        const pctCap = maxPct == null
+          ? Infinity
+          : Math.round((basePricing.subtotal * (maxPct / 100) + Number.EPSILON) * 100) / 100;
         coinRedemption = await lockAndQuoteCoinRedemption(tx, {
-          userId, coins: input.coins, rate, cap: remaining,
+          userId, coins: input.coins, rate, cap: Math.min(remaining, pctCap),
         });
         if (coinRedemption.currencyValue > 0) {
           adjustments.push({ label: `Coins (${coinRedemption.coinsSpent})`, amount: coinRedemption.currencyValue });
@@ -573,6 +587,19 @@ export async function createOrder(
           orderId: order.id,
         });
       }
+    } else if (coinRedemption && coinRedemption.currencyValue > 0 && userId != null) {
+      // Real payment method: HOLD the coins now rather than waiting for
+      // verification. The hold is a debit row the balance already counts, so the
+      // customer's wallet drops immediately and the same coins can't fund a
+      // second order in the meantime. verifyPayment settles it; if payment never
+      // lands the hold lapses and the coins return without anyone intervening.
+      // Coupons still defer as before — they have no hold primitive.
+      await reserveCoinRedemption(tx, {
+        userId,
+        coins: coinRedemption.coinsSpent,
+        currencyValue: coinRedemption.currencyValue,
+        orderId: order.id,
+      });
     }
 
     await tx.insert(orderActivities).values({
@@ -664,12 +691,30 @@ export async function verifyPayment(
     }
 
     if (snap.pendingCoinRedemption && snap.pendingCoinRedemption.coins > 0) {
-      await commitCoinRedemption(tx, {
-        userId: order.userId,
-        coins: snap.pendingCoinRedemption.coins,
-        currencyValue: snap.pendingCoinRedemption.amount,
-        orderId: order.id,
-      });
+      const settled = await settleCoinReservation(tx, { userId: order.userId, orderId: order.id });
+      if (settled.status === "none") {
+        // An order placed before checkout holds existed: nothing was reserved,
+        // so debit now exactly as this path always did.
+        await commitCoinRedemption(tx, {
+          userId: order.userId,
+          coins: snap.pendingCoinRedemption.coins,
+          currencyValue: snap.pendingCoinRedemption.amount,
+          orderId: order.id,
+        });
+      } else if (settled.status === "expired") {
+        // The hold lapsed before payment was verified, so those coins went back
+        // to the wallet and may already be spent. Deliberately NOT re-debited
+        // (the package forbids a second redemption per order) and NOT blocking:
+        // the customer's money has arrived and must still be recorded. Leave a
+        // trail so staff can decide whether to recover the coin value.
+        log.warn({ orderId: order.publicId, coins: settled.coins }, "coin hold expired before payment verification");
+        await tx.insert(orderActivities).values({
+          orderId: order.id,
+          type: "payment_verified",
+          note: `Coin hold expired before verification — ${settled.coins} coins returned to the customer, coin discount of ${snap.pendingCoinRedemption.amount} was not collected`,
+          createdBy: actorInternalId,
+        });
+      }
     }
 
     if (pending.length || snap.pendingCoinRedemption) {
@@ -1400,8 +1445,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (method?.enabled) methodTaxes = method.taxes;
     }
     // Same destination rule as createOrder — off this order's own delivery address.
-    const provinceTaxes = resolveTaxLines({ postalCode: order.postalCode });
-    const taxes = provinceTaxes.length > 0 ? provinceTaxes : methodTaxes;
+    const { taxes } = await resolveCheckoutTaxes({ postalCode: order.postalCode, methodTaxes });
 
     const selections: PricingSelections = {
       mealSizeId: mealSize.publicId,

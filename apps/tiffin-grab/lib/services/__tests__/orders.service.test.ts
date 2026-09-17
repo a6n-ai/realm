@@ -48,7 +48,9 @@ describe("createOrder (integration)", () => {
     expect(o.tiffinCount).toBeGreaterThan(0);
     expect(Number.isInteger(o.tiffinCount)).toBe(true);
     expect(Number(o.perTiffinPrice)).toBeGreaterThan(0);
-    expect(Number(o.total)).toBeCloseTo(Number(o.perTiffinPrice) * o.tiffinCount, 2);
+    // total = tiffins priced out, plus sales tax for the delivery province.
+    const taxTotal = (o.pricingSnapshot as { taxTotal: number }).taxTotal;
+    expect(Number(o.total)).toBeCloseTo(Number(o.perTiffinPrice) * o.tiffinCount + taxTotal, 2);
     const pays = await db.select().from(payments).where(eq(payments.orderId, o.id));
     expect(pays).toHaveLength(1);
     // A zone-matched order lands on "active" directly (createOrder never calls

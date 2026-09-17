@@ -2,7 +2,9 @@ import {
   createWalletService,
   commitRedemption,
   lockAndQuoteRedemption,
+  reserveRedemption,
   reverseAward,
+  settleReservation,
   unexpired,
   type WalletDeps,
   type WalletTx as PackageWalletTx,
@@ -215,6 +217,40 @@ export async function commitCoinRedemption(
   args: { userId: bigint; coins: number; currencyValue: number; orderId: bigint; memo?: string },
 ): Promise<void> {
   await commitRedemption(tx, { ...args, walletLedger, orders, users, recordRedemptionDiscount });
+}
+
+/**
+ * How long a checkout coin hold survives unsettled. The hold makes the wallet
+ * balance drop the moment the order is placed; staff verification settles it.
+ * If payment never arrives the hold lapses and the coins become spendable again
+ * on their own — no sweep job, no reversal row. Generous on purpose: an
+ * e-Transfer can take days to land and be verified, and a hold that expires
+ * before verification leaves that order's coin discount unfunded.
+ */
+export const COIN_HOLD_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Debit-with-expiry for a deferred-settlement order. Throws on insufficient
+ *  balance, same as commit. */
+export async function reserveCoinRedemption(
+  tx: Tx,
+  args: { userId: bigint; coins: number; currencyValue: number; orderId: bigint; ttlMs?: number },
+): Promise<{ reservedUntil: number }> {
+  return reserveRedemption(tx, {
+    ...args,
+    ttlMs: args.ttlMs ?? COIN_HOLD_TTL_MS,
+    walletLedger,
+    orders,
+    users,
+    recordRedemptionDiscount,
+  });
+}
+
+/** Turn a live hold into a permanent debit. See the package for the three outcomes. */
+export async function settleCoinReservation(
+  tx: Tx,
+  args: { userId: bigint; orderId: bigint },
+): Promise<{ status: "settled" | "none" | "expired"; coins: number }> {
+  return settleReservation(tx, { ...args, walletLedger, orders, users });
 }
 
 // App-bound wrapper for the package's award-reversal primitive — refundOrder
