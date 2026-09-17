@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
-import { fromZonedLocal, toZonedLocal, dayKey } from "../timezone";
+import { addDayKey, fromZonedLocal, toZonedLocal, dayKey } from "../timezone";
 
 describe("app timezone wall clock", () => {
   it("reads Singapore 10:00 as 02:00 UTC", () => {
@@ -22,5 +22,10 @@ describe("app timezone wall clock", () => {
 
   it("rejects an empty local string", () => {
     expect(() => fromZonedLocal("", "Asia/Singapore")).toThrow(ValidationError);
+  });
+
+  it("adds calendar days on a YYYY-MM-DD key", () => {
+    expect(addDayKey("2026-09-16", 1)).toBe("2026-09-17");
+    expect(addDayKey("2026-09-30", 1)).toBe("2026-10-01");
   });
 });

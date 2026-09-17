@@ -32,7 +32,7 @@ export default async function CustomerHomePage() {
         {bookings.length === 0 ? (
           <EmptyState
             icon={CalendarDaysIcon}
-            message="No bookings yet. Pick a session on the public calendar."
+            message="No bookings yet. Pick a class day on the public calendar."
             action={
               <Button asChild>
                 <Link href="/whats-on">Book a session</Link>

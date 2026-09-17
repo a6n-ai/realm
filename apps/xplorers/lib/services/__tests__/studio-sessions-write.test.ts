@@ -42,14 +42,47 @@ describe("normalizeSessionWrite", () => {
   });
 
   it("keeps published off unless explicitly set", () => {
-    const row = normalizeSessionWrite({
-      title: "Kids Club",
-      category: "kids",
-      startsAt: future,
-      endsAt: new Date("2026-10-01T12:00:00.000Z"),
-      capacity: 8,
-    });
-    expect(row.published).toBe(false);
+    const { record, dates } = normalizeSessionWrite(
+      {
+        title: "Kids Club",
+        category: "kids",
+        startsAt: future,
+        endsAt: new Date("2026-10-01T12:00:00.000Z"),
+        capacity: 8,
+      },
+      "UTC",
+    );
+    expect(record.published).toBe(false);
+    expect(record.weekdays).toEqual([]);
+    expect(dates).toEqual(["2026-10-01"]);
+  });
+
+  it("rejects a class that spans two days and stores extra dates", () => {
+    expect(() =>
+      normalizeSessionWrite(
+        {
+          title: "Kids Club",
+          category: "kids",
+          startsAt: new Date("2026-09-22T08:00:00.000Z"),
+          endsAt: new Date("2026-09-23T09:30:00.000Z"),
+          capacity: 8,
+        },
+        "Asia/Singapore",
+      ),
+    ).toThrow(/one day/);
+
+    const { dates } = normalizeSessionWrite(
+      {
+        title: "Kids Club",
+        category: "kids",
+        startsAt: new Date("2026-09-22T08:00:00.000Z"),
+        endsAt: new Date("2026-09-22T09:30:00.000Z"),
+        capacity: 8,
+        alsoOn: ["2026-09-24"],
+      },
+      "Asia/Singapore",
+    );
+    expect(dates).toEqual(["2026-09-22", "2026-09-24"]);
   });
 });
 

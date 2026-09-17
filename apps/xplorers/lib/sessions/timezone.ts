@@ -74,3 +74,14 @@ export function dayKey(date: Date, timeZone: string): string {
   const map = zonedParts(date, timeZone);
   return `${map.year}-${map.month}-${map.day}`;
 }
+
+/** Calendar arithmetic on `YYYY-MM-DD` keys (UTC date math, not local midnight). */
+export function addDayKey(key: string, days: number): string {
+  const match = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new ValidationError("Repeats until must be a date.");
+  const utc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days);
+  const date = new Date(utc);
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${month}-${day}`;
+}

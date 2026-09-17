@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSessionDay, formatTapeDay, groupSessionsByDay, toPublicSessionCard } from "../format";
+import { formatScheduleLabel, formatSessionDay, formatTapeDay, groupSessionsByDay, toPublicSessionCard } from "../format";
 import type { PublicSession } from "@/lib/services/studio-sessions.service";
 
 const zone = "Asia/Singapore";
@@ -24,6 +24,10 @@ function session(over: Partial<PublicSession> & Pick<PublicSession, "startsAt" |
     published: true,
     archived: false,
     remaining: 4,
+    weekdays: [],
+    repeatsUntil: null,
+    occurrencePublicId: over.occurrencePublicId ?? over.publicId ?? "occ_test",
+    occursOn: over.occursOn ?? "2026-09-16",
     ...over,
   };
 }
@@ -46,5 +50,14 @@ describe("session display", () => {
     expect(groups[0]?.tape).toMatch(/^Today/);
     expect(groups[0]?.rows.map((row) => row.title)).toEqual(["Kids Club", "Crafting Club"]);
     expect(groups[1]?.label).toBe("Thu 17 Sept");
+  });
+
+  it("labels extra days on the same class", () => {
+    expect(
+      formatScheduleLabel(
+        { startsAt: new Date("2026-09-15T08:00:00.000Z"), dates: ["2026-09-15", "2026-09-17"] },
+        zone,
+      ),
+    ).toBe("Tue 15 Sept · 4:00 pm · +1 day");
   });
 });

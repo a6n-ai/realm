@@ -5,7 +5,7 @@ import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@foundry/design-system";
 import { CalendarDaysIcon } from "lucide-react";
-import { CATEGORY_LABELS, formatSessionDay, formatSessionTime } from "@/lib/sessions/format";
+import { CATEGORY_LABELS, formatScheduleLabel } from "@/lib/sessions/format";
 import type { SessionCategory } from "@/db/schema/studio";
 import { PublishToggle } from "./publish-toggle";
 
@@ -14,6 +14,7 @@ export type SessionListRow = {
   title: string;
   category: SessionCategory;
   startsAt: Date;
+  dates: string[];
   capacity: number;
   published: boolean;
   location: string | null;
@@ -61,9 +62,7 @@ export function SessionsTable({
             </Link>
           </TableCell>
           <TableCell>{CATEGORY_LABELS[row.category]}</TableCell>
-          <TableCell className="whitespace-nowrap">
-            {formatSessionDay(row.startsAt, timeZone)} · {formatSessionTime(row.startsAt, timeZone)}
-          </TableCell>
+          <TableCell className="whitespace-nowrap">{formatScheduleLabel(row, timeZone)}</TableCell>
           <TableCell>{row.capacity}</TableCell>
           <TableCell>
             {canWrite ? (

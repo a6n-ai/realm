@@ -9,15 +9,21 @@ export function BookControl({
   remaining,
   signedIn,
   isFamily,
+  booked,
   autofocus,
 }: {
   publicId: string;
   remaining: number;
   signedIn: boolean;
   isFamily: boolean;
+  booked?: boolean;
   autofocus?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<BookState, FormData>(createBookingAction, {});
+
+  if (booked) {
+    return <span className="xpl-mono text-[11px] tracking-[0.1em]">Booked</span>;
+  }
 
   if (remaining <= 0) {
     return <span className="xpl-mono text-[11px] tracking-[0.1em] text-[var(--graphite)]">Full</span>;
@@ -34,7 +40,7 @@ export function BookControl({
 
   return (
     <form action={formAction} className="flex flex-col items-stretch gap-2 lg:items-end">
-      <input type="hidden" name="sessionPublicId" value={publicId} />
+      <input type="hidden" name="occurrencePublicId" value={publicId} />
       <label className="xpl-mono flex items-center gap-2 text-[11px] tracking-[0.08em]">
         Seats
         <input

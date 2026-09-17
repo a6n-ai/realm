@@ -6,6 +6,7 @@ export type BoardTone = "muted" | "action" | "ink";
 
 export type PublicSessionCard = {
   publicId: string;
+  occurrenceKey: string;
   title: string;
   time: string;
   spec: string;
@@ -58,6 +59,17 @@ export function formatTapeDay(date: Date, timeZone: string, now = new Date()): s
   return label;
 }
 
+export function formatScheduleLabel(
+  session: { startsAt: Date; dates?: string[] },
+  timeZone: string,
+): string {
+  const time = formatSessionTime(session.startsAt, timeZone);
+  const day = formatSessionDay(session.startsAt, timeZone);
+  const extra = (session.dates?.length ?? 1) - 1;
+  if (extra > 0) return `${day} · ${time} · +${extra} day${extra === 1 ? "" : "s"}`;
+  return `${day} · ${time}`;
+}
+
 function attendanceLabel(mode: AttendanceMode): string | null {
   switch (mode) {
     case "drop_off":
@@ -85,7 +97,8 @@ export function toPublicSessionCard(session: PublicSession, timeZone: string): P
   const spots = full ? "Full" : `${session.remaining} spot${session.remaining === 1 ? "" : "s"} left`;
   const tone: BoardTone = full ? "muted" : session.remaining <= 4 ? "action" : "ink";
   return {
-    publicId: session.publicId,
+    publicId: session.occurrencePublicId,
+    occurrenceKey: session.occurrencePublicId,
     title: session.title,
     time: formatSessionTime(session.startsAt, timeZone),
     spec,

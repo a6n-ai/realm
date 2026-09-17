@@ -3,6 +3,7 @@ import { Role } from "@foundry/commons";
 import { buildMetadata } from "@/lib/seo";
 import { BookControl } from "@/components/marketing/book-control";
 import { getSession } from "@/lib/auth/session";
+import { bookingsService } from "@/lib/services/bookings.service";
 import { loadPublicSessionCards } from "@/lib/sessions/public";
 import type { BoardTone } from "@/lib/sessions/format";
 
@@ -27,6 +28,9 @@ export default async function WhatsOnPage({
   const signedIn = Boolean(session?.user);
   const isFamily = session?.user?.role === Role.USER;
   const focusId = params.book;
+  const bookedIds = new Set(
+    isFamily && session?.user ? await bookingsService.listConfirmedOccurrencePublicIds(session.user.id) : [],
+  );
 
   return (
     <article>
@@ -36,13 +40,14 @@ export default async function WhatsOnPage({
           What&apos;s on the benches.
         </h1>
         <p className="mt-6 max-w-[36ch] text-[17px] leading-[1.5] lg:text-xl lg:leading-[1.55]">
-          Ages 5 to 75 on one board. Pick a bench. Prices are on the session. Drop-off, stay, or come after work.
+          Ages 5 to 75 on one board. Pick a bench. Each class is one day — book the day you want. Prices are on the
+          session. Drop-off, stay, or come after work.
         </p>
       </header>
       <section className="flex flex-col gap-12 px-5 py-14 lg:px-20 lg:py-24">
         {groups.length === 0 ? (
           <p className="m-0 max-w-[40ch] text-[17px] leading-[1.5] lg:text-xl">
-            No published sessions yet. When a session is on the board, you can book seats from here.
+            No published sessions yet. When a class is on the board, you can book a seat from here.
           </p>
         ) : (
           groups.map((group) => (
@@ -53,7 +58,7 @@ export default async function WhatsOnPage({
                   const focused = focusId === row.publicId;
                   return (
                     <div
-                      key={row.publicId}
+                      key={row.occurrenceKey}
                       id={`session-${row.publicId}`}
                       className={`flex flex-col gap-3 border-b border-[var(--rule)] py-5 last:border-b-0 lg:grid lg:grid-cols-[110px_1fr_auto] lg:items-center lg:gap-6 lg:py-[18px] ${focused ? "ring-2 ring-[var(--tape)] ring-offset-4" : ""}`}
                     >
@@ -71,6 +76,7 @@ export default async function WhatsOnPage({
                         remaining={row.remaining}
                         signedIn={signedIn}
                         isFamily={isFamily}
+                        booked={bookedIds.has(row.publicId)}
                         autofocus={focused}
                       />
                     </div>

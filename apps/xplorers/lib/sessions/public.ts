@@ -7,7 +7,8 @@ export async function loadPublicSessionCards(): Promise<{
   timeZone: string;
 }> {
   const timeZone = await studioSessionsService.timezone();
-  const sessions = await studioSessionsService.listPublished();
+  const now = new Date();
+  const sessions = await studioSessionsService.listPublished(now);
   const cards = sessions.map((session) => toPublicSessionCard(session, timeZone));
-  return { cards, groups: groupSessionsByDay(cards, timeZone), timeZone };
+  return { cards, groups: groupSessionsByDay(cards, timeZone, now), timeZone };
 }

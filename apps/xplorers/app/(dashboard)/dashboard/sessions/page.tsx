@@ -28,7 +28,7 @@ async function SessionsHeader() {
     <PageHeader
       icon={CalendarDaysIcon}
       title="Sessions"
-      subtitle="Bookable offerings on the public calendar. Kind is a category, not a separate type."
+      subtitle="Bookable one-day classes. Add more dates when the same class runs again."
       actions={
         canCreate ? (
           <Button asChild size="sm">

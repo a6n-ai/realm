@@ -9,7 +9,7 @@ export default async function NewSessionPage() {
   const timeZone = await studioSessionsService.timezone();
   return (
     <PageShell>
-      <PageHeader icon={CalendarDaysIcon} title="New session" subtitle="Define one bookable offering. Publish when it should appear on What’s on." />
+      <PageHeader icon={CalendarDaysIcon} title="New session" subtitle="A class is one day. Add more dates if the same class runs again. Publish when it should appear on What’s on." />
       <SectionCard title="Session">
         <SessionForm timeZone={timeZone} />
       </SectionCard>

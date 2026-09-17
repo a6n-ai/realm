@@ -12,7 +12,7 @@ export default async function EditSessionPage({ params }: { params: Promise<{ id
   await requirePermission({ studioSession: ["read"] } as never);
   const { id } = await params;
   const [row, timeZone, session] = await Promise.all([
-    studioSessionsService.read(id).catch(() => null),
+    studioSessionsService.readWithDates(id).catch(() => null),
     studioSessionsService.timezone(),
     getSession(),
   ]);
@@ -24,7 +24,7 @@ export default async function EditSessionPage({ params }: { params: Promise<{ id
       <PageHeader
         icon={CalendarDaysIcon}
         title={row.title}
-        subtitle="Edit the session. Capacity and price display are stored here; remaining seats are computed server-side."
+        subtitle="Edit the class. Each date is one day families can book; remaining seats are computed server-side."
         actions={canWrite ? <ArchiveSessionButton publicId={row.publicId} /> : null}
       />
       <SectionCard title="Session">
@@ -44,6 +44,7 @@ export default async function EditSessionPage({ params }: { params: Promise<{ id
             location: row.location ?? "",
             attendanceMode: row.attendanceMode,
             published: row.published,
+            extraDates: row.dates.filter((date) => date !== toZonedLocal(row.startsAt, timeZone).slice(0, 10)),
           }}
         />
       </SectionCard>

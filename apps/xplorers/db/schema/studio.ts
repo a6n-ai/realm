@@ -1,5 +1,6 @@
 import { updatableColumns } from "@foundry/database";
-import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, boolean, date, index, integer, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 
 export const SESSION_CATEGORIES = [
@@ -40,11 +41,27 @@ export const studioSessions = pgTable(
     attendanceMode: sessionAttendance("attendance_mode").notNull().default("either"),
     published: boolean("published").notNull().default(false),
     archived: boolean("archived").notNull().default(false),
+    /** Unused. Kept so 0002 is not rewritten; classes are scheduled as one-day dates. */
+    weekdays: smallint("weekdays").array().notNull().default(sql`'{}'::smallint[]`),
+    repeatsUntil: date("repeats_until", { mode: "string" }),
   },
   (t) => [
     index("studio_sessions_starts_idx").on(t.startsAt),
     index("studio_sessions_published_starts_idx").on(t.published, t.startsAt),
   ],
+);
+
+/** One calendar day of a class. Same times and capacity as the parent session. */
+export const studioSessionOccurrences = pgTable(
+  "studio_session_occurrences",
+  {
+    ...updatableColumns("occ"),
+    sessionId: bigint("session_id", { mode: "bigint" })
+      .notNull()
+      .references(() => studioSessions.id),
+    occursOn: date("occurs_on", { mode: "string" }).notNull(),
+  },
+  (t) => [uniqueIndex("studio_session_occurrences_session_day_idx").on(t.sessionId, t.occursOn)],
 );
 
 export const bookings = pgTable(
@@ -54,6 +71,9 @@ export const bookings = pgTable(
     sessionId: bigint("session_id", { mode: "bigint" })
       .notNull()
       .references(() => studioSessions.id),
+    occurrenceId: bigint("occurrence_id", { mode: "bigint" })
+      .notNull()
+      .references(() => studioSessionOccurrences.id),
     userId: bigint("user_id", { mode: "bigint" })
       .notNull()
       .references(() => users.id),
@@ -62,6 +82,10 @@ export const bookings = pgTable(
   },
   (t) => [
     index("bookings_session_status_idx").on(t.sessionId, t.status),
+    index("bookings_occurrence_status_idx").on(t.occurrenceId, t.status),
     index("bookings_user_idx").on(t.userId),
+    uniqueIndex("bookings_occurrence_user_confirmed_idx")
+      .on(t.occurrenceId, t.userId)
+      .where(sql`${t.status} = 'confirmed'`),
   ],
 );

@@ -24,6 +24,7 @@ function formFields(formData: FormData, timeZone: string) {
     location: String(formData.get("location") ?? ""),
     attendanceMode: String(formData.get("attendanceMode") ?? "either"),
     published: formData.get("published") === "on",
+    alsoOn: formData.getAll("alsoOn").map((value) => String(value)),
   };
 }
 
@@ -31,7 +32,7 @@ export async function createSessionAction(_prev: SessionFormState, formData: For
   await requirePermission({ studioSession: ["create"] });
   try {
     const timeZone = await studioSessionsService.timezone();
-    await studioSessionsService.createSession(formFields(formData, timeZone));
+    await studioSessionsService.createSession(formFields(formData, timeZone), timeZone);
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
     throw err;
@@ -50,7 +51,7 @@ export async function updateSessionAction(
   await requirePermission({ studioSession: ["update"] });
   try {
     const timeZone = await studioSessionsService.timezone();
-    await studioSessionsService.updateSession(publicId, formFields(formData, timeZone));
+    await studioSessionsService.updateSession(publicId, formFields(formData, timeZone), timeZone);
   } catch (err) {
     if (err instanceof ValidationError) return { error: err.message };
     throw err;

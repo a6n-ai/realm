@@ -22,6 +22,7 @@ export type SessionFormValues = {
   location: string;
   attendanceMode: string;
   published: boolean;
+  extraDates: string[];
 };
 
 const empty: SessionFormValues = {
@@ -36,6 +37,7 @@ const empty: SessionFormValues = {
   location: "",
   attendanceMode: "either",
   published: false,
+  extraDates: [],
 };
 
 export function SessionForm({
@@ -52,6 +54,7 @@ export function SessionForm({
   const initial = { ...empty, ...values };
   const [category, setCategory] = useState(initial.category);
   const [attendanceMode, setAttendanceMode] = useState(initial.attendanceMode);
+  const [extraDates, setExtraDates] = useState<string[]>(initial.extraDates.length ? initial.extraDates : []);
   const action = publicId ? updateSessionAction.bind(null, publicId) : createSessionAction;
   const [state, formAction, pending] = useActionState<SessionFormState, FormData>(action, {});
 
@@ -62,7 +65,7 @@ export function SessionForm({
           {state.error}
         </p>
       ) : null}
-      <p className="text-muted-foreground text-sm">Times are in {timeZone.replaceAll("_", " ")}.</p>
+      <p className="text-muted-foreground text-sm">Times are in {timeZone.replaceAll("_", " ")}. A class is one day.</p>
       <div className="grid gap-2">
         <Label htmlFor="title">Title</Label>
         <Input id="title" name="title" required defaultValue={initial.title} disabled={readOnly} />
@@ -128,6 +131,42 @@ export function SessionForm({
             disabled={readOnly}
           />
         </div>
+      </div>
+      <div className="grid gap-2">
+        <p className="text-sm font-medium">More days</p>
+        <p className="text-muted-foreground text-sm">
+          Same class, same times, another date. Families book each day separately.
+        </p>
+        {extraDates.map((date, index) => (
+          <div key={`also-${index}`} className="flex items-center gap-2">
+            <Input
+              name="alsoOn"
+              type="date"
+              value={date}
+              onChange={(event) => {
+                const next = [...extraDates];
+                next[index] = event.target.value;
+                setExtraDates(next);
+              }}
+              disabled={readOnly}
+            />
+            {readOnly ? null : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setExtraDates(extraDates.filter((_, i) => i !== index))}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+        ))}
+        {readOnly ? null : (
+          <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setExtraDates([...extraDates, ""])}>
+            Add another day
+          </Button>
+        )}
       </div>
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
         <div className="grid gap-2">

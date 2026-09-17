@@ -37,7 +37,7 @@ export async function HomeBoard() {
         {todayGroup ? (
           todayGroup.rows.map((row) => (
             <Link
-              key={row.publicId}
+              key={row.occurrenceKey}
               href={`/whats-on#session-${row.publicId}`}
               className="flex flex-col gap-1.5 border-b border-[var(--rule)] py-3.5 lg:grid lg:grid-cols-[110px_1fr_auto_auto] lg:items-center lg:gap-6 lg:py-[18px]"
             >
