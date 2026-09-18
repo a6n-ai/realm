@@ -50,6 +50,11 @@ describe("CustomerSidebar", () => {
     renderSidebar();
     expect(screen.getByRole("link", { name: /^support$/i })).toHaveAttribute("href", "/me/support");
   });
+
+  it("does not list Preferences in the sidebar", () => {
+    renderSidebar();
+    expect(screen.queryByRole("link", { name: /^preferences$/i })).not.toBeInTheDocument();
+  });
   it("marks Home active on exact /me only", () => {
     renderSidebar();
     // Home is active at pathname "/me"; Deliveries is not.
