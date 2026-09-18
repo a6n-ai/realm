@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPosterColumns } from "../poster";
+import { buildHomeMenuColumns, buildPosterColumns, isoToDayOfWeek } from "../poster";
 
 const tiffinSlots = [{ key: "lunch", label: "Lunch" }];
 const healthySlots = [
@@ -54,5 +54,42 @@ describe("buildPosterColumns", () => {
       { dayOfWeek: "mon", slot: "breakfast", dishName: "Poha", position: 0 },
     ]);
     expect(cols.find((c) => c.label === "Tuesday")!.groups).toEqual([]);
+  });
+});
+
+describe("buildHomeMenuColumns", () => {
+  it("renders one column per weekday, keeping Sat and Sun apart", () => {
+    const cols = buildHomeMenuColumns(tiffinSlots, [
+      { dayOfWeek: "sat", slot: "lunch", dishName: "Veg Pasta", position: 0 },
+      { dayOfWeek: "sun", slot: "lunch", dishName: "Chicken Pasta", position: 0 },
+    ]);
+    expect(cols.map((c) => c.label)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+    expect(cols.find((c) => c.label === "Sat")!.groups[0].dishes.map((d) => d.name)).toEqual(["Veg Pasta"]);
+    expect(cols.find((c) => c.label === "Sun")!.groups[0].dishes.map((d) => d.name)).toEqual(["Chicken Pasta"]);
+  });
+
+  it("empty days have no groups, even with a single slot", () => {
+    const cols = buildHomeMenuColumns(tiffinSlots, [
+      { dayOfWeek: "mon", slot: "lunch", dishName: "Dal", position: 0 },
+    ]);
+    expect(cols.find((c) => c.label === "Tue")!.groups).toEqual([]);
+  });
+
+  it("groups multi-slot days by category and skips empty categories", () => {
+    const cols = buildHomeMenuColumns(healthySlots, [
+      { dayOfWeek: "mon", slot: "dinner", dishName: "Soup", position: 0 },
+      { dayOfWeek: "mon", slot: "breakfast", dishName: "Poha", position: 0 },
+    ]);
+    expect(cols.find((c) => c.label === "Mon")!.groups.map((g) => g.slotLabel)).toEqual(["Breakfast", "Dinner"]);
+  });
+});
+
+describe("isoToDayOfWeek", () => {
+  it("maps a Monday ISO date to mon", () => {
+    expect(isoToDayOfWeek("2026-09-21")).toBe("mon");
+  });
+
+  it("maps Sunday to sun", () => {
+    expect(isoToDayOfWeek("2026-09-27")).toBe("sun");
   });
 });

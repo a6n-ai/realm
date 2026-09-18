@@ -35,7 +35,7 @@ export function NewWeekCard({ takenWeekStarts }: { takenWeekStarts: string[] }) 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Week start (Monday)</label>
+          <label className="block text-sm font-medium">Monday</label>
           {/* Weeks already built are disabled in the picker, so a duplicate cannot be started. */}
           <WeekStartPicker value={weekStart} onChange={setWeekStart} disabledDates={takenWeekStarts} />
         </div>
