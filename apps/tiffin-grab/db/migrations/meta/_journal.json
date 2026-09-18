@@ -183,6 +183,13 @@
       "when": 1789667452889,
       "tag": "0025_category_swap_pair_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789667454890,
+      "tag": "0026_profitability_assumptions",
+      "breakpoints": true
     }
   ]
 }

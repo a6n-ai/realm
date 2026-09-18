@@ -34,4 +34,14 @@ export const app = pgTable("app", {
   // Per-province sales tax overrides, shaped { ON: [{name, ratePct}], ... }.
   // NULL/absent province falls back to DEFAULT_PROVINCE_TAXES in lib/tax/canada.
   provinceTaxes: jsonb("province_taxes").$type<Record<string, { name: string; ratePct: number }[]>>(),
+  // Kitchen/driver per-tiffin costs and monthly Marketing/Salary/Other budgets
+  // used by Analytics → Daily Profitability. NULL = all zeros (no costs entered).
+  profitabilityAssumptions: jsonb("profitability_assumptions").$type<{
+    kitchenCostPerTiffin: number;
+    driverCostPerTiffin: number;
+    otherCostPerTiffin: number;
+    marketingMonthly: number;
+    salaryMonthly: number;
+    otherMonthly: number;
+  }>(),
 });
