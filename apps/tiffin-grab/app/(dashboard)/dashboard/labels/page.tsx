@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { PrinterIcon, TagIcon } from "lucide-react";
+import { TagIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
-import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -11,6 +9,7 @@ import { getPackingLabels } from "@/lib/services/labels.service";
 import { PageShell, PageHeader, SectionCard, SkeletonStatCards, StatGrid } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";
 import { LabelsExportButton } from "./labels-export-button";
+import { LabelsPrintButton } from "./labels-print-button";
 import { LabelsTable } from "./labels-table";
 import { KitchenCounts, LabelList } from "./labels-view";
 
@@ -53,11 +52,12 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
           <LabelDatePicker date={date} today={today} />
           <div className="flex gap-2">
             <LabelsExportButton rows={packingRows} dateIso={date} />
-            <Button asChild disabled={sheet.labels.length === 0}>
-              <Link href={`/dashboard/labels/pdf?date=${date}`} prefetch={false}>
-                <PrinterIcon data-icon="inline-start" /> Print labels
-              </Link>
-            </Button>
+            <LabelsPrintButton
+              dateIso={date}
+              weekStart={sheet.weekStart}
+              menuReleased={sheet.menuWeekPublicId != null}
+              labelCount={sheet.labels.length}
+            />
           </div>
         </div>
       </SectionCard>
