@@ -9,6 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { cn } from "@foundry/ui/cn";
 import { addSwapPair, removeSwapPair, setSwapPairPlans } from "./actions";
 
 export type CategoryOption = { key: string; label: string };
@@ -30,24 +31,34 @@ const COLUMNS: readonly Column<Cols>[] = [
   { key: "actions", label: "", align: "right" },
 ];
 
-function PlanDot({ color }: { color: string | null }) {
+function PlanDot({ color, className }: { color: string | null; className?: string }) {
   return (
     <span
-      className="inline-block size-2 shrink-0 rounded-full"
-      style={{ backgroundColor: color ?? "var(--muted-foreground)" }}
+      className={cn("inline-block size-2 shrink-0 rounded-full", className)}
+      style={className ? undefined : { backgroundColor: color ?? "var(--muted-foreground)" }}
       aria-hidden
     />
   );
 }
 
+/** Plans that have BOTH categories — the only plans a swap between them can ever run on. */
+function eligiblePlans(fromKey: string, toKey: string, planIdsByCategory: Record<string, string[]>, planOptions: PlanOption[]): PlanOption[] {
+  if (!fromKey || !toKey) return [];
+  const from = new Set(planIdsByCategory[fromKey] ?? []);
+  const to = new Set(planIdsByCategory[toKey] ?? []);
+  return planOptions.filter((p) => from.has(p.publicId) && to.has(p.publicId));
+}
+
 export function SwapPairGrid({
   categoryOptions,
   planOptions,
+  planIdsByCategory,
   pairs,
   unreachableByKey,
 }: {
   categoryOptions: CategoryOption[];
   planOptions: PlanOption[];
+  planIdsByCategory: Record<string, string[]>;
   pairs: SwapPairRow[];
   /** category key -> true when no restricted plan (e.g. the veg plan) offers it. */
   unreachableByKey: Record<string, boolean>;
@@ -117,6 +128,7 @@ export function SwapPairGrid({
         onOpenChange={setAdding}
         categoryOptions={categoryOptions}
         planOptions={planOptions}
+        planIdsByCategory={planIdsByCategory}
         unreachableByKey={unreachableByKey}
       />
 
@@ -124,6 +136,7 @@ export function SwapPairGrid({
         <PlanScopeDialog
           pair={editingScope}
           planOptions={planOptions}
+          planIdsByCategory={planIdsByCategory}
           onOpenChange={(open) => !open && setEditingScope(null)}
         />
       ) : null}
@@ -154,46 +167,64 @@ function RemoveButton({ pair }: { pair: SwapPairRow }) {
   );
 }
 
+/**
+ * One pill per plan that actually has BOTH categories in this pair — a plan
+ * missing either category never appears, so there's nothing to misread as
+ * "off means not allowed" for a plan the swap could never run on anyway.
+ * A lit pill means the swap runs there; tap it off to stop offering it on
+ * that one plan. This only ever scopes ONE direction — see directionLabel.
+ */
 function PlanChecklist({
-  planOptions,
+  eligible,
   selected,
   onToggle,
   directionLabel,
 }: {
-  planOptions: PlanOption[];
+  eligible: PlanOption[];
   selected: Set<string>;
   onToggle: (publicId: string) => void;
-  /** e.g. "Curry → Sabzi" — makes explicit this scope is one-way, not applied by editing it here. */
-  directionLabel?: string;
+  /** e.g. "Curry → Sabzi" — makes explicit this scope is one-way. */
+  directionLabel: string;
 }) {
+  if (eligible.length === 0) {
+    return (
+      <p className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
+        No plan has both categories in <span className="font-medium">{directionLabel}</span> yet — attach both to
+        the same plan in Catalog → Categories first.
+      </p>
+    );
+  }
   return (
     <div className="space-y-2">
-      <p className="text-muted-foreground text-xs">
-        Leave every plan unchecked to allow this swap on any plan that has both categories.
-        {directionLabel ? (
-          <>
-            {" "}This only scopes <span className="font-medium">{directionLabel}</span> — the reverse direction, if
-            it exists, is a separate pair with its own plan scope.
-          </>
-        ) : null}
+      <p className="text-sm">
+        <span className="font-medium">{directionLabel}</span>
+        <span className="text-muted-foreground"> runs on every lit plan below. Tap one off to stop offering it there.</span>
       </p>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {planOptions.map((plan) => (
-          <label
-            key={plan.publicId}
-            className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm"
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(plan.publicId)}
-              onChange={() => onToggle(plan.publicId)}
-              className="size-4 accent-primary"
-            />
-            <PlanDot color={plan.tagColor} />
-            {plan.name}
-          </label>
-        ))}
+      <div className="flex flex-wrap gap-2">
+        {eligible.map((plan) => {
+          const active = selected.has(plan.publicId);
+          return (
+            <button
+              key={plan.publicId}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onToggle(plan.publicId)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                active
+                  ? "border-transparent bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground line-through hover:text-foreground hover:bg-muted",
+              )}
+            >
+              <PlanDot color={plan.tagColor} className={active ? "bg-primary-foreground" : undefined} />
+              {plan.name}
+            </button>
+          );
+        })}
       </div>
+      {selected.size === 0 ? (
+        <p className="text-destructive text-xs">Turn at least one plan back on, or remove this pair instead.</p>
+      ) : null}
     </div>
   );
 }
@@ -203,12 +234,14 @@ function AddSwapPairDialog({
   onOpenChange,
   categoryOptions,
   planOptions,
+  planIdsByCategory,
   unreachableByKey,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categoryOptions: CategoryOption[];
   planOptions: PlanOption[];
+  planIdsByCategory: Record<string, string[]>;
   unreachableByKey: Record<string, boolean>;
 }) {
   const router = useRouter();
@@ -217,11 +250,22 @@ function AddSwapPairDialog({
   const [toCategory, setToCategory] = React.useState("");
   const [planIds, setPlanIds] = React.useState<Set<string>>(new Set());
 
+  const eligible = eligiblePlans(fromCategory, toCategory, planIdsByCategory, planOptions);
+
+  // New pair defaults to running everywhere it can — every eligible plan starts
+  // lit. Reset on each category change (not an effect) so switching categories
+  // doesn't leave a stale selection from the previous pair.
+  const pickCategory = (side: "from" | "to", key: string) => {
+    const next = side === "from" ? { from: key, to: toCategory } : { from: fromCategory, to: key };
+    if (side === "from") setFromCategory(key);
+    else setToCategory(key);
+    setPlanIds(new Set(eligiblePlans(next.from, next.to, planIdsByCategory, planOptions).map((p) => p.publicId)));
+  };
+
   const close = () => {
     onOpenChange(false);
     setFromCategory("");
     setToCategory("");
-    setPlanIds(new Set());
   };
 
   const togglePlan = (publicId: string) =>
@@ -247,9 +291,16 @@ function AddSwapPairDialog({
       toast.error("Pick two different categories");
       return;
     }
+    if (planIds.size === 0) {
+      toast.error("Turn at least one plan on");
+      return;
+    }
+    // Every eligible plan lit = unrestricted; store that as [] rather than the
+    // full list so a plan added to both categories later is included for free.
+    const scoped = planIds.size === eligible.length ? [] : [...planIds];
     start(async () => {
       try {
-        await addSwapPair({ fromCategory, toCategory, planIds: [...planIds] });
+        await addSwapPair({ fromCategory, toCategory, planIds: scoped });
         toast.success("Swap pair added");
         router.refresh();
         close();
@@ -258,6 +309,10 @@ function AddSwapPairDialog({
       }
     });
   };
+
+  const directionLabel = fromCategory && toCategory
+    ? `${categoryOptions.find((c) => c.key === fromCategory)?.label ?? fromCategory} → ${categoryOptions.find((c) => c.key === toCategory)?.label ?? toCategory}`
+    : "This swap";
 
   return (
     <ResponsiveDialog
@@ -278,7 +333,7 @@ function AddSwapPairDialog({
     >
       <div className="space-y-4 px-4 py-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={fromCategory} onValueChange={setFromCategory}>
+          <Select value={fromCategory} onValueChange={(v) => pickCategory("from", v)}>
             <SelectTrigger className="w-40"><SelectValue placeholder="From category" /></SelectTrigger>
             <SelectContent>
               {categoryOptions.map((c) => (
@@ -287,7 +342,7 @@ function AddSwapPairDialog({
             </SelectContent>
           </Select>
           <ArrowRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-          <Select value={toCategory} onValueChange={setToCategory}>
+          <Select value={toCategory} onValueChange={(v) => pickCategory("to", v)}>
             <SelectTrigger className="w-40"><SelectValue placeholder="To category" /></SelectTrigger>
             <SelectContent>
               {categoryOptions.map((c) => (
@@ -302,16 +357,11 @@ function AddSwapPairDialog({
             plan — a restricted-plan category can't swap into it. Reverse the direction instead.
           </p>
         )}
-        <PlanChecklist
-          planOptions={planOptions}
-          selected={planIds}
-          onToggle={togglePlan}
-          directionLabel={
-            fromCategory && toCategory
-              ? `${categoryOptions.find((c) => c.key === fromCategory)?.label ?? fromCategory} → ${categoryOptions.find((c) => c.key === toCategory)?.label ?? toCategory}`
-              : undefined
-          }
-        />
+        {fromCategory && toCategory ? (
+          <PlanChecklist eligible={eligible} selected={planIds} onToggle={togglePlan} directionLabel={directionLabel} />
+        ) : (
+          <p className="text-muted-foreground text-sm">Pick both categories to see which plans this can run on.</p>
+        )}
       </div>
     </ResponsiveDialog>
   );
@@ -320,15 +370,21 @@ function AddSwapPairDialog({
 function PlanScopeDialog({
   pair,
   planOptions,
+  planIdsByCategory,
   onOpenChange,
 }: {
   pair: SwapPairRow;
   planOptions: PlanOption[];
+  planIdsByCategory: Record<string, string[]>;
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
-  const [planIds, setPlanIds] = React.useState<Set<string>>(new Set(pair.plans));
+  const eligible = eligiblePlans(pair.fromCategory, pair.toCategory, planIdsByCategory, planOptions);
+  // pair.plans empty means unrestricted, i.e. every eligible plan is currently lit.
+  const [planIds, setPlanIds] = React.useState<Set<string>>(
+    new Set(pair.plans.length ? pair.plans : eligible.map((p) => p.publicId)),
+  );
 
   const togglePlan = (publicId: string) =>
     setPlanIds((prev) => {
@@ -339,9 +395,14 @@ function PlanScopeDialog({
     });
 
   const save = () => {
+    if (planIds.size === 0) {
+      toast.error("Turn at least one plan on");
+      return;
+    }
+    const scoped = planIds.size === eligible.length ? [] : [...planIds];
     start(async () => {
       try {
-        await setSwapPairPlans({ id: pair.id, planIds: [...planIds] });
+        await setSwapPairPlans({ id: pair.id, planIds: scoped });
         toast.success("Plan scope updated");
         router.refresh();
         onOpenChange(false);
@@ -356,7 +417,7 @@ function PlanScopeDialog({
       open
       onOpenChange={onOpenChange}
       title={`${pair.fromLabel} → ${pair.toLabel}`}
-      description="Choose which plans this swap is eligible on."
+      description="Choose which plans this swap runs on."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
@@ -370,7 +431,7 @@ function PlanScopeDialog({
     >
       <div className="px-4 py-3">
         <PlanChecklist
-          planOptions={planOptions}
+          eligible={eligible}
           selected={planIds}
           onToggle={togglePlan}
           directionLabel={`${pair.fromLabel} → ${pair.toLabel}`}
