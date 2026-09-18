@@ -44,7 +44,7 @@ export const CUSTOMER_NAV_SECTIONS: NavSection[] = [
     items: [
       { title: "Menu", href: "/me/menu", icon: ChefHatIcon },
       { title: "Deliveries", href: "/me/deliveries", icon: CalendarDaysIcon },
-      { title: "Preferences", href: "/me/meals", icon: UtensilsCrossedIcon },
+      // Preferences (/me/meals) stays off the customer chrome for now; the page is still there.
       { title: "Renew plan", href: "/me/renew", icon: RefreshCwIcon },
     ],
   },
