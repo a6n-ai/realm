@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { tickets } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { ticketsService } from "@/lib/services/tickets.service";
+import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/services/analytics/complaint-filters";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { canReassign } from "@/lib/services/reassign";
 import { parseSort } from "@/lib/list/sort";
@@ -29,11 +30,9 @@ const SORT_COLUMNS = [
   "created",
 ] as const;
 
-export default function TicketsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
+type TicketSearchParams = Promise<{ sort?: string; dir?: string } & ComplaintSearchParams>;
+
+export default function TicketsPage({ searchParams }: { searchParams: TicketSearchParams }) {
   return (
     <PageShell>
       <MarkSectionRead section="tickets" />
@@ -52,11 +51,7 @@ export default function TicketsPage({
   );
 }
 
-async function TicketStats({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
+async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
 
   const sort = parseSort(await searchParams, SORT_COLUMNS, {
@@ -88,21 +83,21 @@ async function TicketStats({
   );
 }
 
-async function TicketsData({
-  searchParams,
-}: {
-  searchParams: Promise<{ sort?: string; dir?: string }>;
-}) {
+async function TicketsData({ searchParams }: { searchParams: TicketSearchParams }) {
   await requireStaff();
 
-  const sort = parseSort(await searchParams, SORT_COLUMNS, {
+  const sp = await searchParams;
+  const sort = parseSort(sp, SORT_COLUMNS, {
     column: "lastMessage",
     dir: "desc",
   });
+  // Complaint analytics links here with these params, so the queue lands on
+  // exactly the tickets the chart or metric counted.
+  const filters = parseComplaintFilters(sp);
 
   const [statusCounts, rows, allowReassign] = await Promise.all([
     db.select({ status: tickets.status, n: count() }).from(tickets).groupBy(tickets.status),
-    ticketsService.listForQueue(sort),
+    ticketsService.listForQueue(sort, filters),
     canReassign(),
   ]);
   const staff = allowReassign ? await listAssignableStaff() : [];

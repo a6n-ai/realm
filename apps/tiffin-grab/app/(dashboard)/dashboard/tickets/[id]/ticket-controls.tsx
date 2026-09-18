@@ -1,5 +1,7 @@
 "use client";
 
+import { PRIORITY_OPTIONS } from "@/lib/support/ticket-priority";
+
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -22,12 +24,7 @@ const STATUSES: { value: TicketStatus; label: string }[] = [
   { value: "closed", label: "Closed" },
 ];
 
-const PRIORITIES: { value: TicketPriority; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "normal", label: "Normal" },
-  { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" },
-];
+const PRIORITIES: { value: TicketPriority; label: string }[] = PRIORITY_OPTIONS;
 
 const UNASSIGNED = "__unassigned__";
 
