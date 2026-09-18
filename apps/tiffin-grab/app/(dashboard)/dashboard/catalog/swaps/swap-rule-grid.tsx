@@ -183,7 +183,7 @@ function PlanChecklist({
   eligible: PlanOption[];
   selected: Set<string>;
   onToggle: (publicId: string) => void;
-  /** e.g. "Curry → Sabzi" — makes explicit this scope is one-way. */
+  /** e.g. "Sabzi → Daal" — makes explicit this scope is one-way. */
   directionLabel: string;
 }) {
   if (eligible.length === 0) {
