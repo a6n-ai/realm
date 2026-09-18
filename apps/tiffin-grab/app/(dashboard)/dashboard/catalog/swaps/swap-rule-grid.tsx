@@ -353,8 +353,9 @@ function AddSwapPairDialog({
         </div>
         {blocked && (
           <p className="text-destructive text-sm">
-            "{categoryOptions.find((c) => c.key === toCategory)?.label}" isn't offered on any restricted
-            plan — a restricted-plan category can't swap into it. Reverse the direction instead.
+            &ldquo;{categoryOptions.find((c) => c.key === toCategory)?.label}&rdquo; isn&apos;t offered on any
+            restricted plan &mdash; a restricted-plan category can&apos;t swap into it. Reverse the direction
+            instead.
           </p>
         )}
         {fromCategory && toCategory ? (
