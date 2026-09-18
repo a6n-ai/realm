@@ -7,6 +7,7 @@ import {
   LifeBuoyIcon,
   MapPinnedIcon,
   TargetIcon,
+  TrendingUpIcon,
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const SUBTABS = [
   { label: "Overview", href: "/dashboard/analytics/overview", icon: LayoutDashboardIcon },
   { label: "Leads", href: "/dashboard/analytics/leads", icon: TargetIcon },
   { label: "Revenue", href: "/dashboard/analytics/revenue", icon: CoinsIcon },
+  { label: "Profitability", href: "/dashboard/analytics/profitability", icon: TrendingUpIcon },
   { label: "Products & Menu", href: "/dashboard/analytics/products", icon: UtensilsCrossedIcon },
   { label: "Customers", href: "/dashboard/analytics/customers", icon: UsersIcon },
   { label: "Operations", href: "/dashboard/analytics/operations", icon: MapPinnedIcon },

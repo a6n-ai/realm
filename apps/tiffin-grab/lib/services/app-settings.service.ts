@@ -1,5 +1,6 @@
 import { UpdatableRepository } from "@foundry/database";
 import { ValidationError, cutoffMsFor, tzToDefaultCountry } from "@foundry/commons";
+import { parseAssumptions, type ProfitabilityAssumptions } from "@/lib/analytics/profitability";
 import {
   parseIntegrationsConfig,
   type IntegrationsConfig,
@@ -268,6 +269,23 @@ export async function getProvinceTaxes(): Promise<Record<string, { name: string;
     const [row] = await db.select({ v: app.provinceTaxes }).from(app).limit(1);
     return row?.v ?? {};
   });
+}
+
+export async function getProfitabilityAssumptions(): Promise<ProfitabilityAssumptions> {
+  return settingsCache.getOrSet("profitabilityAssumptions", async () => {
+    const [row] = await db.select({ v: app.profitabilityAssumptions }).from(app).limit(1);
+    return parseAssumptions(row?.v);
+  });
+}
+
+export async function setProfitabilityAssumptions(input: ProfitabilityAssumptions): Promise<void> {
+  const parsed = parseAssumptions(input);
+  for (const [k, v] of Object.entries(parsed)) {
+    if (v > 1_000_000) throw new ValidationError(`${k} is too large`);
+  }
+  const [row] = await db.select({ publicId: app.publicId }).from(app).limit(1);
+  if (row) await appSettingsEntity.update(row.publicId, { profitabilityAssumptions: parsed });
+  else await appSettingsEntity.create({ ...DEFAULTS, profitabilityAssumptions: parsed });
 }
 
 export async function setProvinceTaxes(

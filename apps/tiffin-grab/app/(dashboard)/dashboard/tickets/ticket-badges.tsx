@@ -29,12 +29,10 @@ const STATUS_VARIANT: Record<string, Variant> = {
   closed: "neutral",
 };
 
-const PRIORITY_LABEL: Record<string, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
-  urgent: "Urgent",
-};
+// Labels come from the shared priority vocabulary so the queue, the ticket page
+// and complaint analytics never disagree on what a priority is called.
+export { priorityLabel } from "@/lib/support/ticket-priority";
+import { priorityLabel } from "@/lib/support/ticket-priority";
 
 const PRIORITY_VARIANT: Record<string, Variant> = {
   low: "neutral",
@@ -65,7 +63,7 @@ export function TicketStatusBadge({ status }: { status: string }) {
 export function PriorityBadge({ priority }: { priority: string }) {
   return (
     <Pill variant={PRIORITY_VARIANT[priority] ?? "neutral"}>
-      {PRIORITY_LABEL[priority] ?? priority}
+      {priorityLabel(priority)}
     </Pill>
   );
 }

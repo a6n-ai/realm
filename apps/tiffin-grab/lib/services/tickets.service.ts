@@ -3,7 +3,8 @@ import { AuthError, ForbiddenError, NotFoundError, Role, ValidationError, type R
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { ticketMessages, tickets, users, type Attachment } from "@/db/schema";
+import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
+import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { getSession } from "@/lib/auth/session";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
@@ -217,7 +218,15 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       .orderBy(asc(ticketMessages.createdAt));
   }
 
-  async listForQueue(sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" }) {
+  /**
+   * `filters` uses the SAME shape complaint analytics filters on, so every chart
+   * and metric there can deep-link into this queue and land on exactly the
+   * tickets it counted.
+   */
+  async listForQueue(
+    sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
+    filters?: ComplaintFilters,
+  ) {
     const customer = alias(users, "customer");
     const owner = alias(users, "owner");
 
@@ -259,6 +268,12 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       .innerJoin(customer, eq(tickets.raisedBy, customer.id))
       .leftJoin(owner, eq(tickets.currentOwner, owner.id))
       .leftJoin(agg, eq(agg.ticketId, tickets.id))
+      // Joined even when unfiltered so the plan/zone predicates can reference
+      // them; left joins keep tickets with no linked order in the queue.
+      .leftJoin(orders, eq(tickets.orderId, orders.id))
+      .leftJoin(plans, eq(orders.planId, plans.id))
+      .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
+      .where(filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined)
       .orderBy(sort.dir === "asc" ? asc(col) : desc(col))
       .limit(500);
 

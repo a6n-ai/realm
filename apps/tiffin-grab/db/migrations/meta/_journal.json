@@ -187,8 +187,15 @@
     {
       "idx": 26,
       "version": "7",
-      "when": 1789679713058,
-      "tag": "0026_add_plans_restricted",
+      "when": 1789667454890,
+      "tag": "0026_profitability_assumptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789758605452,
+      "tag": "0027_add_plans_restricted",
       "breakpoints": true
     }
   ]

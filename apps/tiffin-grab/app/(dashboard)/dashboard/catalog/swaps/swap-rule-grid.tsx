@@ -59,7 +59,7 @@ export function SwapPairGrid({
   return (
     <SectionCard
       title="Swap-eligible category pairs"
-      subtitle="A swap is a flat 1 TU for 1 TU trade — the customer picks how many, per delivery day."
+      subtitle="A swap is a flat 1 TU for 1 TU trade, one direction per row — Curry → Sabzi and Sabzi → Curry are separate pairs, each with its own plan scope."
       action={
         <Button size="sm" onClick={() => setAdding(true)}>
           <PlusIcon data-icon="inline-start" /> Add pair
@@ -158,15 +158,24 @@ function PlanChecklist({
   planOptions,
   selected,
   onToggle,
+  directionLabel,
 }: {
   planOptions: PlanOption[];
   selected: Set<string>;
   onToggle: (publicId: string) => void;
+  /** e.g. "Curry → Sabzi" — makes explicit this scope is one-way, not applied by editing it here. */
+  directionLabel?: string;
 }) {
   return (
     <div className="space-y-2">
       <p className="text-muted-foreground text-xs">
         Leave every plan unchecked to allow this swap on any plan that has both categories.
+        {directionLabel ? (
+          <>
+            {" "}This only scopes <span className="font-medium">{directionLabel}</span> — the reverse direction, if
+            it exists, is a separate pair with its own plan scope.
+          </>
+        ) : null}
       </p>
       <div className="grid gap-1.5 sm:grid-cols-2">
         {planOptions.map((plan) => (
@@ -293,7 +302,16 @@ function AddSwapPairDialog({
             plan — a restricted-plan category can't swap into it. Reverse the direction instead.
           </p>
         )}
-        <PlanChecklist planOptions={planOptions} selected={planIds} onToggle={togglePlan} />
+        <PlanChecklist
+          planOptions={planOptions}
+          selected={planIds}
+          onToggle={togglePlan}
+          directionLabel={
+            fromCategory && toCategory
+              ? `${categoryOptions.find((c) => c.key === fromCategory)?.label ?? fromCategory} → ${categoryOptions.find((c) => c.key === toCategory)?.label ?? toCategory}`
+              : undefined
+          }
+        />
       </div>
     </ResponsiveDialog>
   );
@@ -351,7 +369,12 @@ function PlanScopeDialog({
       }
     >
       <div className="px-4 py-3">
-        <PlanChecklist planOptions={planOptions} selected={planIds} onToggle={togglePlan} />
+        <PlanChecklist
+          planOptions={planOptions}
+          selected={planIds}
+          onToggle={togglePlan}
+          directionLabel={`${pair.fromLabel} → ${pair.toLabel}`}
+        />
       </div>
     </ResponsiveDialog>
   );
