@@ -3,7 +3,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { customFrequencyKey, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 export interface WizardSelections extends PricingSelections {
-  planKey: "veg" | "non-veg" | "healthy" | null;
+  planKey: string | null;
 }
 
 export const WIZARD_STORAGE_KEY = "tiffin.wizard";
@@ -12,8 +12,6 @@ export const WIZARD_STORAGE_KEY = "tiffin.wizard";
 // the customer to /subscribe or /me/renew, both of which use the same stepper.
 export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
 export type WizardOrigin = "subscribe" | "renew";
-
-const PLAN_KEYS = ["veg", "non-veg", "healthy"] as const;
 
 /**
  * The subscribe wizard still sells one person per order and no separate
@@ -36,8 +34,11 @@ export const FIXED_PERSONS = 1;
 export const DEFAULT_WEEKDAYS: DayOfWeek[] = ["mon"];
 export const DEFAULT_FREQUENCY_KEY = customFrequencyKey(DEFAULT_WEEKDAYS);
 
-function asPlanKey(key: string | null | undefined): WizardSelections["planKey"] {
-  return PLAN_KEYS.find((k) => k === key) ?? null;
+// Validates against the live catalog rather than a hardcoded plan list — a
+// plan set only ever grows (admin adds a diet/plan), so any fixed union here
+// would go stale the moment a new one is added.
+function asPlanKey(catalog: ClientCatalogSnapshot, key: string | null | undefined): WizardSelections["planKey"] {
+  return catalog.plans.find((p) => p.key === key)?.key ?? null;
 }
 
 export const initialSelections: WizardSelections = {
@@ -71,7 +72,7 @@ export function selectionsFromPriorOrder(
   } | null,
 ): WizardSelections {
   if (!prior) return initialSelections;
-  const planKey = asPlanKey(prior.planKey);
+  const planKey = asPlanKey(catalog, prior.planKey);
   const plan = catalog.plans.find((p) => p.key === planKey);
   const mealSizeId =
     prior.mealSizePublicId &&

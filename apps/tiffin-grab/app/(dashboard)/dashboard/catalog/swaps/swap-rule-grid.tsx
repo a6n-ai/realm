@@ -59,7 +59,7 @@ export function SwapPairGrid({
   return (
     <SectionCard
       title="Swap-eligible category pairs"
-      subtitle="A swap is a flat 1 TU for 1 TU trade, one direction per row — Curry → Sabzi and Sabzi → Curry are separate pairs, each with its own plan scope."
+      subtitle="A swap is a flat 1 TU for 1 TU trade, one direction per row — Sabzi → Daal and Daal → Sabzi are separate pairs, each with its own plan scope."
       action={
         <Button size="sm" onClick={() => setAdding(true)}>
           <PlusIcon data-icon="inline-start" /> Add pair

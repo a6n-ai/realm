@@ -34,7 +34,7 @@ export function StepBaseline({
                 // Dish selection happens per-delivery after subscribing, not here —
                 // mealSlots just mirrors the plan's full category set so pricing's
                 // "at least one category" guard is satisfied.
-                set({ planKey: p.key as WizardSelections["planKey"], mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
+                set({ planKey: p.key, mealSizeId: "", mealSlots: p.offeredSlots ?? [] });
               }}
               className={`hover-lift outline-none focus-visible:ring-3 focus-visible:ring-ring/50 flex w-full flex-wrap items-center justify-between gap-4 border-b-[1.5px] border-foreground px-2 py-6 text-left transition-[padding] hover:pl-6 ${selected ? "bg-primary/5" : ""}`}
             >

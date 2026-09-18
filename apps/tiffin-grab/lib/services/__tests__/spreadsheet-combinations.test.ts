@@ -1,17 +1,18 @@
 // Promoted from a scratch verification pass against Combination Meals.xlsx
-// (the business's real curated meal-composition rules). Covers the two
-// structurally distinct patterns found there: a pooled curry group with a
-// per-category cap (NonVeg limited to 1 unit), and a maxTuAmount-bounded pair.
-// No literal admin-set ratio assertions — swaps are flat 1 TU-for-1 TU now,
-// derived from each category's own tuAmount, not a per-meal-size rule.
+// (the business's real curated meal-composition rules). The curry/NonVeg-cap
+// scenarios that used to live here were dropped when 'curry' merged into
+// 'sabzi' (db/seed.sql) — direction is governed dynamically by
+// plans.restricted + category_swap_pairs now, not a per-category pick cap, so
+// there is nothing curry-specific left to assert. What's left: the
+// maxTuAmount-bounded salad/raita pair, and a plain sabzi<->daal swap.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, ledgerEntries, mealSizeItems, mealSizes, orders, payments, users } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
 const { applyDeliverySwap } = await import("../category-swaps.service");
@@ -36,7 +37,7 @@ afterEach(async () => {
 });
 
 // Idempotent, mirrors adhoc-swap.test.ts's helper: the seed already wires some
-// pairs globally (daal<->curry, salad->raita, roti<->rice) — only track (for
+// pairs globally (daal<->sabzi, salad->raita, roti<->rice) — only track (for
 // cleanup) a pair this call actually created.
 async function allowPair(from: string, to: string) {
   const existing = await dishCategoriesService.swapPairExists(from, to);
@@ -74,27 +75,6 @@ async function orderFor(mealSizeKey: string) {
   return { order, delivery };
 }
 
-describe("Maharaja curry pool — NonVeg capped at 1 unit (Combination Meals.xlsx)", () => {
-  it("swapping daal into an already-full curry slot is rejected (the pool never holds 2 NonVeg)", async () => {
-    const { delivery } = await orderFor("maharaja_nonveg");
-    // Base composition already has 1 curry (maxTuAmount=1) — any further swap
-    // into curry must overflow the cap, exactly like the spreadsheet's "at
-    // most 1x NonVeg-type" rule across the pool.
-    await expect(applyDeliverySwap(delivery.publicId, "daal", "curry", 1, null))
-      .rejects.toThrow(/limit for this meal size/i);
-  });
-
-  it("swapping curry away for daal reaches an all-veg-pool composition, matching a listed combo", async () => {
-    const { delivery } = await orderFor("maharaja_nonveg");
-    // Spreadsheet lists (Dal, Dal, Dal) as a valid all-veg-pool composition —
-    // giving up the single curry pick for daal reaches that.
-    await applyDeliverySwap(delivery.publicId, "curry", "daal", 1, null);
-    const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));
-    expect(swap.fromCategory).toBe("curry");
-    expect(swap.toCategory).toBe("daal");
-  });
-});
-
 describe("Maharaja dedicated salad/raita slot — exclusivity via one-directional rule (Combination Meals.xlsx)", () => {
   it("can stack raita up to its cap by repeatedly swapping the single salad pick", async () => {
     const { delivery } = await orderFor("maharaja_veg");
@@ -116,52 +96,13 @@ describe("Maharaja dedicated salad/raita slot — exclusivity via one-directiona
   });
 });
 
-describe("Sabzi Only (Non-Veg) curry pool — same cap mechanism as Maharaja, different meal size (Combination Meals.xlsx)", () => {
-  // Unlike maharaja_nonveg, this meal size's Curry row has no maxTuAmount in
-  // the seed (uncapped) — the spreadsheet's "at most 1x NonVeg-type across the
-  // pool" rule isn't wired here by default. Set it temporarily, same technique
-  // adhoc-swap.test.ts uses to prove the cap mechanism, to confirm it
-  // generalizes to a second meal size rather than being maharaja-specific.
-  async function withTemporaryCurryCap<T>(fn: () => Promise<T>): Promise<T> {
-    const [{ id: mealSizeId }] = await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.key, "sabzi_only_nonveg")).limit(1);
-    const [curryItem] = await db.select({ id: mealSizeItems.id, tuAmount: mealSizeItems.tuAmount })
-      .from(mealSizeItems).where(and(eq(mealSizeItems.mealSizeId, mealSizeId), eq(mealSizeItems.category, "curry"))).limit(1);
-    await db.update(mealSizeItems).set({ maxTuAmount: curryItem.tuAmount }).where(eq(mealSizeItems.id, curryItem.id));
-    try {
-      return await fn();
-    } finally {
-      await db.update(mealSizeItems).set({ maxTuAmount: null }).where(eq(mealSizeItems.id, curryItem.id));
-      await invalidateCatalogSnapshot();
-    }
-  }
-
-  it("swapping daal into an already-full curry slot is rejected", async () => {
-    await withTemporaryCurryCap(async () => {
-      const { delivery } = await orderFor("sabzi_only_nonveg");
-      await expect(applyDeliverySwap(delivery.publicId, "daal", "curry", 1, null))
-        .rejects.toThrow(/limit for this meal size/i);
-    });
-  });
-
-  it("swapping curry away for daal reaches an all-veg-pool composition, matching a listed combo", async () => {
-    await withTemporaryCurryCap(async () => {
-      const { delivery } = await orderFor("sabzi_only_nonveg");
-      // Spreadsheet lists (Sabzi, Dal, Dal) as a valid all-veg-pool composition.
-      await applyDeliverySwap(delivery.publicId, "curry", "daal", 1, null);
-      const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));
-      expect(swap.fromCategory).toBe("curry");
-      expect(swap.toCategory).toBe("daal");
-    });
-  });
-});
-
 describe("Sabzi Only (Veg) — freely interchangeable Sabzi/Daal pool, no NonVeg present (Combination Meals.xlsx)", () => {
   it("Sabzi<->Daal swap succeeds, landing where expected (no cap on this all-veg pool)", async () => {
-    // No global pair exists for sabzi<->daal in the seed (only daal<->curry,
-    // salad->raita, roti<->rice are wired) — this meal size has no curry slot
-    // to reuse an existing pair from, so add one for this test.
+    // No global pair exists for sabzi<->daal in the seed (only daal<->sabzi,
+    // salad->raita, roti<->rice are wired) — this meal size has no separate
+    // curry slot to reuse an existing pair from, so add one for this test.
     await allowPair("sabzi", "daal");
-    const { delivery } = await orderFor("sabzi_only_veg");
+    const { delivery } = await orderFor("sabzi_only_regular_veg");
     await applyDeliverySwap(delivery.publicId, "sabzi", "daal", 1, null);
     const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));
     expect(swap.fromCategory).toBe("sabzi");
@@ -169,10 +110,3 @@ describe("Sabzi Only (Veg) — freely interchangeable Sabzi/Daal pool, no NonVeg
     expect(swap.qtyTo).toBeGreaterThan(0);
   });
 });
-
-// 4-Item and 5-Item Non-Veg Thali (Regular) deliberately NOT covered here: their
-// meal_size_items (Curry/Daal/Rice/Roti, seed.sql) are structurally identical to
-// sabzi_only_nonveg above — same uncapped Curry, same daal<->curry pair, no
-// different cap value or extra pool member to exercise a code path the tests
-// above don't already prove. A third instance of the identical mechanism adds
-// no coverage.
