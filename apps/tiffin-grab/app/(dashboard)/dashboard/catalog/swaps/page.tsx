@@ -19,10 +19,11 @@ export default function CategorySwapsPage() {
 async function CategorySwapsData() {
   await requireAdmin();
 
-  const [pairs, categories, planRows, unreachableByKey] = await Promise.all([
+  const [pairs, categories, planRows, plansByCategoryKey, unreachableByKey] = await Promise.all([
     dishCategoriesService.listSwapPairs(),
     dishCategoriesService.enabledCategories(),
     db.select({ publicId: plans.publicId, name: plans.name, tagColor: plans.tagColor }).from(plans).where(eq(plans.active, true)),
+    dishCategoriesService.plansByCategoryKey(),
     dishCategoriesService.unreachableByRestrictionByKey(),
   ]);
 
@@ -36,6 +37,10 @@ async function CategorySwapsData() {
     toLabel: p.toLabel,
     plans: p.plans.map((pl) => pl.publicId),
   }));
+  // { categoryKey: [planPublicId, ...] } — lets the client narrow the plan picker
+  // to only plans that actually have BOTH sides of a pair, instead of showing
+  // every plan and leaving the admin to guess which ones are even relevant.
+  const planIdsByCategory = Object.fromEntries(plansByCategoryKey);
 
   return (
     <PageShell>
@@ -44,7 +49,13 @@ async function CategorySwapsData() {
         title="Category swaps"
         subtitle="Which categories customers may swap between, and on which plans. A swap is always 1 TU for 1 TU — the customer picks how many, per delivery day."
       />
-      <SwapPairGrid categoryOptions={categoryOptions} planOptions={planOptions} pairs={rows} unreachableByKey={unreachableByKey} />
+      <SwapPairGrid
+        categoryOptions={categoryOptions}
+        planOptions={planOptions}
+        planIdsByCategory={planIdsByCategory}
+        unreachableByKey={unreachableByKey}
+        pairs={rows}
+      />
     </PageShell>
   );
 }

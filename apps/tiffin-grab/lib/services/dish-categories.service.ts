@@ -77,6 +77,22 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return out;
   }
 
+  /**
+   * Plan public ids per category KEY (not publicId) — the swaps admin page reads
+   * category options by key, so this lets it intersect "plans that have both
+   * categories" client-side without a round trip per pair.
+   */
+  async plansByCategoryKey(): Promise<Map<string, string[]>> {
+    const rows = await db
+      .select({ categoryKey: dishCategories.key, planPublicId: plans.publicId })
+      .from(categoryPlans)
+      .innerJoin(dishCategories, eq(dishCategories.id, categoryPlans.categoryId))
+      .innerJoin(plans, eq(plans.id, categoryPlans.planId));
+    const out = new Map<string, string[]>();
+    for (const r of rows) out.set(r.categoryKey, [...(out.get(r.categoryKey) ?? []), r.planPublicId]);
+    return out;
+  }
+
   /** Replace a category's add-on-category membership wholesale. Mirrors setPlans. */
   async setAddonCategories(categoryPublicId: string, addonCategoryPublicIds: string[]) {
     const [cat] = await db
