@@ -24,7 +24,7 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
 import { PostalCombobox } from "../../../_leads/postal-combobox";
@@ -83,7 +83,7 @@ export function OrderForm({
       planKey: "",
       mealSizeId: "",
       frequencyKey: catalog.frequencies.find((f) => f.weekdays?.length)?.key ?? "",
-      eatingDays: ["mon", "tue", "wed", "thu", "fri"].slice(0, catalog.maxTiffinsPerWeek ?? 7) as DayOfWeek[],
+      eatingDays: defaultEatingDays((catalog.frequencies.find((f) => f.weekdays?.length)?.weekdays ?? []) as DayOfWeek[], catalog.maxTiffinsPerWeek ?? 7),
       persons: 1,
       mealSlots: defaultSlots,
       includeSaturday: false,
@@ -317,7 +317,17 @@ export function OrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Frequency <span className="text-destructive">*</span></FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={(key) => {
+                        // Only follow the new frequency while eating days are still the previous one's default.
+                        const next = deliveryFrequencies.find((f) => f.key === key);
+                        if (next && eatingDays.join() === defaultEatingDays(deliveryDays, bounds.max).join()) {
+                          form.setValue("eatingDays", defaultEatingDays(next.weekdays as DayOfWeek[], bounds.max), { shouldDirty: true, shouldValidate: true });
+                        }
+                        field.onChange(key);
+                      }}
+                    >
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{deliveryFrequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name} ({f.weekdays!.join(", ")})</SelectItem>)}</SelectContent>
                     </Select>

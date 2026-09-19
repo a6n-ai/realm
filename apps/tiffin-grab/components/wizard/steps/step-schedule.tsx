@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { DEFAULT_EATING_DAYS, WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
+import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -35,9 +35,8 @@ export function StepSchedule({
   // Initial selections are static, so pick the first real frequency and clip the default week once the catalog is known.
   useEffect(() => {
     if (row || !frequencies[0]) return;
-    const days = (selections.eatingDays?.length ? selections.eatingDays : DEFAULT_EATING_DAYS).slice(0, bounds.max);
     set({ frequencyKey: frequencies[0].key });
-    setEating(days);
+    setEating(defaultEatingDays(frequencies[0].weekdays as DayOfWeek[], bounds.max));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [row, frequencies.length]);
 
@@ -69,7 +68,12 @@ export function StepSchedule({
                 key={f.key}
                 type="button"
                 aria-pressed={active}
-                onClick={() => set({ frequencyKey: f.key })}
+                onClick={() => {
+                  set({ frequencyKey: f.key });
+                  // Only follow the new frequency while eating days are still the previous one's default.
+                  const untouched = eating.join() === defaultEatingDays(deliveryDays, bounds.max).join();
+                  if (untouched) setEating(defaultEatingDays(f.weekdays as DayOfWeek[], bounds.max));
+                }}
                 className={`border-foreground/20 flex min-h-[54px] cursor-pointer flex-col items-start rounded-2xl border-[1.5px] px-4 py-2 text-left transition-transform active:scale-[0.99] ${active ? "bg-primary text-primary-foreground" : ""}`}
               >
                 <span className="font-semibold">{f.name}</span>

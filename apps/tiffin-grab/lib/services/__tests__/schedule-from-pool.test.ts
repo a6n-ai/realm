@@ -110,4 +110,26 @@ describe("scheduleFromPool (integration)", () => {
     expect(created.status).toBe("scheduled");
     expect(created.makeupForDeliveryId).toBe(first.id);
   });
+
+  it("eatingDays order: a make-up row is worth min(pooled, persons) and drains the pool by the same", async () => {
+    const o = await makeOrder();
+    await seedWeeks(o);
+    await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] }).where(eq(orders.id, o.id));
+    await setPool(o, 1, 2);
+    await scheduleFromPool(o.publicId, "2030-01-21", 1n);
+    const madeUp = (await rowsFor(o)).find((r) => r.deliveryDate === "2030-01-21");
+    expect(madeUp?.tiffinUnits).toBe(1);
+    const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(after.pooledTiffinCount).toBe(0);
+  });
+
+  it("eatingDays order: a multi-unit pooled miss is redeemed one persons-worth per call", async () => {
+    const o = await makeOrder();
+    await seedWeeks(o);
+    await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] }).where(eq(orders.id, o.id));
+    await setPool(o, 3, 1);
+    await scheduleFromPool(o.publicId, "2030-01-21", 1n);
+    const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(after.pooledTiffinCount).toBe(2);
+  });
 });

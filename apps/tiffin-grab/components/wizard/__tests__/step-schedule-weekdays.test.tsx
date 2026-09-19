@@ -53,10 +53,24 @@ describe("StepSchedule", () => {
     expect(scheduleError(catalog, sel(["mon"]))).toMatch(/between 2 and 5/);
   });
 
-  it("initialises to the first frequency with Mon-Fri clipped to max", () => {
+  it("initialises to the first frequency with eating days equal to its delivery days", () => {
     const set = vi.fn();
-    render(<StepSchedule catalog={{ ...catalog, maxTiffinsPerWeek: 3 } as ClientCatalogSnapshot} selections={initialSelections} set={set} />);
+    render(<StepSchedule catalog={catalog} selections={initialSelections} set={set} />);
     expect(set).toHaveBeenCalledWith({ frequencyKey: "mwf" });
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({ eatingDays: ["mon", "tue", "wed"] }));
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ eatingDays: ["mon", "wed", "fri"] }));
+  });
+
+  it("switching frequency follows its delivery days while eating days are still the default", () => {
+    const set = vi.fn();
+    render(<StepSchedule catalog={catalog} selections={sel(["mon", "wed", "fri"])} set={set} />);
+    fireEvent.click(screen.getByText("5_day"));
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] }));
+  });
+
+  it("keeps a customised pick when switching frequency", () => {
+    const set = vi.fn();
+    render(<StepSchedule catalog={catalog} selections={sel(["tue", "thu"])} set={set} />);
+    fireEvent.click(screen.getByText("5_day"));
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ eatingDays: expect.anything() }));
   });
 });
