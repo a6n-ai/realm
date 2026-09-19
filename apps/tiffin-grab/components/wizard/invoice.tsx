@@ -26,7 +26,7 @@ export function Invoice({ result }: { result: PricingResult | null }) {
           Tax used to print above the subtotal, which read as if it were part of
           the line items rather than applied to them. */}
       <div className="flex justify-between gap-2 text-muted-foreground">
-        <span>{result.tiffinCount} {result.tiffinCount === 1 ? "tiffin" : "tiffins"} × ${result.perTiffinPrice.toFixed(2)}</span><span className="nums">${result.subtotal.toFixed(2)}</span>
+        <span>Subtotal</span><span className="nums">${result.subtotal.toFixed(2)}</span>
       </div>
       {(result.taxLines ?? []).length > 0 ? (
         <div className="mt-1 space-y-1">

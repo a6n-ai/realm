@@ -256,7 +256,7 @@ export function Checkout({
                 <p className="mt-0.5 text-sm text-muted-foreground">Where should we deliver your tiffins?</p>
               </div>
               <div className="grid gap-4">
-                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" className="h-13 rounded-2xl border-[1.5px] border-foreground px-4" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
+                <div className="grid gap-1.5"><Label htmlFor="fullName">Full name</Label><Input id="fullName" autoComplete="name" value={contact.fullName} onChange={(e) => set({ fullName: e.target.value })} /></div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="phone">Phone</Label>
                   <PhoneInput id="phone" autoComplete="tel" value={contact.phone} onChange={(v) => set({ phone: v ?? "" })} defaultCountry={defaultCountry} />
@@ -268,7 +268,7 @@ export function Checkout({
                     id="email"
                     type="email"
                     autoComplete="email"
-                    className={`h-13 rounded-2xl border-[1.5px] border-foreground px-4 ${lockContact ? "bg-muted/50 text-muted-foreground" : ""}`}
+                    className={lockContact ? "bg-muted/50 text-muted-foreground" : undefined}
                     value={contact.email}
                     readOnly={lockContact}
                     aria-describedby={lockContact ? "email-locked-hint" : undefined}
@@ -302,9 +302,7 @@ export function Checkout({
                   onPostalBlur={checkPostal}
                   postalSlot={
                     <>
-                      <div className="flex items-end gap-2 pt-1">
-                        <Button type="button" variant="outline" onClick={checkPostal}>Check</Button>
-                      </div>
+                      <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={checkPostal}>Check delivery area</Button>
                       {zone?.served && (
                         <StatusBanner tone="success" icon={<MapPin className="mt-0.5 size-4 shrink-0" />}>
                           Served — {zone.name}, delivery {zone.slotWindow}.
@@ -370,7 +368,7 @@ export function Checkout({
                         type="button"
                         onClick={() => selectMethod(m.id)}
                         className={cn(
-                          "rounded-2xl border-[1.5px] border-foreground p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                          "border-border rounded-2xl border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                           selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                         )}
                       >
@@ -390,10 +388,10 @@ export function Checkout({
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="4242 4242 4242 4242" /></div>
+                  <div className="grid gap-1.5"><Label htmlFor="card">Card number</Label><Input id="card" inputMode="numeric" className="nums" placeholder="4242 4242 4242 4242" /></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="12/29" /></div>
-                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums h-13 rounded-2xl border-[1.5px] border-foreground px-4" placeholder="123" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="exp">Expiry</Label><Input id="exp" className="nums" placeholder="12/29" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="cvc">CVC</Label><Input id="cvc" className="nums" placeholder="123" /></div>
                   </div>
                 </div>
               )}
@@ -407,7 +405,7 @@ export function Checkout({
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" className="h-14 rounded-full border-[1.5px] border-foreground px-6" onClick={() => setStep(1)}>Back</Button>
+                <Button variant="outline" className="h-14 rounded-full px-6" onClick={() => setStep(1)}>Back</Button>
                 <Button
                   size="lg"
                   className="hover-lift h-14 flex-1 rounded-full px-8 shadow-[0_12px_30px_-6px_var(--color-primary)] sm:flex-none"
@@ -423,7 +421,7 @@ export function Checkout({
       </div>
 
       <aside className="space-y-3 md:sticky md:top-6">
-        <Card variant="glow" className="space-y-3 rounded-2xl border-[1.5px] border-foreground p-4 shadow-[6px_6px_0_var(--color-primary)]">
+        <Card variant="glow" className="border-border space-y-3 rounded-2xl border p-4 shadow-sm">
           <h3 className="text-sm font-semibold">Order summary</h3>
           <Invoice result={result} />
           {applied.length > 0 && (
@@ -441,18 +439,18 @@ export function Checkout({
               ))}
             </ul>
           )}
-          <div className="rounded-2xl border-[1.5px] border-dashed border-foreground p-3">
+          <div className="border-border rounded-2xl border border-dashed p-3">
             <Label htmlFor="coupon" className="flex items-center gap-1.5 text-xs text-muted-foreground"><Tag className="size-3.5" /> Coupon code</Label>
             <div className="mt-1.5 flex gap-2">
               <Input
                 id="coupon"
-                className="h-11 rounded-xl border-[1.5px] border-foreground px-3 uppercase"
+                className="uppercase"
                 value={couponCode}
                 onChange={(e) => { setCouponCode(e.target.value); if (couponState.status !== "idle") setCouponState({ status: "idle" }); }}
                 placeholder="e.g. SAVE10"
                 autoCapitalize="characters"
               />
-              <Button type="button" variant="outline" className="rounded-xl border-[1.5px] border-foreground" onClick={applyCoupon} disabled={couponState.status === "checking"}>
+              <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponState.status === "checking"}>
                 {couponState.status === "checking" ? "Checking…" : "Apply"}
               </Button>
             </div>
