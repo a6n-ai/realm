@@ -8,18 +8,23 @@ import type { ClientMealSizeView } from "@/lib/catalog/types";
 export function MealSizePrice({
   meal,
   priceClassName = "text-sm font-medium",
+  perTiffin = false,
 }: {
   meal: Pick<ClientMealSizeView, "basePrice" | "discountType" | "discountValue">;
   priceClassName?: string;
+  /** Appends a small "/tiffin" so a list price is never read as a weekly or monthly total. */
+  perTiffin?: boolean;
 }) {
+  const unit = perTiffin ? <span className="text-muted-foreground text-xs font-normal">/tiffin</span> : null;
   if (meal.discountType === "none") {
-    return <span className={`nums ${priceClassName}`}>${meal.basePrice.toFixed(2)}</span>;
+    return <span className="nums flex items-baseline gap-1"><span className={priceClassName}>${meal.basePrice.toFixed(2)}</span>{unit}</span>;
   }
   const discounted = effectivePrice(meal.basePrice, meal);
   return (
     <span className="nums flex items-baseline gap-1.5">
       <span className="text-muted-foreground text-xs line-through">${meal.basePrice.toFixed(2)}</span>
       <span className={priceClassName}>${discounted.toFixed(2)}</span>
+      {unit}
     </span>
   );
 }

@@ -107,25 +107,25 @@ SELECT v.public_id,
        v.kcal_min, v.kcal_max, NULL, NULL, NULL, v.base_price
 FROM (VALUES
   -- Budget
-  ('msz_small_thali', 'small_thali', 'Small Thali', 'veg', 'budget', 450, 650, 180.00),
-  ('msz_sabzi_only_regular_veg', 'sabzi_only_regular_veg', 'Sabzi Only — Regular', 'veg', 'budget', 450, 650, 180.00),
-  ('msz_sabzi_only_regular_nonveg', 'sabzi_only_regular_nonveg', 'Sabzi Only — Regular', 'non-veg', 'budget', 450, 650, 200.00),
-  ('msz_sabzi_only_large_veg', 'sabzi_only_large_veg', 'Sabzi Only — Large', 'veg', 'budget', 450, 650, 210.00),
-  ('msz_sabzi_only_large_nonveg', 'sabzi_only_large_nonveg', 'Sabzi Only — Large', 'non-veg', 'budget', 450, 650, 230.00),
+  ('msz_small_thali', 'small_thali', 'Small Thali', 'veg', 'budget', 450, 650, 8.50),
+  ('msz_sabzi_only_regular_veg', 'sabzi_only_regular_veg', 'Sabzi Only — Regular', 'veg', 'budget', 450, 650, 9.00),
+  ('msz_sabzi_only_regular_nonveg', 'sabzi_only_regular_nonveg', 'Sabzi Only — Regular', 'non-veg', 'budget', 450, 650, 10.00),
+  ('msz_sabzi_only_large_veg', 'sabzi_only_large_veg', 'Sabzi Only — Large', 'veg', 'budget', 450, 650, 10.50),
+  ('msz_sabzi_only_large_nonveg', 'sabzi_only_large_nonveg', 'Sabzi Only — Large', 'non-veg', 'budget', 450, 650, 11.50),
   -- Medium
-  ('msz_item4_regular_veg', 'item4_regular_veg', '4 Item Thali — Regular', 'veg', 'medium', 650, 900, 200.00),
-  ('msz_item4_regular_nonveg', 'item4_regular_nonveg', '4 Item Thali — Regular', 'non-veg', 'medium', 650, 900, 220.00),
-  ('msz_item4_large_veg', 'item4_large_veg', '4 Item Thali — Large', 'veg', 'medium', 650, 900, 230.00),
-  ('msz_item4_large_nonveg', 'item4_large_nonveg', '4 Item Thali — Large', 'non-veg', 'medium', 650, 900, 250.00),
-  ('msz_item5_regular_veg', 'item5_regular_veg', '5 Item Thali — Regular', 'veg', 'medium', 650, 900, 220.00),
-  ('msz_item5_regular_nonveg', 'item5_regular_nonveg', '5 Item Thali — Regular', 'non-veg', 'medium', 650, 900, 240.00),
-  ('msz_new_thali_veg', 'new_thali_veg', 'New Thali Plan — Regular', 'veg', 'medium', 650, 900, 230.00),
-  ('msz_new_thali_nonveg', 'new_thali_nonveg', 'New Thali Plan — Regular', 'non-veg', 'medium', 650, 900, 250.00),
+  ('msz_item4_regular_veg', 'item4_regular_veg', '4 Item Thali — Regular', 'veg', 'medium', 650, 900, 10.00),
+  ('msz_item4_regular_nonveg', 'item4_regular_nonveg', '4 Item Thali — Regular', 'non-veg', 'medium', 650, 900, 11.00),
+  ('msz_item4_large_veg', 'item4_large_veg', '4 Item Thali — Large', 'veg', 'medium', 650, 900, 11.50),
+  ('msz_item4_large_nonveg', 'item4_large_nonveg', '4 Item Thali — Large', 'non-veg', 'medium', 650, 900, 12.50),
+  ('msz_item5_regular_veg', 'item5_regular_veg', '5 Item Thali — Regular', 'veg', 'medium', 650, 900, 11.00),
+  ('msz_item5_regular_nonveg', 'item5_regular_nonveg', '5 Item Thali — Regular', 'non-veg', 'medium', 650, 900, 12.00),
+  ('msz_new_thali_veg', 'new_thali_veg', 'New Thali Plan — Regular', 'veg', 'medium', 650, 900, 11.50),
+  ('msz_new_thali_nonveg', 'new_thali_nonveg', 'New Thali Plan — Regular', 'non-veg', 'medium', 650, 900, 12.50),
   -- Premium
-  ('msz_item5_large_veg', 'item5_large_veg', '5 Item Thali — Large', 'veg', 'premium', 900, 1300, 260.00),
-  ('msz_item5_large_nonveg', 'item5_large_nonveg', '5 Item Thali — Large', 'non-veg', 'premium', 900, 1300, 280.00),
-  ('msz_maharaja_veg', 'maharaja_veg', 'Maharaja Thali', 'veg', 'premium', 900, 1300, 280.00),
-  ('msz_maharaja_nonveg', 'maharaja_nonveg', 'Maharaja Thali', 'non-veg', 'premium', 900, 1300, 295.00)
+  ('msz_item5_large_veg', 'item5_large_veg', '5 Item Thali — Large', 'veg', 'premium', 900, 1300, 13.00),
+  ('msz_item5_large_nonveg', 'item5_large_nonveg', '5 Item Thali — Large', 'non-veg', 'premium', 900, 1300, 14.00),
+  ('msz_maharaja_veg', 'maharaja_veg', 'Maharaja Thali', 'veg', 'premium', 900, 1300, 14.00),
+  ('msz_maharaja_nonveg', 'maharaja_nonveg', 'Maharaja Thali', 'non-veg', 'premium', 900, 1300, 14.75)
 ) AS v(public_id, key, name, plan_key, tier, kcal_min, kcal_max, base_price)
 ON CONFLICT (key) DO NOTHING;
 
