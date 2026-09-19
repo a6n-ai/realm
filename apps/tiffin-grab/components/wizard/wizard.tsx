@@ -108,7 +108,7 @@ export function Wizard({
         </ol>
       </nav>
 
-      {(step === 2 || step === 3) && <BestDeal vary={step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
+      {step >= 1 && step <= 3 && <BestDeal key={step} vary={step === 1 ? "bundle" : step === 2 ? "frequency" : "duration"} catalog={catalog} selections={selections} set={set} />}
 
       <AnimatePresence mode="popLayout" initial={false} custom={sign}>
         <motion.div

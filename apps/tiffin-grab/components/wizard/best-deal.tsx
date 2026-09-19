@@ -1,70 +1,92 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { XIcon } from "lucide-react";
+import { CheckCircle2Icon, XIcon } from "lucide-react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { defaultEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { recommendDeals } from "@/lib/pricing/recommend";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
-import { scheduleError, tiffinBounds, type WizardSelections } from "./selections";
+import { bundleDeal, frequencyOrDurationDeal } from "./best-deal-state";
+import type { WizardSelections } from "./selections";
 
-export function BestDeal({ catalog, selections, set, vary }: { vary: "frequency" | "duration"; catalog: ClientCatalogSnapshot; selections: WizardSelections; set: (patch: Partial<WizardSelections>) => void }) {
-  const [dismissedFor, setDismissedFor] = useState<Record<string, boolean>>({});
-  const dismissed = dismissedFor[vary] === true;
+type Vary = "bundle" | "frequency" | "duration";
+type Set = (patch: Partial<WizardSelections>) => void;
+
+// Remount per wizard step (key={step}) so dismissal lasts only until the step changes.
+export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catalog: ClientCatalogSnapshot; selections: WizardSelections; set: Set }) {
+  const [dismissed, setDismissed] = useState(false);
+  const undo = useRef<Partial<WizardSelections> | null>(null);
   const reduce = useReducedMotion();
-  const ready = selections.mealSizeId !== "" && selections.frequencyKey !== "" && scheduleError(catalog, selections) === null;
-  const deal = useMemo(() => (ready ? (recommendDeals({ snapshot: catalog, selections, vary })[0] ?? null) : null), [ready, catalog, selections, vary]);
-  const show = !dismissed && deal !== null;
+  const copy = BEST_DEAL_COPY[vary];
+
+  const view = useMemo(() => {
+    if (vary === "bundle") {
+      const b = bundleDeal(catalog, selections);
+      if (b.state === "none") return null;
+      return { state: b.state, label: b.meal.name, pct: b.pct, apply: { mealSizeId: b.meal.publicId } as Partial<WizardSelections>, fallback: { mealSizeId: "" } as Partial<WizardSelections> };
+    }
+    const c = frequencyOrDurationDeal(catalog, selections, vary);
+    if (c.state === "none") return null;
+    const target = c.deal.payload;
+    const key = (p: typeof target): Partial<WizardSelections> => (vary === "frequency" ? { frequencyKey: p.frequencyKey } : { durationWeeks: p.durationWeeks });
+    return { state: c.state, label: c.deal.label, pct: Math.round(c.deal.savingPct), apply: key(target), fallback: c.state === "applied" ? key(c.least) : {} };
+  }, [vary, catalog, selections]);
 
   const apply = () => {
-    if (!deal) return;
-    const { frequencyKey, durationWeeks } = deal.payload;
-    const patch: Partial<WizardSelections> = vary === "frequency" ? { frequencyKey } : { durationWeeks };
-    if (vary === "frequency" && frequencyKey !== selections.frequencyKey) {
-      const max = tiffinBounds(catalog).max;
-      const from = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
-      const to = catalog.frequencies.find((f) => f.key === frequencyKey);
-      const untouched = from != null && (selections.eatingDays ?? []).join() === defaultEatingDays(from.weekdays as DayOfWeek[], max).join();
-      if (untouched && to) {
-        const days = defaultEatingDays(to.weekdays as DayOfWeek[], max);
-        Object.assign(patch, { eatingDays: days, includeSaturday: days.includes("sat"), includeSunday: days.includes("sun") });
-      }
-    }
-    set(patch);
+    if (!view) return;
+    undo.current = Object.fromEntries(Object.keys(view.apply).map((k) => [k, selections[k as keyof WizardSelections]]));
+    set(view.apply);
+  };
+  const revert = () => {
+    if (!view) return;
+    set(undo.current ?? view.fallback);
+    undo.current = null;
   };
 
+  const applied = view?.state === "applied";
   const spring = reduce ? { duration: 0.15 } : { type: "spring" as const, bounce: 0, duration: 0.4 };
-  const pct = deal ? Math.round(deal.savingPct) : 0;
 
   return (
     <AnimatePresence initial={false}>
-      {show && deal && (
+      {view && !dismissed && (
         <motion.section
           key="best-deal"
-          aria-label={BEST_DEAL_COPY[vary].title}
+          aria-label={applied ? copy.appliedTitle : copy.title}
           initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }}
           animate={reduce ? { opacity: 1 } : { opacity: 1, height: "auto", y: 0 }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }}
           transition={spring}
           className="overflow-hidden"
         >
-          <div className="border-primary/30 bg-primary/10 mb-6 flex items-start gap-3 rounded-[20px] border p-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-primary text-[13px] font-semibold tracking-[0.02em]">{BEST_DEAL_COPY[vary].title}</p>
-              <p className="mt-1 text-[15px] leading-snug text-pretty">{BEST_DEAL_COPY[vary].body(deal.label, pct)}</p>
-              <button
-                type="button"
-                onClick={apply}
-                className="bg-primary text-primary-foreground mt-3 h-11 cursor-pointer rounded-full px-5 text-sm font-semibold transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100"
+          <div className={`mb-6 flex items-start gap-3 rounded-[20px] border p-4 transition-colors duration-300 ${applied ? "border-emerald-500/40 bg-emerald-500/10" : "border-primary/30 bg-primary/10"}`}>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.div
+                key={view.state}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduce ? 0.1 : 0.18 }}
+                className="flex min-w-0 flex-1 items-start gap-3"
               >
-                Use this
-              </button>
-            </div>
+                {applied && <CheckCircle2Icon aria-hidden className="mt-px size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[13px] font-semibold tracking-[0.02em] ${applied ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>{applied ? copy.appliedTitle : copy.title}</p>
+                  <p className="mt-1 text-[15px] leading-snug text-pretty">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</p>
+                  {applied ? (
+                    <button type="button" onClick={revert} className="mt-3 flex h-11 cursor-pointer items-center text-sm font-semibold text-emerald-600 transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100 dark:text-emerald-400">
+                      Undo
+                    </button>
+                  ) : (
+                    <button type="button" onClick={apply} className="bg-primary text-primary-foreground mt-3 h-11 cursor-pointer rounded-full px-5 text-sm font-semibold transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100">
+                      Use this
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
             <button
               type="button"
               aria-label="Dismiss best deal"
-              onClick={() => setDismissedFor((d) => ({ ...d, [vary]: true }))}
+              onClick={() => setDismissed(true)}
               className="text-muted-foreground -m-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
             >
               <XIcon className="size-4" />
@@ -73,5 +95,14 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: "frequency"
         </motion.section>
       )}
     </AnimatePresence>
+  );
+}
+
+// onPrimary: the pill sits on a filled primary surface, where green-on-orange is unreadable.
+export function BestPill({ selected, onPrimary = false }: { selected: boolean; onPrimary?: boolean }) {
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-300 ${onPrimary ? "bg-primary-foreground/20 text-primary-foreground" : selected ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-primary/15 text-primary"}`}>
+      {selected ? "Selected · best deal" : "Recommended"}
+    </span>
   );
 }

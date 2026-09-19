@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recommendDeals } from "../recommend";
+import { compareOptions, recommendDeals } from "../recommend";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingSelections } from "../types";
 
@@ -68,5 +68,28 @@ describe("recommendDeals vary", () => {
     const deals = recommendDeals({ snapshot: s, selections: sel(), vary: "duration", cap: 9 });
     expect(deals.length).toBeGreaterThan(0);
     expect(deals.every((x) => x.payload.frequencyKey === "5_day")).toBe(true);
+  });
+});
+
+describe("compareOptions", () => {
+  const disc = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10 })] });
+  it("recommend when a cheaper option exists", () => {
+    const c = compareOptions({ snapshot: disc, selections: sel({ durationWeeks: 8 }), vary: "frequency" });
+    expect(c.state).toBe("recommend");
+  });
+  it("applied when the current option is best and beats the least-discounted", () => {
+    const c = compareOptions({ snapshot: disc, selections: sel({ durationWeeks: 8, frequencyKey: "3_day" }), vary: "frequency" });
+    expect(c.state).toBe("applied");
+    if (c.state === "applied") {
+      expect(c.deal.savingPct).toBeGreaterThanOrEqual(1);
+      expect(c.least.frequencyKey).toBe("5_day");
+    }
+  });
+  it("applied for duration", () => {
+    expect(compareOptions({ snapshot: snapshot(), selections: sel({ durationWeeks: 8 }), vary: "duration" }).state).toBe("applied");
+  });
+  it("none when nothing differs", () => {
+    const flat = snapshot({ tiers: [{ minQty: 1, maxQty: null, upliftPct: 0 }] } as never);
+    expect(compareOptions({ snapshot: flat, selections: sel(), vary: "frequency" }).state).toBe("none");
   });
 });

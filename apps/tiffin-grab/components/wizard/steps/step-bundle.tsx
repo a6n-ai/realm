@@ -3,6 +3,7 @@ import type { ClientCatalogSnapshot, ClientMealSizeView } from "@/lib/catalog/ty
 import type { WizardSelections } from "../selections";
 import { Badge } from "@foundry/ui/badge";
 import { MealSizeItems } from "../meal-size-items";
+import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
@@ -70,6 +71,7 @@ export function StepBundle({
                       <span className="text-[17px] leading-snug font-semibold tracking-[-0.02em]">{m.name}</span>
                       <MealSizePrice meal={m} perTiffin priceClassName="text-primary text-[17px] font-bold" />
                     </div>
+                    {mealOffPct(m) > 0 && <span className="-mt-1 w-fit rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">{mealOffPct(m)}% off</span>}
                     {m.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{m.description}</p> : null}
                     <MealSizeItems items={m.items} categoryLabels={catalog.categoryLabels} />
                     {active && (
