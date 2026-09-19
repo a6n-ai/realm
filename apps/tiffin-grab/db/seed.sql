@@ -107,7 +107,7 @@ SELECT v.public_id,
        v.kcal_min, v.kcal_max, NULL, NULL, NULL, v.base_price
 FROM (VALUES
   -- Budget
-  ('msz_small_thali', 'small_thali', 'Small Thali', 'veg', 'budget', 450, 650, 8.50),
+  ('msz_small_thali', 'small_thali', 'Small Thali', 'veg', 'budget', 450, 650, 9.00),
   ('msz_sabzi_only_regular_veg', 'sabzi_only_regular_veg', 'Sabzi Only — Regular', 'veg', 'budget', 450, 650, 9.00),
   ('msz_sabzi_only_regular_nonveg', 'sabzi_only_regular_nonveg', 'Sabzi Only — Regular', 'non-veg', 'budget', 450, 650, 10.00),
   ('msz_sabzi_only_large_veg', 'sabzi_only_large_veg', 'Sabzi Only — Large', 'veg', 'budget', 450, 650, 10.50),
