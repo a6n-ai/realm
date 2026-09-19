@@ -7,6 +7,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
+  ShapesIcon,
   UserIcon,
   UsersIcon,
   type LucideIcon,
@@ -48,14 +49,18 @@ export function getNavSections(opts: { granted?: string[] }): NavSection[] {
   const allow = (item: NavItem) => !item.permission || granted.has(item.permission);
 
   const overview: NavItem[] = [{ title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon }];
-  const admin: NavItem[] = [
+  const studio: NavItem[] = [
+    { title: "Classes", href: "/dashboard/classes", icon: ShapesIcon, permission: "studioSession:read" },
     { title: "Sessions", href: "/dashboard/sessions", icon: CalendarDaysIcon, permission: "studioSession:read" },
+  ].filter(allow);
+  const admin: NavItem[] = [
     { title: "Users", href: "/dashboard/settings/users", icon: UsersIcon, permission: "user:list" },
     { title: "Account", href: "/dashboard/account", icon: SettingsIcon },
   ].filter(allow);
 
   return [
     { label: "Overview", items: overview },
+    { label: "Studio", items: studio },
     { label: "Administration", items: admin },
   ].filter((s) => s.items.length > 0);
 }

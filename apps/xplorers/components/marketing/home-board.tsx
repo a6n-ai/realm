@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TapeLabel, XplButton } from "@/components/marketing/xpl-ui";
+import { ClassPhotoStrip } from "@/components/marketing/class-photo-strip";
 import { loadPublicSessionCards } from "@/lib/sessions/public";
 import type { BoardTone } from "@/lib/sessions/format";
 import { formatTapeDay } from "@/lib/sessions/format";
@@ -51,6 +52,7 @@ export async function HomeBoard() {
                   <span className="text-xl text-[var(--blueprint)] lg:hidden">→</span>
                 </span>
                 <span className="xpl-mono text-[10px] tracking-[0.08em] lg:text-[11px] lg:tracking-[0.1em]">{row.spec}</span>
+                <ClassPhotoStrip urls={row.photos} title={row.title} />
               </span>
               <span className={`xpl-mono hidden whitespace-nowrap text-[11px] lg:block ${TONE[row.tone]}`}>{row.spots}</span>
               <span className="hidden text-[22px] text-[var(--blueprint)] lg:block">→</span>

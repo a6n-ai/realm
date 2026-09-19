@@ -1,87 +1,105 @@
 "use client";
 
-import Link from "next/link";
+import { CalendarDaysIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@foundry/design-system";
-import { CalendarDaysIcon } from "lucide-react";
-import { CATEGORY_LABELS, formatScheduleLabel } from "@/lib/sessions/format";
+import {
+  DataTable,
+  FacetFilters,
+  ListPagination,
+  type Column,
+  type FacetDef,
+} from "@foundry/design-system";
+import type { SortState } from "@/lib/list/sort";
+import { CATEGORY_LABELS } from "@/lib/sessions/format";
 import type { SessionCategory } from "@/db/schema/studio";
-import { PublishToggle } from "./publish-toggle";
+import type { SessionSortColumn } from "@/lib/services/studio-sessions.service";
+import { SessionRowActions } from "./session-row-actions";
 
 export type SessionListRow = {
   publicId: string;
+  classPublicId: string;
   title: string;
   category: SessionCategory;
-  startsAt: Date;
-  dates: string[];
+  occursOn: string;
+  timeLabel: string;
+  remaining: number;
   capacity: number;
   published: boolean;
-  location: string | null;
 };
 
-type Col = "title" | "category" | "startsAt" | "capacity" | "published" | "actions";
+type Col = SessionSortColumn | "remaining" | "actions";
 
 const COLUMNS: readonly Column<Col>[] = [
-  { key: "title", label: "Title" },
-  { key: "category", label: "Category" },
-  { key: "startsAt", label: "Starts" },
-  { key: "capacity", label: "Capacity" },
-  { key: "published", label: "Published" },
-  { key: "actions", label: "", align: "right", width: "w-24" },
+  { key: "title", label: "Class", sortable: true },
+  { key: "occursOn", label: "Date", sortable: true },
+  { key: "category", label: "Category", sortable: true },
+  { key: "published", label: "Status", sortable: true },
+  { key: "remaining", label: "Seats", align: "right" },
+  { key: "actions", label: "Actions", align: "right", width: "w-24" },
 ];
 
+const NESTED_COLUMNS: readonly Column<Col>[] = COLUMNS.filter((column) => column.key !== "title");
+
 export function SessionsTable({
+  spec,
   rows,
-  timeZone,
+  sort,
+  total,
+  page,
+  size,
   canWrite,
+  hideClass,
 }: {
+  spec: FacetDef[];
   rows: SessionListRow[];
-  timeZone: string;
+  sort: SortState<SessionSortColumn>;
+  total: number;
+  page: number;
+  size: number;
   canWrite: boolean;
+  hideClass?: boolean;
 }) {
+  const columns = hideClass ? NESTED_COLUMNS : COLUMNS;
   return (
-    <DataTable
-      columns={COLUMNS}
-      rows={rows}
-      rowKey={(r) => r.publicId}
-      serial={false}
-      search={{
-        placeholder: "Search title…",
-        shortPlaceholder: "Search…",
-        keys: ["title", "location"],
-      }}
-      emptyIcon={CalendarDaysIcon}
-      emptyMessage="No sessions yet."
-      emptySearchMessage="No sessions match your search."
-      renderRow={(row) => (
-        <>
-          <TableCell className="font-medium">
-            <Link href={`/dashboard/sessions/${row.publicId}`} className="hover:underline">
-              {row.title}
-            </Link>
-          </TableCell>
-          <TableCell>{CATEGORY_LABELS[row.category]}</TableCell>
-          <TableCell className="whitespace-nowrap">{formatScheduleLabel(row, timeZone)}</TableCell>
-          <TableCell>{row.capacity}</TableCell>
-          <TableCell>
-            {canWrite ? (
-              <PublishToggle publicId={row.publicId} published={row.published} />
-            ) : (
+    <div className="space-y-4">
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.publicId}
+        sort={sort}
+        idAccessor={(row) => row.publicId}
+        idHref={(row) => `/dashboard/sessions/${row.publicId}`}
+        search={{ placeholder: "Search sessions…", shortPlaceholder: "Search…", debounceMs: 250 }}
+        filters={<FacetFilters spec={spec} />}
+        emptyIcon={CalendarDaysIcon}
+        emptyMessage="No sessions yet."
+        emptySearchMessage="No sessions match your search."
+        renderRow={(row) => (
+          <>
+            {hideClass ? null : <TableCell className="font-medium">{row.title}</TableCell>}
+            <TableCell className="whitespace-nowrap tabular-nums">
+              {row.occursOn}
+              <span className="text-muted-foreground mt-1 block text-xs">{row.timeLabel}</span>
+            </TableCell>
+            <TableCell>{CATEGORY_LABELS[row.category]}</TableCell>
+            <TableCell>
               <Badge variant={row.published ? "default" : "outline"}>{row.published ? "Published" : "Draft"}</Badge>
-            )}
-          </TableCell>
-          <TableCell className="text-right">
-            <Link href={`/dashboard/sessions/${row.publicId}`} className="text-sm underline-offset-4 hover:underline">
-              {canWrite ? "Edit" : "View"}
-            </Link>
-          </TableCell>
-        </>
-      )}
-    />
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {row.remaining}/{row.capacity}
+            </TableCell>
+            <TableCell>
+              <SessionRowActions publicId={row.publicId} canWrite={canWrite} />
+            </TableCell>
+          </>
+        )}
+      />
+      <ListPagination page={page} size={size} total={total} />
+    </div>
   );
 }
 
 export function SessionsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <DataTable.Skeleton columns={COLUMNS} hasId />;
 }

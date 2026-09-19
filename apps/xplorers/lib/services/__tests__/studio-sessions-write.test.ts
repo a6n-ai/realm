@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@foundry/commons";
 import { assertCanBook, isPubliclyListed, remainingSeats } from "../booking-policy";
-import { normalizeSessionWrite } from "../studio-sessions.service";
+import { normalizeClassWrite } from "../studio-sessions.service";
 
 const future = new Date("2026-10-01T10:00:00.000Z");
 const now = new Date("2026-09-16T10:00:00.000Z");
@@ -20,10 +20,10 @@ describe("isPubliclyListed", () => {
   });
 });
 
-describe("normalizeSessionWrite", () => {
+describe("normalizeClassWrite", () => {
   it("requires a category and a positive capacity", () => {
     expect(() =>
-      normalizeSessionWrite({
+      normalizeClassWrite({
         title: "Kids Club",
         startsAt: future,
         endsAt: new Date("2026-10-01T12:00:00.000Z"),
@@ -31,7 +31,7 @@ describe("normalizeSessionWrite", () => {
       }),
     ).toThrow(/category/);
     expect(() =>
-      normalizeSessionWrite({
+      normalizeClassWrite({
         title: "Kids Club",
         category: "kids",
         startsAt: future,
@@ -41,48 +41,52 @@ describe("normalizeSessionWrite", () => {
     ).toThrow(/Capacity/);
   });
 
-  it("keeps published off unless explicitly set", () => {
-    const { record, dates } = normalizeSessionWrite(
+  it("stores a clock without scheduling dates", () => {
+    const record = normalizeClassWrite(
       {
         title: "Kids Club",
         category: "kids",
-        startsAt: future,
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
+        startsAt: "16:00",
+        endsAt: "17:30",
         capacity: 8,
       },
-      "UTC",
+      "Asia/Singapore",
     );
     expect(record.published).toBe(false);
     expect(record.weekdays).toEqual([]);
-    expect(dates).toEqual(["2026-10-01"]);
+    expect(record.photos).toEqual([]);
+    expect(record.alsoOn).toBeUndefined();
   });
 
-  it("rejects a class that spans two days and stores extra dates", () => {
+  it("rejects a class clock that wraps past midnight", () => {
     expect(() =>
-      normalizeSessionWrite(
+      normalizeClassWrite(
         {
           title: "Kids Club",
           category: "kids",
-          startsAt: new Date("2026-09-22T08:00:00.000Z"),
-          endsAt: new Date("2026-09-23T09:30:00.000Z"),
+          startsAt: "23:00",
+          endsAt: "01:00",
           capacity: 8,
         },
         "Asia/Singapore",
       ),
-    ).toThrow(/one day/);
+    ).toThrow(/after start/);
+  });
 
-    const { dates } = normalizeSessionWrite(
-      {
-        title: "Kids Club",
-        category: "kids",
-        startsAt: new Date("2026-09-22T08:00:00.000Z"),
-        endsAt: new Date("2026-09-22T09:30:00.000Z"),
-        capacity: 8,
-        alsoOn: ["2026-09-24"],
-      },
-      "Asia/Singapore",
-    );
-    expect(dates).toEqual(["2026-09-22", "2026-09-24"]);
+  it("keeps uploaded photos", () => {
+    expect(
+      normalizeClassWrite(
+        {
+          title: "Kids Club",
+          category: "kids",
+          startsAt: new Date("2026-09-22T08:00:00.000Z"),
+          endsAt: new Date("2026-09-22T09:30:00.000Z"),
+          capacity: 8,
+          photos: ["/api/files/public/classes/kite.png"],
+        },
+        "Asia/Singapore",
+      ).photos,
+    ).toEqual(["/api/files/public/classes/kite.png"]);
   });
 });
 

@@ -7,6 +7,7 @@ const LABELS: Record<string, string> = {
   account: "Account",
   settings: "Settings",
   users: "Users",
+  classes: "Classes",
   sessions: "Sessions",
   new: "New",
 };

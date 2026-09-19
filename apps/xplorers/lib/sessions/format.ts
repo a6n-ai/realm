@@ -15,6 +15,8 @@ export type PublicSessionCard = {
   startsAt: Date;
   remaining: number;
   category: SessionCategory;
+  photos: string[];
+  description: string | null;
 };
 
 export const CATEGORY_LABELS: Record<SessionCategory, string> = {
@@ -59,15 +61,12 @@ export function formatTapeDay(date: Date, timeZone: string, now = new Date()): s
   return label;
 }
 
-export function formatScheduleLabel(
-  session: { startsAt: Date; dates?: string[] },
-  timeZone: string,
-): string {
-  const time = formatSessionTime(session.startsAt, timeZone);
-  const day = formatSessionDay(session.startsAt, timeZone);
-  const extra = (session.dates?.length ?? 1) - 1;
-  if (extra > 0) return `${day} · ${time} · +${extra} day${extra === 1 ? "" : "s"}`;
-  return `${day} · ${time}`;
+export function formatClassClock(startsAt: Date, endsAt: Date, timeZone: string): string {
+  return `${formatSessionTime(startsAt, timeZone)} – ${formatSessionTime(endsAt, timeZone)}`;
+}
+
+export function formatScheduleLabel(session: { startsAt: Date }, timeZone: string): string {
+  return `${formatSessionDay(session.startsAt, timeZone)} · ${formatSessionTime(session.startsAt, timeZone)}`;
 }
 
 function attendanceLabel(mode: AttendanceMode): string | null {
@@ -107,6 +106,8 @@ export function toPublicSessionCard(session: PublicSession, timeZone: string): P
     startsAt: session.startsAt,
     remaining: session.remaining,
     category: session.category,
+    photos: session.photos ?? [],
+    description: session.description,
   };
 }
 

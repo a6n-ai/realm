@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@foundry/ui/textarea";
 import { ATTENDANCE_LABELS, CATEGORY_LABELS } from "@/lib/sessions/format";
 import { ATTENDANCE_MODES, SESSION_CATEGORIES } from "@/db/schema/studio";
-import { createSessionAction, updateSessionAction, type SessionFormState } from "./session-actions";
+import { createClassAction, updateClassAction, type ClassFormState } from "./class-actions";
+import { ClassPhotosField } from "./class-photos";
 
-export type SessionFormValues = {
+export type ClassFormValues = {
   title: string;
   category: string;
   description: string;
@@ -22,10 +23,10 @@ export type SessionFormValues = {
   location: string;
   attendanceMode: string;
   published: boolean;
-  extraDates: string[];
+  photos: string[];
 };
 
-const empty: SessionFormValues = {
+const empty: ClassFormValues = {
   title: "",
   category: "kids",
   description: "",
@@ -37,26 +38,25 @@ const empty: SessionFormValues = {
   location: "",
   attendanceMode: "either",
   published: false,
-  extraDates: [],
+  photos: [],
 };
 
-export function SessionForm({
+export function ClassForm({
   publicId,
   values,
   timeZone,
   readOnly,
 }: {
   publicId?: string;
-  values?: Partial<SessionFormValues>;
+  values?: Partial<ClassFormValues>;
   timeZone: string;
   readOnly?: boolean;
 }) {
   const initial = { ...empty, ...values };
   const [category, setCategory] = useState(initial.category);
   const [attendanceMode, setAttendanceMode] = useState(initial.attendanceMode);
-  const [extraDates, setExtraDates] = useState<string[]>(initial.extraDates.length ? initial.extraDates : []);
-  const action = publicId ? updateSessionAction.bind(null, publicId) : createSessionAction;
-  const [state, formAction, pending] = useActionState<SessionFormState, FormData>(action, {});
+  const action = publicId ? updateClassAction.bind(null, publicId) : createClassAction;
+  const [state, formAction, pending] = useActionState<ClassFormState, FormData>(action, {});
 
   return (
     <form action={formAction} className="grid max-w-2xl gap-5">
@@ -65,11 +65,28 @@ export function SessionForm({
           {state.error}
         </p>
       ) : null}
-      <p className="text-muted-foreground text-sm">Times are in {timeZone.replaceAll("_", " ")}. A class is one day.</p>
+      <p className="text-muted-foreground text-sm">
+        Times are in {timeZone.replaceAll("_", " ")}. Schedule days from Sessions — this form is the class catalog.
+      </p>
       <div className="grid gap-2">
-        <Label htmlFor="title">Title</Label>
+        <Label htmlFor="title">Name</Label>
         <Input id="title" name="title" required defaultValue={initial.title} disabled={readOnly} />
       </div>
+      <div className="grid gap-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" name="description" rows={4} defaultValue={initial.description} disabled={readOnly} />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="startsAt">Starts</Label>
+          <Input id="startsAt" name="startsAt" type="time" required defaultValue={initial.startsAt} disabled={readOnly} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="endsAt">Ends</Label>
+          <Input id="endsAt" name="endsAt" type="time" required defaultValue={initial.endsAt} disabled={readOnly} />
+        </div>
+      </div>
+      <ClassPhotosField value={initial.photos} disabled={readOnly} />
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
         <div className="grid gap-2">
           <Label htmlFor="category">Category</Label>
@@ -103,70 +120,6 @@ export function SessionForm({
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea id="description" name="description" rows={4} defaultValue={initial.description} disabled={readOnly} />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="startsAt">Starts</Label>
-          <Input
-            id="startsAt"
-            name="startsAt"
-            type="datetime-local"
-            required
-            defaultValue={initial.startsAt}
-            disabled={readOnly}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="endsAt">Ends</Label>
-          <Input
-            id="endsAt"
-            name="endsAt"
-            type="datetime-local"
-            required
-            defaultValue={initial.endsAt}
-            disabled={readOnly}
-          />
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <p className="text-sm font-medium">More days</p>
-        <p className="text-muted-foreground text-sm">
-          Same class, same times, another date. Families book each day separately.
-        </p>
-        {extraDates.map((date, index) => (
-          <div key={`also-${index}`} className="flex items-center gap-2">
-            <Input
-              name="alsoOn"
-              type="date"
-              value={date}
-              onChange={(event) => {
-                const next = [...extraDates];
-                next[index] = event.target.value;
-                setExtraDates(next);
-              }}
-              disabled={readOnly}
-            />
-            {readOnly ? null : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setExtraDates(extraDates.filter((_, i) => i !== index))}
-              >
-                Remove
-              </Button>
-            )}
-          </div>
-        ))}
-        {readOnly ? null : (
-          <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setExtraDates([...extraDates, ""])}>
-            Add another day
-          </Button>
-        )}
       </div>
       <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
         <div className="grid gap-2">
@@ -215,7 +168,7 @@ export function SessionForm({
       {readOnly ? null : (
         <div>
           <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : publicId ? "Save session" : "Create session"}
+            {pending ? "Saving…" : publicId ? "Save class" : "Create class"}
           </Button>
         </div>
       )}

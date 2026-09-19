@@ -8,6 +8,7 @@ import { SITE_NAME } from "@/lib/brand";
 
 export default async function DashboardHomePage() {
   const session = await getSession();
+  const canStudio = session?.user ? roleCan(session.user.role, { studioSession: ["read"] } as never) : false;
   const canUsers = session?.user ? roleCan(session.user.role, { user: ["list"] }) : false;
 
   return (
@@ -24,15 +25,19 @@ export default async function DashboardHomePage() {
           ) : null
         }
       />
-      <SectionCard title="Sessions">
+      <SectionCard title="Studio">
         <p className="text-muted-foreground text-sm">
-          Publish bookable sessions for the public calendar. Families book from What’s on; remaining seats are computed
-          on the server.
+          Classes are the catalog. Sessions are the days families book. Remaining seats are computed on the server.
         </p>
-        {session?.user && roleCan(session.user.role, { studioSession: ["read"] } as never) ? (
-          <Button asChild size="sm" className="mt-4">
-            <Link href="/dashboard/sessions">Open sessions</Link>
-          </Button>
+        {canStudio ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href="/dashboard/classes">Open classes</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/sessions">Open sessions</Link>
+            </Button>
+          </div>
         ) : null}
       </SectionCard>
     </PageShell>

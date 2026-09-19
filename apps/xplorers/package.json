@@ -21,6 +21,7 @@
     "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system",
     "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime",
     "@foundry/routes": "github:a6n-ai/foundry#path:packages/routes",
+    "@foundry/storage": "github:a6n-ai/foundry#path:packages/storage",
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
     "@gsap/react": "^2.1.2",

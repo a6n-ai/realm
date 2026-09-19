@@ -2,6 +2,7 @@ import { SITE_NAME } from "@/lib/brand";
 import { Role } from "@foundry/commons";
 import { buildMetadata } from "@/lib/seo";
 import { BookControl } from "@/components/marketing/book-control";
+import { ClassPhotoStrip } from "@/components/marketing/class-photo-strip";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService } from "@/lib/services/bookings.service";
 import { loadPublicSessionCards } from "@/lib/sessions/public";
@@ -68,7 +69,11 @@ export default async function WhatsOnPage({
                       </div>
                       <div className="flex flex-col gap-1">
                         <h3 className="xpl-disp m-0 text-[22px] leading-none tracking-[-0.02em] lg:text-2xl">{row.title}</h3>
+                        {row.description ? (
+                          <p className="m-0 max-w-[48ch] text-[15px] leading-[1.45] text-[var(--graphite)]">{row.description}</p>
+                        ) : null}
                         <p className="xpl-mono m-0 text-[10px] tracking-[0.08em] lg:text-[11px] lg:tracking-[0.1em]">{row.spec}</p>
+                        <ClassPhotoStrip urls={row.photos} title={row.title} />
                         <p className={`xpl-mono m-0 hidden text-[11px] lg:block ${TONE[row.tone]}`}>{row.spots}</p>
                       </div>
                       <BookControl

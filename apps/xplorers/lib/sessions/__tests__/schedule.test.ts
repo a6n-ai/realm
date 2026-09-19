@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fromZonedLocal } from "../timezone";
-import { assertSameCalendarDay, occurrenceStartsAt, parseDates } from "../schedule";
+import { assertSameCalendarDay, fromZonedClock, occurrenceStartsAt, parseDates, parseDay } from "../schedule";
 
 const zone = "Asia/Singapore";
 
@@ -24,5 +24,13 @@ describe("class dates", () => {
     expect(occurrenceStartsAt("2026-09-24", startsAt, zone).toISOString()).toBe(
       fromZonedLocal("2026-09-24T16:00", zone).toISOString(),
     );
+  });
+
+  it("stores a class clock on the sentinel day", () => {
+    expect(fromZonedClock("16:00", zone).toISOString()).toBe(fromZonedLocal("2000-01-01T16:00", zone).toISOString());
+  });
+
+  it("rejects a missing calendar day", () => {
+    expect(() => parseDay("Tuesday")).toThrow(/calendar day/);
   });
 });

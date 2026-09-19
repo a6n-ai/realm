@@ -2,6 +2,16 @@ import { ValidationError } from "@foundry/commons";
 import { dayKey, fromZonedLocal, toZonedLocal } from "./timezone";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const CLOCK_RE = /^\d{2}:\d{2}$/;
+
+/** Sentinel day so a class can store a clock without scheduling a session. */
+export const CLASS_CLOCK_DAY = "2000-01-01";
+
+export function parseDay(value: unknown): string {
+  const trimmed = String(value ?? "").trim();
+  if (!DATE_RE.test(trimmed)) throw new ValidationError("Pick a calendar day.");
+  return trimmed;
+}
 
 export function parseDates(value: unknown): string[] {
   const raw = Array.isArray(value) ? value : [];
@@ -15,6 +25,16 @@ export function parseDates(value: unknown): string[] {
   out.sort();
   if (out.length === 0) throw new ValidationError("Pick at least one date.");
   return out;
+}
+
+export function parseClock(value: unknown): string {
+  const raw = String(value ?? "").trim().slice(0, 5);
+  if (!CLOCK_RE.test(raw)) throw new ValidationError("Start and end times are required.");
+  return raw;
+}
+
+export function fromZonedClock(clock: string, timeZone: string, day = CLASS_CLOCK_DAY): Date {
+  return fromZonedLocal(`${parseDay(day)}T${parseClock(clock)}`, timeZone);
 }
 
 export function assertSameCalendarDay(startsAt: Date, endsAt: Date, timeZone: string): void {

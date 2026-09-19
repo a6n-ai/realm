@@ -17,7 +17,12 @@ const RESOLUTION_EXEMPT = [
   "/set-password",
 ];
 
-export const PUBLIC_API = ["/api/auth"];
+export const PUBLIC_API = [
+  "/api/auth",
+  // GET serves class photos to anonymous visitors. POST /api/files/upload still
+  // requires studioSession:update inside the handler.
+  "/api/files",
+];
 
 export const PROTECTED_PREFIXES = ["/dashboard", "/me", "/no-access"];
 

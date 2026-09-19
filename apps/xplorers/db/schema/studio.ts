@@ -41,6 +41,7 @@ export const studioSessions = pgTable(
     attendanceMode: sessionAttendance("attendance_mode").notNull().default("either"),
     published: boolean("published").notNull().default(false),
     archived: boolean("archived").notNull().default(false),
+    photos: text("photos").array().notNull().default(sql`'{}'::text[]`),
     /** Unused. Kept so 0002 is not rewritten; classes are scheduled as one-day dates. */
     weekdays: smallint("weekdays").array().notNull().default(sql`'{}'::smallint[]`),
     repeatsUntil: date("repeats_until", { mode: "string" }),

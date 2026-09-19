@@ -29,6 +29,13 @@
       "when": 1774000003000,
       "tag": "0003_session_days",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774000004000,
+      "tag": "0004_session_photos",
+      "breakpoints": true
     }
   ]
 }
