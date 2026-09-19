@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { Role } from "@foundry/commons";
+import { Role, type RoleValue } from "@foundry/commons";
 import { getNavSections } from "@/components/dashboard/app-sidebar";
 import { roleCan } from "@/lib/auth/guards";
 import { grantedKeys } from "@/lib/auth/nav-permissions";
 
-function navTitles(role: Role) {
+function navTitles(role: RoleValue) {
   return getNavSections({ granted: grantedKeys(role) }).flatMap((s) => s.items.map((i) => i.title));
 }
 
