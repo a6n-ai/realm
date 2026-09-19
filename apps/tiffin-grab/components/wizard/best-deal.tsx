@@ -6,20 +6,22 @@ import { XIcon } from "lucide-react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { defaultEatingDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { recommendDeals } from "@/lib/pricing/recommend";
+import { BEST_DEAL_COPY } from "./best-deal-copy";
 import { scheduleError, tiffinBounds, type WizardSelections } from "./selections";
 
-export function BestDeal({ catalog, selections, set }: { catalog: ClientCatalogSnapshot; selections: WizardSelections; set: (patch: Partial<WizardSelections>) => void }) {
-  const [dismissed, setDismissed] = useState(false);
+export function BestDeal({ catalog, selections, set, vary }: { vary: "frequency" | "duration"; catalog: ClientCatalogSnapshot; selections: WizardSelections; set: (patch: Partial<WizardSelections>) => void }) {
+  const [dismissedFor, setDismissedFor] = useState<Record<string, boolean>>({});
+  const dismissed = dismissedFor[vary] === true;
   const reduce = useReducedMotion();
   const ready = selections.mealSizeId !== "" && selections.frequencyKey !== "" && scheduleError(catalog, selections) === null;
-  const deal = useMemo(() => (ready ? (recommendDeals({ snapshot: catalog, selections })[0] ?? null) : null), [ready, catalog, selections]);
+  const deal = useMemo(() => (ready ? (recommendDeals({ snapshot: catalog, selections, vary })[0] ?? null) : null), [ready, catalog, selections, vary]);
   const show = !dismissed && deal !== null;
 
   const apply = () => {
     if (!deal) return;
     const { frequencyKey, durationWeeks } = deal.payload;
-    const patch: Partial<WizardSelections> = { frequencyKey, durationWeeks };
-    if (frequencyKey !== selections.frequencyKey) {
+    const patch: Partial<WizardSelections> = vary === "frequency" ? { frequencyKey } : { durationWeeks };
+    if (vary === "frequency" && frequencyKey !== selections.frequencyKey) {
       const max = tiffinBounds(catalog).max;
       const from = catalog.frequencies.find((f) => f.key === selections.frequencyKey);
       const to = catalog.frequencies.find((f) => f.key === frequencyKey);
@@ -40,7 +42,7 @@ export function BestDeal({ catalog, selections, set }: { catalog: ClientCatalogS
       {show && deal && (
         <motion.section
           key="best-deal"
-          aria-label="Best deal"
+          aria-label={BEST_DEAL_COPY[vary].title}
           initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }}
           animate={reduce ? { opacity: 1 } : { opacity: 1, height: "auto", y: 0 }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0, y: -8 }}
@@ -49,10 +51,8 @@ export function BestDeal({ catalog, selections, set }: { catalog: ClientCatalogS
         >
           <div className="border-primary/30 bg-primary/10 mb-6 flex items-start gap-3 rounded-[20px] border p-4">
             <div className="min-w-0 flex-1">
-              <p className="text-primary text-[13px] font-semibold tracking-[0.02em]">Best deal</p>
-              <p className="mt-1 text-[15px] leading-snug text-pretty">
-                <strong>{deal.label}</strong> — ${deal.perUnit.toFixed(2)} per tiffin, you save {pct}% (${(deal.savingPerUnit * deal.payload.tiffinCount).toFixed(2)})
-              </p>
+              <p className="text-primary text-[13px] font-semibold tracking-[0.02em]">{BEST_DEAL_COPY[vary].title}</p>
+              <p className="mt-1 text-[15px] leading-snug text-pretty">{BEST_DEAL_COPY[vary].body(deal.label, pct)}</p>
               <button
                 type="button"
                 onClick={apply}
@@ -64,7 +64,7 @@ export function BestDeal({ catalog, selections, set }: { catalog: ClientCatalogS
             <button
               type="button"
               aria-label="Dismiss best deal"
-              onClick={() => setDismissed(true)}
+              onClick={() => setDismissedFor((d) => ({ ...d, [vary]: true }))}
               className="text-muted-foreground -m-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.9] motion-reduce:active:scale-100"
             >
               <XIcon className="size-4" />

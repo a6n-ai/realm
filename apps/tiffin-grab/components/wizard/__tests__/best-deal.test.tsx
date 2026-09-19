@@ -24,28 +24,31 @@ const catalog = {
 const sel = (over = {}) => ({ ...initialSelections, mealSizeId: "msz_1", frequencyKey: "5_day", eatingDays: ["mon", "wed", "fri"] as never, durationWeeks: 1, mealSlots: ["lunch"], ...over });
 
 describe("BestDeal", () => {
-  it("renders the best alternative and applies it", () => {
+  it("schedule step: recommends only a delivery type", () => {
     const set = vi.fn();
-    render(<BestDeal catalog={catalog} selections={sel()} set={set} />);
-    expect(screen.getByText(/per tiffin, you save/)).toBeTruthy();
+    render(<BestDeal vary="frequency" catalog={catalog} selections={sel({ durationWeeks: 8 })} set={set} />);
+    expect(screen.getByText(/3-day delivery/)).toBeTruthy();
+    expect(screen.getByText("Tip for your delivery")).toBeTruthy();
+    expect(screen.getByText(/save 10% on every tiffin/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use this" }));
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({ frequencyKey: "3_day", durationWeeks: 8 }));
+    expect(set).toHaveBeenCalledWith({ frequencyKey: "3_day" });
   });
 
-  it("keeps customised eating days when the frequency switches", () => {
+  it("duration step: recommends only weeks", () => {
     const set = vi.fn();
-    render(<BestDeal catalog={catalog} selections={sel()} set={set} />);
+    render(<BestDeal vary="duration" catalog={catalog} selections={sel({ frequencyKey: "3_day" })} set={set} />);
+    expect(screen.getByText(/8 weeks/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Use this" }));
-    expect(set.mock.calls[0][0]).not.toHaveProperty("eatingDays");
+    expect(set).toHaveBeenCalledWith({ durationWeeks: 8 });
   });
 
   it("is hidden without a meal size", () => {
-    render(<BestDeal catalog={catalog} selections={sel({ mealSizeId: "" })} set={vi.fn()} />);
-    expect(screen.queryByText("Best deal")).toBeNull();
+    render(<BestDeal vary="duration" catalog={catalog} selections={sel({ mealSizeId: "" })} set={vi.fn()} />);
+    expect(screen.queryByText(/Tip for your/)).toBeNull();
   });
 
   it("is dismissible", async () => {
-    render(<BestDeal catalog={catalog} selections={sel()} set={vi.fn()} />);
+    render(<BestDeal vary="duration" catalog={catalog} selections={sel()} set={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss best deal" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Use this" })).toBeNull());
   });
