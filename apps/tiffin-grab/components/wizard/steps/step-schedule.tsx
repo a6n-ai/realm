@@ -3,8 +3,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { BestPill } from "../best-deal";
-import { frequencyOrDurationDeal } from "../best-deal-state";
 import { savePct } from "@/lib/pricing/discounts";
 import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
@@ -53,8 +51,6 @@ export function StepSchedule({
     } else if (eating.length < bounds.max) setEating([...eating, day]);
   };
 
-  const dealCmp = frequencyOrDurationDeal(catalog, selections, "frequency");
-  const winnerFreq = dealCmp.state === "recommend" ? dealCmp.deal.payload.frequencyKey : dealCmp.state === "applied" ? selections.frequencyKey : null;
   const trips = row ? planWeek(deliveryDays, eating) : null;
   const error = row && eating.length >= bounds.min ? scheduleError(catalog, selections) : null;
   const atMax = eating.length >= bounds.max;
@@ -115,9 +111,7 @@ export function StepSchedule({
                   <span className="block text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
                   <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {f.key === winnerFreq
-                      ? <BestPill selected={active} save={save} />
-                      : save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
+                    {save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
                   </span>
                 </span>
                 <span className="flex flex-wrap gap-1.5">

@@ -6,8 +6,6 @@ import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { BestPill } from "../best-deal";
-import { frequencyOrDurationDeal } from "../best-deal-state";
 import { savePct } from "@/lib/pricing/discounts";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
@@ -81,9 +79,6 @@ export function StepDuration({
     }
   };
 
-  const dealCmp = frequencyOrDurationDeal(catalog, selections, "duration");
-  const winnerWeeks = dealCmp.state === "recommend" ? dealCmp.deal.payload.durationWeeks : dealCmp.state === "applied" ? selections.durationWeeks : null;
-
   return (
     <div className="space-y-6">
       {currentPlan && overlapBound ? (
@@ -137,9 +132,7 @@ export function StepDuration({
               >
                 <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
                 {d.weeks}wk
-                {d.weeks === winnerWeeks
-                  ? <BestPill selected={active} onPrimary={active} save={save} />
-                  : save > 0 && <span aria-label={`Save ${save}%`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"}`}>Save {save}%</span>}
+                {save > 0 && <span aria-label={`Save ${save}%`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"}`}>Save {save}%</span>}
               </label>
             );
           })}

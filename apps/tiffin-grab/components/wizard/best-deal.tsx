@@ -97,15 +97,3 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
     </AnimatePresence>
   );
 }
-
-// One pill per card: the discount when there is one ("Save 10%", green and "· Selected" once chosen),
-// otherwise the plain recommendation marker. onPrimary: the pill sits on a filled primary surface,
-// where green-on-orange is unreadable.
-export function BestPill({ selected, onPrimary = false, save = 0 }: { selected: boolean; onPrimary?: boolean; save?: number }) {
-  const label = save > 0 ? `Save ${save}%${selected ? " · Selected" : ""}` : selected ? "Selected · best deal" : "Recommended";
-  return (
-    <span aria-label={save > 0 ? `Save ${save}%` : undefined} className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-300 ${onPrimary ? "bg-primary-foreground/20 text-primary-foreground" : selected ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-primary/15 text-primary"}`}>
-      {label}
-    </span>
-  );
-}
