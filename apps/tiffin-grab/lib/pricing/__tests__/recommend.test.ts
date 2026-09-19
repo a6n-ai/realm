@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankDeals, recommendDeals } from "../recommend";
+import { recommendDeals } from "../recommend";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingSelections } from "../types";
 
@@ -68,15 +68,5 @@ describe("recommendDeals vary", () => {
     const deals = recommendDeals({ snapshot: s, selections: sel(), vary: "duration", cap: 9 });
     expect(deals.length).toBeGreaterThan(0);
     expect(deals.every((x) => x.payload.frequencyKey === "5_day")).toBe(true);
-  });
-});
-
-describe("rankDeals", () => {
-  const alt = (id: string, total: number, units: number) => ({ id, label: id, total, units, payload: null });
-  it("ranks by per-unit and applies minSavingPct / empty current", () => {
-    const r = rankDeals({ total: 100, units: 10 }, [alt("a", 180, 20), alt("b", 99, 10), alt("c", 120, 10)]);
-    expect(r.map((x) => x.id)).toEqual(["a"]);
-    expect(r[0]).toMatchObject({ perUnit: 9, savingPerUnit: 1, totalDelta: 80 });
-    expect(rankDeals({ total: 0, units: 0 }, [alt("a", 1, 1)])).toEqual([]);
   });
 });

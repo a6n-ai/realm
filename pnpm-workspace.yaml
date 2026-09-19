@@ -12,6 +12,8 @@ overrides:
   "@foundry/eslint-config": "github:a6n-ai/foundry#path:tooling/eslint-config"
   "@foundry/crm": "github:a6n-ai/foundry#path:packages/crm"
   "@foundry/database": "github:a6n-ai/foundry#path:packages/database"
+  "@foundry/discounts": "github:a6n-ai/foundry#path:packages/discounts"
+  "@foundry/coupons": "github:a6n-ai/foundry#path:packages/coupons"
   "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system"
   "@foundry/email": "github:a6n-ai/foundry#path:packages/email"
   "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime"

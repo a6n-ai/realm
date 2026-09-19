@@ -1,48 +1,9 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { rankDeals, type RankedDeal } from "@foundry/discounts";
 import { buildPricingCatalog } from "./build-catalog";
 import { priceSubscription } from "./engine";
 import type { PricingSelections } from "./types";
-
-export interface Deal<T> {
-  id: string;
-  label: string;
-  payload: T;
-  perUnit: number;
-  savingPerUnit: number;
-  savingPct: number;
-  totalDelta: number;
-}
-
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
-
-// Same signature/semantics as @foundry/discounts `rankDeals` so it can be swapped in later.
-export function rankDeals<T>(
-  current: { total: number; units: number },
-  alternatives: { id: string; label: string; total: number; units: number; payload: T }[],
-  opts: { limit?: number; minSavingPct?: number } = {},
-): Deal<T>[] {
-  if (current.total <= 0 || current.units <= 0) return [];
-  const { limit = 3, minSavingPct = 1 } = opts;
-  const curPer = current.total / current.units;
-  return alternatives
-    .filter((a) => a.units > 0)
-    .map((a) => {
-      const perUnit = a.total / a.units;
-      return {
-        id: a.id,
-        label: a.label,
-        payload: a.payload,
-        perUnit: round2(perUnit),
-        savingPerUnit: round2(curPer - perUnit),
-        savingPct: ((curPer - perUnit) / curPer) * 100,
-        totalDelta: round2(a.total - current.total),
-      };
-    })
-    .filter((d) => d.savingPct > 0 && d.savingPct >= minSavingPct)
-    .sort((a, b) => b.savingPct - a.savingPct)
-    .slice(0, limit);
-}
 
 export interface DealPayload {
   frequencyKey: string;
@@ -63,7 +24,7 @@ const price = (snapshot: ClientCatalogSnapshot, s: PricingSelections) => {
   }
 };
 
-export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): Deal<DealPayload>[] {
+export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): RankedDeal<DealPayload>[] {
   const eating = (selections.eatingDays ?? []) as DayOfWeek[];
   const current = price(snapshot, selections);
   if (!current) return [];
