@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
+import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -148,17 +149,27 @@ describe("applyDeliverySwap", () => {
       .rejects.toThrow(/must be part of this plan/i);
   });
 
-  it("rejects swapping a category with itself", async () => {
+  it("allows swapping a category with itself as a net-zero no-op", async () => {
     const size = await mealSizeWithTwoCategories();
     const snap = await loadCatalogSnapshot();
     const planKey = snap.plans.find((p) => p.id === size.planId)!.key;
+    const from = size.items[0].category;
+    await allowPair(from, from);
+
     const { publicId } = await createOrder(orderInput(size.publicId, planKey));
     const order = await fetchOrder(publicId);
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
-    const from = size.items[0].category;
+    const before = order.categoryCounts?.[from] ?? 0;
 
-    await expect(applyDeliverySwap(delivery.publicId, from, from, 1, null))
-      .rejects.toThrow(/two different categories/i);
+    await applyDeliverySwap(delivery.publicId, from, from, 1, null);
+
+    const [swap] = await db.select().from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, delivery.id));
+    expect(swap.fromCategory).toBe(from);
+    expect(swap.toCategory).toBe(from);
+    expect(swap.qtyFrom).toBe(1);
+    expect(swap.qtyTo).toBe(1);
+    // Same category, same TU rate: giving up 1 pick and receiving 1 pick nets to zero.
+    expect(applySwapsToCounts(order.categoryCounts ?? {}, [swap])[from]).toBe(before);
   });
 
   it("enforces maxTuAmount on the destination category", async () => {

@@ -287,10 +287,6 @@ function AddSwapPairDialog({
       toast.error("Select both categories");
       return;
     }
-    if (fromCategory === toCategory) {
-      toast.error("Pick two different categories");
-      return;
-    }
     if (planIds.size === 0) {
       toast.error("Turn at least one plan on");
       return;

@@ -40,6 +40,10 @@ describe("swapQuantities", () => {
   it("refuses a trade that does not divide evenly", () => {
     expect(swapQuantities(roti, rice, 1)).toMatchObject({ ok: false });
   });
+  it("refuses 1 TU for half a pick — a swap only ever moves whole picks, never a fraction", () => {
+    const doubleTu = cat("bigportion", 2);
+    expect(swapQuantities(daal8, doubleTu, 1)).toMatchObject({ ok: false });
+  });
 });
 
 describe("capViolation", () => {

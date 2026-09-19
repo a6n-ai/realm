@@ -300,7 +300,6 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   }
 
   async addSwapPair(fromKey: string, toKey: string, planPublicIds: string[] = []) {
-    if (fromKey === toKey) throw new ValidationError("A swap pair must be between two different categories");
     const rows = await db.select({ key: dishCategories.key, id: dishCategories.id }).from(dishCategories).where(inArray(dishCategories.key, [fromKey, toKey]));
     const byKey = new Map(rows.map((r) => [r.key, r.id]));
     const fromId = byKey.get(fromKey);

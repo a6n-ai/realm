@@ -28,7 +28,6 @@ export async function applyDeliverySwap(
   fromPicks: number,
   actorId: bigint | null,
 ): Promise<void> {
-  if (fromCategory === toCategory) throw new ValidationError("Choose two different categories to swap");
   if (!Number.isInteger(fromPicks) || fromPicks <= 0) throw new ValidationError("Pick count must be a positive whole number");
 
   await db.transaction(async (tx) => {
