@@ -14,6 +14,7 @@ import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
 import { StepDuration } from "./steps/step-duration";
+import { BestDeal } from "./best-deal";
 import { SubscribeChrome } from "./subscribe-chrome";
 import { anySameIsoWeek } from "./same-iso-week";
 import type { CurrentPlanSummary } from "./current-plan-hint";
@@ -106,6 +107,8 @@ export function Wizard({
           ))}
         </ol>
       </nav>
+
+      {step >= 2 && <BestDeal catalog={catalog} selections={selections} set={set} />}
 
       <AnimatePresence mode="popLayout" initial={false} custom={sign}>
         <motion.div

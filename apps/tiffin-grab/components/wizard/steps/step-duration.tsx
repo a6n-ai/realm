@@ -6,6 +6,7 @@ import type { WizardSelections } from "../selections";
 import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Label } from "@foundry/ui/label";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
+import { savePct } from "@/lib/pricing/discounts";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 
@@ -122,6 +123,7 @@ export function StepDuration({
         >
           {catalog.durations.map((d) => {
             const active = selections.durationWeeks === d.weeks;
+            const save = savePct(catalog.discounts, "duration", d.publicId, d.weeks, catalog.maxDiscountPct);
             return (
               <label
                 key={d.weeks}
@@ -130,6 +132,7 @@ export function StepDuration({
               >
                 <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
                 {d.weeks}wk
+                {save > 0 && <span aria-label={`Save ${save}%`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"}`}>Save {save}%</span>}
               </label>
             );
           })}

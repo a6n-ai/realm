@@ -9,11 +9,14 @@ const TIERS: PricingTier[] = [
   { minQty: 20, maxQty: null, upliftPct: 0 },
 ];
 
-const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", courierDiscountPct = 0): PricingCatalog => ({
+const catalog = (basePrice = 10, freqKey: "5_day" | "mwf" = "5_day", courierDiscountPct = 0, extra: Partial<PricingCatalog> = {}): PricingCatalog => ({
   mealSize: { id: "m1", basePrice },
-  frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5, courierDiscountPct } : { key: "mwf", daysPerWeek: 3, courierDiscountPct },
+  frequency: freqKey === "5_day" ? { key: "5_day", daysPerWeek: 5 } : { key: "mwf", daysPerWeek: 3 },
   tiers: TIERS,
   addons: [],
+  discounts: courierDiscountPct > 0 ? [{ key: "delivery_x", label: `Delivery schedule discount (${courierDiscountPct}%)`, percent: courierDiscountPct }] : [],
+  maxDiscountPct: 25,
+  ...extra,
 });
 
 const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
@@ -63,19 +66,35 @@ describe("priceSubscription (per-tiffin)", () => {
     expect(r.total).toBe(280);
   });
 
-  it("applies the cadence's courierDiscountPct as an adjustment line", () => {
+  it("applies a single catalog discount as an adjustment line", () => {
     // 5 tiffins × $12 (20% uplift) = $60 subtotal, 10% cadence discount = $6 off.
     const r = priceSubscription(sel(), catalog(10, "5_day", 10));
     expect(r.subtotal).toBe(60);
-    expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 6 }]);
+    expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 6, discountKey: "delivery_x" }]);
     expect(r.total).toBe(54);
+  });
+
+  it("adds two discounts up, printing one line each", () => {
+    const r = priceSubscription(sel(), catalog(10, "5_day", 0, { discounts: [{ key: "d", label: "Delivery schedule discount (10%)", percent: 10 }, { key: "p", label: "Plan length discount (5%)", percent: 5 }] }));
+    expect(r.adjustments.map((a) => [a.discountKey, a.amount])).toEqual([["d", 6], ["p", 3]]);
+    expect(r.total).toBe(51);
+  });
+
+  it("caps the summed percent and scales lines to sum to the cap", () => {
+    const r = priceSubscription(sel(), catalog(10, "5_day", 0, { discounts: [{ key: "d", label: "D", percent: 10 }, { key: "p", label: "P", percent: 20 }] }));
+    expect(r.adjustments.reduce((s, a) => s + a.amount, 0)).toBeCloseTo(15, 2);
+    expect(r.total).toBe(45);
+  });
+
+  it("no discounts leaves totals unchanged", () => {
+    expect(priceSubscription(sel(), catalog(10)).total).toBe(60);
   });
 
   it("prices by eating days, ignoring frequency days, still applying the cadence discount", () => {
     // MWF delivery, eating Mon-Sun: 7/wk × 2 wk = 14 tiffins at the 10% tier ($11).
     const r = priceSubscription(sel({ frequencyKey: "mwf", durationWeeks: 2, eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }), catalog(10, "mwf", 10));
     expect(r.tiffinCount).toBe(14);
-    expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 15.4 }]);
+    expect(r.adjustments).toEqual([{ label: "Delivery schedule discount (10%)", amount: 15.4, discountKey: "delivery_x" }]);
     expect(r.subtotal).toBe(154);
   });
 

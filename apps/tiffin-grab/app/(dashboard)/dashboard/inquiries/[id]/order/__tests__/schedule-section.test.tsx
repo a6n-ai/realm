@@ -16,6 +16,12 @@ const setup = (eatingDays: string[], over = {}) => {
 };
 
 describe("ScheduleSection", () => {
+  it("shows a Save pill only for discounted frequencies", () => {
+    setup(["mon", "tue"], { frequencies: [{ ...frequencies[0], savePct: 8 }, frequencies[1]] });
+    expect(screen.getAllByLabelText("Save 8%")).toHaveLength(1);
+    expect(screen.getByText("Save 8%")).toBeTruthy();
+  });
+
   it("selects a frequency card", () => {
     const p = setup(["mon", "tue"]);
     fireEvent.click(screen.getByRole("radio", { name: /Weekdays/ }));

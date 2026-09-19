@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, scheduleError, selectableFrequencies, tiffinBounds, type WizardSelections } from "../selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
+import { savePct } from "@/lib/pricing/discounts";
 import { defaultEatingDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 
 const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
@@ -92,6 +93,7 @@ export function StepSchedule({
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
             const active = f.key === selections.frequencyKey;
+            const save = savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct);
             return (
               <button
                 key={f.key}
@@ -108,7 +110,7 @@ export function StepSchedule({
                 <span>
                   <span className="block text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
-                  {f.courierDiscountPct > 0 && <span aria-label={`Save ${f.courierDiscountPct}%`} className="mt-2 inline-block rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">{f.courierDiscountPct}% off</span>}
+                  {save > 0 && <span aria-label={`Save ${save}%`} className="mt-2 inline-block rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
                 </span>
                 <span className="flex flex-wrap gap-1.5">
                   {(f.weekdays as DayOfWeek[]).map((d) => (

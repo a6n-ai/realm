@@ -1,6 +1,7 @@
 import { ValidationError } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
+import { applicableRules } from "@/lib/pricing/discounts";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 
 export const MIN_PERSONS = 1;
@@ -42,10 +43,25 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     return { key: addon.key, name: addon.name, pricePerWeek: addon.pricePerWeek, qty };
   });
 
+  const duration = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
+  if (!duration) throw new ValidationError("Invalid duration");
+  const applicable = applicableRules(
+    (snapshot.discounts ?? []).map((d) => ({ key: d.key, kind: d.kind, percent: d.percent, targetKey: d.targetPublicId, minWeeks: d.minWeeks })),
+    { targets: { delivery: frequency.publicId, duration: duration.publicId }, weeks: selections.durationWeeks },
+  );
+  const byKey = new Map((snapshot.discounts ?? []).map((d) => [d.key, d]));
+  const discounts = applicable.map((d) => ({
+    key: d.key,
+    label: `${byKey.get(d.key)!.kind === "delivery" ? "Delivery schedule discount" : "Plan length discount"} (${d.percent}%)`,
+    percent: d.percent,
+  }));
+
   return {
     mealSize: { id: mealSize.publicId, basePrice: effectivePrice(mealSize.basePrice, mealSize) },
-    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek, courierDiscountPct: frequency.courierDiscountPct },
+    frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
     tiers: snapshot.tiers,
     addons,
+    discounts,
+    maxDiscountPct: snapshot.maxDiscountPct ?? 25,
   };
 }

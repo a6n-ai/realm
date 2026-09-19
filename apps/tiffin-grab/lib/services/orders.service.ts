@@ -12,6 +12,7 @@ import {
   coupons,
   deliveries,
   deliveryFrequencies,
+  durationPackages,
   member,
   mealSizes,
   orderActivities,
@@ -26,10 +27,11 @@ import {
 } from "@/db/schema";
 import { SessionBaseService, SessionUpdatableService, recordAudit } from "./session-service";
 import type { SortState } from "@/lib/list/sort";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { loadCatalogSnapshot, loadDiscountsForOrderTargets, scopedTo } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { cancelDeliveries, deleteFromOptimoRouteBestEffort, materializeDeliveries, pauseRange, resumeOrder as resumeOrderDeliveries } from "./deliveries.service";
 import { ledgerService } from "./ledger.service";
@@ -382,6 +384,9 @@ export async function createOrder(
     // in-tx below once the order id exists — or deferred into the pricing
     // snapshot when settlement awaits staff verification. The client never sets
     // the amount.
+    // Coupons and coins apply AFTER catalog discounts (which the engine adds itself), so
+    // every base below is the post-catalog subtotal; `adjustments` holds coupon/coin lines only.
+    const postCatalog = postCatalogSubtotal(basePricing.subtotal, basePricing.adjustments);
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
 
@@ -389,7 +394,7 @@ export async function createOrder(
       // Hard gate: a discount amount with no acting staff member is rejected.
       if (createdBy == null) throw new ValidationError("A rep discount requires an acting staff member");
       const line = await couponsService.validateRepCoupon(input.repCoupon.code, {
-        subtotal: basePricing.subtotal,
+        subtotal: postCatalog,
         requestedAmount: input.repCoupon.requestedAmount,
         actorId: createdBy,
         planType: plan.planType,
@@ -407,7 +412,7 @@ export async function createOrder(
     // Rep-aware: when a rep coupon is also applied, an exclusive coupon could never
     // legally ride alongside it, so we ask for the best STACKABLE-only combo.
     const best = await couponsService.resolveBestCoupons({
-      subtotal: basePricing.subtotal,
+      subtotal: postCatalog,
       planType: plan.planType,
       userId,
       paymentMethodId,
@@ -432,7 +437,7 @@ export async function createOrder(
     const customerSet = best.redemptions;
     for (const r of customerSet) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
-      const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+      const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
       const amount = Math.min(r.amount, remaining);
       if (amount <= 0) continue;
       adjustments.push({ label: `${r.coupon.name} (${r.coupon.code})`, amount });
@@ -448,7 +453,7 @@ export async function createOrder(
     let coinRedemption: { coinsSpent: number; currencyValue: number } | null = null;
     if (input.coins && input.coins > 0 && userId != null) {
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
-      const remaining = Math.max(0, Math.round((basePricing.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+      const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
       if (remaining > 0) {
         const rate = await walletService.activeRate(currency);
         // Admin limit on the share of the PRE-TAX subtotal coins may cover
@@ -458,7 +463,7 @@ export async function createOrder(
         const maxPct = await getMaxCoinPctOfSubtotal();
         const pctCap = maxPct == null
           ? Infinity
-          : Math.round((basePricing.subtotal * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+          : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
         coinRedemption = await lockAndQuoteCoinRedemption(tx, {
           userId, coins: input.coins, rate, cap: Math.min(remaining, pctCap),
         });
@@ -1440,9 +1445,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     if (!freqRow) throw new NotFoundError("Delivery frequency not found for this order");
     // The catalog only loads active frequencies; an order created on a since-retired one
     // must still reprice against its own row.
-    const pricingSnapshot = snapshot.frequencies.some((f) => f.key === freqRow.key)
-      ? snapshot
-      : { ...snapshot, frequencies: [...snapshot.frequencies, freqRow] };
+    const [durRow] = await db
+      .select()
+      .from(durationPackages)
+      .where(and(eq(durationPackages.weeks, order.durationWeeks), scopedTo(durationPackages.organizationId, order.organizationId)))
+      .orderBy(desc(durationPackages.active))
+      .limit(1);
+    if (!durRow) throw new ValidationError("Invalid duration");
+    const ownDiscounts = await loadDiscountsForOrderTargets(order.organizationId, { frequency: freqRow, duration: durRow });
+    const pricingSnapshot = {
+      ...snapshot,
+      frequencies: snapshot.frequencies.some((f) => f.key === freqRow.key) ? snapshot.frequencies : [...snapshot.frequencies, freqRow],
+      durations: snapshot.durations.some((d) => d.weeks === durRow.weeks) ? snapshot.durations : [...snapshot.durations, durRow],
+      discounts: [...(snapshot.discounts ?? []), ...(ownDiscounts ?? []).filter((d) => !snapshot.discounts?.some((x) => x.key === d.key))],
+    };
 
     const priorMethodId = (order.pricingSnapshot as OrderPricingSnapshot | null)?.paymentMethodId ?? "simulated";
     let methodTaxes: { name: string; ratePct: number }[] = [];

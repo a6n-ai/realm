@@ -24,6 +24,16 @@ export interface MealSizeView {
   trial: boolean;
 }
 
+// Active, in-window rows of the central `discounts` table. targetPublicId null = all rows of that kind.
+export interface CatalogDiscount {
+  key: string;
+  name: string;
+  kind: "delivery" | "duration";
+  targetPublicId: string | null;
+  percent: number;
+  minWeeks: number | null;
+}
+
 // Server-side snapshot: carries BOTH the internal bigint id (for FK resolution
 // in createOrder) and the public_id. The bigint id never leaves the server.
 export interface CatalogSnapshot {
@@ -46,6 +56,8 @@ export interface CatalogSnapshot {
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
+  discounts?: CatalogDiscount[];
+  maxDiscountPct?: number;
 }
 
 // Client-facing snapshot: no internal bigint id crosses the wire. Client
@@ -60,10 +72,13 @@ export interface ClientCatalogSnapshot {
   frequencies: { publicId: string; key: string; name: string; daysPerWeek: number; courierDiscountPct: number; weekdays: string[] | null }[];
   durations: { publicId: string; weeks: number; discountPct: number }[];
   zones: { publicId: string; name: string; postalPrefixes: string[]; slotWindow: string; active: boolean }[];
+  tiers?: PricingTier[];
   categoryLabels?: Record<string, string>;
   addonsByCategory?: Record<string, { key: string; name: string; pricePerWeek: number; maxQty: number }[]>;
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
+  discounts?: CatalogDiscount[];
+  maxDiscountPct?: number;
 }
 
 export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapshot {
@@ -81,9 +96,12 @@ export function toClientCatalog(snapshot: CatalogSnapshot): ClientCatalogSnapsho
     frequencies: snapshot.frequencies.map(dropId),
     durations: snapshot.durations.map(dropId),
     zones: snapshot.zones.map(dropId),
+    tiers: snapshot.tiers,
     categoryLabels: snapshot.categoryLabels,
     addonsByCategory: snapshot.addonsByCategory,
     minTiffinsPerWeek: snapshot.minTiffinsPerWeek,
     maxTiffinsPerWeek: snapshot.maxTiffinsPerWeek,
+    discounts: snapshot.discounts,
+    maxDiscountPct: snapshot.maxDiscountPct,
   };
 }

@@ -4,12 +4,14 @@ import { UtensilsCrossedIcon } from "lucide-react";
 import { asc, desc, eq, getTableColumns, inArray, sql, type Column as DrizzleColumn } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { addonCategories, addons, deliveryFrequencies, deliveryZones, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { dishesService } from "@/lib/services/dishes.service";
 import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
+import { zonedDateIso } from "@foundry/commons";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { parseSort } from "@/lib/list/sort";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { RESOURCES, WEEKDAY_OPTIONS, WEEKDAY_LABELS, type FieldType, type ResourceDef } from "../resource-config";
@@ -22,6 +24,7 @@ const TABLES: Record<string, PgTable> = {
   "meal-sizes": mealSizes,
   "delivery-frequencies": deliveryFrequencies,
   "duration-packages": durationPackages,
+  discounts,
   "delivery-zones": deliveryZones,
   "pricing-tiers": pricingTiers,
   "addon-categories": addonCategories,
@@ -74,6 +77,8 @@ function facetsFor(def: ResourceDef, dynamicOptions: Record<string, { value: str
 
   for (const f of def.fields) {
     if (f.type !== "select" && f.type !== "multiselect") continue;
+    // targetId holds a bigint soft ref, not the publicId the options carry.
+    if (f.optionsSource === "discount-targets") continue;
     const options = dynamicOptions[f.key] ?? f.options?.map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
     if (options?.length) spec.push({ kind: "multi", field: f.key, label: f.label, options });
   }
@@ -117,7 +122,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   // meal-sizes also needs every plan (active or not) to resolve a row's planId
   // FK to a publicId below — fetch the superset once and derive the
   // active-only dropdown options from it, rather than two separate queries.
-  const [categoryRows, allPlanRows, addonCatRows] = await Promise.all([
+  const needsTargets = def.fields.some((f) => f.optionsSource === "discount-targets");
+  const [categoryRows, allPlanRows, addonCatRows, targetRows] = await Promise.all([
     needsCategories ? dishCategoriesService.enabledCategories() : Promise.resolve([]),
     // Dropdown value is the plan publicId — the same identifier the meal-size
     // service resolves back to plans.id on write.
@@ -130,6 +136,12 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     needsAddonCategories
       ? db.select({ publicId: addonCategories.publicId, key: addonCategories.key, name: addonCategories.name }).from(addonCategories).where(eq(addonCategories.active, true))
       : Promise.resolve([]),
+    needsTargets
+      ? Promise.all([
+          db.select({ id: deliveryFrequencies.id, publicId: deliveryFrequencies.publicId, name: deliveryFrequencies.name }).from(deliveryFrequencies),
+          db.select({ id: durationPackages.id, publicId: durationPackages.publicId, weeks: durationPackages.weeks }).from(durationPackages).orderBy(asc(durationPackages.weeks)),
+        ])
+      : Promise.resolve(null),
   ]);
   const planRows = allPlanRows.filter((p) => p.active);
   const dynamicOptions: Record<string, { value: string; label: string }[]> = {};
@@ -142,6 +154,12 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       dynamicOptions[f.key] = planRows.map((p) => ({ value: p.publicId, label: p.name }));
     } else if (f.optionsSource === "addon-categories") {
       dynamicOptions[f.key] = addonCatRows.map((a) => ({ value: resource === "addons" ? a.key : a.publicId, label: a.name }));
+    } else if (f.optionsSource === "discount-targets" && targetRows) {
+      dynamicOptions[f.key] = [
+        { value: "all", label: "All" },
+        ...targetRows[0].map((t) => ({ value: t.publicId, label: t.name, group: "delivery" })),
+        ...targetRows[1].map((t) => ({ value: t.publicId, label: `${t.weeks} weeks`, group: "duration" })),
+      ] as { value: string; label: string }[];
     }
   }
 
@@ -221,6 +239,17 @@ export async function CatalogData({ resource, searchParams }: { resource: string
     for (const f of def.fields) dto[f.key] = r[f.key];
     return dto;
   });
+
+  if (resource === "discounts" && targetRows) {
+    const { timezone } = await getAppSettings();
+    const publicById = new Map<bigint, string>([...targetRows[0], ...targetRows[1]].map((t) => [t.id, t.publicId]));
+    rows.forEach((dto, i) => {
+      const r = raw[i];
+      dto.targetId = r.targetId == null ? "all" : (publicById.get(r.targetId as bigint) ?? "");
+      dto.startsAt = r.startsAt == null ? "" : zonedDateIso(Number(r.startsAt), timezone);
+      dto.endsAt = r.endsAt == null ? "" : zonedDateIso(Number(r.endsAt), timezone);
+    });
+  }
 
   // Meal sizes carry two things the generic flatten can't: the plan reference is
   // stored as a bigint FK but the editor works in plan publicId space, and the

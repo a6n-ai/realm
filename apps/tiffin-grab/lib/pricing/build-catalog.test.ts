@@ -27,6 +27,24 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   ...over,
 });
 
+describe("buildPricingCatalog discounts", () => {
+  const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, ...over });
+  const build = (discounts: CatalogSnapshot["discounts"], over: Partial<PricingSelections> = {}) => buildPricingCatalog({ ...snapshot, discounts, maxDiscountPct: 25 }, sel(over));
+  it("resolves delivery + duration by target and labels them", () => {
+    const c = build([d("a", "delivery", { targetPublicId: "frq_1" }), d("b", "duration", { targetPublicId: "dur_1", percent: 5 }), d("c", "delivery", { targetPublicId: "frq_other" })]);
+    expect(c.discounts).toEqual([{ key: "a", label: "Delivery schedule discount (10%)", percent: 10 }, { key: "b", label: "Plan length discount (5%)", percent: 5 }]);
+    expect(c.maxDiscountPct).toBe(25);
+  });
+  it("re-price snapshot with the order's own retired rows keeps its targeted discounts", () => {
+    const retired = { ...snapshot, frequencies: [...snapshot.frequencies, { id: BigInt(7), publicId: "frq_old", key: "old", name: "Old", daysPerWeek: 3, courierDiscountPct: 0, weekdays: null }], durations: [...snapshot.durations, { id: BigInt(8), publicId: "dur_old", weeks: 6, discountPct: 0 }], discounts: [d("x", "delivery", { targetPublicId: "frq_old" }), d("y", "duration", { targetPublicId: "dur_old" })], maxDiscountPct: 25 };
+    expect(buildPricingCatalog(retired, sel({ frequencyKey: "old", durationWeeks: 6 })).discounts?.map((x) => x.key)).toEqual(["x", "y"]);
+  });
+  it("respects minWeeks and null target", () => {
+    expect(build([d("long", "duration", { minWeeks: 4 })]).discounts).toEqual([]);
+    expect(build([d("all", "duration")]).discounts).toHaveLength(1);
+  });
+});
+
 describe("buildPricingCatalog persons validation", () => {
   it("accepts 1–5", () => {
     expect(() => buildPricingCatalog(snapshot, sel({ persons: 5 }))).not.toThrow();
@@ -41,6 +59,9 @@ describe("buildPricingCatalog persons validation", () => {
   });
   it("rejects empty categories", () => {
     expect(() => buildPricingCatalog(snapshot, sel({ mealSlots: [] }))).toThrow("At least one category is required");
+  });
+  it("throws ValidationError, not TypeError, for a retired duration", () => {
+    expect(() => buildPricingCatalog(snapshot, sel({ durationWeeks: 9 }))).toThrow(ValidationError);
   });
   it("still validates meal size / frequency / duration", () => {
     expect(() => buildPricingCatalog(snapshot, sel({ mealSizeId: "nope" }))).toThrow(ValidationError);

@@ -1,3 +1,4 @@
+import { savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { eq, sql } from "drizzle-orm";
 import { PackageIcon, PlusIcon, ActivityIcon, ClockIcon, WalletIcon } from "lucide-react";
@@ -171,7 +172,7 @@ async function NewOrderAction() {
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
     mealSizes: catalog.mealSizes.map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey })),
-    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, courierDiscountPct: f.courierDiscountPct })),
+    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     maxTiffinsPerWeek: catalog.maxTiffinsPerWeek,
     durations: catalog.durations.map((d) => ({ weeks: d.weeks })),

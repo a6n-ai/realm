@@ -27,4 +27,9 @@ describe("toClientCatalog", () => {
     expect("diet" in m).toBe(false);
     expect("planType" in m).toBe(false);
   });
+
+  it("carries pricing tiers so the client can price alternatives (Best deal)", () => {
+    const tiers = [{ minQty: 1, maxQty: 11, upliftPct: 20 }];
+    expect(toClientCatalog({ ...snapshot, tiers }).tiers).toEqual(tiers);
+  });
 });

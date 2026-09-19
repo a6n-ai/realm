@@ -49,7 +49,11 @@ describe("plans schema", () => {
   });
 });
 
-describe("delivery-frequencies schema surfaces courierDiscountPct", () => {
+describe("delivery-frequencies discount field moved to Discounts", () => {
+  it("has no discount form field but still parses the legacy column", () => {
+    expect(RESOURCES["delivery-frequencies"].fields.some((f) => f.key === "courierDiscountPct")).toBe(false);
+    expect(RESOURCES["delivery-frequencies"].note).toMatch(/Discounts/);
+  });
   it("coerces numbers and accepts courierDiscountPct", () => {
     const out = RESOURCES["delivery-frequencies"].schema.parse({ key: "weekly", name: "Weekly", daysPerWeek: "5", courierDiscountPct: "10" });
     expect(out.daysPerWeek).toBe(5);
@@ -57,7 +61,10 @@ describe("delivery-frequencies schema surfaces courierDiscountPct", () => {
   });
 });
 
-describe("duration-packages schema surfaces discountPct", () => {
+describe("duration-packages discount field moved to Discounts", () => {
+  it("has no discount form field", () => {
+    expect(RESOURCES["duration-packages"].fields.some((f) => f.key === "discountPct")).toBe(false);
+  });
   it("accepts weeks + discountPct, no key", () => {
     expect(RESOURCES["duration-packages"].keyed).toBe(false);
     const out = RESOURCES["duration-packages"].schema.parse({ weeks: "4", discountPct: "5" });

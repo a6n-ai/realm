@@ -18,6 +18,8 @@ export const app = pgTable("app", {
   // independent of the delivery frequency.
   minTiffinsPerWeek: integer("min_tiffins_per_week").notNull().default(3),
   maxTiffinsPerWeek: integer("max_tiffins_per_week").notNull().default(7),
+  // Cap on the SUM of catalog discount percents (delivery + duration) applied to the tiffin subtotal.
+  maxDiscountPct: integer("max_discount_pct").notNull().default(25),
   currency: text("currency").notNull().default("INR"),
   // ISO 3166-1 alpha-2 country the phone-number inputs default to. NULL = derive
   // from timezone (tzToDefaultCountry) so existing rows keep their current behavior.

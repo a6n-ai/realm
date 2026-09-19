@@ -7,7 +7,7 @@ export interface FieldDef {
   label: string;
   type: FieldType;
   options?: string[];
-  optionsSource?: "weekdays" | "categories" | "plans" | "addon-categories";
+  optionsSource?: "weekdays" | "categories" | "plans" | "addon-categories" | "discount-targets";
   optionLabels?: Record<string, string>;
   unit?: string;
   help?: string;
@@ -27,6 +27,8 @@ export interface ResourceDef {
   // Boolean column that carries the retire/restore status. Defaults to "active";
   // dish_categories uses "enabled" instead (no `active` column).
   statusField?: string;
+  // One-line pointer shown at the top of the edit dialog.
+  note?: string;
 }
 
 export const WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -113,6 +115,7 @@ const mealSizesSchema = z.object({
 const deliveryFrequenciesSchema = z.object({
   key, name,
   daysPerWeek: reqNum(z.coerce.number().int().min(1).max(7).optional()),
+  // Legacy column; discounts now live in the central `discounts` table.
   courierDiscountPct: reqNum(z.coerce.number().int().min(0).max(100).default(0)),
   // Null for the two legacy hardcoded shapes (5_day/mwf) — orderDeliveryDays()
   // keeps its own fallback for those. Every other row needs this set so the
@@ -129,6 +132,23 @@ const durationPackagesSchema = z.object({
   maxPauses: optNum(z.coerce.number().int().nonnegative()),
   maxPauseDaysTotal: optNum(z.coerce.number().int().nonnegative()),
   maxPauseStretchDays: optNum(z.coerce.number().int().nonnegative()),
+  active,
+});
+
+const blankToNull = (v: unknown) => (v === "" || v === "all" || v == null ? null : v);
+const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date");
+
+// Blank key is derived from name by the service. targetId is a delivery_frequencies /
+// duration_packages publicId (resolved + checked against kind server-side); blank/"all" = every row.
+const discountsSchema = z.object({
+  key: z.preprocess((v) => (v === "" || v == null ? undefined : v), key.optional()),
+  name,
+  kind: z.enum(["delivery", "duration"]),
+  targetId: z.preprocess(blankToNull, z.string().trim().nullable().optional()),
+  percent: reqNum(z.coerce.number().min(0, "Min 0%").max(100, "Max 100%").transform((n) => n.toFixed(2))),
+  minWeeks: optNum(z.coerce.number().int().positive()),
+  startsAt: z.preprocess(blankToNull, isoDate.nullable().optional()),
+  endsAt: z.preprocess(blankToNull, isoDate.nullable().optional()),
   active,
 });
 
@@ -268,17 +288,30 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "key", label: "Key", type: "text", readOnlyOnEdit: true },
       { key: "name", label: "Name", type: "text" },
       { key: "weekdays", label: "Delivery days", type: "multiselect", optionsSource: "weekdays", optionLabels: WEEKDAY_LABELS },
-      { key: "courierDiscountPct", label: "Discount", type: "number", unit: "%", optional: true, help: "Shown on the delivery card and taken off the tiffin subtotal for new orders" },
     ],
+    note: "Discounts are managed in Discounts",
   },
   "duration-packages": {
     key: "duration-packages", label: "Duration packages", singular: "duration package", keyed: false, schema: durationPackagesSchema,
     fields: [
       { key: "weeks", label: "Weeks", type: "number" },
-      { key: "discountPct", label: "Discount", type: "number", unit: "%" },
       { key: "maxPauses", label: "Max pauses (blank = app default)", type: "number", optional: true, tableHidden: true },
       { key: "maxPauseDaysTotal", label: "Max pause days total (blank = app default)", type: "number", optional: true, tableHidden: true },
       { key: "maxPauseStretchDays", label: "Max pause stretch days (blank = app default)", type: "number", optional: true, tableHidden: true },
+    ],
+    note: "Discounts are managed in Discounts",
+  },
+  discounts: {
+    key: "discounts", label: "Discounts", singular: "discount", keyed: true, schema: discountsSchema,
+    fields: [
+      { key: "key", label: "Key", type: "text", readOnlyOnEdit: true, optional: true, tableHidden: true },
+      { key: "name", label: "Name", type: "text" },
+      { key: "kind", label: "Applies to", type: "select", options: ["delivery", "duration"], optionLabels: { delivery: "Delivery frequency", duration: "Duration package" } },
+      { key: "targetId", label: "Target", type: "select", optionsSource: "discount-targets" },
+      { key: "percent", label: "Percent", type: "number", unit: "%" },
+      { key: "minWeeks", label: "Min weeks", type: "number", optional: true, help: "Only applies to orders of at least this many weeks" },
+      { key: "startsAt", label: "Starts", type: "date", optional: true },
+      { key: "endsAt", label: "Ends", type: "date", optional: true },
     ],
   },
   "delivery-zones": {

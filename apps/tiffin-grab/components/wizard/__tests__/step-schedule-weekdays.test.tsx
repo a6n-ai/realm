@@ -7,7 +7,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 afterEach(cleanup);
 
-const freq = (key: string, weekdays: string[] | null) => ({ publicId: `frq_${key}`, key, name: key, daysPerWeek: weekdays?.length ?? 0, weekdays, courierDiscountPct: 0 });
+const freq = (key: string, weekdays: string[] | null) => ({ publicId: `frq_${key}`, key, name: key, daysPerWeek: weekdays?.length ?? 0, weekdays });
 
 const catalog = {
   plans: [],
@@ -30,9 +30,10 @@ describe("StepSchedule", () => {
   });
 
   it("shows a savings pill only for discounted frequencies", () => {
-    const c = { ...catalog, frequencies: [{ ...freq("mwf", ["mon", "wed", "fri"]), courierDiscountPct: 10 }, freq("5_day", ["mon", "tue", "wed", "thu", "fri"])] } as unknown as ClientCatalogSnapshot;
+    const c = { ...catalog, discounts: [{ key: "d1", name: "d1", kind: "delivery", targetPublicId: "frq_mwf", percent: 6, minWeeks: null }, { key: "d2", name: "d2", kind: "delivery", targetPublicId: null, percent: 4, minWeeks: null }], frequencies: [freq("mwf", ["mon", "wed", "fri"]), freq("5_day", ["mon", "tue", "wed", "thu", "fri"])] } as unknown as ClientCatalogSnapshot;
     render(<StepSchedule catalog={c} selections={sel(["mon", "tue"])} set={vi.fn()} />);
     expect(screen.getAllByLabelText("Save 10%")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Save 4%")).toHaveLength(1);
   });
 
   it("offers only frequencies with delivery days", () => {

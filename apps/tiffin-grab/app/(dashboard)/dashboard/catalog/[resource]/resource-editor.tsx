@@ -25,7 +25,7 @@ import {
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 
 type Row = Record<string, unknown> & { publicId: string };
-type Options = Record<string, { value: string; label: string }[]>;
+type Options = Record<string, { value: string; label: string; group?: string }[]>;
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
@@ -215,8 +215,11 @@ function FieldControl({
   categoriesByPlan?: Record<string, { value: string; label: string }[]>;
 }) {
   if (f.type === "composition") return <CompositionField f={f} form={form} options={options} categoriesByPlan={categoriesByPlan} />;
+  // Discount targets are per-kind: show only the selected kind's rows (+ "All").
+  // eslint-disable-next-line react-hooks/purity -- reads live form state
+  const kindNow = f.optionsSource === "discount-targets" ? form.watch("kind") : undefined;
   const opts = f.optionsSource
-    ? (options[f.key] ?? [])
+    ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
     : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
   const keyFrozen = f.readOnlyOnEdit && !isNew;
   // discountValue's unit depends on the sibling discountType field's live value ("%" vs "$") —
@@ -502,6 +505,7 @@ function EditorDialog({
       <Form {...form}>
         <form id="resource-editor-form" onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2">
+            {def.note ? <p className="text-muted-foreground text-sm sm:col-span-2">{def.note}</p> : null}
             {def.fields.map((f) => (
               <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
                 <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} />

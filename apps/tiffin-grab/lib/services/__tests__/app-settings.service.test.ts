@@ -96,7 +96,7 @@ describe("app-settings service (integration)", () => {
   it("returns defaults when no row exists", async () => {
     await clearAppSingleton();
     const s = await getAppSettings();
-    expect(s).toEqual({ timezone: "America/Toronto", cutoffHour: 18, currency: "INR", defaultCountry: "CA", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7 });
+    expect(s).toEqual({ timezone: "America/Toronto", cutoffHour: 18, currency: "INR", defaultCountry: "CA", minTiffinsPerWeek: 3, maxTiffinsPerWeek: 7, maxDiscountPct: 25 });
   });
 
   it("resolves defaultCountry: explicit setting wins, else timezone fallback", async () => {

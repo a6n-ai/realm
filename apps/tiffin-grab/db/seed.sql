@@ -318,6 +318,18 @@ VALUES ('dur_w1', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FRO
        ('dur_w12', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, 12, 15)
 ON CONFLICT (weeks) DO NOTHING;
 
+-- ============ CENTRAL DISCOUNTS ============
+INSERT INTO discounts (public_id, created_at, updated_at, key, name, kind, target_id, percent)
+SELECT 'dsc_' || replace(gen_random_uuid()::text, '-', ''), (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       'delivery_' || f.key, 'Delivery schedule discount - ' || f.name, 'delivery', f.id, f.courier_discount_pct
+FROM delivery_frequencies f WHERE f.courier_discount_pct > 0
+ON CONFLICT (key) DO NOTHING;
+INSERT INTO discounts (public_id, created_at, updated_at, key, name, kind, target_id, percent)
+SELECT 'dsc_' || replace(gen_random_uuid()::text, '-', ''), (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+       'duration_' || d.weeks || 'w', 'Plan length discount - ' || d.weeks || ' weeks', 'duration', d.id, d.discount_pct
+FROM duration_packages d WHERE d.discount_pct > 0
+ON CONFLICT (key) DO NOTHING;
+
 -- ============ DELIVERY ZONES ============
 INSERT INTO delivery_zones (public_id, created_at, updated_at, name, postal_prefixes, slot_window)
 VALUES ('zon_etobicoke', (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT, (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,

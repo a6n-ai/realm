@@ -1,8 +1,8 @@
-import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, eq, isNull, lte, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
-import { deliveryFrequencies, deliveryZones, dishCategories, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { deliveryFrequencies, deliveryZones, discounts, dishCategories, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/services/app-settings.service";
@@ -26,12 +26,13 @@ export async function loadCatalogSnapshot(orgId?: string | null): Promise<Catalo
   return catalogCache.getOrSet(`snapshot:${orgId ?? "global"}`, () => fetchCatalogSnapshot(orgId));
 }
 
-function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | undefined {
+export function scopedTo(column: AnyPgColumn, orgId: string | null | undefined): SQL | undefined {
   return orgId ? or(isNull(column), eq(column, orgId)) : undefined;
 }
 
 async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnapshot> {
-  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory, settings] = await Promise.all([
+  const nowMs = Date.now();
+  const [planRows, mealRows, itemRows, freqRows, durRows, zoneRows, tierRows, tiffinSlots, healthySlots, categoryRows, addonsByCategory, settings, discountRows] = await Promise.all([
     db.select().from(plans).where(and(eq(plans.active, true), scopedTo(plans.organizationId, orgId))),
     db.select().from(mealSizes).where(and(eq(mealSizes.active, true), scopedTo(mealSizes.organizationId, orgId))),
     db.select().from(mealSizeItems).orderBy(mealSizeItems.sortOrder),
@@ -44,6 +45,11 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     db.select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories),
     dishCategoriesService.addonsByDishCategory(),
     getAppSettings(),
+    db.select().from(discounts).where(and(eq(discounts.active, true), scopedTo(discounts.organizationId, orgId), or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)))),
+  ]);
+  const publicIdByTarget = new Map<string, string>([
+    ...freqRows.map((f) => [`delivery:${f.id}`, f.publicId] as [string, string]),
+    ...durRows.map((d) => [`duration:${d.id}`, d.publicId] as [string, string]),
   ]);
   const slotKeys = { tiffin: tiffinSlots.map((s) => s.key), healthy: healthySlots.map((s) => s.key) };
   const tuByCategory = new Map(categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]));
@@ -84,5 +90,32 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     addonsByCategory: Object.fromEntries(addonsByCategory),
     minTiffinsPerWeek: settings.minTiffinsPerWeek,
     maxTiffinsPerWeek: settings.maxTiffinsPerWeek,
+    // A row whose target is inactive/missing is dropped rather than widened to "all".
+    discounts: discountRows.flatMap((d) => {
+      const targetPublicId = d.targetId == null ? null : publicIdByTarget.get(`${d.kind}:${d.targetId}`) ?? undefined;
+      return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
+    }),
+    maxDiscountPct: settings.maxDiscountPct,
   };
+}
+
+// Re-price path only (changeMealSize): the order's own frequency/duration may be retired, so the
+// snapshot's active-only target map would silently drop discounts aimed at them. Not used by checkout.
+export async function loadDiscountsForOrderTargets(
+  orgId: string | null | undefined,
+  targets: { frequency: { id: bigint; publicId: string }; duration: { id: bigint; publicId: string } },
+): Promise<CatalogSnapshot["discounts"]> {
+  const nowMs = Date.now();
+  const rows = await db.select().from(discounts).where(and(
+    eq(discounts.active, true), scopedTo(discounts.organizationId, orgId),
+    or(isNull(discounts.startsAt), lte(discounts.startsAt, nowMs)), or(isNull(discounts.endsAt), gte(discounts.endsAt, nowMs)),
+  ));
+  return (rows.flatMap((d) => {
+    let targetPublicId: string | null;
+    if (d.targetId == null) targetPublicId = null;
+    else if (d.kind === "delivery" && d.targetId === targets.frequency.id) targetPublicId = targets.frequency.publicId;
+    else if (d.kind === "duration" && d.targetId === targets.duration.id) targetPublicId = targets.duration.publicId;
+    else return [];
+    return [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
+  })) as NonNullable<CatalogSnapshot["discounts"]>;
 }

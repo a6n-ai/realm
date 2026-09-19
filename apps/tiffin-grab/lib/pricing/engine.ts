@@ -1,4 +1,5 @@
 import type { TaxLine } from "@foundry/payments";
+import { resolveCatalogDiscounts } from "./discounts";
 import { assertValidTiers, findTier } from "./tiers";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
 
@@ -42,14 +43,11 @@ export function priceSubscription(
 
   const subtotal = round2(tiffinSubtotal + addonSubtotal);
 
-  // A cadence's courierDiscountPct (delivery_frequencies) rewards a schedule
-  // that matches the courier's actual route — it's a property of the chosen
-  // frequency, not a caller-supplied adjustment like a coupon, so it's
-  // computed here rather than expected from every priceSubscription caller.
-  const cadenceDiscount: PricingLine[] =
-    catalog.frequency.courierDiscountPct > 0
-      ? [{ label: `Delivery schedule discount (${catalog.frequency.courierDiscountPct}%)`, amount: round2(tiffinSubtotal * (catalog.frequency.courierDiscountPct / 100)) }]
-      : [];
+  const labels = new Map((catalog.discounts ?? []).map((d) => [d.key, d.label]));
+  const cadenceDiscount: PricingLine[] = resolveCatalogDiscounts(
+    (catalog.discounts ?? []).map((d) => ({ key: d.key, percent: d.percent })),
+    { tiffinSubtotal, maxDiscountPct: catalog.maxDiscountPct ?? 25 },
+  ).lines.map((l) => ({ label: labels.get(l.key)!, amount: l.amount, discountKey: l.key }));
   const allAdjustments = [...adjustments, ...cadenceDiscount];
 
   // Coupon hook: resolved discount lines (positive magnitudes) are subtracted; base floored at 0.

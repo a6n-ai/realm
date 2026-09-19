@@ -87,7 +87,7 @@ describe("tax lines", () => {
 describe("tax applies after discounts, not before", () => {
   const catalog = {
     mealSize: { id: "msz_1", basePrice: 100 },
-    frequency: { key: "custom_mon", daysPerWeek: 1, courierDiscountPct: 0 },
+    frequency: { key: "custom_mon", daysPerWeek: 1 },
     tiers: [{ minQty: 1, maxQty: null, upliftPct: 0 }],
     addons: [],
   } as never;

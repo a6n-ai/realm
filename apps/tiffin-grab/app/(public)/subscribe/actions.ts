@@ -8,6 +8,7 @@ import { matchZone } from "@/lib/catalog/postal";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
+import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { couponsService } from "@/lib/services/coupons.service";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getPaymentConfig } from "@/lib/services/app-settings.service";
@@ -89,6 +90,7 @@ export async function reprice(
   const snapshot = await loadCatalogSnapshot(await resolveRequestOrg());
   const catalog = buildPricingCatalog(snapshot, selections);
   const base = priceSubscription(selections, catalog);
+  const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
 
   const paymentCfg = await getPaymentConfig();
   const paymentMethods = enabledMethods(paymentCfg).map((m) => ({
@@ -125,7 +127,7 @@ export async function reprice(
   }
 
   const best = await couponsService.resolveBestCoupons({
-    subtotal: base.subtotal,
+    subtotal: postCatalog,
     planType,
     userId,
     paymentMethodId: methodId,
@@ -143,12 +145,12 @@ export async function reprice(
   if (userId != null) {
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
-    const remaining = Math.max(0, Math.round((base.subtotal - priorDiscount + Number.EPSILON) * 100) / 100);
+    const remaining = Math.max(0, Math.round((postCatalog - priorDiscount + Number.EPSILON) * 100) / 100);
     const { currency } = await getAppSettings();
     const [rate, maxPct] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal()]);
     // Same cap createOrder enforces (admin % of the pre-tax subtotal, bounded by
     // what is left after coupons), so the limit shown is the limit applied.
-    const quote = quoteCoinCap({ subtotal: base.subtotal, remaining, balance: coinBalance, rate, maxPct });
+    const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: coinBalance, rate, maxPct });
     coinCap = { maxCoins: quote.maxCoins, maxPct, message: coinCapMessage(quote, { balance: coinBalance, maxPct }) };
 
     if (coins && coins > 0) {
@@ -159,7 +161,7 @@ export async function reprice(
         // fewer. More coins than the order needs still clamps, as it always has.
         coinsError = `Coins can cover up to ${maxPct}% of your subtotal — you can use up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
-        const pctCap = maxPct == null ? Infinity : Math.round((base.subtotal * (maxPct / 100) + Number.EPSILON) * 100) / 100;
+        const pctCap = maxPct == null ? Infinity : Math.round((postCatalog * (maxPct / 100) + Number.EPSILON) * 100) / 100;
         const { coinsSpent, currencyValue } = capRedemption(coins, rate, Math.min(remaining, pctCap));
         if (currencyValue > 0) lines.push({ label: `Coins (${coinsSpent})`, amount: currencyValue });
       }

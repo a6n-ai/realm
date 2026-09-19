@@ -36,7 +36,7 @@ const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 1
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
-  frequencies: { key: string; name: string; weekdays?: string[] | null; courierDiscountPct?: number }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
@@ -353,7 +353,7 @@ export function OrderForm({
 
           <fieldset disabled={submitting}>
             <ScheduleSection
-              frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[], courierDiscountPct: f.courierDiscountPct }))}
+              frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[], savePct: f.savePct }))}
               frequencyKey={frequencyKey}
               onFrequencyChange={(key) => {
                 // Only follow the new frequency while eating days are still the previous one's default.

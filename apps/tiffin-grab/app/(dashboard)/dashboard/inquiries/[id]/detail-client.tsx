@@ -20,7 +20,7 @@ import type { OrderFormInput } from "./order-schema";
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
-  frequencies: { key: string; name: string; weekdays?: string[] | null; courierDiscountPct?: number }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];

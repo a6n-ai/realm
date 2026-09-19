@@ -10,7 +10,7 @@ export interface ScheduleFrequency {
   key: string;
   name: string;
   weekdays: DayOfWeek[];
-  courierDiscountPct?: number;
+  savePct?: number;
 }
 
 interface Props {
@@ -46,7 +46,7 @@ export function ScheduleSection({ frequencies, frequencyKey, onFrequencyChange, 
                 onClick={() => onFrequencyChange(f.key)}
                 className={cn("min-h-[44px] rounded-lg border p-3 text-left", press, on ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-input bg-background hover:bg-muted/50")}
               >
-                <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">{f.name}{!!f.courierDiscountPct && <span aria-label={`Save ${f.courierDiscountPct}%`} className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">{f.courierDiscountPct}% off</span>}</span>
+                <span className="flex items-center justify-between gap-2 text-sm font-medium text-foreground">{f.name}{!!f.savePct && <span aria-label={`Save ${f.savePct}%`} className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">Save {f.savePct}%</span>}</span>
                 <span className="mt-1.5 flex flex-wrap gap-1">
                   {f.weekdays.map((d) => (
                     <span key={d} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{label(d)}</span>

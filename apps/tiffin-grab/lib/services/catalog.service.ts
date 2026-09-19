@@ -1,11 +1,12 @@
-import { ValidationError } from "@foundry/commons";
+import { ValidationError, cutoffMsFor } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
 import { eq, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addonCategories, addons, deliveryFrequencies, deliveryZones, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
-import { RESOURCES } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { addonCategories, addons, deliveryFrequencies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, plans, pricingTiers } from "@/db/schema";
+import { RESOURCES, slug } from "@/app/(dashboard)/dashboard/catalog/resource-config";
+import { getAppSettings } from "./app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { SessionUpdatableService } from "./session-service";
 
@@ -116,6 +117,54 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
   }
 }
 
+// Discounts store dates as epoch ms and the target as a bigint soft ref, while the form
+// works in yyyy-mm-dd and target publicIds — this resolves both and checks target vs kind.
+class DiscountService extends SoftDeleteService<typeof discounts> {
+  private schema = RESOURCES.discounts.schema;
+
+  async create(values: Record<string, unknown>) {
+    const parsed = this.schema.parse(values) as Record<string, unknown>;
+    parsed.key = await this.uniqueKey((parsed.key as string | undefined) || slug(String(parsed.name)) || "discount");
+    return super.create(await this.toRow(parsed, parsed.kind as string));
+  }
+
+  async update(id: string, patch: Record<string, unknown>) {
+    const parsed = this.schema.partial().parse(patch) as Record<string, unknown>;
+    delete parsed.key; // immutable after create, like every keyed resource
+    const kind = (parsed.kind as string | undefined) ?? (parsed.targetId !== undefined ? ((await this.read(id)) as { kind: string }).kind : undefined);
+    return super.update(id, await this.toRow(parsed, kind));
+  }
+
+  private async uniqueKey(base: string) {
+    for (let n = 1; ; n++) {
+      const candidate = n === 1 ? base : `${base}-${n}`;
+      const [hit] = await db.select({ id: discounts.id }).from(discounts).where(eq(discounts.key, candidate)).limit(1);
+      if (!hit) return candidate;
+    }
+  }
+
+  private async toRow(parsed: Record<string, unknown>, kind: string | undefined) {
+    const out: Record<string, unknown> = { ...parsed };
+    if (parsed.targetId !== undefined) {
+      if (parsed.targetId === null) out.targetId = null;
+      else {
+        const table = kind === "duration" ? durationPackages : deliveryFrequencies;
+        const [row] = await db.select({ id: table.id }).from(table).where(eq(table.publicId, parsed.targetId as string)).limit(1);
+        if (!row) throw new ValidationError(`Target does not match a ${kind === "duration" ? "duration package" : "delivery frequency"}`);
+        out.targetId = row.id;
+      }
+    }
+    const { timezone } = await getAppSettings();
+    if (parsed.startsAt !== undefined) out.startsAt = parsed.startsAt ? cutoffMsFor(parsed.startsAt as string, 0, timezone) : null;
+    // Inclusive end date: last minute of that local day.
+    if (parsed.endsAt !== undefined) out.endsAt = parsed.endsAt ? cutoffMsFor(parsed.endsAt as string, 23, timezone) + 3_599_999 : null;
+    if (typeof out.startsAt === "number" && typeof out.endsAt === "number" && out.endsAt < out.startsAt) {
+      throw new ValidationError("End date cannot be before start date");
+    }
+    return out;
+  }
+}
+
 export const planService = new CatalogService(new UpdatableRepository(db, plans, plans.publicId, plans.id), RESOURCES.plans.schema);
 export const mealSizeService = new MealSizeService(new UpdatableRepository(db, mealSizes, mealSizes.publicId, mealSizes.id));
 export const addonCategoryService = new CatalogService(new UpdatableRepository(db, addonCategories, addonCategories.publicId, addonCategories.id), RESOURCES["addon-categories"].schema);
@@ -124,3 +173,4 @@ export const deliveryFrequencyService = new CatalogService(new UpdatableReposito
 export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
 export const deliveryZoneService = new CatalogService(new UpdatableRepository(db, deliveryZones, deliveryZones.publicId, deliveryZones.id), RESOURCES["delivery-zones"].schema);
 export const pricingTierService = new CatalogService(new UpdatableRepository(db, pricingTiers, pricingTiers.publicId, pricingTiers.id), RESOURCES["pricing-tiers"].schema);
+export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));
