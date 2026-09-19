@@ -137,8 +137,9 @@ export function StepDuration({
               >
                 <RadioGroupItem id={`d${d.weeks}`} value={String(d.weeks)} className={active ? "border-primary-foreground text-primary-foreground" : ""} />
                 {d.weeks}wk
-                {save > 0 && <span aria-label={`Save ${save}%`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"}`}>Save {save}%</span>}
-                {d.weeks === winnerWeeks && <BestPill selected={active} onPrimary={active} />}
+                {d.weeks === winnerWeeks
+                  ? <BestPill selected={active} onPrimary={active} save={save} />
+                  : save > 0 && <span aria-label={`Save ${save}%`} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? "bg-primary-foreground/20" : "bg-primary/15 text-primary"}`}>Save {save}%</span>}
               </label>
             );
           })}

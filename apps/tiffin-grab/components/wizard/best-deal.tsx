@@ -67,19 +67,19 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
                 transition={{ duration: reduce ? 0.1 : 0.18 }}
                 className="flex min-w-0 flex-1 items-start gap-3"
               >
-                {applied && <CheckCircle2Icon aria-hidden className="mt-px size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
                 <div className="min-w-0 flex-1">
-                  <p className={`text-[13px] font-semibold tracking-[0.02em] ${applied ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>{applied ? copy.appliedTitle : copy.title}</p>
+                  <p className={`flex items-center gap-1.5 text-[13px] font-semibold tracking-[0.02em] ${applied ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
+                    {applied && <CheckCircle2Icon aria-hidden className="size-4 shrink-0" />}
+                    {applied ? copy.appliedTitle : copy.title}
+                  </p>
                   <p className="mt-1 text-[15px] leading-snug text-pretty">{applied ? copy.appliedBody(view.label, view.pct) : copy.body(view.label, view.pct)}</p>
-                  {applied ? (
-                    <button type="button" onClick={revert} className="mt-3 flex h-11 cursor-pointer items-center text-sm font-semibold text-emerald-600 transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100 dark:text-emerald-400">
-                      Undo
-                    </button>
-                  ) : (
-                    <button type="button" onClick={apply} className="bg-primary text-primary-foreground mt-3 h-11 cursor-pointer rounded-full px-5 text-sm font-semibold transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100">
-                      Use this
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={applied ? revert : apply}
+                    className={`mt-3 h-11 cursor-pointer rounded-full px-5 text-sm font-semibold transition-[transform,background-color,color] duration-100 active:scale-[0.97] motion-reduce:active:scale-100 ${applied ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950" : "bg-primary text-primary-foreground"}`}
+                  >
+                    {applied ? "Undo" : "Use this"}
+                  </button>
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -98,11 +98,14 @@ export function BestDeal({ catalog, selections, set, vary }: { vary: Vary; catal
   );
 }
 
-// onPrimary: the pill sits on a filled primary surface, where green-on-orange is unreadable.
-export function BestPill({ selected, onPrimary = false }: { selected: boolean; onPrimary?: boolean }) {
+// One pill per card: the discount when there is one ("Save 10%", green and "· Selected" once chosen),
+// otherwise the plain recommendation marker. onPrimary: the pill sits on a filled primary surface,
+// where green-on-orange is unreadable.
+export function BestPill({ selected, onPrimary = false, save = 0 }: { selected: boolean; onPrimary?: boolean; save?: number }) {
+  const label = save > 0 ? `Save ${save}%${selected ? " · Selected" : ""}` : selected ? "Selected · best deal" : "Recommended";
   return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-300 ${onPrimary ? "bg-primary-foreground/20 text-primary-foreground" : selected ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-primary/15 text-primary"}`}>
-      {selected ? "Selected · best deal" : "Recommended"}
+    <span aria-label={save > 0 ? `Save ${save}%` : undefined} className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-300 ${onPrimary ? "bg-primary-foreground/20 text-primary-foreground" : selected ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-primary/15 text-primary"}`}>
+      {label}
     </span>
   );
 }

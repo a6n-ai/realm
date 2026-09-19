@@ -115,8 +115,9 @@ export function StepSchedule({
                   <span className="block text-[28px] leading-none font-bold tracking-[-0.03em]">{f.weekdays?.length} days</span>
                   <span className="sr-only">{f.name}</span>
                   <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
-                    {f.key === winnerFreq && <BestPill selected={active} />}
+                    {f.key === winnerFreq
+                      ? <BestPill selected={active} save={save} />
+                      : save > 0 && <span aria-label={`Save ${save}%`} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">Save {save}%</span>}
                   </span>
                 </span>
                 <span className="flex flex-wrap gap-1.5">
