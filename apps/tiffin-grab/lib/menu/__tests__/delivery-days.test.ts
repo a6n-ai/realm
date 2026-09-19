@@ -81,6 +81,9 @@ describe("planWeek", () => {
   it("returns null when an eating day precedes the first delivery day", () => {
     expect(planWeek(["tue", "wed", "thu", "fri", "sat"], ["mon"])).toBeNull();
   });
+  it("reports which eating days each trip carries", () => {
+    expect(planWeek(MWF, ALL)?.map((t) => t.days)).toEqual([["mon", "tue"], ["wed", "thu"], ["fri", "sat", "sun"]]);
+  });
   it("conserves tiffins", () => {
     const t = planWeek(MWF, ALL)!;
     expect(t.reduce((n, x) => n + x.units, 0)).toBe(7);

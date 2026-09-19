@@ -39,16 +39,16 @@ export function clubbedQuantities(weekdays: DayOfWeek[]): Record<DayOfWeek, numb
  * or before it, and delivery days with nothing to carry are dropped. Returns
  * null when an eating day falls before the week's first delivery day (nothing
  * earlier in the plan could carry it) — callers reject that selection. */
-export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number }[] | null {
+export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number; days: DayOfWeek[] }[] | null {
   const idx = (d: DayOfWeek) => WEEK_ORDER.indexOf(d);
   const deliveries = [...deliveryDays].sort((a, b) => idx(a) - idx(b));
-  const units = new Map<DayOfWeek, number>();
-  for (const eat of eatingDays) {
+  const carried = new Map<DayOfWeek, DayOfWeek[]>();
+  for (const eat of [...eatingDays].sort((a, b) => idx(a) - idx(b))) {
     const carrier = deliveries.filter((d) => idx(d) <= idx(eat)).pop();
     if (!carrier) return null;
-    units.set(carrier, (units.get(carrier) ?? 0) + 1);
+    carried.set(carrier, [...(carried.get(carrier) ?? []), eat]);
   }
-  return deliveries.filter((d) => units.has(d)).map((day) => ({ day, units: units.get(day)! }));
+  return deliveries.filter((d) => carried.has(d)).map((day) => ({ day, units: carried.get(day)!.length, days: carried.get(day)! }));
 }
 
 /** Shared by the wizard and createOrder: null when the eating-day pick is valid for

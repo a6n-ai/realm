@@ -24,9 +24,10 @@ import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
 } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
-import { defaultEatingDays, eatingDaysError, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { defaultEatingDays, eatingDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { convertInquiry, previewPrice, repCouponInfo, type RepCouponInfo } from "./actions";
+import { ScheduleSection } from "./schedule-section";
 import { PostalCombobox } from "../../../_leads/postal-combobox";
 import { PlanMealPicker } from "../../../_leads/plan-interest-fields";
 
@@ -117,8 +118,6 @@ export function OrderForm({
   const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length);
   const bounds = { min: catalog.minTiffinsPerWeek ?? 2, max: catalog.maxTiffinsPerWeek ?? 7 };
   const deliveryDays = (deliveryFrequencies.find((f) => f.key === frequencyKey)?.weekdays ?? []) as DayOfWeek[];
-  const eatingError = eatingDays.length >= bounds.min ? eatingDaysError(deliveryDays, eatingDays, bounds) : null;
-  const trips = planWeek(deliveryDays, eatingDays);
   const toggleEating = (d: DayOfWeek) => {
     const next = eatingDays.includes(d) ? eatingDays.filter((x) => x !== d) : eatingDays.length < bounds.max ? [...eatingDays, d] : eatingDays;
     form.setValue("eatingDays", (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).filter((x) => next.includes(x)), { shouldDirty: true, shouldValidate: true });
@@ -313,30 +312,6 @@ export function OrderForm({
               </div>
               <FormField
                 control={form.control}
-                name="frequencyKey"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frequency <span className="text-destructive">*</span></FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(key) => {
-                        // Only follow the new frequency while eating days are still the previous one's default.
-                        const next = deliveryFrequencies.find((f) => f.key === key);
-                        if (next && eatingDays.join() === defaultEatingDays(deliveryDays, bounds.max).join()) {
-                          form.setValue("eatingDays", defaultEatingDays(next.weekdays as DayOfWeek[], bounds.max), { shouldDirty: true, shouldValidate: true });
-                        }
-                        field.onChange(key);
-                      }}
-                    >
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>{deliveryFrequencies.map((f) => <SelectItem key={f.key} value={f.key}>{f.name} ({f.weekdays!.join(", ")})</SelectItem>)}</SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="persons"
                 render={({ field }) => (
                   <FormItem>
@@ -374,19 +349,22 @@ export function OrderForm({
             </div>
           </fieldset>
 
-          <fieldset className="space-y-2" disabled={submitting}>
-            <legend className="text-sm font-medium text-foreground mb-1">Eating days <span className="text-destructive">*</span></legend>
-            <div className="flex flex-wrap gap-2">
-              {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((d) => {
-                const on = eatingDays.includes(d);
-                return (
-                  <Button key={d} type="button" size="sm" variant={on ? "default" : "outline"} aria-pressed={on} disabled={!on && eatingDays.length >= bounds.max} onClick={() => toggleEating(d)} className="capitalize">{d}</Button>
-                );
-              })}
-            </div>
-            <p className="text-muted-foreground text-xs">{eatingDays.length} tiffins a week (pick {bounds.min}-{bounds.max})</p>
-            {eatingError || eatingDays.length < bounds.min ? <p role="alert" className="text-destructive text-xs">{eatingError ?? `Pick between ${bounds.min} and ${bounds.max} eating days a week`}</p> : null}
-            {trips ? <p className="text-muted-foreground text-xs">{trips.map((t) => `${t.day}: ${t.units}`).join(" · ")}</p> : null}
+          <fieldset disabled={submitting}>
+            <ScheduleSection
+              frequencies={deliveryFrequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays as DayOfWeek[] }))}
+              frequencyKey={frequencyKey}
+              onFrequencyChange={(key) => {
+                // Only follow the new frequency while eating days are still the previous one's default.
+                const next = deliveryFrequencies.find((f) => f.key === key);
+                if (next && eatingDays.join() === defaultEatingDays(deliveryDays, bounds.max).join()) {
+                  form.setValue("eatingDays", defaultEatingDays(next.weekdays as DayOfWeek[], bounds.max), { shouldDirty: true, shouldValidate: true });
+                }
+                form.setValue("frequencyKey", key, { shouldDirty: true, shouldValidate: true });
+              }}
+              eatingDays={eatingDays}
+              onToggleDay={toggleEating}
+              bounds={bounds}
+            />
           </fieldset>
 
           <fieldset className="space-y-3" disabled={submitting}>

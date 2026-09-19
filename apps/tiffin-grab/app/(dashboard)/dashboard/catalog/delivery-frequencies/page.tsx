@@ -4,6 +4,15 @@ import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { CatalogData, type SearchParams } from "../[resource]/page";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
+import { requireAdmin } from "@/lib/auth/guards";
+import { getAppSettings } from "@/lib/services/app-settings.service";
+import { TiffinsPerWeekForm, TiffinsPerWeekSkeleton } from "./tiffins-per-week-form";
+
+async function TiffinsPerWeekData() {
+  await requireAdmin();
+  const s = await getAppSettings();
+  return <TiffinsPerWeekForm min={s.minTiffinsPerWeek} max={s.maxTiffinsPerWeek} />;
+}
 
 // Combines "delivery-frequencies", "duration-packages" and "delivery-zones"
 // into one tabbed "Delivery settings" card — same pattern as dishes/page.tsx
@@ -41,6 +50,15 @@ export default function DeliverySettingsPage({ searchParams }: { searchParams: S
               content: (
                 <Suspense fallback={<ResourceEditorSkeleton resource="delivery-zones" />}>
                   <CatalogData resource="delivery-zones" searchParams={searchParams} />
+                </Suspense>
+              ),
+            },
+            {
+              value: "tiffins-per-week",
+              label: "Tiffins per week",
+              content: (
+                <Suspense fallback={<TiffinsPerWeekSkeleton />}>
+                  <TiffinsPerWeekData />
                 </Suspense>
               ),
             },
