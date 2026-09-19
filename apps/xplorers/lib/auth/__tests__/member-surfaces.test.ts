@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { Role } from "@foundry/commons";
+import { getNavSections } from "@/components/dashboard/app-sidebar";
 import { roleCan } from "@/lib/auth/guards";
+import { grantedKeys } from "@/lib/auth/nav-permissions";
+
+function navTitles(role: Role) {
+  return getNavSections({ granted: grantedKeys(role) }).flatMap((s) => s.items.map((i) => i.title));
+}
 
 describe("member reaches its intended surfaces", () => {
+  it("admin sees Settings; member does not", () => {
+    expect(grantedKeys(Role.ADMIN)).toContain("settings:write");
+    expect(navTitles(Role.ADMIN)).toContain("Settings");
+    expect(grantedKeys(Role.MEMBER)).not.toContain("settings:write");
+    expect(navTitles(Role.MEMBER)).not.toContain("Settings");
+  });
   it("member may read settings", () => {
     expect(roleCan(Role.MEMBER, { settings: ["read"] })).toBe(true);
   });
