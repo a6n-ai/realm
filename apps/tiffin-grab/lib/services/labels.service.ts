@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { parsePhoneNumberWithError } from "libphonenumber-js";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import { db } from "@/db/client";
-import { deliveries, menuWeeks, orders, plans, users } from "@/db/schema";
+import { deliveries, mealSizes, menuWeeks, orders, plans, users } from "@/db/schema";
 import { mondayOfIso } from "@/lib/menu/delivery-dates";
 import { resolveDeliveryMeal } from "@/lib/menu/resolve-delivery-meal";
 import { dishCategoriesService } from "./dish-categories.service";
@@ -18,6 +18,7 @@ export type PackingLabelRow = {
   customerPhone: string;
   firstName: string;
   planName: string;
+  mealSizeName: string;
   items: { name: string; qty: number }[]; // length <= ITEM_SLOTS, in category sortOrder
 };
 
@@ -40,13 +41,16 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       fullName: orders.fullName,
       persons: orders.persons,
       planId: orders.planId,
+      mealSizeId: orders.mealSizeId,
       categoryCounts: orders.categoryCounts,
       planName: plans.name,
+      mealSizeName: mealSizes.name,
       userPhone: users.phone,
     })
     .from(deliveries)
     .innerJoin(orders, eq(deliveries.orderId, orders.id))
     .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(users, eq(orders.userId, users.id))
     .where(and(
       eq(deliveries.deliveryDate, dateIso),
@@ -76,7 +80,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
     if (week) {
       for (let person = 1; person <= row.persons; person++) {
         const resolved = await resolveDeliveryMeal(
-          { id: row.orderId, planId: row.planId, categoryCounts: row.categoryCounts },
+          { id: row.orderId, planId: row.planId, mealSizeId: row.mealSizeId, categoryCounts: row.categoryCounts },
           week,
           dayOfWeek,
           person,
@@ -102,6 +106,7 @@ export async function getPackingLabels(dateIso: string): Promise<PackingLabelRow
       customerPhone: formatCanadianPhone(row.userPhone),
       firstName: (row.fullName ?? "").trim().split(/\s+/)[0] ?? "",
       planName: row.planName,
+      mealSizeName: row.mealSizeName,
       items,
     });
   }

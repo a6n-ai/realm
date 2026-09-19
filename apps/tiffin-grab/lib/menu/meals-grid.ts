@@ -37,6 +37,7 @@ export type MealOrder = {
   id: bigint;
   publicId: string;
   planId: bigint;
+  mealSizeId: bigint;
   persons: number;
   categoryCounts: Record<string, number>;
   mealSlots: string[];

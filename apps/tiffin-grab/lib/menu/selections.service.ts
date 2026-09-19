@@ -3,9 +3,9 @@
 // future kitchen/ops/Optimo read MUST too — a second implementation will drift, and then
 // the subscriber sees one meal while the kitchen packs another.
 import { ValidationError } from "@foundry/commons";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishPlans, dishes, mealSelections, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
@@ -32,6 +32,30 @@ const DAY_KEYS = Object.keys(DAY_OFFSET) as DayOfWeek[];
 export async function dishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
   const rows = await db.select({ dishId: dishPlans.dishId }).from(dishPlans).where(eq(dishPlans.planId, planId));
   return new Set(rows.map((r) => r.dishId));
+}
+
+/**
+ * Dishes attached to this plan and no other plan of the same type. That is the
+ * "non-veg curry" set: a meat dish lives only on non-veg, while paneer is
+ * shared. Membership, not plan.key, so a new plan gets the same defaulting
+ * without a string match.
+ */
+export async function exclusiveDishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
+  const [plan] = await db.select({ id: plans.id, planType: plans.planType }).from(plans).where(eq(plans.id, planId)).limit(1);
+  if (!plan) return new Set();
+  const siblings = await db.select({ id: plans.id }).from(plans).where(eq(plans.planType, plan.planType));
+  if (siblings.length === 0) return new Set();
+  const membership = await db
+    .select({ dishId: dishPlans.dishId, planId: dishPlans.planId })
+    .from(dishPlans)
+    .where(inArray(dishPlans.planId, siblings.map((p) => p.id)));
+  const planCount = new Map<bigint, number>();
+  for (const row of membership) {
+    planCount.set(row.dishId, (planCount.get(row.dishId) ?? 0) + 1);
+  }
+  return new Set(
+    membership.filter((r) => r.planId === planId && (planCount.get(r.dishId) ?? 0) === 1).map((r) => r.dishId),
+  );
 }
 
 // Deliberately NO veg/non-veg derivation here. Plans are user-editable, so any

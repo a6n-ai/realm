@@ -479,7 +479,7 @@ export async function myDeliveryActivity(userId: bigint, limit = 50): Promise<Cu
 // only through the admin/cron flows, not from a customer-facing lookup.
 export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<ResolvedCategory[] | { pending: true }> {
   const [order] = await db
-    .select({ id: orders.id, planId: orders.planId, categoryCounts: orders.categoryCounts, planType: plans.planType })
+    .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, planType: plans.planType })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .where(eq(orders.publicId, d.orderPublicId))
@@ -494,7 +494,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
   // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
   const dayOfWeek = weekdayKey(new Date(`${d.deliveryDate}T00:00:00Z`));
-  return resolveDeliveryMeal({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
+  return resolveDeliveryMeal({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
 }
 
 // Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of
@@ -520,7 +520,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before any read
 
   const [order] = await db
-    .select({ id: orders.id, planId: orders.planId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
+    .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .where(eq(orders.publicId, orderPublicId))
@@ -567,7 +567,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
     let weekResolved = resolvedByWeek.get(week.id);
     if (!weekResolved) {
-      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons);
+      weekResolved = await resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons);
       resolvedByWeek.set(week.id, weekResolved);
     }
     let weekItems = itemsByWeek.get(week.id);

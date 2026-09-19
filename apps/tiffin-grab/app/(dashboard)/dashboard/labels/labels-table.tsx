@@ -31,6 +31,7 @@ export function LabelsTable({ rows }: { rows: PackingLabelRow[] }) {
               <TableCell className="whitespace-nowrap">{row.customerPhone}</TableCell>
               <TableCell className="whitespace-nowrap">{row.firstName}</TableCell>
               <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
               {Array.from({ length: 7 }, (_, i) => row.items[i]).map((item, i) => (
                 <Fragment key={i}>
                   <TableCell className="whitespace-nowrap">{item?.name ?? ""}</TableCell>

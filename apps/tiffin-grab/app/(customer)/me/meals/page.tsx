@@ -38,6 +38,7 @@ async function MyMealsData() {
       id: orders.id,
       publicId: orders.publicId,
       planId: orders.planId,
+      mealSizeId: orders.mealSizeId,
       persons: orders.persons,
       categoryCounts: orders.categoryCounts,
       mealSlots: orders.mealSlots,

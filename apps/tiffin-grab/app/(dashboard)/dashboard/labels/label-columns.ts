@@ -18,6 +18,7 @@ export const LABEL_COLUMNS = [
   { key: "customerPhone", header: "CustomersNumber" },
   { key: "firstName", header: "FirstName" },
   { key: "planName", header: "Plan Name" },
+  { key: "mealSizeName", header: "Meal Size" },
   ...ITEM_HEADERS.flatMap(([itemHeader, qtyHeader]) => [
     { key: "item", header: itemHeader },
     { key: "qty", header: qtyHeader },
@@ -29,6 +30,7 @@ export function labelRowToExcelRecord(row: PackingLabelRow): Record<string, stri
     CustomersNumber: row.customerPhone,
     FirstName: row.firstName,
     "Plan Name": row.planName,
+    "Meal Size": row.mealSizeName,
   };
   ITEM_HEADERS.forEach(([itemHeader, qtyHeader], i) => {
     const item = row.items[i];

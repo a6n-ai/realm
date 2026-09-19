@@ -39,7 +39,7 @@ async function makeOrder(planId: bigint) {
     deploymentId: `SUB-GRID-IMG-${Math.floor(Math.random() * 1e6)}`, fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
   }).returning();
   const mealOrder = {
-    id: o.id, publicId: o.publicId, planId: o.planId, persons: o.persons, categoryCounts: o.categoryCounts, mealSlots: o.mealSlots,
+    id: o.id, publicId: o.publicId, planId: o.planId, mealSizeId: o.mealSizeId, persons: o.persons, categoryCounts: o.categoryCounts, mealSlots: o.mealSlots,
     includeSaturday: o.includeSaturday, includeSunday: o.includeSunday, startDate: o.startDate,
     durationWeeks: o.durationWeeks, frequencyKey: "5_day",
   };

@@ -1,9 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ne } from "drizzle-orm";
+import { eq, inArray, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
+import { dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
+import { exclusiveDishIdsForPlan } from "../selections.service";
+import { maxTuPickIndex } from "../default-pick";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
@@ -111,5 +113,77 @@ describe("resolveDeliveryMeal", () => {
     expect(sabzi.picks[0].dishPublicId).toBe(sabziLow.publicId);
     expect(sabzi.picks[0].name).toBe("Aloo Gobi");
     expect(sabzi.picks[1].dishPublicId).toBe(sabziLow.publicId);
+  });
+});
+
+describe("resolveDeliveryMeal non-restricted plan defaults", () => {
+  const DEPLOYMENT = "SUB-NVDEF01";
+  const USER_EMAIL = "nvdef@test.invalid";
+  const DISH_PREFIX = "NVDEF-";
+
+  async function scopedReset() {
+    const mine = await db.select({ id: orders.id }).from(orders).where(eq(orders.deploymentId, DEPLOYMENT));
+    const orderIds = mine.map((o) => o.id);
+    if (orderIds.length) {
+      await db.delete(mealSelections).where(inArray(mealSelections.orderId, orderIds));
+      await db.delete(orders).where(inArray(orders.id, orderIds));
+    }
+    const weeks = await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.weekStart, FUTURE_MONDAY));
+    if (weeks.length) {
+      const weekIds = weeks.map((w) => w.id);
+      await db.delete(menuItems).where(inArray(menuItems.menuWeekId, weekIds));
+      await db.delete(menuWeeks).where(inArray(menuWeeks.id, weekIds));
+    }
+    await db.delete(dishes).where(like(dishes.name, `${DISH_PREFIX}%`));
+    await db.delete(users).where(eq(users.email, USER_EMAIL));
+  }
+
+  beforeEach(scopedReset);
+  afterAll(scopedReset);
+
+  it("defaults the largest sabzi slot to a dish no sibling plan offers", async () => {
+    const snap = await loadCatalogSnapshot();
+    const nonVegPlan = snap.plans.find((p) => p.key === "non-veg")!;
+    const size = snap.mealSizes.find((m) => m.key === "maharaja_nonveg")!;
+    expect(nonVegPlan).toBeDefined();
+    expect(size).toBeDefined();
+    const [u] = await db.insert(users).values({
+      email: USER_EMAIL,
+      phone: "+16475559001",
+      role: "user",
+    }).returning();
+    const [o] = await db.insert(orders).values({
+      userId: u.id, planId: nonVegPlan.id, mealSizeId: size.id,
+      frequencyId: snap.frequencies.find((f) => f.key === "5_day")!.id, persons: 1, mealSlots: ["lunch"],
+      categoryCounts: { sabzi: 2, rice: 1 },
+      durationWeeks: 1, startDate: FUTURE_MONDAY, tiffinCount: 5, perTiffinPrice: "10.00", pricingSnapshot: {}, total: "50.00", status: "active",
+      deploymentId: DEPLOYMENT, fullName: "T", addressLine: "1", city: "Toronto", postalCode: "M5V 2T6",
+    }).returning();
+    const [w] = await db.insert(menuWeeks).values({ weekStart: FUTURE_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+
+    const [paneer] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Paneer Butter Masala` }).returning();
+    await attachDishToPlans(paneer.id);
+    const [chicken] = await db.insert(dishes).values({ name: `${DISH_PREFIX}Chicken Curry` }).returning();
+    await attachDishToPlans(chicken.id, ["non-veg"]);
+
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: paneer.id, isDefault: true, position: 1 });
+    await db.insert(menuItems).values({ menuWeekId: w.id, dayOfWeek: "mon", categoryId: await categoryIdFor("sabzi"), dishId: chicken.id, isDefault: false, position: 2 });
+
+    const exclusive = await exclusiveDishIdsForPlan(nonVegPlan.id);
+    expect(exclusive.has(chicken.id), "chicken should be exclusive to non-veg").toBe(true);
+    expect(exclusive.has(paneer.id), "shared paneer is not exclusive").toBe(false);
+
+    const meal = await resolveDeliveryMeal(o, w, "mon", 1, null);
+    const sabzi = meal.find((m) => m.category === "sabzi")!;
+    const sizeLines = await db
+      .select({ category: mealSizeItems.category, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder })
+      .from(mealSizeItems)
+      .where(eq(mealSizeItems.mealSizeId, size.id));
+    const maxPick = maxTuPickIndex(sizeLines.filter((l) => l.category === "sabzi")) ?? 1;
+    expect(sabzi.picks[maxPick - 1]?.name).toBe(`${DISH_PREFIX}Chicken Curry`);
+    for (let i = 0; i < sabzi.picks.length; i++) {
+      if (i === maxPick - 1) continue;
+      expect(sabzi.picks[i]?.name).toBe(`${DISH_PREFIX}Paneer Butter Masala`);
+    }
   });
 });

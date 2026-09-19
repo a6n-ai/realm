@@ -97,6 +97,7 @@ export async function SubscriptionPanel({
         id: order.id,
         publicId: order.publicId,
         planId: order.planId,
+        mealSizeId: order.mealSizeId,
         persons: order.persons,
         categoryCounts,
         mealSlots: order.mealSlots,

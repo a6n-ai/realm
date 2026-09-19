@@ -3,15 +3,16 @@
 // reuses this instead of re-deriving the pick → isDefault fallback.
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, menuItems, menuWeeks, orders } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizeItems, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { dishIdsForPlan } from "@/lib/menu/selections.service";
+import { dishIdsForPlan, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
+import { defaultMenuItem, maxTuPickIndex } from "@/lib/menu/default-pick";
 import type { DayOfWeek } from "@/lib/menu/delivery-dates";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
 
 // Narrowed to the fields actually used, so both a full `orders`/`menuWeeks` row (single-day
 // callers) and the lighter shapes buildMealsGrid works with satisfy this structurally.
-type Order = Pick<typeof orders.$inferSelect, "id" | "planId" | "categoryCounts">;
+type Order = Pick<typeof orders.$inferSelect, "id" | "planId" | "mealSizeId" | "categoryCounts">;
 // weekStart is needed to map each day of the week to its calendar date, so
 // resolveDeliveryMealsForWeek can look up that date's delivery row (and its swaps)
 // in one batched query rather than per day.
@@ -72,6 +73,8 @@ function resolveCategoriesForDay(
   // Dish ids attached to the order's plan. A menu item whose dish is not in
   // here is simply not offered — this is the food-safety filter.
   planDishIds: Set<bigint>,
+  exclusiveDishIds: Set<bigint>,
+  maxTuByCategory: Map<string, number>,
 ): ResolvedCategory[] {
   const out: ResolvedCategory[] = [];
   for (const c of cats) {
@@ -80,9 +83,11 @@ function resolveCategoriesForDay(
     // A category absent from the plan's category_counts isn't part of this plan at all — 0, not 1.
     const count = counts[c.key] ?? 0;
     if (count === 0) continue;
-    const def = slotItems.find((i) => i.isDefault) ?? slotItems[0];
+    // Missing composition rows: treat pick 1 as the largest container.
+    const maxTuPi = maxTuByCategory.get(c.key) ?? 1;
 
     if (!c.selectable) {
+      const def = defaultMenuItem(slotItems, 1, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
       out.push({
         category: c.key, selectable: false, label: c.label, quantity: count,
         picks: [{ dishId: def.dishId, dishPublicId: def.publicId, name: def.name, isDefaulted: true }],
@@ -97,6 +102,7 @@ function resolveCategoriesForDay(
       // plan membership) since the pick was made, fall back to the default dish entirely — never a
       // half-stale mix of ids/name.
       const chosenItem = chosen ? slotItems.find((i) => i.dishId === chosen.dishId) : undefined;
+      const def = defaultMenuItem(slotItems, pi, { exclusiveDishIds, maxTuPickIndex: maxTuPi }) ?? slotItems[0]!;
       const resolvedItem = chosenItem ?? def;
       picks.push({
         dishId: resolvedItem.dishId, dishPublicId: resolvedItem.publicId, name: resolvedItem.name,
@@ -106,6 +112,38 @@ function resolveCategoriesForDay(
     out.push({ category: c.key, selectable: true, label: c.label, quantity: picks.length, picks });
   }
   return out;
+}
+
+async function maxTuPickByCategory(mealSizeId: bigint): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      category: mealSizeItems.category,
+      tuAmount: mealSizeItems.tuAmount,
+      sortOrder: mealSizeItems.sortOrder,
+    })
+    .from(mealSizeItems)
+    .where(eq(mealSizeItems.mealSizeId, mealSizeId));
+  const byCat = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const list = byCat.get(row.category);
+    if (list) list.push(row);
+    else byCat.set(row.category, [row]);
+  }
+  const out = new Map<string, number>();
+  for (const [category, list] of byCat) {
+    const idx = maxTuPickIndex(list);
+    if (idx != null) out.set(category, idx);
+  }
+  return out;
+}
+
+async function defaultPickContext(order: Order) {
+  const [planDishIds, exclusiveDishIds, maxTuByCat] = await Promise.all([
+    dishIdsForPlan(order.planId),
+    exclusiveDishIdsForPlan(order.planId),
+    maxTuPickByCategory(order.mealSizeId),
+  ]);
+  return { planDishIds, exclusiveDishIds, maxTuByCat };
 }
 
 export async function resolveDeliveryMeal(
@@ -141,7 +179,16 @@ export async function resolveDeliveryMeal(
     .where(eq(deliveryCategorySwaps.deliveryId, deliveryId))
     .orderBy(asc(deliveryCategorySwaps.id));
 
-  return resolveCategoriesForDay(items, picks, cats, applySwapsToCounts(order.categoryCounts ?? {}, swaps), await dishIdsForPlan(order.planId));
+  const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
+  return resolveCategoriesForDay(
+    items,
+    picks,
+    cats,
+    applySwapsToCounts(order.categoryCounts ?? {}, swaps),
+    planDishIds,
+    exclusiveDishIds,
+    maxTuByCat,
+  );
 }
 
 export type ResolvedMealsWeek = Map<string, ResolvedCategory[]>;
@@ -167,7 +214,7 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const planDishIds = await dishIdsForPlan(order.planId);
+  const { planDishIds, exclusiveDishIds, maxTuByCat } = await defaultPickContext(order);
   const baseCounts = order.categoryCounts ?? {};
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
@@ -195,7 +242,10 @@ export async function resolveDeliveryMealsForWeek(order: Order, week: Week, pers
     const counts = applySwapsToCounts(baseCounts, daySwaps);
     for (let person = 1; person <= persons; person++) {
       const dayPersonPicks = picks.filter((p) => p.dayOfWeek === day && p.personIndex === person);
-      result.set(resolvedMealsWeekKey(day, person), resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds));
+      result.set(
+        resolvedMealsWeekKey(day, person),
+        resolveCategoriesForDay(dayItems, dayPersonPicks, cats, counts, planDishIds, exclusiveDishIds, maxTuByCat),
+      );
     }
   }
   return result;
