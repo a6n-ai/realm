@@ -16,6 +16,8 @@ export const metadata = buildMetadata({
   path: "/",
 });
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <>
